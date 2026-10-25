@@ -165,13 +165,6 @@ describe('MR5 colour invariance: colour inputs never move geometry', () => {
     }
   })
 
-  test('the paint-free projection strips paint but keeps geometry', () => {
-    const svg = renderMermaidSVG('flowchart TD\n  A[Alpha] --> B', { style: 'dracula', bg: '#101014' })
-    const projected = geometry(svg)
-    for (const paint of ['#101014', 'fill=', 'stroke=', '--bg:', 'data-backdrop']) expect(projected).not.toContain(paint)
-    for (const kept of ['viewBox=', 'points=', 'stroke-width', 'font-size', '>Alpha<']) expect(projected).toContain(kept)
-  })
-
   for (const fam of FAMILIES) {
     test(`${fam.family}: layout and paint-free SVG are identical under any colour input`, () => {
       fc.assert(

@@ -8,7 +8,7 @@ import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { decodeXML } from 'entities'
 import { renderMermaidSVG } from '../index.ts'
-import { LayoutCertificationError } from '../layout/certification-error.ts'
+import { MindmapParseError } from '../mindmap/parser.ts'
 
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { describeViolations, HONESTY_STYLES, textHonestyViolations } from './helpers/chart-honesty.ts'
@@ -54,9 +54,17 @@ describe('chart honesty: generated diagrams with random titles', () => {
       try {
         svg = renderMermaidSVG(source)
       } catch (error) {
-        // A family whose body needs content (a Gantt task, a mindmap root)
-        // refuses it; a layout that cannot place the title is no refusal.
-        expect(error).not.toBeInstanceOf(LayoutCertificationError)
+        if (kind === 'mindmap') {
+          expect(error).toBeInstanceOf(MindmapParseError)
+          expect((error as Error).message).toContain('Mindmap requires exactly one root node')
+        } else if (kind === 'sankey') {
+          expect(error?.constructor).toBe(Error)
+          expect((error as Error).message).toBe('Sankey diagram must include at least one source,target,value row')
+        } else if (kind === 'block') {
+          expect(error).toMatchObject({ name: 'Error', message: expect.stringMatching(/^block parse error at line 2, column 1: Expecting .+, got 'EOF'$/) })
+        } else {
+          throw error
+        }
         return
       }
       const drawn = [...svg.matchAll(/<text\b[^>]*\bdata-role="title"[^>]*>([\s\S]*?)<\/text>/g)]

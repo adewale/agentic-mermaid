@@ -20,6 +20,8 @@ describe('#7540 unique SVG ids across diagrams', () => {
   test('two diagrams with distinct prefixes have zero colliding ids', () => {
     const a = renderMermaidSVG('flowchart TD\n A[Start]-->B\n A-.->C', { idPrefix: 'd0-' })
     const b = renderMermaidSVG('flowchart LR\n X-->Y\n X-->Z', { idPrefix: 'd1-' })
+    expect(ids(a)).toContain('d0-arrowhead')
+    expect(ids(b)).toContain('d1-arrowhead')
     const collide = ids(a).filter(x => ids(b).includes(x))
     expect(collide).toEqual([])
     expect(ids(a).every(i => i.startsWith('d0-'))).toBe(true)
@@ -29,6 +31,8 @@ describe('#7540 unique SVG ids across diagrams', () => {
   test('all url(#…) references resolve to a declared (prefixed) id — no dangling', () => {
     const a = renderMermaidSVG('flowchart TD\n A[Start]-->B\n A-.->C\n B-->D', { idPrefix: 'd0-' })
     const declared = new Set(ids(a))
+    expect(declared.has('d0-arrowhead')).toBe(true)
+    expect(refs(a)).toHaveLength(3)
     for (const r of refs(a)) expect(declared.has(r)).toBe(true)
     expect(refs(a).every(r => r.startsWith('d0-'))).toBe(true)
   })
@@ -57,6 +61,14 @@ describe('#7540 unique SVG ids across diagrams', () => {
   Do work: 1: Me, Cat`
     const a = renderMermaidSVG(src, { idPrefix: 'j0-' })
     const b = renderMermaidSVG(src, { idPrefix: 'j1-' })
+    for (const [svg, prefix] of [[a, 'j0-'], [b, 'j1-']] as const) {
+      expect(svg).toMatch(/<title\b[^>]*>Working day<\/title>/)
+      expect(svg).toMatch(/<desc\b[^>]*>Sentiment across the day<\/desc>/)
+      expect(ids(svg).filter(id => id.startsWith(prefix))).toHaveLength(ids(svg).length)
+      expect(ids(svg).length).toBeGreaterThanOrEqual(3)
+      expect(ariaRefs(svg)).toHaveLength(2)
+      expect(refs(svg).length).toBeGreaterThan(0)
+    }
     expect(ids(a).filter(x => ids(b).includes(x))).toEqual([])
     expect(ids(a).every(i => i.startsWith('j0-'))).toBe(true)
     expect(ids(b).every(i => i.startsWith('j1-'))).toBe(true)

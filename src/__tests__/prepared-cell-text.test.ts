@@ -23,8 +23,13 @@ describe('prepared cell text', () => {
     expect(block.lineWidths).toEqual([3, 3, 0, 4])
   })
 
-  it.each(['漢字ひらがな', 'éééé', '👩🏽‍💻👨‍👩‍👧‍👦🇨🇳'])('never splits a grapheme: %s', source => {
+  it.each([
+    ['漢字ひらがな', ['漢', '字', 'ひ', 'ら', 'が', 'な']],
+    ['éééé', ['éé', 'éé']],
+    ['👩🏽‍💻👨‍👩‍👧‍👦🇨🇳', ['👩🏽‍💻', '👨‍👩‍👧‍👦', '🇨🇳']],
+  ] as const)('never splits a grapheme: %s', (source, expected) => {
     const block = prepareCellText(source, { maxWidth: 2, hyphenate: false })
+    expect(block.lines).toEqual(expected)
     expect(block.lines.join('')).toBe(source)
     expect(block.lineWidths.every(width => width <= 2)).toBe(true)
     expect(block.width).toBe(Math.max(...block.lines.map(visualWidth)))

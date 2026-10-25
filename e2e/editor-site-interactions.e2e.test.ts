@@ -319,10 +319,16 @@ describe('editor and site interactions in a real browser', () => {
 
   test('preview rendering uses one persistent worker and a late result cannot replace the newest verified source', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    await page.clock.install()
     await wrapAdapter(page, 'renderMermaidSVGWithReceipt', `function(original) {
+      window.__heldPreviews = {};
       return async function(source, options) {
         var artifact = await original(source, options);
-        if (source.indexOf('Earlier') >= 0 || source.indexOf('Slow') >= 0) await new Promise(function(done) { setTimeout(done, 500); });
+        var key = source.indexOf('Earlier') >= 0 ? 'earlier' : source.indexOf('Slow') >= 0 ? 'slow' : null;
+        if (key) {
+          await new Promise(function(done) { window.__heldPreviews[key] = done; });
+          delete window.__heldPreviews[key];
+        }
         return artifact;
       };
     }`)
@@ -330,14 +336,21 @@ describe('editor and site interactions in a real browser', () => {
     const workerStarted = page.waitForEvent('worker')
     await page.locator('#code-editor').fill('flowchart LR\nEarlier --> Result')
     await workerStarted
+    await page.waitForFunction(() => typeof (window as any).__heldPreviews.earlier === 'function')
     await page.locator('#code-editor').fill('flowchart LR\nNewest --> Verified')
-    await waitForVerifiedRender(page)
-    await page.waitForTimeout(600)
+    await page.waitForFunction(() => document.getElementById('status-text')?.textContent === 'OK' && document.getElementById('preview-inner')?.textContent?.includes('Newest'))
+    await page.evaluate(() => (window as any).__heldPreviews.earlier())
+    await page.waitForFunction(() => !(window as any).__heldPreviews.earlier)
+    // The released promise and the editor's continuation finish before the next frame.
+    await page.evaluate(() => new Promise<void>(done => requestAnimationFrame(() => done())))
     expect(await page.locator('#preview-inner svg').textContent()).toContain('Newest')
     expect(await page.locator('#preview-inner svg').textContent()).not.toContain('Earlier')
     expect(await page.locator('#render-time').textContent()).toContain('Rendered and verified')
     expect(page.workers()).toHaveLength(1)
     await page.locator('#code-editor').fill('flowchart LR\nSlow --> Verified')
+    await page.waitForFunction(() => typeof (window as any).__heldPreviews.slow === 'function')
+    await page.clock.fastForward(500)
+    await page.evaluate(() => (window as any).__heldPreviews.slow())
     await page.waitForFunction(() => document.getElementById('status-text')?.textContent === 'OK' && document.getElementById('preview-inner')?.textContent?.includes('Slow'))
     // Inspect the requested debounce, rather than a flaky wall-clock bound.
     // The delayed background response must not force a 300 ms pause on input.

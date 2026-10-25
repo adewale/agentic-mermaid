@@ -4,6 +4,7 @@ import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { renderMermaidASCII } from '../ascii/index.ts'
+import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
 import { convertToAsciiGraph } from '../ascii/converter.ts'
 import { determineLabelLine } from '../ascii/edge-routing.ts'
 import { getPath, mergePath } from '../ascii/pathfinder.ts'
@@ -91,15 +92,6 @@ function makeGraph(direction: 'TD' | 'LR' = 'TD'): AsciiGraph {
     offsetY: 0,
     bundles: [],
     trunkJunctions: [],
-  }
-}
-
-function occupyNode(graph: AsciiGraph, node: AsciiNode): void {
-  const gridCoord = node.gridCoord!
-  for (let dx = 0; dx < 3; dx++) {
-    for (let dy = 0; dy < 3; dy++) {
-      graph.grid.set(gridKey({ x: gridCoord.x + dx, y: gridCoord.y + dy }), node)
-    }
   }
 }
 
@@ -519,8 +511,11 @@ describe('property-based renderMermaidASCII', () => {
           ...edges.map((edge) => `${edge.from} -->${edge.label ? `|${edge.label}|` : ''} ${edge.to}`),
         ].join('\n')
 
-        const ascii = renderMermaidASCII(source, { colorMode: 'none', useAscii: false })
-        assertNoDiagonals(ascii)
+        const rendered = renderMermaidASCIIWithMeta(source, { colorMode: 'none', useAscii: false })
+        for (const node of nodes) expect(rendered.ascii).toContain(node.label)
+        expect(rendered.regions.filter(region => region.kind === 'node').map(region => region.id).sort()).toEqual(nodes.map(node => node.id).sort())
+        expect(rendered.regions.filter(region => region.kind === 'edge').map(edge => [edge.from, edge.to]).sort()).toEqual(edges.map(edge => [edge.from, edge.to]).sort())
+        assertNoDiagonals(rendered.ascii)
       }),
       fcParameters({ numRuns: 30, examples: [[{
         nodes: [

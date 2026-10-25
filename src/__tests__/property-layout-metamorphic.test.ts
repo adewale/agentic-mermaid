@@ -45,13 +45,6 @@ const tagArb = fc.integer({ min: 0, max: 1_000_000 }).map(n => `q${n.toString(36
 
 describe('metamorphic: relations across all renderable families', () => {
   // Move 5: a new family in the registry must declare metamorphic generators.
-  test('every BUILTIN family has a metamorphic generator (citizenship)', () => {
-    const registered = BUILTIN_FAMILY_METADATA.map(f => f.id).sort()
-    const covered = Object.keys(METAMORPHIC_FAMILIES).sort()
-    expect(covered).toEqual(registered)
-    // And each generator is self-consistent: its declared family matches its key.
-    for (const [key, gen] of Object.entries(METAMORPHIC_FAMILIES)) expect(gen.family as string).toBe(key)
-  })
 
   // Pin each generator's base-build structural count exactly. The metamorphic
   // relations only assert DELTAS (relabel/monotonicity), so a generator change
@@ -84,9 +77,11 @@ describe('metamorphic: relations across all renderable families', () => {
     sankey: { nodes: 2, edges: 1, groups: 0 }, // 1 source + shared sink; 1 CSV row
   }
 
-  test('every generator base build has its pinned structural count', () => {
+  test('every registered generator base build has its pinned structural count', () => {
+    expect(Object.keys(METAMORPHIC_FAMILIES).sort()).toEqual(BUILTIN_FAMILY_METADATA.map(family => family.id).sort())
     const got: Record<string, unknown> = {}
-    for (const fam of Object.values(METAMORPHIC_FAMILIES)) {
+    for (const [key, fam] of Object.entries(METAMORPHIC_FAMILIES)) {
+      expect(fam.family as string).toBe(key)
       const p = parseMermaid(fam.build(fam.kRange[0], 'q0'))
       got[fam.family] = p.ok ? countStructuralElements(p.value) : 'PARSE_FAIL'
     }

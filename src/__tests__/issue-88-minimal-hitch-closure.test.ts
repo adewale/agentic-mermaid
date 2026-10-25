@@ -17,6 +17,8 @@ describe('minimal final hitch closure (issue #88)', () => {
     test(`denseDag #${seed} keeps arrow arrival normal after sub-pixel port rounding`, () => {
       const graph = parseMermaid(denseDag(seed))
       const positioned = layoutGraphSync(graph)
+      expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+      expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
       const edges = positioned.edges.filter(edge => seed === 849
         ? edge.source === 'N6' && edge.target === 'N5'
         : edge.source === 'N2' && edge.target === 'N3')
@@ -56,6 +58,8 @@ describe('minimal final hitch closure (issue #88)', () => {
     test(regression.id, () => {
       const graph = parseMermaid(regression.source)
       const positioned = layoutGraphSync(graph)
+      expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+      expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
       expect(findRouteHitches(positioned, graph)).toEqual([])
     })
   }

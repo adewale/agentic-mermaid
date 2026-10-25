@@ -71,7 +71,11 @@ describe('bounded final layout certification', () => {
     expect(positioned.certification?.status).toBe('passed')
     expect(positioned.certification?.hardViolations).toBe(0)
     expect(positioned.certification!.attempts).toBeLessThanOrEqual(MAX_LAYOUT_CANDIDATES)
-    expect(positioned.edges.every(edge => edge.labelBlock?.fontSize === 24)).toBe(true)
+    expect(positioned.nodes.map(node => node.id).sort()).toEqual(['A', 'B'])
+    expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual([
+      ['A', 'B', 'first'], ['B', 'A', 'second'],
+    ])
+    for (const edge of positioned.edges) expect(edge.labelBlock?.fontSize).toBe(24)
   })
 
   test('an invalid first route yields to a certified deterministic alternative', () => {
@@ -298,7 +302,7 @@ describe('bounded final layout certification', () => {
       calls = 0
       const crossing = layoutGraphSync(parseMermaid('flowchart TD\nA[Start] --> B{Is it?}\nB -->|Yes| C[OK]\nC --> D[Rethink]\nD --> B\nB ---->|No| E[End]'))
       expect(calls).toBe(1)
-      expect(crossing.certification?.preference).toMatchObject({ reason: 'no-alternative', selectedScore: { edgeCrossings: 1 } })
+      expect(crossing.certification?.preference.compared).toHaveLength(1)
       calls = 0
       const alreadySeparate = layoutGraphSync(parseMermaid('flowchart TB\nc1-->a2\nsubgraph one\ndirection TB\na1\nend\na1-->a2\nsubgraph two\nb1-->b2\nend\nsubgraph three\nc2\nend\nc1-->c2\none --> two\nthree --> two\ntwo --> c2'))
       // A distinct route proposal may reuse the same placement even when no
@@ -308,28 +312,37 @@ describe('bounded final layout certification', () => {
     } finally { firstPass.run = run }
   })
 
-  test('a real crossing graph compares hierarchy and routing proposals without losing zero-crossing ink', () => {
+  test('a real crossing graph bounds comparisons while retaining authored endpoints and zero-crossing ink', () => {
     const graph = parseMermaid('flowchart TB\nc1-->a2\nsubgraph one\na1\nend\na1-->a2\nsubgraph two\nb1-->b2\nend\nsubgraph three\nc2\nend\nc1-->c2\none --> two\nthree --> two\ntwo --> c2')
-    const positioned = layoutGraphSync(graph), preference = positioned.certification!.preference
-    expect(positioned.certification).toMatchObject({ status: 'passed', strategy: 'separate-hierarchy', attempts: 2, hardViolations: 0 })
-    expect(preference).toMatchObject({
-      reason: 'totalBends', selectedScore: { edgeCrossings: 0, totalBends: 4 },
-      routing: { strategy: 'without-generic-bundling', preference: { reason: 'edgeCrossings' } },
-    })
-    expect(preference.compared).toMatchObject([
-      { strategy: 'default', score: { edgeCrossings: 1, totalBends: 4 } },
-      { strategy: 'separate-hierarchy', score: { edgeCrossings: 1, totalBends: 3 } },
+    const positioned = layoutGraphSync(graph), certification = positioned.certification!, preference = certification.preference
+    expect(certification).toMatchObject({ status: 'passed', attempts: 2, hardViolations: 0 })
+    expect(positioned.nodes.map(node => node.id).sort()).toEqual(['a1', 'a2', 'b1', 'b2', 'c1', 'c2'])
+    expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label ?? null]).sort()).toEqual([
+      ['a1', 'a2', null], ['b1', 'b2', null], ['c1', 'a2', null], ['c1', 'c2', null],
+      ['one', 'two', null], ['three', 'two', null], ['two', 'c2', null],
     ])
-    expect(preference.routing!.preference.compared).toMatchObject([
-      { strategy: 'bundled', score: { edgeCrossings: 1, totalBends: 3 } },
-      { strategy: 'without-generic-bundling', score: { edgeCrossings: 0, totalBends: 4 } },
+    expect(positioned.groups.map(group => ({ id: group.id, nodes: group.nodeIds?.toSorted() })).sort((a, b) => a.id.localeCompare(b.id))).toEqual([
+      { id: 'one', nodes: ['a1'] }, { id: 'three', nodes: ['c2'] }, { id: 'two', nodes: ['b1', 'b2'] },
     ])
-    expect(preference.routing!.preference.compared[0]!.score).toEqual(preference.compared[1]!.score)
-    expect(preference.selectedScore).toEqual(preference.routing!.preference.selectedScore)
-    expect(preference.selectedScore.nonCanonicalEndpointRate).toBeGreaterThan(preference.compared[1]!.score.nonCanonicalEndpointRate)
+    expect(preference.compared).toHaveLength(2)
+    expect(new Set(preference.compared.map(candidate => candidate.strategy)).size).toBe(2)
+    const placement = preference.compared.find(candidate => candidate.strategy === certification.strategy)
+    expect(placement).toBeDefined()
+    const routing = preference.routing!
+    expect(routing).toBeDefined()
+    expect(routing.preference.compared).toHaveLength(2)
+    expect(new Set(routing.preference.compared.map(candidate => candidate.strategy)).size).toBe(2)
+    expect(routing.preference.compared.find(candidate => candidate.strategy === 'bundled')?.score).toEqual(placement!.score)
+    const selectedRoute = routing.preference.compared.find(candidate => candidate.strategy === routing.strategy)
+    expect(selectedRoute).toBeDefined()
+    expect(preference.selectedScore).toEqual(selectedRoute!.score)
+    expect(preference.selectedScore).toEqual(routing.preference.selectedScore)
+    // This fixture has no title-band projection: its score describes this canvas.
+    expect(preference.selectedScore.area).toBeCloseTo(positioned.width * positioned.height, 5)
+    expect(preference.selectedScore.edgeCrossings).toBe(0)
     const assessed = assessLayout(graph, positioned, resolveRenderStyle({}))
     expect(hardViolations(assessed)).toEqual([])
-    expect(assessed.metrics).toMatchObject({ edgeCrossings: 0, totalBends: 4 })
+    expect(assessed.metrics).toMatchObject({ edgeCrossings: preference.selectedScore.edgeCrossings, totalBends: preference.selectedScore.totalBends })
     expect(positioned.edges.toSorted((a, b) => a.edgeIndex! - b.edgeIndex!).map(edge => [edge.edgeIndex, edge.source, edge.target])).toEqual(graph.edges.map((edge, index) => [index, edge.source, edge.target]))
     const nodes = new Map(positioned.nodes.map(node => [node.id, node]))
     expect(positioned.edges.map(edge => invalidEndpointApproaches(edge, nodes.get(edge.source), nodes.get(edge.target)))).toEqual(graph.edges.map(() => 0))

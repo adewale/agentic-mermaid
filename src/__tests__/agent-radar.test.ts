@@ -8,7 +8,6 @@ import { normalizeMermaidSource } from '../mermaid-source.ts'
 import type { RadarBody, RadarMutationOp, RadarValidDiagram, SankeyValidDiagram } from '../agent/index.ts'
 import type { RadarRuntimeConfig } from '../index.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
-import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const upstream = startUpstreamMermaid()
@@ -208,10 +207,6 @@ describe('radar agent surface', () => {
     void [config, badConfig, notSankey, badOp, body, built]
   }
   void compileTimeRadarContract
-
-  test('the Code Mode SDK declaration exposes the radar config block', () => {
-    expect(SDK_DECLARATION).toContain('radar?: {')
-  })
 
   describe('mutation', () => {
     test.each([

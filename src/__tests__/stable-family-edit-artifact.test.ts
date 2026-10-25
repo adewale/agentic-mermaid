@@ -8,6 +8,8 @@ test('a structural Treemap edit publishes the identities seen by its rendered an
   expect(parsed.value.body.kind).toBe('treemap')
   const changed = mutate(parsed.value as TreemapValidDiagram, { kind: 'remove_node', id: 'treemap-1' })
   if (!changed.ok) throw Error(changed.error.message)
+  expect(changed.value.body.nodes.map(node => [node.label, node.parentId === undefined ? undefined : changed.value.body.nodes.find(parent => parent.id === node.parentId)?.label]))
+    .toEqual([['Root', undefined], ['Branch', 'Root'], ['Retained', 'Branch']])
   const loaded = parseRegisteredMermaid(serializeMermaid(changed.value))
   if (!loaded.ok) throw Error('edit did not reload')
   expect(loaded.value.body).toEqual(changed.value.body)

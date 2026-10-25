@@ -32,7 +32,7 @@ describe('deterministic offline Architecture Iconify registry (B11/A5)', () => {
     expect(renderMermaidSVG(sourceFor('mdi:api'))).toBe(svg)
   })
 
-  test('does not call fetch or consult ambient files for curated or unknown icons', () => {
+  test('does not call fetch for curated or unknown icons', () => {
     const originalFetch = globalThis.fetch
     let calls = 0
     globalThis.fetch = (() => { calls++; throw new Error('network forbidden') }) as unknown as typeof fetch

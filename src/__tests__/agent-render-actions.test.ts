@@ -38,7 +38,7 @@ describe('renderer-neutral action surface', () => {
     expect(pngRegion.bounds.h / svgRegion.bounds.h).toBeCloseTo(2, 1)
   })
 
-  test('callback actions remain metadata-only on every surface', () => {
+  test('callback actions remain metadata-only in SVG output', () => {
     const call = renderMermaidWithActions('flowchart LR\n  A\n  click A call doThing()', { format: 'svg' })
     expect(call.actionSurface.actions).toContainEqual(expect.objectContaining({
       action: 'call', disposition: 'sidecar-only', executable: false,

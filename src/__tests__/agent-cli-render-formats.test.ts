@@ -29,6 +29,8 @@ describe('am render --format layout', () => {
     expect(withCerts.code).toBe(0)
     const plain = JSON.parse(regular.out) as { edges: Array<{ route?: unknown }> }
     const debug = JSON.parse(withCerts.out) as { edges: Array<{ route?: { routeClass: string; invariant: string } }> }
+    expect(plain.edges).toHaveLength(2)
+    expect(debug.edges).toHaveLength(2)
     expect(plain.edges.every(e => e.route === undefined)).toBe(true)
     expect(debug.edges.every(e => e.route?.routeClass === 'primary-forward')).toBe(true)
     expect(debug.edges.every(e => typeof e.route?.invariant === 'string')).toBe(true)
@@ -58,11 +60,8 @@ describe('am render --format ascii vs unicode', () => {
     const f = tmpFile(SRC)
     const { code, out } = capture(() => runCli(['render', '--format', 'unicode', f]))
     expect(code).toBe(0)
-    // Either dashes / forward arrows — but at minimum it must NOT be pure
-    // ASCII. We do a permissive check: bytes above 0x7f exist.
-    let hasHigh = false
-    for (let i = 0; i < out.length; i++) if (out.charCodeAt(i) > 0x7f) { hasHigh = true; break }
-    expect(hasHigh).toBe(true)
+    expect(out).toMatch(/[\u2500-\u257f]/)
+    for (const label of ['Alpha', 'Beta', 'Gamma']) expect(out).toContain(label)
   })
 
   test('ascii emits only 7-bit characters', () => {
@@ -70,13 +69,6 @@ describe('am render --format ascii vs unicode', () => {
     const { code, out } = capture(() => runCli(['render', '--format', 'ascii', f]))
     expect(code).toBe(0)
     for (let i = 0; i < out.length; i++) expect(out.charCodeAt(i)).toBeLessThan(0x80)
-  })
-
-  test('unicode and ascii produce different output for the same diagram', () => {
-    const f = tmpFile(SRC)
-    const a = capture(() => runCli(['render', '--format', 'unicode', f]))
-    const b = capture(() => runCli(['render', '--format', 'ascii', f]))
-    expect(a.out).not.toBe(b.out)
   })
 
   test('json wrap uses correct key per format', () => {

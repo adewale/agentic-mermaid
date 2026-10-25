@@ -100,7 +100,7 @@ style C color:#112233`
     .map(match => ({
       id: match[1]!.match(/\bdata-id="([^"]+)"/)?.[1],
       text: match[2]!.replace(/<[^>]+>/g, ''),
-      fills: [...match[2]!.matchAll(/\bfill="([^"]+)"/g)].map(fill => fill[1]),
+      fills: [match[1]!.match(/\bfill="([^"]+)"/)?.[1], ...[...match[2]!.matchAll(/\bfill="([^"]+)"/g)].map(fill => fill[1])].filter((fill): fill is string => fill !== undefined),
       italic: match[1]!.includes('font-style="italic"'),
       underline: match[1]!.includes('text-decoration="underline"'),
       position: [match[1]!.match(/\bx="([^"]+)"/)?.[1], match[1]!.match(/\by="([^"]+)"/)?.[1]].join(','),
@@ -123,13 +123,17 @@ style C color:#112233`
   for (const [id, text, color, italic, underline] of expected) {
     const row = rows.find(candidate => candidate.id === id)
     expect(row, id).toMatchObject({ text, italic, underline })
-    // Abstract preparation supplies its own italic runs. Ordinary/static
-    // members expose two syntax spans, each retaining the owning class ink.
-    if (!italic) expect(row!.fills, id).toEqual([color, color])
+    expect(row!.fills.length, id).toBeGreaterThan(0)
+    expect(new Set(row!.fills), id).toEqual(new Set([color]))
   }
   const next = members(renderMermaidSVG(input.replace('+int count', '+int fresh').replace('style A color:#112233', 'style A color:#556677')))
-  expect(next.find(row => row.id === 'member:A:fresh')).toMatchObject({ text: '+int fresh', fills: ['#556677', '#556677'], italic: false, underline: false })
-  expect(next.find(row => row.id === 'member:B:first')).toMatchObject({ text: '+int first', fills: ['#445566', '#445566'] })
+  expect(next.find(row => row.id === 'member:A:fresh')).toMatchObject({ text: '+int fresh', italic: false, underline: false })
+  expect(next.find(row => row.id === 'member:B:first')).toMatchObject({ text: '+int first' })
+  for (const [id, color] of [['member:A:fresh', '#556677'], ['member:B:first', '#445566']] as const) {
+    const row = next.find(row => row.id === id)!
+    expect(row.fills.length, id).toBeGreaterThan(0)
+    expect(new Set(row.fills), id).toEqual(new Set([color]))
+  }
   expect(next.some(row => row.id === 'member:A:count')).toBe(false)
 })
 

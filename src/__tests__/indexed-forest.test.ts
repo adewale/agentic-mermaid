@@ -46,7 +46,14 @@ f:R --> L:g`
       const graph = parseMermaid(`flowchart ${direction}\nA[A wider root label] --> B[B]\nA --> C[Wide child label]\nC --> D[D]\nC --> E[Another long descendant]\nF[Disconnected]\nG --> H`)
       const positioned = flags(['indexed-layout'], () => layoutGraphSync(graph))
       expect(positioned.certification).toMatchObject({ status: 'passed', strategy: 'indexed-forest', hardViolations: 0 })
-      expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+      expect(positioned.nodes.map(node => node.id).sort()).toEqual(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'])
+      expect(positioned.edges.map(edge => [edge.source, edge.target])).toEqual([['A', 'B'], ['A', 'C'], ['C', 'D'], ['C', 'E'], ['G', 'H']])
+      for (let i = 0; i < positioned.nodes.length; i++) {
+        for (let j = i + 1; j < positioned.nodes.length; j++) {
+          const a = positioned.nodes[i]!, b = positioned.nodes[j]!
+          expect(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y).toBe(true)
+        }
+      }
       for (const edge of positioned.edges) {
         const source = positioned.nodes.find(node => node.id === edge.source)!, target = positioned.nodes.find(node => node.id === edge.target)!
         expect(onShapeOutline(source, edge.points[0]!, 1)).toBe(true)

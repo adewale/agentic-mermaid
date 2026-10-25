@@ -25,6 +25,8 @@ describe('feedback reroute: a feedback that returns past its target clears a nod
     test(`${name}: no edgeThroughNode`, () => {
       const g = parseMermaid(src)
       const p = layoutGraphSync(g)
+      expect(p.nodes.map(node => node.id).sort()).toEqual([...g.nodes.keys()].sort())
+      expect(p.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(g.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
       const etn = hardViolations(assessLayout(g, p)).filter(v => v.metric === 'edgeThroughNode')
       expect(etn).toEqual([])
     })

@@ -11,13 +11,16 @@ const strokePorts: Record<string, number> = {
   '▲': 5, '▼': 5, '^': 5, 'v': 5, '◄': 10, '►': 10, '<': 10, '>': 10, '◯': 15, 'o': 15, '✕': 15, 'x': 15,
 }
 
-function completeComposition(source: string, useAscii: boolean, labels: Record<string, string>): TerminalDocument {
+function completeComposition(source: string, useAscii: boolean, labels: Record<string, string>, containerIds: string[], expectedEdges: string[][]): TerminalDocument {
   const rendered = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none' })
   const document = terminalDocumentOf(rendered)!, regions = document.regions()
   for (const [id, label] of Object.entries(labels)) {
     expect(regions.find(region => region.id === id)?.projectedText).toBe(label)
     for (const line of label.split('\n')) expect(rendered.text).toContain(line)
   }
+  const containerKind = source.startsWith('stateDiagram-v2') ? 'cluster' : 'subgraph'
+  expect(regions.filter(region => region.kind === containerKind).map(region => region.id).sort()).toEqual([...containerIds].sort())
+  expect(regions.filter(region => region.kind === 'edge').map(edge => [edge.from!, edge.to!]).sort()).toEqual([...expectedEdges].sort())
   const cards = new Map<string, Bounds>()
   for (const [x, y, cell] of document.entries()) for (const owner of cell.owners) if (owner.kind === 'node') {
     const bounds = cards.get(owner.id) ?? { left: x, right: x, top: y, bottom: y }
@@ -96,10 +99,14 @@ function completeComposition(source: string, useAscii: boolean, labels: Record<s
     expect(seen.has(tip), `directionally connected emitted route ${edge.from}->${edge.to}`).toBe(true)
     // Labels can attach beside a route, after its directional endpoints are
     // proven connected; they may not float as a separate owned component.
+    const authoredText = new Set((edge.authoredTextCells ?? []).flatMap(cell =>
+      Array.from({ length: document.cell(cell.column, cell.row)!.width }, (_, offset) => `${cell.column + offset},${cell.row}`)))
     const attached = [...seen], labelSeen = new Set(attached)
     for (let index = 0; index < attached.length; index++) {
       const [x, y] = attached[index]!.split(',').map(Number)
-      for (const next of [`${x! - 1},${y}`, `${x! + 1},${y}`, `${x},${y! - 1}`, `${x},${y! + 1}`]) if (covered.has(next) && !labelSeen.has(next)) { labelSeen.add(next); attached.push(next) }
+      for (const next of [`${x! - 1},${y}`, `${x! + 1},${y}`, `${x},${y! - 1}`, `${x},${y! + 1}`]) {
+        if (authoredText.has(next) && covered.get(next)?.kind === 'text' && !labelSeen.has(next)) { labelSeen.add(next); attached.push(next) }
+      }
     }
     for (const cell of edge.authoredTextCells ?? []) expect(labelSeen.has(`${cell.column},${cell.row}`)).toBe(true)
   }
@@ -115,7 +122,7 @@ for (const direction of ['TD', 'BT', 'LR', 'RL']) for (const depth of [1, 3, 5])
     completeComposition(source, useAscii, {
       X: 'Start', A: '日本語 👩‍💻 long label', B: 'Wide terminal label', C: 'Finish',
       ...Object.fromEntries(Array.from({ length: depth }, (_, index) => [`G${index}`, `Group ${index} 日本\nHierarchy\nComplete`])),
-    })
+    }, Array.from({ length: depth }, (_, index) => `G${index}`), [['X', 'A'], ['A', 'B'], ['B', 'C']])
   })
 }
 
@@ -126,14 +133,14 @@ for (const direction of ['TD', 'BT', 'LR', 'RL']) for (const depth of [3, 5]) fo
     completeComposition(source, useAscii, {
       A: 'Left start', B: 'Left finish', R: 'Right start', S: 'Right finish', C: 'Finish',
       ...Object.fromEntries(['L', 'R'].flatMap(prefix => Array.from({ length: depth }, (_, index) => [`${prefix}${index}`, `${prefix} group ${index} 日本`]))),
-    })
+    }, ['L', 'R'].flatMap(prefix => Array.from({ length: depth }, (_, index) => `${prefix}${index}`)), [['A', 'B'], ['R', 'S'], ['B', 'R'], ['S', 'C']])
   })
 }
 
 test.each(['TD', 'BT', 'LR', 'RL'])('%s places an interleaved nonmember outside its unrelated inner frame', direction => {
   for (const useAscii of [false, true]) {
     const source = `flowchart ${direction}\nsubgraph Outer\nsubgraph Inner\nA[First]\nB[Last]\nend\nX[Outside]\nend\nA --> X --> B`
-    completeComposition(source, useAscii, { A: 'First', B: 'Last', X: 'Outside', Inner: 'Inner', Outer: 'Outer' })
+    completeComposition(source, useAscii, { A: 'First', B: 'Last', X: 'Outside', Inner: 'Inner', Outer: 'Outer' }, ['Outer', 'Inner'], [['A', 'X'], ['X', 'B']])
   }
 })
 
@@ -142,18 +149,18 @@ for (const direction of ['TD', 'BT', 'LR', 'RL']) for (const useAscii of [false,
     const childDirection = direction === 'LR' || direction === 'RL' ? 'TD' : 'LR'
     completeComposition(`flowchart ${direction}\nsubgraph Outer[Outer 日本]\nsubgraph Inner[Inner 👩‍💻]\ndirection ${childDirection}\nA[First]\nB[Last]\nend\nX[Outside]\nend\nsubgraph Sibling\nC[Sibling card]\nend\nA --> X --> B\nX --> C`, useAscii, {
       A: 'First', B: 'Last', X: 'Outside', C: 'Sibling card', Inner: 'Inner 👩‍💻', Outer: 'Outer 日本', Sibling: 'Sibling',
-    })
+    }, ['Outer', 'Inner', 'Sibling'], [['A', 'X'], ['X', 'B'], ['X', 'C']])
   })
   test(`${direction} an unconnected empty child retains its own measured position (${useAscii ? 'ASCII' : 'Unicode'})`, () => {
     completeComposition(`flowchart ${direction}\nsubgraph Outer\nsubgraph Inner\nA[First]\nB[Last]\nsubgraph Empty[Unused 日本]\nend\nend\nX[Outside]\nend\nA --> X --> B`, useAscii, {
       A: 'First', B: 'Last', X: 'Outside', Inner: 'Inner', Outer: 'Outer', Empty: 'Unused 日本',
-    })
+    }, ['Outer', 'Inner', 'Empty'], [['A', 'X'], ['X', 'B']])
   })
 }
 
 for (const direction of ['TD', 'BT', 'LR', 'RL']) for (const useAscii of [false, true]) {
   test(`${direction} State compound membership shares complete relationship capacity (${useAscii ? 'ASCII' : 'Unicode'})`, () => {
-    completeComposition(`stateDiagram-v2\ndirection ${direction}\nstate Outer {\nstate Inner {\nstate "First" as A\nstate "Last" as B\n}\nstate "Outside" as X\n}\nA --> X: one\nA --> X: two\nX --> A: return\nX --> B: back\nB --> B: self`, useAscii, { A: 'First', B: 'Last', X: 'Outside', Inner: 'Inner', Outer: 'Outer' })
+    completeComposition(`stateDiagram-v2\ndirection ${direction}\nstate Outer {\nstate Inner {\nstate "First" as A\nstate "Last" as B\n}\nstate "Outside" as X\n}\nA --> X: one\nA --> X: two\nX --> A: return\nX --> B: back\nB --> B: self`, useAscii, { A: 'First', B: 'Last', X: 'Outside', Inner: 'Inner', Outer: 'Outer' }, ['Outer', 'Inner'], [['A', 'X'], ['A', 'X'], ['X', 'A'], ['X', 'B'], ['B', 'B']])
   })
 }
 
@@ -177,21 +184,24 @@ N0_1 --> N0_2
 N0_0 --> N0_1`, useAscii, Object.fromEntries([0, 1, 2].flatMap(group => [
       ...Array.from({ length: group + 1 }, (_, depth) => [`G${group}_${depth}`, `Group ${group} ${depth} 日本`]),
       ...['start', 'middle', 'finish'].map((position, index) => [`N${group}_${index}`, `Card ${group} ${position}${group === 2 ? ' wide 日本語 label' : ''}`]),
-    ])))
+    ])), [0, 1, 2].flatMap(group => Array.from({ length: group + 1 }, (_, depth) => `G${group}_${depth}`)), [
+      ['N1_0', 'N2_0'], ['N2_1', 'N2_2'], ['N2_0', 'N2_1'], ['N0_0', 'N1_2'],
+      ['N1_1', 'N1_2'], ['N1_0', 'N1_1'], ['N0_1', 'N0_2'], ['N0_0', 'N0_1'],
+    ])
   })
   test(`subgraph contacts preserve connected owned routes when labels bend (${useAscii ? 'ASCII' : 'Unicode'})`, () => {
     completeComposition(`flowchart LR
 outside --> subgraph1
 subgraph subgraph1
 inner1 --> inner2
-end`, useAscii, { outside: 'outside', subgraph1: 'subgraph1', inner1: 'inner1', inner2: 'inner2' })
+end`, useAscii, { outside: 'outside', subgraph1: 'subgraph1', inner1: 'inner1', inner2: 'inner2' }, ['subgraph1'], [['outside', 'subgraph1'], ['inner1', 'inner2']])
     completeComposition(`flowchart LR
 A -.->|load| Cluster
 subgraph Cluster
 direction TB
 In --> Work --> Out
 end
-Cluster ==> Done`, useAscii, { A: 'A', Cluster: 'Cluster', In: 'In', Work: 'Work', Out: 'Out', Done: 'Done' })
+Cluster ==> Done`, useAscii, { A: 'A', Cluster: 'Cluster', In: 'In', Work: 'Work', Out: 'Out', Done: 'Done' }, ['Cluster'], [['A', 'Cluster'], ['In', 'Work'], ['Work', 'Out'], ['Cluster', 'Done']])
   })
 }
 
@@ -215,7 +225,7 @@ A -->|two| X
 X -->|return| A
 X ${link}|back| B
 X -->|branch| C
-B -->|self| B`, useAscii, { Outer: 'Outer 日本\ncomplete', Inner: 'Inner 👩‍💻', Sibling: 'Sibling é\nwide 日本', A: 'First 界界👩‍💻 é', B: 'Last', X: 'Outside wide track 日本語', C: 'Sibling card' })
+B -->|self| B`, useAscii, { Outer: 'Outer 日本\ncomplete', Inner: 'Inner 👩‍💻', Sibling: 'Sibling é\nwide 日本', A: 'First 界界👩‍💻 é', B: 'Last', X: 'Outside wide track 日本語', C: 'Sibling card' }, ['Outer', 'Inner', 'Sibling'], [['A', 'X'], ['A', 'X'], ['X', 'A'], ['X', 'B'], ['X', 'C'], ['B', 'B']])
       const edge = document.regions().find(region => region.kind === 'edge' && region.from === 'X' && region.to === 'B')!
       expect(edge.projectedText).toBe('back')
       expect(edge.ports!.find(port => port.end === 'start')!.markers?.map(marker => marker.shape)).toEqual(link === '-->' ? [] : [shape])
@@ -227,7 +237,7 @@ B -->|self| B`, useAscii, { Outer: 'Outer 日本\ncomplete', Inner: 'Inner 👩�
 A[Wide 界界👩‍💻 é] <-->|request| B[Server]
 A o--o|other| B
 B x--x|return| A
-B --> C[Done]`, useAscii, { A: 'Wide 界界👩‍💻 é', B: 'Server', C: 'Done' })
+B --> C[Done]`, useAscii, { A: 'Wide 界界👩‍💻 é', B: 'Server', C: 'Done' }, [], [['A', 'B'], ['A', 'B'], ['B', 'A'], ['B', 'C']])
   })
   test(`${direction} nested cuts retain complete directional relationship ink (${useAscii ? 'ASCII' : 'Unicode'})`, () => {
     completeComposition(`flowchart ${direction}
@@ -258,6 +268,6 @@ A -->|parallel| X
 X -->|branch| C
 E -->|self| E`, useAscii, {
       Outer: 'Outer 界\ncomplete', Left: 'Left 日本', Deep: 'Deep 👩‍💻\nthree', Sibling: 'Sibling 日本', A: 'Wide A 日本語👩‍💻', B: 'B', D: 'Deep start', E: 'Deep end 界界', X: 'Outside 日本語', Y: 'Other é', C: 'Sibling wide 👩‍💻',
-    })
+    }, ['Outer', 'Left', 'Deep', 'Sibling'], [['A', 'X'], ['X', 'B'], ['B', 'D'], ['D', 'E'], ['E', 'Y'], ['Y', 'D'], ['A', 'X'], ['X', 'C'], ['E', 'E']])
   })
 }

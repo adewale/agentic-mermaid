@@ -285,12 +285,11 @@ jobs:
         if: ${{ matrix.suite == 'cli' }}
         run: cd e2e && bun test single-binary.e2e.test.ts --timeout 180000
 
-      - name: Run dist-artifact differential fuzz (built bundle under plain Node)
+      - name: Verify built artifacts and bundler compatibility
         if: ${{ matrix.suite == 'dist-artifact' }}
-        # Builds dist/ and fuzzes the shipped bundle under Node against the
-        # source build (crash parity across families + byte-equality on
-        # flowcharts). Node is pinned above; a missing binary fails the suite.
-        run: cd e2e && bun test dist-artifact-fuzz.e2e.test.ts --timeout 400000
+        # Keep distinct browser/Node bundler and deferred-ELK contracts here.
+        # Source/Node differential fuzz and PNG parity run against the installed tarball.
+        run: cd e2e && bun test dist-artifact.e2e.test.ts --timeout 400000
 
       - name: Install the pinned publishing npm for manifest verification
         if: ${{ matrix.suite == 'tarball-consumer' }}

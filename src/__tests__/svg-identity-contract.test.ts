@@ -192,17 +192,14 @@ describe('all-family SVG semantic identity contract', () => {
   })
 
   test('keeps generated identities unique when visible labels repeat', () => {
-    const sources = [
-      `journey
-  section One
-    Repeat: 3: A
-    Repeat: 4: A`,
-      `timeline
-  Repeat : Event A
-  Repeat : Event B`,
-    ]
-    for (const source of sources) {
-      const ids = dataIds(renderMermaidSVG(source, { embedFontImport: false }))
+    const cases = [
+      { source: 'journey\n  section One\n    Repeat: 3: A\n    Repeat: 4: A', family: 'journey', role: 'task', expected: ['task-0', 'task-1'] },
+      { source: 'timeline\n  Repeat : Event A\n  Repeat : Event B', family: 'timeline', role: 'period', expected: ['period-0', 'period-1'] },
+    ] as const
+    for (const { source, family, role, expected } of cases) {
+      const svg = renderMermaidSVG(source, { embedFontImport: false })
+      expect(primaryNodeIdentities(family, identityTuples(svg)).filter(tuple => tuple.role === role).map(tuple => tuple.id)).toEqual([...expected])
+      const ids = dataIds(svg)
       expect(new Set(ids).size, source.split('\n')[0]).toBe(ids.length)
     }
   })

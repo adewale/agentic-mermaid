@@ -74,16 +74,18 @@ function sdkMermaidMethodNames(): string[] {
   return []
 }
 
-/** Type-check the SDK declaration on its own, as an agent's editor would see it. */
-function sdkDeclarationTypeErrors(): string[] {
+/** Type-check the shipped declaration and a consumer, as an agent's editor would. */
+function sdkDeclarationTypeErrors(consumer: string): string[] {
   const fileName = join(tmpdir(), 'agentic-mermaid-code-mode-sdk.d.ts')
+  const consumerName = join(tmpdir(), 'agentic-mermaid-code-mode-consumer.ts')
+  const sources = new Map([[fileName, SDK_DECLARATION], [consumerName, consumer]])
   const options: ts.CompilerOptions = { noEmit: true, strict: true, target: ts.ScriptTarget.ES2022, lib: ['lib.es2022.d.ts'], types: [] }
   const host = ts.createCompilerHost(options)
   const readSourceFile = host.getSourceFile.bind(host)
   const fileExists = host.fileExists.bind(host)
-  host.getSourceFile = (name, languageVersion, ...rest) => (name === fileName ? ts.createSourceFile(name, SDK_DECLARATION, languageVersion, true, ts.ScriptKind.TS) : readSourceFile(name, languageVersion, ...rest))
-  host.fileExists = name => name === fileName || fileExists(name)
-  return ts.getPreEmitDiagnostics(ts.createProgram([fileName], options, host)).map(diagnostic => ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'))
+  host.getSourceFile = (name, languageVersion, ...rest) => (sources.has(name) ? ts.createSourceFile(name, sources.get(name)!, languageVersion, true, ts.ScriptKind.TS) : readSourceFile(name, languageVersion, ...rest))
+  host.fileExists = name => sources.has(name) || fileExists(name)
+  return ts.getPreEmitDiagnostics(ts.createProgram([...sources.keys()], options, host)).map(diagnostic => ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'))
 }
 
 describe('Instructions_for_agents.md', () => {
@@ -94,6 +96,7 @@ describe('Instructions_for_agents.md', () => {
   test('quick-start Code Mode snippets execute and lint clean', async () => {
     const guide = readFileSync(join(REPO, 'Instructions_for_agents.md'), 'utf8')
     const snippets = Array.from(guide.matchAll(/```ts\n([\s\S]*?)\n```/g)).map(m => m[1]!)
+    expect(snippets.length).toBeGreaterThan(0)
     for (const snippet of snippets) {
       const r = await executeInSandbox(snippet, { trace: true })
       expect({ ok: r.ok, error: r.error }).toEqual({ ok: true, error: undefined })
@@ -245,7 +248,47 @@ describe('Code Mode SDK declaration matches the runtime', () => {
       expect({ family: family.id, narrower: methods.has(family.narrower) }).toEqual({ family: family.id, narrower: true })
     }
     expect(methods.has('mutate')).toBe(true)
-    expect(sdkDeclarationTypeErrors()).toEqual([])
+    expect(sdkDeclarationTypeErrors(`
+const radar = mermaid.asRadar(mermaid.createMermaid('radar'));
+if (radar) {
+  const body: RadarBody = radar.body;
+  mermaid.mutate(radar, { kind: 'add_axis', id: 'quality' });
+  // @ts-expect-error add_axis requires an axis id.
+  mermaid.mutate(radar, { kind: 'add_axis' });
+  // @ts-expect-error a radar body cannot be used as a sankey body.
+  const wrong: SankeyBody = body;
+}
+const sankey = mermaid.asSankey(mermaid.createMermaid('sankey'));
+if (sankey) {
+  const links: Array<{ source: string; target: string; value: number }> = sankey.body.links;
+  mermaid.mutate(sankey, { kind: 'add_link', source: 'A', target: 'B', value: 3 });
+  // @ts-expect-error link values are numeric.
+  mermaid.mutate(sankey, { kind: 'add_link', source: 'A', target: 'B', value: '3' });
+}
+declare const parsed: ParsedDiagram;
+declare const extension: ExtensionValidDiagram;
+declare const preserved: PreservedValidDiagram;
+const svg: string = mermaid.renderMermaidSVG(parsed, { architecture: { visual: { groupHeaderHeight: 22, groupFont: 'sans-serif' } } });
+const text: string = mermaid.renderMermaidASCII(extension, { colorMode: 'html' });
+mermaid.renderMermaidSVGWithReceipt(preserved, { security: 'strict' });
+mermaid.renderMermaidASCIIWithReceipt(parsed, { useAscii: true });
+mermaid.layoutMermaidWithReceipt(extension, { padding: 12 });
+// @ts-expect-error structured built-in mutations cannot accept an extension envelope.
+mermaid.mutate(extension, { kind: 'set_title', title: 'Closed mutation boundary' });
+// @ts-expect-error backend routing is private and absent from consumer options.
+const privateBackend: SharedRenderOptions = { backendPolicy: { selected: 'backend:probe' } };
+// @ts-expect-error architecture header height is numeric.
+const badHeader: SharedRenderOptions = { architecture: { visual: { groupHeaderHeight: '22' } } };
+const options: SharedRenderOptions = {
+  mermaidConfig: { radar: { tickLabels: true }, sankey: { nodeAlignment: 'left', nodeWidth: 12 } }
+};
+// @ts-expect-error tickLabels is a boolean switch.
+const badRadar: SharedRenderOptions = { mermaidConfig: { radar: { tickLabels: 'yes' } } };
+// @ts-expect-error nodeAlignment is a closed union.
+const badAlignment: SharedRenderOptions = { mermaidConfig: { sankey: { nodeAlignment: 'diagonal' } } };
+// @ts-expect-error nodeWidth is numeric.
+const badWidth: SharedRenderOptions = { mermaidConfig: { sankey: { nodeWidth: '12' } } };
+`)).toEqual([])
   })
 
   test('every narrower advertised by the SDK declaration is callable in the Code Mode sandbox', async () => {

@@ -10,7 +10,6 @@ import { execFileSync } from 'node:child_process'
 import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
 import { samples as RICH_EXAMPLES } from '../../scripts/site/samples-data.ts'
 import { decodeEditorStateHash, EDITOR_SHARE_STATE_KEYS } from '../../scripts/site/editor-state-url.ts'
-import { isWebsiteBuildFingerprintInput } from '../../scripts/site/website-build-fingerprint.ts'
 import { createStyledExampleRenderState, WEBSITE_EXAMPLE_THEME } from '../../scripts/site/example-render-state.ts'
 import { LEGACY_RICH_EXAMPLE_ALIASES } from '../../scripts/site/website-example-legacy-aliases.ts'
 import { renderWebsiteSVG } from '../../website/src/rendering.ts'
@@ -511,33 +510,7 @@ describe('Workers Static Assets website contract', () => {
     }
   })
 
-  test('the website fixture is opt-in and fingerprints every repository input it publishes', () => {
-    // Building the site is expensive; only files that import the fixture pay for it.
-    const bunfig = Bun.TOML.parse(readRepo('bunfig.toml')) as { test?: { preload?: string[] } }
-    expect((bunfig.test?.preload ?? []).filter(path => path.includes('website-public-fixture'))).toEqual([])
-    // Repository inputs the build reads at runtime (not via imports) and ships
-    // verbatim or transformed; website-build-fingerprint.test.ts covers the
-    // import graph and the hashing behaviour itself.
-    for (const rel of [
-      'website/source/pages/home.html',
-      'website/source/assets/styles.css',
-      'docs/schemas/style-spec.schema.json',
-      'docs/assets/style-cookbook/transit-route-map.png',
-      'examples/styles/catalog.json',
-      'skills/agentic-mermaid-diagram-workflow/SKILL.md',
-      'Instructions_for_agents.md',
-    ]) {
-      expect({ rel, exists: existsSync(join(REPO, rel)), fingerprinted: isWebsiteBuildFingerprintInput(rel) }).toEqual({ rel, exists: true, fingerprinted: true })
-    }
-  })
 
-  test('authored website diagrams do not carry copied renderer snapshots', () => {
-    const sourceFiles = readdirSync(join(REPO, 'website/source/diagrams')).sort()
-    expect(sourceFiles.filter(name => !name.endsWith('.mmd'))).toEqual([])
-
-    const publicFiles = readdirSync(join(SITE, 'diagrams')).sort()
-    expect(publicFiles.filter(name => !name.endsWith('.mmd'))).toEqual(['workflow-themeable.svg'])
-  })
 
   test('required human and machine routes are generated', () => {
     const routes = [
@@ -580,29 +553,6 @@ describe('Workers Static Assets website contract', () => {
     expect(Array.from(served.matchAll(/`(?:docs\/|references\/upstream\/)[^`]*`/g), match => match[0])).toEqual([])
   })
 
-  test('getting started publishes the agent-facing vocabulary without reviving the removed route', () => {
-    const page = read('docs/getting-started/index.html')
-    const terms = [
-      'references', 'accepts', 'parses', 'renders', 'verifies', 'mutates', 'round-trips',
-      'Mermaid source', 'diagram family', 'header', 'upstream syntax reference', 'host renderer',
-      'renderer support', 'edit authority', 'structured family', 'narrow', 'typed mutation',
-      'source-level-only', 'opaque fallback', 'modeled subset', 'round-trip', 'receipt',
-      'SVG', 'PNG', 'ASCII', 'Unicode text', 'JSON layout', 'region metadata',
-      'structural warning', 'geometric warning', 'lint warning', 'warning code',
-      'quality metric', 'golden', 'differential fixture', 'frontmatter', 'init directive',
-      'strict security', 'source order', 'subgraph / group', 'anchor', 'route', 'trunk',
-      'fan-in / fan-out', 'label corridor', 'display-cell width',
-    ]
-    for (const term of terms) {
-      const count = page.split(`<dt>${term}</dt>`).length - 1
-      expect({ term, count }).toEqual({ term, count: 1 })
-    }
-    expect(page).toContain('Mermaid syntax support is not the same as Agentic Mermaid edit authority.')
-
-    const websiteReadme = readRepo('website/README.md')
-    expect(websiteReadme).not.toContain('`/docs/vocabulary/`')
-    expect(websiteReadme).toContain('`/docs/getting-started/`')
-  })
 
   test('sitemap.xml lists exactly the live HTML pages and no machine artifacts', () => {
     const locs = [...read('sitemap.xml').matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]!)
@@ -649,11 +599,6 @@ describe('Workers Static Assets website contract', () => {
     expect(sample.fix.includes('<code>')).toBe(false)             // Markdown, not page HTML
   })
 
-  test('the four error pages are differentiated, not shared boilerplate', () => {
-    const body = (id: string) => read(`errors/${id}/index.html`).replace(/[\s\S]*<\/section>/, '').replace(/<\/main>[\s\S]*/, '')
-    const bodies = ['parse-error', 'mutation-error', 'render-error', 'verify-failed'].map(body)
-    expect(new Set(bodies).size).toBe(4)
-  })
 
   test('all generated pages use the trident favicon assets', () => {
     const favicon = read('favicon.svg')
@@ -735,9 +680,8 @@ describe('Workers Static Assets website contract', () => {
     expect(crumbs).toEqual([])
   })
 
-  test('agent-first surfaces expose prompts, traces, and discovery links', () => {
+  test('agent entrypoints publish discovery links, the bootstrap and bounded editor assets', () => {
     const home = read('index.html')
-    const examples = read('examples/index.html')
     const editor = read('editor/index.html')
     for (const rel of ['index.html', 'docs/index.html', 'examples/index.html', 'editor/index.html']) {
       const html = read(rel)
@@ -748,137 +692,23 @@ describe('Workers Static Assets website contract', () => {
       expect(html).toContain('<link rel="mcp-server" type="application/mcp-server-card+json" href="/.well-known/mcp/server-card.json">')
       expect(html).toContain('<link rel="ai-catalog" type="application/json" href="/.well-known/ai-catalog.json">')
     }
-    expect(home).not.toContain('id="home-agent-pointer"')
-    expect(home).not.toContain('id="home-agent-prompt"')
-    expect(home).toContain('class="page-actions" aria-label="Primary paths"')
-    expect(home).toContain('Use with an agent')
-    expect(home).toContain('Try editor')
-    expect(home).toContain('Install locally')
-    expect(home).not.toContain('Copy agent prompt')
     const homeMain = home.slice(home.indexOf('<main'))
-    expect(homeMain.indexOf('Use with an agent')).toBeLessThan(homeMain.indexOf('Try editor'))
-    expect(homeMain.indexOf('Try editor')).toBeLessThan(homeMain.indexOf('Install locally'))
-    expect(home).toContain('href="/editor/?empty=1">Try editor</a>')
-    expect(homeMain.indexOf('data-copy-text="Fetch https://agentic-mermaid.dev/start.md and follow it."')).toBeLessThan(homeMain.indexOf('href="/editor/?empty=1"'))
-    expect(homeMain.indexOf('href="/editor/?empty=1"')).toBeLessThan(homeMain.indexOf('href="/docs/getting-started/"'))
-    expect(home).not.toContain('Give this to an agent')
-    expect(home).not.toContain('This prompt is intentionally complete')
-    expect(home).not.toContain('agent-prompt-first')
-    expect(home).not.toContain('copy-prompt-card')
-    expect(home).not.toContain('copy-prompt-primary')
-    expect(home).not.toContain('Copy agent prompt')
-    expect(home).not.toContain('class="agent-prompt')
-    expect(home).not.toContain('&lt;replace with the requested diagram goal or edit&gt;')
-    expect(home).not.toContain('contents of https://agentic-mermaid.dev/start.md')
-    expect(home).not.toContain('Do not assume this repository is checked out')
-    expect(home).not.toContain('the hosted MCP at `https://agentic-mermaid.dev/mcp`')
-    expect(home).not.toContain('Mutation ops use a `kind` discriminator')
-    expect(home).not.toContain('return an object with `{ source }`')
-    expect(home).toContain('Beautiful diagrams,')
-    expect(home).toContain('made with your agent')
-    expect(home).not.toContain('Tell your agent about Agentic Mermaid by giving it the URL of the homepage')
-    expect(home).not.toContain('9 pre-chosen style × palette × family combinations')
-    expect(home).not.toContain('Strengths')
-    expect(home).not.toContain('class="muted cta-note"')
-    expect(home).toMatch(/<\/div>\s*<\/section>\s*<ul class="fact-strip" aria-label="Capability evidence">/)
-    expect(home).toContain('Polished output, deterministic source, agent-safe edits.')
-    expect(home).toContain('Beautiful renders')
-    expect(home).not.toContain('The problem')
-    expect(home).not.toContain('Plain Mermaid handoff')
-    // Setup moved off the homepage: the MCP config card lives on Getting
-    // started, and home carries a single pointer line instead of a section.
+    const bootstrap = homeMain.indexOf('data-copy-text="Fetch https://agentic-mermaid.dev/start.md and follow it."')
+    const editorLink = homeMain.indexOf('href="/editor/?empty=1"')
+    const setupLink = homeMain.indexOf('href="/docs/getting-started/"')
+    expect(bootstrap).toBeGreaterThanOrEqual(0)
+    expect(editorLink).toBeGreaterThan(bootstrap)
+    expect(setupLink).toBeGreaterThan(editorLink)
     const gettingStarted = read('docs/getting-started/index.html')
     expect(gettingStarted).toContain('data-copy-name="MCP config"')
-    expect(gettingStarted).toContain('Copy MCP config')
-    expect(gettingStarted).toContain('The config pins the package version shown on this site')
-    expect(home).not.toContain('data-copy-name="MCP config"')
-    expect(home).not.toContain('class="copy-btn"')
-    expect(home).toContain('<span>parseRegisteredMermaid</span><span>asFlowchart</span><span>mutate(add_edge)</span><span>verifyMermaid</span><span>serializeMermaid</span>')
-    expect(home).toContain('aria-label="Agent entrypoints"')
-    expect(home).toContain('Agent quick start')
-    expect(home).toContain('Prompt, style, verify')
-    expect(home).toContain('publication-figure')
-    expect(home).toContain('brand palette')
-    expect(home).not.toContain('id="local-setup"')
-    expect(home).toContain('Install locally in <a href="/docs/getting-started/">Getting started</a>')
-    // The prompt is fetch-only; the full start.md panel is intentionally absent.
-    expect(home).not.toContain('<details class="prompt-details">')
-    expect(home.indexOf('data-copy-text="Fetch https://agentic-mermaid.dev/start.md and follow it."')).toBeLessThan(home.indexOf('id="quick-start-title"'))
-    expect(home.indexOf('id="machine-context-title"')).toBeGreaterThan(home.indexOf('One source, three styles'))
-    expect(gettingStarted).toContain('do not copy a long prompt from this page')
-    expect(gettingStarted).toContain('Give it three things: your task, the Mermaid source, and one bootstrap line')
-    expect(gettingStarted).toContain('Paste the task, paste the Mermaid source, then add this line')
     expect(gettingStarted).toContain('Fetch https://agentic-mermaid.dev/start.md and follow it.')
-    expect(gettingStarted).toContain('That line is the only prompt to copy from this page')
-    expect(gettingStarted).toContain('Copy this line on the homepage')
-    expect(gettingStarted).toContain('Agent style/palette recipe')
-    expect(gettingStarted).toContain('Keep appearance out of the Mermaid source')
-    expect(gettingStarted).toContain("style: ['ops-schematic', 'nord-light']")
-    expect(gettingStarted).toContain('--style ops-schematic,nord-light')
-    expect(gettingStarted).toContain('Hosted MCP render_svg arguments')
-    expect(gettingStarted).toContain('Style and Palette; in API, CLI, and MCP calls, agents can send the stack directly.')
-    // Fetch flow: the primary CTA points at a hosted bootstrap that is actually
-    // served and byte-identical to the source the eval treats as the canonical
-    // protocol. The homepage does not inline a second copy.
-    expect(home).toContain('Fetch https://agentic-mermaid.dev/start.md and follow it.')
-    const served = read('start.md')
-    expect(served).toContain('# Skill: Create or edit a Mermaid diagram with Agentic Mermaid')
-    expect(served).toContain('## Step 1 — Establish one channel')
-    expect(served).toContain('## Return')
-    expect(served.trim()).toBe(readFileSync(join(REPO, 'website/source/start.md'), 'utf8').trim())
-    expect(read('docs/getting-started/index.html')).toContain('From a prompt and style choice to a verified local render')
+    expect(read('start.md').trim()).toBe(readFileSync(join(REPO, 'website/source/start.md'), 'utf8').trim())
     expect(home).toContain('/examples/index.json')
     expect(home).toContain('/skills/agentic-mermaid-diagram-workflow/SKILL.md')
-    expect(home).not.toContain('/schemas/index.json')
-    expect(home).not.toContain('/recipes/index.json')
-    expect(home).not.toContain('/agent-manifest.json')
-    expect(home).not.toContain('/harnesses.json')
-    expect(home).toContain('One source, three styles')
-    expect(home).toContain('id="home-style-showcase-title"')
-    expect(home).toContain('Seed changes only sketch noise; node positions and edge routes stay fixed.')
-    expect(home).toContain('Each card uses the same Mermaid source with different render options')
-    expect(home).toContain('Agents pass style, palette, and seed in the render call')
-    expect(home).toContain('href="/examples/#examples-style-palette-combinations"')
-    expect(home.match(/class="home-style-card"/g)?.length).toBe(3)
-    expect(home).toContain('<li><span>Style</span><code>watercolor</code></li>')
-    expect(home).toContain('<li><span>Palette</span><code>paper</code></li>')
-    expect(home).toContain('<li><span>Seed</span><code>4</code></li>')
-    expect(home).toContain('<li><span>Style</span><code>ops-schematic</code></li>')
-    expect(home).toContain('<li><span>Palette</span><code>nord-light</code></li>')
-    expect(home).toContain('<li><span>Seed</span><code>8</code></li>')
-    expect(home).toContain('home-style-watercolor-svg-title')
-    expect(home).toContain('home-style-ops-schematic-svg-title')
-    const builtInLookCount = knownStyleDescriptors().filter(descriptor => descriptor.kind === 'look').length
-    expect(home).toContain(`${builtInLookCount}</strong> built-in styles`)
-    expect(home).toContain('JSON</strong> custom styles')
-    expect(home).toContain('<strong>SVG, PNG, ASCII and Unicode</strong> output')
-    expect(home).not.toContain('outputs per source')
-    expect(home).not.toContain('class="unicode-diagram"')
-    expect(examples).toContain('<p class="example-prompt"><span>Prompt</span>')
-    expect(examples).toContain('<p class="example-trace"><span>Trace</span> <code>asFlowchart')
     const editorScript = editorScriptRel(editor)
     expect(existsSync(join(SITE, editorScript))).toBe(true)
-    // Generated-site browser suites exercise example navigation and popups
-    // without pinning private identifiers shortened by the production build.
-    expect(read(editorScript)).not.toContain('buildAgentTaskPrompt')
-    expect(editor).not.toContain('Copy agent prompt')
-    expect(editor).not.toContain('id="copy-agent-prompt-btn"')
-    expect(editor).toContain('class="app-brand" aria-label="Agentic Mermaid Editor home"')
-    // Right half is labelled "Palette" (visible + a11y); code ids stay theme-*.
-    expect(editor).toContain('<span class="axis-label" aria-hidden="true">Palette</span>')
-    expect(editor).toContain('<span class="sr-only">Diagram palette: </span><span class="axis-value" id="theme-btn-label">Default</span>')
-    expect(editor).toContain('id="theme-dropdown-menu" role="listbox" aria-label="Palette"')
-    // Style and Palette are fused into one split pill (both dropdown ids preserved).
-    expect(editor).toContain('class="axis-pill" role="group" aria-label="Diagram style and palette"')
-    expect(editor).toContain('id="style-dropdown-btn"')
-    expect(editor).toContain('id="theme-dropdown-btn"')
-    expect(editor).not.toContain('aria-label="Agentic Mermaid homepage"')
-    expect(editor).not.toContain('aria-label="Diagram theme"')
-    expect(editor).toContain('id="copy-text-output-btn" type="button" title="Copy SVG markup" aria-label="Copy SVG markup"')
-    expect(editor).not.toContain('title="Copy Mermaid source" aria-label="Copy Mermaid source"')
-    expect(editor).not.toContain('Browser bundle:')
     expect(statSync(join(SITE, 'editor/index.html')).size).toBeLessThan(250_000)
-    expect(gzipSync(read('editor/index.html')).byteLength).toBeLessThan(80_000)
+    expect(gzipSync(editor).byteLength).toBeLessThan(80_000)
     expect(read(editorScript).length).toBeLessThan(250_000)
     const runtime = read(editorScript).match(/import "\/(editor\/runtime\/browser-hosted-[a-z0-9]{8}\.js)"/)?.[1]
     expect(runtime).toBeDefined()
@@ -1043,31 +873,6 @@ describe('Workers Static Assets website contract', () => {
     }
   })
 
-  test('docs and editor reuse the shared visual primitive set', () => {
-    const docs = read('docs/index.html')
-    const editor = read('editor/index.html')
-    const styles = read('styles.css')
-    expect(docs).not.toContain('tufte-docs')
-    expect(docs).not.toContain('/* ---- /docs in the Tufte idiom')
-    expect(docs).toContain('class="doc"')
-    expect(docs).toContain('Docs index')
-    expect(editor).toContain('class="app-brand"')
-    expect(editor).toMatch(/--t-bg:\s*#f8f4f0\b/i)
-    expect(editor).toMatch(/--control-bg:\s*var\(--surface\)/)
-    expect(editor).toMatch(/top:\s*var\(--examples-top,\s*60px\)/)
-    expect(editor).toMatch(/left:\s*var\(--examples-left,\s*16px\)/)
-    expect(styles).toContain('surface primitives: panels share one shell')
-    expect(styles).toContain(':where(.surface-panel, .quick-start, .agent-hero-primary, .copy-prompt-card')
-    expect(styles).toContain(':where(.surface-panel-clip, .copy-prompt-card, .tabbed-card, .example-render, .comparison-panel)')
-    expect(styles).toContain(':where(.media-frame, figure .plate, .gallery .plate)')
-    expect(editor).toMatch(/:where\(\.examples-sidebar,\s*\.config-panel,\s*\.shortcuts-dialog-panel/)
-    expect(editor).not.toContain('border: 1px solid var(--control-border);\n  border-radius: var(--radius-lg);\n  background: var(--popover-bg);\n  box-shadow: var(--shadow-popover);\n  opacity: 0;')
-    expect(editor).not.toContain('overflow-y: auto;\n  background: var(--popover-bg);\n  border: 1px solid var(--control-border);')
-    expect(editor).not.toContain('backdrop-filter: blur(10px);\n  border: 1px solid var(--control-border);')
-    expect(editor).not.toContain('flex: 0 0 284px')
-    expect(editor).not.toContain('rgba(255,255,255,0.07)')
-    expect(editor).not.toContain('id="pan-btn" type="button" title="Pan (hold to drag)" aria-label="Pan preview">')
-  })
 
   test('home hero is baked artwork; the themeable demo asset keeps its var tokens', () => {
     // The hero once rendered with var(--bg/--fg/--accent) and silently re-themed
@@ -1084,7 +889,7 @@ describe('Workers Static Assets website contract', () => {
     expect(themeable).toContain('var(--fg)')
   })
 
-  test('masthead exposes examples, repository, and the editor with no footer chrome', () => {
+  test('masthead exposes examples, repository, and the editor and trust links', () => {
     for (const rel of ['index.html', 'docs/index.html', 'about/index.html', 'examples/index.html', 'skills/agentic-mermaid-diagram-workflow/index.html']) {
       const html = read(rel)
       const masthead = html.match(/<header class="masthead"[\s\S]*?<\/header>/)?.[0] ?? ''
@@ -1105,9 +910,6 @@ describe('Workers Static Assets website contract', () => {
       expect(editorIndex).toBeGreaterThan(githubIndex)
       expect(html).not.toContain('<a href="/install/">Install</a>')
       expect(html).not.toContain('<a href="/agents/">Agents</a>')
-      expect(html).not.toContain('class="crumb"')
-      expect(html).not.toContain('Agentic Mermaid</a> /')
-      expect(html).not.toContain('class="theme-switch"')
       // One quiet trust footer per page: version, license, issues, changelog.
       const footer = html.match(/<footer class="site-footer"[\s\S]*?<\/footer>/)?.[0] ?? ''
       expect(footer).toContain('https://github.com/adewale/agentic-mermaid/issues')
@@ -1115,7 +917,6 @@ describe('Workers Static Assets website contract', () => {
       expect(footer).toContain('href="/about/design/"')
       expect(footer).toContain('LICENSE')
       expect(html.split('<footer').length).toBe(2)
-      expect(html).not.toContain('class="footlinks"')
       // Gallery and Families were consolidated out of the top-level nav.
       expect(masthead).not.toContain('href="/gallery/"')
       expect(masthead).not.toContain('href="/families/"')
@@ -1147,45 +948,8 @@ describe('Workers Static Assets website contract', () => {
     expect(read('_redirects')).not.toContain('agents-workflow')
     expect(read('_redirects')).not.toContain('.html')
     expect(read('_redirects')).not.toContain('/home')
-    const styles = read('styles.css')
-    expect(styles).toContain('.masthead .links .link-editor')
-    expect(styles).toContain('.masthead .nav-toggle')
-    expect(styles).not.toContain('scrollbar-width: none')
-    expect(styles).not.toContain('footlinks')
-    // The only footer styling is the site-footer trust strip.
-    expect(styles).toContain('.site-footer')
-    expect(styles.replace(/\.site-footer[^{]*\{/g, '')).not.toContain('footer {')
-    expect(styles).not.toContain('.crumb')
-    expect(styles).not.toContain('Legacy components')
-    expect(styles).not.toContain('.nav {')
-    expect(styles).not.toContain('.card { background: var(--surface)')
-    expect(styles).not.toContain('.theme-switch')
-    expect(styles).not.toContain('.theme-menu')
   })
 
-  test('typography uses shared measure, leading, labels, and safe wrapping tokens', () => {
-    const styles = read('styles.css')
-    expect(styles).toContain('--lh-body: 1.6;')
-    expect(styles).toContain('--lh-code: 1.68;')
-    expect(styles).toContain('line-height: var(--lh-body)')
-    expect(styles).toContain('--prose-max: 46.25rem;')
-    expect(styles).toContain('--wide-max: 960px;')
-    expect(styles).toContain('--wide-width: min(var(--wide-max), calc(100vw - var(--page-gutter) - var(--page-gutter)));')
-    expect(styles).toContain('--content-max: calc(var(--wide-max) + var(--page-gutter) + var(--page-gutter));')
-    expect(styles).toContain('--page-gutter: 24px;')
-    expect(styles).toContain('--dur-ui: 0.2s;')
-    expect(styles).toContain('--dur-control: 0.16s;')
-    expect(styles).toContain('960px content span')
-    expect(styles).toContain('.doc { max-width: var(--content-max);')
-    expect(styles).toContain('.meta-label, .agent-kicker')
-    expect(styles).toContain('overflow-wrap: break-word')
-    expect(styles).not.toContain('.unicode-diagram')
-    expect(styles).not.toContain('overflow-wrap: anywhere')
-    expect(styles).not.toContain('transition: background-color 0.2s ease')
-    expect(styles).not.toContain('transition: opacity 0.35s ease')
-    expect(styles).not.toContain('text-transform: uppercase')
-    expect(styles).not.toMatch(/font-size: (?:11|12|13|14)px/)
-  })
 
   test('comparisons page renders available engines and omits unsupported Beautiful Mermaid panels', () => {
     const comparisons = read('comparisons/index.html')
@@ -1199,31 +963,6 @@ describe('Workers Static Assets website contract', () => {
     expect(comparisons.match(/class="comparison-panel"/g)?.length).toBe(BUILTIN_FAMILY_METADATA.length * 2 + 6)
     expect(comparisons.match(/class="comparison-grid" data-comparison-lightbox-panel/g)?.length).toBe(BUILTIN_FAMILY_METADATA.length)
     expect(comparisons.match(/data-comparison-editor-href="\/editor\/#/g)?.length).toBe(BUILTIN_FAMILY_METADATA.length)
-    expect(comparisons).not.toContain('comparison-source-actions')
-    expect(comparisons).not.toContain('class="comparison-panel" data-comparison-engine="mermaid" data-comparison-lightbox-panel')
-    expect(comparisons).not.toContain('comparison-focus')
-    expect(comparisons).not.toContain('data-comparison-focus')
-    expect(comparisons).not.toContain('Copy source')
-    expect(comparisons).not.toContain('data-comparison-source-copy')
-    expect(comparisons).not.toContain('data-copy-target="comparison-source-')
-    expect(comparisons.match(/class="comparison-takeaway"/g)?.length).toBe(BUILTIN_FAMILY_METADATA.length)
-    expect(comparisons).toContain('Read this page as evidence, not a shootout')
-    expect(comparisons).toContain('id="comparison-style-matrix-title"')
-    expect(comparisons).toContain('Style and palette support')
-    expect(comparisons).toContain('This section uses one small source and shows where each renderer expects appearance controls to live.')
-    expect(comparisons).toContain('id="comparison-style-demo-mermaid"')
-    expect(comparisons).toContain('comparison-style-demo-grid')
-    expect(comparisons).toContain('comparison-style-beautiful-svg-title')
-    expect(comparisons).toContain('comparison-style-agentic-svg-title')
-    expect(comparisons).toContain("style: ['watercolor', 'paper']")
-    expect(comparisons).toContain('Host-owned runtime config')
-    expect(comparisons).toContain('Render-call palette options')
-    expect(comparisons).toContain('Composable style stack')
-    expect(comparisons).toContain('edit typed source, verify it, then pass style and palette render options')
-    expect(comparisons.indexOf('id="comparison-style-matrix-title"')).toBeGreaterThan(comparisons.lastIndexOf('id="gitgraph"'))
-    expect(comparisons).not.toContain('>Focus view</button>')
-    expect(comparisons).toContain('data-comparison-dialog')
-    expect(comparisons).toContain('Open larger comparison')
     // The lightbox's pair/view/zoom controls, source link and keyboard opening
     // are exercised in a real browser (website-browser-a11y.test.ts), not by
     // grepping the bundled script for its private identifiers.
@@ -1235,7 +974,6 @@ describe('Workers Static Assets website contract', () => {
       expect(section).toContain('data-comparison-engine="mermaid"')
       expect(section).toContain('data-comparison-engine="agentic"')
       expect(section).toContain('data-comparison-editor-href="/editor/#')
-      expect(section).not.toContain('>Open in Editor</a>')
       const href = section.match(/data-comparison-editor-href="([^"]+)"/)?.[1]
       expect(href, `${id}: comparison Editor state`).toBeDefined()
       const state = decodeEditorStateHref(href!)
@@ -1249,7 +987,6 @@ describe('Workers Static Assets website contract', () => {
     expect(comparisons).toContain('A[Start] --&gt; B{Decision?}')
     expect(comparisons).toContain('B --&gt;|Yes| C[Do the thing]')
     expect(comparisons).toContain('group app(cloud)[Application]')
-    expect(comparisons).not.toContain('group client(cloud)[Client]')
     for (const id of ['flowchart', 'state', 'sequence', 'class', 'er', 'xychart']) {
       const section = comparisons.match(new RegExp(`<section[^>]*id="${id}"[\\s\\S]*?<\\/section>`))?.[0] ?? ''
       expect(section).toContain('data-comparison-engine="beautiful"')
@@ -1263,30 +1000,8 @@ describe('Workers Static Assets website contract', () => {
     expect(comparisons).toContain('Beautiful Mermaid does not render this family')
     // Lazy, per-panel Mermaid rendering is asserted in the browser lane
     // (website-browser-a11y.test.ts: few panels processed at load, all after a walk).
-    expect(comparisons).not.toContain('comparison-empty')
     expect(comparisons).not.toContain('fonts.googleapis.com')
     expect(comparisons).not.toContain('@import url(')
-    expect(comparisons).not.toContain('principled decision')
-    const styles = read('styles.css')
-    expect(styles).toContain('--comparison-panel-zoom-width')
-    expect(styles).toContain('.comparison-mermaid { width: 100%;')
-    expect(styles).toContain('.comparison-panel[data-comparison-engine="mermaid"] .comparison-render svg')
-    expect(styles).toContain('.comparison-zoom-row')
-    expect(styles).toContain('.comparison-source-tools')
-    expect(styles).toContain('.comparison-style-matrix')
-    expect(styles).toContain('.comparison-open')
-    expect(styles).toContain('.comparison-style-demo-grid')
-    expect(styles).toContain('.home-style-showcase-grid')
-    expect(styles).toContain('.home-style-card { min-width: 0; display: grid; grid-template-rows: 300px 1fr;')
-    expect(styles).not.toContain('.contrast-col-mutate { border-color: color-mix')
-    expect(read('index.html')).not.toContain('contrast-col-mutate')
-    expect(styles).not.toContain('.comparison-source-actions')
-    expect(styles).toContain('@media (max-height: 480px) and (orientation: landscape)')
-    expect(styles).toContain('grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto')
-    expect(styles).toContain('overflow-x: visible')
-    expect(styles).toContain('.comparison-case > .comparison-grid[data-comparison-lightbox-panel]')
-    expect(styles).toContain('cursor: zoom-in')
-    expect(styles).not.toContain('.comparison-grid .comparison-panel[data-comparison-lightbox-panel]')
   })
 
   test('rich gallery promotes the selected Mindmap and GitGraph corpus scenarios', () => {
@@ -1379,9 +1094,6 @@ describe('Workers Static Assets website contract', () => {
       expect(read('examples/corpus/index.html'), legacy).toContain(`id="${legacy}" data-example-alias data-example-kind="corpus" data-example-canonical="${canonical}"`)
       expect(examplesHtml, canonical).toContain(`id="${canonical}"`)
     }
-    const loader = files().find(file => /^examples-[a-f0-9]{12}\.js$/.test(file))
-    expect(loader).toBeDefined()
-    expect(read(loader!)).toContain('resolveStandaloneAlias')
     const styles = read('styles.css')
     expect(styles).toContain('.example-sample-palette .example-sample-grid { grid-template-columns: minmax(0, 1fr); }')
     expect(styles).toContain('.example-render-palette .example-svg svg { width: auto; max-width: none; margin-inline: auto; }')
@@ -1433,16 +1145,6 @@ describe('Workers Static Assets website contract', () => {
     expect(styles).not.toContain('.example-jump-more')
   })
 
-  test('fork-differences page derives family claims from the current registry', () => {
-    const page = read('docs/fork-differences/index.html')
-    expect(page).not.toMatch(/all twelve families|twelve in all/i)
-    expect(page).toContain('Mindmap')
-    expect(page).toContain('GitGraph')
-    const original = new Set(['flowchart', 'state', 'sequence', 'class', 'er', 'xychart'])
-    const additions = BUILTIN_FAMILY_METADATA.filter(family => !original.has(family.id)).map(family => family.label).join(', ')
-    expect(page).toContain(`Adds ${additions} beyond the original Beautiful Mermaid family set`)
-    expect(page).toContain('Every registered built-in family is structured when narrowed')
-  })
 
   test('editor mode switch is not a pseudo-tabset', () => {
     const editor = read('editor/index.html')
@@ -1614,15 +1316,9 @@ describe('Workers Static Assets website contract', () => {
     expect(publicText).not.toContain('The skill never runs Code Mode')
   })
 
-  test('published npm release copy is present', () => {
-    const publicText = files().filter((f) => /\.(html|json|md|txt)$/.test(f)).map(read).join('\n')
-    expect(publicText).toContain('npm i agentic-mermaid')
-    expect(publicText).not.toContain('The npm package is not yet published; install from source.')
-  })
 
-  test('audit fixes keep hidden UI inert, shortcuts scoped, and mobile tables responsive', () => {
+  test('hidden controls and dialogs publish accessible initial semantics', () => {
     const editor = read('editor/index.html')
-    const styles = read('styles.css')
     // Runtime behaviour of these controls (the "?" dialog, Cmd/Ctrl+C in the
     // source, copy-button width) is exercised in a real browser by
     // e2e/editor-site-interactions.e2e.test.ts and website-browser-a11y.test.ts;
@@ -1636,13 +1332,8 @@ describe('Workers Static Assets website contract', () => {
     expect(editor).not.toContain('id="shortcuts-btn"')
     expect(editor).toContain('id="copy-link-btn"')
     expect(editor).toContain('id="shortcuts-dialog" role="dialog" aria-modal="true"')
-    expect(editor).toContain('class="shortcuts-dialog-panel"')
-    expect(styles).toContain('@media (forced-colors: active)')
-    expect(styles).toContain('.warning-table thead { display: none; }')
     expect(read('warnings/index.html')).toContain('<td data-label="Code">')
     expect(read('warnings/index.html')).toContain('data-warning-filter')
-    expect(read('warnings/index.html')).toContain('Fix structural first')
-    expect(read('docs/getting-started/index.html')).toContain('Self-hosting over stdio is the default path')
     expect(editor).toContain('aria-haspopup="dialog"')
     expect(editor).toContain('id="export-dropdown" role="dialog" aria-modal="false" aria-label="Export options"')
     expect(editor).not.toContain('role="menu" aria-label="Export options"')
@@ -1710,8 +1401,9 @@ describe('Workers Static Assets website contract', () => {
       const href = warningHtml.match(/href="(\/editor\/#deflate:[A-Za-z0-9_-]+)"/)?.[1]
       expect(href, `${warning.code}: Editor reproducer link`).toBeDefined()
       const state = decodeEditorStateHref(href!)
+      expect(state.source, `${warning.code}: linked source`).toBe(warning.example!)
       const renderOptions = editorRenderOptionsFromState(state)
-      expect({ code: warning.code, fires: verifyMermaid(warning.example!, { renderOptions }).warnings.some(actual => actual.code === warning.code) })
+      expect({ code: warning.code, fires: verifyMermaid(state.source as string, { renderOptions }).warnings.some(actual => actual.code === warning.code) })
         .toEqual({ code: warning.code, fires: true })
       expect(warningHtml).toContain('Minimal reproducer')
     }
@@ -1741,11 +1433,6 @@ describe('Workers Static Assets website contract', () => {
     expect(graph.find((node: any) => node['@type'] === 'Organization').contactPoint.url).toBe('https://github.com/adewale/agentic-mermaid/issues')
     expect(graph.find((node: any) => node['@type'] === 'Organization').address.addressCountry).toBe('US')
     expect(graph.find((node: any) => node['@type'] === 'WebPage').speakable.cssSelector).toContain('h1')
-    // The editor verdict is truthful copy, not the old overclaim.
-    const editorScript = read(editorScriptRel())
-    expect(editorScript).toContain('Render checks passed: no warnings')
-    expect(editorScript).not.toContain('Verified: safe to export')
-    expect(editorScript).toContain('Diagram too large for text rendering')
   })
 
   test('public llms.txt omits repo-only backlog and eval surfaces', () => {

@@ -7,8 +7,7 @@
 // path reaches it. These tests fail if validateOp is removed from that core.
 
 import { describe, expect, test } from 'bun:test'
-import { applyOps, hasOpSchema, mutate, mutateChecked, opMenu, serializeMermaid, validateOp } from '../agent/core.ts'
-import { createMermaid } from '../agent/create.ts'
+import { applyOps, hasOpSchema, mutate, mutateChecked, opMenu, serializeMermaid } from '../agent/core.ts'
 import { MUTATION_OPS_BY_FAMILY } from '../agent/mutation-ops.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import type { AnyMutationOp, MutableValidDiagram } from '../agent/types.ts'
@@ -164,16 +163,18 @@ describe('one shared choke point — byte-identical rejection (§6)', () => {
   const src = 'classDiagram\n  class Animal'
   const badOp = { kind: 'add_class', name: 'Duck' }
 
-  test('Code Mode mutateChecked and declarative applyOps(edit) reject identically', () => {
+  test('checked mutations and declarative applyOps(edit) reject identically', () => {
     const parsed = parseMermaid(src)
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) return
-    const codeMode = mutateChecked(parsed.value as MutableValidDiagram, badOp)
+    const checked = mutateChecked(parsed.value as MutableValidDiagram, badOp)
     const declarative = applyOps({ source: src, ops: [badOp] })
-    expect(codeMode.ok).toBe(false)
+    expect(checked.ok).toBe(false)
     expect(declarative.ok).toBe(false)
-    if (codeMode.ok || declarative.ok) return
-    expect(errMsg(codeMode.error)).toBe(errMsg(declarative.error))
+    if (checked.ok || declarative.ok) return
+    expect(checked.error).toMatchObject({ reason: 'unknown_field' })
+    expect(declarative.error).toMatchObject({ reason: 'unknown_field' })
+    expect(errMsg(checked.error)).toBe(errMsg(declarative.error))
   })
 
   test('the CLI --op/--ops path shares the choke point (no silent mangle)', () => {
@@ -184,19 +185,6 @@ describe('one shared choke point — byte-identical rejection (§6)', () => {
     if (r.ok) return
     expect(r.error.message).toContain('Unknown field "name"')
     expect(JSON.stringify(r)).not.toContain('class undefined')
-  })
-
-  test('validateOp is the single source of the rejection (removing it lets the bad op through)', () => {
-    // Guards the choke point: mutateChecked must go through validateOp. If a
-    // future edit routes an untyped op straight to mutate(), this bad op would
-    // reach the mutator and this assertion (reason==='unknown_field') breaks.
-    const d = createMermaid('class') as MutableValidDiagram
-    const r = mutateChecked(d, badOp)
-    expect(r.ok).toBe(false)
-    if (r.ok) return
-    expect((r.error as { reason?: string }).reason).toBe('unknown_field')
-    // And validateOp alone, called directly, agrees — same message.
-    expect(validateOp('class', badOp)?.message).toBe(errMsg(r.error))
   })
 })
 

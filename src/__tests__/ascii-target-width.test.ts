@@ -49,6 +49,9 @@ describe('targetWidth hard terminal contract', () => {
     expect(outputWidth(output)).toBeLessThanOrEqual(32)
     expect(output).toContain('日本語')
     expect(output).toContain('👩‍💻')
+    const visible = output.replace(/[│\s-]/g, '')
+    expect(visible).toContain('descriptivelabelwithmanywords')
+    expect(output).toContain('Done')
   })
 
   test('every registered family shrinks a feasible long label below natural width', () => {
@@ -179,6 +182,7 @@ describe('targetWidth hard terminal contract', () => {
       targetWidth: 24,
     })
     expect(outputWidth(output)).toBeLessThanOrEqual(24)
+    for (const word of ['Code', 'Mode', 'long', 'label', ' B ']) expect(output).toContain(word)
     try {
       sdk.renderMermaidASCII('flowchart TD\n  A[🙂]', { targetWidth: 1 })
       throw new Error('expected width failure')

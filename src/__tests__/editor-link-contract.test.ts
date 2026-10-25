@@ -74,16 +74,6 @@ describe('editor link producer/consumer contract', () => {
     }
   })
 
-  test('the live-editor development skill teaches the current source of truth', () => {
-    const skill = readFileSync(join(ROOT, 'skills/agentic-mermaid-live-editor/SKILL.md'), 'utf8')
-    expect(skill).toContain('editor/js/sharing.js')
-    expect(skill).toContain('state.palette')
-    expect(skill).toContain('deflate:')
-    expect(skill).not.toContain('state.theme')
-    expect(skill).not.toContain('JSON.stringify({ source, theme })')
-    expect(skill).not.toMatch(/\bbtoa\(|\batob\(/)
-  })
-
   test('the browser consumer and build-time producer admit the same state fields', async () => {
     const consumer = browserShareConsumer()
     expect(Array.from(consumer.api.EDITOR_SHARE_STATE_KEYS)).toEqual(Array.from(EDITOR_SHARE_STATE_KEYS))

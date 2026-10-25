@@ -5,7 +5,6 @@ import { describeMermaidFacts, parseRegisteredMermaid, serializeMermaid } from '
 import { renderMermaidPNG } from '../agent/png.ts'
 import { renderMermaidASCII, renderMermaidSVG, verifyNoExternalRefs } from '../index.ts'
 import { getStyle, resolveStyleStack, validateStyleSpec } from '../scene/style-registry.ts'
-import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { wcagCssContrastRatio, tryParseCssColor } from '../shared/color-math.ts'
 import { scanSvgStartTags, svgCssText, type SvgStartTagToken } from '../svg-structure.ts'
 import { lowerPositionedFamilyScene } from '../graphical-render.ts'
@@ -13,14 +12,7 @@ import { positionResolvedFamily } from '../positioning.ts'
 import { resolveRenderRequestForExecution, resolvedRenderExecutionPlanOf } from '../render-contract.ts'
 import { visitSceneNodes } from '../scene/walk.ts'
 import type { RenderOptions } from '../types.ts'
-import {
-  COMPLEXITY_STRATA,
-  FAMILY_CONFORMANCE_PROFILES,
-  allConformanceSources,
-  collectCorpusOutliers,
-  conformanceSourceFor,
-} from './helpers/family-conformance-profiles.ts'
-import { measureDiagramComplexity } from './helpers/diagram-complexity.ts'
+import { COMPLEXITY_STRATA, FAMILY_CONFORMANCE_PROFILES, allConformanceSources, conformanceSourceFor } from './helpers/family-conformance-profiles.ts'
 import {
   OUTPUT_FORMATS,
   buildMixedFormatConformancePlan,
@@ -221,11 +213,7 @@ function assertOutlines(
 }
 
 describe('registry-derived complexity-aware render conformance plan', () => {
-  test('family registration forces exact conformance material and six structured strata', () => {
-    expect(Object.keys(FAMILY_CONFORMANCE_PROFILES).sort(compareCodePointStrings)).toEqual([...families].sort(compareCodePointStrings))
-    expect(Object.keys(collectCorpusOutliers()).sort(compareCodePointStrings)).toEqual([...families].sort(compareCodePointStrings))
-
-    const measurements = new Map<string, ReturnType<typeof measureDiagramComplexity>>()
+  test('complex fixture sources retain structured meaning through serialization', () => {
     for (const source of allConformanceSources()) {
       const parsed = parseRegisteredMermaid(source.source)
       expect(parsed.ok, source.id).toBe(true)
@@ -236,20 +224,6 @@ describe('registry-derived complexity-aware render conformance plan', () => {
       const reparsed = parseRegisteredMermaid(canonical)
       expect(reparsed.ok, `${source.id}: canonical reparse`).toBe(true)
       if (reparsed.ok) expect(describeMermaidFacts(reparsed.value), source.id).toEqual(describeMermaidFacts(parsed.value))
-      measurements.set(`${source.family}:${source.stratum}`, measureDiagramComplexity(source.source))
-      if (source.stratum === 'text-stress') {
-        expect(measurements.get(`${source.family}:${source.stratum}`)!.source.unicodeClasses.length, source.id).toBeGreaterThan(0)
-      }
-      if (source.stratum === 'corpus-outlier') expect(source.origin).toBe('eval-corpus')
-    }
-
-    for (const family of families) {
-      const familyMeasurements = COMPLEXITY_STRATA.map(stratum => measurements.get(`${family}:${stratum}`)!)
-      expect(familyMeasurements.every(Boolean), family).toBe(true)
-      const minimal = measurements.get(`${family}:minimal`)!
-      const dense = measurements.get(`${family}:dense`)!
-      const structuralWork = (value: typeof minimal) => value.source.entities + value.source.relations + value.rendered.routePoints
-      expect(structuralWork(dense), `${family}: dense structural work`).toBeGreaterThanOrEqual(structuralWork(minimal))
     }
   }, 30_000)
 

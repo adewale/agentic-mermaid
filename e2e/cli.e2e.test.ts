@@ -134,8 +134,12 @@ describe('am render multi-input', () => {
       expect(r.status).toBe(0)
       const payload = JSON.parse(r.stdout)
       expect(payload.files.length).toBe(2)
-      expect(payload.files[0].output.kind).toBe('flowchart')
-      expect(Array.isArray(payload.files[0].output.nodes)).toBe(true)
+      expect(payload.files.map((result: { file: string; ok: boolean; output: { kind: string; nodes: { id: string }[] } }) => ({
+        file: result.file, ok: result.ok, kind: result.output.kind, nodes: result.output.nodes.map(node => node.id).sort(),
+      }))).toEqual([
+        { file: a, ok: true, kind: 'flowchart', nodes: ['A', 'B'] },
+        { file: b, ok: true, kind: 'flowchart', nodes: ['C', 'D'] },
+      ])
     } finally {
       if (existsSync(a)) unlinkSync(a)
       if (existsSync(b)) unlinkSync(b)
@@ -227,6 +231,7 @@ describe('am exit codes', () => {
     expect(r.status).toBe(3)
     const payload = JSON.parse(r.stdout)
     expect(payload.ok).toBe(false)
+    expect(payload.warnings).toContainEqual(expect.objectContaining({ code: 'EMPTY_DIAGRAM' }))
   })
 
   test('verify on a clean diagram exits 0', () => {
@@ -237,16 +242,20 @@ describe('am exit codes', () => {
   })
 
   test('mutate with a missing --op flag exits 2', () => {
-    const r = runAm(['mutate', '-'], 'flowchart LR\n  A --> B\n')
+    const r = runAm(['mutate', '-', '--json'], 'flowchart LR\n  A --> B\n')
     expect(r.status).toBe(2)
+    expect(r.stderr).toBe('mutate: mutate requires --op <JSON> or --ops <JSON array|file.json>\n')
+    expect(r.stdout).toBe('')
   })
 
   test('mutate with malformed --op JSON exits 2', () => {
-    const r = runAm(['mutate', '-', '--op', '{bad'], 'flowchart LR\n  A --> B\n')
+    const r = runAm(['mutate', '-', '--op', '{bad', '--json'], 'flowchart LR\n  A --> B\n')
     expect(r.status).toBe(2)
+    expect(r.stderr).toStartWith('mutate: invalid mutation JSON:')
+    expect(r.stdout).toBe('')
   })
 
-  test('mutate accepts a batch of ops and verifies once before emitting source', () => {
+  test('mutate accepts a batch of ops and emits the edited source with its verification', () => {
     const ops = JSON.stringify([
       { kind: 'add_node', id: 'C', label: 'Cache' },
       { kind: 'add_edge', from: 'B', to: 'C' },
@@ -317,6 +326,8 @@ describe('am exit codes', () => {
     try {
       const r = runAm(['render', '--format', 'png', tmpSrc])
       expect(r.status).toBe(2)
+      expect(r.stderr).toContain('requires --output')
+      expect(r.stdout).toBe('')
     } finally {
       if (existsSync(tmpSrc)) unlinkSync(tmpSrc)
     }

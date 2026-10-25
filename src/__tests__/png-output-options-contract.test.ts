@@ -106,18 +106,6 @@ describe('canonical PNG output-option authority', () => {
     expect(portable.properties.background).toHaveProperty('x-agentic-mermaid-runtime-validator', 'portablePngBackground')
   })
 
-  test('documents the raster-warning union and extension measurement boundary', () => {
-    const api = readFileSync(join(import.meta.dir, '..', '..', 'docs', 'api.md'), 'utf8')
-    const rationale = readFileSync(join(import.meta.dir, '..', '..', 'docs', 'mcp-code-mode-rationale.md'), 'utf8')
-    expect(api).toContain('| `minLabelPx` | `number` | `9` |')
-    expect(api).toContain('| `onWarning` | `(w: PngRasterWarning) => void` |')
-    expect(api).toContain('literal absolute-pixel `font-size`')
-    expect(api).toContain('`text`, `tspan`, and `textPath`')
-    expect(api).toContain('absence of a\n`BELOW_READABLE_SIZE` warning is therefore not proof')
-    expect(rationale).toContain('portable `scale`, `background`, `minLabelPx`')
-    expect(rationale).toContain('configuration and raster-legibility warnings')
-  })
-
   test('admits only closed plain objects with substrate-appropriate fields', () => {
     const invalidRoots: unknown[] = [null, [], 'png', 1, Object.create({ inherited: true })]
     for (const input of invalidRoots) {

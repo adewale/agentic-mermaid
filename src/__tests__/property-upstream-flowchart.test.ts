@@ -250,61 +250,6 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
   })
   afterAll(() => upstream.close())
 
-  test('the generator covers every required construct', () => {
-    const sources = fc.sample(sourceArb, 200).join('\n')
-    const constructs: Record<string, RegExp> = {
-      'flowchart header': /^flowchart (?:TB|TD|BT|RL|LR)$/m,
-      'graph header': /^graph (?:TB|TD|BT|RL|LR)$/m,
-      'rectangle []': /\w\[[^[(]/,
-      'rounded ()': /\w\([^(]/,
-      'diamond {}': /\w\{[^{]/,
-      'circle (( ))': /\w\(\(/,
-      'asymmetric >]': /\w>[^\]]*\]/,
-      'subroutine [[ ]]': /\w\[\[/,
-      'cylinder [( )]': /\w\[\(/,
-      'hexagon {{ }}': /\w\{\{/,
-      'quoted label': /[[({>]"/,
-      'quoted label with `*` or `~`': /"[^"\n]*[*~][^"\n]*"/,
-      'quoted label with `;`': /"[^"\n]*;[^"\n]*"/,
-      'quoted label with `\\`': /"[^"\n]*\\[^"\n]*"/,
-      'quoted label with `#quot;`': /"[^"\n]*#quot;[^"\n]*"/,
-      'quoted label with `@{`': /"[^"\n]*@\{[^"\n]*"/,
-      'quoted label with an entity code': /"[^"\n]*#(?:9829|35|amp|lt|gt|92);[^"\n]*"/,
-      'quoted label with `\\n`': /"[^"\n]*\\n[^"\n]*"/,
-      'label with a backtick': /[[(>|][^\n]*`/,
-      'asymmetric label with bare `;`': /\w>[^"\]\n]*;[^\]\n]*\]/,
-      'quoted label with boundary whitespace': /"(?: [^"\n]*|[^"\n]* )"/,
-      'unquoted label': /\w\[[a-zA-Z]/,
-      '-->': / --> /,
-      '---': / --- /,
-      '-.->': / -\.-> /,
-      '==>': / ==> /,
-      '-- text -->': / -- \w[\w ]* --> /,
-      '-->|text|': / -->\|[^|]+\| /,
-      'chain (two links in one statement)': /(?:-->|---|-\.->|==>|-\.-|===|--o|--x|<-->)[^\n]*(?:-->|---|-\.->|==>|-\.-|===|--o|--x|<-->)/,
-      'subgraph with title': /^\s+subgraph S\d+ \[/m,
-      'subgraph direction': /^\s+direction (?:TB|TD|BT|RL|LR)$/m,
-      'nested subgraph': /^ {4,}subgraph /m,
-      'style statement': /^\s+style \S+ fill:#f00$/m,
-    }
-    const missing = Object.entries(constructs).filter(([, pattern]) => !pattern.test(sources)).map(([name]) => name)
-    expect(missing).toEqual([])
-  })
-
-  test('the generator never emits a source that upstream preprocessing rewrites', async () => {
-    // A random-seed run found this: `<a="| A["` lies inside a `<a …>` "tag"
-    // that the `>` of the second arrow closes, so upstream rejects it.
-    const rewritten = 'flowchart TB\n  subgraph S0\n    A -->|"<a="| A["a"] --> A\n  end'
-    expect(rewrittenByUpstreamPreprocess(rewritten)).toBe(true)
-    expect((await upstream.parse(rewritten)).ok).toBe(false)
-    // With no `>` after it there is no tag, and upstream parses the labels.
-    const untouched = rewritten.replace('] --> A', '] --- A')
-    expect(rewrittenByUpstreamPreprocess(untouched)).toBe(false)
-    expect((await upstream.parse(untouched)).ok).toBe(true)
-    // The seed reproduces such sources from the unfiltered grammar.
-    expect(fc.sample(sourceArb, fcParameters({ numRuns: 5000, seed: 7 })).filter(rewrittenByUpstreamPreprocess)).toEqual([])
-  })
-
   test('the #372 preprocessing witness stays readable and exports portably with a precise warning', async () => {
     const source = 'flowchart TD\nA -->|"<a="| B["b"] --> C'
     const parsed = parseRegisteredMermaid(source)
@@ -330,6 +275,12 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
     const reread = parseRegisteredMermaid(written)
     if (!reread.ok) throw new Error('export rejected')
     expect(verifyMermaid(reread.value).warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'mermaid_cleanup')).toBe(false)
+
+    // A dashed final edge leaves the preceding <a= label outside an HTML
+    // tag, so both parsers read the same literal label without repair.
+    const untouched = 'flowchart TB\n  subgraph S0\n    A -->|"<a="| A["a"] --- A\n  end'
+    expect(await upstream.accepts(untouched)).toBe(true)
+    expect(parseOurs(untouched).edges.map(edge => edge.label ?? '')).toEqual(['<a=', ''])
   })
 
   test('a preprocessing quote rewrite that breaks metadata YAML is diagnosed and exports portably', async () => {

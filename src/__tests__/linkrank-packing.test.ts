@@ -66,6 +66,8 @@ describe('honorLinkRankDistance packing: a shove never leaves overlaps or blocke
     test(`${name}: no nodeOverlaps, no edgeThroughNode`, () => {
       const g = parseMermaid(src)
       const p = layoutGraphSync(g)
+      expect(p.nodes.map(node => node.id).sort()).toEqual([...g.nodes.keys()].sort())
+      expect(p.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(g.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
       const bad = hardViolations(assessLayout(g, p))
         .filter(v => v.metric === 'nodeOverlaps' || v.metric === 'edgeThroughNode')
       expect(bad).toEqual([])
