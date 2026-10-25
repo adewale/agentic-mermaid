@@ -63,6 +63,7 @@ import {
 import { parseClassShorthandStatement } from '../shared/mermaid-identifiers.ts'
 import { graphClassNames } from '../shared/graph-classes.ts'
 import { resolveStateIdentities, type StateIdentities } from '../state/identity.ts'
+import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
 import type { StateScope } from '../state/types.ts'
 
 /** `record[key] = value` as an own key: a class may be named `__proto__`,
@@ -118,7 +119,13 @@ function ensureState(scope: ParseScope, id: string): StateNode {
  */
 export function parseStateBody(lines: string[]): StateBody | null {
   const { statements } = readStateStatements(scanStateComments(lines))
-  const identities = resolveStateIdentities(statements)
+  let identities: StateIdentities
+  try { identities = resolveStateIdentities(statements) } catch (error) {
+    // A source beyond the host budget stays source-preserved. The renderer
+    // reports its work-limit refusal through verify's normal diagnostics.
+    if (error instanceof DiagramWorkLimitError) return null
+    throw error
+  }
   if (identities.issue) return null
   const stateById = new Map<string, StateNode>()
   const root = newScope(stateById)
