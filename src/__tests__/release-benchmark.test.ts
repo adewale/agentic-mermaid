@@ -2,7 +2,6 @@
 // observations. Registry and browser failures are controlled in subprocess probes.
 import { describe, expect, test } from 'bun:test'
 import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
-import { execFileSync } from 'node:child_process'
 import { join, relative } from 'node:path'
 import { createHash } from 'node:crypto'
 import { report, type EngineRun, type Group, type Input } from '../../eval/benchmark/release-bench.ts'
@@ -426,7 +425,7 @@ test('archive acquisition pins the frozen runtime closure without changing shipp
   const source = join(dir, 'source'), evidence = join(dir, 'evidence'), prefix = join(dir, 'consumer')
   mkdirSync(source)
   const archives = new Map<string, Buffer>()
-  const pack = (name: string, version: string, dependencies: Record<string, string> = {}) => {
+  const pack = async (name: string, version: string, dependencies: Record<string, string> = {}) => {
     const root = join(dir, `${name}-${version}`), pkg = join(root, 'package'), path = join(root, 'package.tgz')
     mkdirSync(pkg, { recursive: true })
     writeFileSync(join(pkg, 'package.json'), JSON.stringify({ name, version, dependencies }))
@@ -434,14 +433,17 @@ test('archive acquisition pins the frozen runtime closure without changing shipp
       mkdirSync(join(pkg, 'dist'))
       writeFileSync(join(pkg, 'dist/index.js'), "throw Error('BENCHMARK_WORKER_STARTED')")
     }
-    execFileSync('tar', ['-czf', path, '-C', root, 'package'])
+    // Keep archive creation inside the same owned deadline as acquisition.
+    // A synchronous tar wait would also block this worker's test timeout.
+    const packed = await runChild('tar', ['-czf', path, '-C', root, 'package'])
+    expect({ status: packed.status, stderr: packed.stderr }).toEqual({ status: 0, stderr: '' })
     const bytes = readFileSync(path), integrity = `sha512-${createHash('sha512').update(bytes).digest('base64')}`
     archives.set(`/${name}-${version}.tgz`, bytes)
     return { path, integrity, dependencies }
   }
-  const leaf = pack('runtime-leaf', '1.0.0'), elk = pack('elkjs', '0.11.0', { 'runtime-leaf': '^1.0.0' }), yaml = pack('yaml', '2.9.0')
-  pack('runtime-leaf', '1.1.0'); pack('elkjs', '0.11.1'); pack('yaml', '2.9.1')
-  const dependencies = { elkjs: '^0.11.0', yaml: '^2.9.0' }, archive = pack('agentic-mermaid', '0.0.0', dependencies)
+  const leaf = await pack('runtime-leaf', '1.0.0'), elk = await pack('elkjs', '0.11.0', { 'runtime-leaf': '^1.0.0' }), yaml = await pack('yaml', '2.9.0')
+  await pack('runtime-leaf', '1.1.0'); await pack('elkjs', '0.11.1'); await pack('yaml', '2.9.1')
+  const dependencies = { elkjs: '^0.11.0', yaml: '^2.9.0' }, archive = await pack('agentic-mermaid', '0.0.0', dependencies)
   writeFileSync(join(source, 'package.json'), JSON.stringify({ name: 'agentic-mermaid', version: '0.0.0', dependencies }))
   writeFileSync(join(source, 'bun.lock'), JSON.stringify({ packages: {
     elkjs: ['elkjs@0.11.0', '', { dependencies: elk.dependencies }, elk.integrity],
@@ -478,13 +480,13 @@ test('archive acquisition pins the frozen runtime closure without changing shipp
     // A legitimate older npm release omits a root added by current source.
     // Strict comparison must keep rejecting it; only explicit normalization
     // may project compatible roots, retaining the original archive and policy.
-    const legacy = pack('agentic-mermaid', '0.0.2', { elkjs: '^0.11.0' })
-    const unknownRoot = pack('agentic-mermaid', '0.0.3', { 'runtime-leaf': '^1.0.0' })
-    const incompatible = pack('agentic-mermaid', '0.0.4', { yaml: '^3.0.0' })
-    const nonsemver = pack('agentic-mermaid', '0.0.5', { yaml: 'latest' })
-    const localRange = pack('agentic-mermaid', '0.0.6', { yaml: 'file:/must-not-read-local-package' })
-    const aliasRange = pack('agentic-mermaid', '0.0.7', { yaml: 'npm:yaml@2.9.0' })
-    const leadingZero = pack('agentic-mermaid', '0.0.8', { yaml: '02.9.0' })
+    const legacy = await pack('agentic-mermaid', '0.0.2', { elkjs: '^0.11.0' })
+    const unknownRoot = await pack('agentic-mermaid', '0.0.3', { 'runtime-leaf': '^1.0.0' })
+    const incompatible = await pack('agentic-mermaid', '0.0.4', { yaml: '^3.0.0' })
+    const nonsemver = await pack('agentic-mermaid', '0.0.5', { yaml: 'latest' })
+    const localRange = await pack('agentic-mermaid', '0.0.6', { yaml: 'file:/must-not-read-local-package' })
+    const aliasRange = await pack('agentic-mermaid', '0.0.7', { yaml: 'npm:yaml@2.9.0' })
+    const leadingZero = await pack('agentic-mermaid', '0.0.8', { yaml: '02.9.0' })
     const strictLegacy = await runChild(process.execPath, [join(import.meta.dir, '../../eval/benchmark/release-baseline.ts'), '--install', legacy.path,
       '--prefix', join(dir, 'strict-legacy'), '--runtime-source', source, '--out', join(evidence, 'strict-legacy'), '--expected-integrity', legacy.integrity], {
       env: { ...process.env, npm_config_registry: `http://127.0.0.1:${registry.port}`, npm_config_cache: join(dir, 'npm-cache') },
@@ -591,8 +593,8 @@ test('archive acquisition pins the frozen runtime closure without changing shipp
     // prevents A/A1 from starting, rather than being discovered after controls.
     frozen.packages.yaml[3] = yaml.integrity
     writeFileSync(join(source, 'bun.lock'), JSON.stringify(frozen))
-    const extraRuntime = pack('runtime-extra', '1.0.0')
-    const badCandidate = pack('agentic-mermaid', '0.0.1', { ...dependencies, 'runtime-extra': '^1.0.0' })
+    const extraRuntime = await pack('runtime-extra', '1.0.0')
+    const badCandidate = await pack('agentic-mermaid', '0.0.1', { ...dependencies, 'runtime-extra': '^1.0.0' })
     const qualificationOut = join(evidence, 'qualification'), candidateSha = createHash('sha256').update(readFileSync(badCandidate.path)).digest('hex')
     const failed = await runChild(process.execPath, [join(import.meta.dir, '../../eval/benchmark/qualify-peer-performance.ts'),
       '--baseline-tarball', archive.path, '--baseline-sha256', sha256, '--candidate-tarball', badCandidate.path, '--candidate-sha256', candidateSha,
