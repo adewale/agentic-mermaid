@@ -49,8 +49,9 @@ Warm tracks prime at least 20 real calls and 1,000 ms of elapsed warmup, then
 record 201 individual call durations and three independent V8 allocation
 probes. The 180-second measurement budget accommodates the complete population
 on fresh large meshes; it does not change renderer resource limits. The worker
-no-progress cap remains 300 seconds, the report watchdog 90 minutes. A completed indexed-consumer report must contain its whole
-declared timing population; deadline truncation cannot qualify a different
+no-progress cap remains 300 seconds, and the report watchdog remains 90 minutes.
+A completed indexed-consumer report must contain its whole declared timing
+population; deadline truncation cannot qualify a different
 source population on one side.
 Actual warmup calls, elapsed time and completion are retained per observation.
 A failed or incomplete warmup remains an error; it cannot supply a numeric pass.

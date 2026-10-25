@@ -298,6 +298,12 @@ The remaining limits are material:
   typed editing operations have no invented common baseline.
 - Public corpora provide no secret holdout. Cache state, startup, configured
   workflows and consumed-return scopes must remain explicit.
+- The Node baseline controller still reaches Agentic source through shared
+  startup/policy helpers. Its measured identity includes 505 producer objects;
+  a later rebase changes that closure even with the supplied package frozen.
+  Neutral helpers would reduce unnecessary invalidation. The context audit
+  after the cc6fc54a rebase preserves the earlier measurements under their
+  original protocol instead of qualifying them as new-head observations.
 
 A tool can be lower cost and less complete at the same time. Reports therefore
 compare each matched measure against Mermaid, show coverage differences, and
