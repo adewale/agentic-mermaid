@@ -19,6 +19,8 @@ import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
 import { renderMermaidSVG, renderMermaidSVGWithReceipt, renderMermaidASCIIWithReceipt } from '../src/index.ts'
 import { serveWithAvailablePort } from './test-port.ts'
 import { PIE_ENTITY_FIXTURES } from '../src/__tests__/helpers/pie-entity-fixtures.ts'
+import { restyle } from '../scripts/sketch-prototype/restyle.ts'
+import { STYLES } from '../scripts/sketch-prototype/styles.ts'
 
 const ROOT = join(import.meta.dir, '..')
 const PREFERRED_PORT = 4567
@@ -284,6 +286,51 @@ afterAll(async () => {
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
+
+it('prototype styles paint readable label ink against an opaque halo', async () => {
+  const labels = await browser.newPage()
+  await labels.route('**/*', route => route.abort())
+  try {
+    for (const style of STYLES) {
+      await labels.setContent(restyle('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 50"><text x="8" y="28">Readable label</text></svg>', style, { backdrop: false }))
+      const paint = await labels.evaluate(() => {
+        const text = [...document.querySelectorAll('text')].find(node => node.textContent === 'Readable label')!
+        const computed = getComputedStyle(text)
+        // Canvas normalizes supported CSS colors without pinning hex spelling.
+        const canvas = document.createElement('canvas')
+        canvas.width = canvas.height = 1
+        const ctx = canvas.getContext('2d')!
+        const rgba = (color: string) => {
+          if (!CSS.supports('color', color)) return []
+          ctx.clearRect(0, 0, 1, 1)
+          ctx.fillStyle = color
+          ctx.fillRect(0, 0, 1, 1)
+          return [...ctx.getImageData(0, 0, 1, 1).data]
+        }
+        return {
+          fill: rgba(computed.fill), halo: rgba(computed.stroke),
+          width: parseFloat(computed.strokeWidth), order: computed.paintOrder.split(' ')[0],
+          opacity: [computed.opacity, computed.fillOpacity, computed.strokeOpacity].map(Number),
+          visibility: computed.visibility, display: computed.display,
+        }
+      })
+      expect(paint, style.name).toMatchObject({ order: 'stroke', opacity: [1, 1, 1], visibility: 'visible' })
+      expect(paint.display, style.name).not.toBe('none')
+      expect(paint.width, style.name).toBeGreaterThan(0)
+      expect(paint.fill[3], style.name).toBe(255)
+      expect(paint.halo[3], style.name).toBe(255)
+      // WCAG 2 relative luminance, independently of the production guardrail.
+      const luminance = (rgba: number[]) => rgba.slice(0, 3).reduce((sum, channel, i) => {
+        const c = channel / 255
+        return sum + [0.2126, 0.7152, 0.0722][i]! * (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
+      }, 0)
+      const [light, dark] = [luminance(paint.fill), luminance(paint.halo)].sort((a, b) => b - a)
+      expect((light! + 0.05) / (dark! + 0.05), style.name).toBeGreaterThanOrEqual(4.5)
+    }
+  } finally {
+    await labels.close()
+  }
+})
 
 it('standalone editor stays within its single-renderer payload budget', async () => {
   const html = new Uint8Array(await Bun.file(join(ROOT, 'editor.html')).arrayBuffer())

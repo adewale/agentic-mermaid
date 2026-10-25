@@ -521,13 +521,18 @@ describe('property: color-resolution waist', () => {
 })
 
 describe('layout certificate proof classification', () => {
-  test('valid edge certificates retain edge-route classification, including index zero', () => {
+  test('edge certificates retain route classification even when geometric checks fail', () => {
     for (const invariant of ['straight', 'explained-detour', 'bundle', 'outer-feedback', 'feedback-detour', 'self-loop', 'container-attach', 'unverified-shape'] as const) {
       expect(layoutCertificateProof({ edgeIndex: 0, routeClass: 'primary-forward', bendCount: 0, invariant })).toBe('edge-route')
     }
     for (const family of ['class', 'er'] as const) {
       for (const invariant of ['orthogonal-box', 'unverified-family-route'] as const) {
         expect(layoutCertificateProof({ family, edgeIndex: 1, routeClass: 'family-layout', invariant, bendCount: 0, orthogonal: true, sourceBoundary: true, targetBoundary: true })).toBe('edge-route')
+      }
+      for (const [orthogonal, sourceBoundary, targetBoundary] of [[false, true, true], [true, false, true], [true, true, false]] as const) {
+        expect(layoutCertificateProof({ family, edgeIndex: 0, routeClass: 'family-layout', invariant: 'unverified-family-route', bendCount: 1,
+          orthogonal, sourceBoundary, targetBoundary,
+        })).toBe('edge-route')
       }
     }
     for (const invariant of ['side-anchored', 'unverified-family-route'] as const) {

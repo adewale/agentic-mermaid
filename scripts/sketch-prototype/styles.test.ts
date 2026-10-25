@@ -11,7 +11,6 @@ import { test, expect } from 'bun:test'
 import { renderMermaidSVG } from '../../src/index.ts'
 import { restyle } from './restyle.ts'
 import { STYLES } from './styles.ts'
-import { contrastRatio, WCAG } from './contrast.ts'
 
 // crude hue extractor: returns HSL hue (0-360) or null for greys/near-greys
 function hue(hex: string): number | null {
@@ -56,20 +55,6 @@ for (const s of STYLES) {
     // line, border and fillColor should be the same hue (or grey) — the "ink".
     // The accent may differ (a single accent is allowed, e.g. Tufte red).
     expect(hueSpread([s.colors.line, s.colors.border, s.fillColor])).toBeLessThan(40)
-  })
-}
-
-// Readability contract (mirrors contrast-audit.ts) — every style must clear
-// WCAG 4.5:1 text against its halo/page, so labels are always legible.
-for (const s of STYLES) {
-  test(`style "${s.name}" meets WCAG 4.5:1 label contrast`, () => {
-    const styled = restyle('<svg viewBox="0 0 100 50"><text>Readable label</text></svg>', s, { backdrop: false })
-    const ink = styled.match(/text\{[^}]*fill:(#[0-9a-fA-F]{6}) !important/)?.[1]
-    const halo = styled.match(/paint-order:stroke;stroke:(#[0-9a-fA-F]{6})/)?.[1]
-    expect(ink, s.name).toBeDefined()
-    expect(halo, s.name).toBeDefined()
-    expect(styled).toContain('<text>Readable label</text>')
-    expect(contrastRatio(ink!, halo!)).toBeGreaterThanOrEqual(WCAG.textAA)
   })
 }
 

@@ -4,6 +4,9 @@ import { terminalDocumentOf, type TerminalDocument, type TerminalRegion } from '
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
 
 function connectedRelationship(document: TerminalDocument, edge: TerminalRegion): void {
+  // Inline labels replace wire cells, including spaces and wide-cell continuations.
+  const authoredText = new Set(edge.authoredTextCells!.flatMap(cell =>
+    Array.from({ length: document.cell(cell.column, cell.row)!.width }, (_, offset) => `${cell.column + offset},${cell.row}`)))
   const strokePorts: Record<string, number> = {
     '─': 10, '━': 10, '═': 10, '┄': 10, '┈': 10, '╌': 10, '-': 10, '=': 10, '.': 10,
     '│': 5, '┃': 5, '║': 5, '┆': 5, '┊': 5, '╎': 5, '|': 5, ':': 5,
@@ -13,9 +16,11 @@ function connectedRelationship(document: TerminalDocument, edge: TerminalRegion)
   }
   const portsAt = (x: number, y: number) => {
     const cell = document.cell(x, y)
-    return cell?.kind === 'stroke' ? strokePorts[cell.glyph] ?? 0 : 15
+    if (cell?.kind === 'stroke') return strokePorts[cell.glyph] ?? 0
+    if (cell?.kind === 'marker' && cell.glyph.trim()) return 15
+    return cell?.kind === 'text' && authoredText.has(`${x},${y}`) ? 15 : 0
   }
-  const covered = new Set([...document.entries()].filter(([, , cell]) => cell.owners.some(owner => owner.kind === 'edge' && owner.id === edge.id)).map(([x, y]) => `${x},${y}`))
+  const covered = new Set([...document.entries()].filter(([x, y, cell]) => portsAt(x, y) && cell.owners.some(owner => owner.kind === 'edge' && owner.id === edge.id)).map(([x, y]) => `${x},${y}`))
   const start = edge.ports!.find(port => port.end === 'start')!, end = edge.ports!.find(port => port.end === 'end')!
   const attachments = [start, end].map(port => {
     const nearby = [[port.x, port.y], [port.x - 1, port.y], [port.x + 1, port.y], [port.x, port.y - 1], [port.x, port.y + 1]]
@@ -33,13 +38,13 @@ function connectedRelationship(document: TerminalDocument, edge: TerminalRegion)
     }
   }
   expect(attachments[1]!.some(point => seen.has(point))).toBe(true)
-  // Labels can sit beside a route without a drawn junction. Their complete
-  // owned component must touch the directionally connected endpoint route.
+  // Labels can sit beside a route without a drawn junction. Only authored
+  // text may extend the directionally connected endpoint route.
   const labeled = [...seen], attachedText = new Set(labeled)
   for (let index = 0; index < labeled.length; index++) {
     const [x, y] = labeled[index]!.split(',').map(Number)
     for (const next of [`${x! - 1},${y}`, `${x! + 1},${y}`, `${x},${y! - 1}`, `${x},${y! + 1}`]) {
-      if (covered.has(next) && !attachedText.has(next)) { attachedText.add(next); labeled.push(next) }
+      if (authoredText.has(next) && covered.has(next) && !attachedText.has(next)) { attachedText.add(next); labeled.push(next) }
     }
   }
   for (const cell of edge.authoredTextCells!) expect(attachedText.has(`${cell.column},${cell.row}`)).toBe(true)

@@ -115,7 +115,11 @@ describe('unknown CLI flags error instead of being silently swallowed', () => {
     expect(capture(() => runCli(['render', file, '--format', 'png', '--o', scaledPath, '--scale', '2', '--bg', '#102030'])).code).toBe(0)
     const base = decodePng(readFileSync(basePath))
     const scaled = decodePng(readFileSync(scaledPath))
-    expect([scaled.width, scaled.height]).toEqual([base.width * 2, base.height * 2])
+    // Scaling happens before each output's independent integer rounding.
+    for (const [baseSize, scaledSize] of [[base.width, scaled.width], [base.height, scaled.height]] as const) {
+      expect(scaledSize).toBeGreaterThanOrEqual(baseSize * 2 - 1)
+      expect(scaledSize).toBeLessThanOrEqual(baseSize * 2)
+    }
     expect(Array.from(scaled.rgba.slice(0, 4))).toEqual([16, 32, 48, 255])
   })
 
