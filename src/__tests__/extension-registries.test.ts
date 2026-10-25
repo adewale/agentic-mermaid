@@ -46,6 +46,128 @@ const registerBackendFromJs = registerBackend as unknown as (
   options?: { readonly compatibility?: Readonly<Record<string, string>> },
 ) => () => void
 
+test('Sequence public layouts and copied native hooks retain caller observations and complete output', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import assert from 'node:assert/strict'
+    import { renderMermaidSVGWithReceipt } from './src/index.ts'
+    import { getFamily, replaceFamilyForTest } from './src/agent/families.ts'
+    import { resolveRenderRequestForExecution } from './src/render-contract.ts'
+    import { positionResolvedFamily } from './src/positioning.ts'
+    import { retainedNativeDrawing } from './src/scene/positioned.ts'
+    const source = 'sequenceDiagram\\nA->>B: first <b>label</b>\\nB->>A: return 界\\nA-->>B: dashed'
+    const options = { embedFontImport: false }
+    const original = getFamily('sequence')
+    const restore = replaceFamilyForTest('sequence', { ...original })
+    let adapter
+    try { adapter = renderMermaidSVGWithReceipt(source, options) } finally { restore() }
+    assert.deepEqual(renderMermaidSVGWithReceipt(source, options), adapter)
+    assert.deepEqual(renderMermaidSVGWithReceipt(source, options), adapter)
+    const request = resolveRenderRequestForExecution(source, options, 'svg')
+    const layout = positionResolvedFamily('sequence', request)
+    const point = layout.positioned.messages[0].points[0]
+    const x = point.x, reads = []
+    Object.defineProperty(point, 'x', { enumerable: true, configurable: true, get() {
+      reads.push('caller coordinate')
+      throw new Error('caller coordinate refusal')
+    } })
+    assert.throws(() => retainedNativeDrawing(request, layout), { message: 'caller coordinate refusal' })
+    assert.deepEqual(reads, ['caller coordinate'])
+    Object.defineProperty(point, 'x', { enumerable: true, configurable: true, get() { reads.push('caller coordinate'); return x } })
+    const drawing = retainedNativeDrawing(request, layout)
+    assert.deepEqual(reads, ['caller coordinate', 'caller coordinate'])
+    assert.ok(drawing.svg.includes('data-label="return 界"'))
+    assert.deepEqual(renderMermaidSVGWithReceipt(source, options), adapter)
+  `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' } })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
+
+test('Sequence custom factories observe mutable shared marker resources without optional capability probes', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import assert from 'node:assert/strict'
+    import './src/index.ts'
+    import * as marks from './src/scene/marks.ts'
+    import { lowerSequenceDrawing } from './src/sequence/renderer.ts'
+    import { resolveRenderRequestForExecution, resolvedFamilyRenderContextOf } from './src/render-contract.ts'
+    import { positionResolvedFamily } from './src/positioning.ts'
+    const source = 'sequenceDiagram\\nA->>B: first\\nB->>A: second'
+    const request = resolveRenderRequestForExecution(source, { embedFontImport: false }, 'svg')
+    const layout = positionResolvedFamily('sequence', request)
+    const seen = [], markerReads = []
+    let filled
+    const methods = { ...marks,
+      definitions(fields, svg) {
+        filled = fields.markerResources.find(marker => marker.id === 'seq-arrow')
+        const open = fields.markerResources.find(marker => marker.id === 'seq-arrow-open')
+        assert.equal(filled.geometry.points, open.geometry.points)
+        filled.geometry.points[0].x = -123
+        seen.push('definitions')
+        return marks.definitions(fields, svg)
+      },
+      connector(fields) {
+        if (fields.role === 'message') {
+          assert.equal(fields.markers.end, filled)
+          markerReads.push(fields.markers.end.geometry.points[0].x)
+          seen.push(fields.id)
+          filled.geometry.points[0].x = 456
+        }
+        return marks.connector(fields)
+      },
+    }
+    const factory = new Proxy(methods, { get(target, key, receiver) {
+      if (!(key in target)) throw new Error('unexpected factory probe: ' + String(key))
+      return Reflect.get(target, key, receiver)
+    } })
+    const drawing = lowerSequenceDrawing(factory, { positioned: layout.positioned,
+      colors: request.appearance.colors, resolved: resolvedFamilyRenderContextOf(request) })
+    assert.ok(drawing.parts.length > 0)
+    assert.deepEqual(markerReads, [-123, 456])
+    assert.equal(seen[0], 'definitions')
+    assert.equal(seen.length, 3)
+    assert.notEqual(seen[1], seen[2])
+  `], { cwd: `${import.meta.dir}/../..` })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
+
+test('Sequence host measurement reentrancy preserves adapter traces and restores default rendering after refusal', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import assert from 'node:assert/strict'
+    import { createMermaidRenderer, renderMermaidSVGWithReceipt } from './src/index.ts'
+    import { getFamily, replaceFamilyForTest } from './src/agent/families.ts'
+    const source = 'sequenceDiagram\\nA->>B: measured first\\nB->>A: measured return'
+    const nestedSource = 'sequenceDiagram\\nX->>Y: nested default'
+    const options = { embedFontImport: false }
+    const defaultNested = renderMermaidSVGWithReceipt(nestedSource, options)
+    const original = getFamily('sequence')
+    function attempt(copy, refuse = false) {
+      const trace = []
+      const renderer = createMermaidRenderer({ textMeasurement: {
+        id: 'test:sequence-reentrant', version: '1.0.0',
+        measure(input) {
+          trace.push({ ...input })
+          assert.equal(Object.isFrozen(input), true)
+          if (trace.length === 1) assert.deepEqual(renderMermaidSVGWithReceipt(nestedSource, options), defaultNested)
+          if (refuse) throw new Error('host measurement refusal')
+          return [...input.text].length * input.fontSize * 0.5
+        },
+      } })
+      const restore = copy ? replaceFamilyForTest('sequence', { ...original }) : () => {}
+      try { return { value: renderer.renderMermaidSVGWithReceipt(source, options), trace } }
+      finally { restore() }
+    }
+    const reference = attempt(true)
+    assert.ok(reference.trace.length > 0)
+    assert.deepEqual(attempt(false), reference)
+    for (const copy of [true, false]) {
+      assert.throws(() => attempt(copy, true), { message: 'host measurement refusal' })
+      assert.deepEqual(renderMermaidSVGWithReceipt(nestedSource, options), defaultNested)
+    }
+  `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' } })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
+
 describe('shared extension identity', () => {
   test('requires kind-qualified IDs and rejects replacement with owner evidence', () => {
     expect(canonicalExtensionId('look', 'acme/report')).toBe('look:acme/report')

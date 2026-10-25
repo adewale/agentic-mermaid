@@ -3,7 +3,7 @@ import * as marks from '../scene/marks.ts'
 import { createNativeSceneValidator, SCENE_VALIDATION_LIMITS, SceneValidationError } from '../scene/scene-validation.ts'
 import { deferredTerminalProjectionInput, withDeferredTerminalProjections } from '../scene/deferred-terminal-projection.ts'
 import { serializeLinearGradientResources } from '../scene/gradient-resources.ts'
-import type { LinearGradientDescriptor, SceneDoc } from '../scene/ir.ts'
+import type { LinearGradientDescriptor, MarkerDescriptor, SceneDoc } from '../scene/ir.ts'
 
 const header: Omit<SceneDoc, 'parts'> = { family: 'flowchart', width: 200, height: 100, colors: { bg: '#fff', fg: '#111' }, transparent: false }
 const shape = (id = 'A') => marks.shape({ id, role: 'node', geometry: { kind: 'rect', x: 10, y: 10, width: 20, height: 20 }, paint: { fill: '#111' } })
@@ -104,6 +104,47 @@ test('native text and point budgets accumulate across transient leaves', () => {
   points.node(line('first', 25_000))
   points.node(line('second', 25_000))
   expect(() => points.node(line('third', 2))).toThrow(/aggregate 50000-point/)
+})
+
+test('native line quotas count semantic endpoint and tangent visits, including reversed and zero-length lines', () => {
+  for (const { x2, charge, failurePath } of [
+    { x2: 20, charge: 8, failurePath: '.route.contours[0].endTangent' },
+    { x2: 0, charge: 8, failurePath: '.route.contours[0].endTangent' },
+    { x2: 10, charge: 4, failurePath: '.route.contours[0].end' },
+  ]) {
+    const validator = createNativeSceneValidator(header)
+    const remaining = charge - 1
+    validator.node(marks.shape({ id: 'budget', role: 'chrome',
+      geometry: { kind: 'polyline', points: Array.from({ length: SCENE_VALIDATION_LIMITS.maxPoints - remaining }, () => ({ x: 0, y: 0 })) },
+      paint: { stroke: '#111' } }))
+    const edge = withDeferredTerminalProjections(() => marks.connector({ id: 'line', role: 'message', lineStyle: 'solid',
+      geometry: { kind: 'line', x1: 10, y1: 10, x2, y2: 10 }, paint: { stroke: '#111' } }))
+    expect(() => validator.node(edge)).toThrow(SceneValidationError)
+    expect(validator.finish().diagnostics).toEqual([
+      { code: 'SCENE_BOUNDS', path: `scene.parts[1]${failurePath}`, message: 'Scene points exceed the aggregate 50000-point limit' },
+    ])
+  }
+})
+
+test('native marker quotas preserve shared point arrays while charging each resource reference', () => {
+  const arrowPoints = [{ x: 0, y: 0 }, { x: 10, y: 5 }, { x: 0, y: 10 }]
+  const filled: MarkerDescriptor = { id: 'filled', shape: 'arrow', size: { width: 10, height: 10 },
+    ref: { x: 10, y: 5 }, orient: 'auto-start-reverse', geometry: { kind: 'polygon', points: arrowPoints }, paint: { fill: '#111' } }
+  const open: MarkerDescriptor = { ...filled, id: 'open', shape: 'open-arrow',
+    geometry: { kind: 'polyline', points: arrowPoints }, paint: { fill: 'none', stroke: '#111' } }
+  const validator = createNativeSceneValidator(header)
+  // Definitions charge five visits: two refs plus one shared three-point array.
+  // The line charges eight more before its end-marker's repeated ref visit.
+  validator.node(marks.shape({ id: 'budget', role: 'chrome',
+    geometry: { kind: 'polyline', points: Array.from({ length: SCENE_VALIDATION_LIMITS.maxPoints - 13 }, () => ({ x: 0, y: 0 })) },
+    paint: { stroke: '#111' } }))
+  validator.node(marks.definitions({ id: 'resources', markerResources: [filled, open] }, '<defs/>'))
+  const edge = withDeferredTerminalProjections(() => marks.connector({ id: 'line', role: 'message', lineStyle: 'solid',
+    geometry: { kind: 'line', x1: 10, y1: 10, x2: 20, y2: 10 }, paint: { stroke: '#111' }, markers: { end: filled } }))
+  expect(() => validator.node(edge)).toThrow(SceneValidationError)
+  expect(validator.finish().diagnostics).toEqual([
+    { code: 'SCENE_BOUNDS', path: 'scene.parts[2].markers.end.ref', message: 'Scene points exceed the aggregate 50000-point limit' },
+  ])
 })
 
 test('native admission enforces per-fragment and aggregate serialization limits', () => {
