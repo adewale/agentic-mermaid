@@ -3,7 +3,7 @@ import type { PeerConsumer, PeerPhase, PeerStatus, PeerTrackObservation, TrackIn
 
 type Render = (source: string) => unknown
 export interface TrackJob {
-  phase: PeerPhase; consumer: PeerConsumer; round: number; samples: number; allocationSamples: number; maxCaseMs: number; warmCalls?: number; coldSamples?: number; coldProbe?: 'timing' | 'allocation' | 'diagnostic'
+  phase: PeerPhase; consumer: PeerConsumer; round: number; samples: number; allocationSamples: number; maxCaseMs: number; warmCalls?: number; warmupMs?: number; coldSamples?: number; coldProbe?: 'timing' | 'allocation' | 'diagnostic'
 }
 const firstLine = (error: unknown) => String(error instanceof Error ? error.message : error).split('\n')[0]!
 const unsupported = /Invalid mermaid header|No diagram type detected|UnknownDiagramError|Unrecognized Mermaid header|unsupported.*(?:diagram|Agentic)|diagram type is not supported/i
@@ -46,15 +46,21 @@ export async function measurePeerTrack(options: {
     // Exact-repeat is deliberately primed at identical bytes; edit phases are
     // primed at a different real input. First-use performs no earlier render.
     if (track.phase !== 'first-use') {
-      for (let warm = 0; warm < (track.warmCalls ?? 3); warm++) {
+      const warmStarted = performance.now()
+      let warm = 0
+      const primed = () => warm >= (track.warmCalls ?? 3) && performance.now() - warmStarted >= (track.warmupMs ?? 0)
+      while (!primed()) {
         const variant = next()
         const result = await invoke(variant)
         const checked = inspect(result.svg, variant)
+        row.warmup = { calls: ++warm, elapsedMs: performance.now() - warmStarted, complete: false }
         if (checked.status !== 'ok') {
-          row.calls.push({ index: -warm - 1, variant: variant.variant, elapsedMs: result.elapsedMs, ...checked, detail: checked.detail ?? 'warmup failed semantic/label validation' })
+          row.calls.push({ index: -warm, variant: variant.variant, elapsedMs: result.elapsedMs, ...checked, detail: checked.detail ?? 'warmup failed semantic/label validation' })
           return finalizeTrackObservation(row)
         }
+        if (!primed() && row.warmup.elapsedMs >= track.maxCaseMs) throw new Error('warmup reached its case deadline before the required priming completed')
       }
+      row.warmup = { calls: warm, elapsedMs: performance.now() - warmStarted, complete: true }
     }
     const coldProbe = track.phase === 'first-use' ? track.coldProbe ?? 'timing' : undefined
     const started = performance.now()

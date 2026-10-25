@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, spyOn, test } from 'bun:test'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -93,6 +93,35 @@ describe('maintained consumed peer protocol', () => {
     expect(result.diagnostics.counts).toEqual({ 'scope:graphical': 1 })
     expect(global[observerKey]).toBeUndefined()
     expect(percentile([1, 2, 3, 4, 100], 0.95)).toBe(100)
+  })
+  test('warm sampling waits for both minimum calls and elapsed priming time', async () => {
+    let ticks = 0, calls = 0, firstTimedCalls = 0
+    const clock = spyOn(performance, 'now').mockImplementation(() => ticks)
+    try {
+      const row = await measurePeerTrack({ peer: 'fake', input, track: { ...track, warmCalls: 2, warmupMs: 5, samples: 2, allocationSamples: 0 },
+        render() { calls++; ticks++; return svg }, validate: () => ({ missing: [] }),
+        progress(row) { if (row.calls.length === 1) firstTimedCalls = calls },
+      })
+      expect(firstTimedCalls).toBe(6)
+      expect(row.warmup).toEqual({ calls: 5, elapsedMs: 5, complete: true })
+      expect(row.callSamplesMs).toEqual([1, 1])
+      expect(calls).toBe(8) // five warm, two timed, one diagnostic
+    } finally { clock.mockRestore() }
+  })
+  test('an incomplete warmup fails before any timed or allocation observation', async () => {
+    let ticks = 0, calls = 0
+    const clock = spyOn(performance, 'now').mockImplementation(() => ticks)
+    try {
+      const row = await measurePeerTrack({ peer: 'fake', input, track: { ...track, warmCalls: 20, warmupMs: 1000, maxCaseMs: 3 },
+        render() { calls++; ticks++; return svg }, validate: () => ({ missing: [] }),
+      })
+      expect(calls).toBe(3)
+      expect(row.status).toBe('error')
+      expect(row.warmup).toEqual({ calls: 3, elapsedMs: 3, complete: false })
+      expect(row.callSamplesMs).toEqual([])
+      expect(row.allocationSamplesBytes).toEqual([])
+      expect(row.calls[0]!.detail).toContain('warmup reached its case deadline')
+    } finally { clock.mockRestore() }
   })
   test('cold call does not warm first, and unavailable receipts remain explicit', async () => {
     let calls = 0
