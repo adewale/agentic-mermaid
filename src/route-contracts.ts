@@ -1013,8 +1013,15 @@ function labelHaloPadding(edge: PositionedEdge, style: LabelMetricsStyle): numbe
 
 /** Owned label-only passes leave routes fixed. Reentrant host measurement
  * can replace peer geometry, so only the owned path reuses marker footprints. */
-function labelPaintClearance(positioned: { nodes: PositionedNode[]; edges: PositionedEdge[] }, style: LabelMetricsStyle) {
+function labelPaintClearance(positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] }, style: LabelMetricsStyle) {
   let markers: ReturnType<typeof graphEdgeMarkerPaintRegions> | undefined
+  const overlapsHeader = (pill: LabelPaintRect, groups: readonly PositionedGroup[]): boolean => groups.some(group => {
+    // Production retains the measured strip. An unmeasured group cannot
+    // establish a clear interior slot; keep its full extent conservative.
+    const height = group.concurrencyRegion ? 0 : group.headerHeight ?? group.height
+    return height > 0 && pill.x < group.x + group.width && pill.x + pill.w > group.x
+      && pill.y < group.y + height && pill.y + pill.h > group.y || overlapsHeader(pill, group.children)
+  })
   const overlapsMarker = (pill: LabelPaintRect): boolean => {
     const current = customTextMeasurementActive()
       ? positioned.edges.flatMap(edge => graphEdgeMarkerPaintRegions(edge, style))
@@ -1030,7 +1037,7 @@ function labelPaintClearance(positioned: { nodes: PositionedNode[]; edges: Posit
     // Own endpoint cards are obstacles too: a repair must not exchange a
     // route-label ambiguity for hidden authored text or terminal symbols.
     if (positioned.nodes.some(node => pill.x < node.x + node.width && pill.x + pill.w > node.x
-      && pill.y < node.y + node.height && pill.y + pill.h > node.y) || overlapsMarker(pill)) return undefined
+      && pill.y < node.y + node.height && pill.y + pill.h > node.y) || overlapsHeader(pill, positioned.groups) || overlapsMarker(pill)) return undefined
     return pill
   }
   return { overlapsMarker, clearPaintRect }

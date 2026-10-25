@@ -3,7 +3,7 @@ import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { buildRoutePortHints, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
-import { applyRouteContracts, auditRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, laneContextFor, recertifyReroutedEdge, shapePorts, simplifyPolyline, repairLabelsOffOwnRoute, separateEdgeLabelPills } from '../route-contracts.ts'
+import { applyRouteContracts, auditRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, laneContextFor, recertifyReroutedEdge, shapePorts, simplifyPolyline, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills } from '../route-contracts.ts'
 import { assessLayout, countEdgeCrossings, countParallelRouteOverlaps, hardViolations, measureRubricMetrics, onShapeOutline } from '../layout-rubric.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { layoutMermaid, parseRegisteredMermaid as agentParse, verifyMermaid } from '../agent/index.ts'
@@ -271,6 +271,29 @@ describe('colliding duplicate labels', () => {
 })
 
 describe('label candidate endpoint clearance', () => {
+  it.each(['off-route', 'shared-trunk', 'marker'] as const)('keeps nested group headers clear during %s label repair', operation => {
+    const edge: PositionedEdge = { source: 'A', target: 'B', style: 'solid', hasArrowStart: false,
+      hasArrowEnd: operation === 'marker', label: 'handoff',
+      labelPosition: operation === 'off-route' ? { x: 100, y: 250 } : { x: 200, y: operation === 'marker' ? 143 : 85 },
+      points: [{ x: 0, y: 20 }, { x: 200, y: 20 }, { x: 200, y: 150 }] }
+    const foreign: PositionedEdge = { source: 'C', target: 'D', style: 'solid', hasArrowStart: false, hasArrowEnd: false,
+      points: [{ x: 200, y: 60 }, { x: 200, y: 110 }] }
+    const header: PositionedGroup = { id: 'Inner', label: 'Protected title', x: 0, y: 0, width: 240, height: 200, headerHeight: 40, children: [] }
+    const positioned = { nodes: [], edges: operation === 'shared-trunk' ? [edge, foreign] : [edge],
+      groups: [{ id: 'Outer', label: '', x: -50, y: -50, width: 340, height: 300, headerHeight: 0, children: [header] }] }
+    const graph = parseMermaid('flowchart TD\nA -->|handoff| B\nC --> D'), style = resolveRenderStyle()
+    const before = structuredClone(edge)
+    if (operation === 'off-route') repairLabelsOffOwnRoute(positioned, graph, style)
+    else if (operation === 'shared-trunk') repairLabelsOnSharedTrunks(positioned, graph, style)
+    else separateEdgeLabelPills(positioned, graph, style, { preserveRouteClearance: true })
+    expect(edge.labelPosition).not.toEqual(before.labelPosition)
+    const pill = labelRect(edge, style)!, halo = 4
+    expect(pill.x - halo < header.x + header.width && pill.x + pill.w + halo > header.x
+      && pill.y - halo < header.y + header.headerHeight! && pill.y + pill.h + halo > header.y).toBe(false)
+    expect(edge.points).toEqual(before.points)
+    expect([edge.source, edge.target, edge.label]).toEqual(['A', 'B', 'handoff'])
+  })
+
   it.each(['BT', 'TD'])('keeps duplicate terminal occurrences visible after shared-trunk label repair in %s', direction => {
     const source = [`flowchart ${direction}`, 'A[(Node 2-3)]', 'B{Node 2-5}', 'C(Node 2-0)', 'D((Node 2-7))',
       'A -->|edge 4 xxxxxxx| B', 'D -->|another long label xxxxxxxxxxxxx| B', 'A --> C', 'B --> C', 'A --> B', 'D --> B'].join('\n')
