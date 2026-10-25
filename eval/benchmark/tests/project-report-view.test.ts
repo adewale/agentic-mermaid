@@ -51,6 +51,7 @@ test('two retained project views keep their canonical owner without mutating cac
 test('legacy project metadata is attributed consistently in coverage and exported CSV', () => {
   const raw = fixture()
   raw.observations = [{ ...raw.observations[0]!, metrics: { project: 'obsidianmd/pele' } }]
+  raw.toolVersions = [{ tool: 'obsidianmd/pele', version: '1.9.0', source: 'owning artifact fixture' }]
   expect(coverageRows(raw.observations)[0]!.implementation).toBe('obsidianmd/pele')
   const out = mkdtempSync(join(tmpdir(), 'project-report-view-'))
   try {

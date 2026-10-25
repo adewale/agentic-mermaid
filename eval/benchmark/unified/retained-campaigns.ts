@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { join, relative, resolve } from 'node:path'
 import { assertBenchmarkExecutionAllowed } from '../ci-policy.ts'
@@ -156,6 +156,7 @@ export async function runRetainedUpstreamTestSuite(options: RetainedCampaignOpti
   )
   for (const project of projects) {
     assertBenchmarkToolVersion(project.id, JSON.parse(readFileSync(join(project.root, project.adapter === 'reference' ? 'node_modules/mermaid/package.json' : 'package.json'), 'utf8')).version, 'original upstream assertion artifact')
+    if (project.adapter === 'pele' && process.env.PELE_BENCHMARK_ROOT && realpathSync(process.env.PELE_BENCHMARK_ROOT) !== realpathSync(project.root)) throw Error('PELE_BENCHMARK_ROOT conflicts with the selected original-assertion artifact; no cache or worker may use a different tool')
     const artifact = () => (project.adapter === 'reference' ? { referencePackage: JSON.parse(readFileSync(join(reference, 'node_modules/mermaid/package.json'), 'utf8')), installed: captureInstalledDependencyClosure(reference) } : artifactIdentity(resolveArtifact(project.id, project.root, project.adapter, node)))
     const retained = await runRetainedSuite({
       out: join(options.out, Buffer.from(project.id).toString('base64url')),

@@ -1,7 +1,7 @@
-import { writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { readFileSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import type { BenchmarkObservation, BenchmarkStatus, UnifiedSuiteResult } from './types.ts'
-import { assertBenchmarkSetVersions } from '../tool-versions.ts'
+import { assertBenchmarkSetVersions, canonicalBenchmarkTool, type BenchmarkToolVersion } from '../tool-versions.ts'
 
 export interface SuiteExecution {
   id: string
@@ -64,14 +64,28 @@ export function coverageRows(observations: readonly BenchmarkObservation[]) {
 }
 export function writeUnifiedReport(out: string, report: UnifiedReport): void {
   const observations = report.suites.flatMap(suite => suite.result?.observations ?? [])
-  assertBenchmarkSetVersions([
-    ...report.suites.flatMap(suite => suite.selected ? suite.result?.toolVersions ?? [] : []),
-    ...observations.flatMap(row => typeof row.metrics?.implementation === 'string' && typeof row.metrics.version === 'string' ? [{
-      tool: typeof row.metrics.variantOf === 'string' ? row.metrics.variantOf : row.metrics.implementation,
-      version: row.metrics.version, source: `${row.suite}/${row.surface}`,
-      ...(typeof row.metrics.variant === 'string' ? { variant: row.metrics.variant } : {}),
-    }] : []),
-  ])
+  const claims: BenchmarkToolVersion[] = []
+  for (const suite of report.suites.filter(suite => suite.selected && suite.result)) {
+    const result = suite.result!
+    const declared = [...(result.toolVersions ?? [])]
+    for (const support of (result.artifacts ?? []).filter(path => path.endsWith('/required-family-support.json'))) {
+      const owning = JSON.parse(readFileSync(support, 'utf8'))
+      const identityFile = join(dirname(support), 'identity.json')
+      const identity = JSON.parse(readFileSync(identityFile, 'utf8'))
+      if (identity.project !== owning.project || identity.lane !== 'required-family-admission') throw Error('Family version receipt differs from its owning project/lane')
+      declared.push({ tool: identity.project, version: identity.artifact?.version, source: identityFile })
+    }
+    claims.push(...declared)
+    for (const row of result.observations) {
+      const owner = row.metrics?.variantOf ?? row.metrics?.implementation ?? row.metrics?.project
+      if (typeof owner !== 'string' || row.metrics?.runtimeExecuted === false || row.mode === 'not-executed') continue
+      const tool = canonicalBenchmarkTool(owner)
+      const variant = typeof row.metrics?.variant === 'string' ? row.metrics.variant : undefined
+      const receipt = declared.find(claim => canonicalBenchmarkTool(claim.tool) === tool && (claim.variant ?? null) === (variant ?? null))
+      claims.push({ tool, version: typeof row.metrics?.version === 'string' ? row.metrics.version : receipt?.version ?? '', source: `${row.suite}/${row.surface}`, ...(variant ? { variant } : {}) })
+    }
+  }
+  assertBenchmarkSetVersions(claims)
   const coverage = coverageRows(observations)
   writeFileSync(join(out, 'report.json'), JSON.stringify(report, null, 2) + '\n')
   writeFileSync(join(out, 'coverage.json'), JSON.stringify({ scope: 'Executed observations only; a missing cell is unmeasured, never an inferred pass.', rows: coverage }, null, 2) + '\n')
