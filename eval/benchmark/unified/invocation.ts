@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, rmSync, watch, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, watch, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -111,6 +112,39 @@ export async function childCommand(command: string, args: string[], options: { c
     child.stdin.end(options.input ?? '')
   })
 }
+/** Bundle helpers may move; their independent dependency lookup must remain owned by the harness. */
+export async function buildInvocationLibraryHarness(options: { out: string; harnessRoot?: string }) {
+  const harnessRoot = resolve(options.harnessRoot ?? invocationHarnessRoot),
+    require = createRequire(join(harnessRoot, 'package.json')),
+    esbuild = require('esbuild'),
+    workerSource = join(harnessRoot, 'eval/benchmark/unified/invocation-library-worker.ts'),
+    qualifierSource = join(harnessRoot, 'eval/benchmark/unified/qualification.ts'),
+    qualifierAnchor = pathToFileURL(qualifierSource).href,
+    qualificationRequire = createRequire(qualifierAnchor),
+    saxesModule = qualificationRequire.resolve('saxes'),
+    saxesPackageJson = qualificationRequire.resolve('saxes/package.json'),
+    saxesVersion = String(qualificationRequire('saxes/package.json').version),
+    worker = join(options.out, 'installed-library-worker.mjs'),
+    qualifier = join(options.out, 'artifact-qualifier.mjs'),
+    provenanceFile = join(options.out, 'qualification-dependencies.json')
+  mkdirSync(options.out, { recursive: true })
+  await esbuild.build({ entryPoints: [workerSource], outfile: worker, bundle: true, platform: 'node', format: 'esm', target: 'es2022', logLevel: 'silent' })
+  // createRequire(import.meta.url) belongs to qualification.ts, even when its bundle
+  // is emitted beneath an isolated result directory without development dependencies.
+  await esbuild.build({ entryPoints: [qualifierSource], outfile: qualifier, bundle: true, platform: 'node', format: 'esm', target: 'es2022', logLevel: 'silent', define: { 'import.meta.url': JSON.stringify(qualifierAnchor) } })
+  const digest = (file: string) => createHash('sha256').update(readFileSync(file)).digest('hex')
+  const provenance = {
+    harnessRoot,
+    qualificationSource: qualifierSource,
+    moduleResolutionAnchor: qualifierAnchor,
+    nodeXmlParser: { name: 'saxes', version: saxesVersion, module: saxesModule, packageJson: saxesPackageJson },
+    bundle: { path: qualifier, sha256: digest(qualifier) },
+    worker: { path: worker, sha256: digest(worker) },
+    policy: 'Independent validation resolves from the actual harness source. Candidate packages receive no validation dependency. Qualifier load and XML parsing remain after stopped production API clocks.',
+  }
+  writeFileSync(provenanceFile, JSON.stringify(provenance, null, 2))
+  return { worker, qualifier, provenanceFile, provenance }
+}
 async function library(options: InvocationOptions, workloads: UnifiedWorkload[]): Promise<{ rows: BenchmarkObservation[]; gaps: string[]; artifacts: string[] }> {
   const root = options.packageRoot ?? options.root,
     out = join(options.out, 'library')
@@ -120,12 +154,8 @@ async function library(options: InvocationOptions, workloads: UnifiedWorkload[])
     artifacts: string[] = [],
     pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
   const eligible = selectedLibraryEntries(pkg, options.libraryExports)
-  const require = createRequire(join(options.harnessRoot ?? invocationHarnessRoot, 'package.json')),
-    esbuild = require('esbuild'),
-    worker = join(out, 'installed-library-worker.mjs'),
-    qualifier = join(out, 'artifact-qualifier.mjs')
-  await esbuild.build({ entryPoints: [join(import.meta.dir, 'invocation-library-worker.ts')], outfile: worker, bundle: true, platform: 'node', format: 'esm', target: 'es2022', logLevel: 'silent' })
-  await esbuild.build({ entryPoints: [join(import.meta.dir, 'qualification.ts')], outfile: qualifier, bundle: true, platform: 'node', format: 'esm', target: 'es2022', logLevel: 'silent' })
+  const { worker, qualifier, provenanceFile } = await buildInvocationLibraryHarness({ out, harnessRoot: options.harnessRoot })
+  artifacts.push(provenanceFile)
   const runtimes = [
     { name: 'node', command: options.nodeExecutable ?? 'node', args: ['--expose-gc'] },
     { name: 'bun', command: options.bunExecutable ?? (process.versions.bun ? process.execPath : 'bun'), args: [] },
@@ -172,27 +202,99 @@ function changedAuthoredTitle(source: string, title: string): string {
   lines.splice(header + 1, 0, `accTitle: ${title}`)
   return lines.join('\n')
 }
-async function awaitArtifact(file: string, marker: string, timeoutMs = 30_000): Promise<string> {
+export async function awaitInvocationArtifact(file: string, marker: string, timeoutMs = 30_000, signal?: AbortSignal): Promise<string> {
   return await new Promise((resolve, reject) => {
-    const observer = watch(dirname(file), check),
-      timer = setTimeout(() => {
-        observer.close()
-        reject(Error('Watch did not emit current authored artifact'))
-      }, timeoutMs)
-    function check() {
-      if (!existsSync(file)) return
-      const text = readFileSync(file, 'utf8')
-      if (!text.includes(marker) || !text.trimEnd().endsWith('</svg>')) return
-      observer.close()
+    let observer: ReturnType<typeof watch> | undefined,
+      timer: ReturnType<typeof setTimeout> | undefined,
+      settled = false
+    const cleanup = () => {
+      observer?.close()
       clearTimeout(timer)
-      resolve(text)
+      signal?.removeEventListener('abort', abort)
     }
-    check()
+    const fail = (error: unknown) => {
+      if (!settled) {
+        settled = true
+        cleanup()
+        reject(error)
+      }
+    }
+    const abort = () => fail(Error('Artifact watch cancelled'))
+    const check = () => {
+      if (settled || !existsSync(file)) return
+      try {
+        const text = readFileSync(file, 'utf8')
+        if (!text.includes(marker) || !text.trimEnd().endsWith('</svg>')) return
+        settled = true
+        cleanup()
+        resolve(text)
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') fail(error)
+      }
+    }
+    signal?.addEventListener('abort', abort, { once: true })
+    if (signal?.aborted) {
+      abort()
+      return
+    }
+    try {
+      observer = watch(dirname(file), check)
+      observer.on('error', fail)
+      timer = setTimeout(() => fail(Error('Watch did not emit current authored artifact')), timeoutMs)
+      check()
+    } catch (error) {
+      fail(error)
+    }
   })
 }
-async function cli(options: InvocationOptions, workloads: UnifiedWorkload[]): Promise<{ rows: BenchmarkObservation[]; gaps: string[]; artifacts: string[] }> {
+/** Shared installed/native render protocol. Readback and independent admission follow the stopped process clock. */
+export async function runCliRenderInvocation(options: { command: string; prefix: readonly string[]; cwd: string; out: string; sourceFile: string; workload: UnifiedWorkload; format: string; inputMode: string; rounds: number; surface: string; runtime: string }) {
+  mkdirSync(options.out, { recursive: true })
+  const w = options.workload,
+    row = invocationRow(options.surface, w, 'render', options.format, 'process-to-artifact'),
+    artifacts: string[] = [],
+    roundEvidence: { round: number; status: string; wallMs?: number; exitCode?: number | null; bytes?: number; detail?: string }[] = []
+  row.runtime = options.runtime
+  row.samplesMs = []
+  for (let round = 1; round <= options.rounds; round++) {
+    const outputFile = join(options.out, `${w.family}-${options.format}-${options.inputMode}-${round}.${options.format === 'png' ? 'png' : 'out'}`)
+    rmSync(outputFile, { force: true })
+    let result: Awaited<ReturnType<typeof childCommand>> | undefined
+    try {
+      result = await childCommand(options.command, [...options.prefix, 'render', options.inputMode === 'file' ? options.sourceFile : '-', '--format', options.format, '--output', outputFile], { cwd: options.cwd, input: options.inputMode === 'stdin' ? w.source : undefined })
+      if (result.code !== 0) throw Error(result.stderr || result.stdout.toString() || `exit ${result.code}`)
+      if (!existsSync(outputFile)) throw Error('CLI reported success without requested artifact')
+      const bytes = readFileSync(outputFile),
+        value = options.format === 'png' ? new Uint8Array(bytes) : options.format === 'layout' ? JSON.parse(bytes.toString()) : bytes.toString(),
+        q = qualifyOutput(w, value, options.format)
+      if (!q.ok) throw Error(q.findings.join('; '))
+      row.samplesMs.push(result.wallMs)
+      row.bytes = bytes.length
+      roundEvidence.push({ round, status: 'passed', wallMs: result.wallMs, exitCode: result.code, bytes: bytes.length })
+      artifacts.push(outputFile)
+    } catch (error) {
+      row.status = 'failed'
+      row.detail = String(error)
+      roundEvidence.push({ round, status: 'failed', ...(result ? { wallMs: result.wallMs, exitCode: result.code } : {}), detail: String(error) })
+    }
+  }
+  const evidenceFile = join(options.out, `${w.family}-${options.format}-${options.inputMode}-rounds.json`)
+  writeFileSync(evidenceFile, JSON.stringify(roundEvidence, null, 2))
+  artifacts.push(evidenceFile)
+  row.metrics = {
+    rounds: options.rounds,
+    attemptedRounds: roundEvidence.length,
+    qualifiedRounds: row.samplesMs.length,
+    inputMode: options.inputMode,
+    executable: options.command,
+    roundEvidenceFile: evidenceFile,
+    clock: 'process spawn through exit/output completion; file readback and independent qualification after clock; failed attempts retain elapsed time in round evidence',
+  }
+  return { row, artifacts }
+}
+export async function runInvocationCliProgram(options: InvocationOptions, workloads: UnifiedWorkload[], executor?: { command: string; prefix: readonly string[]; out: string; runtime: string }): Promise<{ rows: BenchmarkObservation[]; gaps: string[]; artifacts: string[] }> {
   const root = options.packageRoot ?? options.root,
-    out = join(options.out, 'cli')
+    out = executor?.out ?? join(options.out, 'cli')
   mkdirSync(out, { recursive: true })
   const rows: BenchmarkObservation[] = [],
     gaps: string[] = [],
@@ -200,24 +302,34 @@ async function cli(options: InvocationOptions, workloads: UnifiedWorkload[]): Pr
     pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')),
     bins = pkg.bin ?? {}
   const commandEntry = bins.am ?? bins['agentic-mermaid']
-  if (!commandEntry || !existsSync(join(root, commandEntry))) return { rows: [{ ...invocationRow('cli', workloads[0]!, 'spawn', 'module', 'process-to-output'), status: 'blocked', detail: 'Installed CLI entry is absent' }], gaps: ['CLI artifacts absent'], artifacts }
+  if (!commandEntry || !existsSync(join(root, commandEntry))) return { rows: [{ ...invocationRow(executor ? 'cli:native-binary' : 'cli', workloads[0]!, 'spawn', 'module', 'process-to-output'), status: 'blocked', detail: 'Installed CLI entry is absent' }], gaps: ['CLI artifacts absent'], artifacts }
   const entry = join(root, commandEntry),
     core = await import(pathToFileURL(join(root, 'dist/agent-core.js')).href)
+  const executable = executor?.command ?? 'node',
+    argvPrefix = executor?.prefix ?? [entry],
+    runtime = executor?.runtime ?? invocationRuntime
+  const surfaceFor = (surface: string) => (executor ? surface.replace(/^cli(?=:)/, 'cli:native-binary') : surface)
+  const programRow = (surface: string, workload: UnifiedWorkload, operation: string, format: string, mode: string): BenchmarkObservation => ({ ...invocationRow(surfaceFor(surface), workload, operation, format, mode), runtime })
   // The aliases are package-install contracts; identical target bytes are not duplicate speed votes.
-  for (const [alias, path] of Object.entries(bins) as [string, string][]) {
-    if (alias.endsWith('-mcp')) continue
-    const r = await childCommand('node', [join(root, path), '--help'], { cwd: root })
-    rows.push({ ...invocationRow(`cli-alias:${alias}`, workloads[0]!, 'help', 'text', 'process-to-output'), family: '*', caseId: 'alias-help', status: r.code === 0 && r.stdout.length ? 'passed' : 'failed', samplesMs: [r.wallMs], bytes: r.stdout.length, detail: r.code === 0 ? undefined : r.stderr })
+  if (!executor)
+    for (const [alias, path] of Object.entries(bins) as [string, string][]) {
+      if (alias.endsWith('-mcp')) continue
+      const r = await childCommand('node', [join(root, path), '--help'], { cwd: root })
+      rows.push({ ...programRow(`cli-alias:${alias}`, workloads[0]!, 'help', 'text', 'process-to-output'), family: '*', caseId: 'alias-help', status: r.code === 0 && r.stdout.length ? 'passed' : 'failed', samplesMs: [r.wallMs], bytes: r.stdout.length, detail: r.code === 0 ? undefined : r.stderr })
+    }
+  if (executor) {
+    const help = await childCommand(executable, [...argvPrefix, '--help'], { cwd: root })
+    rows.push({ ...programRow('cli:discovery', workloads[0]!, 'help', 'text', 'process-to-output'), family: '*', caseId: 'native-help', status: help.code === 0 && help.stdout.length ? 'passed' : 'failed', samplesMs: [help.wallMs], bytes: help.stdout.length, detail: help.code === 0 ? undefined : help.stderr })
   }
   for (const command of ['capabilities', 'styles', 'llms-txt', 'init-agent']) {
-    const row = invocationRow('cli:discovery', workloads[0]!, command, command === 'llms-txt' ? 'text' : 'json', 'process-to-output')
+    const row = programRow('cli:discovery', workloads[0]!, command, command === 'llms-txt' ? 'text' : 'json', 'process-to-output')
     row.family = '*'
     row.caseId = command
     row.samplesMs = []
     try {
       for (let round = 1; round <= options.rounds; round++) {
-        const args = [entry, command, ...(command === 'styles' || command === 'init-agent' ? ['--json'] : []), ...(command === 'init-agent' ? ['--dir', join(out, `agent-install-${round}`), '--force'] : [])]
-        const result = await childCommand('node', args, { cwd: root })
+        const args = [...argvPrefix, command, ...(command === 'styles' || command === 'init-agent' ? ['--json'] : []), ...(command === 'init-agent' ? ['--dir', join(out, `agent-install-${round}`), '--force'] : [])]
+        const result = await childCommand(executable, args, { cwd: root })
         if (result.code !== 0 || !result.stdout.length) throw Error(result.stderr || 'Missing command output')
         if (command !== 'llms-txt') JSON.parse(result.stdout.toString())
         row.samplesMs.push(result.wallMs)
@@ -238,40 +350,19 @@ async function cli(options: InvocationOptions, workloads: UnifiedWorkload[]): Pr
     artifacts.push(sourceFile)
     for (const format of formats)
       for (const inputMode of inputModes) {
-        const row = invocationRow(`cli:${inputMode}`, w, 'render', format, 'process-to-artifact')
-        row.samplesMs = []
-        try {
-          for (let round = 1; round <= options.rounds; round++) {
-            const outputFile = join(out, `${w.family}-${format}-${inputMode}-${round}.${format === 'png' ? 'png' : 'out'}`),
-              args = [entry, 'render', inputMode === 'file' ? sourceFile : '-', '--format', format, '--output', outputFile]
-            rmSync(outputFile, { force: true })
-            const r = await childCommand('node', args, { cwd: root, input: inputMode === 'stdin' ? w.source : undefined })
-            if (r.code !== 0) throw Error(r.stderr || r.stdout.toString() || `exit ${r.code}`)
-            if (!existsSync(outputFile)) throw Error('CLI reported success without requested artifact')
-            const bytes = readFileSync(outputFile),
-              value = format === 'png' ? new Uint8Array(bytes) : format === 'layout' ? JSON.parse(bytes.toString()) : bytes.toString()
-            const q = qualifyOutput(w, value, format === 'html' ? 'html' : format)
-            if (!q.ok) throw Error(q.findings.join('; '))
-            row.samplesMs.push(r.wallMs)
-            row.bytes = bytes.length
-            row.metrics = { rounds: options.rounds, clock: 'process spawn through exit/output completion; file readback qualified after clock' }
-            artifacts.push(outputFile)
-          }
-        } catch (error) {
-          row.status = 'failed'
-          row.detail = String(error)
-        }
-        rows.push(row)
+        const rendered = await runCliRenderInvocation({ command: executable, prefix: argvPrefix, cwd: root, out, sourceFile, workload: w, format, inputMode, rounds: options.rounds, surface: surfaceFor(`cli:${inputMode}`), runtime })
+        rows.push(rendered.row)
+        artifacts.push(...rendered.artifacts)
       }
     // Source/IR/verification commands preserve their own process envelopes.
     let parsedCli: string | undefined
     for (const verb of ['parse', 'verify', 'describe', 'format', 'preview']) {
-      const row = invocationRow('cli:stdin', w, verb, verb === 'parse' || verb === 'verify' || verb === 'describe' ? 'json' : verb === 'preview' ? 'html' : 'source', 'process-to-output')
+      const row = programRow('cli:stdin', w, verb, verb === 'parse' || verb === 'verify' || verb === 'describe' ? 'json' : verb === 'preview' ? 'html' : 'source', 'process-to-output')
       try {
         const previewFile = join(out, `${w.family}-preview.html`),
-          args = [entry, verb, '-', ...(verb === 'describe' ? ['--format', 'json'] : []), ...(verb === 'preview' ? ['--output', previewFile] : [])]
+          args = [...argvPrefix, verb, '-', ...(verb === 'describe' ? ['--format', 'json'] : []), ...(verb === 'preview' ? ['--output', previewFile] : [])]
         if (verb === 'preview') rmSync(previewFile, { force: true })
-        const r = await childCommand('node', args, { cwd: root, input: w.source })
+        const r = await childCommand(executable, args, { cwd: root, input: w.source })
         row.samplesMs = [r.wallMs]
         row.bytes = r.stdout.length
         if (r.code !== 0) throw Error(r.stderr || r.stdout.toString())
@@ -294,9 +385,9 @@ async function cli(options: InvocationOptions, workloads: UnifiedWorkload[]): Pr
       rows.push(row)
     }
     if (parsedCli) {
-      const row = invocationRow('cli:stdin', w, 'serialize', 'source', 'process-to-output')
+      const row = programRow('cli:stdin', w, 'serialize', 'source', 'process-to-output')
       try {
-        const r = await childCommand('node', [entry, 'serialize'], { cwd: root, input: parsedCli })
+        const r = await childCommand(executable, [...argvPrefix, 'serialize'], { cwd: root, input: parsedCli })
         row.samplesMs = [r.wallMs]
         row.bytes = r.stdout.length
         const q = qualifyOutput(w, r.stdout.toString(), 'source')
@@ -309,9 +400,9 @@ async function cli(options: InvocationOptions, workloads: UnifiedWorkload[]): Pr
     }
     const mutation = mutationWitnessForFamily(core as any, w.family)
     if (mutation) {
-      const row = invocationRow('cli:stdin', w, 'mutate', 'source', 'process-to-output')
+      const row = programRow('cli:stdin', w, 'mutate', 'source', 'process-to-output')
       try {
-        const r = await childCommand('node', [entry, 'mutate', '-', '--op', JSON.stringify(mutation)], { cwd: root, input: w.source })
+        const r = await childCommand(executable, [...argvPrefix, 'mutate', '-', '--op', JSON.stringify(mutation)], { cwd: root, input: w.source })
         row.samplesMs = [r.wallMs]
         row.bytes = r.stdout.length
         if (r.code !== 0 || !r.stdout.toString().includes('UnifiedBenchmarkWitness')) throw Error(r.stderr || 'Mutation lost independently requested witness')
@@ -322,66 +413,113 @@ async function cli(options: InvocationOptions, workloads: UnifiedWorkload[]): Pr
       rows.push(row)
     }
     if (options.profile === 'full') {
-      const row = invocationRow('cli:watch', w, 'render', 'svg', 'long-lived-metadata-changed-input')
+      const row = programRow('cli:watch', w, 'render', 'svg', 'long-lived-metadata-changed-input')
       row.samplesMs = []
+      const watchRounds: { round: number; status: string; wallMs: number; detail?: string }[] = []
       row.metrics = { clock: 'metadata file write through observed complete changed SVG after watcher announces readiness; startup checkpoint includes initial artifact and watcher readiness' }
       try {
         for (let round = 1; round <= options.rounds; round++) {
-          const input = join(out, `${w.family}-watch-${round}.mmd`),
-            output = join(out, `${w.family}-watch-${round}.svg`),
-            first = `InvocationWatchInitial_${round}`,
-            changed = `InvocationWatchChanged_${round}`
-          rmSync(output, { force: true })
-          writeFileSync(input, changedAuthoredTitle(w.source, first))
-          const firstReady = awaitArtifact(output, first),
-            start = performance.now(),
-            child = spawn('node', [entry, 'render', input, '--format', 'svg', '--watch', '--output', output], { cwd: root, stdio: ['ignore', 'ignore', 'pipe'] })
-          let errorText = '',
-            markListening: (() => void) | undefined
-          const listening = new Promise<void>((resolve, reject) => {
-            const timer = setTimeout(() => reject(Error('CLI watch readiness timeout')), 30000)
-            markListening = () => {
-              clearTimeout(timer)
-              resolve()
-            }
-          })
-          const failure = new Promise<never>((_, reject) => {
-            child.on('error', reject)
-            child.on('exit', (code, signal) => reject(Error(`Watch exited before artifact: ${code}/${signal}`)))
-          })
-          child.stderr.on('data', chunk => {
-            errorText += chunk.toString()
-            if (errorText.includes('watching ')) markListening?.()
-          })
+          const roundStart = performance.now()
           try {
-            await Promise.race([Promise.all([firstReady, listening]), failure])
-            row.metrics = { ...row.metrics, startupToFirstArtifactMs: performance.now() - start }
-            const ready = awaitArtifact(output, changed),
-              editStart = performance.now()
-            writeFileSync(input, changedAuthoredTitle(w.source, changed))
-            const artifact = await Promise.race([ready, failure])
-            row.samplesMs.push(performance.now() - editStart)
-            row.bytes = Buffer.byteLength(artifact)
-            const q = qualifyOutput(w, artifact, 'svg')
-            if (!q.ok) throw Error(q.findings.join('; '))
-          } catch (e) {
-            throw Error(String(e) + ' ' + errorText)
-          } finally {
-            if (child.exitCode === null && child.signalCode === null) {
-              const closed = new Promise<void>(resolve => child.once('close', () => resolve()))
-              child.kill('SIGTERM')
-              const force = setTimeout(() => child.kill('SIGKILL'), 2000)
-              try {
-                await closed
-              } finally {
-                clearTimeout(force)
+            const input = join(out, `${w.family}-watch-${round}.mmd`),
+              output = join(out, `${w.family}-watch-${round}.svg`),
+              first = `InvocationWatchInitial_${round}`,
+              changed = `InvocationWatchChanged_${round}`
+            rmSync(output, { force: true })
+            writeFileSync(input, changedAuthoredTitle(w.source, first))
+            const cancellation = new AbortController()
+            const firstReady = awaitInvocationArtifact(output, first, 30_000, cancellation.signal),
+              start = performance.now(),
+              child = spawn(executable, [...argvPrefix, 'render', input, '--format', 'svg', '--watch', '--output', output], { cwd: root, stdio: ['ignore', 'ignore', 'pipe'] })
+            let errorText = '',
+              childClosed = false,
+              spawnFailed = false
+            child.once('close', () => {
+              childClosed = true
+            })
+            let markListening: (() => void) | undefined
+            const listening = new Promise<void>((resolve, reject) => {
+              const abort = () => {
+                clearTimeout(timer)
+                reject(Error('CLI watch readiness cancelled'))
+              }
+              const timer = setTimeout(() => {
+                cancellation.signal.removeEventListener('abort', abort)
+                reject(Error('CLI watch readiness timeout'))
+              }, 30000)
+              cancellation.signal.addEventListener('abort', abort, { once: true })
+              markListening = () => {
+                clearTimeout(timer)
+                cancellation.signal.removeEventListener('abort', abort)
+                resolve()
+              }
+            })
+            const failure = new Promise<never>((_, reject) => {
+              child.on('error', error => {
+                spawnFailed = true
+                reject(error)
+              })
+              child.on('exit', (code, signal) => reject(Error(`Watch exited before artifact: ${code}/${signal}`)))
+            })
+            child.stderr.on('data', chunk => {
+              errorText += chunk.toString()
+              if (errorText.includes('watching ')) markListening?.()
+            })
+            try {
+              await Promise.race([Promise.all([firstReady, listening]), failure])
+              row.metrics = { ...row.metrics, startupToFirstArtifactMs: performance.now() - start }
+              const ready = awaitInvocationArtifact(output, changed, 30_000, cancellation.signal),
+                pending = Promise.race([ready, failure]),
+                editStart = performance.now()
+              writeFileSync(input, changedAuthoredTitle(w.source, changed))
+              const artifact = await pending,
+                changedMs = performance.now() - editStart
+              row.bytes = Buffer.byteLength(artifact)
+              const q = qualifyOutput(w, artifact, 'svg')
+              if (!q.ok) throw Error(q.findings.join('; '))
+              row.samplesMs.push(changedMs)
+            } catch (e) {
+              throw Error(String(e) + ' ' + errorText)
+            } finally {
+              cancellation.abort()
+              if (!childClosed && child.pid && !spawnFailed) {
+                await new Promise<void>((resolve, reject) => {
+                  const finish = (error?: Error) => {
+                    clearTimeout(force)
+                    clearTimeout(deadline)
+                    child.removeListener('close', closed)
+                    error ? reject(error) : resolve()
+                  }
+                  const closed = () => finish()
+                  child.once('close', closed)
+                  const force = setTimeout(() => child.kill('SIGKILL'), 2000),
+                    deadline = setTimeout(() => finish(Error('Watch process did not close after bounded SIGKILL cleanup')), 3000)
+                  child.kill('SIGTERM')
+                  if (childClosed) finish()
+                })
               }
             }
+            watchRounds.push({ round, status: 'passed', wallMs: performance.now() - roundStart })
+          } catch (error) {
+            row.status = 'failed'
+            row.detail = String(error)
+            watchRounds.push({ round, status: 'failed', wallMs: performance.now() - roundStart, detail: String(error) })
           }
         }
       } catch (e) {
         row.status = 'failed'
         row.detail = String(e)
+      }
+      const evidenceFile = join(out, `${w.family}-watch-rounds.json`)
+      writeFileSync(evidenceFile, JSON.stringify(watchRounds, null, 2))
+      artifacts.push(evidenceFile)
+      row.metrics = {
+        ...row.metrics,
+        rounds: options.rounds,
+        attemptedRounds: watchRounds.length,
+        qualifiedRounds: watchRounds.filter(value => value.status === 'passed').length,
+        roundWallScope: 'entire watch attempt including readiness, edits, independent qualification and cleanup; samplesMs contains qualified changed-artifact latency only',
+        roundEvidenceFile: evidenceFile,
       }
       rows.push(row)
     }
@@ -394,11 +532,11 @@ async function cli(options: InvocationOptions, workloads: UnifiedWorkload[]): Pr
       ]
         .map(v => JSON.stringify(v))
         .join('\n') + '\n'
-    const row = invocationRow('cli:batch', w, 'render-parse-verify', 'jsonl', 'process-to-output')
+    const row = programRow('cli:batch', w, 'render-parse-verify', 'jsonl', 'process-to-output')
     row.samplesMs = []
     try {
       for (let round = 1; round <= options.rounds; round++) {
-        const r = await childCommand('node', [entry, 'batch', '--jsonl'], { cwd: root, input: batchInput }),
+        const r = await childCommand(executable, [...argvPrefix, 'batch', '--jsonl'], { cwd: root, input: batchInput }),
           values = r.stdout
             .toString()
             .trim()
@@ -418,11 +556,11 @@ async function cli(options: InvocationOptions, workloads: UnifiedWorkload[]): Pr
     rows.push(row)
     const md = join(out, `${w.family}.md`)
     writeFileSync(md, '```mermaid\n' + w.source + '\n```\n')
-    const mr = invocationRow('cli:markdown', w, 'render-markdown', 'svg', 'process-to-output')
+    const mr = programRow('cli:markdown', w, 'render-markdown', 'svg', 'process-to-output')
     mr.samplesMs = []
     try {
       for (let round = 1; round <= options.rounds; round++) {
-        const r = await childCommand('node', [entry, 'render-markdown', md], { cwd: root }),
+        const r = await childCommand(executable, [...argvPrefix, 'render-markdown', md], { cwd: root }),
           value = JSON.parse(r.stdout.toString())
         if (r.code !== 0 || value.blocks?.length !== 1 || !value.blocks[0]?.ok) throw Error(r.stderr || r.stdout.toString())
         const q = qualifyOutput(w, value.blocks[0].output, 'svg')
@@ -436,30 +574,61 @@ async function cli(options: InvocationOptions, workloads: UnifiedWorkload[]): Pr
     }
     rows.push(mr)
   }
-  const native = join(options.root, 'dist', 'am')
-  if (existsSync(native)) {
-    for (const w of workloads) {
-      const row = invocationRow('cli:native-binary', w, 'render', 'svg', 'process-to-output')
-      row.runtime = 'bun-compiled:embedded-runtime'
-      try {
-        const r = await childCommand(native, ['render', '-', '--format', 'svg'], { cwd: root, input: w.source })
-        row.samplesMs = [r.wallMs]
-        row.bytes = r.stdout.length
-        const q = qualifyOutput(w, r.stdout.toString(), 'svg')
-        row.status = r.code === 0 && q.ok ? 'passed' : 'failed'
-        row.findings = q.findings
-        row.detail = r.code === 0 ? undefined : r.stderr
-      } catch (e) {
-        row.status = 'failed'
-        row.detail = String(e)
-      }
-      rows.push(row)
-    }
-  } else {
-    gaps.push('Compiled Bun CLI binary was not present: run bun run build:binary to enroll native startup. Installed Node CLI aliases were measured.')
-    rows.push({ ...invocationRow('cli:native-binary', workloads[0]!, 'spawn', 'svg', 'process-to-output'), family: '*', caseId: 'native-build', status: 'blocked', detail: 'Compiled dist/am artifact is absent; installed Node CLI does not substitute for native startup.' })
-  }
+  const manifest = join(out, 'cli-program.json')
+  writeFileSync(
+    manifest,
+    JSON.stringify(
+      {
+        command: executable,
+        prefix: argvPrefix,
+        runtime,
+        root,
+        formats,
+        inputModes,
+        rounds: options.rounds,
+        helperVerbRounds: 1,
+        policy: 'Render, discovery, watch, JSONL and Markdown retain their actual repeated rounds; parse/verify/describe/format/preview/serialize/mutate are single functional calls per family. Actual stdout/files are fully consumed and qualified; no command is credited by metadata alone.',
+      },
+      null,
+      2,
+    ),
+  )
+  artifacts.push(manifest)
   return { rows, gaps, artifacts }
+}
+async function cli(options: InvocationOptions, workloads: UnifiedWorkload[]): Promise<{ rows: BenchmarkObservation[]; gaps: string[]; artifacts: string[] }> {
+  const result = await runInvocationCliProgram(options, workloads),
+    native = join(options.root, 'dist/am'),
+    root = options.packageRoot ?? options.root
+  if (existsSync(native)) {
+    if (options.profile === 'full') {
+      const nativeResult = await runInvocationCliProgram(options, workloads, { command: realpathSync(native), prefix: [], out: join(options.out, 'cli/native'), runtime: 'bun-compiled:embedded-runtime' })
+      result.rows.push(...nativeResult.rows)
+      result.gaps.push(...nativeResult.gaps)
+      result.artifacts.push(...nativeResult.artifacts)
+    } else
+      for (const w of workloads) {
+        const row = invocationRow('cli:native-binary', w, 'render', 'svg', 'process-to-output')
+        row.runtime = 'bun-compiled:embedded-runtime'
+        try {
+          const r = await childCommand(native, ['render', '-', '--format', 'svg'], { cwd: root, input: w.source })
+          row.samplesMs = [r.wallMs]
+          row.bytes = r.stdout.length
+          const q = qualifyOutput(w, r.stdout.toString(), 'svg')
+          row.status = r.code === 0 && q.ok ? 'passed' : 'failed'
+          row.findings = q.findings
+          row.detail = r.code === 0 ? undefined : r.stderr
+        } catch (error) {
+          row.status = 'failed'
+          row.detail = String(error)
+        }
+        result.rows.push(row)
+      }
+  } else {
+    result.gaps.push('Compiled Bun CLI binary was not present: run bun run build:binary to enroll native startup. Installed Node CLI aliases were measured.')
+    result.rows.push({ ...invocationRow('cli:native-binary', workloads[0]!, 'spawn', 'svg', 'process-to-output'), family: '*', caseId: 'native-build', status: 'blocked', detail: 'Compiled dist/am artifact is absent; installed Node CLI does not substitute for native startup.' })
+  }
+  return result
 }
 export async function runInvocationSuite(options: InvocationOptions): Promise<UnifiedSuiteResult> {
   const startedAt = new Date().toISOString()
