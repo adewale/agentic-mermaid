@@ -1,10 +1,8 @@
 import type { RenderedLayout } from '../agent/types.ts'
 import { connectorMarkerPaintRegions, expandSceneBounds, paintedStrokeExtent, transformedBounds, visitTypedPathSegments, type TypedPathSegment } from './bounds.ts'
 import type { AxisAlignedBox } from '../shared/transformed-bounds.ts'
-import { inlineResolvedColors } from '../theme.ts'
-import { escapeAttr } from '../multiline-utils.ts'
+import { resolveInlineColorAttribute } from '../theme.ts'
 import { tryParseCssColor } from '../shared/color-math.ts'
-import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
 import { inspectScenePaintGeometry, paintPrimitiveSource, scenePrimitiveMatrix, shapeSurfacePaint, type ScenePaintGeometryInspection, type NativeConnectorPaintSource, type ScenePaintGeometry as ScenePaintPrimitive } from './inspection.ts'
 import type { Geometry, SceneDoc, SceneOwner, ScenePoint, SceneTransform } from './ir.ts'
 import { composeMatrices, inverseMatrix, transformMatrix, transformPoint } from './transforms.ts'
@@ -54,14 +52,22 @@ const viewportBox = (v: PaintViewport): AxisAlignedBox => ({ x0: v.x, y0: v.y, x
 
 interface Surface { primitive: ScenePaintPrimitive; bounds: AxisAlignedBox; interior?: AxisAlignedBox; borderWidth?: number }
 interface Tree { bounds: AxisAlignedBox; leaves?: readonly Surface[]; left?: Tree; right?: Tree }
-function tree(items: readonly Surface[]): Tree | undefined {
+function tree(items: Surface[]): Tree | undefined {
   if (!items.length) return undefined
-  const bounds = items.reduce((b, s) => ({ x0: Math.min(b.x0, s.bounds.x0), y0: Math.min(b.y0, s.bounds.y0), x1: Math.max(b.x1, s.bounds.x1), y1: Math.max(b.y1, s.bounds.y1) }), { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity })
+  const bounds = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity }
+  for (const surface of items) {
+    bounds.x0 = Math.min(bounds.x0, surface.bounds.x0)
+    bounds.y0 = Math.min(bounds.y0, surface.bounds.y0)
+    bounds.x1 = Math.max(bounds.x1, surface.bounds.x1)
+    bounds.y1 = Math.max(bounds.y1, surface.bounds.y1)
+  }
   if (items.length <= 8) return { bounds, leaves: items }
   const axis = bounds.x1 - bounds.x0 >= bounds.y1 - bounds.y0 ? 'x0' : 'y0'
-  const sorted = [...items].sort((a, b) => a.bounds[axis] - b.bounds[axis] || a.primitive.order - b.primitive.order)
-  const middle = Math.floor(sorted.length / 2)
-  return { bounds, left: tree(sorted.slice(0, middle)), right: tree(sorted.slice(middle)) }
+  // These arrays belong to this tree: the root comes from solidInteriors,
+  // and child ranges are fresh slices. Keep the same split and tie order.
+  items.sort((a, b) => a.bounds[axis] - b.bounds[axis] || a.primitive.order - b.primitive.order)
+  const middle = Math.floor(items.length / 2)
+  return { bounds, left: tree(items.slice(0, middle)), right: tree(items.slice(middle)) }
 }
 
 /** A filled rectangle's inset is known to be solid, unlike an arbitrary path's
@@ -71,8 +77,7 @@ function solidInteriors(scene: NativePaintHeader, primitives: readonly ScenePain
   const resolved = new Map<string, boolean>()
   const opaque = (fill: string): boolean => {
     if (resolved.has(fill)) return resolved.get(fill)!
-    const svg = inlineResolvedColors(`<rect fill="${escapeAttr(fill)}"/>`, scene.colors)
-    const value = decodedSvgAttributeValue(scanSvgStartTags(svg)[0]!, 'fill')
+    const value = resolveInlineColorAttribute(fill, scene.colors)
     const result = !!value && tryParseCssColor(value)?.[3] === 1
     resolved.set(fill, result)
     return result
@@ -85,26 +90,28 @@ function solidInteriors(scene: NativePaintHeader, primitives: readonly ScenePain
     const width = Number(node.paint.strokeWidth?.replace(/px$/, '') ?? 1)
     if (Number.isFinite(width)) outlines.set(outlineKey(primitive, node.geometry), width)
   }
-  return primitives.flatMap(primitive => {
+  const surfaces: Surface[] = []
+  for (const primitive of primitives) {
     const node = paintPrimitiveSource(primitive)
-    if (!node || node.kind !== 'shape' || node.geometry.kind === 'line' || primitive.visibility === 'conditional' || primitive.coverage !== 'measured') return []
+    if (!node || node.kind !== 'shape' || node.geometry.kind === 'line' || primitive.visibility === 'conditional' || primitive.coverage !== 'measured') continue
     const paint = shapeSurfacePaint(node)
     // A translucent wrapper lets what lies beneath show through, as a translucent fill does.
-    if (primitive.groupOpacity !== undefined) return []
-    if (Number(paint.opacity ?? 1) === 0 || paint.fill === 'none' || paint.fill === 'transparent') return []
+    if (primitive.groupOpacity !== undefined) continue
+    if (Number(paint.opacity ?? 1) === 0 || paint.fill === 'none' || paint.fill === 'transparent') continue
     const knownFill = paint.fill ? tryParseCssColor(paint.fill) : null
-    if (knownFill && knownFill[3] < 1 || Number(paint.fillOpacity ?? 1) < 1) return []
+    if (knownFill && knownFill[3] < 1 || Number(paint.fillOpacity ?? 1) < 1) continue
     const candidate = { primitive, bounds: primitive.bounds!, borderWidth: outlines.get(outlineKey(primitive, node.geometry)) }
-    if (Number(paint.opacity ?? 1) !== 1 || !paint.fill || !opaque(paint.fill) || node.geometry.kind !== 'rect') return [candidate]
+    if (Number(paint.opacity ?? 1) !== 1 || !paint.fill || !opaque(paint.fill) || node.geometry.kind !== 'rect') { surfaces.push(candidate); continue }
     const m = scenePrimitiveMatrix(primitive)!
     // A rotated/sheared AABB is not a solid rectangle. Keep it out of this
     // exact test instead of interpreting empty corners as painted pixels.
-    if (Math.abs(m[1]) > 1e-12 || Math.abs(m[2]) > 1e-12) return [candidate]
+    if (Math.abs(m[1]) > 1e-12 || Math.abs(m[2]) > 1e-12) { surfaces.push(candidate); continue }
     const g = node.geometry, rx = Math.min(g.width / 2, g.rx ?? g.ry ?? 0), ry = Math.min(g.height / 2, g.ry ?? g.rx ?? 0)
     const a = transformPoint({ x: g.x + rx, y: g.y + ry }, m)
     const b = transformPoint({ x: g.x + g.width - rx, y: g.y + g.height - ry }, m)
-    return [{ ...candidate, interior: { x0: Math.min(a.x, b.x), y0: Math.min(a.y, b.y), x1: Math.max(a.x, b.x), y1: Math.max(a.y, b.y) } }]
-  })
+    surfaces.push({ ...candidate, interior: { x0: Math.min(a.x, b.x), y0: Math.min(a.y, b.y), x1: Math.max(a.x, b.x), y1: Math.max(a.y, b.y) } })
+  }
+  return surfaces
 }
 
 /** Conservative marker envelopes can overlap empty corners of endpoint shapes.
@@ -273,8 +280,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
     const width = Number.parseFloat(String(node.stroke.width)), opacity = Number(node.stroke.opacity ?? 1)
     if (width === 0 || opacity === 0 || node.stroke.color === 'none' || node.stroke.color === 'transparent') continue
     if (!strokeAlpha.has(node.stroke.color)) {
-      const svg = inlineResolvedColors(`<rect fill="${escapeAttr(node.stroke.color)}"/>`, scene.colors)
-      const value = decodedSvgAttributeValue(scanSvgStartTags(svg)[0]!, 'fill')
+      const value = resolveInlineColorAttribute(node.stroke.color, scene.colors)
       strokeAlpha.set(node.stroke.color, value ? tryParseCssColor(value)?.[3] : undefined)
     }
     const alpha = strokeAlpha.get(node.stroke.color)
