@@ -18,8 +18,8 @@ const refPackage = JSON.parse(await readFile(join(reference, 'node_modules/merma
 if (refPackage.version !== policy.pin.version) throw new Error('Reference version differs from the source policy')
 
 const khromaVersion = JSON.parse(await readFile(join(reference, 'node_modules/khroma/package.json'), 'utf8')).version
-const lodashVersion = JSON.parse(await readFile(join(reference, 'node_modules/lodash-es/package.json'), 'utf8')).version
-if (khromaVersion !== '2.1.0' || lodashVersion !== '4.18.1') throw new Error('Config program dependency revision changed; audit before regenerating')
+const mergeVersion = JSON.parse(await readFile(join(reference, 'node_modules/es-toolkit/package.json'), 'utf8')).version
+if (khromaVersion !== '2.1.0' || mergeVersion !== '1.53.0') throw new Error('Config program dependency revision changed; audit before regenerating')
 
 const capture = `
 import {createRequire} from 'node:module';import {pathToFileURL} from 'node:url';
@@ -45,7 +45,7 @@ const src = join(upstream, 'packages/mermaid/src')
 const mergeEntry = `
 import assign from ${JSON.stringify(join(src, 'assignWithDepth.ts'))};
 import {sanitizeDirective} from ${JSON.stringify(join(src, 'utils/sanitizeDirective.ts'))};
-import merge from ${JSON.stringify(join(reference, 'node_modules/lodash-es/merge.js'))};
+import {merge} from ${JSON.stringify(join(reference, 'node_modules/es-toolkit/dist/compat/object/merge.mjs'))};
 // Native display keeps authored strings that the pin neutralizes. Structural
 // removal, null handling and type assignment still belong to the actual policy.
 function restoreText(raw,clean){
@@ -60,7 +60,8 @@ export function mergeConfig(frontmatter,directives,diagramType,wrap=false,preser
  if(directives.length>1){const args=structuredClone(directives);sanitizeDirective(args);if(preserveText)restoreText(directives,args);result=assign(result,args);}
  else if(directives.length)result=structuredClone(directives[0]);
  if(result&&result.config!==undefined){result[diagramType==='flowchart-v2'?'flowchart':diagramType]=result.config;delete result.config;}
- if(wrap)result=Object.assign(result??{},{wrap:true});
+ result=result??{};
+ if(wrap)result.wrap=true;
  return merge({},structuredClone(frontmatter),result??{});
 }
 `
@@ -94,7 +95,7 @@ try {
     })
     if (!result.success) throw new Error(result.logs.map(log => log.message).join('\n'))
     const program = isolateProgram(await result.outputs[0]!.text())
-    const banner = `// Generated from Mermaid ${policy.pin.version} (${revision}), Khroma ${khromaVersion}, lodash-es ${lodashVersion}.\n// Rebuild: scripts/build/generate-mermaid-config-runtime.ts. MIT notices: LICENSES/{Mermaid,Khroma,lodash}-MIT.txt.\n`
+    const banner = `// Generated from Mermaid ${policy.pin.version} (${revision}), Khroma ${khromaVersion}, es-toolkit ${mergeVersion}.\n// Rebuild: scripts/build/generate-mermaid-config-runtime.ts. MIT notices: LICENSES/{Mermaid,Khroma,es-toolkit}-MIT.txt.\n`
     await writeFile(join(output, `${name}.js`), banner + program)
     console.log(JSON.stringify({ name, bytes: Buffer.byteLength(program), gzip: gzipSync(program).length, brotli: brotliCompressSync(program).length }))
   }

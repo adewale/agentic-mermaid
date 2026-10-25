@@ -487,6 +487,31 @@ describe('wrapper fidelity (1C): canonical synthesis on demand', () => {
     } finally { pin.close() }
   })
 
+  test('wrap applies before config merge and keeps scalar rejection distinct from array no-ops', async () => {
+    const pin = startUpstreamMermaid()
+    try {
+      for (const metadata of ['', '---\ndisplayMode: compact\n---\n']) {
+        for (const payload of ['5', 'true', 'null', '0', 'false', '"x"']) {
+          const source = metadata + `%%{init:${payload}}%%\n%%{wrap}%%\nflowchart LR\nA --> B`
+          expect(await pin.publicAccepts(source), source).toBe(false)
+          const parsed = parseMermaid(source)
+          if (!parsed.ok) throw new Error('Expected source available for repair')
+          expect(() => serializeMermaid(parsed.value, { wrapper: 'canonical' })).toThrow('pinned configuration processing rejects this value')
+        }
+        for (const payload of ['[]', '[{}]', '{}']) {
+          const source = metadata + `%%{init:${payload}}%%\n%%{wrap}%%\nflowchart LR\nA --> B`
+          const parsed = parseMermaid(source)
+          if (!parsed.ok) throw new Error('Expected native config read')
+          const written = serializeMermaid(parsed.value, { wrapper: 'canonical' })
+          const expected = { wrap: payload === '{}' }
+          expect(await pin.project(source, d => ({ wrap: !!d.db.getData().config.wrap }))).toEqual({ ok: true, value: expected })
+          expect(await pin.project(written, d => ({ wrap: !!d.db.getData().config.wrap }))).toEqual({ ok: true, value: expected })
+          expect(parsed.value.meta.frontmatter?.wrap ?? false).toBe(payload === '{}')
+        }
+      }
+    } finally { pin.close() }
+  })
+
   test('config evaluation has an explicit work budget and a failed evaluation cannot poison the next write', () => {
     const oversized = parseMermaid(`%%{init:${JSON.stringify({ themeCSS: 'a'.repeat(100001) })}}%%\nflowchart LR\nA --> B`)
     if (!oversized.ok) throw new Error('Expected source available for repair')

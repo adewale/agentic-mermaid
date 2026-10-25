@@ -36,12 +36,11 @@ export function canonicalWrapperConfig(meta: ValidDiagramMeta, family?: string):
       validateConfig(authored, payloads, type, top, wrap)
       return { metadata: top, config: authored, directives }
     }
-    // Scalar/array init payloads are accepted no-ops. An object can be folded
-    // only before the final sanitizer, retaining authored values/extensions.
-    const layers = payloads.filter(payload => payload !== null && typeof payload === 'object' && !Array.isArray(payload))
+    // Keep the original payload through directive processing: scalars reject
+    // wrap assignment, while the pinned merge ignores array own properties.
     validateConfig(authored, payloads, type, top, wrap)
-    const config = mergeConfig(authored, layers, type, wrap) as MermaidFrontmatterMap
-    validateConfig(config, [], type, top, wrap)
+    const config = mergeConfig(authored, payloads, type, wrap) as MermaidFrontmatterMap
+    validateConfig(config, [], type, top)
     return { metadata: top, config, directives: [] }
   } catch (error) {
     if (error instanceof Error && error.name === 'MermaidConfigWorkLimitError') throw new Error(`Cannot export canonical Mermaid: ${error.message}; reduce the config's work before retrying. This is a validation resource limit, not a pinned syntax rejection.`)

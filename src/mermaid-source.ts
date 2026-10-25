@@ -533,6 +533,8 @@ export function mermaidInitDirectivePayload(raw: string): MermaidFrontmatterValu
   const payload = match[1] ?? match[2]
   if (payload === undefined) return { wrap: true }
   if (!payload.trim()) return {}
+  // The pinned directive lexer captures bare words as strings, before JSON.
+  if (/^\w+$/.test(payload.trim())) return payload.trim()
   assertJsonConfigSourceTextAdmission(payload, 'Mermaid init directive', { trackFlowDepth: true })
   try {
     const value: unknown = JSON.parse(payload.replace(/'/g, '"'))
@@ -1038,7 +1040,7 @@ function extractInitDirectives(text: string, base: MermaidFrontmatterMap): { bod
     return { body, frontmatter: base }
   }
   try {
-    return { body, frontmatter: mergePinnedConfigLayers(base, inits.length === 1 && (!inits[0] || typeof inits[0] !== 'object' || Array.isArray(inits[0])) ? [] : inits, detected, wrap, true) as MermaidFrontmatterMap }
+    return { body, frontmatter: mergePinnedConfigLayers(base, inits, detected, wrap, true) as MermaidFrontmatterMap }
   } catch {
     // Invalid consumed values still need a generous read for repair. Canonical
     // admission reports the actual failure separately. Do not activate a legacy

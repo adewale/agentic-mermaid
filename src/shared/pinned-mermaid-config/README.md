@@ -1,5 +1,5 @@
 These two synchronous programs are built from Mermaid 12.2.0 source
-`1fb7869866dd619168d840291c9c54b4f129758b`, Khroma 2.1.0 and lodash-es 4.18.1.
+`1fb7869866dd619168d840291c9c54b4f129758b`, Khroma 2.1.0 and es-toolkit 1.53.0.
 They contain no Mermaid parser, renderer, DOM or Node runtime dependency.
 
 `merge.js` owns init-layer sanitization, nonclobbering bounded assignment,
@@ -24,5 +24,5 @@ The generator checks source/dependency revisions, captures actual default values
 only this dependency closure and instruments loops in the trusted emitted AST.
 The generated files are committed because production imports them. MIT notices
 are in `LICENSES/Mermaid-MIT.txt`, `LICENSES/Khroma-MIT.txt` and
-`LICENSES/lodash-MIT.txt`. Correctness tests exercise public config reads/exports
+`LICENSES/es-toolkit-MIT.txt`. Correctness tests exercise public config reads/exports
 against the independent pinned runtime rather than comparing generated files.
