@@ -1,0 +1,28 @@
+These two synchronous programs are built from Mermaid 12.2.0 source
+`1fb7869866dd619168d840291c9c54b4f129758b`, Khroma 2.1.0 and lodash-es 4.18.1.
+They contain no Mermaid parser, renderer, DOM or Node runtime dependency.
+
+`merge.js` owns init-layer sanitization, nonclobbering bounded assignment,
+legacy diagram scoping and frontmatter merge. Native normalization uses that
+program, retaining authored strings that Mermaid neutralizes. Invalid consumed
+config remains readable for repair; its fallback is not canonical admission.
+
+`runtime.js` also executes the actual scoped/global appearance and theme color
+calculations. It validates clones and discards derived colors. Each call creates
+fresh module state and defaults. The generated loop counter stops after 100000
+executed loop bodies; this is a validation work limit, not a claim that Mermaid
+rejects the source. Both normal return and failure discard the entire instance.
+
+Generate with the repository Bun version after `bun run reference:mermaid`:
+
+```
+bun scripts/build/generate-mermaid-config-runtime.ts
+```
+
+The generator checks source/dependency revisions, captures actual default values
+(including undefined keys and JavaScript font accessors), removes logging, bundles
+only this dependency closure and instruments loops in the trusted emitted AST.
+The generated files are committed because production imports them. MIT notices
+are in `LICENSES/Mermaid-MIT.txt`, `LICENSES/Khroma-MIT.txt` and
+`LICENSES/lodash-MIT.txt`. Correctness tests exercise public config reads/exports
+against the independent pinned runtime rather than comparing generated files.

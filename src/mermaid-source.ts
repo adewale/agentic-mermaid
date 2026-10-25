@@ -9,6 +9,8 @@
 //   - normalized, trimmed diagram lines for downstream parsers
 // ============================================================================
 
+import { mergeConfig as mergePinnedConfigLayers } from './shared/pinned-mermaid-config/merge.js'
+import { pinnedMermaidDiagramType } from './shared/pinned-mermaid-diagram-type.ts'
 import { scanStateComments } from './state/comment.ts'
 import { readGrammarAccessibility } from './shared/grammar-text.ts'
 import { DeferredDependencyError } from './layout/certification-error.ts'
@@ -510,7 +512,7 @@ export function mermaidInitDirectives(text: string): MermaidSourceInitDirective[
   while ((match = regex.exec(text)) !== null) {
     directives.push({
       raw: match[0],
-      parsed: canonicalizeFrontmatterMap(directiveConfig(match[1] ?? match[2]) ?? {}),
+      parsed: directiveConfig(match[1] ?? match[2]) ?? {},
     })
   }
   return directives
@@ -522,15 +524,55 @@ export function mermaidInitDirectiveConfig(raw: string): MermaidFrontmatterMap |
   return match ? directiveConfig(match[1] ?? match[2]) : undefined
 }
 
+/** Raw layer before native flattening. Single scalar/array init payloads
+ * are no-ops; arrays can contribute on the multi-init assignment path.
+ * Generous object reads remain repairable as canonical JSON. */
+export function mermaidInitDirectivePayload(raw: string): MermaidFrontmatterValue | undefined {
+  const match = new RegExp(INIT_DIRECTIVE_REGEX.source, 'm').exec(raw)
+  if (!match) return undefined
+  const payload = match[1] ?? match[2]
+  if (payload === undefined) return { wrap: true }
+  if (!payload.trim()) return {}
+  assertJsonConfigSourceTextAdmission(payload, 'Mermaid init directive', { trackFlowDepth: true })
+  try {
+    const value: unknown = JSON.parse(payload.replace(/'/g, '"'))
+    assertJsonConfigAdmission(value, 'Mermaid init directive')
+    return toFrontmatterValue(value)
+  } catch (error) {
+    if (error instanceof JsonConfigAdmissionError) throw error
+    return directiveConfig(payload)
+  }
+}
+
+export interface MermaidConfigDirectiveLayer {
+  kind: 'init' | 'wrap'
+  payload: MermaidFrontmatterValue
+}
+
+/** Kind is semantic: a wrap directive does not increase the init count. */
+export function mermaidInitDirectiveLayer(raw: string): MermaidConfigDirectiveLayer | undefined {
+  const match = new RegExp(INIT_DIRECTIVE_REGEX.source, 'm').exec(raw)
+  const payload = mermaidInitDirectivePayload(raw)
+  if (!match || payload === undefined) return undefined
+  return { kind: match[1] === undefined && match[2] === undefined ? 'wrap' : 'init', payload }
+}
+
+/** The authored YAML layer alone, without init directives folded into it. */
+export function mermaidAuthoredFrontmatter(source: string): MermaidFrontmatterMap {
+  const match = matchMermaidFrontmatter(source)
+  return match ? parseYamlDocument(match.yaml) : {}
+}
+
 /**
  * Whitespace- and formatting-insensitive identity for one init directive.
- * A parseable payload is identified by its canonical config so re-indented or
+ * A parseable payload is identified by its raw kind and scope so re-indented or
  * re-spaced re-emissions still match; an unparseable payload has no semantic
  * projection, so it falls back to its collapsed raw text.
  */
 export function mermaidInitDirectiveIdentity(directive: MermaidSourceInitDirective): string {
-  return Object.keys(directive.parsed).length > 0
-    ? `config:${stableConfigIdentity(directive.parsed)}`
+  const layer = mermaidInitDirectiveLayer(directive.raw)
+  return layer
+    ? `${layer.kind}:${stableConfigIdentity(layer.payload)}`
     : `raw:${directive.raw.trim().replace(/\s+/g, ' ')}`
 }
 
@@ -739,12 +781,9 @@ export function preprocessMermaidSource(
   const frontmatterMatch = matchMermaidFrontmatter(text)
   const yamlFrontmatter = frontmatterMatch ? canonicalizeFrontmatterMap(parseYamlDocument(frontmatterMatch.yaml)) : {}
   const rawBody = frontmatterMatch ? text.slice(frontmatterMatch.source.length) : text
-  const { body: directiveFreeBody, frontmatter: directiveFrontmatter } = extractInitDirectives(rawBody)
-  const body = splitHeaderStatement(directiveFreeBody)
-  const frontmatter = mergeFrontmatterMaps(
-    mergeFrontmatterMaps(canonicalizeFrontmatterMap(baseFrontmatter), yamlFrontmatter),
-    canonicalizeFrontmatterMap(directiveFrontmatter),
-  )
+  const extracted = extractInitDirectives(rawBody, mergeFrontmatterMaps(canonicalizeFrontmatterMap(baseFrontmatter), yamlFrontmatter))
+  const body = splitHeaderStatement(extracted.body)
+  const frontmatter = extracted.frontmatter
 
   return {
     body,
@@ -984,15 +1023,39 @@ function parseYamlDocument(text: string): MermaidFrontmatterMap {
   return toFrontmatterMap(parsed.value) ?? {}
 }
 
-function extractInitDirectives(text: string): { body: string; frontmatter: MermaidFrontmatterMap } {
-  let merged: MermaidFrontmatterMap = {}
-
-  const body = stripMermaidDirectives(text, payload => {
-    const parsed = directiveConfig(payload)
-    if (parsed) merged = mergeFrontmatterMaps(merged, canonicalizeFrontmatterMap(parsed))
+function extractInitDirectives(text: string, base: MermaidFrontmatterMap): { body: string; frontmatter: MermaidFrontmatterMap } {
+  const layers = mermaidInitDirectives(text).flatMap(directive => {
+    const layer = mermaidInitDirectiveLayer(directive.raw)
+    return layer ? [layer] : []
   })
-
-  return { body, frontmatter: merged }
+  const body = stripMermaidDirectives(text)
+  const header = toMermaidLines(body)[0]?.split(/\s/)[0] ?? ''
+  const detected = pinnedMermaidDiagramType(detectInstalledFamilyFromFirstLine(header, 'loose') ?? header)
+  const inits = layers.filter(layer => layer.kind === 'init').map(layer => layer.payload)
+  const wrap = layers.some(layer => layer.kind === 'wrap')
+  if (inits.length === 0) {
+    if (wrap) base.wrap = true
+    return { body, frontmatter: base }
+  }
+  try {
+    return { body, frontmatter: mergePinnedConfigLayers(base, inits.length === 1 && (!inits[0] || typeof inits[0] !== 'object' || Array.isArray(inits[0])) ? [] : inits, detected, wrap, true) as MermaidFrontmatterMap }
+  } catch {
+    // Invalid consumed values still need a generous read for repair. Canonical
+    // admission reports the actual failure separately. Do not activate a legacy
+    // config block that the multi-init sanitizer would discard before remapping.
+    let merged = mergeFrontmatterMaps({}, base)
+    for (const init of inits) {
+      if (!init || typeof init !== 'object' || Array.isArray(init)) continue
+      const layer = mergeFrontmatterMaps({}, init)
+      if (layer.config !== undefined) {
+        if (inits.length === 1) layer[detected === 'flowchart-v2' ? 'flowchart' : detected] = layer.config
+        delete layer.config
+      }
+      merged = mergeFrontmatterMaps(merged, layer)
+    }
+    if (wrap) merged.wrap = true
+    return { body, frontmatter: merged }
+  }
 }
 
 /** The configuration an init directive's payload sets, or a wrap

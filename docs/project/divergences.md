@@ -84,15 +84,17 @@ comma consumer. Functional CSS remains native-readable but source-only when
 Flowchart or Requirement cannot spell it losslessly. Their typed writes refuse
 unsupported values atomically, while native CSS validity stays independent.
 
-Class and State write legacy RGB/HSL colors with equivalent CSS Color 4
-space/slash separators, preserving channel tokens, units, percentages and alpha
-without numeric conversion. Unsupported comma lists remain a bounded native
-source extension. Class memberships precede definitions because its pinned DB
-copies styles eagerly; inline overrides follow definitions. A Class style moves
-an existing admissible property before the first colon or refuses typed
-authoring when none exists. No neutral property is invented. State label edits
-clear the mutually exclusive bare-declaration flag; removing a label restores
-the bare declaration.
+Class and State protect style payload delimiters with entity codes. The writer
+keeps exact RGB/HSL channel spelling, comma-valued fonts, quoted CSS strings and
+literal entity/marker text. Encoding direction-like payloads protects the
+complete statement from earlier lexer productions. Colon-space barriers prevent
+one field from activating the global entity prepass against another.
+Class memberships precede definitions because its pinned DB copies styles
+eagerly; inline overrides follow definitions. A Class style moves an actually
+requested admissible first property or refuses the write; it invents no paint.
+Inline styles also require an ALPHA target even when declarations can name a
+quoted identity. State label edits clear the mutually exclusive bare-declaration
+flag; removing a label restores it.
 
 The approach takes lexer-state ideas from
 [Pele 1.10.0](https://github.com/obsidianmd/pele/tree/4eff76f98c73b6817800a05773517f35832e4e92),
@@ -112,7 +114,7 @@ method, including its sanitizer; it is a grammar contract, not equality with
 lossy sanitized HTML. Separate modern tests inspect the public runtime. These
 reference corrections are not additional native syntax capabilities.
 
-The public-parser replay against main `9b64b5f42a8260696052f8218fccfacd8ae44b80`
+The merged #490 public-parser replay against main `9b64b5f42a8260696052f8218fccfacd8ae44b80`
 increases accepted typed canonical exports from 755 to 962: **207 additional
 inputs across 17 families**, with no acceptance regressions and no remaining
 crashes. This replaces the earlier comparison against `09425754`; changes
@@ -140,16 +142,19 @@ portable typed result.
 Timeline sections retain the latest period: a same-line event after a section
 belongs to that period in its earlier section. Without a prior period, the
 reader rejects the orphan event instead of inventing a period. An explicit
-empty trimmed section remains native-readable but source-only for typed editing
-because the current writer cannot preserve that lexical category.
+empty trimmed section is typed and editable. Its constructor preserves the two
+blank characters required by the SECTION token, including at EOF; normalization
+does not trim away that grammar distinction.
 
 All emitted typed canonical documents in the replay are reference-accepted.
 Thirty typed inputs and one source-only Mindmap input have malformed init
 payloads or invalid theme configuration; canonical export rejects them with a
-repair message. Admission follows case-sensitive keys, effective family/theme
-precedence, sanitizer-neutralized values and the actual derived-color inputs.
-It is bounded evidence for these observed classes, not a full config-schema
-proof. Another 28 typed documents need canonical wrapper mode to repair their
+repair message. The follow-up replaces the handwritten admission guard with the actual pure
+pinned merge, sanitizer, appearance and theme programs. Raw YAML metadata and
+config stay distinct; raw directive kind, scope and order survive canonical
+export. Multiple init layers are not flattened, and wrap does not increment the
+init count. Every evaluation gets fresh defaults and state. Its 100000-loop
+work limit is a host validation bound, not a claim of pinned rejection. Another 28 typed documents need canonical wrapper mode to repair their
 verbatim wrapper spelling. Three GitGraph bodies require their configured main
 branch; their complete documents pass.
 
@@ -572,7 +577,7 @@ identified below; this record does not excuse them as opaque preservation.
 | State name after `as` holding a space | **Keep rejection.** | Mermaid reads the rest of the line after `state "…" as` as one name (`X Y`), which no transition can refer to. Ours cannot hold such a name, so the source stays opaque and is not drawn, and the renderer says why. `state X as Y`, which Mermaid rejects, is rejected too. |
 | Class style-class assignment forms | **Keep the style class and warn (`class_style_assignment`, `class_css_class_before_class`); write `cssClass "A" c`.** | Implemented: Mermaid reads `class A c` as one class named `Ac`, rejects an unquoted `cssClass A c` and `A:::c` on a line of its own, and applies `cssClass "A" c` only to a class declared before it. Ours reads each as style class `c` on `A`, whatever the order, warns where Mermaid reads the source otherwise, declares no class for a cssClass (as Mermaid), reads a quoted cssClass's ids as written (`"my class"`), and writes `cssClass "A" c` after the class, which Mermaid reads as written. |
 | Class member text with `:` or `;` after `Class :` | **Keep reading and warn (`class_member_text`).** | Implemented: Mermaid's LABEL token (`":"[^:\n;]+`) ends at either, so `BankAccount : t : +String owner`, `A::B` and `A : x; y` are rejected. Ours reads the member whole and writes it in the class body, which Mermaid reads. A relationship label with a colon stays rejected, as it is upstream. |
-| Class `classDef` or `style` text before its first colon | **Keep reading and warn (`class_style_text`).** | Implemented: Mermaid takes only words, `#`, `%` and commas there, so it rejects `stroke-width:4px` first and accepts `fill:#fff,stroke-width:4px`. The writer keeps the text as written, so that output is still rejected. Keywords Mermaid reads as other tokens (`link`, `note`) are not reported. |
+| Class `classDef` or `style` text before its first colon | **Keep reading and warn (`class_style_text`).** | Implemented: Mermaid takes only words, `#`, `%` and commas there, so it rejects `stroke-width:4px` first and accepts `fill:#fff,stroke-width:4px`. The writer moves an already requested ordinary property first; if none exists, the source stays opaque and typed writes refuse it. Keywords occupying other lexer productions are included in that admission rule. |
 | Class `{` in a class body member | **Keep rejecting it, on any line of the block.** | Implemented: Mermaid rejects it (OPEN_IN_STRUCT); the body stays opaque and the render is refused, as for a `{` on the block's own line. |
 | Class `%%{…}%%` directive inside a statement | **Read the statement without it, as Mermaid does.** | Implemented: Mermaid removes directives before lexing, so `class A {⏎+literal(%%{init: {}}%%)⏎}` parses and `A : +x %%{a}%%` reads `+x`. An init directive's configuration is applied wherever it stands (see the next row). The writer spells `%%{` in text as `%%#123;`; member edits holding a directive are refused. Elsewhere a directive other than init inside a statement (`%%{wrap}%%`) stays in the text, where Mermaid removes it. |
 | `%%{…}%%` directive inside a statement | **Remove it wherever it stands, in every family, as Mermaid does; apply `init`/`initialize` config and `wrap`.** | Implemented: the shared normaliser applies an `init` or `initialize` directive's configuration (also inside a `%%` comment line) and `wrap` (`wrap: true`) wherever it stands, applies nothing for `config` or other names, and removes each, so every family reads the statement without it (`A["x %%{init:…}%% y"]` reads `x  y`). The writer writes the applied directive before the header. Mermaid reads an unclosed `%%{…` to the end of the source; ours removes only closed directives. |

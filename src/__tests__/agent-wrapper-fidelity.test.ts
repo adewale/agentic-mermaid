@@ -293,7 +293,7 @@ describe('wrapper fidelity (1C): canonical synthesis on demand', () => {
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) return
     const canonical = serializeMermaid(parsed.value, { wrapper: 'canonical' })
-    expect(canonical).not.toContain('%%{init')
+    expect(canonical.match(/%%\{init:/g)).toHaveLength(2)
     const reparsed = parseMermaid(canonical)
     expect(reparsed.ok).toBe(true)
     if (!reparsed.ok) return
@@ -301,13 +301,20 @@ describe('wrapper fidelity (1C): canonical synthesis on demand', () => {
     expect(serializeMermaid(reparsed.value, { wrapper: 'canonical' })).toBe(canonical)
   })
 
-  test.each([{ value: 'reset' }, { value: [] }])('canonical themeVariables must be an object, preserving $value for repair', ({ value }) => {
-    const source = `%%{init: {"themeVariables":{"primaryColor":"red"}}}%%\n%%{init: ${JSON.stringify({ themeVariables: value })}}%%\nflowchart TD\n  A --> B`
+  test.each([{ value: 'reset' }, { value: [] }, { value: 5 }])('canonical config preserves nonclobbering init type transitions: $value', async ({ value }) => {
+    const source = `%%{init: {"theme":"base","themeVariables":{"primaryColor":"red"}}}%%\n%%{init: ${JSON.stringify({ themeVariables: value })}}%%\nflowchart TD\n  A --> B`
     const parsed = parseMermaid(source)
     if (!parsed.ok) throw new Error('parse failed')
     expect(serializeMermaid(parsed.value)).toBe(source + '\n')
-    expect(() => serializeMermaid(parsed.value, { wrapper: 'canonical' })).toThrow('themeVariables must be a configuration object')
-    expect<unknown>(parsed.value.meta.frontmatter?.themeVariables).toEqual(value)
+    const canonical = serializeMermaid(parsed.value, { wrapper: 'canonical' })
+    const pin = startUpstreamMermaid()
+    try {
+      for (const text of [source, canonical]) {
+        expect(await pin.project(text, d => d.db.getData().config.themeVariables.primaryColor)).toEqual({ ok: true, value: 'red' })
+      }
+    } finally { pin.close() }
+    expect(parsed.value.meta.frontmatter?.themeVariables).toEqual({ primaryColor: 'red' })
+    expect<unknown>(parsed.value.meta.initDirectives[1]!.parsed.themeVariables).toEqual(value)
   })
 
   test('canonical wrapper color admission respects exact keys, sanitization and actual derivation', async () => {
@@ -342,7 +349,7 @@ describe('wrapper fidelity (1C): canonical synthesis on demand', () => {
         expect(await upstream.accepts('flowchart LR\nControl --> Next')).toBe(true)
         const parsed = parseMermaid(source)
         if (!parsed.ok) throw new Error('parse failed')
-        expect(() => serializeMermaid(parsed.value, { wrapper: 'canonical' })).toThrow('must be a concrete CSS color')
+        expect(() => serializeMermaid(parsed.value, { wrapper: 'canonical' })).toThrow('pinned configuration processing rejects this value')
         expect(serializeMermaid(parsed.value)).toContain(JSON.stringify(themeVariables).slice(1, -1))
       }
     } finally { upstream.close() }
@@ -390,10 +397,190 @@ describe('wrapper fidelity (1C): canonical synthesis on demand', () => {
         const parsed = parseMermaid(source)
         if (!parsed.ok) throw new Error('Expected repairable wrapper source')
         expect(serializeMermaid(parsed.value)).toStartWith(source.slice(0, source.indexOf('\n') + 1))
-        expect(() => serializeMermaid(parsed.value, { wrapper: 'canonical' })).toThrow('must be a concrete CSS color')
+        expect(() => serializeMermaid(parsed.value, { wrapper: 'canonical' })).toThrow('pinned configuration processing rejects this value')
       }
     } finally { upstream.close() }
   })
+  test('config admission executes consumed color branches and isolates failures from later exports', async () => {
+    const refused = [
+      { theme: 'base', themeVariables: { mainBkg: 'notacolor' } },
+      { theme: 'base', themeVariables: { lineColor: 'currentColor' } },
+      { theme: 'base', themeVariables: { primaryTextColor: 'notacolor' } },
+      { theme: 'base', themeVariables: { quadrant1Fill: 'currentColor', quadrantPointFill: 'red' } },
+      { theme: 'base', themeVariables: { primaryColor: 5 } },
+      { theme: 'base', themeVariables: { primaryColor: { bad: true } } },
+      { fontFamily: 5 }, { themeCSS: 5 }, { themeVariables: 'var(--x)' },
+    ]
+    const pin = startUpstreamMermaid()
+    try {
+      for (const config of refused) {
+        const source = `%%{init: ${JSON.stringify(config)}}%%\nflowchart LR\nA --> B`
+        expect(await pin.publicAccepts(source), JSON.stringify(config)).toBe(false)
+        const parsed = parseMermaid(source)
+        if (!parsed.ok) throw new Error('Expected source available for config repair')
+        expect(() => serializeMermaid(parsed.value, { wrapper: 'canonical' })).toThrow('pinned configuration processing rejects this value')
+        expect(serializeMermaid(parsed.value)).toStartWith(source.split('\n')[0]!)
+        const control = parseMermaid('%%{init: {"theme":"base","themeVariables":{"primaryColor":"red"}}}%%\nflowchart LR\nA --> B')
+        if (!control.ok) throw new Error('Expected valid control')
+        const written = serializeMermaid(control.value, { wrapper: 'canonical' })
+        expect(await pin.project(written, d => d.db.getData().config.themeVariables.primaryColor)).toEqual({ ok: true, value: 'red' })
+      }
+    } finally { pin.close() }
+  })
+
+  test('conditional overrides, Khroma color forms and inert config extensions remain exportable', async () => {
+    const controls = [
+      { theme: 'base', themeVariables: { lineColor: 'currentColor', sequenceNumberColor: 'red' } },
+      { theme: 'base', themeVariables: { mainBkg: 'currentColor', rowOdd: 'red', rowEven: 'blue', surface0: 'red', surfacePeer0: 'blue', surface1: 'red', surfacePeer1: 'blue', surface2: 'red', surfacePeer2: 'blue', surface3: 'red', surfacePeer3: 'blue', surface4: 'red', surfacePeer4: 'blue' } },
+      { theme: 'base', themeVariables: { primaryColor: 'rgb(1%,2,3)' } },
+      { theme: 'base', themeVariables: { primaryColor: 'rgb(1,2 3)' } },
+      { theme: 'future-theme', look: 'future-look', layout: 'future-layout', futureConfig: { unknown: true } },
+      { theme: 'base', themeVariables: { futureColor: 'notacolor', PrimaryTextColor: 'notacolor' } },
+      { themeVariables: 'bad' }, { themeVariables: 5 }, { themeVariables: [{ primaryColor: 'red' }] },
+    ]
+    const pin = startUpstreamMermaid()
+    try {
+      for (const config of controls) {
+        const source = `%%{init: ${JSON.stringify(config)}}%%\nflowchart LR\nA --> B`
+        expect(await pin.publicAccepts(source), JSON.stringify(config)).toBe(true)
+        const parsed = parseMermaid(source)
+        if (!parsed.ok) throw new Error('Expected native config read')
+        const written = serializeMermaid(parsed.value, { wrapper: 'canonical' })
+        expect(await pin.publicAccepts(written), written).toBe(true)
+        const reload = parseMermaid(written)
+        if (!reload.ok) throw new Error('Expected canonical config reload')
+        expect(reload.value.meta.frontmatter).toEqual(config)
+      }
+    } finally { pin.close() }
+  })
+
+  test('canonical config retains layer semantics for nulls, scalar/array no-ops and legacy diagram scope', async () => {
+    const rows = [
+      { layers: [{ theme: 'base', themeVariables: { primaryColor: 'red' } }, { themeVariables: { primaryColor: null } }], expected: { theme: 'base', primaryColor: 'red' } },
+      { layers: [{ theme: 'dark' }, { theme: null }], expected: { theme: 'dark' } },
+      { layers: [{ theme: 'base', themeVariables: { primaryColor: 'red' } }, { themeVariables: 5 }], expected: { primaryColor: 'red' } },
+      { layers: [{ config: { nodeSpacing: 100 } }], expected: { nodeSpacing: 100 } },
+      { layers: [{ config: { nodeSpacing: 80 } }, { config: { rankSpacing: 100 } }], expected: { nodeSpacing: 50, rankSpacing: 50 } },
+      { layers: [[{ theme: 'dark' }], {}], expected: { theme: 'dark' } },
+      ...[5, null, true, 'x', [], [{}]].map(value => ({ layers: [value], expected: { nodeSpacing: 50 } })),
+    ]
+    const pin = startUpstreamMermaid()
+    try {
+      for (const { layers, expected } of rows) {
+        const source = layers.map(layer => `%%{init: ${JSON.stringify(layer)}}%%\n`).join('') + 'flowchart LR\nA --> B'
+        const parsed = parseMermaid(source)
+        if (!parsed.ok) throw new Error('Expected native config read')
+        const canonical = serializeMermaid(parsed.value, { wrapper: 'canonical' })
+        const meaning = await pin.projectEach([source, canonical], d => {
+          const config = d.db.getData().config
+          return { theme: config.theme, primaryColor: config.themeVariables.primaryColor, lineColor: config.themeVariables.lineColor, nodeSpacing: config.flowchart.nodeSpacing, rankSpacing: config.flowchart.rankSpacing }
+        })
+        for (const result of meaning) {
+          if (!result.ok) throw new Error(result.error)
+          expect(result.value).toMatchObject(expected)
+        }
+        expect(meaning[1]).toEqual(meaning[0])
+        const reloaded = parseMermaid(canonical)
+        if (!reloaded.ok) throw new Error('Expected canonical config reload')
+        expect(serializeMermaid(reloaded.value, { wrapper: 'canonical' })).toBe(canonical)
+      }
+    } finally { pin.close() }
+  })
+
+  test('config evaluation has an explicit work budget and a failed evaluation cannot poison the next write', () => {
+    const oversized = parseMermaid(`%%{init:${JSON.stringify({ themeCSS: 'a'.repeat(100001) })}}%%\nflowchart LR\nA --> B`)
+    if (!oversized.ok) throw new Error('Expected source available for repair')
+    expect(() => serializeMermaid(oversized.value, { wrapper: 'canonical' })).toThrow('validation resource limit, not a pinned syntax rejection')
+    const ordinary = parseMermaid('%%{init:{"theme":"base"}}%%\nflowchart LR\nA --> B')
+    if (!ordinary.ok) throw new Error('Expected control read')
+    expect(serializeMermaid(ordinary.value, { wrapper: 'canonical' })).toContain('theme: base')
+  })
+
+  test('document metadata stays separate from config keys and follows pinned coercion before config insertion', async () => {
+    const rows = [
+      { source: '---\nconfig:\n  title: inner\n  displayMode: compact\n  gantt: x\n---\n', expected: { mode: '' } },
+      { source: '%%{init:{"title":"inner","displayMode":"compact","gantt":"x"}}%%\n', expected: { mode: '' } },
+      { source: '---\ntitle: Outer\nconfig:\n  title: inner\n---\n', expected: { mode: '' } },
+      { source: '---\ndisplayMode:\n  fontFamily: 5\n---\n', expected: { mode: '[object Object]' } },
+      { source: '---\ndisplayMode:\n  themeVariables: var(--x)\n---\n', expected: { mode: '[object Object]' } },
+      { source: '---\ndisplayMode: compact\n---\n%%{init:{"gantt":false}}%%\n', expected: { mode: '' } },
+    ]
+    const pin = startUpstreamMermaid()
+    try {
+      for (const { source: prefix, expected } of rows) {
+        const source = prefix + 'flowchart LR\nA --> B'
+        const parsed = parseMermaid(source)
+        if (!parsed.ok) throw new Error('Expected repairable metadata read')
+        const written = serializeMermaid(parsed.value, { wrapper: 'canonical' })
+        const meanings = await pin.projectEach([source, written], d => ({ mode: d.db.getData().config.gantt.displayMode }))
+        expect(meanings).toEqual([{ ok: true, value: expected }, { ok: true, value: expected }])
+        if (prefix.includes('title: Outer')) expect(written).toMatch(/^title: Outer$/m)
+        else expect(written).not.toMatch(/^title:/m)
+        const reloaded = parseMermaid(written)
+        if (!reloaded.ok) throw new Error('Expected canonical reload')
+        expect(serializeMermaid(reloaded.value, { wrapper: 'canonical' })).toBe(written)
+        expect(renderMermaidSVG(reloaded.value)).toBe(renderMermaidSVG(parsed.value))
+      }
+      for (const prefix of ['---\ndisplayMode: compact\nconfig:\n  gantt: x\n---\n', '---\ntitle:\n  toString: x\n---\n', '---\ndisplayMode:\n  toString: x\n---\n']) {
+        const source = prefix + 'flowchart LR\nA --> B'
+        expect(await pin.publicAccepts(source)).toBe(false)
+        const parsed = parseMermaid(source)
+        if (!parsed.ok) throw new Error('Expected source available for repair')
+        expect(() => serializeMermaid(parsed.value, { wrapper: 'canonical' })).toThrow('pinned configuration processing rejects this value')
+      }
+    } finally { pin.close() }
+  })
+
+  test('raw directive scope and kind survive native reads and writer-generated Gantt config', async () => {
+    const task = 'gantt\n  dateFormat YYYY-MM-DD\n  Work :2024-01-01, 1d'
+    const rows = [
+      { source: '%%{init:{"config":{"axisFormat":"Y#Z"}}}%%\n%%{init:{}}%%\n' + task, own: undefined, pin: '%Y-%m-%d' },
+      { source: '%%{init:[{"gantt":{"axisFormat":"Y#Z"}}]}%%\n%%{init:{}}%%\n' + task, own: 'Y#Z', pin: 'Y#Z' },
+      { source: '%%{init:{"config":{"axisFormat":"Y#Z"}}}%%\n%%{wrap}%%\n' + task, own: 'Y#Z', pin: 'Y#Z' },
+      { source: '%%{init:{"config":{"gantt":{"axisFormat":"Y#Z"}}}}%%\ngantt\n  axisFormat Y#Z\n  dateFormat YYYY-MM-DD\n  Work :2024-01-01, 1d', own: 'Y#Z', pin: 'Y#Z' },
+    ]
+    const pin = startUpstreamMermaid()
+    try {
+      for (const row of rows) {
+        const parsed = parseMermaid(row.source)
+        if (!parsed.ok || parsed.value.body.kind !== 'gantt') throw new Error('Expected editable Gantt body')
+        expect(parsed.value.body.axisFormat).toBe(row.own)
+        for (const wrapper of ['verbatim', 'canonical'] as const) {
+          const written = serializeMermaid(parsed.value, { wrapper })
+          const reload = parseMermaid(written)
+          if (!reload.ok || reload.value.body.kind !== 'gantt') throw new Error('Expected Gantt reload')
+          expect(reload.value.body.axisFormat).toBe(row.own)
+          expect(await pin.project(written, async d => d.db.getAxisFormat() || (await import('mermaid')).default.mermaidAPI.getConfig().gantt!.axisFormat)).toEqual({ ok: true, value: row.pin })
+        }
+      }
+      const flow = parseMermaid('%%{init:{"config":{"nodeSpacing":100}}}%%\n%%{wrap}%%\nflowchart LR\nA --> B')
+      if (!flow.ok) throw new Error('Expected editable Flowchart')
+      expect(flow.value.meta.frontmatter?.flowchart).toEqual({ nodeSpacing: 100 })
+      const canonical = serializeMermaid(flow.value, { wrapper: 'canonical' })
+      expect(await pin.project(canonical, d => ({ spacing: d.db.getData().config.flowchart.nodeSpacing, wrap: d.db.getData().config.wrap }))).toEqual({ ok: true, value: { spacing: 100, wrap: true } })
+      const reload = parseMermaid(canonical)
+      if (!reload.ok) throw new Error('Expected Flowchart reload')
+      expect(renderMermaidSVG(reload.value)).toBe(renderMermaidSVG(flow.value))
+    } finally { pin.close() }
+  })
+
+  test('GitGraph consumes the merged config once rather than replaying ignored null overrides', async () => {
+    const source = '%%{init:{"gitGraph":{"mainBranchName":"trunk"}}}%%\n%%{init:{"gitGraph":{"mainBranchName":null}}}%%\ngitGraph\ncommit id:"start"'
+    const parsed = parseMermaid(source)
+    if (!parsed.ok || parsed.value.body.kind !== 'gitgraph') throw new Error('Expected editable GitGraph')
+    expect(parsed.value.body.mainBranchName).toBe('trunk')
+    expect(parsed.value.body.commits.map(commit => commit.branch)).toEqual(['trunk'])
+    const written = serializeMermaid(parsed.value, { wrapper: 'canonical' })
+    const reload = parseMermaid(written)
+    if (!reload.ok || reload.value.body.kind !== 'gitgraph') throw new Error('Expected GitGraph reload')
+    expect(reload.value.body.mainBranchName).toBe('trunk')
+    expect(renderMermaidSVG(reload.value)).toBe(renderMermaidSVG(parsed.value))
+    const pin = startUpstreamMermaid()
+    try {
+      expect(await pin.project(written, d => [...d.db.getCommits().values()].map((commit: { branch: string }) => commit.branch))).toEqual({ ok: true, value: ['trunk'] })
+    } finally { pin.close() }
+  })
+
   test('canonical mode keeps a directive no later directive shadows', () => {
     const parsed = parseMermaid(
       '%%{init: {"logLevel":"debug"}}%%\nflowchart TD\n%%{init: {"theme":"dark"}}%%\n  A --> B',
@@ -401,8 +588,8 @@ describe('wrapper fidelity (1C): canonical synthesis on demand', () => {
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) return
     const canonical = serializeMermaid(parsed.value, { wrapper: 'canonical' })
-    expect(canonical).toContain('logLevel: debug')
-    expect(canonical).toContain('theme: dark')
+    expect(canonical).toContain('\"logLevel\":\"debug\"')
+    expect(canonical).toContain('\"theme\":\"dark\"')
   })
 
   test('am format defaults to verbatim; --canonical-wrapper opts into synthesis', async () => {

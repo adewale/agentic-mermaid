@@ -1322,10 +1322,6 @@ export const GITGRAPH_AGENT_HOOKS = {
       const merged: Record<string, unknown> = {
         ...(meta.frontmatter?.gitGraph && typeof meta.frontmatter.gitGraph === 'object' ? meta.frontmatter.gitGraph : {}),
       }
-      for (const directive of meta.initDirectives) {
-        const section = directive.parsed?.gitGraph
-        if (section && typeof section === 'object') Object.assign(merged, section)
-      }
       return ok(
         parseGitGraphBody(source.familyBody, {
           mainBranchName: typeof merged.mainBranchName === 'string' ? merged.mainBranchName : undefined,

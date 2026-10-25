@@ -56,7 +56,7 @@ bar [1]`)
   })
 
   it('merges init directives before and after the header and strips them from the body', () => {
-    const processed = preprocessMermaidSource(`%%{init: { theme: base, config: { xyChart: { width: 640 } } }}%%
+    const processed = preprocessMermaidSource(`%%{init: { theme: base, xyChart: { width: 640 } }}%%
 xychart
 %% regular comment
 x-axis [A]

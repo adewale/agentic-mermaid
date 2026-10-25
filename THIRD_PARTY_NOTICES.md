@@ -58,3 +58,15 @@ The revision-bound oracle vendors two upstream Mermaid test specifications at
 - Copyright: © 2014–2022 Knut Sveidqvist
 - License: **MIT**
 - Repository license copy: `eval/mermaid-upstream-suite-bench/upstream-f3dea583/LICENSE.mermaid.txt` (the upstream specs are verification-only and excluded from the npm package)
+
+## Pinned Mermaid configuration compatibility program
+
+`src/shared/pinned-mermaid-config/runtime.js` contains the pure configuration,
+merge, appearance, theme and color programs from Mermaid 12.2.0 source
+`1fb7869866dd619168d840291c9c54b4f129758b`, Khroma 2.1.0 and lodash-es 4.18.1.
+It has no diagram parser, renderer or DOM implementation. Regenerate it with
+`scripts/build/generate-mermaid-config-runtime.ts` and the policy reference.
+
+- Mermaid: MIT, copyright 2014–2022 Knut Sveidqvist; `LICENSES/Mermaid-MIT.txt`.
+- Khroma: MIT, copyright 2019-present Fabio Spampinato, Andrew Maney; `LICENSES/Khroma-MIT.txt`.
+- lodash-es: MIT, copyright JS Foundation and other contributors; `LICENSES/lodash-MIT.txt`.

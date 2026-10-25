@@ -792,6 +792,7 @@ export interface SourceComment {
 }
 export interface InitDirective {
   raw: string
+  /** Authored object layer, retaining legacy config scope; not an effective merge. */
   parsed: MermaidConfigMap
 }
 export interface Accessibility {
@@ -800,6 +801,8 @@ export interface Accessibility {
 }
 
 export interface ValidDiagramMeta {
+  /** Native effective config view. Captured wrapper/init bytes own authored layers.
+   * For explicit JSON config changes, omit wrapperSource when synthesizing. */
   frontmatter?: MermaidFrontmatterMap
   initDirectives: InitDirective[]
   comments: SourceComment[]
