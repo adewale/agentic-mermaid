@@ -1,0 +1,24 @@
+name: Dispatch exact PR semantic qualification with fresh edit priming
+on:
+  push:
+    branches: [codex/semantic-7634d569-dispatch-20261025]
+permissions:
+  contents: read
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Verify all current heads and dispatch the exact combined candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh api repos/adewale/agentic-mermaid/git/ref/heads/main --jq .object.sha)" = 835b5663dea907db4fa16fffbd657f2cc6189cb2
+          test "$(gh api repos/adewale/agentic-mermaid/git/ref/heads/codex/contrast-search-reuse-20261025 --jq .object.sha)" = 7634d569b5e2fb23f98d3350407c1bcdc0e1c475
+          test "$(gh api repos/adewale/agentic-mermaid/git/ref/heads/codex/cold-peer-calibration --jq .object.sha)" = ef7e0dbe61a650c799a9d9e0391227e3ec288423
+          gh api --method POST repos/adewale/agentic-mermaid/actions/workflows/release-benchmark.yml/dispatches --input - <<'JSON'
+          {"ref":"codex/contrast-search-reuse-20261025","inputs":{"evidence-scope":"all","baseline-ref":"835b5663dea907db4fa16fffbd657f2cc6189cb2","fixed-baseline-sha":"2cff725d219c75b75593b1d3e9bacd74cba7a08e"}}
+          JSON
