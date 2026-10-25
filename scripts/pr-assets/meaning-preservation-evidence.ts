@@ -82,8 +82,22 @@ const stableRepresentativeCues = {
   block:
     'Seven components occupy four authored composite groups, including nested Delivery/Persistence inside a two-column Gateway plane span, two empty cells and durable queue/store artwork. Follow six complete labeled connections; Batch enters Ingress from the west while Enqueue leaves south, preserving distinct physical contacts.',
 } as const
-const ownershipGoldenIds = new Set(['corpus/flowchart/94', 'corpus/flowchart/95', 'corpus/flowchart/96', 'corpus/state/0', 'corpus/state/1', 'corpus/state/8', 'corpus/state/14', 'corpus/state/16', 'corpus/state/17', 'corpus/state/18', 'corpus/state/19'])
+const ownershipGoldenIds = new Set(['corpus/flowchart/94', 'corpus/flowchart/95', 'corpus/flowchart/96', 'corpus/flowchart/98', 'corpus/state/0', 'corpus/state/1', 'corpus/state/8', 'corpus/state/14', 'corpus/state/16', 'corpus/state/17', 'corpus/state/18', 'corpus/state/19'])
 const fixtures: Fixture[] = [
+  {
+    id: 'flowchart-cosmetic-circle-approach',
+    title: 'Layer alignment preserves the circle’s reserved outward shaft',
+    source: 'flowchart BT\nP0{a longer label goes here} --> H1["hub one"]\nP1((x)) -->|warnings| H1["hub one"]\nQ1 --> P1\nP2(["errors"]) --> H1["hub one"]\nH1 -->|done| H2["hub two"]\nR0((done)) --> H2\nR1(["same word ok"]) --> H2\nR2[/"errors"/] -->|a longer label goes here| H2\nR3["warnings"] --> H2\nH2 --> Z["end"]',
+    captureLayout: true,
+    cue: 'Follow R0-to-H2 from the done circle. A cosmetic layer snap previously consumed its reserved outward stub, leaving a tangent at its north point. Compare the complete source approach and all other authored nodes, labels, groups and markers in the geometry sidecar; preserving the original stagger is an intentional correctness trade-off.',
+  },
+  {
+    id: 'flowchart-peer-label-capacity',
+    title: 'Peer equalization preserves the actual label and arrow corridor',
+    source: 'flowchart RL\nS0["a longer label goes here"] --> H["hub"]\nU0_0["ok"] --> S0\nU0_1["same word ok"] --> U0_0\nU0_2["a longer label goes here"] -->|a longer label goes here| U0_1\nS1["x"] --> H["hub"]\nS2["errors"] --> H["hub"]\nU2_0["a longer label goes here"] -->|ok| S2\nU2_1["x"] -->|same word ok| U2_0\nH --> T["t"]',
+    captureLayout: true,
+    cue: 'Inspect the ok link from U2_0 to S2. Widening a peer used its label and arrow space while the cards still did not overlap. The accepted geometry must keep the complete label halo and marker clear of both endpoint cards. Unequal peer widths are allowed; unchanged semantic identities and measured paint bounds are the controls.',
+  },
   {
     id: 'flowchart-feedback-outward-contact',
     title: 'Feedback shortening retains the capsule’s outward source shaft',
@@ -97,7 +111,9 @@ const fixtures: Fixture[] = [
     title: `${sample.id}: ownership and contextual endpoint baseline`,
     source: sample.source,
     captureLayout: true as const,
-    cue: sample.family === 'flowchart'
+    cue: sample.id === 'corpus/flowchart/98'
+      ? 'Inspect outside-to-top2 and both top-to-bottom links at their real exterior source contacts. Hidden prefixes formerly entered their own cards; clipping keeps the existing exterior shafts. All nodes, groups, edge identities, labels and markers remain controls; compare geometry sidecars.'
+      : sample.family === 'flowchart'
       ? 'Inspect the complete subgraph membership after earlier references, with unchanged authored edges. Added members change container sizes and placement; this is an intentional topology correction.'
       : 'Inspect one contextual start/end per scope, all authored transitions, and separate concurrent regions. Generated endpoint names now include the region; unchanged names are not a paint contract.',
   })),
@@ -423,7 +439,7 @@ const fixtures: Fixture[] = [
     captureLayout: true,
     cue: 'Inspect both complete transition labels and all six arrowheads entering the Off states. Label separation must retain each label on its own route while clearing its own and neighboring marker artwork. Compare final label coordinates and unchanged routes in the sidecars; marker-resource and strict-certification assertions provide the geometry evidence.',
   },
-  ...['AI', 'AJ'].map(
+  ...['AI', 'AJ', 'AN'].map(
     (letter): Fixture => ({
       id: `native-priority-${letter.toLowerCase()}`,
       title: `Route priorities: contact sheet ${letter}`,
@@ -432,7 +448,9 @@ const fixtures: Fixture[] = [
       cue:
         letter === 'AI'
           ? 'Inspect the existing C-to-D straight canonical contact. Cosmetic lane alignment must preserve an already valid contact without a higher-priority geometry repair. All labels and endpoints are controls.'
-          : 'Inspect both complete long labels and their actual routes. Crossing prevention outranks symmetric outer lanes, and retained text plus actual pill halos determine clearance. Compare crossings and label coordinates in the sidecars; this is one deterministic topology.',
+          : letter === 'AJ'
+            ? 'Inspect D-to-B (label 14): its old terminal run entered Beta and ended from inside. The new contact stops at the actual west boundary crossing. Both long labels and all directed relationships remain; compare actual path/label sidecars and the independent hard checks, not only appearance.'
+            : 'Inspect all three intermediate hubs and their complete fan-in and merge approaches. Retaining ELK’s stagger preserves their outward shafts instead of forcing equal y coordinates. All eleven nodes and ten directed relationships remain controls; compare real endpoint approaches and the geometry sidecars.',
     }),
   ),
   {
