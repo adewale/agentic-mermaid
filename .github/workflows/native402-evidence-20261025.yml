@@ -1,0 +1,85 @@
+name: Native 402 current-main controls and fixed-target dispatch
+on:
+  push:
+    branches: [codex/native402-36888187-evidence-20261025]
+permissions:
+  contents: read
+jobs:
+  fixed-target:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Dispatch fixed original-target evidence at the frozen PR head
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh api repos/adewale/agentic-mermaid/git/ref/heads/codex/contrast-search-reuse-20261025 --jq .object.sha)" = 3688818757464a860081a67509be09dcb42d40a3
+          gh api --method POST repos/adewale/agentic-mermaid/actions/workflows/release-benchmark.yml/dispatches --input - <<'JSON'
+          {"ref":"codex/contrast-search-reuse-20261025","inputs":{"evidence-scope":"fixed","baseline-ref":"24aa671cb9a1508d062e8425062a372f3bd91637","fixed-baseline-sha":"2cff725d219c75b75593b1d3e9bacd74cba7a08e"}}
+          JSON
+  current-main:
+    name: Fixed AA-AA-AB native 402 study on one host
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: 3688818757464a860081a67509be09dcb42d40a3
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version: 1.4.2
+          no-cache: true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '24.19.0'
+          package-manager-cache: false
+      - name: Build and verify the two frozen packages
+        run: |
+          test "$(git rev-parse HEAD)" = 3688818757464a860081a67509be09dcb42d40a3
+          mkdir -p native402-main
+          npm install -g npm@11.18.0 --ignore-scripts
+          test "$(npm --version)" = 11.18.0
+          bun install --frozen-lockfile
+          bun run build
+          bun run scripts/ci/verify-publish-package.ts --pack-destination native402-main/candidate-package
+          git fetch --no-tags origin 24aa671cb9a1508d062e8425062a372f3bd91637
+          git worktree add --detach "$RUNNER_TEMP/native402-baseline" 24aa671cb9a1508d062e8425062a372f3bd91637
+          (
+            cd "$RUNNER_TEMP/native402-baseline"
+            bun install --frozen-lockfile
+            bun run build
+            bun run scripts/ci/verify-publish-package.ts --pack-destination "$GITHUB_WORKSPACE/native402-main/baseline-package"
+          )
+      - name: Acquire the complete fixed population without replacement rounds
+        env:
+          GITHUB_SHA: 3688818757464a860081a67509be09dcb42d40a3
+        run: |
+          python - <<'PYTHON'
+          import datetime,hashlib,json,os,pathlib,subprocess
+          root=pathlib.Path('native402-main').resolve()
+          baseline=root/'baseline-package/package.tgz'
+          candidate=root/'candidate-package/package.tgz'
+          policy={'declaredAt':datetime.datetime.now(datetime.timezone.utc).isoformat(),'baselineSource':'24aa671cb9a1508d062e8425062a372f3bd91637','candidateSource':'3688818757464a860081a67509be09dcb42d40a3','order':['aa1','aa2','ab'],'rounds':5,'reps':5,'elkCache':'off','scope':'All maintained release inputs, including exact ordered402 corpus; match ordered inputs literally after acquisition. Native render-return timing and separate V8 memory pass. Full semantic and peer qualification are not part of this study.','noResampling':True,'interpretation':'Independent controls belong to this host only. Retain every adverse observation; no universal time or peak-memory claim. Material gain requires exceeding maximum symmetric A/A deviation plus two percentage points. Memory is one separate fresh pair per report, not five independent memory rounds.'}
+          (root/'predeclared-policy.json').write_text(json.dumps(policy,indent=2)+'\n')
+          statuses=[]
+          for name in policy['order']:
+            chosen=candidate if name=='ab' else baseline
+            cmd=['bun','eval/benchmark/release-bench.ts','--out',str(root/name),'--rounds','5','--reps','5','--budget-ms','5400000','--elk-cache','off','--runtime-source',os.environ['RUNNER_TEMP']+'/native402-baseline','--baseline-tarball',str(baseline),'--baseline-sha256',hashlib.sha256(baseline.read_bytes()).hexdigest(),'--candidate-tarball',str(chosen),'--candidate-sha256',hashlib.sha256(chosen.read_bytes()).hexdigest()]
+            with (root/(name+'.log')).open('w') as log:
+              r=subprocess.run(cmd,stdout=log,stderr=subprocess.STDOUT)
+            statuses.append({'name':name,'exit':r.returncode,'endedAt':datetime.datetime.now(datetime.timezone.utc).isoformat()})
+            (root/'status.json').write_text(json.dumps(statuses,indent=2)+'\n')
+            print(json.dumps(statuses[-1]),flush=True)
+          raise SystemExit(any(s['exit']!=0 for s in statuses))
+          PYTHON
+      - name: Retain packages, all clocks, memory passes and adverse outcomes
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: native402-main24aa-candidate36888187-${{ github.run_id }}
+          path: native402-main/
+          if-no-files-found: error
+          retention-days: 30
