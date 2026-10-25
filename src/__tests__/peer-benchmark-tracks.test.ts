@@ -105,6 +105,51 @@ describe('maintained consumed peer protocol', () => {
     expect(unavailable.status).toBe('unsupported')
     expect(unavailable.counts).toEqual({ ok: 0, unsupported: 1, lostLabels: 0, errors: 0 })
   })
+  test.each(['allocation', 'diagnostic'] as const)('cold %s is the first and only render and cannot supply timing samples', async coldProbe => {
+    const key = Symbol.for('agentic-mermaid.performance-observer.v1')
+    const global = globalThis as unknown as Record<symbol, ((event: object) => void) | undefined>
+    let calls = 0, probes = 0, validations = 0
+    const row = await measurePeerTrack({ peer: 'fake', input, track: { ...track, phase: 'first-use', coldProbe },
+      render() {
+        expect(calls++).toBe(0)
+        if (coldProbe === 'diagnostic') {
+          expect(global[key]).toBeFunction()
+          global[key]!({ version: 1, kind: 'scope', owner: 'graphical' })
+          global[key]!({ version: 1, kind: 'cache', owner: 'elk', outcome: 'miss' })
+        } else expect(global[key]).toBeUndefined()
+        return svg
+      },
+      async allocation(run) {
+        expect(calls).toBe(0)
+        expect(validations).toBe(0)
+        probes++
+        await run()
+        expect(validations).toBe(0)
+        return 1234
+      },
+      validate() { validations++; return { missing: [] } },
+    })
+    expect(calls).toBe(1)
+    expect(validations).toBe(1)
+    expect(row.callSamplesMs).toEqual([])
+    expect(row.calls).toHaveLength(1)
+    expect(row.calls[0]!.elapsedMs).toBeUndefined()
+    expect(row.semantic.ok).toBe(true)
+    expect(probes).toBe(coldProbe === 'allocation' ? 1 : 0)
+    expect(row.allocationSamplesBytes).toEqual(coldProbe === 'allocation' ? [1234] : [])
+    expect(row.diagnostics.complete).toBe(coldProbe === 'diagnostic')
+    if (coldProbe === 'diagnostic') expect(row.diagnostics.counts['cache:elk:miss']).toBe(1)
+    expect(global[key]).toBeUndefined()
+  })
+  test('a failed first-use allocation stays an error with no numeric observation', async () => {
+    const row = await measurePeerTrack({ peer: 'fake', input, track: { ...track, phase: 'first-use', coldProbe: 'allocation' },
+      render: () => { throw new Error('first render failed') }, allocation: async run => { await run(); return 999 }, validate: () => ({ missing: [] }),
+    })
+    expect(row.status).toBe('error')
+    expect(row.allocationErrors).toEqual(['first render failed'])
+    expect(row.allocationSamplesBytes).toEqual([])
+    expect(row.callSamplesMs).toEqual([])
+  })
   test('scope followed by a failed replay cannot qualify diagnostics', async () => {
     const observerKey = Symbol.for('agentic-mermaid.performance-observer.v1')
     const global = globalThis as unknown as Record<symbol, ((event: object) => void) | undefined>
@@ -135,6 +180,18 @@ describe('maintained consumed peer protocol', () => {
       expect(rows.filter(row => row.type === 'progress').every(row => row.observation.consumedBytes > 0)).toBe(true)
       expect(rows.find(row => row.type === 'track').observation).toMatchObject({ peer: 'agentic-baseline', status: 'ok', counts: { ok: 3 }, insufficientSamples: true })
       expect(rows.find(row => row.type === 'track').observation.allocationSamplesBytes).toHaveLength(3)
+      writeFileSync(entry, `let calls = 0; export const renderMermaidSVG = () => { if (++calls !== 1) throw new Error('warmed cold worker'); return ${JSON.stringify(svg)} }; export const renderMermaidSVGWithReceipt = () => ({svg:renderMermaidSVG(), receipt:{complete:[1,2,3]}})`)
+      for (const coldProbe of ['timing', 'allocation', 'diagnostic']) {
+        writeFileSync(job, JSON.stringify({ peer: 'agentic-baseline', output: 'svg', entry, timing: { warmCalls: 1, warmupMs: 0, samples: 3, minSampleMs: 0, maxCaseMs: 100 }, track: { ...track, phase: 'first-use', coldProbe, consumer: 'receipt-json-utf8' }, workloads: [input] }))
+        writeFileSync(out, '')
+        const cold = await runChild('node', ['--expose-gc', bundle, '--child', '--job', job, '--out', out], { cwd: root })
+        expect({ status: cold.status, stderr: cold.stderr }).toEqual({ status: 0, stderr: '' })
+        const observation = readFileSync(out, 'utf8').trim().split('\n').map(line => JSON.parse(line)).find(row => row.type === 'track').observation
+        expect(observation.status).toBe('ok')
+        expect(observation.calls).toHaveLength(1)
+        expect(observation.callSamplesMs).toHaveLength(coldProbe === 'timing' ? 1 : 0)
+        expect(observation.allocationSamplesBytes).toHaveLength(coldProbe === 'allocation' ? 1 : 0)
+      }
     } finally { rmSync(dir, { recursive: true, force: true }) }
   })
   test('runtime provenance excludes archive paths but retains dependency identities', () => {
