@@ -10,11 +10,12 @@ const files = upstreamSpecFiles(upstream, families)
 const familyOf = new Map(files.map(file => [file.path, file.family]))
 const runtime = resolve(import.meta.dirname, 'runtime.ts')
 const ownRequire = createRequire(resolve('package.json'))
-const referenceRequire = createRequire(resolve(process.env.AM_ASSERT_REFERENCE ?? '../probe-runtime', 'package.json'))
+const referenceRoot = resolve(process.env.AM_ASSERT_REFERENCE ?? '../probe-runtime')
+const referenceRequire = createRequire(resolve(referenceRoot, 'package.json'))
 
 export default defineConfig({
   resolve: { alias: { vitest: resolve(dirname(ownRequire.resolve('vitest/package.json')), 'dist/index.js') } },
-  server: { fs: { allow: [resolve('..'), ...(process.env.AM_ASSERT_NATIVE_ENTRY ? [resolve(dirname(process.env.AM_ASSERT_NATIVE_ENTRY), '../..')] : [])] } },
+  server: { fs: { allow: [resolve('..'), upstream, referenceRoot, ...(process.env.AM_ASSERT_NATIVE_ENTRY ? [resolve(dirname(process.env.AM_ASSERT_NATIVE_ENTRY), '../..')] : [])] } },
   plugins: [{
     name: 'native-diagram-import-adapters', enforce: 'pre',
     resolveId(source) {

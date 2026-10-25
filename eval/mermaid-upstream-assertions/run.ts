@@ -47,6 +47,8 @@ for (const mode of ['reference', 'candidate']) {
   })
   writeFileSync(join(out, `${mode}.log`), `${run.stdout ?? ''}${run.stderr ?? ''}`)
   if (run.error || run.signal || !existsSync(resultPath)) throw new Error(`${mode} did not produce a result; see ${join(out, `${mode}.log`)}: ${run.error ?? run.status}`)
+  const collected = JSON.parse(readFileSync(resultPath, 'utf8'))
+  if (!collected.numTotalTests) throw new Error(`${mode} collected no original tests; see ${join(out, `${mode}.log`)} and ${resultPath}`)
 }
 const report = assertionReport(upstream, specs, join(out, 'candidate-vitest.json'), join(out, 'reference-vitest.json'), join(out, 'candidate-audit.jsonl'), join(out, 'reference-audit.jsonl'))
 const candidateHead = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).stdout.trim()
