@@ -72,13 +72,11 @@ function writableFirstStyleProperty(property: string): boolean {
 
 function portableClassStyleProps(style: Readonly<Record<string, string>>, declarations?: readonly StyleDeclaration[]): Record<string, string> | undefined {
   const portable = portableClassLikeStyleProps(style, declarations)
-  if (!portable) return
-  if (!Object.keys(portable).some(writableFirstStyleProperty)) return
-  return portable
+  return portable && Object.keys(portable).length ? portable : undefined
 }
 
 function classStyleStatement(prefix: string, style: Readonly<Record<string, string>>, declarations?: readonly StyleDeclaration[]): string {
-  return classLikeStyleStatement(prefix, style, Object.keys(style).find(writableFirstStyleProperty), declarations)
+  return classLikeStyleStatement(prefix, style, !writableFirstStyleProperty(declarations?.[0]?.[0] ?? Object.keys(style)[0] ?? ''), declarations)
 }
 
 /** Inline STYLE requires ALPHA, unlike declarations and cssClass targets.
@@ -1018,9 +1016,12 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
       // Before the first colon of `classDef` and `style`, Mermaid's class
       // grammar takes only ALPHA (`\w+`), `#`, `%` and commas; a colon then
       // starts a LABEL token, which reads on to the next colon.
-      if ((value.kind === 'classDef' || value.kind === 'style') && (!writableFirstStyleProperty(value.declarations[0]?.[0] ?? '') || /[^\w\s#%,]/.test(node.text.replace(/^\S+/, '').split(':')[0]!))) warnings.push({
+      const firstStyleProperty = (value.kind === 'classDef' || value.kind === 'style')
+        ? node.text.trim().replace(/^\S+\s+(?:`[^`]*`|"[^"]*"|\S+)\s+/, '').split(':')[0]!.trim()
+        : ''
+      if ((value.kind === 'classDef' || value.kind === 'style') && (!writableFirstStyleProperty(firstStyleProperty) || /[^\w\s#%,]/.test(node.text.replace(/^\S+/, '').split(':')[0]!))) warnings.push({
         code: 'UNSUPPORTED_SYNTAX', syntax: 'class_style_text', line: header + 1 + node.source.line,
-        message: `\`${value.kind}\` is read with its names and CSS as written. Before the first colon, pinned Mermaid rejects hyphenated property names and reserved Class/accessibility tokens. The writer can prefix a requested ordinary declaration before the complete original sequence, such as \`fill:#fff,stroke-width:2px,fill:#fff\`; without one the source and native rendering are preserved but typed editing is unavailable.`,
+        message: `\`${value.kind}\` is read with its names and CSS as written. Before the first colon, pinned Mermaid rejects hyphenated property names and reserved Class/accessibility tokens. The writer prefixes an empty CSS declaration, \`style:,stroke-width:2px\`, which sets no property and preserves the complete authored sequence.`,
       })
       // Mermaid's class DB reads a member holding `)` as a method, and its
       // method split, `([#+~-])?(.+)\((.*)\)…`, leaves one it cannot split

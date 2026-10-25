@@ -89,12 +89,12 @@ function writeStyleText(value: string): string {
 
 /** When any field needs entities, every syntax colon needs a space barrier:
  * an earlier plain hex paint can otherwise reach a later field's semicolon. */
-export function serializeClassLikeStyleProps(style: Readonly<Record<string, string>>, leadingProperty?: string, declarations?: readonly StyleDeclaration[]): string {
+export function serializeClassLikeStyleProps(style: Readonly<Record<string, string>>, emptyClassPrologue = false, declarations?: readonly StyleDeclaration[]): string {
   if (!portableClassLikeStyleProps(style, declarations)) throw new Error('Style contains unrepresentable text or inconsistent ordered declarations')
   const entries = (declarations ?? Object.entries(style)).map(([key, value]): StyleDeclaration => [key, value])
-  // A requested declaration may open Class's restrictive lexer without
-  // moving it: the complete authored sequence follows and overrides it.
-  if (leadingProperty !== undefined && entries[0]?.[0] !== leadingProperty) entries.unshift(entries.find(([key]) => key === leadingProperty)!)
+  // Class needs a word token before its first colon. An empty ordinary CSS
+  // declaration sets no property; the complete authored sequence follows.
+  if (emptyClassPrologue) entries.unshift(['style', ''])
   const fields = entries.map(([name, value]) => ({ name, value, key: writeStyleText(name), text: writeStyleText(value) }))
   const colon = fields.some(field => field.key !== field.name || field.text !== field.value) ? ': ' : ':'
   return fields.map(field => `${field.key}${colon}${field.text}`).join(',')
@@ -102,6 +102,6 @@ export function serializeClassLikeStyleProps(style: Readonly<Record<string, stri
 
 /** The family supplies a grammar-valid target; payload encoding and colon
  * barriers keep the complete statement unchanged by the global prepass. */
-export function classLikeStyleStatement(prefix: string, style: Readonly<Record<string, string>>, leadingProperty?: string, declarations?: readonly StyleDeclaration[]): string {
-  return prefix + serializeClassLikeStyleProps(style, leadingProperty, declarations)
+export function classLikeStyleStatement(prefix: string, style: Readonly<Record<string, string>>, emptyClassPrologue = false, declarations?: readonly StyleDeclaration[]): string {
+  return prefix + serializeClassLikeStyleProps(style, emptyClassPrologue, declarations)
 }
