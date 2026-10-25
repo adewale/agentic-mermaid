@@ -212,9 +212,15 @@ jobs:
     name: E2E (${{ matrix.suite }})
     runs-on: ubuntu-latest
     # These suites construct their own inputs; no unit/quality dependency.
-    # Three-browser system dependencies can consume 45 minutes on a slow
-    # package mirror. Leave room for the contracts after installation.
-    timeout-minutes: ${{ matrix.suite == 'browser' && 60 || 45 }}
+    # Browser binaries and OS libraries are one versioned environment. Avoid
+    # re-provisioning three engines from an Ubuntu mirror on every CI run.
+    container:
+      image: ${{ contains(fromJSON('["browser","browser-site","payload"]'), matrix.suite) && 'mcr.microsoft.com/playwright:v1.58.2-noble@sha256:65cefd09a5e943921ecd3a6e5414c603db2eb161e9eb48f2e2ccc63486dc7dc0' || '' }}
+      options: --init --ipc=host
+    defaults:
+      run:
+        shell: bash
+    timeout-minutes: 45
     permissions:
       actions: read
       contents: read
@@ -228,7 +234,31 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Align the browser container session with its user
+        if: ${{ matrix.suite == 'browser' || matrix.suite == 'browser-site' || matrix.suite == 'payload' }}
+        # GitHub mounts a host-owned home. Firefox requires its owner to match
+        # the container user; Git also needs this exact checkout trusted.
+        run: |
+          chown "$(id -u):$(id -g)" "$HOME"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Install the editor's requested monospace font
+        if: ${{ matrix.suite == 'browser' || matrix.suite == 'browser-site' || matrix.suite == 'payload' }}
+        # The stock image lacks DejaVu Sans Mono, which the editor requests.
+        # Keep font metrics consistent with the Ubuntu host browser contract.
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends fonts-dejavu-core=2.37-8
+
+      - name: Install Bun in the browser environment
+        if: ${{ matrix.suite == 'browser' || matrix.suite == 'browser-site' || matrix.suite == 'payload' }}
+        # The image has Node/npm but no unzip, which setup-bun requires.
+        run: |
+          npm install --global bun@1.4.2
+          test "$(bun --version)" = "1.4.2"
+
       - name: Setup Bun
+        if: ${{ matrix.suite != 'browser' && matrix.suite != 'browser-site' && matrix.suite != 'payload' }}
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
@@ -245,9 +275,11 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Install Playwright browsers
+      - name: Check the Playwright environment matches the installed package
         if: ${{ matrix.suite == 'browser' || matrix.suite == 'browser-site' || matrix.suite == 'payload' }}
-        run: bunx playwright install ${{ matrix.suite == 'browser' && 'chromium firefox webkit' || 'chromium' }} --with-deps
+        run: |
+          bun -e 'const {version}=require("playwright/package.json"); if(version!=="1.58.2") throw new Error(`Update the pinned Playwright CI image for package ${version}`)'
+          bunx playwright install --list
 
       - name: Resolve tested PR revisions
         if: ${{ matrix.suite == 'payload' && github.event_name == 'pull_request' }}
