@@ -9,6 +9,7 @@ import { createTracingMermaid } from '../mcp/facade.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
 import { createExtensionIdentity } from '../shared/extension-identity.ts'
+import { detectDiagramType, type NormalizedMermaidSource } from '../mermaid-source.ts'
 import { captureCli } from './helpers/cli-capture.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
 
@@ -642,26 +643,101 @@ descriptorUpgradeDiagram
     }
   })
 
-  test('captures the detected immutable descriptor even when detector code mutates the registry', () => {
+  test.each([
+    { name: 'plain source', source: 'detectorSnapshotDiagram\n  payload', scoped: false },
+    {
+      name: 'init and quoted accessibility-shaped payload',
+      source: '%%{init: {"themeVariables":{"primaryColor":"#c0ffee"}}}%%\ndetectorSnapshotDiagram\npayload {\naccTitle: Owned payload\n&amp;amp;\n}\naccTitle: Visible title',
+      scoped: true,
+    },
+    {
+      name: 'native accessibility and an encoded header',
+      source: `---\ntitle: Wrapper title\n---\n%%{init: {"themeVariables":{"primaryColor":"#c0ffee"}}}%%\n&#100;etectorSnapshotDiagram\npayload {\naccTitle: Owned payload\n&amp;amp;\n}\naccTitle: Visible title\n%% agentic-mermaid accDescr: ${JSON.stringify('  Exact\naccTitle: inside description  ')}`,
+      scoped: true,
+    },
+  ].flatMap(row => (row.scoped ? ['render', 'parse'] as const : ['render', 'parse', 'detect'] as const)
+    .map(route => ({ ...row, route }))))('captures the detected immutable descriptor even when detector code mutates the registry ($route: $name)', ({ source, scoped, route }) => {
     const base = extensionDescriptor('detector-snapshot', 'detectorSnapshotDiagram')
     let armed = false
     let unregister = () => {}
+    let detections = 0
+    const normalized: NormalizedMermaidSource[] = []
     const descriptor: FamilyDescriptor = {
       ...base,
+      capabilityEvidence: base.capabilityEvidence.map(claim => claim.capability === 'parse' || claim.capability === 'source-preservation' ? { ...claim, state: 'native' } : claim),
       detect: line => {
         const matched = line === 'detectorsnapshotdiagram'
-        if (matched && armed) unregister()
+        if (matched && armed) { detections++; unregister() }
         return matched
+      },
+      statementEnds: lines => lines.map((line, index) => line.trim() === 'payload {'
+        ? lines.findIndex((end, endIndex) => endIndex > index && end.trim() === '}')
+        : index),
+      normalizeRequest: context => { if (armed) normalized.push(context.source) },
+      parse: context => {
+        if (armed) normalized.push(context.source)
+        return ok({ kind: 'extension', family: base.id as ExternalFamilyId, source: context.opaqueSource })
       },
     }
     unregister = registerFamily(descriptor)
     armed = true
     try {
-      expect(renderMermaidSVG('detectorSnapshotDiagram\n  payload')).toContain('>Extension</text>')
+      if (route === 'detect') expect(detectDiagramType(source)).toBe(descriptor.id)
+      else if (route === 'render') expect(renderMermaidSVG(source)).toContain('>Extension</text>')
+      else {
+        const parsed = parseRegisteredMermaid(source)
+        expect(parsed.ok).toBe(true)
+        if (!parsed.ok) throw new Error('Expected the captured extension to parse')
+        expect(parsed.value.kind).toBe(descriptor.id)
+        if (scoped) {
+          expect(parsed.value.meta.accessibility?.title).toBe('Visible title')
+          const fields = parsed.value.source.spans!.preserved.accessibilityDirectives!
+            .map(span => source.slice(span.start.offset, span.end.offset).trimEnd())
+          expect(fields).toHaveLength(source.includes('%% agentic-mermaid') ? 2 : 1)
+          expect(fields).toContain('accTitle: Visible title')
+          expect(fields).not.toContain('accTitle: Owned payload')
+          if (source.includes('&#100;')) {
+            const header = parsed.value.source.spans!.preserved.header
+            expect(source.slice(header.start.offset, header.end.offset)).toBe('&#100;etectorSnapshotDiagram')
+          }
+        }
+      }
       expect(getFamily(descriptor.id)).toBeUndefined()
+      expect(detections).toBe(1)
+      expect(normalized).toHaveLength(route === 'detect' ? 0 : 1)
+      if (route === 'detect') return
+      expect(normalized[0]!.originalText).toBe(source)
+      if (scoped) {
+        expect(normalized[0]!.config.themeVariables).toEqual({ primaryColor: '#c0ffee' })
+        expect(normalized[0]!.accessibility.title).toBe('Visible title')
+        expect(normalized[0]!.familyBody).toContain(`accTitle: Owned payload\n${route === 'render' ? '&amp;' : '&amp;amp;'}`)
+        if (route === 'render') expect(normalized[0]!.authoredFamilyBody).toContain('accTitle: Owned payload\n&amp;amp;')
+        expect(normalized[0]!.familyBody).not.toContain('accTitle: Visible title')
+        if (source.includes('%% agentic-mermaid')) {
+          expect(normalized[0]!.accessibility.descr).toBe('  Exact\naccTitle: inside description  ')
+          expect(normalized[0]!.wrapperSource).toStartWith('---\ntitle: Wrapper title\n---\n')
+          if (route === 'render') expect(normalized[0]!.authoredHeader).toBe('&#100;etectorSnapshotDiagram')
+        }
+      }
     } finally {
       unregister()
     }
+  })
+
+  test('capturing a parse owner neither decodes a header twice nor invents an inline statement separator', () => {
+    const unregister = registerFamily(extensionDescriptor('encoded-header', 'detectorSnapshotDiagram'))
+    try {
+      for (const source of ['&amp;#100;etectorSnapshotDiagram\n  payload', 'erDiagram&#32;A']) {
+        const parsed = parseRegisteredMermaid(source)
+        expect(parsed.ok).toBe(true)
+        if (!parsed.ok) throw new Error('Expected an unknown header to be preserved')
+        expect(parsed.value.kind).toBe('family:unknown')
+        expect(parsed.value.body).toMatchObject({ kind: 'preserved', source })
+        const span = parsed.value.source.spans!.preserved.source
+        expect(source.slice(span.start.offset, span.end.offset)).toBe(source)
+      }
+      expect(() => renderMermaidSVG('&amp;#100;etectorSnapshotDiagram\n  payload')).toThrow(/Unrecognized Mermaid header/)
+    } finally { unregister() }
   })
 
   test('rejects oversized family SVG before output transforms and security scanning', () => {

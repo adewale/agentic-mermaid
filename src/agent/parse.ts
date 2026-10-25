@@ -36,7 +36,7 @@ import type {
 } from './types.ts'
 import { ok, err } from './types.ts'
 import { assertJsonConfigAdmission, JsonConfigAdmissionError } from '../shared/json-config-admission.ts'
-import { isBuiltinFamilyId } from './families.ts'
+import { isBuiltinFamilyId, type FamilyDescriptor } from './families.ts'
 import { attachSourceMapSpans, recordSourceCleanup, type SourceSpanGrammar } from './source-map-spans.ts'
 
 // Re-exports for callers/tests that used the previous in-tree parser homes.
@@ -117,6 +117,7 @@ function admittedExtensionData(value: unknown, family: string): unknown {
 function semanticFamilyLineSource(
   source: string,
   familyLineBoundary: number,
+  family: FamilyDescriptor | null,
 ): { readonly source: string; readonly authoredHeader: string } {
   let lineStart = Math.max(0, Math.min(source.length, familyLineBoundary))
   // Native metadata is mutable envelope content, so it need not belong to
@@ -124,7 +125,7 @@ function semanticFamilyLineSource(
   // including multiline config/trivia interleaved with those fields.
   const firstLine = /^[^\r\n]*/.exec(source.slice(lineStart))![0]
   if (parseAccessibilityDirective([firstLine], 0)?.form === 'native') {
-    const grammar = maskAccessibilityDirectivesForSourceMap(source)
+    const grammar = maskAccessibilityDirectivesForSourceMap(source, family)
       .replace(new RegExp(MERMAID_DIRECTIVE_REGEX.source, 'gm'), token => token.replace(/[^\r\n]/g, ' '))
     while (lineStart < source.length) {
       const line = /^[^\r\n]*/.exec(grammar.slice(lineStart))![0]
@@ -186,11 +187,17 @@ function semanticFamilyLineSource(
 /** Descriptor-dispatched parser with a forward-compatible extension envelope. */
 export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, ParseError[]> {
   const errors: ParseError[] = []
+  let capturedDetection: ReturnType<typeof classifyMermaidFamilyDescriptorFromFirstLine> | undefined
+  const captureFamily = (firstLine: string): FamilyDescriptor | null => {
+    const header = semanticFamilyLineSource(firstLine, 0, null).source
+    capturedDetection = classifyMermaidFamilyDescriptorFromFirstLine(header, 'loose')
+    return capturedDetection.kind === 'registered' ? capturedDetection.family : null
+  }
   // Normalize once and reuse its frontmatter in extractMeta, rather than
   // re-running the full preprocess a second time just for frontmatter.
   let authoredEnvelope: ReturnType<typeof normalizeMermaidSource>
   try {
-    authoredEnvelope = normalizeMermaidSource(source)
+    authoredEnvelope = normalizeMermaidSource(source, {}, 'authored', captureFamily)
   } catch (error) {
     // Frontmatter Mermaid rejects is a parse error, not a thrown one. So is
     // config the admission refuses (a reserved key, nesting or size past its
@@ -200,11 +207,12 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
     if (error instanceof JsonConfigAdmissionError) return err([{ code: 'CONFIG_REJECTED', message: error.message }])
     throw error
   }
+  const capturedFamily = capturedDetection!.kind === 'registered' ? capturedDetection!.family : null
   const familyLineBoundary = authoredEnvelope.wrapperSource?.length ?? 0
-  const familyLine = semanticFamilyLineSource(source, familyLineBoundary)
+  const familyLine = semanticFamilyLineSource(source, familyLineBoundary, capturedFamily)
   const normalizedSemanticSource = familyLine.source === source
     ? authoredEnvelope
-    : normalizeMermaidSource(familyLine.source)
+    : normalizeMermaidSource(familyLine.source, {}, 'authored', () => capturedFamily)
   const semanticHeader = normalizedSemanticSource.lines[0] ?? normalizedSemanticSource.firstLine
   // Public parsing historically preserves entities in labels, titles and
   // accessibility text. Decode only the family line needed for routing and
@@ -226,11 +234,12 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
   // wrapperSource and therefore request canonical wrapper synthesis.
   const meta = extractMeta(authoredEnvelope)
   const canonicalSource = authoredEnvelope.text
-  const sourceMapCanonicalSource = maskAccessibilityDirectivesForSourceMap(canonicalSource)
+  const sourceMapCanonicalSource = maskAccessibilityDirectivesForSourceMap(canonicalSource, capturedFamily)
   const documentSpans = sourcePreservationSpans(
     source,
     familyLine.authoredHeader || semanticHeader,
     familyLineBoundary,
+    capturedFamily,
   )
   const tracedSourceMap = (map: SourceMap, grammar?: SourceSpanGrammar): SourceMap => {
     if (authoredEnvelope.cleanup) recordSourceCleanup(map, authoredEnvelope.cleanup)
@@ -251,13 +260,14 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
   }
 
   const header = semanticHeader
-  const detection = classifyMermaidFamilyDescriptorFromFirstLine(header, 'loose')
+  const detection = capturedDetection!.kind === 'unknown' ? { ...capturedDetection!, header } : capturedDetection!
   if (detection.kind !== 'registered') {
     const diagnostic = familyDetectionDiagnostic(
       detection,
       source,
       familyLineBoundary,
       familyLine.authoredHeader,
+      capturedFamily,
     )
     const preservation = diagnostic.preservation
     const kind = (detection.kind === 'upstream'
