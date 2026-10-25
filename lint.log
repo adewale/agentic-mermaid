@@ -1,0 +1,3 @@
+$ bun run lint:biome
+$ biome lint .
+Checked 1606 files in 1085ms. No fixes applied.

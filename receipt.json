@@ -1,0 +1,29 @@
+{
+  "base": "835b5663dea907db4fa16fffbd657f2cc6189cb2",
+  "head": "76ac2ce4223325b6730f538d51c4d9186feab98b",
+  "runtime": "Bun 1.4.2; Linux; native resvg 2.6.2; bundled verified fonts",
+  "configuration": {
+    "svg": {
+      "embedFontImport": false
+    },
+    "png": {
+      "scale": 1
+    }
+  },
+  "generator": "generate.ts; uses production renderMermaidSVGWithReceipt, renderMermaidPNGWithReceipt and layoutMermaidWithReceipt",
+  "inputs": [
+    "X-to-B.mmd",
+    "B-to-Outer.mmd",
+    "Outer-to-B.mmd"
+  ],
+  "regenerate": "bun generate.ts BASE_WORKTREE before OUT_DIR; bun generate.ts HEAD_WORKTREE after OUT_DIR",
+  "limitations": "Three LR diagrams at the bundled font and default style; no general aesthetic or performance claim. Before has real render errors and therefore no image.",
+  "outputSha256": {
+    "B-to-Outer-after.png": "717c4efa3cd68d540ea9d514f1cc420fe9c41e01fa580a76631c2e401e0fd8a4",
+    "B-to-Outer-after.svg": "95dbc18cf20ce790841d45b329b06fcb623939c842c61ed3de2b83ae6d31855c",
+    "Outer-to-B-after.png": "e09117fff0c797ccd19a3ecb0d9d20c700b2d14a3a684a7728a63d2c5b3eccd0",
+    "Outer-to-B-after.svg": "904248bc08b6dcbfbcb1c94704217a9f4043ce7661e71b45a73791c6213b0e5a",
+    "X-to-B-after.png": "3ceb71a0bf5ec2052108982c31ce1ad7c605fb9b19c6cec441804da1e747be0c",
+    "X-to-B-after.svg": "104a6f1e953f55941d41308b55ccc2fb31020b0561e1f5312a10847f9cb49444"
+  }
+}

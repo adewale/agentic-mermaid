@@ -1,0 +1,67 @@
+bun test v1.4.2 (744846f84)
+
+src/__tests__/subgraph-hierarchy-exhaustive.test.ts:
+73 |           const box = text.box!
+74 |           for (let i = 2; i < coordinates.length; i += 2) {
+75 |             const x1 = coordinates[i - 2]!, y1 = coordinates[i - 1]!, x2 = coordinates[i]!, y2 = coordinates[i + 1]!
+76 |             const clear = Math.max(x1, x2) <= box.x || Math.min(x1, x2) >= box.x + box.width
+77 |               || Math.max(y1, y2) <= box.y || Math.min(y1, y2) >= box.y + box.height
+78 |             expect(clear, `${from}->${to} shaft crosses ${text.content}`).toBe(true)
+                                                                               ^
+error: X->B shaft crosses Inner
+
+Expected: true
+Received: false
+
+      at <anonymous> (/tmp/elk-hierarchy-header-mutant/src/__tests__/subgraph-hierarchy-exhaustive.test.ts:78:75)
+(fail) public hierarchy endpoints > X->B emitted shaft clears plain group-title glyphs [428.97ms]
+73 |           const box = text.box!
+74 |           for (let i = 2; i < coordinates.length; i += 2) {
+75 |             const x1 = coordinates[i - 2]!, y1 = coordinates[i - 1]!, x2 = coordinates[i]!, y2 = coordinates[i + 1]!
+76 |             const clear = Math.max(x1, x2) <= box.x || Math.min(x1, x2) >= box.x + box.width
+77 |               || Math.max(y1, y2) <= box.y || Math.min(y1, y2) >= box.y + box.height
+78 |             expect(clear, `${from}->${to} shaft crosses ${text.content}`).toBe(true)
+                                                                               ^
+error: X->B shaft crosses Outer Boundary
+
+Expected: true
+Received: false
+
+      at <anonymous> (/tmp/elk-hierarchy-header-mutant/src/__tests__/subgraph-hierarchy-exhaustive.test.ts:78:75)
+(fail) public hierarchy endpoints > X->B emitted shaft clears multiline group-title glyphs [77.27ms]
+(pass) public hierarchy endpoints > B->Outer emitted shaft clears plain group-title glyphs [106.41ms]
+(pass) public hierarchy endpoints > B->Outer emitted shaft clears multiline group-title glyphs [49.49ms]
+73 |           const box = text.box!
+74 |           for (let i = 2; i < coordinates.length; i += 2) {
+75 |             const x1 = coordinates[i - 2]!, y1 = coordinates[i - 1]!, x2 = coordinates[i]!, y2 = coordinates[i + 1]!
+76 |             const clear = Math.max(x1, x2) <= box.x || Math.min(x1, x2) >= box.x + box.width
+77 |               || Math.max(y1, y2) <= box.y || Math.min(y1, y2) >= box.y + box.height
+78 |             expect(clear, `${from}->${to} shaft crosses ${text.content}`).toBe(true)
+                                                                               ^
+error: Outer->B shaft crosses Inner
+
+Expected: true
+Received: false
+
+      at <anonymous> (/tmp/elk-hierarchy-header-mutant/src/__tests__/subgraph-hierarchy-exhaustive.test.ts:78:75)
+(fail) public hierarchy endpoints > Outer->B emitted shaft clears plain group-title glyphs [47.03ms]
+73 |           const box = text.box!
+74 |           for (let i = 2; i < coordinates.length; i += 2) {
+75 |             const x1 = coordinates[i - 2]!, y1 = coordinates[i - 1]!, x2 = coordinates[i]!, y2 = coordinates[i + 1]!
+76 |             const clear = Math.max(x1, x2) <= box.x || Math.min(x1, x2) >= box.x + box.width
+77 |               || Math.max(y1, y2) <= box.y || Math.min(y1, y2) >= box.y + box.height
+78 |             expect(clear, `${from}->${to} shaft crosses ${text.content}`).toBe(true)
+                                                                               ^
+error: Outer->B shaft crosses Outer Boundary
+
+Expected: true
+Received: false
+
+      at <anonymous> (/tmp/elk-hierarchy-header-mutant/src/__tests__/subgraph-hierarchy-exhaustive.test.ts:78:75)
+(fail) public hierarchy endpoints > Outer->B emitted shaft clears multiline group-title glyphs [55.84ms]
+
+ 2 pass
+ 55 filtered out
+ 4 fail
+ 58 expect() calls
+Ran 6 tests across 1 file. [1127.00ms]

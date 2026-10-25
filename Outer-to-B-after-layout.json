@@ -1,0 +1,300 @@
+{
+  "version": 1,
+  "kind": "flowchart",
+  "nodes": [
+    {
+      "id": "X",
+      "x": 40,
+      "y": 40,
+      "w": 60,
+      "h": 36.900000000000006,
+      "shape": "rectangle",
+      "label": "X",
+      "labelBounds": {
+        "x": 64.57900000000001,
+        "y": 50,
+        "w": 10.841999999999999,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 40,
+        "y": 40,
+        "w": 60,
+        "h": 36.900000000000006
+      }
+    },
+    {
+      "id": "Y",
+      "x": 120,
+      "y": 40,
+      "w": 60,
+      "h": 36.900000000000006,
+      "shape": "rectangle",
+      "label": "Y",
+      "labelBounds": {
+        "x": 144.579,
+        "y": 50,
+        "w": 10.841999999999999,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 120,
+        "y": 40,
+        "w": 60,
+        "h": 36.900000000000006
+      }
+    },
+    {
+      "id": "A",
+      "x": 338,
+      "y": 84,
+      "w": 60,
+      "h": 36.900000000000006,
+      "shape": "rectangle",
+      "label": "A",
+      "labelBounds": {
+        "x": 362.579,
+        "y": 94,
+        "w": 10.841999999999999,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 338,
+        "y": 84,
+        "w": 60,
+        "h": 36.900000000000006
+      }
+    },
+    {
+      "id": "B",
+      "x": 242,
+      "y": 224,
+      "w": 60,
+      "h": 36.900000000000006,
+      "shape": "rectangle",
+      "label": "B",
+      "labelBounds": {
+        "x": 266.579,
+        "y": 234,
+        "w": 10.841999999999999,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 242,
+        "y": 224,
+        "w": 60,
+        "h": 36.900000000000006
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "Outer->B",
+      "from": "Outer",
+      "to": "B",
+      "path": [
+        [
+          200,
+          84
+        ],
+        [
+          216,
+          84
+        ],
+        [
+          216,
+          176
+        ],
+        [
+          272,
+          176
+        ],
+        [
+          272,
+          224
+        ]
+      ],
+      "route": {
+        "edgeIndex": 0,
+        "routeClass": "container",
+        "bendCount": 3,
+        "targetPort": "N",
+        "targetPortAssignment": {
+          "side": "N",
+          "slotIndex": 0,
+          "slotCount": 1,
+          "role": "container-target",
+          "port": "N"
+        },
+        "invariant": "container-attach"
+      }
+    }
+  ],
+  "groups": [
+    {
+      "id": "Outer",
+      "x": 200,
+      "y": 40,
+      "w": 214,
+      "h": 252.9,
+      "members": [
+        "A"
+      ],
+      "label": "Outer"
+    },
+    {
+      "id": "Inner",
+      "x": 226,
+      "y": 132,
+      "w": 92,
+      "h": 144.9,
+      "members": [
+        "B"
+      ],
+      "label": "Inner",
+      "parentId": "Outer"
+    }
+  ],
+  "bounds": {
+    "w": 454,
+    "h": 332.9
+  },
+  "paintCertification": {
+    "version": 1,
+    "unit": "px",
+    "scope": "native-scene",
+    "status": "passed",
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "width": 454,
+      "height": 332.9
+    },
+    "attempts": 1,
+    "repairs": [],
+    "coverage": {
+      "measured": 15,
+      "unmeasured": 0,
+      "preparedText": 6,
+      "fallbackText": 0,
+      "conditional": 0
+    },
+    "checks": {
+      "primitives": 18,
+      "labels": 4,
+      "occlusionPairs": 88,
+      "maxOcclusionPairs": 100000,
+      "operations": 176,
+      "maxOperations": 400000,
+      "markers": 1
+    },
+    "issues": [],
+    "limitations": [
+      "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+      "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+    ]
+  },
+  "regions": [
+    {
+      "id": "canvas",
+      "kind": "canvas",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "w": 454,
+        "h": 332.9
+      }
+    },
+    {
+      "id": "group:Outer",
+      "kind": "cluster",
+      "elementId": "Outer",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 200,
+        "y": 40,
+        "w": 214,
+        "h": 252.9
+      },
+      "sourceLine": 4
+    },
+    {
+      "id": "group:Inner",
+      "kind": "cluster",
+      "elementId": "Inner",
+      "parentId": "group:Outer",
+      "bounds": {
+        "x": 226,
+        "y": 132,
+        "w": 92,
+        "h": 144.9
+      },
+      "sourceLine": 7
+    },
+    {
+      "id": "node:X",
+      "kind": "node",
+      "elementId": "X",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 40,
+        "y": 40,
+        "w": 60,
+        "h": 36.900000000000006
+      },
+      "sourceLine": 2
+    },
+    {
+      "id": "node:Y",
+      "kind": "node",
+      "elementId": "Y",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 120,
+        "y": 40,
+        "w": 60,
+        "h": 36.900000000000006
+      },
+      "sourceLine": 3
+    },
+    {
+      "id": "node:A",
+      "kind": "node",
+      "elementId": "A",
+      "parentId": "group:Outer",
+      "bounds": {
+        "x": 338,
+        "y": 84,
+        "w": 60,
+        "h": 36.900000000000006
+      },
+      "sourceLine": 6
+    },
+    {
+      "id": "node:B",
+      "kind": "node",
+      "elementId": "B",
+      "parentId": "group:Inner",
+      "bounds": {
+        "x": 242,
+        "y": 224,
+        "w": 60,
+        "h": 36.900000000000006
+      },
+      "sourceLine": 9
+    },
+    {
+      "id": "edge:Outer->B",
+      "kind": "edge",
+      "elementId": "Outer->B",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 200,
+        "y": 84,
+        "w": 72,
+        "h": 140
+      }
+    }
+  ],
+  "actions": []
+}

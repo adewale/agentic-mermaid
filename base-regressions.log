@@ -1,0 +1,405 @@
+bun test v1.4.2 (744846f84)
+
+src/__tests__/subgraph-hierarchy-exhaustive.test.ts:
+(pass) bounded hierarchy endpoint model > INCLUDE_CHILDREN X->A routes without stale coordinates [267.85ms]
+(pass) bounded hierarchy endpoint model > INCLUDE_CHILDREN X->B routes without stale coordinates [21.27ms]
+(pass) bounded hierarchy endpoint model > INCLUDE_CHILDREN X->Inner routes without stale coordinates [15.96ms]
+(pass) bounded hierarchy endpoint model > INCLUDE_CHILDREN X->Outer routes without stale coordinates [13.66ms]
+(pass) bounded hierarchy endpoint model > INCLUDE_CHILDREN A->X routes without stale coordinates [14.15ms]
+(pass) bounded hierarchy endpoint model > INCLUDE_CHILDREN A->B routes without stale coordinates [26.26ms]
+(pass) bounded hierarchy endpoint model > INCLUDE_CHILDREN A->Inner routes without stale coordinates [12.07ms]
+(pass) bounded hierarchy endpoint model > INCLUDE_CHILDREN A->Outer routes without stale coordinates [12.04ms]
+(pass) bounded hierarchy endpoint model > INCLUDE_CHILDREN B->X routes without stale coordinates [16.09ms]
+(pass) bounded hierarchy endpoint model > INCLUDE_CHILDREN B->A routes without stale coordinates [15.26ms]
+(pass) bounded hierarchy endpoint model > INCLUDE_CHILDREN B->Inner routes without stale coordinates [28.64ms]
+(pass) bounded hierarchy endpoint model > INCLUDE_CHILDREN B->Outer routes without stale coordinates [22.63ms]
+(pass) bounded hierarchy endpoint model > INCLUDE_CHILDREN Inner->X routes without stale coordinates [19.11ms]
+(pass) bounded hierarchy endpoint model > INCLUDE_CHILDREN Inner->A routes without stale coordinates [11.94ms]
+(pass) bounded hierarchy endpoint model > INCLUDE_CHILDREN Inner->B routes without stale coordinates [13.71ms]
+(pass) bounded hierarchy endpoint model > INCLUDE_CHILDREN Inner->Outer routes without stale coordinates [11.21ms]
+(pass) bounded hierarchy endpoint model > INCLUDE_CHILDREN Outer->X routes without stale coordinates [13.06ms]
+(pass) bounded hierarchy endpoint model > INCLUDE_CHILDREN Outer->A routes without stale coordinates [12.13ms]
+(pass) bounded hierarchy endpoint model > INCLUDE_CHILDREN Outer->B routes without stale coordinates [13.42ms]
+(pass) bounded hierarchy endpoint model > INCLUDE_CHILDREN Outer->Inner routes without stale coordinates [11.67ms]
+(pass) bounded hierarchy endpoint model > SEPARATE X->A routes without stale coordinates [31.08ms]
+339 |     }
+340 |     if (deferred) return accept(deferred, 'alternative-invalid')
+341 |     rejected = true
+342 |   }
+343 |   if (deferred) return accept(deferred, 'no-alternative')
+344 |   throw new LayoutCertificationError(attempts)
+                                                   ^
+LayoutCertificationError: No certified layout after 4 bounded attempts: default: offOutlineEndpoints: X->B source on X(rectangle) at (110.0,197.8) | separate-hierarchy: offOutlineEndpoints: X->B source on X(rectangle) at (110.0,197.8) | without-corank: offOutlineEndpoints: X->B source on X(rectangle) at (110.0,197.8) | separate-without-corank: offOutlineEndpoints: X->B source on X(rectangle) at (110.0,197.8)
+      at selectCertifiedCandidates (/tmp/elk-hierarchy-base/src/layout/certification.ts:344:46)
+      at certifyLayoutWithRouteAlternative (/tmp/elk-hierarchy-base/src/layout/certification.ts:375:21)
+      at layoutGraphSync (/tmp/elk-hierarchy-base/src/layout-engine.ts:1846:22)
+      at assertCleanHierarchyCase (/tmp/elk-hierarchy-base/src/__tests__/subgraph-hierarchy-exhaustive.test.ts:43:22)
+      at <anonymous> (/tmp/elk-hierarchy-base/src/__tests__/subgraph-hierarchy-exhaustive.test.ts:54:5)
+(fail) bounded hierarchy endpoint model > SEPARATE X->B routes without stale coordinates [20.69ms]
+(pass) bounded hierarchy endpoint model > SEPARATE X->Inner routes without stale coordinates [19.89ms]
+(pass) bounded hierarchy endpoint model > SEPARATE X->Outer routes without stale coordinates [13.63ms]
+(pass) bounded hierarchy endpoint model > SEPARATE A->X routes without stale coordinates [18.02ms]
+(pass) bounded hierarchy endpoint model > SEPARATE A->B routes without stale coordinates [13.84ms]
+(pass) bounded hierarchy endpoint model > SEPARATE A->Inner routes without stale coordinates [10.14ms]
+(pass) bounded hierarchy endpoint model > SEPARATE A->Outer routes without stale coordinates [16.22ms]
+(pass) bounded hierarchy endpoint model > SEPARATE B->X routes without stale coordinates [11.80ms]
+(pass) bounded hierarchy endpoint model > SEPARATE B->A routes without stale coordinates [11.05ms]
+(pass) bounded hierarchy endpoint model > SEPARATE B->Inner routes without stale coordinates [11.28ms]
+339 |     }
+340 |     if (deferred) return accept(deferred, 'alternative-invalid')
+341 |     rejected = true
+342 |   }
+343 |   if (deferred) return accept(deferred, 'no-alternative')
+344 |   throw new LayoutCertificationError(attempts)
+                                                   ^
+LayoutCertificationError: No certified layout after 4 bounded attempts: default: org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge "e0" ElkPort "Inner_out_0" (46,96.9 | 0,0) -> ElkNode "Outer" (0,0 | 0,0) could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN. | separate-hierarchy: org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge "e0" ElkPort "Inner_out_0" (46,96.9 | 0,0) -> ElkNode "Outer" (0,0 | 0,0) could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN. | without-corank: org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge "e0" ElkPort "Inner_out_0" (46,96.9 | 0,0) -> ElkNode "Outer" (0,0 | 0,0) could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN. | separate-without-corank: org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge "e0" ElkPort "Inner_out_0" (46,96.9 | 0,0) -> ElkNode "Outer" (0,0 | 0,0) could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN.
+      at selectCertifiedCandidates (/tmp/elk-hierarchy-base/src/layout/certification.ts:344:46)
+      at certifyLayoutWithRouteAlternative (/tmp/elk-hierarchy-base/src/layout/certification.ts:375:21)
+      at layoutGraphSync (/tmp/elk-hierarchy-base/src/layout-engine.ts:1846:22)
+      at assertCleanHierarchyCase (/tmp/elk-hierarchy-base/src/__tests__/subgraph-hierarchy-exhaustive.test.ts:43:22)
+      at <anonymous> (/tmp/elk-hierarchy-base/src/__tests__/subgraph-hierarchy-exhaustive.test.ts:54:5)
+(fail) bounded hierarchy endpoint model > SEPARATE B->Outer routes without stale coordinates [64.18ms]
+(pass) bounded hierarchy endpoint model > SEPARATE Inner->X routes without stale coordinates [13.25ms]
+(pass) bounded hierarchy endpoint model > SEPARATE Inner->A routes without stale coordinates [27.24ms]
+(pass) bounded hierarchy endpoint model > SEPARATE Inner->B routes without stale coordinates [17.93ms]
+(pass) bounded hierarchy endpoint model > SEPARATE Inner->Outer routes without stale coordinates [13.73ms]
+(pass) bounded hierarchy endpoint model > SEPARATE Outer->X routes without stale coordinates [10.21ms]
+(pass) bounded hierarchy endpoint model > SEPARATE Outer->A routes without stale coordinates [16.13ms]
+339 |     }
+340 |     if (deferred) return accept(deferred, 'alternative-invalid')
+341 |     rejected = true
+342 |   }
+343 |   if (deferred) return accept(deferred, 'no-alternative')
+344 |   throw new LayoutCertificationError(attempts)
+                                                   ^
+LayoutCertificationError: No certified layout after 4 bounded attempts: default: org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge "e0" ElkNode "Outer" (0,0 | 0,0) -> ElkPort "Inner_in_0" (46,0 | 0,0) could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN. | separate-hierarchy: org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge "e0" ElkNode "Outer" (0,0 | 0,0) -> ElkPort "Inner_in_0" (46,0 | 0,0) could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN. | without-corank: org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge "e0" ElkNode "Outer" (0,0 | 0,0) -> ElkPort "Inner_in_0" (46,0 | 0,0) could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN. | separate-without-corank: org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge "e0" ElkNode "Outer" (0,0 | 0,0) -> ElkPort "Inner_in_0" (46,0 | 0,0) could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN.
+      at selectCertifiedCandidates (/tmp/elk-hierarchy-base/src/layout/certification.ts:344:46)
+      at certifyLayoutWithRouteAlternative (/tmp/elk-hierarchy-base/src/layout/certification.ts:375:21)
+      at layoutGraphSync (/tmp/elk-hierarchy-base/src/layout-engine.ts:1846:22)
+      at assertCleanHierarchyCase (/tmp/elk-hierarchy-base/src/__tests__/subgraph-hierarchy-exhaustive.test.ts:43:22)
+      at <anonymous> (/tmp/elk-hierarchy-base/src/__tests__/subgraph-hierarchy-exhaustive.test.ts:54:5)
+(fail) bounded hierarchy endpoint model > SEPARATE Outer->B routes without stale coordinates [76.62ms]
+(pass) bounded hierarchy endpoint model > SEPARATE Outer->Inner routes without stale coordinates [14.92ms]
+339 |     }
+340 |     if (deferred) return accept(deferred, 'alternative-invalid')
+341 |     rejected = true
+342 |   }
+343 |   if (deferred) return accept(deferred, 'no-alternative')
+344 |   throw new LayoutCertificationError(attempts)
+                                                   ^
+LayoutCertificationError: No certified layout after 4 bounded attempts: default: offOutlineEndpoints: X->B source on X(rectangle) at (110.0,197.8) | separate-hierarchy: offOutlineEndpoints: X->B source on X(rectangle) at (110.0,197.8) | without-corank: offOutlineEndpoints: X->B source on X(rectangle) at (110.0,197.8) | separate-without-corank: offOutlineEndpoints: X->B source on X(rectangle) at (110.0,197.8)
+      at selectCertifiedCandidates (/tmp/elk-hierarchy-base/src/layout/certification.ts:344:46)
+      at certifyLayoutWithRouteAlternative (/tmp/elk-hierarchy-base/src/layout/certification.ts:375:21)
+      at layoutGraphSync (/tmp/elk-hierarchy-base/src/layout-engine.ts:1846:22)
+      at layout (/tmp/elk-hierarchy-base/src/svg-family-hooks/flowchart.ts:30:25)
+      at <anonymous> (/tmp/elk-hierarchy-base/src/positioning.ts:88:18)
+      at withTextMeasurementExecution (/tmp/elk-hierarchy-base/src/text-measurement-profile.ts:93:12)
+      at renderResolvedMermaidSVG (/tmp/elk-hierarchy-base/src/graphical-render.ts:223:5)
+      at consumeResolvedGraphicalRequest (/tmp/elk-hierarchy-base/src/graphical-render.ts:269:20)
+      at withSvgInspectionCache (/tmp/elk-hierarchy-base/src/svg-inspection-cache.ts:19:16)
+      at renderMermaidSVG (/tmp/elk-hierarchy-base/src/index.ts:272:10)
+      at <anonymous> (/tmp/elk-hierarchy-base/src/__tests__/subgraph-hierarchy-exhaustive.test.ts:63:21)
+(fail) public hierarchy endpoints > X->B emitted shaft clears plain group-title glyphs [17.39ms]
+(pass) public hierarchy endpoints > X->B emitted shaft clears multiline group-title glyphs [113.74ms]
+339 |     }
+340 |     if (deferred) return accept(deferred, 'alternative-invalid')
+341 |     rejected = true
+342 |   }
+343 |   if (deferred) return accept(deferred, 'no-alternative')
+344 |   throw new LayoutCertificationError(attempts)
+                                                   ^
+LayoutCertificationError: No certified layout after 4 bounded attempts: default: org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge "e0" ElkPort "Inner_out_0" (46,96.9 | 0,0) -> ElkNode "Outer" (0,0 | 0,0) could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN. | separate-hierarchy: org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge "e0" ElkPort "Inner_out_0" (46,96.9 | 0,0) -> ElkNode "Outer" (0,0 | 0,0) could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN. | without-corank: org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge "e0" ElkPort "Inner_out_0" (46,96.9 | 0,0) -> ElkNode "Outer" (0,0 | 0,0) could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN. | separate-without-corank: org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge "e0" ElkPort "Inner_out_0" (46,96.9 | 0,0) -> ElkNode "Outer" (0,0 | 0,0) could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN.
+      at selectCertifiedCandidates (/tmp/elk-hierarchy-base/src/layout/certification.ts:344:46)
+      at certifyLayoutWithRouteAlternative (/tmp/elk-hierarchy-base/src/layout/certification.ts:375:21)
+      at layoutGraphSync (/tmp/elk-hierarchy-base/src/layout-engine.ts:1846:22)
+      at layout (/tmp/elk-hierarchy-base/src/svg-family-hooks/flowchart.ts:30:25)
+      at <anonymous> (/tmp/elk-hierarchy-base/src/positioning.ts:88:18)
+      at withTextMeasurementExecution (/tmp/elk-hierarchy-base/src/text-measurement-profile.ts:93:12)
+      at renderResolvedMermaidSVG (/tmp/elk-hierarchy-base/src/graphical-render.ts:223:5)
+      at consumeResolvedGraphicalRequest (/tmp/elk-hierarchy-base/src/graphical-render.ts:269:20)
+      at withSvgInspectionCache (/tmp/elk-hierarchy-base/src/svg-inspection-cache.ts:19:16)
+      at renderMermaidSVG (/tmp/elk-hierarchy-base/src/index.ts:272:10)
+      at <anonymous> (/tmp/elk-hierarchy-base/src/__tests__/subgraph-hierarchy-exhaustive.test.ts:63:21)
+(fail) public hierarchy endpoints > B->Outer emitted shaft clears plain group-title glyphs [54.95ms]
+339 |     }
+340 |     if (deferred) return accept(deferred, 'alternative-invalid')
+341 |     rejected = true
+342 |   }
+343 |   if (deferred) return accept(deferred, 'no-alternative')
+344 |   throw new LayoutCertificationError(attempts)
+                                                   ^
+LayoutCertificationError: No certified layout after 4 bounded attempts: default: org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge "e0" ElkPort "Inner_out_0" (46,96.9 | 0,0) -> ElkNode "Outer" (0,0 | 0,0) could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN. | separate-hierarchy: org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge "e0" ElkPort "Inner_out_0" (46,96.9 | 0,0) -> ElkNode "Outer" (0,0 | 0,0) could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN. | without-corank: org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge "e0" ElkPort "Inner_out_0" (46,96.9 | 0,0) -> ElkNode "Outer" (0,0 | 0,0) could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN. | separate-without-corank: org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge "e0" ElkPort "Inner_out_0" (46,96.9 | 0,0) -> ElkNode "Outer" (0,0 | 0,0) could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN.
+      at selectCertifiedCandidates (/tmp/elk-hierarchy-base/src/layout/certification.ts:344:46)
+      at certifyLayoutWithRouteAlternative (/tmp/elk-hierarchy-base/src/layout/certification.ts:375:21)
+      at layoutGraphSync (/tmp/elk-hierarchy-base/src/layout-engine.ts:1846:22)
+      at layout (/tmp/elk-hierarchy-base/src/svg-family-hooks/flowchart.ts:30:25)
+      at <anonymous> (/tmp/elk-hierarchy-base/src/positioning.ts:88:18)
+      at withTextMeasurementExecution (/tmp/elk-hierarchy-base/src/text-measurement-profile.ts:93:12)
+      at renderResolvedMermaidSVG (/tmp/elk-hierarchy-base/src/graphical-render.ts:223:5)
+      at consumeResolvedGraphicalRequest (/tmp/elk-hierarchy-base/src/graphical-render.ts:269:20)
+      at withSvgInspectionCache (/tmp/elk-hierarchy-base/src/svg-inspection-cache.ts:19:16)
+      at renderMermaidSVG (/tmp/elk-hierarchy-base/src/index.ts:272:10)
+      at <anonymous> (/tmp/elk-hierarchy-base/src/__tests__/subgraph-hierarchy-exhaustive.test.ts:63:21)
+(fail) public hierarchy endpoints > B->Outer emitted shaft clears multiline group-title glyphs [54.43ms]
+339 |     }
+340 |     if (deferred) return accept(deferred, 'alternative-invalid')
+341 |     rejected = true
+342 |   }
+343 |   if (deferred) return accept(deferred, 'no-alternative')
+344 |   throw new LayoutCertificationError(attempts)
+                                                   ^
+LayoutCertificationError: No certified layout after 4 bounded attempts: default: org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge "e0" ElkNode "Outer" (0,0 | 0,0) -> ElkPort "Inner_in_0" (46,0 | 0,0) could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN. | separate-hierarchy: org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge "e0" ElkNode "Outer" (0,0 | 0,0) -> ElkPort "Inner_in_0" (46,0 | 0,0) could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN. | without-corank: org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge "e0" ElkNode "Outer" (0,0 | 0,0) -> ElkPort "Inner_in_0" (46,0 | 0,0) could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN. | separate-without-corank: org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge "e0" ElkNode "Outer" (0,0 | 0,0) -> ElkPort "Inner_in_0" (46,0 | 0,0) could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN.
+      at selectCertifiedCandidates (/tmp/elk-hierarchy-base/src/layout/certification.ts:344:46)
+      at certifyLayoutWithRouteAlternative (/tmp/elk-hierarchy-base/src/layout/certification.ts:375:21)
+      at layoutGraphSync (/tmp/elk-hierarchy-base/src/layout-engine.ts:1846:22)
+      at layout (/tmp/elk-hierarchy-base/src/svg-family-hooks/flowchart.ts:30:25)
+      at <anonymous> (/tmp/elk-hierarchy-base/src/positioning.ts:88:18)
+      at withTextMeasurementExecution (/tmp/elk-hierarchy-base/src/text-measurement-profile.ts:93:12)
+      at renderResolvedMermaidSVG (/tmp/elk-hierarchy-base/src/graphical-render.ts:223:5)
+      at consumeResolvedGraphicalRequest (/tmp/elk-hierarchy-base/src/graphical-render.ts:269:20)
+      at withSvgInspectionCache (/tmp/elk-hierarchy-base/src/svg-inspection-cache.ts:19:16)
+      at renderMermaidSVG (/tmp/elk-hierarchy-base/src/index.ts:272:10)
+      at <anonymous> (/tmp/elk-hierarchy-base/src/__tests__/subgraph-hierarchy-exhaustive.test.ts:63:21)
+(fail) public hierarchy endpoints > Outer->B emitted shaft clears plain group-title glyphs [51.61ms]
+339 |     }
+340 |     if (deferred) return accept(deferred, 'alternative-invalid')
+341 |     rejected = true
+342 |   }
+343 |   if (deferred) return accept(deferred, 'no-alternative')
+344 |   throw new LayoutCertificationError(attempts)
+                                                   ^
+LayoutCertificationError: No certified layout after 4 bounded attempts: default: org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge "e0" ElkNode "Outer" (0,0 | 0,0) -> ElkPort "Inner_in_0" (46,0 | 0,0) could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN. | separate-hierarchy: org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge "e0" ElkNode "Outer" (0,0 | 0,0) -> ElkPort "Inner_in_0" (46,0 | 0,0) could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN. | without-corank: org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge "e0" ElkNode "Outer" (0,0 | 0,0) -> ElkPort "Inner_in_0" (46,0 | 0,0) could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN. | separate-without-corank: org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge "e0" ElkNode "Outer" (0,0 | 0,0) -> ElkPort "Inner_in_0" (46,0 | 0,0) could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN.
+      at selectCertifiedCandidates (/tmp/elk-hierarchy-base/src/layout/certification.ts:344:46)
+      at certifyLayoutWithRouteAlternative (/tmp/elk-hierarchy-base/src/layout/certification.ts:375:21)
+      at layoutGraphSync (/tmp/elk-hierarchy-base/src/layout-engine.ts:1846:22)
+      at layout (/tmp/elk-hierarchy-base/src/svg-family-hooks/flowchart.ts:30:25)
+      at <anonymous> (/tmp/elk-hierarchy-base/src/positioning.ts:88:18)
+      at withTextMeasurementExecution (/tmp/elk-hierarchy-base/src/text-measurement-profile.ts:93:12)
+      at renderResolvedMermaidSVG (/tmp/elk-hierarchy-base/src/graphical-render.ts:223:5)
+      at consumeResolvedGraphicalRequest (/tmp/elk-hierarchy-base/src/graphical-render.ts:269:20)
+      at withSvgInspectionCache (/tmp/elk-hierarchy-base/src/svg-inspection-cache.ts:19:16)
+      at renderMermaidSVG (/tmp/elk-hierarchy-base/src/index.ts:272:10)
+      at <anonymous> (/tmp/elk-hierarchy-base/src/__tests__/subgraph-hierarchy-exhaustive.test.ts:63:21)
+(fail) public hierarchy endpoints > Outer->B emitted shaft clears multiline group-title glyphs [89.32ms]
+(pass) public hierarchy endpoints > LR X->B retains its labeled edge through three scopes [53.56ms]
+44 |   const edge = positioned.edges.find(e => e.source === from && e.target === to)
+45 |   expect(edge, `${from}->${to} edge should be present`).toBeDefined()
+46 |   expect(edge!.points.length).toBeGreaterThanOrEqual(2)
+47 |   expect(edge!.points.every(pt => Number.isFinite(pt.x) && Number.isFinite(pt.y))).toBe(true)
+48 |   expect(hardViolations(assessLayout(graph, positioned))).toEqual([])
+49 |   expect(auditRouteContracts(positioned, graph)).toEqual([])
+                                                      ^
+error: expect(received).toEqual(expected)
+
+- []
++ [
++   {
++     "code": "ROUTE_CONTAINER_MISANCHOR",
++     "container": "Outer",
++     "edge": "B->Outer",
++   },
++ ]
+
+- Expected  - 1
++ Received  + 7
+
+      at assertCleanHierarchyCase (/tmp/elk-hierarchy-base/src/__tests__/subgraph-hierarchy-exhaustive.test.ts:49:50)
+      at <anonymous> (/tmp/elk-hierarchy-base/src/__tests__/subgraph-hierarchy-exhaustive.test.ts:101:9)
+(fail) public hierarchy endpoints > LR B->Outer retains its labeled edge through three scopes [12.53ms]
+44 |   const edge = positioned.edges.find(e => e.source === from && e.target === to)
+45 |   expect(edge, `${from}->${to} edge should be present`).toBeDefined()
+46 |   expect(edge!.points.length).toBeGreaterThanOrEqual(2)
+47 |   expect(edge!.points.every(pt => Number.isFinite(pt.x) && Number.isFinite(pt.y))).toBe(true)
+48 |   expect(hardViolations(assessLayout(graph, positioned))).toEqual([])
+49 |   expect(auditRouteContracts(positioned, graph)).toEqual([])
+                                                      ^
+error: expect(received).toEqual(expected)
+
+- []
++ [
++   {
++     "code": "ROUTE_CONTAINER_MISANCHOR",
++     "container": "Outer",
++     "edge": "Outer->B",
++   },
++ ]
+
+- Expected  - 1
++ Received  + 7
+
+      at assertCleanHierarchyCase (/tmp/elk-hierarchy-base/src/__tests__/subgraph-hierarchy-exhaustive.test.ts:49:50)
+      at <anonymous> (/tmp/elk-hierarchy-base/src/__tests__/subgraph-hierarchy-exhaustive.test.ts:101:9)
+(fail) public hierarchy endpoints > LR Outer->B retains its labeled edge through three scopes [11.88ms]
+(pass) public hierarchy endpoints > RL X->B retains its labeled edge through three scopes [34.27ms]
+44 |   const edge = positioned.edges.find(e => e.source === from && e.target === to)
+45 |   expect(edge, `${from}->${to} edge should be present`).toBeDefined()
+46 |   expect(edge!.points.length).toBeGreaterThanOrEqual(2)
+47 |   expect(edge!.points.every(pt => Number.isFinite(pt.x) && Number.isFinite(pt.y))).toBe(true)
+48 |   expect(hardViolations(assessLayout(graph, positioned))).toEqual([])
+49 |   expect(auditRouteContracts(positioned, graph)).toEqual([])
+                                                      ^
+error: expect(received).toEqual(expected)
+
+- []
++ [
++   {
++     "code": "ROUTE_CONTAINER_MISANCHOR",
++     "container": "Outer",
++     "edge": "B->Outer",
++   },
++ ]
+
+- Expected  - 1
++ Received  + 7
+
+      at assertCleanHierarchyCase (/tmp/elk-hierarchy-base/src/__tests__/subgraph-hierarchy-exhaustive.test.ts:49:50)
+      at <anonymous> (/tmp/elk-hierarchy-base/src/__tests__/subgraph-hierarchy-exhaustive.test.ts:101:9)
+(fail) public hierarchy endpoints > RL B->Outer retains its labeled edge through three scopes [11.44ms]
+44 |   const edge = positioned.edges.find(e => e.source === from && e.target === to)
+45 |   expect(edge, `${from}->${to} edge should be present`).toBeDefined()
+46 |   expect(edge!.points.length).toBeGreaterThanOrEqual(2)
+47 |   expect(edge!.points.every(pt => Number.isFinite(pt.x) && Number.isFinite(pt.y))).toBe(true)
+48 |   expect(hardViolations(assessLayout(graph, positioned))).toEqual([])
+49 |   expect(auditRouteContracts(positioned, graph)).toEqual([])
+                                                      ^
+error: expect(received).toEqual(expected)
+
+- []
++ [
++   {
++     "code": "ROUTE_CONTAINER_MISANCHOR",
++     "container": "Outer",
++     "edge": "Outer->B",
++   },
++ ]
+
+- Expected  - 1
++ Received  + 7
+
+      at assertCleanHierarchyCase (/tmp/elk-hierarchy-base/src/__tests__/subgraph-hierarchy-exhaustive.test.ts:49:50)
+      at <anonymous> (/tmp/elk-hierarchy-base/src/__tests__/subgraph-hierarchy-exhaustive.test.ts:101:9)
+(fail) public hierarchy endpoints > RL Outer->B retains its labeled edge through three scopes [12.46ms]
+(pass) public hierarchy endpoints > TB X->B retains its labeled edge through three scopes [34.33ms]
+44 |   const edge = positioned.edges.find(e => e.source === from && e.target === to)
+45 |   expect(edge, `${from}->${to} edge should be present`).toBeDefined()
+46 |   expect(edge!.points.length).toBeGreaterThanOrEqual(2)
+47 |   expect(edge!.points.every(pt => Number.isFinite(pt.x) && Number.isFinite(pt.y))).toBe(true)
+48 |   expect(hardViolations(assessLayout(graph, positioned))).toEqual([])
+49 |   expect(auditRouteContracts(positioned, graph)).toEqual([])
+                                                      ^
+error: expect(received).toEqual(expected)
+
+- []
++ [
++   {
++     "code": "ROUTE_CONTAINER_MISANCHOR",
++     "container": "Outer",
++     "edge": "B->Outer",
++   },
++ ]
+
+- Expected  - 1
++ Received  + 7
+
+      at assertCleanHierarchyCase (/tmp/elk-hierarchy-base/src/__tests__/subgraph-hierarchy-exhaustive.test.ts:49:50)
+      at <anonymous> (/tmp/elk-hierarchy-base/src/__tests__/subgraph-hierarchy-exhaustive.test.ts:101:9)
+(fail) public hierarchy endpoints > TB B->Outer retains its labeled edge through three scopes [12.53ms]
+44 |   const edge = positioned.edges.find(e => e.source === from && e.target === to)
+45 |   expect(edge, `${from}->${to} edge should be present`).toBeDefined()
+46 |   expect(edge!.points.length).toBeGreaterThanOrEqual(2)
+47 |   expect(edge!.points.every(pt => Number.isFinite(pt.x) && Number.isFinite(pt.y))).toBe(true)
+48 |   expect(hardViolations(assessLayout(graph, positioned))).toEqual([])
+49 |   expect(auditRouteContracts(positioned, graph)).toEqual([])
+                                                      ^
+error: expect(received).toEqual(expected)
+
+- []
++ [
++   {
++     "code": "ROUTE_CONTAINER_MISANCHOR",
++     "container": "Outer",
++     "edge": "Outer->B",
++   },
++ ]
+
+- Expected  - 1
++ Received  + 7
+
+      at assertCleanHierarchyCase (/tmp/elk-hierarchy-base/src/__tests__/subgraph-hierarchy-exhaustive.test.ts:49:50)
+      at <anonymous> (/tmp/elk-hierarchy-base/src/__tests__/subgraph-hierarchy-exhaustive.test.ts:101:9)
+(fail) public hierarchy endpoints > TB Outer->B retains its labeled edge through three scopes [10.47ms]
+(pass) public hierarchy endpoints > BT X->B retains its labeled edge through three scopes [29.26ms]
+44 |   const edge = positioned.edges.find(e => e.source === from && e.target === to)
+45 |   expect(edge, `${from}->${to} edge should be present`).toBeDefined()
+46 |   expect(edge!.points.length).toBeGreaterThanOrEqual(2)
+47 |   expect(edge!.points.every(pt => Number.isFinite(pt.x) && Number.isFinite(pt.y))).toBe(true)
+48 |   expect(hardViolations(assessLayout(graph, positioned))).toEqual([])
+49 |   expect(auditRouteContracts(positioned, graph)).toEqual([])
+                                                      ^
+error: expect(received).toEqual(expected)
+
+- []
++ [
++   {
++     "code": "ROUTE_CONTAINER_MISANCHOR",
++     "container": "Outer",
++     "edge": "B->Outer",
++   },
++ ]
+
+- Expected  - 1
++ Received  + 7
+
+      at assertCleanHierarchyCase (/tmp/elk-hierarchy-base/src/__tests__/subgraph-hierarchy-exhaustive.test.ts:49:50)
+      at <anonymous> (/tmp/elk-hierarchy-base/src/__tests__/subgraph-hierarchy-exhaustive.test.ts:101:9)
+(fail) public hierarchy endpoints > BT B->Outer retains its labeled edge through three scopes [10.15ms]
+44 |   const edge = positioned.edges.find(e => e.source === from && e.target === to)
+45 |   expect(edge, `${from}->${to} edge should be present`).toBeDefined()
+46 |   expect(edge!.points.length).toBeGreaterThanOrEqual(2)
+47 |   expect(edge!.points.every(pt => Number.isFinite(pt.x) && Number.isFinite(pt.y))).toBe(true)
+48 |   expect(hardViolations(assessLayout(graph, positioned))).toEqual([])
+49 |   expect(auditRouteContracts(positioned, graph)).toEqual([])
+                                                      ^
+error: expect(received).toEqual(expected)
+
+- []
++ [
++   {
++     "code": "ROUTE_CONTAINER_MISANCHOR",
++     "container": "Outer",
++     "edge": "Outer->B",
++   },
++ ]
+
+- Expected  - 1
++ Received  + 7
+
+      at assertCleanHierarchyCase (/tmp/elk-hierarchy-base/src/__tests__/subgraph-hierarchy-exhaustive.test.ts:49:50)
+      at <anonymous> (/tmp/elk-hierarchy-base/src/__tests__/subgraph-hierarchy-exhaustive.test.ts:101:9)
+(fail) public hierarchy endpoints > BT Outer->B retains its labeled edge through three scopes [8.67ms]
+(pass) public hierarchy endpoints > authored identifiers resembling boundary ports retain their own endpoints [30.06ms]
+(pass) public hierarchy endpoints > deep branches retain both parallel relationships and their labels [52.50ms]
+(pass) group titles and hierarchy handling > a group whose title fits holds exactly its bottom padding below its content, in every style [118.35ms]
+
+16 tests failed:
+(fail) bounded hierarchy endpoint model > SEPARATE X->B routes without stale coordinates [20.69ms]
+(fail) bounded hierarchy endpoint model > SEPARATE B->Outer routes without stale coordinates [64.18ms]
+(fail) bounded hierarchy endpoint model > SEPARATE Outer->B routes without stale coordinates [76.62ms]
+(fail) public hierarchy endpoints > X->B emitted shaft clears plain group-title glyphs [17.39ms]
+(fail) public hierarchy endpoints > B->Outer emitted shaft clears plain group-title glyphs [54.95ms]
+(fail) public hierarchy endpoints > B->Outer emitted shaft clears multiline group-title glyphs [54.43ms]
+(fail) public hierarchy endpoints > Outer->B emitted shaft clears plain group-title glyphs [51.61ms]
+(fail) public hierarchy endpoints > Outer->B emitted shaft clears multiline group-title glyphs [89.32ms]
+(fail) public hierarchy endpoints > LR B->Outer retains its labeled edge through three scopes [12.53ms]
+(fail) public hierarchy endpoints > LR Outer->B retains its labeled edge through three scopes [11.88ms]
+(fail) public hierarchy endpoints > RL B->Outer retains its labeled edge through three scopes [11.44ms]
+(fail) public hierarchy endpoints > RL Outer->B retains its labeled edge through three scopes [12.46ms]
+(fail) public hierarchy endpoints > TB B->Outer retains its labeled edge through three scopes [12.53ms]
+(fail) public hierarchy endpoints > TB Outer->B retains its labeled edge through three scopes [10.47ms]
+(fail) public hierarchy endpoints > BT B->Outer retains its labeled edge through three scopes [10.15ms]
+(fail) public hierarchy endpoints > BT Outer->B retains its labeled edge through three scopes [8.67ms]
+
+ 45 pass
+ 16 fail
+ 321 expect() calls
+Ran 61 tests across 1 file. [2.10s]
