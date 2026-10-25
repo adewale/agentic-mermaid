@@ -18,7 +18,9 @@ import { estimatedResidency } from './experimental/cache-residency.ts'
 // Types
 // ============================================================================
 
-import { projectSvgCss, transformSvgCssValues, type SvgCssProjection } from './svg-structure.ts'
+import { decodeXML } from 'entities'
+import { escapeAttr } from './multiline-utils.ts'
+import { decodedSvgAttributeValue, scanSvgStartTags, projectSvgCss, transformSvgCssValues, type SvgCssProjection } from './svg-structure.ts'
 
 /**
  * Diagram color configuration.
@@ -627,8 +629,30 @@ function cssPaintDefinitions(projection: SvgCssProjection): Map<string, string> 
  * is returned as-is since the eventual host supplies their values.
  */
 export function inlineResolvedColors(svg: string, colors: DiagramColors): string {
+  const resolution = colorResolution(colors, svg)
+  return resolution ? resolveSvgColors(svg, resolution) : svg
+}
+
+/** Resolve one Scene paint with the same CSS and XML rules as an SVG fill.
+ * Keep the escaped attribute representation through substitution: an authored
+ * character reference or whitespace must not acquire a different fallback.
+ * No SVG context exists here, so there are no family variable definitions. */
+export function resolveInlineColorAttribute(value: string, colors: DiagramColors): string | undefined {
+  const escaped = escapeAttr(value)
+  const resolution = colorResolution(colors)
+  const resolved = resolution ? resolution.resolveCss(escaped, resolution.vars, 10) : escaped
+  // Scene admission excludes context-breaking palette values. Preserve the
+  // full SVG path even for a direct caller that supplies such a substitution.
+  if (resolution && /[<"]/.test(resolved)) {
+    const svg = resolveSvgColors(`<rect fill="${escaped}"/>`, resolution)
+    return decodedSvgAttributeValue(scanSvgStartTags(svg)[0]!, 'fill')
+  }
+  return decodeXML(resolved)
+}
+
+function colorResolution(colors: DiagramColors, svg?: string) {
   const palette = diagramColorVariables(colors)
-  if (!palette) return svg
+  if (!palette) return undefined
   const rc = resolveColors(colors)
 
   // Build mapping of CSS variable names → resolved hex values
@@ -641,8 +665,8 @@ export function inlineResolvedColors(svg: string, colors: DiagramColors): string
   // Some family renderers define concrete custom properties on the SVG root
   // before using them in style-block fallbacks. Learn those up front so
   // var(--family-token, fallback) prefers the authored token over fallback.
-  const projection = projectSvgCss(svg)
-  for (const [name, value] of cssPaintDefinitions(projection)) vars.set(name, value)
+  const projection = svg === undefined ? undefined : projectSvgCss(svg)
+  if (projection) for (const [name, value] of cssPaintDefinitions(projection)) vars.set(name, value)
   // Literal RGB/named pages were normalized for concrete color-mix math;
   // their authored root tokens must not undo that internal normalization.
   vars.set('bg', rc.bg)
@@ -690,6 +714,12 @@ export function inlineResolvedColors(svg: string, colors: DiagramColors): string
     return text
   }
 
+  return { vars, SKIP_VARS, resolveCss, projection }
+}
+
+function resolveSvgColors(svg: string, resolution: NonNullable<ReturnType<typeof colorResolution>>): string {
+  const { vars, SKIP_VARS, resolveCss } = resolution
+  const projection = resolution.projection ?? projectSvgCss(svg)
   // Resolve only actual CSS-bearing contexts. Text/title/desc and ordinary
   // data attributes are authored content, even when they happen to contain a
   // string such as `var(--fg)` or `color-mix(...)`.
