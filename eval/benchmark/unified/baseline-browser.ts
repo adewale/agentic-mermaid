@@ -85,7 +85,7 @@ export function baselineBrowserCases(): BaselineBrowserCase[] {
   }
   for (const parent of portableCases().filter(value => value.edit)) {
     const edit = parent.edit!
-    cases.push({ id: parent.id + ':edit', family: parent.family, source: edit.source, parentCaseId: parent.id, cohorts: [parent.cohort, 'edit'], expected: { accept: edit.expected.accept, labels: edit.expected.labels }, ...(edit.renderOptions ? { renderOptions: edit.renderOptions } : {}), prelude: [...(parent.prelude ?? []), { source: parent.source, accept: parent.expected.accept, renderOptions: parent.renderOptions }] })
+    cases.push({ id: parent.id + ':edit', family: parent.family, source: edit.source, parentCaseId: parent.id, cohorts: [parent.cohort, 'edit'], expected: { accept: edit.expected.accept, labels: edit.expected.labels }, ...(edit.renderOptions ? { renderOptions: edit.renderOptions } : {}), prelude: [...(parent.prelude ?? []), { source: parent.source, accept: parent.expected.accept, ...(parent.renderOptions ? { renderOptions: parent.renderOptions } : {}) }] })
   }
   return cases
 }
