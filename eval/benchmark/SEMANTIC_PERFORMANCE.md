@@ -50,6 +50,15 @@ record 31 individual call durations and
 three independent V8 allocation probes, subject to the recorded case deadline.
 Actual warmup calls, elapsed time and completion are retained per observation.
 A failed or incomplete warmup remains an error; it cannot supply a numeric pass.
+Warmup, timing, allocation and diagnostics have separate ordinal counters and
+short authored-label/identifier namespaces. Warmup cycles a fixed 20-variant
+input working set, so faster priming cannot expand the input population. Timed source `q1`/`v1_*` therefore
+starts identically across peers regardless of how many warm calls fit in the
+elapsed interval. Warmup uses `w*`, allocation `a*`, and diagnostics `d*`, so a
+warm source cannot prime a measured new-source/edit input. Allocation and
+diagnostic inputs also stay identical across sides when timing hits a deadline.
+Exact-repeat and first-use deliberately retain original bytes in every stream.
+Raw calls record their domain; the domain policy enters the control fingerprint.
 They do not report a percentile of batch averages as call p95. A minimum of 20
 complete calls per warm case is required for tail qualification. Quick mode is a
 functional smoke policy, never performance qualification. Legacy `bench:peers`

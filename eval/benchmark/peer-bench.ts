@@ -56,7 +56,7 @@ import type { MICRO_WORKLOADS } from './micro-bench-cases.ts'
 import { allocationProbe, median } from './bench-stats.ts'
 import { missingSvgLabels } from './release-bench-fidelity.ts'
 import { git, ROOT } from './revision-tree.ts'
-import { PEER_CONSUMERS, PEER_FROZEN_COHORT, PEER_EXPECTED_LABELS, emptyTrackObservation, finalizeTrackObservation, parsePeerTracks, peerRuntimeDependencyGraph, peerExecutionEnvironment } from './peer-tracks.ts'
+import { PEER_CONSUMERS, PEER_VARIANT_DOMAINS, PEER_FROZEN_COHORT, PEER_EXPECTED_LABELS, emptyTrackObservation, finalizeTrackObservation, parsePeerTracks, peerRuntimeDependencyGraph, peerExecutionEnvironment } from './peer-tracks.ts'
 import type { PeerTrackObservation, PeerTrackReport } from './peer-tracks.ts'
 import { measurePeerTrack } from './peer-track-worker.ts'
 import type { TrackJob } from './peer-track-worker.ts'
@@ -993,13 +993,13 @@ async function main(): Promise<void> {
       if (selected.includes('tree50')) { scaling.push('tree100'); trackSources.tree100 = flowchartTree(100); trackExpected.tree100 = range('Node ', 100) }
       if (selected.includes('mesh50')) { scaling.push('mesh100'); trackSources.mesh100 = flowchartMesh(100, 40); trackExpected.mesh100 = range('label ', 40) }
     }
-    const trackSettings = { coldSamples: args.has('quick') ? 3 : 21, warmCalls: args.has('quick') ? 3 : 20, warmupMs: args.has('quick') ? 0 : 1000, samples: args.has('quick') ? 3 : 31, allocationSamples: 3, maxCaseMs: args.has('quick') ? timing.maxCaseMs : 30_000 }
+    const trackSettings = { coldSamples: args.has('quick') ? 3 : 21, warmCalls: args.has('quick') ? 3 : 20, warmupMs: args.has('quick') ? 0 : 1000, warmupVariants: 20, samples: args.has('quick') ? 3 : 31, allocationSamples: 3, maxCaseMs: args.has('quick') ? timing.maxCaseMs : 30_000 }
     const tracks: PeerTrackReport = { schemaVersion: 1, contractVersion: 'semantic-peer-v1', cohort: PEER_FROZEN_COHORT, phases, consumers: PEER_CONSUMERS, scaling, observations: [] }
     const trackWorkloads = [...workloads.svg, ...scaling]
     const trackInputs = Object.fromEntries(trackWorkloads.map(id => [id, { source: trackSources[id], expected: trackExpected[id] }]))
     const harnessRevision = git(['rev-parse', 'HEAD'])
     const harnessDirty = git(['status', '--porcelain', '--', 'eval/benchmark']).length > 0
-    const tracksConfig = { phases, consumers: PEER_CONSUMERS, ...trackSettings, minimumTailCalls: 20, inputs: trackInputs, harnessRevision, harnessDirty }
+    const tracksConfig = { variantDomains: PEER_VARIANT_DOMAINS, phases, consumers: PEER_CONSUMERS, ...trackSettings, minimumTailCalls: 20, inputs: trackInputs, harnessRevision, harnessDirty }
     const processes: ProcessRecord[] = []
     for (let round = 0; round < rounds; round++) {
       for (const { prepared: entry, output } of phases.length ? [] : round % 2 === 0 ? jobs : [...jobs].reverse()) {
@@ -1061,7 +1061,7 @@ async function main(): Promise<void> {
     out.push(`- Pins: ${prepared.map(entry => `${entry.peer.id} = ${entry.label}`).join('; ')}`)
     for (const entry of prepared) for (const lock of entry.dependencyLocks ?? []) out.push(`- ${entry.peer.id} ${lock.source}: ${lock.path} (SHA-256 ${lock.sha256})`)
     out.push(
-      phases.length ? `- Track method: ${rounds} paired round(s), ${trackSettings.warmCalls} priming calls and at least ${trackSettings.warmupMs} ms elapsed warmup, up to ${trackSettings.samples} individually clocked calls (minimum 20 for tail qualification), ${trackSettings.allocationSamples} separate allocation probes, wall cap ${trackSettings.maxCaseMs} ms; consumption inside clocks and allocation probes, validation outside. First-use has ${trackSettings.coldSamples} timing calls, ${trackSettings.allocationSamples} allocation probes and one untimed diagnostic call, each in its own fresh worker per case/consumer/round, with no earlier render. Diagnostics replay is untimed. No observable endpoint contract means semantic.ok=false and excludes semantic numeric qualification.` : `- Method: ${rounds} round(s), one fresh process per peer and output, order alternating; per workload one first render, then ≥${timing.warmCalls} warm calls and ≥${timing.warmupMs} ms, ≤${timing.samples} samples of ≥${timing.minSampleMs} ms (at least ${MIN_SAMPLES}), capped near ${timing.maxCaseMs} ms; every complete output checked outside timing for labels and parseable SVG, captured in batches of at most 64 returns (about 1 MiB at the first output size), with output stores and per-batch clocks included; medians across rounds, ± is the median MAD/median.`,
+      phases.length ? `- Track method: ${rounds} paired round(s), ${trackSettings.warmCalls} priming calls and at least ${trackSettings.warmupMs} ms elapsed warmup, up to ${trackSettings.samples} individually clocked calls (minimum 20 for tail qualification), ${trackSettings.allocationSamples} separate allocation probes, wall cap ${trackSettings.maxCaseMs} ms; consumption inside clocks and allocation probes, validation outside. First-use has ${trackSettings.coldSamples} timing calls, ${trackSettings.allocationSamples} allocation probes and one untimed diagnostic call, each in its own fresh worker per case/consumer/round, with no earlier render. Warmup, timing, allocation and diagnostics use separate deterministic source streams; only exact-repeat and first-use retain identical bytes between streams. Diagnostics replay is untimed. No observable endpoint contract means semantic.ok=false and excludes semantic numeric qualification.` : `- Method: ${rounds} round(s), one fresh process per peer and output, order alternating; per workload one first render, then ≥${timing.warmCalls} warm calls and ≥${timing.warmupMs} ms, ≤${timing.samples} samples of ≥${timing.minSampleMs} ms (at least ${MIN_SAMPLES}), capped near ${timing.maxCaseMs} ms; every complete output checked outside timing for labels and parseable SVG, captured in batches of at most 64 returns (about 1 MiB at the first output size), with output stores and per-batch clocks included; medians across rounds, ± is the median MAD/median.`,
     )
     out.push(`- Not covered: ${NOT_COVERED.join('; ')}`)
     for (const warning of warnings) out.push(`- Warning: ${warning}`)
