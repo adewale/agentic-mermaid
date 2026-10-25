@@ -2,7 +2,7 @@ import { afterAll, expect, test } from 'bun:test'
 import { parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { parseSequenceDiagram, parseSequenceMessageLine } from '../sequence/parser.ts'
-import { costRelativeToLinearScan } from './helpers/complexity.ts'
+import { LINEAR_GROWTH_CEILING, measureGrowth } from './helpers/complexity.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const upstream = startUpstreamMermaid()
@@ -54,12 +54,18 @@ test('native and agent retain sender-spaced central messages and exactly two act
 })
 
 test('spaced central-start parsing stays bounded on malformed long tails', () => {
-  const line = `Alice ${' '.repeat(64_000)}() ${' '.repeat(64_000)}:missing`
-  expect(parseSequenceMessageLine(line)).toBeNull()
-  // Linear rejection costs a few plain scans of the line (3.5-7.5x measured,
-  // idle and under load); backtracking over either space run costs tens of
-  // thousands.
-  expect(costRelativeToLinearScan(line, () => parseSequenceMessageLine(line))).toBeLessThan(100)
+  // Keep the original 128K-character rejection witness as the small input.
+  // Long actor tokens can switch the regex engine's execution strategy; a
+  // constant-factor comparison with a plain scan then rejects linear work.
+  // Compare two long inputs in that same regime: quadratic backtracking grows
+  // by 256x at this helper's 16x factor, beyond its existing 64x ceiling.
+  const growth = measureGrowth(size => {
+    const line = `Alice ${' '.repeat(size)}() ${' '.repeat(size)}:missing`
+    const parsed = parseSequenceMessageLine(line)
+    expect(parsed).toBeNull()
+    return parsed
+  }, 64_000)
+  expect(growth.ratio).toBeLessThan(LINEAR_GROWTH_CEILING)
 })
 
 test('sender-spaced central fallback does not accept forms Mermaid rejects', async () => {
