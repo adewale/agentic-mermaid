@@ -19,6 +19,29 @@ cover Timeline keywords/separators, Sequence ACTOR identities, C4 arguments,
 Gantt task labels, Block formatting, Journey actors and separators, Mindmap
 anonymous identities, Ishikawa cause labels and Treemap quoted text.
 
+The #494 follow-up examines its 162 reduced reports and their 162 original
+witnesses. Readable aliases, Unicode whitespace, compact statements, comments,
+leading-dot numbers, native-only identifiers and empty containers are not
+missing rendering features. Their intended readings are retained; no blanket
+warning is added merely because a fuzzer found another spelling. Class-header
+aliases and Quadrant statement separators have separate active fixes.
+
+Empty State notes and accessibility descriptions retain explicit empty fields
+using block syntax. C4 raw statement reuse must satisfy its argument lexer;
+otherwise the field writer constructs quotes and separators. Sequence writers
+shield literal percent pairs and terminate a participant declaration when the
+next message would be read as metadata. Placement keywords cannot become typed
+message endpoints. State class assignments to non-word targets remain
+source-only, with a warning and atomic refusal of typed class edits.
+
+An init-directive opener inside ordinary accessibility text remains source-only
+and warns: its current authored-text representation cannot add a protective
+escape without changing the reloaded field. Comment-backed accessibility keeps
+its existing JSON transport. Invalid or unusually delimited YAML wrappers can
+remain verbatim on default export; canonical wrapper mode repairs those whose
+metadata and configuration can be represented. Source-preserving output is not
+a promise of external Mermaid acceptance.
+
 Journey, Mindmap, Ishikawa and Treemap share grammar escape interpretation. XML
 transport references expand inside classified fields, before formatting;
 protected grammar escapes expand afterward, once. This prevents an encoded
@@ -74,8 +97,10 @@ faces reserve distinct contacts when marker meanings conflict; compound or
 parallel classification alone cannot establish safety. Reciprocal/parallel
 Block edges and cross-scope State edges are checked against actual owned
 stroke/marker ink and frame contacts, independently of stored endpoint metadata.
-When contact allocation is required, the current global routing mode may
-unbundle otherwise compatible routes elsewhere in the graph.
+Contact conflicts close over the affected routes locally. Compatible bundles
+elsewhere retain their shared trunks. The terminal router still has bounded
+search and can refuse a layout when it cannot certify protected approaches;
+successful local contact allocation is not a proof for every later route cell.
 
 Style construction follows each family's grammar and consumer. Flowchart
 class definitions protect value commas and separate a trailing backslash from
@@ -130,8 +155,11 @@ a disconnected state and pseudostate exchange terminal positions. Its labels,
 identities, parents and endpoints are unchanged. Canonical serialization does
 not preserve every layout-sensitive declaration order.
 
-The candidate has 992 typed inputs, 250 source-only inputs and 41 explicit parse
-failures. No reference-accepted retained input loses typed admission. The 250
+The historical #490 candidate has 992 typed inputs, 250 source-only inputs and 41 explicit parse
+failures. These counts precede #499, whose same-corpus replay has 1,051 typed
+inputs, 191 source-only inputs and 41 parse failures; accepted typed canonical
+exports rise from 962 to 1,020. Neither comparison credits additional imported
+upstream test passes. No reference-accepted retained input loses typed admission. The historical 250
 source-only inputs retain family statements and cannot accept typed edits,
 including edits to portable portions. One Radar input loses only adjacent empty
 frontmatter delimiters under the existing warned `empty_frontmatter` policy.
