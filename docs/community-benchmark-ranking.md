@@ -2931,3 +2931,24 @@ Blocked comparator acquisition:
 - **justsml/rusty-mermaid:** Error: Cannot resolve the actual Node import-condition export rusty-mermaid: node:internal/modules/esm/resolve:201   const resolvedOption = FSLegacyMainResolve(pkgPath, packageConfig.main, baseStringified);                          ^  Error: Cannot find package '/workspace/agentic-mermaid-unified-benchmark/node_modules/.cache/unified-community/rusty-mermaid@0.42.0/node_modules/rusty-mermaid/pkg/rusty_mermaid.js' imported from /workspace/agentic-mermaid-unified-benchmark/node_modules/.cache/unified-community/rusty-mermaid@0.42.0/node_modules/rusty-mermaid/package.json     at legacyMainResolve (node:internal/modules/esm/resolve:201:26)     at packageResolve (node:internal/modules/esm/resolve:778:12)     at moduleResolve (node:internal/modules/esm/resolve:859:18)     at defaultResolve (node:internal/modules/esm/resolve:992:11)     at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)     at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)     at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)     at Object.resolve (node:internal/modules/esm/initialize_import_meta:37:25)     at file:///workspace/agentic-mermaid-unified-benchmark/[eval1]:1:34     at ModuleJob.run (node:internal/modules/esm/module_job:439:25) {   code: 'ERR_MODULE_NOT_FOUND' }  Node.js v24.19.0
 
 Raw source of truth: /workspace/mermaid-unified-2026-10-24/all. Re-run the benchmark commands to refresh; do not hand-edit numbers or reuse old clocks as new evidence.
+
+
+<!-- portable-pele-case-study:start -->
+## Pele portable calibration, 25 October 2026
+
+The new [Pele case study](../eval/benchmark/PELE-CASE-STUDY.md) measured only Pele
+1.9.0 against same-artifact controls. It does not replace the historical ranks
+above or establish a new cross-project winner.
+
+Across 49 authored cases and 23 families, 15,930 workers made 2,804,100 timed
+calls with zero declared check failures or blocked workers. All 46 valid cases
+were accepted and all three invalid cases rejected. Declared native/painted
+criteria were complete for 28 positive cases; 18 remain paint-unmeasured.
+Timing calibrated for 84/149 rows, including all 49 first-use rows. The other
+65 rows retain their noise failure, rather than gaining a precision claim.
+An unchanged repeat reused record `e7322d5f-2742-4b3c-afa2-1d76d8918572` without
+launching timing workers. No other community project was retimed.
+
+The [suite overview](../eval/benchmark/OVERVIEW.md) describes how to compare these
+lanes and where coverage remains partial.
+<!-- portable-pele-case-study:end -->

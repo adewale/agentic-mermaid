@@ -96,11 +96,12 @@ orchestrator is a separate activity.
 | `agent-subagent` | `../agent-usage/capture-subagent-prompt-eval.ts` | External prompt dispatch and transcript evaluation. Templates alone are not a completed model evaluation. |
 | `prs` | [unified/pr-campaign.ts](unified/pr-campaign.ts) | Explicit frozen-head main/PR campaign, paired controls and optional functionality/invocation evidence. Excluded from automatic nesting to avoid repeating campaigns. |
 
-## Additional executable evaluations outside automatic suite selection
+## Direct entry points, report tools and external evaluations
 
 These entries exist and should be considered when someone says “all benchmarks.”
-They are not additional automatic suite rows. Some overlap enrolled owning tests;
-others require external inputs or paid model runs.
+Some commands invoke enrolled suites directly or overlap owning tests; others
+are report tools or evaluations that need external inputs or paid model runs.
+Listing a direct command here does not add an automatic controller suite.
 
 | Entry or command | What it adds | Relationship to the controller |
 | --- | --- | --- |

@@ -101,10 +101,10 @@ def family_latency(summary, plt, line_type):
     axis.set_xscale("log")
     axis.set_xlabel("API latency (ms, log scale); import and qualification excluded")
     axis.set_title("Family representatives: warm median and fresh-process first-use p95", loc="left", pad=17)
-    figure.legend(handles=[line_type([0], [0], marker="o", color="#334354", linestyle="none", label="Warm repeated API median"), line_type([0], [0], marker="D", color="#334354", linestyle="none", label="Fresh first-use p95"), line_type([0], [0], marker="o", color="#334354", markerfacecolor="white", linestyle="none", label="Open marker: uncalibrated")], loc="upper center", ncol=3, bbox_to_anchor=(0.56, 0.935), fontsize=8)
+    figure.legend(handles=[line_type([0], [0], marker="o", color="#334354", linestyle="none", label="Warm repeated API median"), line_type([0], [0], marker="D", color="#334354", linestyle="none", label="Fresh first-use p95"), line_type([0], [0], marker="o", color="#334354", markerfacecolor="white", linestyle="none", label="Open marker: uncalibrated")], loc="upper center", ncol=3, bbox_to_anchor=(0.56, 0.965), fontsize=8)
     scope_legend(figure, line_type)
     figure.text(0.02, 0.012, f"{missing} missing timing points omitted; {uncalibrated} observed points uncalibrated. First-use p95 uses individual fresh-process calls.\nWarm samples are adaptive batch means. A representative case does not establish complete family functionality.", fontsize=8)
-    figure.subplots_adjust(left=0.22, right=0.97, top=0.87, bottom=0.19)
+    figure.subplots_adjust(left=0.22, right=0.97, top=0.85, bottom=0.19)
     return figure
 
 
@@ -179,7 +179,7 @@ def calibration(summary, plt, line_type):
     figure.suptitle("Same-artifact A/A/B calibration — variation, not product improvement", x=0.02, ha="left", fontsize=14)
     figure.legend(handles=[line_type([0], [0], color="#8fbfb5", linewidth=7, label="Observed reciprocal A/A band; calibrated"), line_type([0], [0], color="#d9c49b", linewidth=7, label="Observed A/A band; uncalibrated"), line_type([0], [0], marker="o", linestyle="none", color="#53606b", label="Round A1 / A0"), line_type([0], [0], marker="^", linestyle="none", color="#7156a5", label="Round B / √(A0 × A1)"), line_type([0], [0], marker="|", linestyle="none", color="#241739", label="Median B ratio")], loc="lower center", ncol=3, bbox_to_anchor=(0.5, 0.055), fontsize=8)
     figure.text(0.02, 0.015, f"{omitted} case/track ratio sets unavailable and omitted. Each replica uses the same admitted artifact. Bands are observed ranges, not confidence intervals.\nThis panel covers family representatives only. Full case/track calibration and gaps remain in report.json; a ratio outside its A/A band is advisory.", fontsize=8)
-    figure.subplots_adjust(left=0.16, right=0.98, top=0.89, bottom=0.20, wspace=0.12)
+    figure.subplots_adjust(left=0.16, right=0.94, top=0.89, bottom=0.20, wspace=0.12)
     return figure
 
 

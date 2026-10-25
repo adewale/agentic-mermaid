@@ -9,7 +9,7 @@ import { modelCost, processCpuCost } from '../portable/costs.ts'
 import { resetPortableCancellation, runFirstUseBatch, runSerialJob, terminatePortableWorkers } from '../portable/execution.ts'
 import { portableDirectory } from '../portable/artifacts.ts'
 import { parsePortableOptions } from '../portable/run.ts'
-import type { PortableJob } from '../portable/protocol.ts'
+import type { PortableJob, PortableWorkerResult } from '../portable/protocol.ts'
 
 const directories: string[] = []
 afterEach(() => {
@@ -140,4 +140,23 @@ test('missing execution never becomes a vacuous acceptance or semantic pass', ()
   expect(summary.cases[0]!.semanticComplete).toBe(false)
   expect(summary.timing.every(row => !row.semanticComplete && row.calibration.status === 'uncalibrated')).toBe(true)
   expect(summary.counts.completeSemanticCases).toBe(0)
+})
+
+test('duplicated fresh-process identities cannot replace missing samples', () => {
+  const cases = [{ id: 'identity-grid', family: 'flowchart', cohort: 'family' as const, source: 'flowchart LR\nA', expected: { accept: true, labels: ['A'] } }]
+  const results: PortableWorkerResult[] = []
+  for (let round = 1; round <= 5; round++)
+    for (const replica of ['A0', 'A1', 'B'] as const)
+      for (const mode of ['warm', 'cold'] as const)
+        for (let sample = 0; sample < (mode === 'cold' ? 20 : 1); sample++)
+          results.push({ protocol: 'portable-svg-processes-v1', caseId: 'identity-grid', family: 'flowchart', mode, round, replica, sample, status: 'passed', importMs: 1, tracks: mode === 'cold' ? { 'first-use': [1] } : { 'warm-repeat': Array(31).fill(1), 'warm-new-source': Array(31).fill(1) }, outputBytes: 40, qualification: { accepted: true, passed: true, semanticComplete: true, checks: [], unmeasuredScopes: [], scope: 'fixture declared criteria' }, prelude: [], runtime: { executable: '/fixture/node', node: '24', platform: 'linux', arch: 'x64' } })
+  const settings = { rounds: 5, samples: 31, coldSamples: 20, maximumControlSpread: 0.25 }
+  expect(portableSummary(cases, results, settings).status).toBe('measured')
+  const first = results.find(result => result.mode === 'cold')!
+  const missing = results.findIndex(result => result.mode === 'cold' && result.sample === 19)
+  results[missing] = { ...first }
+  const incomplete = portableSummary(cases, results, settings)
+  expect(incomplete.status).toBe('uncalibrated')
+  expect(incomplete.cases[0]!.acceptanceMatches).toBe(false)
+  expect(incomplete.cases[0]!.semanticComplete).toBe(false)
 })
