@@ -14,6 +14,10 @@ interface Options {
   packageRoot: string
   rounds: number
   outputs?: string[]
+  observerExecutable?: string
+  observerProvenance?: string
+  resourceOnly?: boolean
+  baselineCli?: string
 }
 interface Variant {
   prepared: PreparedCommunity
@@ -130,14 +134,18 @@ interface ResourceObserver {
   path: string
   version: string | null
   error?: string
+  sha256?: string
+  bytes?: number
+  locale?: Record<string, string | null>
+  provenance?: unknown
 }
-function resourceObserver(): ResourceObserver {
-  const path = '/usr/bin/time'
+function resourceObserver(configured?: string, provenance?: string): ResourceObserver {
+  const path = resolve(configured ?? '/usr/bin/time')
   try {
     if (!existsSync(path)) throw Error('GNU /usr/bin/time is unavailable')
     const version = execFileSync(path, ['--version'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
     if (!/GNU\s+Time/i.test(version)) throw Error('External time observer is not GNU time')
-    return { path: realpathSync(path), version }
+    return { path: realpathSync(path), version, sha256: digest(path), bytes: statSync(path).size, locale: { LC_ALL: process.env.LC_ALL ?? null, LC_NUMERIC: process.env.LC_NUMERIC ?? null, LANG: process.env.LANG ?? null }, ...(provenance ? { provenance: { file: resolve(provenance), value: read(provenance) } } : {}) }
   } catch (error) {
     return { path, version: null, error: String(error) }
   }
@@ -170,7 +178,7 @@ function resourceDiagnostic(variant: Variant, output: string, workload: UnifiedW
   row.findings = actual.findings
   row.detail = actual.detail
   row.metrics = { ...row.metrics, qualification: actual.metrics?.qualification ?? 'unavailable', observer: observer.path, clock: 'GNU time child user/system CPU and maximum resident set; observer elapsed discarded' }
-  if (actual.status !== 'passed') return row
+  // Failed/invalid output still consumed real child resources; keep those costs without qualifying its cohort.
   try {
     if (!existsSync(resourcePath)) throw Error('GNU time did not emit child resource evidence')
     const fields = new Map(
@@ -205,7 +213,7 @@ function resourceDiagnostic(variant: Variant, output: string, workload: UnifiedW
     }
   } catch (error) {
     row.status = 'failed'
-    row.detail = String(error)
+    row.detail = [row.detail, String(error)].filter(Boolean).join('; ')
   }
   return row
 }
@@ -274,12 +282,44 @@ export async function runCommunityCliCohort(options: Options) {
       variant.error = String(error)
     }
   }
-  const observer = resourceObserver() // Availability/version is collected before any latency clock.
+  const observer = resourceObserver(options.observerExecutable, options.observerProvenance) // Availability/version is collected before any latency clock.
+  let baseline: any
+  if (options.resourceOnly) {
+    if (!options.baselineCli) throw Error('Resource-only mode requires --baseline-cli with immutable completed CLI evidence')
+    baseline = read(join(options.baselineCli, 'community-cli-result.json'))
+    if (baseline.id !== 'community-cli' || !baseline.finishedAt || baseline.rounds !== options.rounds || JSON.stringify(baseline.evidence?.cohort) !== JSON.stringify(workloads)) throw Error('Resource-only baseline has a different or incomplete literal cohort/round policy')
+    const identity = (variant: Variant) => ({
+      variantOf: variant.variantOf,
+      variant: variant.variant,
+      outputs: variant.outputs,
+      node: variant.prepared.node,
+      artifact: Object.fromEntries(Object.entries(variant.prepared.artifact ?? {}).filter(([key]) => key !== 'detail')),
+      identity: variant.identity,
+      error: variant.error ?? null,
+    })
+    if (JSON.stringify(baseline.evidence.variants.map(identity)) !== JSON.stringify(variants.map(identity))) throw Error('Resource-only program, runtime, binding or artifact bytes differ from original CLI cohort')
+    if (resolve(baseline.evidence.sourceRun) !== resolve(source) || resolve(baseline.evidence.target.root) !== resolve(options.target) || resolve(baseline.evidence.target.packageRoot) !== resolve(options.packageRoot) || baseline.evidence.target.head !== git(options.target, ['rev-parse', 'HEAD']))
+      throw Error('Resource-only target/source parent differs from baseline')
+    if (observer.error) throw Error('Resource-only observer unavailable: ' + observer.error)
+  }
   const status = git(options.target, ['status', '--porcelain=v1', '--untracked-files=all']).split('\n').filter(Boolean)
   const harnessRoot = resolve(import.meta.dir, '../../..'),
     harnessStatus = git(harnessRoot, ['status', '--porcelain=v1', '--untracked-files=all']).split('\n').filter(Boolean)
   const evidence = {
     sourceRun: source,
+    resourceOnly: options.resourceOnly ?? false,
+    resourcePasses: 1,
+    latencyMeasured: !options.resourceOnly,
+    baselineCli: baseline
+      ? {
+          directory: resolve(options.baselineCli!),
+          startedAt: baseline.startedAt,
+          finishedAt: baseline.finishedAt,
+          latencyFinishedAt: baseline.latencyFinishedAt ?? null,
+          previousResourceRows: baseline.diagnostics.length,
+          previousQualifiedResourceRanks: baseline.resourceRanks.filter((row: any) => row.qualified).length,
+        }
+      : null,
     outputSelection: selectedOutputs ?? null,
     scope: selectedOutputs ? 'partial-output-lane; omitted CLI latency/resources were not executed' : 'all-bound-CLI-outputs',
     preparedFile: join(source, 'community-prepared.json'),
@@ -297,37 +337,38 @@ export async function runCommunityCliCohort(options: Options) {
   const startedAt = new Date().toISOString(),
     observations: BenchmarkObservation[] = [],
     executionOrder: string[][] = []
-  for (let round = 1; round <= options.rounds; round++) {
-    const ordered = round % 2 ? variants : [...variants].reverse()
-    executionOrder.push(ordered.map(variant => variant.prepared.node.id))
-    for (const variant of ordered)
-      for (const output of variant.outputs)
-        for (const workload of workloads.filter(w => output !== 'terminal' || terminalIds.includes(w.id))) {
-          const directory = join(options.out, 'raw', `round-${round}`, safe(variant.prepared.node.id), output, safe(workload.id))
-          mkdirSync(directory, { recursive: true })
-          let row: BenchmarkObservation
-          if (variant.error || (variant.prepared.artifact?.format && variant.prepared.artifact.format !== output)) {
-            row = {
-              suite: 'community-cli',
-              surface: 'cli:end-to-end',
-              runtime: variant.prepared.artifact?.runtime ?? 'native:compiled-public-cli (embedded runtime version unreported)',
-              caseId: workload.id,
-              family: workload.family,
-              operation: 'render',
-              format: output,
-              mode: 'fresh-process',
-              status: 'blocked',
-              detail: variant.error ?? 'Declared CLI has no prepared binding for this output',
-            }
-          } else row = runCommunityCli(variant.prepared, output, workload, round, directory)
-          row.suite = 'community-cli'
-          row.runtime = variant.prepared.artifact?.runtime ?? 'native:compiled-public-cli (embedded runtime version unreported)'
-          row.metrics = { ...row.metrics, implementation: variant.prepared.node.id, variantOf: variant.variantOf, variant: variant.variant, metricId: `${variant.prepared.node.id}:cli:${output}`, round }
-          observations.push(row)
-          writeFileSync(join(directory, 'observation.json'), JSON.stringify(row, null, 2))
-        }
-  }
-  const latencyFinishedAt = new Date().toISOString(),
+  if (!options.resourceOnly)
+    for (let round = 1; round <= options.rounds; round++) {
+      const ordered = round % 2 ? variants : [...variants].reverse()
+      executionOrder.push(ordered.map(variant => variant.prepared.node.id))
+      for (const variant of ordered)
+        for (const output of variant.outputs)
+          for (const workload of workloads.filter(w => output !== 'terminal' || terminalIds.includes(w.id))) {
+            const directory = join(options.out, 'raw', `round-${round}`, safe(variant.prepared.node.id), output, safe(workload.id))
+            mkdirSync(directory, { recursive: true })
+            let row: BenchmarkObservation
+            if (variant.error || (variant.prepared.artifact?.format && variant.prepared.artifact.format !== output)) {
+              row = {
+                suite: 'community-cli',
+                surface: 'cli:end-to-end',
+                runtime: variant.prepared.artifact?.runtime ?? 'native:compiled-public-cli (embedded runtime version unreported)',
+                caseId: workload.id,
+                family: workload.family,
+                operation: 'render',
+                format: output,
+                mode: 'fresh-process',
+                status: 'blocked',
+                detail: variant.error ?? 'Declared CLI has no prepared binding for this output',
+              }
+            } else row = runCommunityCli(variant.prepared, output, workload, round, directory)
+            row.suite = 'community-cli'
+            row.runtime = variant.prepared.artifact?.runtime ?? 'native:compiled-public-cli (embedded runtime version unreported)'
+            row.metrics = { ...row.metrics, implementation: variant.prepared.node.id, variantOf: variant.variantOf, variant: variant.variant, metricId: `${variant.prepared.node.id}:cli:${output}`, round }
+            observations.push(row)
+            writeFileSync(join(directory, 'observation.json'), JSON.stringify(row, null, 2))
+          }
+    }
+  const latencyFinishedAt = options.resourceOnly ? null : new Date().toISOString(),
     diagnostics: BenchmarkObservation[] = []
   // Every latency round is complete before the separately instrumented resource phase begins.
   if (observer.error) diagnostics.push({ suite: 'community-cli', surface: 'cli:end-to-end', runtime: 'unmeasured', family: '*', caseId: 'resource-observer', operation: 'resource-diagnostic', format: 'mixed', mode: 'instrumented-resource-only', status: 'blocked', detail: observer.error })
@@ -353,14 +394,19 @@ export async function runCommunityCliCohort(options: Options) {
         }
       }
     }
-  const ranks = ranksFor(variants, observations, workloads, options.rounds),
+  if (JSON.stringify(resourceObserver(options.observerExecutable, options.observerProvenance)) !== JSON.stringify(observer)) throw Error('Resource observer identity changed during campaign')
+  const ranks = options.resourceOnly ? [] : ranksFor(variants, observations, workloads, options.rounds),
     resourceRanks = resourceRanksFor(variants, diagnostics, workloads)
   const resourcePolicy =
     'Separate GNU time diagnostic after all uninstrumented latency rounds finish. Actual reviewed command/stdout qualification retained; wrapper elapsed never enters speed ranks. Fixed-cohort child peak RSS includes runtime/shared code; maximum across per-case high-water marks, not sum. User/system CPU sums across fresh per-case processes and is quantized to10ms per field. Total CPU bounds allow20ms per case in either direction (lower bounded by0); all-zero totals are censored below resolution, never free cost. These are conservative reporting-grain bounds, not statistical confidence intervals; no CPU speed ranks. Shared OS/filesystem caches; native process RSS is not PSS, a process-tree sum, incremental allocation, or leak proof. External runtime executable bytes are not npm delivery/dependency closure.'
-  const policy =
-    'Supplemental fresh-process CLI boundary only: spawn through drained stdout or completed output file. SVG uses6 fixed inputs/5 families; Unicode terminal uses3/2. Input-file setup and independent artifact qualification occur outside each clock. Identical frozen source/label cohorts for every variant; all required cases must pass exactly once in every round. Alternate forward/reverse variant order. Shared OS/filesystem caches are not cold-disk guarantees. Node CLI and compiled Bun CLI are variants of the same catalog tool, never additional catalog nodes. No broad feature coverage is inferred. Previous published community ranks are not mutated.'
+  const policy = options.resourceOnly
+    ? 'Resource-only rerun: no latency invocation executed or replaced. Original completed CLI latency and earlier blocked-resource ledgers remain immutable; only fixed-cohort instrumented CPU/RSS evidence is fresh under the recorded observer identity.'
+    : 'Supplemental fresh-process CLI boundary only: spawn through drained stdout or completed output file. SVG uses6 fixed inputs/5 families; Unicode terminal uses3/2. Input-file setup and independent artifact qualification occur outside each clock. Identical frozen source/label cohorts for every variant; all required cases must pass exactly once in every round. Alternate forward/reverse variant order. Shared OS/filesystem caches are not cold-disk guarantees. Node CLI and compiled Bun CLI are variants of the same catalog tool, never additional catalog nodes. No broad feature coverage is inferred. Previous published community ranks are not mutated.'
   const result = {
     id: 'community-cli',
+    resourceOnly: options.resourceOnly ?? false,
+    resourcePasses: 1,
+    latencyMeasured: !options.resourceOnly,
     status: [...observations, ...diagnostics].some(row => row.status === 'failed') ? 'failed' : [...observations, ...diagnostics].some(row => row.status === 'blocked') ? 'blocked' : 'passed',
     startedAt,
     finishedAt: new Date().toISOString(),
@@ -376,7 +422,7 @@ export async function runCommunityCliCohort(options: Options) {
     resourcePolicy,
   }
   writeFileSync(resultPath, JSON.stringify(result, null, 2))
-  writeFileSync(ranksPath, JSON.stringify({ startedAt, finishedAt: result.finishedAt, rounds: options.rounds, ranks, resourceRanks, latencyFinishedAt, executionOrder, evidence, policy, resourcePolicy }, null, 2))
+  writeFileSync(ranksPath, JSON.stringify({ resourceOnly: options.resourceOnly ?? false, startedAt, finishedAt: result.finishedAt, rounds: options.rounds, ranks, resourceRanks, latencyFinishedAt, executionOrder, evidence, policy, resourcePolicy }, null, 2))
   return result
 }
 /** Orchestrator adapter: this supplemental phase depends on its completed sibling community suite. */
@@ -413,14 +459,21 @@ export async function runCommunityCliSuite(options: UnifiedRunOptions): Promise<
   writeFileSync(join(options.out, 'community-cli-suite.json'), JSON.stringify(envelope, null, 2))
   return envelope
 }
-export { ranksFor as rankCommunityCliObservations, resourceRanksFor as rankCommunityCliResources }
+export { ranksFor as rankCommunityCliObservations, resourceDiagnostic as runCommunityResourceDiagnostic, resourceObserver as observeCommunityResourceTool, resourceRanksFor as rankCommunityCliResources }
 
 if (import.meta.main) {
   const values = new Map<string, string>()
   for (let index = 2; index < process.argv.length; index += 2) {
+    if (process.argv[index] === '--resource-only') {
+      if (values.has('--resource-only')) throw Error('Duplicate --resource-only')
+      values.set('--resource-only', 'true')
+      index -= 1
+      continue
+    }
     const option = process.argv[index]!,
       value = process.argv[index + 1]
-    if (!['--run', '--out', '--target', '--package-root', '--rounds', '--outputs'].includes(option) || !value || value.startsWith('--') || values.has(option)) throw Error('Usage: bun run eval/benchmark/unified/community-cli.ts --run DIR --out FRESH_DIR --target CHECKOUT --package-root INSTALLED_PACKAGE [--rounds 3]')
+    if (!['--run', '--out', '--target', '--package-root', '--rounds', '--outputs', '--observer-executable', '--observer-provenance', '--baseline-cli'].includes(option) || !value || value.startsWith('--') || values.has(option))
+      throw Error('Usage: bun run eval/benchmark/unified/community-cli.ts --run DIR --out FRESH_DIR --target CHECKOUT --package-root INSTALLED_PACKAGE [--rounds 3]')
     values.set(option, value)
   }
   for (const name of ['--run', '--out', '--target', '--package-root']) if (!values.has(name)) throw Error('Missing required ' + name)
@@ -431,6 +484,10 @@ if (import.meta.main) {
     packageRoot: resolve(values.get('--package-root')!),
     rounds: Number(values.get('--rounds') ?? 3),
     outputs: values.has('--outputs') ? values.get('--outputs')!.split(',') : undefined,
+    observerExecutable: values.get('--observer-executable'),
+    observerProvenance: values.get('--observer-provenance'),
+    resourceOnly: values.has('--resource-only'),
+    baselineCli: values.get('--baseline-cli'),
   })
   console.log(JSON.stringify({ status: result.status, ranks: result.ranks.map(rank => ({ implementation: rank.implementation, output: rank.output, qualified: rank.qualified, medianMs: rank.medianMs })) }))
   if (result.status === 'failed') process.exitCode = 1

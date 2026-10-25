@@ -218,6 +218,30 @@ def cli_family_ranks(result,core):
     return rows
 
 
+def cli_resource_overlay(supplemental,result,directory):
+    fresh=load(directory/'community-cli-result.json');ranks=load(directory/'ranks.json')
+    if not supplemental or not result or not fresh or not ranks or fresh.get('resourceOnly')is not True or fresh.get('resourcePasses')!=1 or fresh.get('latencyMeasured')is not False or fresh.get('evidence',{}).get('resourceOnly')is not True or not fresh.get('finishedAt')or fresh.get('observations')!=[]or fresh.get('ranks')!=[]or fresh.get('latencyFinishedAt')is not None or fresh.get('resourceRanks')!=ranks.get('resourceRanks')or fresh.get('evidence')!=ranks.get('evidence'):raise ValueError('CLI resource overlay requires completed one-pass resource-only evidence; no new/reused latency ranks')
+    evidence=fresh['evidence'];base=evidence.get('baselineCli',{})
+    if Path(base.get('directory','')).resolve()!=Path(supplemental['reportingDirectory']).resolve()or any(base.get(field)!=result.get(field)for field in ('startedAt','finishedAt','latencyFinishedAt')):raise ValueError('Resource-only evidence binds another baseline CLI latency window')
+    for field in ('target','cohort','variants'):
+        if evidence.get(field)!=result.get('evidence',{}).get(field):raise ValueError('Resource-only evidence changes fixed-work CLI bindings/cohort/target: '+field)
+    if Path(evidence.get('sourceRun','')).resolve()!=Path(result['evidence']['sourceRun']).resolve():raise ValueError('Resource-only evidence uses another parent community qualification')
+    observer=evidence.get('resourceObserver',{});provenance=observer.get('provenance',{})
+    if not observer.get('version')or 'gnu time'not in observer['version'].lower()or not provenance.get('file')or load(Path(provenance['file']))!=provenance.get('value'):raise ValueError('Resource observer lacks actual GNU time version and admitted acquisition provenance')
+    verify_file_proofs([observer])
+    expected_keys=Counter(canonical([rank['implementation'],'cli:end-to-end',case,'resource-diagnostic',rank['output'],'instrumented-resource-only'])for rank in result.get('resourceRanks',[])for case in rank.get('requiredCaseIds',[]))
+    fresh_keys=Counter(canonical([tool(row),row.get('surface'),row.get('caseId'),row.get('operation'),row.get('format'),row.get('mode')])for row in fresh.get('diagnostics',[]))
+    if expected_keys!=fresh_keys or any(row.get('samplesMs')for row in fresh.get('diagnostics',[])):raise ValueError('Resource-only overlay changes declared fixed per-case diagnostic keys or contains latency samples')
+    old_rows=result.get('diagnostics',[])
+    if all(row.get('caseId')=='resource-observer'and row.get('status')=='blocked'for row in old_rows):
+        if len(old_rows)!=sum(expected_keys.values()):raise ValueError('Original unavailable-observer capability count differs from declared fixed-work slots')
+    elif Counter(canonical([tool(row),row.get('surface'),row.get('caseId'),row.get('operation'),row.get('format'),row.get('mode')])for row in old_rows)!=fresh_keys:raise ValueError('Resource-only overlay changes previously observed resource keys')
+    metadata=dict(directory=str(directory.resolve()),startedAt=fresh['startedAt'],finishedAt=fresh['finishedAt'],resourcePasses=1,latencyMeasured=False,baselineLatencyRounds=result['rounds'],originalFinishedAt=result['finishedAt'],originalResourceRows=len(result.get('diagnostics',[])),originalQualifiedResourceRanks=sum(row.get('qualified')is True for row in result.get('resourceRanks',[])),freshQualifiedResourceRanks=sum(row.get('qualified')is True for row in fresh.get('resourceRanks',[])),observer=observer,policy='Explicit later one-pass fixed-work GNU-time resource-only observation. The rounds3 field identifies earlier latency, not repeated resource passes. Original missing-observer diagnostics remain immutable; every existing CLI latency observation/rank/window is preserved. RSS/CPU are scoped diagnostics, not a latency rerun or allocation rank.')
+    combined=dict(result,diagnostics=fresh['diagnostics'],resourceRanks=fresh['resourceRanks'],evidence=dict(result['evidence'],resourceObserver=observer),resourceDisplayCorrection=metadata)
+    display=dict(supplemental,resourceRanks=fresh['resourceRanks'],evidence=combined['evidence'],resourceDisplayCorrection=metadata)
+    return display,combined,metadata
+
+
 def community_overlay(report, original_inputs, directory, original_directory, allow_target_change=False):
     """Explicit completed v2 replay, retaining the original suite ledger."""
     result=load(directory/'community-result.json');scores=load(directory/'community-ranks.json');inputs=load(directory/'community-inputs.json')
@@ -337,7 +361,7 @@ def current_target_ledger(original, directory, required_suites=('dave','pinned-r
     return ledger,dict(directory=str(directory.resolve()),targetRevision=revision,packageRoot=package,candidateTarball=tarball,candidateSha256=digest,startedAt=ledger['startedAt'],finishedAt=ledger['finishedAt'],status=ledger.get('status'),originalTargetRevision=original.get('targetRevision'),policy='Separate current-target Dave and pinned-reference evidence. Original full ledger and scoped older-target corrections retain their own target and clocks.')
 
 
-def additional_supplement(original, directory, expected_target):
+def additional_supplement(original, directory, expected_target,baseline_target=None):
     ledger,metadata=current_target_ledger(original,directory,required_suites=())
     if any(metadata.get(key)!=expected_target.get(key)for key in ('targetRevision','packageRoot','candidateSha256')):raise ValueError('Additional suite ledger differs from the explicitly selected current target/archive')
     selected=[suite for suite in ledger.get('suites',[])if suite.get('selected')and suite.get('status')!='skipped']
@@ -352,7 +376,19 @@ def additional_supplement(original, directory, expected_target):
         if subprocess.run(['git','-C',str(root),'diff','--quiet',metadata['targetRevision'],'--',relative],capture_output=True).returncode!=0:raise ValueError('Additional owning benchmark source changed after its admitted Git revision')
         result=suite.get('result')or{}
         evidence=[{key:row.get(key)for key in ('caseId','operation','format','mode','status','metrics','detail')}for row in result.get('observations',[])]
-        rows.append(dict(id=suite['id'],status=suite.get('status'),elapsedMs=suite.get('elapsedMs'),source=str(source),sourceRevision=metadata['targetRevision'],sourceGitBlob=blob,log=str(directory/suite['log'])if suite.get('log')else None,artifacts=result.get('artifacts',[]),prerequisites=suite.get('prerequisites',[]),gaps=result.get('gaps',[]),observations=evidence))
+        artifacts=[Path(path)if Path(path).is_absolute()else directory/path for path in result.get('artifacts',[])]
+        qualification=next((load(path)for path in artifacts if path.name=='qualification-status.json'),None)
+        gates=next((load(path)for path in artifacts if path.name=='gates.json'),None)
+        effective=qualification.get('status',suite.get('status'))if qualification else suite.get('status')
+        rows.append(dict(id=suite['id'],status=effective,recordedStatus=suite.get('status'),elapsedMs=suite.get('elapsedMs'),source=str(source),sourceRevision=metadata['targetRevision'],sourceGitBlob=blob,log=str(directory/suite['log'])if suite.get('log')else None,artifacts=result.get('artifacts',[]),prerequisites=suite.get('prerequisites',[]),gaps=result.get('gaps',[]),observations=evidence,qualification=qualification,gates=gates))
+    configuration=load(directory/'invocation.json',{});baseline_file=configuration.get('baselineTarball');baseline_sha=configuration.get('baselineSha256')
+    if not baseline_file or not baseline_sha or hashlib.sha256(Path(baseline_file).read_bytes()).hexdigest()!=baseline_sha:raise ValueError('Additional diagnostic comparison lacks actual frozen baseline archive identity')
+    with tarfile.open(baseline_file,'r:*')as archive:baseline_package=json.load(archive.extractfile('package/package.json'))
+    if baseline_target and baseline_target.get('candidateSha256')!=baseline_sha:raise ValueError('Additional actual baseline differs from selected prior-main evidence')
+    for row in rows:
+        qualification=row.get('qualification')
+        if qualification and (qualification.get('candidateSha')!=metadata['candidateSha256']or qualification.get('baselineSha')!=baseline_sha):raise ValueError('Additional owning qualification uses different candidate/baseline archives')
+    metadata.update(baseline=dict(tarball=baseline_file,sha256=baseline_sha,version=baseline_package.get('version'),revision=(baseline_target or{}).get('targetRevision')),historicalBudgetApplicable=False,qualificationStatus='uncalibrated'if any(row['status']=='uncalibrated'for row in rows)else ledger.get('status'),qualificationPolicy='Diagnostic actual candidate versus the explicitly supplied previous-main baseline. Historical-anchor constants do not identify this baseline. Historical published-release budget qualification is not established; completed uncalibrated gates are not performance-qualified.')
     metadata.update(policy='Additional maintained target-owned suite ledger; source Git objects and actual target archive verified. No community/PR ranks or original suite statuses are replaced.',suites=rows)
     return metadata
 
@@ -417,7 +453,7 @@ def invocation_attempt_census(directory,result,inputs,package):
     return dict(completeAttempts=not gaps,completeness='complete declared attempt census'if not gaps else 'incomplete declared attempt census',gaps=gaps,libraryImportCohort=imports,transportFamilyCohort=cells,cliRenderWatchCohort=cli_cells,publicFunctionsWithoutDirectWitness=unknown,scope='Complete attempts never means all passed or every public function exercised. Render/watch rounds are sidecar-observed; common CLI helper verbs intentionally run once. Nonrenderer exports retain import/discovery and explicit unmeasured function witnesses.')
 
 
-def current_invocation_supplement(original,directory,original_directory,assets_file):
+def current_invocation_supplement(original,directory,original_directory,assets_file,dave_directory=None):
     ledger,metadata=current_target_ledger(original,directory,required_suites=('invocation','dave','pinned-reference-score'))
     configuration=load(directory/'invocation.json',{})
     selected=[suite for suite in ledger.get('suites',[])if suite.get('selected')and suite.get('status')!='skipped']
@@ -455,13 +491,20 @@ def current_invocation_supplement(original,directory,original_directory,assets_f
     if Path(website.get('root','')).resolve()!=Path(actual_site).resolve()or not website.get('files'):raise ValueError('Latest invocation browser site differs from admitted built assets')
     verify_file_proofs([native]);verify_file_proofs(website['files'])
     census=invocation_attempt_census(directory,result,inputs,package)
-    dave,dave_metadata=current_dave(original_directory,directory,metadata)
+    dave_source=dave_directory or directory
+    correction=None
+    if dave_directory:
+        dave_ledger,dave_target=current_target_ledger(original,dave_directory,required_suites=('dave',))
+        if any(dave_target.get(key)!=metadata.get(key)for key in ('targetRevision','packageRoot','candidateSha256')):raise ValueError('Explicit latest Dave display correction uses another actual target/archive')
+        old=next(suite for suite in selected if suite['id']=='dave')
+        correction=dict(originalDirectory=str(directory),originalStatus=old.get('status'),originalResult=old.get('result'),replacementDirectory=str(dave_directory),replacementStatus=dave_ledger.get('status'),policy='Explicit Dave-only display correction after premeasurement npm-cache acquisition failure. Original failed ledger remains immutable; actual fresh clocks and artifact identity come only from this new completed Dave run.')
+    dave,dave_metadata=current_dave(original_directory,dave_source,metadata)
     proxy=dict(original,targetRevision=ledger['targetRevision'],targetRoot=ledger['targetRoot'],packageRoot=ledger['packageRoot'])
     reference_path=directory/'pinned-reference-score/reference-score-result.json'
     reference,reference_metadata=reference_correction(proxy,reference_path,original_directory,target_run=directory)
     if next(suite['result']for suite in selected if suite['id']=='pinned-reference-score')!=reference:raise ValueError('Latest reference result differs from its actual suite ledger')
     counts=Counter(row.get('status')for row in result.get('observations',[]))
-    metadata.update(resultFile=str(directory/'invocation/invocation.json'),resultStatus=result.get('status'),attemptCensus=census,counts=dict(counts),observations=len(result.get('observations',[])),representativeCases=len(inputs['workloads']),reference=inputs.get('provenance'),admittedPackageFiles=admitted,qualificationDependencies=dependencies,assetsProof=dict(file=str(assets_file.resolve()),native=native,websiteRoot=website['root'],websiteFiles=len(website['files']),sourceRevision=metadata['targetRevision']),dave=dave_metadata,daveFile=str(directory/'dave/browser-report.json'),referenceScore=dict(resultFile=str(reference_path),protocol=reference['protocol'],status=reference['status'],evidence=reference['evidence']),policy='Independent latest-target invocation plus Dave/pinned-reference campaign. Actual attempt census distinguishes completion from success; raw observations and statuses retained. Does not replace the older complete run, style correction, DCE community or older Dave/parser results. Representative-family routing is not exhaustive syntax/functionality proof.')
+    metadata.update(resultFile=str(directory/'invocation/invocation.json'),resultStatus=result.get('status'),attemptCensus=census,counts=dict(counts),observations=len(result.get('observations',[])),representativeCases=len(inputs['workloads']),reference=inputs.get('provenance'),admittedPackageFiles=admitted,qualificationDependencies=dependencies,assetsProof=dict(file=str(assets_file.resolve()),native=native,websiteRoot=website['root'],websiteFiles=len(website['files']),sourceRevision=metadata['targetRevision']),dave=dave_metadata,daveFile=str(dave_source/'dave/browser-report.json'),daveDisplayCorrection=correction,referenceScore=dict(resultFile=str(reference_path),protocol=reference['protocol'],status=reference['status'],evidence=reference['evidence']),policy='Independent latest-target invocation plus Dave/pinned-reference campaign. Actual attempt census distinguishes completion from success; raw observations and statuses retained. Does not replace the older complete run, style correction, DCE community or older Dave/parser results. Representative-family routing is not exhaustive syntax/functionality proof.')
     return result,metadata
 
 
@@ -477,11 +520,15 @@ def owning_supplement(directory):
         proofs=[]
         for item in suite.get('source','').split(', '):
             path=Path(item);path=path if path.is_absolute()else root/path
-            try:relative=path.resolve().relative_to(root.resolve()).as_posix()
-            except ValueError as error:raise ValueError('Owning suite source is outside its actual driver')from error
-            blob=subprocess.check_output(['git','-C',str(root),'rev-parse',revision+':'+relative],text=True).strip()
-            if subprocess.run(['git','-C',str(root),'diff','--quiet',revision,'--',relative],capture_output=True).returncode!=0:raise ValueError('Owning suite source changed since its recorded run: '+relative)
-            proofs.append(dict(path=relative,gitBlob=blob,revision=revision))
+            owner=root;owner_revision=revision
+            try:relative=path.resolve().relative_to(owner.resolve()).as_posix()
+            except ValueError:
+                owner=Path(ledger.get('targetRoot',''));owner_revision=ledger.get('targetRevision','')
+                try:relative=path.resolve().relative_to(owner.resolve()).as_posix()
+                except ValueError as error:raise ValueError('Owning suite source is outside its actual driver/target')from error
+            blob=subprocess.check_output(['git','-C',str(owner),'rev-parse',owner_revision+':'+relative],text=True).strip()
+            if subprocess.run(['git','-C',str(owner),'diff','--quiet',owner_revision,'--',relative],capture_output=True).returncode!=0:raise ValueError('Owning suite source changed since its recorded run: '+relative)
+            proofs.append(dict(path=relative,root=str(owner),gitBlob=blob,revision=owner_revision))
         test_rows=[row for row in result.get('observations',[])if row.get('operation')=='owning-tests']
         suites.append(dict(id=suite['id'],status=suite.get('status'),elapsedMs=suite.get('elapsedMs'),source=suite.get('source'),sourceProofs=proofs,workingDirectory=suite.get('workingDirectory'),owningTests=[row.get('metrics')for row in test_rows],observations=len(result.get('observations',[])),gaps=result.get('gaps',[]),artifacts=result.get('artifacts',[]),log=suite.get('log')))
     ownership=configuration.get('ownershipSite');fixture=None
@@ -493,6 +540,52 @@ def owning_supplement(directory):
 
 def harness_blocked(row):
     return 'Strict SVG XML qualification requires the saxes benchmark dependency'in str(row.get('detail',''))
+
+
+def family_correction(path,campaign):
+    manifest=load(path,{})
+    if manifest.get('protocol')!='family-empty-svg-eligibility-v1'or not manifest.get('createdAt')or not campaign:raise ValueError('Family correction requires explicit reviewed protocol and selected latest PR campaign')
+    targets={row['id']:row for row in campaign.get('targets',[])};corrected=[]
+    key=lambda row:{**{field:row.get(field)for field in ('suite','surface','runtime','family','caseId','operation','format','mode')},**({'round':row['metrics']['round']}if 'round'in row.get('metrics',{})else{})}
+    for target in manifest.get('targets',[]):
+        owner=targets.get(target['id']);coverage=[row for row in campaign.get('coverage',[])if row.get('target')==target['id']and row.get('suite')=='family']
+        if not owner or owner.get('revision')!=target.get('targetRevision')or owner.get('tarballSha256')!=target.get('candidateSha256')or len(coverage)!=1 or Path(coverage[0]['resultPath']).resolve()!=Path(target['originalResultPath']).resolve():raise ValueError('Family correction differs from actual frozen target/archive/original coverage path')
+        old=load(Path(target['originalResultPath']));fresh=load(Path(target['freshResultPath']));new=load(Path(target['correctedResultPath']))
+        if any(not result or result.get('id')!='family'or not result.get('finishedAt')for result in (old,fresh,new)):raise ValueError('Family correction requires complete original/fresh/composed family envelopes')
+        old_rows={canonical(key(row)):row for row in old['observations']};fresh_rows={canonical(key(row)):row for row in fresh['observations']};new_rows={canonical(key(row)):row for row in new['observations']}
+        if any(len(mapping)!=len(result['observations'])for mapping,result in ((old_rows,old),(fresh_rows,fresh),(new_rows,new)))or set(new_rows)!=set(old_rows):raise ValueError('Family correction changes or duplicates observation keys')
+        replacements=target.get('replacements',[]);selected={canonical(item['key'])for item in replacements}
+        if selected!={canonical(item)for item in target.get('replacedKeys',[])}or len(selected)!=len(replacements):raise ValueError('Family correction selected key proof differs from replacement records')
+        for identity,row in old_rows.items():
+            if identity not in selected:
+                if new_rows[identity]!=row:raise ValueError('Family correction modifies an unselected observation')
+                continue
+            if identity not in fresh_rows or new_rows[identity]!=fresh_rows[identity]or row.get('operation')!='render-svg'or row.get('status')!='failed'or new_rows[identity].get('status')!='not-applicable':raise ValueError('Family correction must replace only failed empty SVG rows with exact fresh N/A evidence')
+        for replacement in replacements:
+            if any(not finite(replacement.get('independentAssertions',{}).get(field))or replacement['independentAssertions'][field]!=0 for field in ('nodeCount','edgeCount','groupCount'))or replacement.get('expectedLabels')!=[]or set(replacement.get('observedLayout',{}))!={'nodes','edges','groups'}or any(not finite(value)or value!=0 for value in replacement.get('observedLayout',{}).values()):raise ValueError('Family empty-SVG correction does not establish independently empty expected/actual work')
+            selected_row=new_rows[canonical(replacement['key'])];metrics=selected_row.get('metrics',{});canvas=replacement.get('zeroCanvas',{})
+            if any(not finite(metrics.get(field))or metrics[field]!=0 for field in ('emptyCanvasWidth','emptyCanvasHeight'))or any(not finite(canvas.get(field))or canvas[field]!=0 for field in ('width','height'))or metrics.get('emptyCanvasViewBox')!=canvas.get('viewBox'):raise ValueError('Family empty-SVG correction lacks explicit independently observed finite zero canvas')
+            source=replacement.get('ownerSource',{});blob=subprocess.check_output(['git','-C',source['root'],'rev-parse',source['revision']+':'+source['path']],text=True).strip()
+            if blob!=source.get('blob'):raise ValueError('Family correction independent fixture Git identity changed')
+            fixture=json.loads(subprocess.check_output(['git','-C',source['root'],'cat-file','blob',blob],text=True))
+            def objects(value):
+                if isinstance(value,dict):
+                    yield value
+                    for item in value.values():yield from objects(item)
+                elif isinstance(value,list):
+                    for item in value:yield from objects(item)
+            matches=[item for item in objects(fixture)if item.get('id')==source.get('fixtureId')and item.get('source')==source.get('source')]
+            if len(matches)!=1 or matches[0].get('assertions')!=replacement.get('independentAssertions'):raise ValueError('Family correction source/assertions are not its independently owned fixture')
+        corrected.append(dict(id=target['id'],targetRevision=target['targetRevision'],candidateSha256=target['candidateSha256'],originalResultPath=target['originalResultPath'],correctedResultPath=target['correctedResultPath'],freshResultPath=target['freshResultPath'],replacementCount=len(selected),originalWindow={field:old.get(field)for field in ('startedAt','finishedAt')},freshWindow={field:fresh.get(field)for field in ('startedAt','finishedAt')}))
+    if not corrected or len({row['id']for row in corrected})!=len(corrected):raise ValueError('Empty/duplicate family correction target manifest')
+    return dict(protocol=manifest['protocol'],manifest=str(path.resolve()),createdAt=manifest['createdAt'],policy=manifest.get('policy'),targets=corrected)
+
+
+def corrected_family_path(path,metadata):
+    if metadata:
+        match=next((row for row in metadata['targets']if Path(row['originalResultPath']).resolve()==Path(path).resolve()),None)
+        if match:return Path(match['correctedResultPath'])
+    return Path(path)
 
 
 def pr_campaign_selection(directory):
@@ -1104,7 +1197,7 @@ class Figures:
                 if not own:
                     data.append(dict(candidate=label(rank),suite=suite,profile=campaign.get('measurementConfig',{}).get(suite,{}).get('profile','unrecorded'),rounds=campaign.get('measurementConfig',{}).get(suite,{}).get('rounds'),status='unmeasured',observations=None,statusCounts=None));continue
                 for row in own:
-                    result=load(Path(row['resultPath']))if row.get('resultPath')else None
+                    result=load(corrected_family_path(row['resultPath'],getattr(self,'family_correction',None)))if row.get('resultPath')else None
                     counts=defaultdict(int)
                     if result and isinstance(result.get('observations'),list):
                         for observation in result['observations']:counts['harness-blocked'if harness_blocked(observation)else observation.get('status','unknown')]+=1
@@ -1113,7 +1206,7 @@ class Figures:
                         total=row.get('total')
                         if finite(row.get('passed')):counts['passed']=row['passed']
                         if finite(total):counts['unknown']=max(0,total-counts['passed'])
-                    data.append(dict(candidate=label(rank),suite=suite,profile=row.get('profile','unrecorded'),rounds=row.get('rounds'),requestedRounds=campaign.get('measurementConfig',{}).get('family',{}).get('requestedRounds',row.get('rounds'))if suite=='family'else row.get('rounds'),actualFunctionalityPasses=1 if suite=='family'else None,status=row.get('status'),observations=total,statusCounts=dict(counts),resultPath=row.get('resultPath')))
+                    data.append(dict(candidate=label(rank),suite=suite,profile=row.get('profile','unrecorded'),rounds=row.get('rounds'),requestedRounds=campaign.get('measurementConfig',{}).get('family',{}).get('requestedRounds',row.get('rounds'))if suite=='family'else row.get('rounds'),actualFunctionalityPasses=1 if suite=='family'else None,status=(result or{}).get('status',row.get('status')),originalStatus=row.get('status'),observations=total,statusCounts=dict(counts),resultPath=str(corrected_family_path(row['resultPath'],getattr(self,'family_correction',None)))if row.get('resultPath')else None,originalResultPath=row.get('resultPath')))
             if not data:continue
             figure,ax=self.plt.subplots(figsize=(11,max(4,len(data)*.38)))
             for y,row in enumerate(data):
@@ -1232,7 +1325,7 @@ class Figures:
         self.save(figure,'owning-test-score-time','Owning suite counts and process wall time','Groups exercise different behavior and case counts: no cross-suite speed rank. Wall time includes initialization, assertions, reference IPC and instrumentation; it is not parser API latency.',data)
 
     def html(self, report, campaign, supplemental=None, correction=None, reference_overlay=None):
-        reduced=dict(run={k:report.get(k)for k in ('status','startedAt','finishedAt','profile','rounds','driverRevision','targetRevision')},suitePins={suite['id']:suite['pin']for suite in report.get('suites',[])if suite.get('pin')},prCampaign={k:campaign.get(k)for k in ('frozenAt','main','units','protocols','measurementConfig','measurementDriver')}if campaign else None,communityCli={**{k:supplemental.get(k)for k in ('startedAt','latencyFinishedAt','finishedAt','rounds','policy','resourcePolicy','executionOrder')},'resourceObserver':supplemental.get('evidence',{}).get('resourceObserver'),'composition':supplemental.get('composition'),'nativeBinding':supplemental.get('reportingNativeBinding')}if supplemental else None,invocationCorrection=correction,referenceCorrection=reference_overlay,communityReplay=getattr(self,'community_replay',None),currentRun=getattr(self,'current_run',None),additionalRun=getattr(self,'additional_run',None),currentInvocationRun=getattr(self,'latest_invocation',None),suiteRuns=getattr(self,'suite_runs',[]),historicalPrCampaign=getattr(self,'historical_campaign',None),figures=self.items,gaps=self.gaps)
+        reduced=dict(run={k:report.get(k)for k in ('status','startedAt','finishedAt','profile','rounds','driverRevision','targetRevision')},suitePins={suite['id']:suite['pin']for suite in report.get('suites',[])if suite.get('pin')},prCampaign={k:campaign.get(k)for k in ('frozenAt','main','units','protocols','measurementConfig','measurementDriver')}if campaign else None,communityCli={**{k:supplemental.get(k)for k in ('startedAt','latencyFinishedAt','finishedAt','rounds','policy','resourcePolicy','executionOrder')},'resourceObserver':supplemental.get('evidence',{}).get('resourceObserver'),'composition':supplemental.get('composition'),'nativeBinding':supplemental.get('reportingNativeBinding'),'resourceDisplayCorrection':supplemental.get('resourceDisplayCorrection')}if supplemental else None,invocationCorrection=correction,referenceCorrection=reference_overlay,communityReplay=getattr(self,'community_replay',None),currentRun=getattr(self,'current_run',None),additionalRun=getattr(self,'additional_run',None),currentInvocationRun=getattr(self,'latest_invocation',None),suiteRuns=getattr(self,'suite_runs',[]),familyCorrection=getattr(self,'family_correction',None),historicalPrCampaign=getattr(self,'historical_campaign',None),figures=self.items,gaps=self.gaps)
         (self.out/'chart-data.json').write_text(json.dumps(reduced,indent=2,allow_nan=False)+'\n')
         cards=[]
         for item in self.items:
@@ -1262,11 +1355,15 @@ def main():
     parser.add_argument('--current-run',type=Path,help='Separate completed current-target Dave and same-fixture pinned-reference supplemental run; never replaces original suite evidence')
     parser.add_argument('--additional-run',type=Path,help='Separate completed maintained target-owned suite ledger; requires the explicit current target selection and never merges ranks')
     parser.add_argument('--historical-prs',type=Path,help='Separate older full PR campaign; never relabeled as current open heads')
+    parser.add_argument('--family-correction',type=Path,help='Explicit latest PR empty-fixture SVG eligibility correction; exact selected row partition only')
     parser.add_argument('--current-invocation-run',type=Path,help='Independent latest-target complete invocation suite; retains its own target and does not replace old invocation rows')
+    parser.add_argument('--current-dave-run',type=Path,help='Explicit same-target fresh Dave-only display correction; preserves the failed original ledger')
     parser.add_argument('--current-invocation-assets',type=Path,help='Explicit clean-source public native/site build proof for latest full invocation')
     parser.add_argument('--suite-run',type=Path,action='append',default=[],help='Independent completed owning/environment correction ledger; repeatable, no rank or original-status replacement')
     parser.add_argument('--cli-native-proof',type=Path,help='Explicit bit-identical clean-source reproduction proof binding supplemental Agentic native CLI bytes to the frozen target')
+    parser.add_argument('--cli-resource-run',type=Path,help='Explicit same-bindings fresh resource-only GNU-time observation; preserves every CLI latency row')
     args=parser.parse_args()
+    if args.current_dave_run and not args.current_invocation_run:parser.error('--current-dave-run requires --current-invocation-run')
     if args.current_invocation_assets and not args.current_invocation_run:parser.error('--current-invocation-assets requires --current-invocation-run')
     if args.allow_community_target_change and not args.community_run:parser.error('--allow-community-target-change requires --community-run')
     if not args.validate_only and args.out is None:parser.error('--out is required unless --validate-only is selected')
@@ -1284,6 +1381,10 @@ def main():
         if args.prs:campaign,campaign_metadata=pr_campaign_selection(args.prs)
         if args.historical_prs:historical_campaign,historical_campaign_metadata=pr_campaign_selection(args.historical_prs)
     except (ValueError,OSError,TypeError,KeyError)as error:parser.error(str(error))
+    family_metadata=None
+    if args.family_correction:
+        try:family_metadata=family_correction(args.family_correction,campaign)
+        except (ValueError,OSError,TypeError,KeyError,subprocess.SubprocessError)as error:parser.error(str(error))
     correction_result=None;correction_metadata=None
     if args.invocation_correction:
         try:correction_result,correction_metadata=invocation_correction(report,args.invocation_correction)
@@ -1298,19 +1399,19 @@ def main():
             current_ledger,current_dave_result,current_reference_result,current_metadata=current_supplement(report,args.run,args.current_run,reference_metadata)
             if community_metadata and any(current_metadata[key]!=community_metadata[key]for key in ('targetRevision','packageRoot','candidateSha256')):raise ValueError('Explicit current and expanded-community measurements use different current targets')
         except (ValueError,OSError,TypeError,KeyError,tarfile.TarError,subprocess.SubprocessError)as error:parser.error(str(error))
-    additional_metadata=None
-    if args.additional_run:
-        try:
-            expected_target=current_metadata or community_metadata
-            if not expected_target:raise ValueError('--additional-run requires --current-run or an explicit --community-run current-target selection')
-            additional_metadata=additional_supplement(report,args.additional_run,expected_target)
-        except (ValueError,OSError,TypeError,KeyError,tarfile.TarError,subprocess.SubprocessError)as error:parser.error(str(error))
     latest_invocation=None;latest_invocation_metadata=None;suite_metadata=[]
     try:
-        if args.current_invocation_run:latest_invocation,latest_invocation_metadata=current_invocation_supplement(report,args.current_invocation_run,args.run,args.current_invocation_assets)
+        if args.current_invocation_run:latest_invocation,latest_invocation_metadata=current_invocation_supplement(report,args.current_invocation_run,args.run,args.current_invocation_assets,args.current_dave_run)
         if latest_invocation_metadata and campaign_metadata and latest_invocation_metadata['targetRevision']!=campaign_metadata['main']:raise ValueError('Latest invocation target differs from latest selected PR main; retain them as separate dated selections')
         suite_metadata=[owning_supplement(directory)for directory in args.suite_run]
     except (ValueError,OSError,TypeError,KeyError,tarfile.TarError,subprocess.SubprocessError)as error:parser.error(str(error))
+    additional_metadata=None
+    if args.additional_run:
+        try:
+            expected_target=latest_invocation_metadata or current_metadata or community_metadata
+            if not expected_target:raise ValueError('--additional-run requires --current-run or an explicit --community-run current-target selection')
+            additional_metadata=additional_supplement(report,args.additional_run,expected_target,current_metadata or community_metadata)
+        except (ValueError,OSError,TypeError,KeyError,tarfile.TarError,subprocess.SubprocessError)as error:parser.error(str(error))
     observations=[]
     for suite in report.get('suites',[]):
         result=correction_result if suite.get('id')=='invocation'and correction_result else reference_result if suite.get('id')=='pinned-reference-score'and reference_result else suite.get('result')
@@ -1320,15 +1421,20 @@ def main():
         observations=[row for row in observations if row.get('suite')not in replaced]+community['observations']
     enrolled=[row for row in inputs.get('workloads',[])if 'core-graph-batch'not in row.get('features',[])]
     supplemental,supplemental_result=completed_cli(args.community_run or args.run,args.cli_native_proof)
+    resource_metadata=None
+    if args.cli_resource_run:
+        try:supplemental,supplemental_result,resource_metadata=cli_resource_overlay(supplemental,supplemental_result,args.cli_resource_run)
+        except (ValueError,OSError,TypeError,KeyError)as error:parser.error(str(error))
     ranks=scores.get('ranks',[])
     if supplemental:
         ranks=[rank for rank in ranks if rank.get('surface')!='cli:end-to-end']+supplemental['ranks']
         observations=[row for row in observations if row.get('suite')!='community-cli']+supplemental_result.get('observations',[])+supplemental_result.get('diagnostics',[])
     if args.validate_only:
-        cli_metadata=dict(directory=supplemental['reportingDirectory'],familyRanks=supplemental['reportingFamilyRanks'],composition=supplemental_result.get('composition'),target=supplemental['evidence']['target'],nativeBinding=supplemental['reportingNativeBinding'])if supplemental else None
-        print(json.dumps(dict(protocol='unified-report-selection-v1',communityDirectory=str((args.community_run or (find(args.run,'community-result.json')or args.run).parent).resolve()),communityReplay=community_metadata,cliSupplement=cli_metadata,invocationCorrection=correction_metadata,referenceCorrection=reference_metadata,currentRun=current_metadata,additionalRun=additional_metadata,currentInvocationRun=latest_invocation_metadata,suiteRuns=suite_metadata,prCampaign=campaign_metadata,historicalPrCampaign=historical_campaign_metadata),allow_nan=False))
+        cli_metadata=dict(directory=supplemental['reportingDirectory'],familyRanks=supplemental['reportingFamilyRanks'],composition=supplemental_result.get('composition'),target=supplemental['evidence']['target'],nativeBinding=supplemental['reportingNativeBinding'],resourceCorrection=resource_metadata)if supplemental else None
+        print(json.dumps(dict(protocol='unified-report-selection-v1',communityDirectory=str((args.community_run or (find(args.run,'community-result.json')or args.run).parent).resolve()),communityReplay=community_metadata,cliSupplement=cli_metadata,invocationCorrection=correction_metadata,referenceCorrection=reference_metadata,currentRun=current_metadata,additionalRun=additional_metadata,currentInvocationRun=latest_invocation_metadata,suiteRuns=suite_metadata,prCampaign=campaign_metadata,historicalPrCampaign=historical_campaign_metadata,familyCorrection=family_metadata),allow_nan=False))
         return
     figures=Figures(args.out)
+    figures.family_correction=family_metadata
     figures.latest_invocation=latest_invocation_metadata;figures.suite_runs=suite_metadata
     figures.historical_campaign={k:historical_campaign.get(k)for k in ('frozenAt','main','measurementConfig','measurementDriver')}if historical_campaign else None
     if latest_invocation:

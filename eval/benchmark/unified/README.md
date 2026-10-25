@@ -408,3 +408,30 @@ working directory and tracked owning-source Git objects. Status, complete wall
 time, observed qualification gates, prerequisites and artifact links are kept
 separate from original suites and comparative ranks. A completed process never
 substitutes for passing qualification gates.
+
+`--current-dave-run DIRECTORY` explicitly selects a fresh same-target Dave-only
+rerun for the latest display. It must bind the same Git target, package/archive,
+frozen corpus and comparators. The failed original Dave ledger remains visible;
+no observation is overwritten or treated as a measured result before acquisition.
+An additional peer qualification ledger uses its actual supplied baseline. A
+previous-main 0.4.2 comparison does not establish the published 0.4.1 historical
+budget, even if the owning policy retains a historical Git anchor constant.
+Owning `uncalibrated` status and `performanceQualified:false` take precedence in
+the presentation over a historical outer runner's generic passed process status.
+
+`--family-correction FILE` is an explicit latest-PR display overlay for reviewed
+empty-source SVG fixture eligibility. The reader binds each candidate archive,
+original/fresh/composed key partition and independent fixture Git object/source/
+assertions. Only original failed empty SVG rows may become exact fresh N/A rows
+when independently expected and observed node/edge/group counts are all zero
+and no visible labels are expected. Every unselected old row is byte-equivalent
+as JSON evidence; performance and older snapshots remain unchanged. This is a
+benchmark eligibility correction, not improved product rendering fidelity.
+
+`--cli-resource-run DIRECTORY` explicitly admits a later resource-only fixed-work
+GNU-time pass against the exact selected baseline CLI cohort/variants/target.
+The reader verifies actual observer bytes/version/acquisition provenance and every
+declared per-case diagnostic key. It replaces displayed RSS/CPU evidence only;
+all earlier latency observations, ranks and windows remain unchanged, and old
+missing-observer capability rows remain raw. RSS/CPU qualification requires actual
+rendered-output admission; failed work is not a cheap successful renderer.
