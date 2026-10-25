@@ -627,7 +627,7 @@ interface FlowchartGraph {
   linkStyles: Map<number | 'default', Record<string, string>>
 }
 
-interface StateNode { id: string; label?: string; labelContent?: LabelContent; declaredBare?: true; stereotype?: 'fork' | 'join' | 'choice' | 'history' | 'deep-history'; states?: StateNode[]; transitions?: StateTransition[]; regions?: StateRegion[]; className?: string; style?: Record<string, string>; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
+interface StateNode { id: string; label?: string; labelContent?: LabelContent; declaredBare?: true; declarationBeforeTransition?: number; stereotype?: 'fork' | 'join' | 'choice' | 'history' | 'deep-history'; states?: StateNode[]; transitions?: StateTransition[]; regions?: StateRegion[]; className?: string; style?: Record<string, string>; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
 interface StateRegion { states: StateNode[]; transitions: StateTransition[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
 interface StateTransition { from: string; to: string; fromClass?: string; toClass?: string; label?: string; labelContent?: LabelContent; style?: Record<string, string> }   // from/to may be '[*]' or a history ref ('[H]', 'X[H*]'); fromClass/toClass class such an endpoint ('[*]:::c --> A')
 interface StateNote { target: string; side: 'left' | 'right'; text: string; textContent?: LabelContent }

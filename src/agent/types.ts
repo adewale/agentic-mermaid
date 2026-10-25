@@ -687,6 +687,10 @@ export interface StateNode {
   labelContent?: LabelContent
   /** Authored/synthesized standalone declaration; implicit transition endpoints omit it. */
   declaredBare?: true
+  /** Standalone declaration boundary among transitions in this owning scope.
+   * Contextual [*] nodes are created at their transition, so state-array order
+   * alone cannot reconstruct this timing. Omitted on synthetic legacy bodies. */
+  declarationBeforeTransition?: number
   /** Pseudostate stereotype (`state id <<fork|join|choice|history|…>>`) —
    *  fork/join render as bars, choice as a diamond, history as an (H)/(H*)
    *  circle. `<<H>>`/`<<H*>>` shorthands normalize to history/deep-history. */

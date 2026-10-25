@@ -173,11 +173,21 @@ export function parseStateBody(lines: string[]): StateBody | null {
     if (content) node.labelContent = content
     else delete node.labelContent
   }
+  const declarations = new Map<StateNode, Map<ParseScope, number>>()
+  const declare = (scope: ParseScope, node: StateNode): void => {
+    let entries = declarations.get(node)
+    if (!entries) { entries = new Map(); declarations.set(node, entries) }
+    if (!entries.has(scope)) entries.set(scope, scope.transitions.length)
+  }
   const pushNote = (scope: ParseScope, target: string, side: 'left' | 'right', authored: string): void => {
     const { text, content } = readStateText(authored)
     notes.push({ target, side, text, ...(content ? { textContent: content } : {}) })
     // A note on an undeclared state declares it (mirrors the render parser).
-    if (!compositeIds.has(target)) ensureState(scope, target)
+    if (!compositeIds.has(target) && !scope.byId.has(target)) {
+      const node = ensureState(scope, target)
+      node.declaredBare = true
+      declare(scope, node)
+    }
   }
 
   for (const statement of statements) {
@@ -289,6 +299,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
     if (stereo) {
       if (!isCompositeId(stereo.id) || (compositeIds.has(stereo.id) && !scope.byId.has(stereo.id))) return null
       const node = ensureState(scope, stereo.id)
+      declare(scope, node)
       node.stereotype = stereo.stereotype
       if (stereo.label !== undefined && node.label === undefined) labelState(node, [stereo.label])
       continue
@@ -303,6 +314,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
       const child = newScope(stateById)
       const prior = stateById.get(id)
       const node: StateNode = prior ?? { id }
+      declare(scope, node)
       node.states = child.states
       node.transitions = child.transitions
       if (pieces !== undefined) labelState(node, pieces)
@@ -351,6 +363,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
         if (!pendingCompositeLabels.has(id)) pendingCompositeLabels.set(id, pieces)
       } else {
         const node = ensureState(scope, id)
+        declare(scope, node)
         // Definition-before-use: only set if not already labeled.
         if (node.label === undefined) labelState(node, pieces)
       }
@@ -389,7 +402,11 @@ export function parseStateBody(lines: string[]): StateBody | null {
     // --- standalone class shorthand: `A:::hot` ---
     const shorthand = parseClassShorthandStatement(line)
     if (shorthand) {
-      if (!compositeIds.has(shorthand.id)) ensureState(scope, shorthand.id).declaredBare = true
+      if (!compositeIds.has(shorthand.id)) {
+        const node = ensureState(scope, shorthand.id)
+        declare(scope, node)
+        node.declaredBare = true
+      }
       classAssignments.push({ id: shorthand.id, className: shorthand.className, scope })
       continue
     }
@@ -404,6 +421,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
       } else {
         // A description adds a line under any label the state has.
         const node = composites.get(id) ?? ensureState(scope, id)
+        declare(scope, node)
         labelState(node, [...(labelPieces.get(node) ?? []), piece])
       }
       continue
@@ -415,6 +433,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
       // A composite's id names the composite, which a mention adds nothing to.
       if (compositeIds.has(declaredId)) continue
       const node = ensureState(scope, declaredId)
+      declare(scope, node)
       node.declaredBare = true
       continue
     }
@@ -469,6 +488,15 @@ export function parseStateBody(lines: string[]): StateBody | null {
     }
   }
   unlabelBare(root.states)
+  const attachDeclarationBoundaries = (scope: ParseScope): void => {
+    for (const node of scope.states) {
+      const boundary = declarations.get(node)?.get(scope)
+      if (boundary !== undefined) node.declarationBeforeTransition = boundary
+    }
+  }
+  const declarationScopes = new Set<ParseScope>([root])
+  for (const entries of declarations.values()) for (const scope of entries.keys()) declarationScopes.add(scope)
+  for (const scope of declarationScopes) attachDeclarationBoundaries(scope)
   canonicalizeStateOrder(root.states, root.transitions)
   const body: StateBody = {
     kind: 'state',
@@ -568,7 +596,7 @@ type ScopeStep = { state: StateNode } | { transition: StateTransition }
  * creates it. Composites are blocks, which a transition mention does not
  * create.
  */
-function scopeWriteOrder(states: StateNode[], transitions: StateTransition[]): { steps: ScopeStep[]; created: StateNode[] } {
+function inferredScopeWriteOrder(states: StateNode[], transitions: StateTransition[]): { steps: ScopeStep[]; created: StateNode[] } {
   const byId = new Map(states.map(state => [state.id, state]))
   const position = new Map(states.map((state, index) => [state, index]))
   const created = new Set<StateNode>()
@@ -615,6 +643,47 @@ function scopeWriteOrder(states: StateNode[], transitions: StateTransition[]): {
     if (hasDeclaration(state)) steps.push({ state })
     created.add(state)
   }
+  return { steps, created: [...created] }
+}
+
+/** Merge the authored declaration boundaries with the existing transition
+ * sequence. Only legacy/synthetic records need the old deterministic inference. */
+function scopeWriteOrder(states: StateNode[], transitions: StateTransition[]): { steps: ScopeStep[]; created: StateNode[] } {
+  if (!states.some(state => state.declarationBeforeTransition !== undefined)) return inferredScopeWriteOrder(states, transitions)
+  const fallback = new Map<StateNode, number>()
+  let index = 0
+  for (const step of inferredScopeWriteOrder(states, transitions).steps) {
+    if ('transition' in step) index++
+    else fallback.set(step.state, index)
+  }
+  const boundaries = new Map<number, StateNode[]>()
+  const byId = new Map(states.map(state => [state.id, state]))
+  const firstUse = new Map<string, number>()
+  transitions.forEach((transition, index) => {
+    for (const id of [transition.from, transition.to]) if (!firstUse.has(id)) firstUse.set(id, index)
+  })
+  for (const state of states) {
+    if (!hasDeclaration(state)) continue
+    let boundary = state.declarationBeforeTransition ?? fallback.get(state) ?? transitions.length
+    if (state.stereotype !== undefined) {
+      const use = firstUse.get(state.id)
+      if (use !== undefined) boundary = Math.min(boundary, use)
+    }
+    const bucket = boundaries.get(boundary) ?? []
+    bucket.push(state); boundaries.set(boundary, bucket)
+  }
+  const steps: ScopeStep[] = [], created = new Set<StateNode>()
+  for (let boundary = 0; boundary <= transitions.length; boundary++) {
+    for (const state of boundaries.get(boundary) ?? []) { steps.push({ state }); created.add(state) }
+    const transition = transitions[boundary]
+    if (!transition) continue
+    steps.push({ transition })
+    for (const id of [transition.from, transition.to]) {
+      const state = byId.get(id)
+      if (state && !isComposite(state)) created.add(state)
+    }
+  }
+  for (const state of states) created.add(state)
   return { steps, created: [...created] }
 }
 
@@ -779,16 +848,19 @@ function stateWriteProblem(body: StateBody): string | undefined {
   // composites use Mermaid's exclusive struct state, where these are IDs.
   const endpoint = body.transitions.find(item => item.label !== undefined && /^acc(?:Title|Descr)$/i.test(item.to))?.to
   let invalid = body.unresolvedStyles?.find(item => !portableStyleTarget(item.id))?.id
+  let invalidBoundary = false
   let invalidStyle = Object.values(body.classDefs ?? {}).some(style => !portableClassLikeStyleProps(style)) || body.unresolvedStyles?.some(item => !portableClassLikeStyleProps(item.style))
-  const visit = (states: StateNode[]): void => {
+  const visit = (states: StateNode[], transitions: StateTransition[]): void => {
     for (const state of states) {
+      if (state.declarationBeforeTransition !== undefined && (!Number.isInteger(state.declarationBeforeTransition) || state.declarationBeforeTransition < 0 || state.declarationBeforeTransition > transitions.length)) invalidBoundary = true
       if (state.style && !portableStyleTarget(state.id)) invalid ??= state.id
       if (state.style && !portableClassLikeStyleProps(state.style)) invalidStyle = true
-      if (state.regions) for (const region of state.regions) visit(region.states)
-      else if (state.states) visit(state.states)
+      if (state.regions) for (const region of state.regions) visit(region.states, region.transitions)
+      else if (state.states) visit(state.states, state.transitions ?? [])
     }
   }
-  visit(body.states)
+  visit(body.states, body.transitions)
+  if (invalidBoundary) return 'State declaration boundary must be an integer within its owning transition sequence'
   if (invalidStyle) return 'State style contains text outside the supported SVG attribute domain'
   if (endpoint !== undefined) return `A top-level labeled State transition to "${endpoint}" cannot be written in pinned Mermaid because the destination and colon start an accessibility directive; rename the destination or remove the label for typed editing`
   return invalid === undefined ? undefined : `State style target "${invalid}" cannot be written in pinned Mermaid; style targets must contain only letters, digits, or underscore`
@@ -821,6 +893,7 @@ function cloneState(s: StateNode): StateNode {
     ...(s.label !== undefined ? { label: s.label } : {}),
     ...(s.labelContent !== undefined ? { labelContent: s.labelContent } : {}),
     ...(s.declaredBare ? { declaredBare: true as const } : {}),
+    ...(s.declarationBeforeTransition !== undefined ? { declarationBeforeTransition: s.declarationBeforeTransition } : {}),
     ...(s.stereotype !== undefined ? { stereotype: s.stereotype } : {}),
     ...(s.className !== undefined ? { className: s.className } : {}),
     ...(s.style !== undefined ? { style: { ...s.style } } : {}),
@@ -997,9 +1070,11 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
       if (op.parent !== undefined && op.parent !== null) {
         const scope = resolveScope(next, op.parent, op.region)
         if (!scope.ok) return scope
+        node.declarationBeforeTransition = scope.value.transitions.length
         scope.value.states.push(node)
       } else {
         if (op.region !== undefined) return err({ code: 'INVALID_OP', message: 'add_state.region requires a composite parent' })
+        node.declarationBeforeTransition = next.transitions.length
         next.states.push(node)
       }
       break
@@ -1020,7 +1095,7 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
       loc.siblings.splice(ix, 1)
       // Cascade: drop every transition (at any level) and note touching a
       // removed id — including history references (`X[H]`) to removed bases.
-      for (const id of removedIds) cascadeRemoveTransitions(next, id)
+      cascadeRemoveTransitions(next, removedIds)
       if (next.notes) {
         next.notes = next.notes.filter(n => !removedIds.has(n.target))
         if (next.notes.length === 0) delete next.notes
@@ -1050,6 +1125,10 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
     case 'set_state_label': {
       const loc = locate(next, op.id)
       if (!loc) return err({ code: 'STATE_NOT_FOUND', message: `State '${op.id}' not found` })
+      if (!hasDeclaration(loc.node)) {
+        const firstUse = loc.transitions.findIndex(transition => transition.from === loc.node.id || transition.to === loc.node.id)
+        loc.node.declarationBeforeTransition = firstUse < 0 ? loc.transitions.length : firstUse + 1
+      }
       delete loc.node.labelContent
       if (op.label === null) { delete loc.node.label; loc.node.declaredBare = true; break }
       const l = validLabel(op.label, 'label')
@@ -1089,13 +1168,13 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
       const list = scope.value.transitions
       if (op.index !== undefined) {
         if (!list[op.index]) return err({ code: 'TRANSITION_NOT_FOUND', message: `No transition at index ${op.index}` })
-        list.splice(op.index, 1)
+        removeScopeTransitions(scope.value.states, list, (_transition, index) => index === op.index)
         break
       }
       if (op.from !== undefined && op.to !== undefined) {
         const ix = list.findIndex(t => t.from === op.from && t.to === op.to)
         if (ix < 0) return err({ code: 'TRANSITION_NOT_FOUND', message: `No transition ${op.from} --> ${op.to}` })
-        list.splice(ix, 1)
+        removeScopeTransitions(scope.value.states, list, (_transition, index) => index === ix)
         break
       }
       return err({ code: 'INVALID_OP', message: 'remove_transition needs an index or a from/to pair' })
@@ -1143,11 +1222,15 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
         // Detach, then attach (transitions stay where they are — state ids
         // are global in mermaid, so cross-boundary transitions remain legal).
         loc.siblings.splice(loc.siblings.indexOf(loc.node), 1)
+        if (!hasDeclaration(loc.node)) loc.node.declaredBare = true
+        loc.node.declarationBeforeTransition = targetScope.value.transitions.length
         targetScope.value.states.push(loc.node)
       } else {
         if (op.region !== undefined) return err({ code: 'INVALID_OP', message: 'move_state.region requires a composite parent' })
         if (loc.siblings === next.states) break // already top-level — no-op
         loc.siblings.splice(loc.siblings.indexOf(loc.node), 1)
+        if (!hasDeclaration(loc.node)) loc.node.declaredBare = true
+        loc.node.declarationBeforeTransition = next.transitions.length
         next.states.push(loc.node)
       }
       break
@@ -1169,8 +1252,17 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
       // composite's position, then drop the composite shell (label included).
       const ix = loc.siblings.indexOf(loc.node)
       const scopes = compositeScopes(loc.node)
+      const boundary = loc.node.declarationBeforeTransition ?? loc.transitions.length
+      const inserted = scopes.reduce((sum, scope) => sum + scope.transitions.length, 0)
+      for (const [position, state] of loc.siblings.entries()) if (state.declarationBeforeTransition !== undefined
+        && (state.declarationBeforeTransition > boundary || state.declarationBeforeTransition === boundary && position > ix)) state.declarationBeforeTransition += inserted
       loc.siblings.splice(ix, 1, ...scopes.flatMap(scope => scope.states))
-      loc.transitions.push(...scopes.flatMap(scope => scope.transitions))
+      let offset = boundary
+      for (const scope of scopes) {
+        for (const state of scope.states) if (hasDeclaration(state)) state.declarationBeforeTransition = offset + (state.declarationBeforeTransition ?? scope.transitions.length)
+        offset += scope.transitions.length
+      }
+      loc.transitions.splice(boundary, 0, ...scopes.flatMap(scope => scope.transitions))
       for (const note of next.floatingNotes ?? []) if (note.scope?.parent === op.id) {
         if (loc.scope) note.scope = { ...loc.scope }
         else delete note.scope
@@ -1408,7 +1500,13 @@ function canonicalizeStateOrder(states: StateNode[], transitions: StateTransitio
     if (state.regions) for (const region of state.regions) canonicalizeStateOrder(region.states, region.transitions)
     else if (state.states) canonicalizeStateOrder(state.states, state.transitions ?? [])
   }
-  states.splice(0, states.length, ...scopeWriteOrder(states, transitions).created)
+  const order = scopeWriteOrder(states, transitions)
+  let boundary = 0
+  for (const step of order.steps) {
+    if ('transition' in step) boundary++
+    else step.state.declarationBeforeTransition = boundary
+  }
+  states.splice(0, states.length, ...order.created)
 }
 
 /** Return a composite's editable scopes in authored region order. */
@@ -1453,17 +1551,39 @@ function endpointTouches(endpoint: string, id: string): boolean {
   return endpoint === id || endpoint === `${id}[H]` || endpoint === `${id}[H*]`
 }
 
-/** Remove every transition (any nesting level) that touches `id`. */
-function cascadeRemoveTransitions(body: StateBody, id: string): void {
-  const walk = (states: StateNode[], transitions: StateTransition[]): StateTransition[] => {
-    const kept = transitions.filter(t => !endpointTouches(t.from, id) && !endpointTouches(t.to, id))
-    for (const s of states) {
-      if (s.regions) for (const region of s.regions) region.transitions = walk(region.states, region.transitions)
-      else if (s.states !== undefined) s.transitions = walk(s.states, s.transitions ?? [])
+/** Rebase all boundaries through one monotone survivor-prefix map. Each
+ * deletion batch visits states and transitions once, including hub cascades. */
+function removeScopeTransitions(states: StateNode[], transitions: StateTransition[], remove: (transition: StateTransition, index: number) => boolean): void {
+  const prefix = [0], survivors: StateTransition[] = [], referenced = new Set<string>(), firstUse = new Map<string, number>()
+  transitions.forEach((transition, index) => {
+    for (const id of [transition.from, transition.to]) if (!firstUse.has(id)) firstUse.set(id, index)
+    if (!remove(transition, index)) {
+      survivors.push(transition)
+      referenced.add(transition.from); referenced.add(transition.to)
     }
-    return kept
+    prefix.push(survivors.length)
+  })
+  for (const state of states) {
+    if (state.declarationBeforeTransition !== undefined) state.declarationBeforeTransition = prefix[state.declarationBeforeTransition]!
+    else if (!hasDeclaration(state) && !referenced.has(state.id)) {
+      const created = firstUse.get(state.id)
+      if (created !== undefined) state.declarationBeforeTransition = prefix[created]!
+    }
   }
-  body.transitions = walk(body.states, body.transitions)
+  transitions.splice(0, transitions.length, ...survivors)
+}
+
+/** Remove every transition touching a removed identity in one scope walk. */
+function cascadeRemoveTransitions(body: StateBody, removed: ReadonlySet<string>): void {
+  const touches = (endpoint: string): boolean => removed.has(endpoint) || removed.has(endpoint.replace(/\[H\*?\]$/, ''))
+  const walk = (states: StateNode[], transitions: StateTransition[]): void => {
+    removeScopeTransitions(states, transitions, transition => touches(transition.from) || touches(transition.to))
+    for (const state of states) {
+      if (state.regions) for (const region of state.regions) walk(region.states, region.transitions)
+      else if (state.states) walk(state.states, state.transitions ?? [])
+    }
+  }
+  walk(body.states, body.transitions)
 }
 
 /** Count transitions (any nesting level) touching `id` (incl. history refs). */

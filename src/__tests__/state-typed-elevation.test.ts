@@ -53,8 +53,8 @@ describe('typed State residual elevation (B07)', () => {
     const source = 'stateDiagram-v2\nstate Other {\nN:::hot\n}\nstate Outer {\nnote "Floating" as N\nA --> N\n}\nclassDef hot fill:red'
     const diagram = state(source)
     expect(diagram.body.states).toEqual([
-      { id: 'Other', states: [{ id: 'N', declaredBare: true, className: 'hot' }], transitions: [] },
-      { id: 'Outer', states: [{ id: 'A' }], transitions: [{ from: 'A', to: 'N' }] },
+      { id: 'Other', declarationBeforeTransition: 0, states: [{ id: 'N', declaredBare: true, declarationBeforeTransition: 0, className: 'hot' }], transitions: [] },
+      { id: 'Outer', declarationBeforeTransition: 0, states: [{ id: 'A' }], transitions: [{ from: 'A', to: 'N' }] },
     ])
     expect(diagram.body.floatingNotes).toEqual([{ id: 'N', text: 'Floating', scope: { parent: 'Outer' } }])
     const written = serializeMermaid(diagram)
@@ -784,7 +784,7 @@ stateDiagram-v2
   test('label construction replaces the bare declaration flag and removing a label restores it', () => {
     const original = state('stateDiagram-v2\nA')
     const labeled = apply(original, { kind: 'set_state_label', id: 'A', label: 'Ready' })
-    expect(labeled.body.states).toEqual([{ id: 'A', label: 'Ready' }])
+    expect(labeled.body.states).toEqual([{ id: 'A', label: 'Ready', declarationBeforeTransition: 0 }])
     expect(state(serializeMermaid(labeled)).body).toEqual(labeled.body)
     const bare = apply(labeled, { kind: 'set_state_label', id: 'A', label: null })
     expect(bare.body).toEqual(original.body)
