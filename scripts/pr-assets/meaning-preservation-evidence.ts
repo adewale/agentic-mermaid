@@ -84,14 +84,7 @@ const stableRepresentativeCues = {
 } as const
 const ownershipGoldenIds = new Set(['corpus/flowchart/94', 'corpus/flowchart/95', 'corpus/flowchart/96', 'corpus/state/0', 'corpus/state/1', 'corpus/state/8', 'corpus/state/14', 'corpus/state/16', 'corpus/state/17', 'corpus/state/18', 'corpus/state/19'])
 const fixtures: Fixture[] = [
-  {
-    id: 'state-declaration-timing-edit',
-    title: 'An unrelated State edit retains scoped declaration timing',
-    source: 'stateDiagram-v2\nstate "Idle" as A\n[*] --> A\nstate "Other" as D\nA --> B',
-    mutation: { kind: 'rename_state', from: 'B', to: 'C' },
-    captureLayout: true,
-    cue: 'Both revisions rename B to C. Compare the resulting source and disconnected Other state beside the contextual start. The edited declaration remains after that start transition, preserving native creation order. This finite native-layout comparison does not use Mermaid as a layout oracle or promise unchanged placement for detached forward composites.',
-  },
+
   ...corpusSamples.filter(sample => ownershipGoldenIds.has(sample.id)).map(sample => ({
     id: `compat-${sample.id.replaceAll('/', '-')}`,
     title: `${sample.id}: ownership and contextual endpoint baseline`,
@@ -898,6 +891,12 @@ const fixtures: Fixture[] = [
 ]
 const terminalFixtures = [
   {
+    id: 'terminal-state-declaration-timing',
+    source: 'stateDiagram-v2\nstate "Idle" as A\nstate "Other" as D\n[*] --> A\nA --> B',
+    mutation: { kind: 'rename_state', from: 'B', to: 'C' },
+    cue: 'Both revisions rename B to C. Inspect Other and the contextual start marker: the original declaration precedes that transition, and the typed writer now retains that boundary instead of exchanging their columns. Source and exact terminal output accompany the pair. Identities and endpoints remain controls; this does not claim stable placement after topology changes or for detached forward composites.',
+  },
+  {
     id: 'terminal-local-bundle',
     source: 'flowchart TD\nS --> A\nS --> B\nS --> C\nX --> Y\nY --> X',
     cue: 'Inspect the shared stem leaving S. A separate reciprocal X/Y pair formerly caused global unbundling. Only the affected routing units now receive physical capacity; the S fan-out retains shared owned ink. All five relationships remain controls. The independent owning test follows emitted glyphs and endpoint markers; this diagram does not establish arbitrary routing completeness.',
@@ -1169,10 +1168,18 @@ function renderRevision(sha: string): RevisionEvidence {
       }
       for (const fixture of ${JSON.stringify(terminalFixtures)}) {
         try {
-          const plain = renderMermaidASCIIWithMeta(fixture.source, { colorMode: 'none', useAscii: true })
-          const colored = renderMermaidASCIIWithMeta(fixture.source, { colorMode: 'html', useAscii: false })
+          let input = fixture.source
+          if (fixture.mutation) {
+            const parsed = parseRegisteredMermaid(input)
+            if (!parsed.ok) throw new Error('Terminal edit witness did not parse')
+            const edited = mutate(parsed.value, fixture.mutation)
+            if (!edited.ok) throw new Error(edited.error.message)
+            input = serializeMermaid(edited.value)
+          }
+          const plain = renderMermaidASCIIWithMeta(input, { colorMode: 'none', useAscii: true })
+          const colored = renderMermaidASCIIWithMeta(input, { colorMode: 'html', useAscii: false })
           const failure = [...plain.warnings, ...colored.warnings].find(warning => warning.code === 'ASCII_RENDER_FAILED')
-          terminals[fixture.id] = { ascii: plain.ascii, html: colored.ascii, ...(failure ? { error: failure.message } : {}), meta: { ascii: plain.regions, unicode: colored.regions, warnings: colored.warnings } }
+          terminals[fixture.id] = { ascii: plain.ascii, html: colored.ascii, ...(failure ? { error: failure.message } : {}), meta: { source: input, ascii: plain.regions, unicode: colored.regions, warnings: colored.warnings } }
         } catch (error) { terminals[fixture.id] = { error: String(error) } }
       }
       const parsed = parseRegisteredMermaid('classDiagram\\nnamespace N {\\nclass A\\n}\\nclass B')
