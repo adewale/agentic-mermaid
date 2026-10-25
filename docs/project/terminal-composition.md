@@ -158,8 +158,13 @@ It does not search text or render a second version. Its region fields are:
   surfaces, continuations and repeated/disjoint occurrences.
 - `occludedCellSpans`: optional semantic route coverage behind opaque marks,
   excluded from visible owned cells.
-- `parentId`, `members`, `from`, `to`, `bundle` and `ports`, when the family
-  supplies the corresponding semantic geometry.
+- `parentId`, `parentKind` and `members`: native hierarchy and explicit membership.
+- `annotationTarget: { id, kind }`: an attached State or Class note's target,
+  independent of hierarchy. It grants no frame, membership or collision
+  exemption and survives a refused connector. Certification reports an
+  unavailable or wrong-kind target as unverified.
+- `from`, `to`, `bundle` and `ports`, when the family supplies the corresponding
+  semantic geometry.
 
 Logical text blocks retain admitted, owner-specific empty-row provenance through
 composition and reflection. `projectedText` joins actual glyph rows and explicitly

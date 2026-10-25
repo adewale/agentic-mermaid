@@ -9,15 +9,15 @@
   "families": {
     "flowchart": {
       "requests": 36,
-      "raw": 2304000,
-      "gzip": 716000,
-      "brotli": 580500
+      "raw": 2430000,
+      "gzip": 761500,
+      "brotli": 618000
     },
     "state": {
       "requests": 35,
-      "raw": 2302000,
-      "gzip": 716000,
-      "brotli": 580500
+      "raw": 2430000,
+      "gzip": 761000,
+      "brotli": 617500
     },
     "sequence": {
       "requests": 34,
@@ -52,8 +52,8 @@
     "architecture": {
       "requests": 35,
       "raw": 2318000,
-      "gzip": 709500,
-      "brotli": 574000
+      "gzip": 751000,
+      "brotli": 608500
     },
     "xychart": {
       "requests": 33,
@@ -83,7 +83,7 @@
       "requests": 32,
       "raw": 621000,
       "gzip": 202000,
-      "brotli": 177000
+      "brotli": 186000
     },
     "gitgraph": {
       "requests": 33,
@@ -105,9 +105,9 @@
     },
     "c4": {
       "requests": 33,
-      "raw": 786000,
-      "gzip": 256000,
-      "brotli": 224500
+      "raw": 836000,
+      "gzip": 276500,
+      "brotli": 243500
     },
     "packet": {
       "requests": 32,
@@ -141,9 +141,9 @@
     },
     "block": {
       "requests": 30,
-      "raw": 731500,
-      "gzip": 242000,
-      "brotli": 214000
+      "raw": 775500,
+      "gzip": 256500,
+      "brotli": 226500
     }
   }
 }

@@ -11,6 +11,8 @@ import { resolveRenderRequestForExecution } from '../render-contract.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import { positionedToRenderedLayout } from '../agent/layout-to-rendered.ts'
 import { graphTextBlock } from '../graph-text.ts'
+import { assessLayout, hardViolations } from '../layout-rubric.ts'
+import { invalidEndpointApproaches } from '../route-contracts.ts'
 import type { MermaidGraph, PositionedGraph } from '../types.ts'
 
 const source = 'flowchart LR\nA -- first --> B\nB -- second --> A'
@@ -306,18 +308,31 @@ describe('bounded final layout certification', () => {
     } finally { firstPass.run = run }
   })
 
-  test('a real small crossing graph compares one alternate hierarchy and records its routing trade-off', () => {
+  test('a real crossing graph retains the lower-bend hierarchy and routing proposals', () => {
     const graph = parseMermaid('flowchart TB\nc1-->a2\nsubgraph one\na1\nend\na1-->a2\nsubgraph two\nb1-->b2\nend\nsubgraph three\nc2\nend\nc1-->c2\none --> two\nthree --> two\ntwo --> c2')
     const positioned = layoutGraphSync(graph), preference = positioned.certification!.preference
-    expect(positioned.certification).toMatchObject({ strategy: 'separate-hierarchy', attempts: 2 })
+    expect(positioned.certification).toMatchObject({ status: 'passed', strategy: 'default', attempts: 2, hardViolations: 0 })
     expect(preference).toMatchObject({
-      reason: 'totalBends', selectedScore: { edgeCrossings: 0, totalBends: 4 },
-      routing: { strategy: 'without-generic-bundling', preference: { reason: 'edgeCrossings' } },
+      reason: 'totalBends', selectedScore: { edgeCrossings: 1, totalBends: 4 },
+      routing: { strategy: 'bundled', preference: { reason: 'totalBends' } },
     })
-    expect(preference.compared[0]?.score).toMatchObject({ edgeCrossings: 1, totalBends: 4 })
-    expect(preference.compared[1]?.score).toMatchObject({ edgeCrossings: 1, totalBends: 3 })
+    expect(preference.compared).toMatchObject([
+      { strategy: 'default', score: { edgeCrossings: 1, totalBends: 4 } },
+      { strategy: 'separate-hierarchy', score: { edgeCrossings: 1, totalBends: 5 } },
+    ])
+    expect(preference.routing!.preference.compared).toMatchObject([
+      { strategy: 'bundled', score: { edgeCrossings: 1, totalBends: 4 } },
+      { strategy: 'without-generic-bundling', score: { edgeCrossings: 1, totalBends: 8 } },
+    ])
+    expect(preference.selectedScore).toEqual(preference.compared[0]!.score)
     expect(preference.selectedScore).toEqual(preference.routing!.preference.selectedScore)
-    expect(preference.selectedScore.area).toBeGreaterThan(preference.compared[0]!.score.area)
+    expect(preference.selectedScore.nonCanonicalEndpointRate).toBeGreaterThan(preference.compared[1]!.score.nonCanonicalEndpointRate)
+    const assessed = assessLayout(graph, positioned, resolveRenderStyle({}))
+    expect(hardViolations(assessed)).toEqual([])
+    expect(assessed.metrics).toMatchObject({ edgeCrossings: 1, totalBends: 4 })
+    expect(positioned.edges.toSorted((a, b) => a.edgeIndex! - b.edgeIndex!).map(edge => [edge.edgeIndex, edge.source, edge.target])).toEqual(graph.edges.map((edge, index) => [index, edge.source, edge.target]))
+    const nodes = new Map(positioned.nodes.map(node => [node.id, node]))
+    expect(positioned.edges.map(edge => invalidEndpointApproaches(edge, nodes.get(edge.source), nodes.get(edge.target)))).toEqual(graph.edges.map(() => 0))
   })
 
   test('no candidate succeeds on non-finite geometry, even when an outline checker could miss it', () => {

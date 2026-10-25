@@ -57,6 +57,7 @@ const RUBRIC_SEVERITY: Record<string, RubricSeverity> = {
   unexplainedBends: 'secondary',
   hitches: 'secondary',
   offOutlineEndpoints: 'cosmetic',
+  endpointApproaches: 'primary',
   labelOffRoute: 'cosmetic',
 }
 
@@ -77,6 +78,8 @@ export interface RubricMetrics {
   edges: number
   /** HARD (0): edge endpoints must lie on the rendered shape outline. */
   offOutlineEndpoints: number
+  /** HARD (0): exact endpoints must carry an outward, non-tangent shaft. */
+  endpointApproaches: number
   /** HARD (0): orthogonal routing must not emit diagonal segments. */
   diagonalSegments: number
   /** HARD (0): an edge certified 'straight' may not have bends. */
@@ -480,6 +483,7 @@ function assessLayoutGeometry(graph: MermaidGraph, positioned: PositionedGraph, 
   const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
 
   let offOutline = 0
+  let endpointApproaches = 0
   let diagonal = 0
   let unexplainedBends = 0
   let labelOffRoute = 0
@@ -491,6 +495,13 @@ function assessLayoutGeometry(graph: MermaidGraph, positioned: PositionedGraph, 
   for (const e of positioned.edges) {
     const id = `${e.source}->${e.target}`
     const bends = Math.max(0, e.points.length - 2)
+    if (e.style !== 'invisible') {
+      const approaches = invalidEndpointApproaches(e, nodeMap.get(e.source), nodeMap.get(e.target))
+      if (approaches) {
+        endpointApproaches += approaches
+        violations.push({ metric: 'endpointApproaches', detail: `${id}: ${approaches} inward or tangent exact endpoint shaft(s)` })
+      }
+    }
     // Justified-bend exemption: a bend that is part of a SYMMETRIC convergence
     // (a fan-out/fan-in bundle, or a co-ranked mixed-label fan-in's dogleg) is
     // "as good as straight" — the bend is structurally necessary to converge and
@@ -597,6 +608,7 @@ function assessLayoutGeometry(graph: MermaidGraph, positioned: PositionedGraph, 
     metrics: {
       edges: positioned.edges.length,
       offOutlineEndpoints: offOutline,
+      endpointApproaches,
       diagonalSegments: diagonal,
       unexplainedBends,
       hitches: hitchList.length,
@@ -650,7 +662,7 @@ export function measureRubricMetrics(
 
 /** The hard rubric metrics — must be zero for every diagram, always. */
 export const HARD_METRICS = [
-  'offOutlineEndpoints', 'diagonalSegments', 'unexplainedBends',
+  'offOutlineEndpoints', 'endpointApproaches', 'diagonalSegments', 'unexplainedBends',
   'hitches', 'nodeOverlaps', 'labelOffRoute', 'edgeThroughNode',
 ] as const
 

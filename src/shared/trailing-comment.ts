@@ -14,6 +14,9 @@ const TOKEN_START = /[\s[({,:=]/
  * comment out of Mermaid's universal init-directive prepass. */
 export function writeMermaidComment(line: string): string {
   return line.replace(/^(\s*%%)\{/, '$1 {')
+    // Ordinary comments keep their text but cannot become native metadata
+    // when canonicalization moves them outside a spanning family statement.
+    .replace(/^(\s*%%) (?=agentic-mermaid (?:accTitle|accDescr):)/, '$1  ')
 }
 
 /**

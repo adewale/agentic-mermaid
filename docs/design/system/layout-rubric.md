@@ -58,6 +58,7 @@ fixture battery and over randomized diagrams (property tests):
 | Metric | Definition | Grounding |
 |---|---|---|
 | `offOutlineEndpoints` | endpoint not on the rendered shape outline (per-shape closed-form oracle, independent of the clipping code) | yFiles strong port constraints; shape fidelity |
+| `endpointApproaches` | an exact-outline endpoint has an inward or tangent terminal shaft; envelopes and unenclosed text make no exact approach claim | visible attachment and marker direction |
 | `diagonalSegments` | non-axis-aligned segment under orthogonal routing | Tamassia orthogonal tradition |
 | `unexplainedBends` | bends on an edge certified `straight` | Purchase bends; route contracts |
 | `hitches` | edge bends while a clear direct lane exists (re-proved on final geometry) | Ware continuity; issue #25 |
@@ -79,6 +80,12 @@ and ≤ 2 bends/edge for the whole simple battery):
 
 Crossing measurement is shared by route proposals, final ranking, intermediate pass budgets and
 public quality; the independent outline oracle remains separate from clipping.
+Approach measurement shares the production boundary predicate with clipping;
+analytic rectangle, curve and polygon controls independently test that rule.
+It checks the first nonzero terminal shaft, not later re-entry into an incident
+node. Sharp polygon tips and rectangular corner exits may depart into exterior
+space; a run along a flat border or tangent to a smooth curve is not an outward
+contact.
 Label-conflict counts likewise share their geometry predicates and rendered pill
 padding with public Flowchart/State quality reports. Missing retained label
 measurements remain explicit in public measurement metadata.

@@ -224,7 +224,9 @@ export interface AsciiGraph {
   /** Edge bundles for parallel link visualization. Set during bundling analysis. */
   bundles: EdgeBundle[]
   /** Grid coordinates where sibling-edge trunk branches need explicit T-junctions. */
-  trunkJunctions: GridCoord[]
+  trunkJunctions: Array<GridCoord & { trunk: string }>
+  /** Grow the private affected-unit closure and reproject before publication. */
+  reserveRouteUnits?: (edges: ReadonlySet<AsciiEdge>) => boolean
   /** Flat placement was replaced by an atomic compound-tree embedding. */
   compoundRepacked?: true
 }

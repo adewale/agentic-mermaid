@@ -2,7 +2,7 @@ import { decodeXML } from 'entities'
 import { mermaidEntityPrepass } from './mermaid-entities.ts'
 
 export type MermaidCleanupView = 'text' | 'payloadText' | 'authoredPayloadText' | 'lineText' | 'upstreamText' | 'prepassedText'
-export type MermaidCleanupReason = 'line-ending' | 'xml-entity' | 'html-attribute-quotes' | 'style-semicolon'
+export type MermaidCleanupReason = 'line-ending' | 'xml-entity' | 'html-attribute-quotes' | 'style-semicolon' | 'native-accessibility'
 export type MermaidCleanupBias = 'start' | 'end'
 
 /** Locate a physical terminator while a source-preserving grammar scans the
@@ -235,21 +235,22 @@ function changeRecords(value: MappedText, view: MermaidCleanupView, lineStarts: 
 
 /** One shared receipt retains both authored provenance and Mermaid's cleanup
  * quirks. It does not eagerly decode #entity; codes into grammar delimiters. */
-export function cleanupMermaidSource(originalText: string): MermaidCleanup {
+export function cleanupMermaidSource(originalText: string, nativeFields: readonly Replacement[] = []): MermaidCleanup {
   const hasCarriageReturn = originalText.includes('\r')
   const hasXmlEntity = originalText.includes('&')
   const hasQuotedTag = originalText.includes('<') && originalText.includes('="') && originalText.includes('>')
   const hasStyleSemicolon = originalText.includes(';') && (originalText.includes('style') || originalText.includes('classDef'))
-  if (!hasCarriageReturn && !hasXmlEntity && !hasQuotedTag && !hasStyleSemicolon) return identityCleanup(originalText)
-  const initial: MappedText = { text: originalText, mappings: NO_MAPPINGS, changes: NO_PENDING_CHANGES }
+  if (!nativeFields.length && !hasCarriageReturn && !hasXmlEntity && !hasQuotedTag && !hasStyleSemicolon) return identityCleanup(originalText)
+  const original: MappedText = { text: originalText, mappings: NO_MAPPINGS, changes: NO_PENDING_CHANGES }
+  const initial = transform(original, nativeFields, 'native-accessibility')
   const normalized = normalizeLineEndings(initial)
   const xmlDecoded = hasXmlEntity
-    ? transform(initial, matchedReplacements(originalText, /&(?:#[xX][0-9a-fA-F]+|#[0-9]+|[A-Za-z][A-Za-z0-9]*);/g, decodeXML), 'xml-entity')
+    ? transform(initial, matchedReplacements(initial.text, /&(?:#[xX][0-9a-fA-F]+|#[0-9]+|[A-Za-z][A-Za-z0-9]*);/g, decodeXML), 'xml-entity')
     : initial
   const semantic = xmlDecoded === initial ? normalized : normalizeLineEndings(xmlDecoded)
   const prepassed = hasStyleSemicolon ? semicolonCleanup(normalized) : normalized
   const upstream = hasQuotedTag ? quoteCleanup(normalized) : normalized
-  if (semantic === initial && prepassed === initial && upstream === initial) return identityCleanup(originalText)
+  if (semantic === original && prepassed === original && upstream === original) return identityCleanup(originalText)
   const lineStarts = [0]
   for (let index = 0; index < originalText.length; index++) {
     if (originalText[index] === '\r') {
@@ -264,7 +265,7 @@ export function cleanupMermaidSource(originalText: string): MermaidCleanup {
     ...changeRecords(upstream, 'upstreamText', lineStarts, 'html-attribute-quotes')]
   return Object.freeze({ originalText, text: semantic.text,
     payloadText: xmlDecoded.text.includes('\r') ? xmlDecoded.text.replace(/\r\n/g, '\n') : xmlDecoded.text,
-    authoredPayloadText: hasCarriageReturn ? originalText.replace(/\r\n/g, '\n') : originalText,
+    authoredPayloadText: hasCarriageReturn ? initial.text.replace(/\r\n/g, '\n') : initial.text,
     lineText: normalized.text, upstreamText: upstream.text, prepassedText: prepassed.text,
     changes: Object.freeze(changes), mappings: Object.freeze(semantic.mappings),
     lineMappings: Object.freeze(normalized.mappings),

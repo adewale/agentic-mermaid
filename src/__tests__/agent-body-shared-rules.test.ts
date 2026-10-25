@@ -22,7 +22,7 @@ const SOURCES = {
   timeline: 'timeline\n  title History\n  section One\n    2020 : Start\n',
   gantt: 'gantt\n  title Plan\n  dateFormat YYYY-MM-DD\n  section Build\n    Core : core, 2024-01-01, 3d\n',
   gitgraph: 'gitGraph\n  accTitle: History\n  commit id: "a"\n',
-  mindmap: 'mindmap\n  accTitle: Ideas\n  root((Root))\n    Child\n',
+  mindmap: 'mindmap\n  %% agentic-mermaid accTitle: "Ideas"\n  root((Root))\n    Child\n',
   architecture: 'architecture-beta\n  accTitle: Stack\n  service api(server)[API]\n',
 }
 
@@ -66,10 +66,10 @@ const OPTIONAL_TEXT_CASES: Case[] = [
   ['gitgraph', { kind: 'set_accessibility_description', description: 'One line' }, { ok: true, source: 'gitGraph\n  accTitle: History\n  accDescr: One line\n  commit id:"a"\n' }],
   ['gitgraph', { kind: 'set_accessibility_description', description: null }, { ok: true, source: 'gitGraph\n  accTitle: History\n  commit id:"a"\n' }],
   ['mindmap', { kind: 'set_accessibility_title', title: null }, { ok: true, source: 'mindmap\n  root((Root))\n    Child\n' }],
-  ['mindmap', { kind: 'set_accessibility_title', title: 'Map' }, { ok: true, source: 'mindmap\n  accTitle: Map\n  root((Root))\n    Child\n' }],
-  ['mindmap', { kind: 'set_accessibility_title', title: '' }, { ok: false, error: { code: 'INVALID_OP', message: 'Mindmap accessibility title must be a non-empty single-line string' } }],
-  ['mindmap', { kind: 'set_accessibility_description', description: 'About ideas' }, { ok: true, source: 'mindmap\n  accTitle: Ideas\n  accDescr: About ideas\n  root((Root))\n    Child\n' }],
-  ['mindmap', { kind: 'set_accessibility_description', description: null }, { ok: true, source: 'mindmap\n  accTitle: Ideas\n  root((Root))\n    Child\n' }],
+  ['mindmap', { kind: 'set_accessibility_title', title: 'Map' }, { ok: true, source: 'mindmap\n  %% agentic-mermaid accTitle: "Map"\n  root((Root))\n    Child\n' }],
+  ['mindmap', { kind: 'set_accessibility_title', title: '' }, { ok: false, error: { code: 'INVALID_OP', message: 'Mindmap accessibility title must be non-empty text' } }],
+  ['mindmap', { kind: 'set_accessibility_description', description: 'About ideas' }, { ok: true, source: 'mindmap\n  %% agentic-mermaid accTitle: "Ideas"\n  %% agentic-mermaid accDescr: "About ideas"\n  root((Root))\n    Child\n' }],
+  ['mindmap', { kind: 'set_accessibility_description', description: null }, { ok: true, source: 'mindmap\n  %% agentic-mermaid accTitle: "Ideas"\n  root((Root))\n    Child\n' }],
   ['architecture', { kind: 'set_accessibility_title', title: null }, { ok: true, source: 'architecture-beta\n  service api(server)[API]\n' }],
   ['architecture', { kind: 'set_accessibility_title', title: 'Stack 2' }, { ok: true, source: 'architecture-beta\n  accTitle: Stack 2\n  service api(server)[API]\n' }],
   ['architecture', { kind: 'set_accessibility_title', title: 'a\nb' }, { ok: true, source: 'architecture-beta\n  accTitle: a b\n  service api(server)[API]\n' }],

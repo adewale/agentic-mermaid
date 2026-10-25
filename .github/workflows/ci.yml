@@ -136,12 +136,18 @@ jobs:
       - name: Install the CJK coverage fixture
         run: sudo apt-get update && sudo apt-get install -y fonts-wqy-zenhei
 
+      - name: Resolve tested PR revisions
+        id: pr-revisions
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: bun run scripts/ci/pr-merge-revisions.ts "$PR_HEAD_SHA"
+
       - name: Run changed tests against the base branch's production code
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           EVENT_ACTION: ${{ github.event.action }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BASE_SHA: ${{ steps.pr-revisions.outputs.base }}
         run: |
           if bun run scripts/ci/label-approval.ts check --label no-red-green; then
             echo "Skipped: no-red-green approves this head."
@@ -243,17 +249,24 @@ jobs:
         if: ${{ matrix.suite == 'browser' || matrix.suite == 'browser-site' || matrix.suite == 'payload' }}
         run: bunx playwright install ${{ matrix.suite == 'browser' && 'chromium firefox webkit' || 'chromium' }} --with-deps
 
+      - name: Resolve tested PR revisions
+        if: ${{ matrix.suite == 'payload' && github.event_name == 'pull_request' }}
+        id: pr-revisions
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: bun run scripts/ci/pr-merge-revisions.ts "$PR_HEAD_SHA"
+
       - name: Render affected label and category witnesses before and after
         if: ${{ matrix.suite == 'payload' && github.event_name == 'pull_request' }}
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ steps.pr-revisions.outputs.base }}
+          HEAD_SHA: ${{ steps.pr-revisions.outputs.head }}
         run: |
           git fetch --no-tags origin "$BASE_SHA" "$HEAD_SHA"
-          if git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- src/class src/pie src/journey src/gitgraph src/radar src/xychart src/sequence src/architecture src/agent/families-builtin.ts src/svg-family-hooks/flowchart.ts src/parser.ts src/state src/er src/ascii src/block; then
+          if git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- src/layout-engine.ts src/layout src/layout-rubric.ts src/route-contracts.ts src/shape-clipping.ts src/shape-outline.ts src/class src/pie src/journey src/gitgraph src/radar src/xychart src/sequence src/architecture src/agent/families-builtin.ts src/svg-family-hooks/flowchart.ts src/parser.ts src/state src/er src/ascii src/block; then
             exit 0
           fi
-          bun run scripts/pr-assets/meaning-preservation-evidence.ts "$BASE_SHA" "$HEAD_SHA" bench-report/meaning-preservation compat-corpus-flowchart-94 compat-corpus-flowchart-95 compat-corpus-flowchart-96 compat-corpus-state-0 compat-corpus-state-1 compat-corpus-state-8 compat-corpus-state-14 compat-corpus-state-16 compat-corpus-state-17 compat-corpus-state-18 compat-corpus-state-19 compat-flowchart-membership compat-c4-named-label compat-state-floating-note compat-er-parent compat-sequence-wrap agent-flat-namespace agent-category-role agent-journey-visibility journey-literal-formatted-identity agent-gitgraph-rails agent-small-values compat-flowchart-block-label compat-sequence-spaced-metadata compat-class-identifiers compat-architecture-compact-edge compat-gitgraph-repeated-pick compat-ellipse compat-parallel-overlay compat-architecture-text-icon nightly-architecture-card-clearance terminal-block-protected-approaches terminal-state-distinct-contacts
+          bun run scripts/pr-assets/meaning-preservation-evidence.ts "$BASE_SHA" "$HEAD_SHA" bench-report/meaning-preservation compat-corpus-flowchart-94 compat-corpus-flowchart-95 compat-corpus-flowchart-96 compat-corpus-state-0 compat-corpus-state-1 compat-corpus-state-8 compat-corpus-state-14 compat-corpus-state-16 compat-corpus-state-17 compat-corpus-state-18 compat-corpus-state-19 compat-flowchart-membership compat-c4-named-label compat-state-floating-note compat-er-parent compat-sequence-wrap agent-flat-namespace agent-category-role agent-journey-visibility journey-literal-formatted-identity agent-gitgraph-rails agent-small-values compat-flowchart-block-label compat-sequence-spaced-metadata compat-class-identifiers compat-architecture-compact-edge compat-gitgraph-repeated-pick compat-ellipse compat-parallel-overlay compat-architecture-text-icon nightly-architecture-card-clearance terminal-block-protected-approaches terminal-state-distinct-contacts terminal-local-bundle terminal-local-labeled-trunk terminal-state-declaration-timing terminal-approach-envelopes flowchart-feedback-outward-contact compat-corpus-flowchart-98 native-priority-aj native-priority-an flowchart-cosmetic-circle-approach flowchart-peer-label-capacity
 
       - name: Retain diagram review images
         if: ${{ matrix.suite == 'payload' && github.event_name == 'pull_request' }}
@@ -337,7 +350,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           EVENT_ACTION: ${{ github.event.action }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BASE_SHA: ${{ steps.pr-revisions.outputs.base }}
         run: |
           git fetch --no-tags --depth=1 origin "$BASE_SHA"
           git worktree add --detach ../payload-base "$BASE_SHA"

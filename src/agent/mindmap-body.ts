@@ -1,3 +1,4 @@
+import { nativeAccessibilityText } from './accessibility-envelope.ts'
 import type {
   LayoutWarning, MindmapBody, MindmapMutationOp, MutationError, Result, VerifyOptions,
 } from './types.ts'
@@ -48,8 +49,8 @@ function cloneNode(node: MindmapNode): MindmapNode {
 function cloneBody(body: MindmapBody): MindmapBody {
   return {
     kind: 'mindmap', root: cloneNode(body.root),
-    ...(body.accessibilityTitle ? { accessibilityTitle: body.accessibilityTitle } : {}),
-    ...(body.accessibilityDescription ? { accessibilityDescription: body.accessibilityDescription } : {}),
+    ...(body.accessibilityTitle !== undefined ? { accessibilityTitle: body.accessibilityTitle } : {}),
+    ...(body.accessibilityDescription !== undefined ? { accessibilityDescription: body.accessibilityDescription } : {}),
   }
 }
 
@@ -61,6 +62,11 @@ function locate(root: MindmapNode, id: string, parent?: MindmapNode): Located | 
     if (found) return found
   }
   return undefined
+}
+
+function validAccessibility(value: string, field: string): Result<string, MutationError> {
+  try { return ok(nativeAccessibilityText(value)) }
+  catch { return err({ code: 'INVALID_OP', message: `Mindmap accessibility ${field} must be non-empty text` }) }
 }
 
 function validText(value: unknown, field: string): Result<string, MutationError> {
@@ -210,13 +216,13 @@ export function mutateMindmap(body: MindmapBody, op: MindmapMutationOp): Result<
       return ok(next)
     }
     case 'set_accessibility_title': {
-      const title = setOptionalField(next, 'accessibilityTitle', op.title, value => validText(value, 'accessibility title'))
+      const title = setOptionalField(next, 'accessibilityTitle', op.title, value => validAccessibility(value, 'title'))
       if (!title.ok) return title
       if (next.accessibilityTitle !== undefined && !stableBodySyntax(next)) return err({ code: 'INVALID_OP', message: `Mindmap accessibility title '${next.accessibilityTitle}' is not serialization-stable` })
       return ok(next)
     }
     case 'set_accessibility_description': {
-      const description = setOptionalField(next, 'accessibilityDescription', op.description, value => validText(value, 'accessibility description'))
+      const description = setOptionalField(next, 'accessibilityDescription', op.description, value => validAccessibility(value, 'description'))
       if (!description.ok) return description
       if (next.accessibilityDescription !== undefined && !stableBodySyntax(next)) return err({ code: 'INVALID_OP', message: `Mindmap accessibility description '${next.accessibilityDescription}' is not serialization-stable` })
       return ok(next)
@@ -251,7 +257,7 @@ export function mindmapUnsupportedSyntaxWarnings(canonicalSource: string): Layou
       code: 'UNSUPPORTED_SYNTAX',
       syntax: 'mindmap_accessibility',
       line: index + 1,
-      message: 'An accTitle or accDescr is read as the mindmap\'s accessible title or description, and written before its root. Pinned Mermaid\'s mindmap has no accessibility statements: it reads the line as a node, or rejects it as a second root. Mermaid has no spelling that keeps it.',
+      message: 'Mindmap accessibility metadata is carried in native comments on export. External Mermaid ignores this metadata; diagram topology is preserved.',
     })
     index = directive.endIndex + 1
   }

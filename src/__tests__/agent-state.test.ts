@@ -14,7 +14,7 @@ import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
-import { layoutMermaidWithReceipt } from '../agent/core.ts'
+import { synthesizeFromGraph, renderMermaidASCII, layoutMermaidWithReceipt } from '../agent/core.ts'
 import { mutate } from '../agent/mutate.ts'
 import { graphGeometryWarnings, verifyMermaid } from '../agent/verify.ts'
 import { positionFamilyArtifact } from '../agent/family-layouts.ts'
@@ -191,6 +191,10 @@ describe('state round-trip identity', () => {
   test.each([
     ['[*] in composites between top-level transitions', '[*] --> First\nstate First {\n[*] --> second\nsecond --> [*]\n}\n[*] --> Named\nstate "Another" as Named {\n[*] --> inner\ninner --> [*]\n}'],
     ['a description after the transition that creates the state', '[*] --> A\nA --> B\nA --> C\nC: described later'],
+    ['standalone declaration before contextual start', 'state "Idle" as A\nstate "Other" as D\n[*] --> A\nA --> B'],
+    ['standalone declaration after contextual start', 'state "Idle" as A\n[*] --> A\nstate "Other" as D\nA --> B'],
+    ['nested declarations around contextual start', 'state P {\nstate "Idle" as A\nstate "Other" as D\n[*] --> A\nA --> B\n}'],
+    ['note-created state before contextual start', 'note right of D: Note\n[*] --> A\nA --> B'],
     ['a bare declaration after transitions', 'A --> B\nC'],
     ['a state a class shorthand declares after transitions', 'A --> B\nA --> D\nC:::hot\nclassDef hot fill:#f00'],
     ['a composite block after its siblings', 'A --> B\nA --> C\nstate C {\nx --> y\n}'],
@@ -664,4 +668,46 @@ describe('state describe (prose + AX tree)', () => {
       ],
     })
   })
+})
+
+
+test('State declaration timing survives JSON, unrelated edits and scope schedule rebasing', () => {
+  const before = 'stateDiagram-v2\nstate "Idle" as A\nstate "Other" as D\n[*] --> A\nA --> B'
+  const after = 'stateDiagram-v2\nstate "Idle" as A\n[*] --> A\nstate "Other" as D\nA --> B'
+  const first = state(before), second = state(after)
+  expect(first.body.states.find(node => node.id === 'D')?.declarationBeforeTransition).toBe(0)
+  expect(second.body.states.find(node => node.id === 'D')?.declarationBeforeTransition).toBe(1)
+  expect(serializeMermaid(first)).not.toBe(serializeMermaid(second))
+  for (const [source, parsed] of [[before, first], [after, second]] as const) {
+    expect(renderMermaidASCII(parsed)).toBe(renderMermaidASCII(source))
+    const json = synthesizeFromGraph({ kind: 'state', body: JSON.parse(JSON.stringify(parsed.body)) })
+    if (!json.ok) throw new Error('Expected declaration provenance in JSON')
+    expect(serializeMermaid(json.value)).toBe(serializeMermaid(parsed))
+    const renamed = mutate(parsed, { kind: 'rename_state', from: 'B', to: 'C' })
+    if (!renamed.ok) throw new Error('Expected unrelated rename')
+    const written = serializeMermaid(renamed.value)
+    expect(renderMermaidASCII(renamed.value)).toBe(renderMermaidASCII(source.replace('A --> B', 'A --> C')))
+    expect([...parseLegacy(written).nodes.keys()]).toEqual([...parseLegacy(source.replace('A --> B', 'A --> C')).nodes.keys()])
+  }
+  const removed = mutate(second, { kind: 'remove_transition', index: 0 })
+  if (!removed.ok || removed.value.body.kind !== 'state') throw new Error('Expected transition removal')
+  expect(removed.value.body.states.find(node => node.id === 'D')?.declarationBeforeTransition).toBe(0)
+  const nested = state('stateDiagram-v2\nstate P {\n[*] --> A\nD\nA --> B\n}\n[*] --> X\nZ')
+  const dissolved = mutate(nested, { kind: 'dissolve_composite', id: 'P' })
+  if (!dissolved.ok || dissolved.value.body.kind !== 'state') throw new Error('Expected composite schedule hoist')
+  const text = serializeMermaid(dissolved.value)
+  expect(text.indexOf('[*] --> A')).toBeLessThan(text.indexOf('  D\n'))
+  expect(text.indexOf('  D\n')).toBeLessThan(text.indexOf('A --> B'))
+  expect(text.indexOf('A --> B')).toBeLessThan(text.indexOf('[*] --> X'))
+  expect(state(text).body).toEqual(dissolved.value.body)
+  const moved = mutate(nested, { kind: 'move_state', id: 'Z', parent: 'P' })
+  if (!moved.ok || moved.value.body.kind !== 'state') throw new Error('Expected scoped append')
+  expect(moved.value.body.states.find(node => node.id === 'P')?.states?.find(node => node.id === 'Z')?.declarationBeforeTransition).toBe(2)
+  const implicit = state('stateDiagram-v2\n[*] --> A\nA --> B')
+  const labeled = mutate(implicit, { kind: 'set_state_label', id: 'A', label: 'A' })
+  if (!labeled.ok) throw new Error('Expected implicit-state label edit')
+  expect([...parseLegacy(serializeMermaid(labeled.value)).nodes.keys()]).toEqual([...parseLegacy(serializeMermaid(implicit)).nodes.keys()])
+  const invalid = JSON.parse(JSON.stringify(first.body))
+  invalid.states[0].declarationBeforeTransition = 99
+  expect(synthesizeFromGraph({ kind: 'state', body: invalid }).ok).toBe(false)
 })

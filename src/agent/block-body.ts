@@ -1,3 +1,5 @@
+import { appendNativeAccessibilityLines, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
+import { readAuthoredGrammarAccessibility } from '../shared/grammar-text.ts'
 import { formatUnknownOpMessage } from './unknown-op.ts'
 import { parseBlockDiagram } from '../block/parser.ts'
 import type { Block, BlockBody, BlockInput, BlockMutationOp } from '../block/types.ts'
@@ -9,11 +11,10 @@ import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { writeBlockText } from '../block/text-codec.ts'
 
 export function parseBlockBody(lines: string[], accessibility: Accessibility = {}): BlockBody | null {
-  // Pinned Block tokenizes accessibility directives but has no grammar rule
-  // for them. Preserve that readable extension instead of regenerating it.
-  if (accessibility.title !== undefined || accessibility.descr !== undefined) return null
+  const scanned = scanAccessibilityDirectives(lines)
+  accessibility = readAuthoredGrammarAccessibility({ ...scanned.accessibility, ...accessibility })
   try {
-    const body = parseBlockDiagram(['block', ...lines])
+    const body = parseBlockDiagram(['block', ...scanned.familyLines])
     // Validate structural syntax before comment retention invokes the writer.
     renderBlock(body)
     body.accessibilityTitle = accessibility.title
@@ -73,6 +74,7 @@ function declaration(node: Block): string {
 }
 export function renderBlock(body: BlockBody): string {
   const lines = ['block']
+  appendNativeAccessibilityLines(lines, body)
   const stack: { node: Block; depth: number; close?: boolean }[] = [{ node: body.root, depth: 0 }]
   while (stack.length) {
     const { node, depth, close } = stack.pop()!,
@@ -261,7 +263,7 @@ export function blockUnsupportedSyntaxWarnings(source: string): LayoutWarning[] 
   if (!/acc(?:Title|Descr)|%%\{/i.test(source)) return []
   const normalized = normalizeMermaidSource(source)
   const warnings: LayoutWarning[] = []
-  if (normalized.accessibility.title !== undefined || normalized.accessibility.descr !== undefined) warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax: 'block_accessibility', message: 'Block accessibility metadata is rendered and preserved as authored. Pinned Mermaid has no Block accessibility statement, so this source cannot accept typed edits.' })
+  if (normalized.accessibility.title !== undefined || normalized.accessibility.descr !== undefined) warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax: 'block_accessibility', message: 'Block accessibility metadata is carried in native comments on export. External Mermaid ignores this metadata; diagram topology is preserved.' })
   try {
     if (source.includes('%%{') && hasDirectiveLabel(parseBlockDiagram(normalized.familyLines))) warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax: 'block_directive_text', message: 'Block labels containing a directive opener are read literally. The writer protects their quoted payloads with entity codes for pinned Mermaid.' })
   } catch { /* Native syntax failures are diagnosed by the render path. */ }

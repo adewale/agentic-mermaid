@@ -108,7 +108,7 @@ S1["same word ok"] --> D`],
   ])('route certification may repair an infeasible early route: %s', (_name, source) => {
     const graph = parseMermaid(source)
     const pass = LAYOUT_PIPELINE.find(candidate => candidate.id === 'applyRouteContracts')!, run = pass.run
-    const repairs: Array<{ bundled: boolean; placement: unknown; improved: boolean }> = []
+    const repairs: Array<{ bundled: boolean; placement: unknown; before: number; after: number }> = []
     pass.run = context => {
       const measure = () => measureRubricMetrics(graph, { nodes: context.nodes, edges: context.edges, groups: context.groups, width: 0, height: 0 }, ['hard', 'endpointApproaches'], context.style)
       const before = measure()
@@ -117,7 +117,8 @@ S1["same word ok"] --> D`],
       repairs.push({
         bundled: context.mergeEdges,
         placement: context.elkResult,
-        improved: after.hard! < before.hard! || after.endpointApproaches! < before.endpointApproaches!,
+        before: before.hard! + before.endpointApproaches!,
+        after: after.hard! + after.endpointApproaches!,
       })
     }
     try {
@@ -126,13 +127,17 @@ S1["same word ok"] --> D`],
       expect(hardViolations(assessLayout(graph, positioned))).toEqual([])
       // These feasible fixtures need at most two placement strategies, followed
       // by one unbundled proposal on the selected placement. Every producer must
-      // independently repair its route before its completed geometry is scored.
+      // independently repair an infeasible route or preserve an already clean
+      // route before its completed geometry is scored.
       const bundled = repairs.filter(repair => repair.bundled)
       const unbundled = repairs.filter(repair => !repair.bundled)
       expect(bundled.length).toBeGreaterThanOrEqual(1)
       expect(bundled.length).toBeLessThanOrEqual(2)
       expect(unbundled.length).toBeLessThanOrEqual(1)
-      expect(repairs.every(repair => repair.improved)).toBe(true)
+      for (const repair of repairs) {
+        expect(repair.after).toBe(0)
+        if (repair.before > 0) expect(repair.after).toBeLessThan(repair.before)
+      }
       for (const repair of unbundled) {
         expect(bundled.some(previous => previous.placement === repair.placement)).toBe(true)
         expect(repairs.at(-1)).toBe(repair)

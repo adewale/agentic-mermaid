@@ -78,8 +78,8 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
   relations.forEach((relation, index) => {
     if (!relationshipById.has(relation.id)) relationshipById.set(relation.id, diagram.relationships[index]!)
   })
-  const notePlans = diagram.notes.map((note, index) => ({ id: generated(`note:${index}`), parentId: note.for, lines: wrapText(displayText(resolveLabelContent(note.text, note.textContent)), targetWidth ? Math.max(1, targetWidth - 8) : undefined) }))
-  const noteRelations: BoxRelation[] = notePlans.flatMap(note => (note.parentId ? [{ id: generated(`${note.id}:connector`), from: note.parentId, to: note.id }] : []))
+  const notePlans = diagram.notes.map((note, index) => ({ id: generated(`note:${index}`), targetId: note.for, lines: wrapText(displayText(resolveLabelContent(note.text, note.textContent)), targetWidth ? Math.max(1, targetWidth - 8) : undefined) }))
+  const noteRelations: BoxRelation[] = notePlans.flatMap(note => (note.targetId ? [{ id: generated(`${note.id}:connector`), from: note.targetId, to: note.id }] : []))
   const faceSizes = boxFaceSizes([...relations, ...noteRelations], direction)
   const sections = new Map(diagram.classes.map(cls => [cls.id, classSections(cls, targetWidth ? Math.max(1, targetWidth - 8) : undefined)]))
   const sizes = new Map(
@@ -147,7 +147,7 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
   for (let pass = 0; pass < (relations.length + noteRelations.length) * 2 + 2; pass++) {
     let noteY = Math.max(0, ...[...placed.values()].map(box => box.y + box.height)) + 8
     const notes = notePlans.map(note => {
-      const target = note.parentId ? placed.get(note.parentId) : undefined
+      const target = note.targetId ? placed.get(note.targetId) : undefined
       const box = { id: note.id, x: target?.x ?? 4, y: noteY, width: Math.max(6, ...note.lines.map(line => visualWidth(line) + 4)), height: note.lines.length + 2 }
       noteY += box.height + 4
       return box
@@ -237,7 +237,7 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
   let noteY = Math.max(0, ...[...placed.values()].map(box => box.y + box.height), ...namespaces.map(box => box.y + box.height)) + 8
   const noteBoxes = notePlans.map(note => {
     const size = faceSizes.get(note.id),
-      target = note.parentId ? placed.get(note.parentId) : undefined
+      target = note.targetId ? placed.get(note.targetId) : undefined
     const box = { ...note, x: target?.x ?? 2, y: noteY, width: Math.max(6, ...note.lines.map(line => visualWidth(line) + 4), size?.width ?? 0), height: Math.max(note.lines.length + 2, size?.height ?? 0) }
     noteY += box.height + 4
     return box
@@ -307,7 +307,7 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
     doc.scope(owner, () => doc.overlay(card, box.x, box.y))
   }
   for (const box of noteBoxes) {
-    const owner = doc.element({ id: box.id, kind: 'node', parent: box.parentId === undefined ? undefined : { id: box.parentId, kind: 'node' } })
+    const owner = doc.element({ id: box.id, kind: 'node', annotationTarget: box.targetId === undefined ? undefined : { id: box.targetId, kind: 'node' } })
     frame(box, owner, true)
     doc.textBlock(box.x + 2, box.y + 1, box.lines, { owner })
   }

@@ -13,20 +13,28 @@ describe('native Ishikawa', () => {
     const parsed = parseRegisteredMermaid('ishikawa\nEffect\n  Child')
     if (!parsed.ok || parsed.value.body.kind !== 'ishikawa') throw new Error('Expected typed Ishikawa')
     const before = serializeMermaid(parsed.value)
-    for (const description of ['one\rtwo', 'one\r\ntwo', 'one\n  two']) {
+    for (const description of ['one\rtwo', 'one\r\ntwo', 'one\n  two', 'one\nEffect\n  Injected cause']) {
       const edited = mutate(parsed.value, { kind: 'set_accessibility_description', description })
       expect(edited.ok).toBe(true)
       if (!edited.ok || edited.value.body.kind !== 'ishikawa') continue
-      expect(edited.value.body.accessibilityDescription).toBe('one\ntwo')
+      expect(edited.value.body.accessibilityDescription).toBe(description)
       expect(edited.value.body.nodes).toEqual(parsed.value.body.nodes)
       const written = serializeMermaid(edited.value)
       const reloaded = parseRegisteredMermaid(written)
       expect(reloaded.ok && reloaded.value.body).toEqual(edited.value.body)
       expect(verifyMermaid(written).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'ishikawa_accessibility' }))
     }
-    for (const title of ['one\rtwo', 'one\r\ntwo', 'one\ntwo', '']) {
-      expect(mutate(parsed.value, { kind: 'set_accessibility_title', title })).toMatchObject({ ok: false, error: { code: 'INVALID_OP' } })
+    for (const title of ['one\rtwo', 'one\r\ntwo', 'one\ntwo', 'one\nEffect\n  Injected cause']) {
+      const edited = mutate(parsed.value, { kind: 'set_accessibility_title', title })
+      expect(edited.ok).toBe(true)
+      if (!edited.ok || edited.value.body.kind !== 'ishikawa') continue
+      expect(edited.value.body.accessibilityTitle).toBe(title)
+      expect(edited.value.body.nodes).toEqual(parsed.value.body.nodes)
+      const reloaded = parseRegisteredMermaid(serializeMermaid(edited.value))
+      expect(reloaded.ok && reloaded.value.body).toEqual(edited.value.body)
     }
+    expect(mutate(parsed.value, { kind: 'set_accessibility_title', title: '' })).toMatchObject({ ok: false, error: { code: 'INVALID_OP' } })
+    expect(mutate(parsed.value, { kind: 'set_accessibility_description', description: '' })).toMatchObject({ ok: false, error: { code: 'INVALID_OP' } })
     expect(serializeMermaid(parsed.value)).toBe(before)
   })
 
