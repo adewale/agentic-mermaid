@@ -7,6 +7,8 @@ export interface UnifiedRunOptions {
   site?: string
   mermaidDir?: string
   referenceDir?: string
+  fidelityZenumlRoot?: string
+  upstreamRunnerRoot?: string
   benchmarkRecordStore?: string
   benchmarkForce?: boolean
   benchmarkResumeAttempt?: string
