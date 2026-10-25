@@ -115,7 +115,7 @@ export function performanceScorecard(candidate: PerformanceReport, controls: rea
     if (!o || o.status !== 'ok' || !o.semantic?.ok || !o.callSamplesMs?.length || !o.callSamplesMs.every(positive)) scalingMissing.push([peer, round, workload, phase, consumer].join('/'))
   }
   check('Every Agentic scaling track succeeds', scalingMissing.length === 0, scalingMissing.join(', '))
-  const agenticDiagnostics = observations.filter(o => o.peer === 'agentic' && o.status === 'ok' && o.phase !== 'first-use')
+  const agenticDiagnostics = observations.filter(o => o.peer === 'agentic' && o.status === 'ok')
   check('Actual candidate cache/fallback diagnostic replays complete', agenticDiagnostics.length > 0 && agenticDiagnostics.every(o => o.diagnostics?.status === 'observed' && o.diagnostics.complete === true))
 
   const graph = (r: PerformanceReport, peer: string) => r.pins.find(p => p.peer === peer)?.runtimeDependencySha256
@@ -221,7 +221,7 @@ export function performanceScorecard(candidate: PerformanceReport, controls: rea
     releaseRegression: gates.filter(g => !g.peer), peerCompetitiveness: gates.filter(g => g.peer), peerCohortSummary, coverage: fullCoverage, semanticCoverage, cacheDiagnostics,
     calibration: { validControls, reason: calibrationReason, controlRuns: controls.map(r => r.runId), fingerprint: fingerprint(candidate) },
     scaling: { workloads: policy.scaling, growth: scalingGrowth, policy: 'Larger tree/mesh cases have separate targets and a normalized doubled-size cost-ratio gate. Neither is an asymptotic complexity proof. Canonical release scaling coverage remains separate.' },
-    limits: 'Semantic checks establish the declared output contract, not aesthetic equivalence. Peers without observable authored endpoints/identities retain label-checked timings but cannot pass semantic performance gates. Allocation estimates exclude native/WASM memory. First-use tails with fewer than 20 fresh-process calls per round are uncalibrated; cold allocation and cold diagnostics are unavailable. Cache hit rates count actual hits/(hits+misses), excluding bypass, from separate untimed replays; fallback coverage is limited to the named owners. Uncalibrated checks cannot establish readiness.' }
+    limits: 'Semantic checks establish the declared output contract, not aesthetic equivalence. Peers without observable authored endpoints/identities retain label-checked timings but cannot pass semantic performance gates. Allocation estimates exclude native/WASM memory. First-use tails need at least 20 fresh-process calls per round; cold allocation needs three separate first-render probes and cold diagnostics need their own successful fresh-worker replay. Cache hit rates count actual hits/(hits+misses), excluding bypass, from separate untimed replays; uninstrumented peers remain unobserved and fallback coverage is limited to the named owners. Uncalibrated checks cannot establish readiness.' }
 }
 
 export function performanceMarkdown(score: ReturnType<typeof performanceScorecard>): string {
@@ -236,7 +236,7 @@ export function performanceMarkdown(score: ReturnType<typeof performanceScorecar
   for (const row of score.peerCohortSummary) lines.push(`| ${row.peer} | ${row.phase} | ${row.metric} | ${row.labelCheckedRatio?.toFixed(4) ?? 'unavailable'} | ${row.semanticComplete} |`)
   lines.push('', '## Semantic observability', '', '| Peer | Verified rows | Unavailable rows | Failed rows | Unavailable contracts |', '| --- | ---: | ---: | ---: | --- |')
   for (const [peer, row] of Object.entries(score.semanticCoverage)) lines.push(`| ${peer} | ${row.verified} | ${row.unavailable} | ${row.failures} | ${row.unsupported.join('; ')} |`)
-  lines.push('', '## Observed cache hits and fallbacks', '', 'Separate untimed replays; cold observations and peers without the diagnostic seam remain unobserved. Per-owner counts and hit rates, bypasses, skipped stores and fallback reasons are retained per case/phase/round in gates.json and the raw worker reports.', '')
+  lines.push('', '## Observed cache hits and fallbacks', '', 'Separate untimed replays, with a fresh first-render worker for cold diagnostics. Peers without the diagnostic seam remain unobserved. Per-owner counts and hit rates, bypasses, skipped stores and fallback reasons are retained per case/phase/round in gates.json and the raw worker reports.', '')
   const observed = score.cacheDiagnostics.filter(r => r.peer === 'agentic' && r.status === 'observed' && r.complete)
   lines.push(`Successful observed Agentic replays: ${observed.length}; fallback events at the instrumented owners: ${observed.length ? observed.reduce((sum, row) => sum + (row.observedFallbackCount ?? 0), 0) : 'unobserved'}.`, '')
   const events = new Map<string, number>()
