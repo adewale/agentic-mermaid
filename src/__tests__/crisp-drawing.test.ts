@@ -214,3 +214,26 @@ test('Sequence layout and drawing stay sibling stages through reentry and observ
   `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '0' } })
   expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
 })
+
+test('ordinary Sequence messages retain complete SVG and paint receipts across the private drawing adapter', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import assert from 'node:assert/strict'
+    import { renderMermaidSVGWithReceipt } from './src/index.ts'
+    import { getFamily, replaceFamilyForTest } from './src/agent/families.ts'
+    import { releaseBenchCases } from './eval/benchmark/release-bench-cases.ts'
+    const source = releaseBenchCases().find(value => value.id === 'sequence:20-participants-300-messages').source
+    const original = getFamily('sequence')
+    for (const cache of ['0', '1']) {
+      process.env.AGENTIC_MERMAID_ELK_CACHE = cache
+      const compact = renderMermaidSVGWithReceipt(source)
+      const restore = replaceFamilyForTest('sequence', { ...original })
+      try {
+        assert.deepEqual(compact, renderMermaidSVGWithReceipt(source))
+      } finally { restore() }
+      assert.equal(JSON.stringify(renderMermaidSVGWithReceipt(source)), JSON.stringify(compact))
+      assert.equal([...compact.svg.matchAll(/data-relationship="sequence-message"/g)].length, 300)
+      assert.equal([...compact.svg.matchAll(/data-relationship="lifeline"/g)].length, 110)
+    }
+  `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' } })
+  expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+})

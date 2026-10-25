@@ -45,6 +45,7 @@ export function isPrivateSequenceNativeOperation(context: object, producer: obje
   const operation = sequenceContexts.get(context)
   return !!operation && operation.producer === producer
     && sequenceOperations.get(operation.request) === operation
+    && !sceneAssertionsEnabled(operation.request)
     && originalSequenceProducer(operation.request) === producer
 }
 
