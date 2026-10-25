@@ -7,6 +7,7 @@
 // ============================================================================
 
 import { LINE_HEIGHT_RATIO } from './text-metrics.ts'
+import { formatSvgNumber } from './shared/svg-number.ts'
 import { HAS_FORMAT_TAGS } from './shared/inline-format.ts'
 import { prepareDisplayText, type DisplayRun, type DisplayTextInput } from './shared/display-text.ts'
 import type { PixelTextBlock } from './shared/prepared-text.ts'
@@ -162,7 +163,7 @@ function renderPreparedLine(block: PixelTextBlock, index: number, cx: number, an
   // and a combining cluster may span formatting descendants.
   if (/[^\x20-\x7e]/u.test(line.runs.map(run => run.text).join(''))) {
     const center = anchor === 'start' ? cx + line.width / 2 : anchor === 'end' ? cx - line.width / 2 : cx
-    return `<tspan x="${center}"${baseline === undefined ? '' : ` y="${baseline}"`} text-anchor="middle" data-text-fragment="true">${renderDisplayRuns(line.runs, block.fontWeight)}</tspan>`
+    return `<tspan x="${formatSvgNumber(center)}"${baseline === undefined ? '' : ` y="${formatSvgNumber(baseline)}"`} text-anchor="middle" data-text-fragment="true">${renderDisplayRuns(line.runs, block.fontWeight)}</tspan>`
   }
   if (block.letterSpacing === 0 && !line.fragments) return renderDisplayRuns(line.runs, block.fontWeight)
   if (!line.fragments) throw new TypeError('Tracked text requires retained fragment allocations')
@@ -170,7 +171,7 @@ function renderPreparedLine(block: PixelTextBlock, index: number, cx: number, an
   return line.fragments.map(fragment => {
     const style = displayRunAttributes(line.runs[fragment.runIndex]!, block.fontWeight)
     const whitespace = /^ | $/.test(fragment.text) ? ' xml:space="preserve"' : ''
-    return `<tspan x="${origin + fragment.x}" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="${Math.max(0, fragment.width)}" lengthAdjust="spacingAndGlyphs"${whitespace}${style.length ? ` ${style.join(' ')}` : ''}>${escapeXml(fragment.text)}</tspan>`
+    return `<tspan x="${formatSvgNumber(origin + fragment.x)}" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="${formatSvgNumber(Math.max(0, fragment.width))}" lengthAdjust="spacingAndGlyphs"${whitespace}${style.length ? ` ${style.join(' ')}` : ''}>${escapeXml(fragment.text)}</tspan>`
   }).join('')
 }
 
@@ -216,13 +217,13 @@ export function renderMultilineText(
   const visible = block ? block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n') : displayText(value, display)
   if (/(?:^ | $| {2}|\t)/m.test(visible) && !attrs.includes('xml:space=')) attrs += ' xml:space="preserve"'
   if (block) attrs += ' data-prepared-text="true"'
-  const advanceAttrs = (i: number) => block && !fragmented && !block.lineBlocks[i]!.fragments ? ` textLength="${block.lineBlocks[i]!.width}" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit"` : ''
+  const advanceAttrs = (i: number) => block && !fragmented && !block.lineBlocks[i]!.fragments ? ` textLength="${formatSvgNumber(block.lineBlocks[i]!.width)}" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit"` : ''
 
   // Single line — simple text element
   if (lines.length === 1) {
     const dy = fontSize * baselineShift
-    if (nativeShaping) return `<text x="${cx}" y="${cy}" ${attrs}>${renderPreparedLine(block, 0, cx, anchor, cy + dy)}</text>`
-    return `<text x="${cx}" y="${cy}" ${attrs} dy="${dy}"${advanceAttrs(0)}>${renderLine(value, 0)}</text>`
+    if (nativeShaping) return `<text x="${formatSvgNumber(cx)}" y="${formatSvgNumber(cy)}" ${attrs}>${renderPreparedLine(block, 0, cx, anchor, cy + dy)}</text>`
+    return `<text x="${formatSvgNumber(cx)}" y="${formatSvgNumber(cy)}" ${attrs} dy="${formatSvgNumber(dy)}"${advanceAttrs(0)}>${renderLine(value, 0)}</text>`
   }
 
   // Multi-line — use tspan elements with vertical centering
@@ -234,11 +235,11 @@ export function renderMultilineText(
     const dy = i === 0 ? firstDy : lineHeight
     // Native RTL fragments can consume relative advances in visual order.
     // Pin every baseline independently of the fragments' visual order.
-    const position = nativeShaping ? `y="${cy + firstDy + i * lineHeight}"` : `dy="${dy}"`
-    return `<tspan x="${cx}" ${position}${advanceAttrs(i)}>${renderLine(line, i)}</tspan>`
+    const position = nativeShaping ? `y="${formatSvgNumber(cy + firstDy + i * lineHeight)}"` : `dy="${formatSvgNumber(dy)}"`
+    return `<tspan x="${formatSvgNumber(cx)}" ${position}${advanceAttrs(i)}>${renderLine(line, i)}</tspan>`
   }).join('')
 
-  return `<text x="${cx}" y="${cy}" ${attrs}>${tspans}</text>`
+  return `<text x="${formatSvgNumber(cx)}" y="${formatSvgNumber(cy)}" ${attrs}>${tspans}</text>`
 }
 
 /**

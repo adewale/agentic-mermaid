@@ -90,7 +90,8 @@ test('native families expose request-bound graphical, verification, layout and q
     expect(proof?.outputDigest, family).toBe(renderedSvgDigest(rendered.svg))
     if (proof?.unit === 'px') {
       const actual = rendered.svg.match(/viewBox="([^"]+)"/)![1]!.split(/\s+/).map(Number)
-      expect([proof.viewport.x, proof.viewport.y, proof.viewport.width, proof.viewport.height], family).toEqual(actual)
+      const retained = [proof.viewport.x, proof.viewport.y, proof.viewport.width, proof.viewport.height]
+      retained.forEach((value, index) => expect(Math.abs(value - actual[index]!), family).toBeLessThanOrEqual(5e-12 * Math.max(Math.abs(value), Number.MIN_VALUE)))
     }
     const layout = layoutMermaidWithReceipt(source, { debug: true, layoutSafety: 'strict' })
     expect(layout.receipt.layoutCertification?.status, family).toBe('passed')

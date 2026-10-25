@@ -1,4 +1,5 @@
 import { serializeTransform } from './transforms.ts'
+import { formatSvgNumber } from '../shared/svg-number.ts'
 // ============================================================================
 // RoughBackend (SPEC §3.2/§11 phase 3) — rough.js-backed sketch serialization
 // of the SceneGraph. Headless (RoughGenerator + opsToPath, no DOM), version-
@@ -181,11 +182,11 @@ function opsToSvg(
     const d = gen.opsToPath(set as Parameters<typeof gen.opsToPath>[0], 2)
     if (!d) continue
     if (set.type === 'path') {
-      out.push(`<path d="${d}" fill="none" stroke="${stroke}" stroke-width="${strokeWidth}"${projectedAttrs}${opacityAttr} />`)
+      out.push(`<path d="${d}" fill="none" stroke="${stroke}" stroke-width="${formatSvgNumber(strokeWidth)}"${projectedAttrs}${opacityAttr} />`)
     } else if (set.type === 'fillPath') {
       out.push(`<path d="${d}" fill="${fill}" fill-opacity="${escapeAttr(String(opacity?.fill ?? 0.92))}" stroke="none" />`)
     } else if (set.type === 'fillSketch') {
-      out.push(`<path d="${d}" fill="none" stroke="${fill}" stroke-width="${p.fillWeight}"${fillSketchOpacityAttr} />`)
+      out.push(`<path d="${d}" fill="none" stroke="${fill}" stroke-width="${formatSvgNumber(p.fillWeight)}"${fillSketchOpacityAttr} />`)
     }
   }
   return out.join('\n')

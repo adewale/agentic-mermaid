@@ -443,7 +443,7 @@ export interface ClassStatementTree {
 /** Class-specific statement classification. Block ownership is handled only
  * by readClassStatements; consumers never decide whether a line is a member. */
 function classifyClassStatement(text: string, authored: string | undefined): ClassSyntaxValue {
-  if (/^classDiagram\s*$/i.test(text)) return { kind: 'header' }
+  if (/^classDiagram(?:-v2)?\s*$/i.test(text)) return { kind: 'header' }
   if (!text || text.startsWith('%%')) return { kind: 'trivia' }
   if (text === '}') return { kind: 'close' }
   const interaction = authored !== undefined ? parseClassInteractionWithAuthored(authored) : null

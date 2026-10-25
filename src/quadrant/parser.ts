@@ -41,6 +41,48 @@ const QUADRANT_RE = /^quadrant-([1-4])\s+(.+)$/is
 const POINT_RE = /^(.+?)\s*:\s*\[\s*([^,\]]+)\s*,\s*([^,\]]+)\s*\]\s*(.*)$/s
 const CLASSDEF_RE = /^classDef\s+(.+)$/i
 
+/** Semicolons close statements, not quoted labels or functional styles.
+ * Keep generous bare text such as `quadrant-1 A;B` when the suffix is not
+ * another statement; the text codec reports and quotes that extension. */
+function quadrantStatements(raw: string): string[] {
+  if (!raw.includes(';') || TITLE_RE.test(raw)) return [raw]
+  const fragments: string[] = []
+  let start = 0, quoted = false, parentheses = 0
+  for (let index = 0; index < raw.length; index++) {
+    const char = raw[index]!
+    if (char === '"') quoted = !quoted
+    if (quoted) continue
+    if (char === '%' && raw[index + 1] === '%') break
+    if (char === '(') parentheses++
+    else if (char === ')') parentheses--
+    else if (char === ';' && parentheses === 0) {
+      fragments.push(raw.slice(start, index))
+      start = index + 1
+      // A title owns the rest of its physical line, including semicolons.
+      if (/^\s*title\s/i.test(raw.slice(start))) break
+    }
+  }
+  fragments.push(raw.slice(start))
+  const statements: string[] = []
+  let parts: string[] = []
+  for (let index = 0; index < fragments.length; index++) {
+    const fragment = fragments[index]!.trim()
+    if (!fragment && parts.length === 0) continue
+    parts.push(fragment)
+    const next = fragments[index + 1]?.trim() ?? ''
+    const point = POINT_RE.test(fragment)
+    const complete = point || CLASSDEF_RE.test(fragment) || /^quadrant(?:Chart)?$/i.test(fragment)
+    const text = AXIS_RE.test(parts[0]!) || QUADRANT_RE.test(parts[0]!)
+    const nextStatement = POINT_RE.test(next) || CLASSDEF_RE.test(next) || TITLE_RE.test(next) || AXIS_RE.test(next) || QUADRANT_RE.test(next)
+    if (complete || text && nextStatement || index === fragments.length - 1) {
+      const statement = parts.join(';')
+      if (statement) statements.push(statement)
+      parts = []
+    }
+  }
+  return statements
+}
+
 // Mermaid's quadrant lexer reads a "…" string (no escapes) to its closing
 // quote, and a point's `[x, y]`, across line breaks. A title runs to the end
 // of its line.
@@ -140,7 +182,8 @@ export function parseQuadrantChart(lines: string[], report?: QuadrantTextReport)
     throw new Error('Quadrant chart is empty')
   }
 
-  const header = stripTrailingComment(lines[0]!.trim())
+  const firstStatements = quadrantStatements(lines[0]!.trim())
+  const header = stripTrailingComment(firstStatements[0] ?? '')
   if (!/^quadrant(?:Chart)?\b\s*$/i.test(header)) {
     throw new Error(`Quadrant chart must start with "quadrant" or "quadrantChart", got: "${header}"`)
   }
@@ -160,100 +203,101 @@ export function parseQuadrantChart(lines: string[], report?: QuadrantTextReport)
   const classDefs: QuadrantChart['classDefs'] = Object.create(null) as QuadrantChart['classDefs']
   const seenPointLabels = new Set<string>()
 
-  for (let i = 1; i < lines.length; i++) {
+  for (let i = 0; i < lines.length; i++) {
     // Mermaid's Quadrant grammar ends a statement at a `%%` comment, except a
     // title, which runs to the end of its line.
-    const raw = lines[i]!.trim()
-    const line = TITLE_RE.test(raw) ? raw : stripTrailingComment(raw)
-    if (line.length === 0 || line.startsWith('%%')) continue
+    for (const raw of i === 0 ? firstStatements.slice(1) : quadrantStatements(lines[i]!.trim())) {
+      const line = TITLE_RE.test(raw) ? raw : stripTrailingComment(raw)
+      if (line.length === 0 || line.startsWith('%%')) continue
 
-    let m: RegExpMatchArray | null
+      let m: RegExpMatchArray | null
 
-    // classDef <name> <styles> — modeled (upstream point styling contract).
-    if ((m = line.match(CLASSDEF_RE))) {
-      if (parserObservationActive('quadrant')) observeParserStatement('quadrant', 'classDef', line, { line: i + 1, unit: 'normalized' })
-      const parsed = parseClassDefTail(m[1]!)
-      if (!parsed.ok) {
-        throw new Error(`Invalid quadrant classDef: ${parsed.error}`)
+      // classDef <name> <styles> — modeled (upstream point styling contract).
+      if ((m = line.match(CLASSDEF_RE))) {
+        if (parserObservationActive('quadrant')) observeParserStatement('quadrant', 'classDef', line, { line: i + 1, unit: 'normalized' })
+        const parsed = parseClassDefTail(m[1]!)
+        if (!parsed.ok) {
+          throw new Error(`Invalid quadrant classDef: ${parsed.error}`)
+        }
+        classDefs[parsed.name] = parsed.style
+        if (parserObservationActive('quadrant')) observeParserMutation('quadrant', 'setClassDef', { name: parsed.name, style: parsed.style }, { line: i + 1, unit: 'normalized' })
+        continue
       }
-      classDefs[parsed.name] = parsed.style
-      if (parserObservationActive('quadrant')) observeParserMutation('quadrant', 'setClassDef', { name: parsed.name, style: parsed.style }, { line: i + 1, unit: 'normalized' })
-      continue
-    }
 
-    if ((m = line.match(TITLE_RE))) {
-      if (parserObservationActive('quadrant')) observeParserStatement('quadrant', 'title', line, { line: i + 1, unit: 'normalized' })
-      title = normalizeBrTags(m[1]!.trim())
-      if (parserObservationActive('quadrant')) observeParserMutation('quadrant', 'setTitle', title, { line: i + 1, unit: 'normalized' })
-      continue
-    }
+      if ((m = line.match(TITLE_RE))) {
+        if (parserObservationActive('quadrant')) observeParserStatement('quadrant', 'title', line, { line: i + 1, unit: 'normalized' })
+        title = normalizeBrTags(m[1]!.trim())
+        if (parserObservationActive('quadrant')) observeParserMutation('quadrant', 'setTitle', title, { line: i + 1, unit: 'normalized' })
+        continue
+      }
 
-    if ((m = line.match(AXIS_RE))) {
-      if (parserObservationActive('quadrant')) observeParserStatement('quadrant', 'axis', line, { line: i + 1, unit: 'normalized' })
-      const axis = parseAxis(m[2]!.trim(), m[1]!.toLowerCase(), report)
-      if (m[1]!.toLowerCase() === 'x') xAxis = axis
-      else yAxis = axis
-      if (parserObservationActive('quadrant')) observeParserMutation('quadrant', 'setAxis', { axis: m[1]!.toLowerCase(), value: axis }, { line: i + 1, unit: 'normalized' })
-      continue
-    }
+      if ((m = line.match(AXIS_RE))) {
+        if (parserObservationActive('quadrant')) observeParserStatement('quadrant', 'axis', line, { line: i + 1, unit: 'normalized' })
+        const axis = parseAxis(m[2]!.trim(), m[1]!.toLowerCase(), report)
+        if (m[1]!.toLowerCase() === 'x') xAxis = axis
+        else yAxis = axis
+        if (parserObservationActive('quadrant')) observeParserMutation('quadrant', 'setAxis', { axis: m[1]!.toLowerCase(), value: axis }, { line: i + 1, unit: 'normalized' })
+        continue
+      }
 
-    if ((m = line.match(QUADRANT_RE))) {
-      if (parserObservationActive('quadrant')) observeParserStatement('quadrant', 'quadrant', line, { line: i + 1, unit: 'normalized' })
-      const idx = Number.parseInt(m[1]!, 10) - 1
-      quadrants[idx] = quadrantText(m[2]!.trim(), `quadrant-${m[1]} label`, report)
-      if (parserObservationActive('quadrant')) observeParserMutation('quadrant', 'setQuadrant', { quadrant: idx + 1, label: quadrants[idx] }, { line: i + 1, unit: 'normalized' })
-      continue
-    }
+      if ((m = line.match(QUADRANT_RE))) {
+        if (parserObservationActive('quadrant')) observeParserStatement('quadrant', 'quadrant', line, { line: i + 1, unit: 'normalized' })
+        const idx = Number.parseInt(m[1]!, 10) - 1
+        quadrants[idx] = quadrantText(m[2]!.trim(), `quadrant-${m[1]} label`, report)
+        if (parserObservationActive('quadrant')) observeParserMutation('quadrant', 'setQuadrant', { quadrant: idx + 1, label: quadrants[idx] }, { line: i + 1, unit: 'normalized' })
+        continue
+      }
 
-    if ((m = line.match(POINT_RE))) {
-      if (parserObservationActive('quadrant')) observeParserStatement('quadrant', 'point', line, { line: i + 1, unit: 'normalized' })
-      const { label: rawLabel, className } = splitPointClassSuffix(m[1]!.trim())
-      const label = quadrantText(rawLabel, 'point label', report)
-      const styleTail = m[4]!.trim()
-      const parsedStyle = parsePointStyleEntries(styleTail, `quadrant point ${label}`)
-      if (!parsedStyle.ok) {
+      if ((m = line.match(POINT_RE))) {
+        if (parserObservationActive('quadrant')) observeParserStatement('quadrant', 'point', line, { line: i + 1, unit: 'normalized' })
+        const { label: rawLabel, className } = splitPointClassSuffix(m[1]!.trim())
+        const label = quadrantText(rawLabel, 'point label', report)
+        const styleTail = m[4]!.trim()
+        const parsedStyle = parsePointStyleEntries(styleTail, `quadrant point ${label}`)
+        if (!parsedStyle.ok) {
+          throw new Error(
+            `Unsupported quadrant point style metadata: "${styleTail}" — ${parsedStyle.error}. ` +
+              'Expected comma-separated radius/color/stroke-color/stroke-width entries.',
+          )
+        }
+        const x = parseCoord(label, m[2]!.trim())
+        const y = parseCoord(label, m[3]!.trim())
+        if (seenPointLabels.has(label)) {
+          throw new Error(`Duplicate quadrant point label: "${label}"`)
+        }
+        seenPointLabels.add(label)
+        if (parserObservationActive('quadrant')) observeParserMutation('quadrant', 'addPointLabel', label, { line: i + 1, unit: 'normalized' })
+        const point: QuadrantPoint = { label, x, y }
+        if (parserObservationActive('quadrant')) observeParserMutation('quadrant', 'createPoint', point, { line: i + 1, unit: 'normalized' })
+        if (className !== undefined) {
+          point.className = className
+          if (parserObservationActive('quadrant')) observeParserMutation('quadrant', 'setPointClass', { label, className }, { line: i + 1, unit: 'normalized' })
+        }
+        if (parsedStyle.style !== undefined) {
+          point.style = parsedStyle.style
+          if (parserObservationActive('quadrant')) observeParserMutation('quadrant', 'setPointStyle', { label, style: parsedStyle.style }, { line: i + 1, unit: 'normalized' })
+        }
+        points.push(point)
+        if (parserObservationActive('quadrant')) observeParserMutation('quadrant', 'appendPoint', point, { line: i + 1, unit: 'normalized' })
+        continue
+      }
+
+      // A line that has a `:` looks like a point but didn't match the strict
+      // shape (missing/malformed brackets) — surface it loudly.
+      if (line.includes(':')) {
+        if (parserObservationActive('quadrant')) observeParserStatement('quadrant', 'invalidPoint', line, { line: i + 1, unit: 'normalized' })
         throw new Error(
-          `Unsupported quadrant point style metadata: "${styleTail}" — ${parsedStyle.error}. ` +
-            'Expected comma-separated radius/color/stroke-color/stroke-width entries.',
+          `Invalid quadrant point: "${line}". Expected: Label: [x, y] with x,y in [0,1]`,
         )
       }
-      const x = parseCoord(label, m[2]!.trim())
-      const y = parseCoord(label, m[3]!.trim())
-      if (seenPointLabels.has(label)) {
-        throw new Error(`Duplicate quadrant point label: "${label}"`)
-      }
-      seenPointLabels.add(label)
-      if (parserObservationActive('quadrant')) observeParserMutation('quadrant', 'addPointLabel', label, { line: i + 1, unit: 'normalized' })
-      const point: QuadrantPoint = { label, x, y }
-      if (parserObservationActive('quadrant')) observeParserMutation('quadrant', 'createPoint', point, { line: i + 1, unit: 'normalized' })
-      if (className !== undefined) {
-        point.className = className
-        if (parserObservationActive('quadrant')) observeParserMutation('quadrant', 'setPointClass', { label, className }, { line: i + 1, unit: 'normalized' })
-      }
-      if (parsedStyle.style !== undefined) {
-        point.style = parsedStyle.style
-        if (parserObservationActive('quadrant')) observeParserMutation('quadrant', 'setPointStyle', { label, style: parsedStyle.style }, { line: i + 1, unit: 'normalized' })
-      }
-      points.push(point)
-      if (parserObservationActive('quadrant')) observeParserMutation('quadrant', 'appendPoint', point, { line: i + 1, unit: 'normalized' })
-      continue
-    }
 
-    // A line that has a `:` looks like a point but didn't match the strict
-    // shape (missing/malformed brackets) — surface it loudly.
-    if (line.includes(':')) {
-      if (parserObservationActive('quadrant')) observeParserStatement('quadrant', 'invalidPoint', line, { line: i + 1, unit: 'normalized' })
-      throw new Error(
-        `Invalid quadrant point: "${line}". Expected: Label: [x, y] with x,y in [0,1]`,
-      )
+      if (parserObservationActive('quadrant')) observeParserStatement('quadrant', 'unrecognized', line, { line: i + 1, unit: 'normalized' })
+      throw syntaxError({
+        what: `Unrecognized quadrant chart line: "${line}"`,
+        expectedForm: 'a title, x-axis/y-axis, a quadrant-N label, a point (Label: [x, y]), or a classDef',
+        example: 'Quick win: [0.2, 0.8]',
+      })
     }
-
-    if (parserObservationActive('quadrant')) observeParserStatement('quadrant', 'unrecognized', line, { line: i + 1, unit: 'normalized' })
-    throw syntaxError({
-      what: `Unrecognized quadrant chart line: "${line}"`,
-      expectedForm: 'a title, x-axis/y-axis, a quadrant-N label, a point (Label: [x, y]), or a classDef',
-      example: 'Quick win: [0.2, 0.8]',
-    })
   }
 
   return {
