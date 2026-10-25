@@ -2965,21 +2965,23 @@ implementations retain their earlier measurements and dates.
 
 ### Original Dave workload
 
-Measured 15:02:51–15:05:03 UTC in Chromium 154, three counterbalanced rounds,
+Measured 18:35:37–18:37:42 UTC in Chromium 154, three counterbalanced rounds,
 30 corpus warmups per engine/round, ELK cache disabled. All **1,095 official
 fence occurrences**, representing 546 distinct examples across 34 pages,
-remain in the denominator. Versions and boundaries match the original lane;
-its Pele **1.6.0** is distinct from Pele **1.9.0** in the startup campaign.
+remain in the denominator. This refreshed comparison set uses **Pele 1.9.0 in every lane**. Its actual
+artifact versions must match the set manifest. The earlier Pele 1.6 Dave
+measurement remains historical at `continuation/dave/`; it is not part of this
+current set and has not been relabelled.
 
 | Implementation | Returns SVG in every round | Complete browser bundle gzip |
 | --- | ---: | ---: |
 | Agentic Mermaid 0.4.2 | 823/1,095 | 1,166.0 KiB |
-| Pele 1.6.0 | 1,063/1,095 | 246.9 KiB |
+| Pele 1.9.0 | 1,063/1,095 | 257.1 KiB |
 | Mermaid 12.2.0 | 1,061/1,095 | 1,534.1 KiB |
 
 On the 823 shared-success occurrences, Agentic/Pele render-call ratios were
-13.60, 21.74 and 20.09; median **20.09×**. Against Mermaid, the shared cohort
-contains 821 occurrences and the median ratio is **0.17×**. This ranks returned
+11.55, 21.43 and 22.29; median **21.43×**. Against Mermaid, the shared cohort
+contains 821 occurrences and the median ratio is **0.14×**. This ranks returned
 SVG work, excluding import, validation and paint. Failed cases cannot become
 cheap successful renders. These three rounds do not provide a calibrated
 release-regression claim or a tail-latency estimate.
@@ -3092,6 +3094,17 @@ reused records `3dedb582-150e-4ac3-9ba7-52c09029f96d` and
 original-assertion records also reused unchanged. Cancellation, identity
 changes, duplicate experimental coordinates and recovery of the wrong attempt
 are rejected; a corrected recovery request can retry without losing eligibility.
+
+The current set manifest is `continuation/pele19-set/tool-versions.json`; its
+refreshed Dave and Node peer measurements are in `pele19-set/dave/` and
+`pele19-set/node-peer/`. Startup, resource, original-assertion and portable records that already used
+Pele 1.9 retain their original clocks. Family admission received a fresh
+functional recheck because the earlier publication fix changed its recorded
+administrative closure; its outcomes are unchanged and it collects no latency
+samples. The active shared
+version policy rejects mixed releases for every tool before report publication,
+including aliases for the same project. An explicit historical manifest permits
+reviewing a separate uniform old set; it cannot mix old and current releases.
 
 Raw reports and identities are retained under
 `/workspace/mermaid-unified-2026-10-25/continuation/` in `dave/`,

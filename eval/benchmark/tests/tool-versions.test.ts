@@ -45,6 +45,17 @@ test('mixed actual tool releases cannot replace an existing unified report', () 
     delete report.suites[0]!.result!.observations[0]!.metrics!.version
     expect(() => writeUnifiedReport(out, report)).toThrow('Missing artifact version')
     expect(readFileSync(join(out, 'report.json'), 'utf8')).toBe(existing)
+    const evidence = join(out, 'family-proof')
+    mkdirSync(evidence)
+    const support = join(evidence, 'required-family-support.json')
+    writeFileSync(support, JSON.stringify({ project: 'example/renderer' }))
+    writeFileSync(join(evidence, 'identity.json'), JSON.stringify({ project: 'example/renderer', lane: 'required-family-admission', artifact: { artifact: { version: '2.0.0' }, packageMetadata: { name: 'renderer', version: '2.0.0' } } }))
+    report.suites[0]!.result!.artifacts = [support]
+    expect(() => writeUnifiedReport(out, report)).not.toThrow()
+    const admitted = readFileSync(join(out, 'report.json'), 'utf8')
+    writeFileSync(join(evidence, 'identity.json'), JSON.stringify({ project: 'someone/else', lane: 'required-family-admission', artifact: { artifact: { version: '2.0.0' } } }))
+    expect(() => writeUnifiedReport(out, report)).toThrow('owning project/lane')
+    expect(readFileSync(join(out, 'report.json'), 'utf8')).toBe(admitted)
   } finally { rmSync(out, { recursive: true, force: true }) }
 })
 

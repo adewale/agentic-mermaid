@@ -73,7 +73,7 @@ export function writeUnifiedReport(out: string, report: UnifiedReport): void {
       const identityFile = join(dirname(support), 'identity.json')
       const identity = JSON.parse(readFileSync(identityFile, 'utf8'))
       if (identity.project !== owning.project || identity.lane !== 'required-family-admission') throw Error('Family version receipt differs from its owning project/lane')
-      declared.push({ tool: identity.project, version: identity.artifact?.version, source: identityFile })
+      declared.push({ tool: identity.project, version: identity.artifact?.packageMetadata?.version ?? identity.artifact?.artifact?.version, source: identityFile })
     }
     claims.push(...declared)
     for (const row of result.observations) {
