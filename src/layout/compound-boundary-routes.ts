@@ -606,6 +606,39 @@ export function routeCrossHierarchy(
               return scoreMeasuredRouteCrossings(source ? [terminal.port, terminal.stub] : [terminal.stub, terminal.port], index, incident, input) !== undefined
             })
           }
+          const lateTerminals = (endpoint: number, source: boolean): Terminal[] => {
+            let degree = 0, ordinal = 0
+            for (let other = 0; other < input.edges.length; other++) {
+              if (--work.pairs < 0) fail('agentic local cross-hierarchy obstacle-work limit')
+              const peer = input.edges[other]!
+              if (peer.source === endpoint || peer.target === endpoint) { degree++; if (other < index) ordinal++ }
+            }
+            // Four terminal records, four retained slots and eight physical
+            // points are reserved before this additional phase materializes.
+            work.arcs -= 8
+            if (work.arcs < 0) fail('agentic local cross-hierarchy visibility-arc limit')
+            reserveExpanded(8)
+            const box = subjects[endpoint]!, direction = directions[owners[endpoint]! + 1]!, fraction = (ordinal + .5) / (degree + 1)
+            const forward = direction === 'LR' ? 'E' : direction === 'RL' ? 'W' : direction === 'BT' ? 'N' : 'S'
+            const preferred = source ? forward : forward === 'N' ? 'S' : forward === 'S' ? 'N' : forward === 'E' ? 'W' : 'E'
+            const roots = new Array<Terminal>(4)
+            // This constant four-face order matches the original generator.
+            const sideAt = (index: number): 'N' | 'E' | 'S' | 'W' => index === 0 ? preferred
+              : preferred === 'N' ? index === 1 ? 'E' : index === 2 ? 'S' : 'W'
+                : preferred === 'E' ? index === 1 ? 'N' : index === 2 ? 'S' : 'W'
+                  : preferred === 'S' ? index === 1 ? 'N' : index === 2 ? 'E' : 'W'
+                    : index === 1 ? 'N' : index === 2 ? 'E' : 'S'
+            for (let sideIndex = 0; sideIndex < 4; sideIndex++) {
+              if (--work.pairs < 0) fail('agentic local cross-hierarchy obstacle-work limit')
+              const side = sideAt(sideIndex)
+              const port = side === 'N' || side === 'S'
+                ? { x: box.x + fraction * box.width, y: side === 'N' ? box.y : box.y + box.height }
+                : { x: side === 'W' ? box.x : box.x + box.width, y: box.y + fraction * box.height }
+              const stub = { x: port.x + (side === 'E' ? clearance * 2 : side === 'W' ? -clearance * 2 : 0), y: port.y + (side === 'S' ? clearance * 2 : side === 'N' ? -clearance * 2 : 0) }
+              roots[sideIndex] = { port, stub, penalty: sideIndex * clearance * 2 + Math.abs(fraction - .5) * clearance }
+            }
+            return roots
+          }
           const starts = edge.label && !crossingSource ? [] : sparseTerminals(edge.source, true)
           const ends = edge.label && !crossingTarget ? [] : sparseTerminals(edge.target, false)
           work.pairs -= routePoints + routes.length
@@ -616,6 +649,23 @@ export function routeCrossHierarchy(
             return path.slice(1).map((point, cursor) => [path[cursor]!, point] as const)
           })
           const canTraverse = createCompoundPeerGuard(peerShafts, work, fail)
+          const hasEligibleRoot = (roots: readonly Terminal[]): boolean => {
+            const inside = (point: Point): boolean => point.x >= bounds.x && point.x <= bounds.x + bounds.width
+              && point.y >= bounds.y && point.y <= bounds.y + bounds.height
+            for (const terminal of roots) {
+              work.pairs -= 8
+              if (work.pairs < 0) fail('agentic local cross-hierarchy obstacle-work limit')
+              const { port, stub } = terminal
+              if (!inside(port) || !inside(stub)) continue
+              const obstacles = solidQueries()
+              if (obstacles.containsPoint(port.x, port.y) || obstacles.containsPoint(stub.x, stub.y)
+                || obstacles.entersSegment(port.x, port.y, stub.x, stub.y)) continue
+              const axis = port.x === stub.x ? 2 : port.y === stub.y ? 1 : 0
+              if (!axis) throw new TypeError('Measured terminal lead must be orthogonal')
+              if (canTraverse(port, stub, axis, axis)) return true
+            }
+            return false
+          }
           const attempt = (route: () => void): boolean => {
             try { route(); return points !== undefined } catch (error) {
               if (!(error instanceof BoundaryRouteDecline)) throw error
@@ -639,11 +689,11 @@ export function routeCrossHierarchy(
             if (!points && decline === 'cross-hierarchy route has no bounded clear corridor') search(true)
           } else {
             const frameFor = (endpoint: number): RoutingBox => owners[endpoint]! < 0 ? subjects[endpoint]! : frames[owners[endpoint]!]!
-            const sourceGraph = crossingSource ? keepGraph(createEndpointSparseVisibilityGraph(bounds, frameFor(edge.source), solidObstacles, starts, routeStart, clearance, work, expansionLimit - expanded, corridorFail, reserveExpanded, false, solidQueries, sparseWorkspaces(), peerShafts, sparseAdjacencies())) : undefined
-            type Suffixes = { graph?: ReturnType<typeof createEndpointSparseVisibilityGraph>; paths: Point[][]; complete: boolean }
-            const ordinary: Suffixes = { paths: [], complete: false }, guided: Suffixes = { paths: [], complete: false }
+            type Suffixes = { roots: readonly Terminal[]; interiorChannels: boolean; late?: boolean; graph?: ReturnType<typeof createEndpointSparseVisibilityGraph>; paths: Point[][]; complete: boolean }
+            const ordinary: Suffixes = { roots: ends, interiorChannels: false, paths: [], complete: false }
+            const guided: Suffixes = { roots: ends, interiorChannels: true, paths: [], complete: false }
             const sourcePaths: Point[][] = []
-            const finishSparse = (first: Point[], interiorChannels = false): boolean => {
+            const finishSparse = (first: Point[], target = ordinary): boolean => {
               if (!crossingTarget) {
                 const accepted = accept(simplifyOrthogonal([...first, ...routeCore.slice(1)]))
                 if (accepted) { points = accepted; return true }
@@ -654,15 +704,19 @@ export function routeCrossHierarchy(
                 if (accepted) { points = accepted; return true }
                 return false
               }
-              // The peer ink, terminals and target graph do not change while
-              // testing this edge's source arrivals. Retain complete suffixes;
-              // rechecking their full join does not allocate another search.
-              const target = interiorChannels ? guided : ordinary
+              // Each phase retains only its own immutable terminal domain.
+              // Complete suffixes may be joined to later actual source paths.
               for (const last of target.paths) if (join(last)) return true
               if (target.complete) return false
+              if (!target.graph && !hasEligibleRoot(target.roots)) {
+                target.complete = true
+                decline = 'cross-hierarchy route has no bounded clear corridor'
+                return false
+              }
               const selected = attempt(() => {
-                target.graph ??= keepGraph(createEndpointSparseVisibilityGraph(bounds, frameFor(edge.target), solidObstacles, ends, routeEnd, clearance, work, expansionLimit - expanded, corridorFail, reserveExpanded, interiorChannels, solidQueries, sparseWorkspaces(), peerShafts, sparseAdjacencies()))
-                target.graph.route(ends, routeEnd, last => {
+                target.graph ??= keepGraph(createEndpointSparseVisibilityGraph(bounds, frameFor(edge.target), solidObstacles, target.roots, routeEnd, clearance, work, expansionLimit - expanded, corridorFail, reserveExpanded, target.interiorChannels, solidQueries, sparseWorkspaces(), peerShafts, sparseAdjacencies()))
+                target.graph.route(target.roots, routeEnd, last => {
+                  if (target.late && --work.arcs < 0) fail('agentic local cross-hierarchy visibility-arc limit')
                   target.paths.push(last)
                   return join(last)
                 }, canTraverse)
@@ -670,15 +724,39 @@ export function routeCrossHierarchy(
               if (!selected && decline === 'cross-hierarchy route has no bounded clear corridor') target.complete = true
               return selected
             }
+            const searchSource = (roots: readonly Terminal[], interiorChannels: boolean, visit: (path: Point[]) => boolean): boolean => {
+              if (!hasEligibleRoot(roots)) {
+                decline = 'cross-hierarchy route has no bounded clear corridor'
+                return false
+              }
+              return attempt(() => {
+                const graph = keepGraph(createEndpointSparseVisibilityGraph(bounds, frameFor(edge.source), solidObstacles, roots, routeStart, clearance, work, expansionLimit - expanded, corridorFail, reserveExpanded, interiorChannels, solidQueries, sparseWorkspaces(), peerShafts, sparseAdjacencies()))
+                graph.route(roots, routeStart, visit, canTraverse)
+              })
+            }
             const ordinarySource = (first: Point[]): boolean => { sourcePaths.push(first); return finishSparse(first) }
-            if (sourceGraph) attempt(() => { sourceGraph.route(starts, routeStart, ordinarySource, canTraverse) })
+            if (crossingSource) searchSource(starts, false, ordinarySource)
             else ordinarySource([routeStart])
             if (!points && decline === 'cross-hierarchy route has no bounded clear corridor') {
-              if (crossingTarget) for (const first of sourcePaths) if (finishSparse(first, true)) break
-              if (!points && crossingSource) {
-                const graph = keepGraph(createEndpointSparseVisibilityGraph(bounds, frameFor(edge.source), solidObstacles, starts, routeStart, clearance, work, expansionLimit - expanded, corridorFail, reserveExpanded, true, solidQueries, sparseWorkspaces(), peerShafts, sparseAdjacencies()))
-                attempt(() => { graph.route(starts, routeStart, first => finishSparse(first) || finishSparse(first, true), canTraverse) })
+              if (crossingTarget) for (const first of sourcePaths) if (finishSparse(first, guided)) break
+              if (!points && crossingSource) searchSource(starts, true, first => {
+                if (--work.arcs < 0) fail('agentic local cross-hierarchy visibility-arc limit')
+                sourcePaths.push(first)
+                return finishSparse(first) || finishSparse(first, guided)
+              })
+            }
+            if (!points && decline === 'cross-hierarchy route has no bounded clear corridor') {
+              // One additional authored occurrence sample per face. Legacy
+              // ordinary/guided attempts remain first and retain their roots.
+              let late: Suffixes | undefined
+              if (crossingTarget) {
+                const roots = lateTerminals(edge.target, false)
+                if (--work.arcs < 0) fail('agentic local cross-hierarchy visibility-arc limit')
+                late = { roots, interiorChannels: false, late: true, paths: [], complete: false }
               }
+              if (late) for (const first of sourcePaths) if (finishSparse(first, late)) break
+              if (!points && crossingSource) searchSource(lateTerminals(edge.source, true), false,
+                first => finishSparse(first) || crossingTarget && (finishSparse(first, guided) || finishSparse(first, late!)))
             }
           }
         } catch (error) {

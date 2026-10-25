@@ -238,6 +238,148 @@ C ..|> F : sends a notification payload`
     for (const label of ['owns entry', 'translates request payload', 'sends a notification payload']) expect(result.svg).toContain(label)
   })
 
+  test('retains labelled nested fan contacts when default owned escape rays are exhausted', () => {
+    const source = `classDiagram
+direction BT
+namespace Root {
+  class \`ns:Domain\`["Card 37-0 WWWWWWWW 👩‍💻"] {
+    +String value0
+    +step0()
+  }
+  class \`class-namespace:Domain\`["Card 37-1 WW"] {
+    +String value1
+    +step1()
+  }
+  class \`__interface_0\`["Card 37-2 WWWWWWWW"] {
+    +String value2
+  }
+  class \`C3\`["Card 37-3 WWWWWWWW 👩‍💻"] {
+    +String value3
+  }
+  class \`C4\`["Card 37-4 "] {
+    +String value4
+  }
+  class \`C5\`["Card 37-5 WWWW"] {
+    +String value5
+  }
+  class \`C6\`["Card 37-6 WW 👩‍💻"] {
+    +String value6
+  }
+  class \`C7\`["Card 37-7 W"] {
+    +String value7
+    +step7()
+  }
+  class \`C8\`["Card 37-8 WW"] {
+    +String value8
+  }
+  namespace Domain {
+    class \`C9\`["Card 37-9 WWWWW 👩‍💻"] {
+      +String value9
+    }
+    class \`C10\`["Card 37-10 WWWWW"] {
+      +String value10
+      +step10()
+    }
+    class \`C11\`["Card 37-11 WWWWWWWWWWW"] {
+      +String value11
+    }
+    class \`C12\`["Card 37-12 WWWWWWWWWWWW 👩‍💻"] {
+      +String value12
+      +step12()
+    }
+    class \`C13\`["Card 37-13 "] {
+      +String value13
+      +step13()
+    }
+    class \`C14\`["Card 37-14 WWWWWWWWWWW"] {
+      +String value14
+      +step14()
+    }
+    class \`C15\`["Card 37-15 WWWWWW 👩‍💻"] {
+      +String value15
+      +step15()
+    }
+    class \`C16\`["Card 37-16 WWWWW"] {
+      +String value16
+      +step16()
+    }
+    class \`C17\`["Card 37-17 WWWWWWWWWW"] {
+      +String value17
+      +step17()
+    }
+  }
+}
+\`ns:Domain\` --> \`class-namespace:Domain\`
+\`ns:Domain\` <|-- \`__interface_0\`
+\`ns:Domain\` ..|> \`C3\`
+\`ns:Domain\` ..> \`C4\`
+\`ns:Domain\` o-- \`C5\`
+\`ns:Domain\` --> \`C6\` : edge 5 xxxxxxxxxxxxxxxxxxxxxxxx
+\`ns:Domain\` ..> \`C7\`
+\`ns:Domain\` -- \`C8\`
+\`ns:Domain\` --> \`C9\` : edge 8 xxxxxxxxxxxxxxxxxxxxx
+\`ns:Domain\` o-- \`C10\`
+\`ns:Domain\` ..> \`C11\` : edge 10 xxxxxxxxxxxxxxxxxxx
+\`ns:Domain\` ..> \`C12\` : edge 11 xxxxxxxxxxxxxxxxxxxx
+\`ns:Domain\` *-- \`C13\` : edge 12 xxxxxxxxxx
+\`ns:Domain\` o-- \`C14\` : edge 13 xxxxx
+\`ns:Domain\` *-- \`C15\` : edge 14 xxxxxxxxx
+\`ns:Domain\` *-- \`C16\` : edge 15 xxxxxxxxxxxxxxxxxxx
+\`ns:Domain\` ..|> \`C17\`
+\`class-namespace:Domain\` -- \`C17\` : edge 17 xxxxxxxxxxxxxxxxxxxxxxxx
+\`__interface_0\` --> \`C17\` : edge 18 xxxxxx
+\`C3\` <|-- \`C17\`
+\`C4\` --> \`C17\`
+\`C5\` ..|> \`C17\` : edge 21 xxxxxxxxxxxxxxxxx
+\`C6\` ..|> \`C17\`
+\`C7\` <|-- \`C17\` : edge 23 xxxxxx
+\`C8\` <|-- \`C17\` : edge 24 x
+\`C9\` --> \`C17\` : edge 25 xxxxxxxxxxxxxxxxxxxx
+\`C10\` <|-- \`C17\`
+\`C11\` ..> \`C17\` : edge 27 xxxxxxxxxxxxxxxxxxxxxx
+\`C12\` <|-- \`C17\` : edge 28 xxxxxxxxxxxxxxxxx
+\`C13\` ..|> \`C17\`
+\`C14\` <|-- \`C17\` : edge 30 xxx
+\`C15\` ..> \`C17\` : edge 31 xxxxxxxxxxxxxxxxx
+\`C16\` --> \`C17\`
+\`class-namespace:Domain\` <|-- \`ns:Domain\`
+note for \`ns:Domain\` "owned note 37<br/>second line"
+note "free note 37"
+`
+    const options = { graphLayout: { backend: 'agentic' as const, fallback: 'none' as const } }
+    const model = parseClassDiagram(toMermaidLines(source)), original = structuredClone(model)
+    const placed = layoutClassDiagram(model, options)
+    expect(model).toEqual(original)
+    expect(layoutClassDiagram(model, options)).toEqual(placed)
+    expect(placed.relationships.map(rel => [rel.from, rel.to, rel.label])).toEqual(model.relationships.map(rel => [rel.from, rel.to, rel.label]))
+    const rendered = renderMermaidSVGWithReceipt(source, options)
+    expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+    expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', role: 'primary' })])
+    const boxes = new Map<string, { x: number; y: number; width: number; height: number }>()
+    const attributes = (tag: string) => Object.fromEntries([...tag.matchAll(/([\w-]+)="([^"]*)"/g)].map(match => [match[1]!, match[2]!]))
+    for (const match of rendered.svg.matchAll(/<g\b[^>]*class="class-node"[^>]*>\s*(<rect\b[^>]*>)/g)) {
+      const parent = attributes(match[0]!.slice(0, match[0]!.indexOf('>') + 1)), box = attributes(match[1]!)
+      boxes.set(parent['data-id']!, { x: Number(box.x), y: Number(box.y), width: Number(box.width), height: Number(box.height) })
+    }
+    const shafts = [...rendered.svg.matchAll(/<polyline\b[^>]*class="class-relationship"[^>]*>/g)]
+    expect(shafts).toHaveLength(model.relationships.length)
+    for (const match of shafts) {
+      const shaft = attributes(match[0]), points = shaft.points!.split(/\s+/).map(pair => pair.split(',').map(Number))
+      for (const [id, endpoint, next] of [[shaft['data-from']!, points[0]!, points[1]!], [shaft['data-to']!, points.at(-1)!, points.at(-2)!]] as const) {
+        const box = boxes.get(id)!, [x, y] = endpoint, [nx, ny] = next
+        expect(box).toBeDefined()
+        expect(x!).toBeGreaterThanOrEqual(box.x - 1e-7)
+        expect(x!).toBeLessThanOrEqual(box.x + box.width + 1e-7)
+        expect(y!).toBeGreaterThanOrEqual(box.y - 1e-7)
+        expect(y!).toBeLessThanOrEqual(box.y + box.height + 1e-7)
+        expect(Math.abs(x! - box.x) < 1e-7 && ny === y && nx! < x! || Math.abs(x! - box.x - box.width) < 1e-7 && ny === y && nx! > x!
+          || Math.abs(y! - box.y) < 1e-7 && nx === x && ny! < y! || Math.abs(y! - box.y - box.height) < 1e-7 && nx === x && ny! > y!).toBe(true)
+        expect(Math.abs(nx! - x!) + Math.abs(ny! - y!)).toBeGreaterThanOrEqual(8)
+      }
+    }
+    for (const label of ['edge 24 x', 'owned note 37', 'free note 37']) expect(rendered.svg).toContain(label)
+  })
+
   test.each(['default', 'elk', 'agentic'] as const)('retains authored empty namespace frames with %s', backend => {
     const source = 'classDiagram\nnamespace Outer["Outer empty label"] {\nnamespace Inner["Inner empty label"] {\nnamespace Leaf["Leaf empty label"] {\n}\n}\n}\nnamespace Empty["Standalone empty label"] {\n}\nnote "Empty frame note"'
     for (const hierarchicalNamespaces of [true, false]) {
