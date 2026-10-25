@@ -212,7 +212,25 @@ describe('public hierarchy endpoints', () => {
       expect(decodedSvgAttributeValue(carrier, 'marker-end')).toBeDefined()
       const coordinates = decodedSvgAttributeValue(carrier, 'points')!.trim().split(/[\s,]+/).map(Number)
       const points: Array<[number, number]> = Array.from({ length: coordinates.length / 2 }, (_, i) => [coordinates[i * 2]!, coordinates[i * 2 + 1]!])
-      expect(points).toEqual(layout.edges[0]!.path)
+      const expectedPoints = layout.edges[0]!.path
+      expect(coordinates).toHaveLength(expectedPoints.length * 2)
+      for (let i = 0; i < expectedPoints.length; i++) for (const axis of [0, 1] as const) {
+        const value = expectedPoints[i]![axis]
+        // Twelve significant digits round by at most half a decimal unit at
+        // exponent floor(log10(abs(value))) - 11, plus binary subtraction noise.
+        const halfUnit = value === 0 ? 0 : 0.5 * 10 ** (Math.floor(Math.log10(Math.abs(value))) - 11)
+        expect(Math.abs(points[i]![axis] - value)).toBeLessThanOrEqual(halfUnit + Number.EPSILON * Math.abs(value))
+        if (i) {
+          const previous = expectedPoints[i - 1]![axis], delta = points[i]![axis] - points[i - 1]![axis]
+          if (delta !== 0) expect(Math.sign(delta)).toBe(Math.sign(value - previous))
+          else {
+            // Rounding can collapse an arithmetic-noise step, but cannot
+            // erase a step distinguishable at the writer's stated precision.
+            const previousHalfUnit = previous === 0 ? 0 : 0.5 * 10 ** (Math.floor(Math.log10(Math.abs(previous))) - 11)
+            expect(Math.abs(value - previous)).toBeLessThanOrEqual(halfUnit + previousHalfUnit + Number.EPSILON * (Math.abs(value) + Math.abs(previous)))
+          }
+        }
+      }
       const header = measureRenderedText(svg).texts.find(text => text.content === 'Box')!
       expect(header.box, `${backend} Box has visible title glyphs`).toBeDefined()
       const group = layout.groups.find(group => group.id === 'Box')!
