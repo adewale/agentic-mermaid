@@ -996,7 +996,7 @@ async function main(): Promise<void> {
       if (selected.includes('tree50')) { scaling.push('tree100'); trackSources.tree100 = flowchartTree(100); trackExpected.tree100 = range('Node ', 100) }
       if (selected.includes('mesh50')) { scaling.push('mesh100'); trackSources.mesh100 = flowchartMesh(100, 40); trackExpected.mesh100 = range('label ', 40) }
     }
-    const trackSettings = { coldSamples: args.has('quick') ? 3 : 21, warmCalls: args.has('quick') ? 3 : 20, warmupMs: args.has('quick') ? 0 : 1000, warmupVariants: 20, samples: args.has('quick') ? 3 : 201, allocationSamples: 3, maxCaseMs: args.has('quick') ? timing.maxCaseMs : 180_000 }
+    const trackSettings = { coldSamples: args.has('quick') ? 3 : 21, warmCalls: args.has('quick') ? 3 : 20, warmupMs: args.has('quick') ? 0 : 1000, samples: args.has('quick') ? 3 : 201, allocationSamples: 3, maxCaseMs: args.has('quick') ? timing.maxCaseMs : 180_000 }
     const tracks: PeerTrackReport = { schemaVersion: 1, contractVersion: 'semantic-peer-v1', cohort: PEER_FROZEN_COHORT, phases, consumers, scaling, observations: [] }
     const trackWorkloads = [...workloads.svg, ...scaling]
     const trackInputs = Object.fromEntries(trackWorkloads.map(id => [id, { source: trackSources[id], expected: trackExpected[id] }]))
@@ -1004,6 +1004,7 @@ async function main(): Promise<void> {
     const harnessDirty = git(['status', '--porcelain', '--', 'eval/benchmark']).length > 0
     const tracksConfig = { variantDomains: PEER_VARIANT_DOMAINS, phases, consumers, ...trackSettings, ...(phases.length ? {
       consumption: 'indexed-utf8-checksum-v1',
+      warmupSources: 'fresh-edit-ordinals-v1',
       apiBindings: prepared.map(({ peer }) => ({ peer: peer.id, svg: peer.svg ? { subpath: peer.svg.subpath, api: peer.svg.api } : null,
         receipt: peer.id === 'agentic' || peer.id.startsWith('agentic-') ? 'renderMermaidSVGWithReceipt(source); availability is retained per observation' : null })),
       rendererEnvironment: { host: 'Node public SVG API; no browser mount/adaptation', fontAndMeasurerOptions: 'pinned peer defaults; no overrides supplied', validation: 'Resvg(svg, {font:{loadSystemFonts:false}})' },

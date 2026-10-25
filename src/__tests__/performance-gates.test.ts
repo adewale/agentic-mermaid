@@ -119,11 +119,14 @@ describe('calibrated semantic performance decisions', () => {
     }
   })
 
-  test('consumer implementation changes invalidate saved controls', () => {
+  test.each([
+    ['consumption', 'indexed-utf8-checksum-v1'],
+    ['warmupSources', 'fresh-edit-ordinals-v1'],
+  ])('%s method changes invalidate saved controls', (setting, value) => {
     const { candidate, controls } = setup()
-    candidate.tracksConfig!.consumption = 'indexed-utf8-checksum-v1'
+    candidate.tracksConfig![setting] = value
     expect(performanceScorecard(candidate, controls).calibration.validControls).toBe(false)
-    for (const control of controls) control.tracksConfig!.consumption = 'indexed-utf8-checksum-v1'
+    for (const control of controls) control.tracksConfig![setting] = value
     expect(performanceScorecard(candidate, controls).calibration.validControls).toBe(true)
   })
 
