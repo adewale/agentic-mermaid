@@ -6,15 +6,19 @@
  * For hierarchical edges (cross-hierarchy with ports), combines external and
  * internal segments into a single continuous edge path.
  */
-import type { ElkNode } from 'elkjs'
+import type { ElkNode, ElkExtendedEdge } from 'elkjs'
 import type { MermaidGraph, Point, PositionedEdge } from '../../types.ts'
 import { resolveEdgeInlineStyle } from '../../color-resolver.ts'
 import { calculatePathMidpoint, type MarginInfo } from '../geometry.ts'
 import { orthogonalizeEdgePoints } from './orthogonalize.ts'
 
+/** Private adapter metadata retained by ELK and its layout cache. */
+export interface ElkHierarchySegment extends ElkExtendedEdge {
+  hierarchySegment: { edgeIndex: number; order: number }
+}
+
 interface EdgeSegment {
-  edgeIndex: number
-  isInternal: boolean  // true for port-to-node segments (e.g., "e3_internal")
+  order: number
   points: Point[]
   labelPosition?: Point
 }
@@ -27,7 +31,7 @@ export function extractEdgesRecursively(
   margins?: MarginInfo
 ): void {
   // First pass: collect all edge segments
-  const segments = new Map<number, { external?: EdgeSegment; incoming?: EdgeSegment; outgoing?: EdgeSegment }>()
+  const segments = new Map<number, EdgeSegment[]>()
   const origins = new Map<string, Point>()
   const indexOrigins = (node: ElkNode, x: number, y: number): void => {
     origins.set(node.id, { x, y })
@@ -44,42 +48,20 @@ export function extractEdgesRecursively(
     const originalEdge = graph.edges[edgeIndex]
     if (!originalEdge) continue
 
-    // Combine points from all segments in correct order:
-    // - For incoming cross-hierarchy (external → subgraph): external then incoming
-    // - For outgoing cross-hierarchy (subgraph → external): outgoing then external
-    // - For both (subgraph A → subgraph B): outgoing → external → incoming
+    // The producer retains the full path through container scopes. Sorting by
+    // that order supports arbitrary depth without inferring roles from IDs.
     const allPoints: Point[] = []
-
-    // First: outgoing internal segment (source node → exit port)
-    if (seg.outgoing && seg.outgoing.points.length > 0) {
-      allPoints.push(...seg.outgoing.points)
-    }
-
-    // Second: external segment (exit port → entry port, or source → entry port, or exit port → target)
-    if (seg.external && seg.external.points.length > 0) {
-      if (allPoints.length > 0) {
-        // Skip first point to avoid duplicate at outgoing port
-        allPoints.push(...seg.external.points.slice(1))
-      } else {
-        allPoints.push(...seg.external.points)
-      }
-    }
-
-    // Third: incoming internal segment (entry port → target node)
-    if (seg.incoming && seg.incoming.points.length > 0) {
-      if (allPoints.length > 0) {
-        // Skip first point to avoid duplicate at incoming port
-        allPoints.push(...seg.incoming.points.slice(1))
-      } else {
-        allPoints.push(...seg.incoming.points)
-      }
+    for (const part of seg.sort((a, b) => a.order - b.order)) {
+      const previous = allPoints.at(-1), first = part.points[0]
+      const shared = previous && first && Math.abs(previous.x - first.x) < 1e-6 && Math.abs(previous.y - first.y) < 1e-6
+      allPoints.push(...(shared ? part.points.slice(1) : part.points))
     }
 
     // Label position: use ELK's inline label position (on-edge with collision avoidance)
     // Fall back to midpoint for hierarchical edges or when ELK position unavailable
     let labelPosition: Point | undefined
     if (originalEdge.label && allPoints.length >= 2) {
-      const elkLabelPos = seg.external?.labelPosition
+      const elkLabelPos = seg.find(part => part.labelPosition)?.labelPosition
       labelPosition = elkLabelPos ?? calculatePathMidpoint(allPoints)
     }
 
@@ -128,16 +110,15 @@ export function extractEdgesRecursively(
 
 function collectEdgeSegments(
   elkNode: ElkNode,
-  segments: Map<number, { external?: EdgeSegment; incoming?: EdgeSegment; outgoing?: EdgeSegment }>,
+  segments: Map<number, EdgeSegment[]>,
   offsetX: number,
   offsetY: number,
   origins: ReadonlyMap<string, Point>,
 ): void {
   if (elkNode.edges) {
     for (const elkEdge of elkNode.edges) {
-      // Parse edge ID: "e{index}" or "e{index}_internal"
-      const isInternal = elkEdge.id.endsWith('_internal')
-      const edgeIndex = parseInt(elkEdge.id.substring(1), 10)
+      const hierarchy = (elkEdge as Partial<ElkHierarchySegment>).hierarchySegment
+      const edgeIndex = hierarchy?.edgeIndex ?? parseInt(elkEdge.id.substring(1), 10)
       if (isNaN(edgeIndex)) continue
 
       // ELK can keep an edge in its authored host's array while reporting
@@ -176,30 +157,9 @@ function collectEdgeSegments(
         }
       }
 
-      // Store segment
-      if (!segments.has(edgeIndex)) {
-        segments.set(edgeIndex, {})
-      }
-      const seg = segments.get(edgeIndex)!
-
-      if (isInternal) {
-        // Determine if this is an incoming or outgoing internal segment
-        // by checking if source is a port (incoming) or target is a port (outgoing)
-        const source = elkEdge.sources?.[0] ?? ''
-        const target = elkEdge.targets?.[0] ?? ''
-        const sourceIsPort = source.includes('_in_') || source.includes('_out_')
-        const targetIsPort = target.includes('_in_') || target.includes('_out_')
-
-        if (sourceIsPort) {
-          // Port → node: incoming internal segment
-          seg.incoming = { edgeIndex, isInternal, points, labelPosition }
-        } else if (targetIsPort) {
-          // Node → port: outgoing internal segment
-          seg.outgoing = { edgeIndex, isInternal, points, labelPosition }
-        }
-      } else {
-        seg.external = { edgeIndex, isInternal, points, labelPosition }
-      }
+      const parts = segments.get(edgeIndex) ?? []
+      parts.push({ order: hierarchy?.order ?? 0, points, labelPosition })
+      segments.set(edgeIndex, parts)
     }
   }
 
