@@ -247,19 +247,22 @@ function svgPathDataProblem(value: string, singleSubpath = false): string | unde
   return sawCommand ? undefined : 'must contain an M or m moveto command'
 }
 
+/** Numeric validation accepts the parent path and field separately so valid
+ * values do not allocate a diagnostic path or an options record. */
 function finite(
   value: unknown,
   path: string,
   diagnostics: MutableDiagnostic[],
-  options: { positive?: boolean; nonNegative?: boolean } = {},
+  constraint?: 'positive' | 'nonNegative',
+  field?: string,
 ): value is number {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
-    add(diagnostics, 'SCENE_FINITE', path, 'must be a finite number')
+    add(diagnostics, 'SCENE_FINITE', field === undefined ? path : `${path}.${field}`, 'must be a finite number')
     return false
   }
-  if (options.positive && value <= 0) add(diagnostics, 'SCENE_BOUNDS', path, 'must be positive')
-  if (options.nonNegative && value < 0) add(diagnostics, 'SCENE_BOUNDS', path, 'must be non-negative')
-  if (Math.abs(value) > MAX_SCENE_EXTENT) add(diagnostics, 'SCENE_BOUNDS', path, `must not exceed ${MAX_SCENE_EXTENT} user units`)
+  if (constraint === 'positive' && value <= 0) add(diagnostics, 'SCENE_BOUNDS', field === undefined ? path : `${path}.${field}`, 'must be positive')
+  if (constraint === 'nonNegative' && value < 0) add(diagnostics, 'SCENE_BOUNDS', field === undefined ? path : `${path}.${field}`, 'must be non-negative')
+  if (Math.abs(value) > MAX_SCENE_EXTENT) add(diagnostics, 'SCENE_BOUNDS', field === undefined ? path : `${path}.${field}`, `must not exceed ${MAX_SCENE_EXTENT} user units`)
   return true
 }
 
@@ -442,8 +445,8 @@ function validatePoint(
   }
   if (external) rejectUnknownKeys(value, ['x', 'y'], path, diagnostics)
   consumePointBudget(budget, path, diagnostics)
-  finite(value.x, `${path}.x`, diagnostics)
-  finite(value.y, `${path}.y`, diagnostics)
+  finite(value.x, path, diagnostics, undefined, 'x')
+  finite(value.y, path, diagnostics, undefined, 'y')
 }
 
 function validateUnitVector(value: unknown, path: string, diagnostics: MutableDiagnostic[]): void {
@@ -508,24 +511,24 @@ function validateGeometry(
   }
   switch (value.kind) {
     case 'rect':
-      finite(value.x, `${path}.x`, diagnostics); finite(value.y, `${path}.y`, diagnostics)
-      finite(value.width, `${path}.width`, diagnostics, { nonNegative: true })
-      finite(value.height, `${path}.height`, diagnostics, { nonNegative: true })
-      if (value.rx !== undefined) finite(value.rx, `${path}.rx`, diagnostics, { nonNegative: true })
-      if (value.ry !== undefined) finite(value.ry, `${path}.ry`, diagnostics, { nonNegative: true })
+      finite(value.x, path, diagnostics, undefined, 'x'); finite(value.y, path, diagnostics, undefined, 'y')
+      finite(value.width, path, diagnostics, 'nonNegative', 'width')
+      finite(value.height, path, diagnostics, 'nonNegative', 'height')
+      if (value.rx !== undefined) finite(value.rx, path, diagnostics, 'nonNegative', 'rx')
+      if (value.ry !== undefined) finite(value.ry, path, diagnostics, 'nonNegative', 'ry')
       return
     case 'circle':
-      finite(value.cx, `${path}.cx`, diagnostics); finite(value.cy, `${path}.cy`, diagnostics)
-      finite(value.r, `${path}.r`, diagnostics, { nonNegative: true })
+      finite(value.cx, path, diagnostics, undefined, 'cx'); finite(value.cy, path, diagnostics, undefined, 'cy')
+      finite(value.r, path, diagnostics, 'nonNegative', 'r')
       return
     case 'ellipse':
-      finite(value.cx, `${path}.cx`, diagnostics); finite(value.cy, `${path}.cy`, diagnostics)
-      finite(value.rx, `${path}.rx`, diagnostics, { nonNegative: true })
-      finite(value.ry, `${path}.ry`, diagnostics, { nonNegative: true })
+      finite(value.cx, path, diagnostics, undefined, 'cx'); finite(value.cy, path, diagnostics, undefined, 'cy')
+      finite(value.rx, path, diagnostics, 'nonNegative', 'rx')
+      finite(value.ry, path, diagnostics, 'nonNegative', 'ry')
       return
     case 'line':
-      finite(value.x1, `${path}.x1`, diagnostics); finite(value.y1, `${path}.y1`, diagnostics)
-      finite(value.x2, `${path}.x2`, diagnostics); finite(value.y2, `${path}.y2`, diagnostics)
+      finite(value.x1, path, diagnostics, undefined, 'x1'); finite(value.y1, path, diagnostics, undefined, 'y1')
+      finite(value.x2, path, diagnostics, undefined, 'x2'); finite(value.y2, path, diagnostics, undefined, 'y2')
       return
     case 'polygon':
       validatePoints(value.points, `${path}.points`, diagnostics, 3, budget, external)
@@ -582,7 +585,7 @@ function validateChannels(value: unknown, path: string, diagnostics: MutableDiag
     return
   }
   for (const field of ['importance', 'value', 'progress'] as const) {
-    if (value[field] !== undefined) finite(value[field], `${path}.${field}`, diagnostics)
+    if (value[field] !== undefined) finite(value[field], path, diagnostics, undefined, field)
   }
   if (typeof value.progress === 'number' && (value.progress < 0 || value.progress > 1)) {
     add(diagnostics, 'SCENE_BOUNDS', `${path}.progress`, 'must be in [0,1]')
@@ -622,21 +625,22 @@ function validateMarker(
   }
   if (record(value.size)) {
     if (external) rejectUnknownKeys(value.size, ['width', 'height'], `${path}.size`, diagnostics)
-    finite(value.size.width, `${path}.size.width`, diagnostics, { positive: true })
-    finite(value.size.height, `${path}.size.height`, diagnostics, { positive: true })
+    finite(value.size.width, path, diagnostics, 'positive', 'size.width')
+    finite(value.size.height, path, diagnostics, 'positive', 'size.height')
   }
   if (record(value.ref)) validatePoint(value.ref, `${path}.ref`, diagnostics, budget, external)
   if (value.paint !== undefined) validatePaint(value.paint, `${path}.paint`, diagnostics, external)
   if (record(value.viewBox)) {
     if (external) rejectUnknownKeys(value.viewBox, ['x', 'y', 'width', 'height'], `${path}.viewBox`, diagnostics)
-    finite(value.viewBox.x, `${path}.viewBox.x`, diagnostics)
-    finite(value.viewBox.y, `${path}.viewBox.y`, diagnostics)
-    finite(value.viewBox.width, `${path}.viewBox.width`, diagnostics, { positive: true })
-    finite(value.viewBox.height, `${path}.viewBox.height`, diagnostics, { positive: true })
+    finite(value.viewBox.x, path, diagnostics, undefined, 'viewBox.x')
+    finite(value.viewBox.y, path, diagnostics, undefined, 'viewBox.y')
+    finite(value.viewBox.width, path, diagnostics, 'positive', 'viewBox.width')
+    finite(value.viewBox.height, path, diagnostics, 'positive', 'viewBox.height')
   }
   if (record(value.bounds)) {
     if (external) rejectUnknownKeys(value.bounds, ['x0', 'y0', 'x1', 'y1'], `${path}.bounds`, diagnostics)
-    for (const field of ['x0', 'y0', 'x1', 'y1'] as const) finite(value.bounds[field], `${path}.bounds.${field}`, diagnostics)
+    const boundsPath = `${path}.bounds`
+    for (const field of ['x0', 'y0', 'x1', 'y1'] as const) finite(value.bounds[field], boundsPath, diagnostics, undefined, field)
     if (typeof value.bounds.x0 === 'number' && typeof value.bounds.x1 === 'number' && value.bounds.x0 > value.bounds.x1) {
       add(diagnostics, 'SCENE_BOUNDS', `${path}.bounds`, 'x0 must not exceed x1')
     }
@@ -644,11 +648,11 @@ function validateMarker(
       add(diagnostics, 'SCENE_BOUNDS', `${path}.bounds`, 'y0 must not exceed y1')
     }
   }
-  if (value.scale !== undefined) finite(value.scale, `${path}.scale`, diagnostics, { nonNegative: true })
+  if (value.scale !== undefined) finite(value.scale, path, diagnostics, 'nonNegative', 'scale')
   if (value.units !== undefined && !['strokeWidth', 'userSpaceOnUse'].includes(String(value.units))) {
     add(diagnostics, 'SCENE_MARKER', `${path}.units`, 'must be strokeWidth or userSpaceOnUse')
   }
-  if (typeof value.orient === 'number') finite(value.orient, `${path}.orient`, diagnostics)
+  if (typeof value.orient === 'number') finite(value.orient, path, diagnostics, undefined, 'orient')
   else if (value.orient !== undefined && !['auto', 'auto-start-reverse'].includes(String(value.orient))) {
     add(diagnostics, 'SCENE_MARKER', `${path}.orient`, 'must be auto, auto-start-reverse, or a finite angle')
   }
@@ -792,7 +796,8 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
       add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.transform`, 'must be a rotate or matrix transform')
     } else {
       const fields = value.transform.kind === 'matrix' ? ['a', 'b', 'c', 'd', 'e', 'f'] : ['angle', 'cx', 'cy']
-      for (const field of fields) finite(value.transform[field], `${path}.transform.${field}`, state.diagnostics)
+      const transformPath = `${path}.transform`
+      for (const field of fields) finite(value.transform[field], transformPath, state.diagnostics, undefined, field)
     }
     if (state.external) add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.transform`, 'external Scene transforms are not exposed by the declarative builder')
   }
@@ -837,10 +842,10 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
   if (kind === 'text') {
     boundedString(value.text, `${path}.text`, state.diagnostics, { empty: true, max: MAX_TEXT_LENGTH })
     if (state.aggregateBudgets) consumeStringBudget(state.budget, 'textBytes', 'textExceeded', value.text, `${path}.text`, state.diagnostics, MAX_TEXT_BYTES, 'Scene text values')
-    finite(value.x, `${path}.x`, state.diagnostics); finite(value.y, `${path}.y`, state.diagnostics)
-    finite(value.fontSize, `${path}.fontSize`, state.diagnostics, { positive: true })
-    if (value.fontWeight !== undefined) finite(value.fontWeight, `${path}.fontWeight`, state.diagnostics, { positive: true })
-    if (value.letterSpacing !== undefined) finite(value.letterSpacing, `${path}.letterSpacing`, state.diagnostics)
+    finite(value.x, path, state.diagnostics, undefined, 'x'); finite(value.y, path, state.diagnostics, undefined, 'y')
+    finite(value.fontSize, path, state.diagnostics, 'positive', 'fontSize')
+    if (value.fontWeight !== undefined) finite(value.fontWeight, path, state.diagnostics, 'positive', 'fontWeight')
+    if (value.letterSpacing !== undefined) finite(value.letterSpacing, path, state.diagnostics, undefined, 'letterSpacing')
     if (value.display !== undefined && value.display !== 'literal' && value.display !== 'formatted') add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.display`, 'must be literal or formatted')
     if (value.measurement !== undefined && !['prepared', 'fallback'].includes(String(value.measurement))) add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.measurement`, 'must identify prepared or fallback measurement')
     if (value.measurement === 'prepared' && (!record(value.block) || value.block.unit !== 'px' || !record(value.block.prepared))) add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.block`, 'prepared text must retain its actual pixel block')
@@ -849,21 +854,22 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
       for (const field of ['fontSize', 'fontWeight', 'letterSpacing'] as const) {
         if (value[field] !== undefined && value[field] !== value.block[field]) add(state.diagnostics, 'SCENE_FIDELITY', `${path}.block.${field}`, 'must equal the retained text typography')
       }
-      for (const field of ['width', 'height', 'fontSize', 'fontWeight', 'lineHeight']) finite(value.block[field], `${path}.block.${field}`, state.diagnostics, { nonNegative: true })
+      const blockPath = `${path}.block`
+      for (const field of ['width', 'height', 'fontSize', 'fontWeight', 'lineHeight']) finite(value.block[field], blockPath, state.diagnostics, 'nonNegative', field)
       if (record(value.textLayout) && (value.block.width !== value.textLayout.width || value.block.height !== value.textLayout.height || value.block.lineHeight !== value.textLayout.lineHeight)) add(state.diagnostics, 'SCENE_FIDELITY', `${path}.textLayout`, 'retained block differs from occupied text geometry')
     }
     if (value.textLayout !== undefined) {
       if (!record(value.textLayout)) add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.textLayout`, 'must be measured text geometry')
       else {
         if (state.external) rejectUnknownKeys(value.textLayout, ['width', 'height', 'lineHeight', 'offsetY'], `${path}.textLayout`, state.diagnostics)
-        finite(value.textLayout.width, `${path}.textLayout.width`, state.diagnostics, { nonNegative: true })
-        finite(value.textLayout.height, `${path}.textLayout.height`, state.diagnostics, { nonNegative: true })
-        finite(value.textLayout.lineHeight, `${path}.textLayout.lineHeight`, state.diagnostics, { positive: true })
-        finite(value.textLayout.offsetY, `${path}.textLayout.offsetY`, state.diagnostics)
+        finite(value.textLayout.width, path, state.diagnostics, 'nonNegative', 'textLayout.width')
+        finite(value.textLayout.height, path, state.diagnostics, 'nonNegative', 'textLayout.height')
+        finite(value.textLayout.lineHeight, path, state.diagnostics, 'positive', 'textLayout.lineHeight')
+        finite(value.textLayout.offsetY, path, state.diagnostics, undefined, 'textLayout.offsetY')
       }
     }
     if (!['start', 'middle', 'end'].includes(String(value.anchor))) add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.anchor`, 'must be start, middle, or end')
-    if (value.baselineShift !== undefined) finite(value.baselineShift, `${path}.baselineShift`, state.diagnostics)
+    if (value.baselineShift !== undefined) finite(value.baselineShift, path, state.diagnostics, undefined, 'baselineShift')
     if (value.dominantBaseline !== undefined && !['middle', 'central', 'hanging'].includes(String(value.dominantBaseline))) add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.dominantBaseline`, 'must be middle, central, or hanging')
     if (value.fontStyle !== undefined && value.fontStyle !== 'italic') add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.fontStyle`, 'must be italic')
     if (value.textDecoration !== undefined && !['underline', 'line-through', 'underline line-through'].includes(String(value.textDecoration))) add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.textDecoration`, 'must be underline, line-through, or both')
@@ -905,7 +911,7 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
       const child = value.children[index]
       if (!record(child)) add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.children[${index}]`, 'must wrap a Scene node')
       else {
-        finite(child.indent, `${path}.children[${index}].indent`, state.diagnostics, { nonNegative: true })
+        finite(child.indent, `${path}.children[${index}].indent`, state.diagnostics, 'nonNegative')
         validateNode(child.node, `${path}.children[${index}].node`, state, depth + 1, subject)
       }
     }
@@ -1051,7 +1057,7 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
     if (state.external && record(value.route.geometry) && value.route.geometry.kind === 'path' && !Array.isArray(value.route.geometry.points)) {
       add(state.diagnostics, 'SCENE_BOUNDS', `${path}.route.geometry.points`, 'external connector paths require deterministic routed points')
     }
-    finite(value.route.bendRadius, `${path}.route.bendRadius`, state.diagnostics, { nonNegative: true })
+    finite(value.route.bendRadius, path, state.diagnostics, 'nonNegative', 'route.bendRadius')
     if (!['authored', 'layout', 'family', 'projected'].includes(String(value.route.ownership))) {
       add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.route.ownership`, 'has an unknown route ownership')
     }
@@ -1123,7 +1129,7 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
   } else add(state.diagnostics, 'SCENE_PAINT', `${path}.stroke`, 'must be a typed connector stroke')
   if (record(value.hit)) {
     validateGeometry(value.hit.geometry, `${path}.hit.geometry`, state.diagnostics, false, 0, state.budget, state.external)
-    finite(value.hit.strokeWidth, `${path}.hit.strokeWidth`, state.diagnostics, { nonNegative: true })
+    finite(value.hit.strokeWidth, path, state.diagnostics, 'nonNegative', 'hit.strokeWidth')
     if (typeof value.hit.closed !== 'boolean') add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.hit.closed`, 'must be boolean')
     if (!['stroke', 'none'].includes(String(value.hit.pointerEvents))) add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.hit.pointerEvents`, 'has unknown pointer-event semantics')
     if (record(value.route) && typeof value.route.closed === 'boolean' && typeof value.hit.closed === 'boolean' && value.hit.closed !== value.route.closed) {
@@ -1160,10 +1166,10 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
           }
         }
       }
-      if (label.clearance !== undefined) finite(label.clearance, `${path}.labels[${index}].clearance`, state.diagnostics, { nonNegative: true })
+      if (label.clearance !== undefined) finite(label.clearance, `${path}.labels[${index}].clearance`, state.diagnostics, 'nonNegative')
       if (label.block !== undefined && (!record(label.block) || !isRetainedPixelText(label.block))) add(state.diagnostics, 'SCENE_FIDELITY', `${path}.labels[${index}].block`, 'must retain the actual immutable pixel text preparation')
-      if (label.fontSize !== undefined) finite(label.fontSize, `${path}.labels[${index}].fontSize`, state.diagnostics, { positive: true })
-      if (label.fontWeight !== undefined) finite(label.fontWeight, `${path}.labels[${index}].fontWeight`, state.diagnostics, { positive: true })
+      if (label.fontSize !== undefined) finite(label.fontSize, `${path}.labels[${index}].fontSize`, state.diagnostics, 'positive')
+      if (label.fontWeight !== undefined) finite(label.fontWeight, `${path}.labels[${index}].fontWeight`, state.diagnostics, 'positive')
       if (label.letterSpacing !== undefined) finite(label.letterSpacing, `${path}.labels[${index}].letterSpacing`, state.diagnostics)
       if (label.display !== undefined && label.display !== 'literal' && label.display !== 'formatted') {
         add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.labels[${index}].display`, 'must be literal or formatted')
@@ -1176,7 +1182,7 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
         if (!record(label.halo)) add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.labels[${index}].halo`, 'must be a halo descriptor')
         else {
           if (state.external) rejectUnknownKeys(label.halo, ['color', 'width'], `${path}.labels[${index}].halo`, state.diagnostics)
-          finite(label.halo.width, `${path}.labels[${index}].halo.width`, state.diagnostics, { nonNegative: true })
+          finite(label.halo.width, `${path}.labels[${index}].halo.width`, state.diagnostics, 'nonNegative')
           if (label.halo.color !== undefined && safeCssPaint(label.halo.color) === undefined) {
             add(state.diagnostics, 'SCENE_PAINT', `${path}.labels[${index}].halo.color`, 'must be a safe non-fetching CSS paint')
           }
@@ -1251,7 +1257,7 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
           }
           boundedString(placement.markerId, `${path}.terminalProjection.markerPlacements.${position}[${index}].markerId`, state.diagnostics, { externalId: state.external })
           validatePoint(placement.point, `${path}.terminalProjection.markerPlacements.${position}[${index}].point`, state.diagnostics, undefined, state.external)
-          finite(placement.contourIndex, `${path}.terminalProjection.markerPlacements.${position}[${index}].contourIndex`, state.diagnostics, { nonNegative: true })
+          finite(placement.contourIndex, `${path}.terminalProjection.markerPlacements.${position}[${index}].contourIndex`, state.diagnostics, 'nonNegative')
         }
       }
     }
@@ -1629,8 +1635,8 @@ function createValidationState(diagnostics: MutableDiagnostic[], external: boole
 
 function validateSceneHeader(value: Record<string, unknown>, external: boolean, diagnostics: MutableDiagnostic[]): { widthOk: boolean; heightOk: boolean } {
   boundedString(value.family, 'scene.family', diagnostics)
-  const widthOk = finite(value.width, 'scene.width', diagnostics, external ? { positive: true } : { nonNegative: true })
-  const heightOk = finite(value.height, 'scene.height', diagnostics, external ? { positive: true } : { nonNegative: true })
+  const widthOk = finite(value.width, 'scene.width', diagnostics, external ? 'positive' : 'nonNegative')
+  const heightOk = finite(value.height, 'scene.height', diagnostics, external ? 'positive' : 'nonNegative')
   if (value.transparent !== undefined && typeof value.transparent !== 'boolean') add(diagnostics, 'SCENE_DOCUMENT', 'scene.transparent', 'must be boolean')
   if (!record(value.colors)) add(diagnostics, 'SCENE_DOCUMENT', 'scene.colors', 'must be a DiagramColors object')
   else {
