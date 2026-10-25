@@ -39,6 +39,13 @@ export interface UnifiedRunOptions {
   harnessRoot?: string
   packageRoot?: string
   communityArtifacts?: string
+  /** Limit acquisition and execution before preparing any unrelated project. */
+  communityProjects?: string[]
+  communityCatalogFile?: string
+  communityRecordStore?: string
+  communityForce?: boolean
+  /** Assigned by the controller; retained CLI summaries must belong to this call. */
+  communityInvocationId?: string
   communityCoverageOnce?: boolean
   /** Explicit partial output lane; absent means every bound output. */
   communityOutputs?: string[]

@@ -1,5 +1,23 @@
 # Unified benchmark runner
 
+## Local execution and retained community records
+
+Benchmarks are excluded from CI. Product publication no longer runs or waits for
+them. Controller tests and their dependencies belong to the private benchmark
+package; run `bun run bench:test`, `bench:typecheck` and `bench:lint` explicitly.
+
+Community runs now reuse matching per-project records by default. To advance one
+project, run `bun run bench:community:update -- --projects owner/project`, with
+the desired profile, sampling and artifact flags. Add `--markdown
+docs/community-benchmark-ranking.md` to update its rolling-record section.
+`--force` requests new clocks; `--plan` prepares the selected artifacts and shows
+what would be reused. A protocol/input/environment change invalidates reuse.
+
+See [the package boundary and update workflow](../README.md), [the complete
+inventory](../INVENTORY.md) and [the coverage assessment](../ASSESSMENT.md).
+Historical single-run chart admission does not accept a rolling collection as a
+new simultaneous campaign; its original evidence and charts remain unchanged.
+
 `bun run bench` runs the bounded `smoke` profile. `bun run bench:all` selects every
 maintained suite, including Dave, release, peer, editor, source-stage diagnostics,
 current pinned-reference checks and historical upstream parser/DB tests. All

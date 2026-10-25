@@ -1,3 +1,4 @@
+import '../ci-policy-enforce.ts'
 // Optional benchmark adapter; requires Rust's wasm32-unknown-unknown target and
 // wasm-bindgen-cli 0.2.104. The Bezel checkout remains unmodified.
 import { spawnSync } from 'node:child_process'

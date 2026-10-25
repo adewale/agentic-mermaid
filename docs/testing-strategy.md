@@ -580,31 +580,20 @@ table here, which would drift. In broad strokes:
   version closes it (`scripts/ci/release-todo.ts`, tested with a fake `gh` in
   `release-todo.test.ts`). It adds no schedule and never fails a run. **Does
   not prove:** what production serves; it only reports the skip.
-- **Per release (`release-benchmark.yml`, called by `publish.yml`):**
-  `bun run bench:release` renders distinct official syntax examples and a set of
-  generated large diagrams with the built package and with the last npm
-  release, in alternating fresh Node processes on one runner. It fails the
-  release on incomplete baseline/candidate observations, a lost SVG/ASCII render,
-  nondeterministic output, an SVG resvg cannot parse, missing asserted visible
-  labels, a failed scaling/agent workflow, a corpus slowdown past 1.25× (1.5× for
-  any compared family or large case),
-  allocation or peak RSS growth past 1.25×, or retained heap growth past
-  16 MB per pass; the report lists changed SVGs per family. Run it locally
-  with `--baseline <built checkout>` or `--baseline-npm <version>`. The npm baseline
-  version/integrity survives workflow retries. Full fence accounting and paired
-  round/latency diagnostics accompany the report. An advisory browser scorecard
-  measures the exact packed candidate, baseline, pinned Pele and Mermaid on the
-  complete occurrence corpus, with shared-success ratios and complete/lazy JS
-  payloads. **Does not prove:** PNG performance, arbitrary semantic/visual fidelity,
-  or real-network/paint latency; absolute timings vary by machine.
-  Optional `fixed-baseline-sha` evidence runs preserve the same candidate bytes,
-  compare a frozen source baseline with cache off and on, qualify A/A noise, and
-  retain pinned peer results, dependency locks and CPU profiles. Missing required
-  observations fail that evidence job after raw artifacts are retained. This
-  additional scorecard does not replace the normal release baseline or budgets.
-- **Normal local benchmarks:** `bun run bench` runs the website SVG/terminal
-  samples and then [Dave Kiss's syntax-doc browser comparison](https://x.com/davekiss/status/2111513199119941999).
-  `bun run bench:samples` keeps the former samples-only command;
+- **Local performance campaigns:** benchmark suites are excluded from CI,
+  scheduled workflows, hosted manual Actions and publication dependencies.
+  `bun run bench:release` retains the matched Node corpus, scaling, agent edit,
+  allocation and memory diagnostics; `bun run bench:release:browser` compares
+  the exact packed candidate with pinned browser peers. Run them on an owned
+  local host and retain candidate/baseline identities and raw results. Controller
+  tests live under `eval/benchmark/tests` and run through `bun run bench:test`.
+  Normal product correctness, distribution and pinned-Mermaid semantic tests
+  remain CI gates. See [the benchmark package](../eval/benchmark/README.md) and
+  [unified runner](../eval/benchmark/unified/README.md) for invocation coverage,
+  project updates and explicit gaps.
+- **Normal local benchmarks:** `bun run bench` runs the bounded unified smoke
+  profile; `bun run bench:all` selects the full maintained catalog.
+  `bun run bench:samples` runs the website SVG/terminal samples;
   `bun run bench:dave` runs just the full browser comparison (three rounds,
   the same first 30 warm-up attempts, all 1,095 pinned fence occurrences
   including duplicates and unsupported families). It builds and packs the
@@ -614,8 +603,8 @@ table here, which would drift. In broad strokes:
   `--case occurrence-id,...` are forwarded to the browser runner. A case
   filter is a partial diagnostic, not a full-corpus result. Results go to
   gitignored `bench-report/dave/`; competitor ratios remain advisory.
-  The release browser scorecard was already part of publication CI and
-  retains its full-corpus warm-up by default; `--warmup 30` selects Dave's
+  The local release browser scorecard retains its full-corpus warm-up by
+  default; `--warmup 30` selects Dave's
   warm-up policy. Both disable AM's ELK result cache before loading the
   library, so duplicate sources measure layout rather than memo lookup.
   Timing is source through SVG return, not visual/semantic fidelity or
@@ -937,9 +926,9 @@ gates rather than adding new machinery:
    weak oracles locally. The diff-scoped mutation proposal #355 was closed
    `not_planned`; it is not an active implementation commitment. Line coverage
    remains a finder, not an adequacy score.
-3. The benchmark is not on the PR gate (timing variance); it gates releases,
-   against the previous release measured on the same runner. Browser/screenshot
-   e2e and the heuristic-tracker ratchet are on the PR gate.
+3. Performance comparisons are local campaigns and do not run in CI or gate
+   publication. Their recorded results require an explicit update. Product
+   browser/screenshot e2e and the heuristic-tracker ratchet remain on the PR gate.
 4. Determinism is proven Bun↔Node on one architecture; cross-architecture
    byte equality is not asserted.
 5. `QualityBounds` thresholds are now provenance-tagged, but the `chosen`

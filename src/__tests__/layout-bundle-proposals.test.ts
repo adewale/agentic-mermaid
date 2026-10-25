@@ -4,7 +4,7 @@ import { LAYOUT_PIPELINE, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { withRenderStageObserver } from '../render-stages.ts'
 import { assessLayout, hardViolations } from '../layout-rubric.ts'
-import { flowchartMesh } from '../../eval/benchmark/release-bench-cases.ts'
+import { flowchartMesh } from '../../eval/shared/graph-fixtures.ts'
 
 // This existing dense fixture still benefits from a route comparison after
 // placement selection. The former small skip-link fixture is now clean in its

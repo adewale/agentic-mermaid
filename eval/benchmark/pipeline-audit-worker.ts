@@ -1,3 +1,4 @@
+import './ci-policy-enforce.ts'
 // Diagnostic worker: the same public renderer plus its existing stage observer.
 // The parent bundles this for Node with the publication's dependency boundaries.
 import { readFileSync, writeFileSync } from 'node:fs'

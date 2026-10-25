@@ -1,3 +1,4 @@
+import './ci-policy-enforce.ts'
 // Advisory real-editor workloads. Does not replace Dave's raw SVG scorecard.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'

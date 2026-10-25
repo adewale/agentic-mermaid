@@ -1,8 +1,10 @@
 import { execFileSync, spawn } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { createWriteStream, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import { availableParallelism, cpus, totalmem } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { assertBenchmarkExecutionAllowed } from '../ci-policy.ts'
 import { subprocessTreeTerminator } from './process-tree.ts'
 import { type SuiteExecution, type UnifiedReport, writeUnifiedReport } from './report.ts'
 import { benchmarkSuites, type SuiteDefinition, type SuiteOptions } from './suites.ts'
@@ -21,7 +23,7 @@ export interface RunnerOptions extends SuiteOptions {
   allowIncomplete: boolean
 }
 export function parseOptions(argv: string[]): RunnerOptions {
-  const flags = new Set(['--list', '--allow-incomplete'])
+  const flags = new Set(['--list', '--allow-incomplete', '--community-force'])
   const allowed = new Set([
     'profile',
     'suites',
@@ -47,6 +49,9 @@ export function parseOptions(argv: string[]): RunnerOptions {
     'live-provider',
     'live-model',
     'community-artifacts',
+    'community-projects',
+    'community-catalog',
+    'community-records',
     'community-prepared',
     'community-inputs',
     'community-browser-prepared',
@@ -121,6 +126,10 @@ export function parseOptions(argv: string[]): RunnerOptions {
     liveProvider,
     liveModel: options.get('live-model'),
     communityArtifacts: path('community-artifacts'),
+    communityProjects: options.get('community-projects')?.split(','),
+    communityCatalogFile: path('community-catalog'),
+    communityRecordStore: path('community-records'),
+    communityForce: options.has('community-force'),
     communityPreparedFile: path('community-prepared'),
     communityInputsFile: path('community-inputs'),
     communityBrowserPreparedFile: path('community-browser-prepared'),
@@ -247,9 +256,9 @@ async function runInternal(id: string, options: SuiteOptions): Promise<UnifiedSu
   const entry: Record<string, readonly [string, string]> = {
     family: ['family-suite.ts', 'runFamilySuite'],
     invocation: ['invocation.ts', 'runInvocationSuite'],
-    community: ['community.ts', 'runCommunitySuite'],
+    community: ['project-update.ts', 'runIncrementalCommunitySuite'],
     'pinned-reference-score': ['reference-score.ts', 'runReferenceScoreSuite'],
-    'community-cli': ['community-cli.ts', 'runCommunityCliSuite'],
+    'community-cli': ['project-update.ts', 'runRetainedCommunityCliSuite'],
   }
   const [file, name] = entry[id] ?? []
   if (!file || !name) throw new Error(`No internal suite ${id}`)
@@ -261,6 +270,8 @@ async function runInternal(id: string, options: SuiteOptions): Promise<UnifiedSu
 /** The subprocess boundary prevents one failed or instrumented suite from
  * contaminating the next suite's runtime. Timers never run concurrently. */
 export async function runUnified(options: RunnerOptions): Promise<UnifiedReport> {
+  assertBenchmarkExecutionAllowed()
+  options = { ...options, communityInvocationId: randomUUID() }
   const catalog = benchmarkSuites(options),
     unknown = options.selected?.filter(id => !catalog.some(suite => suite.id === id))
   if (unknown?.length) throw new Error(`Unknown suites: ${unknown.join(', ')}`)
@@ -398,6 +409,7 @@ export async function runUnified(options: RunnerOptions): Promise<UnifiedReport>
 }
 export async function main(argv = process.argv.slice(2)): Promise<void> {
   if (argv.includes('--worker-suite')) {
+    assertBenchmarkExecutionAllowed()
     if (argv.length !== 4 || argv[0] !== '--worker-suite' || argv[2] !== '--worker-job' || !argv[1] || !argv[3]) throw new Error('Invalid internal suite worker invocation')
     const options = readJson(argv[3]) as SuiteOptions & { resultPath: string }
     try {

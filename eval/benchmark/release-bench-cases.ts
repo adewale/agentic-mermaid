@@ -4,17 +4,14 @@
 // finishes each case in seconds. Every generator is deterministic.
 
 import type { DiagramKind } from '../../src/agent/types.ts'
+import { flowchartMesh } from '../shared/graph-fixtures.ts'
+export { flowchartMesh } from '../shared/graph-fixtures.ts'
 
 export interface BenchCase {
   id: string
   family: DiagramKind
   source: string
   expectedSvgLabels?: readonly string[]
-}
-
-function lcg(seed: number): () => number {
-  let state = seed >>> 0
-  return () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 4294967296
 }
 
 function lines(header: string, count: number, line: (i: number) => string | string[]): string {
@@ -31,11 +28,6 @@ export function flowchartTree(nodes: number): string {
   return lines('flowchart TD', nodes - 1, i => `  n${Math.floor(i / 3)}[Node ${Math.floor(i / 3)}] --> n${i + 1}[Node ${i + 1}]`)
 }
 
-export function flowchartMesh(nodes: number, labelled: number): string {
-  const rnd = lcg(7)
-  const edges = lines('flowchart TD', nodes - 1, i => `  n${Math.floor(rnd() * (i + 1))} --> n${i + 1}`)
-  return edges + '\n' + Array.from({ length: labelled }, (_, i) => `  n${Math.floor(rnd() * nodes)} -->|label ${i}| n${Math.floor(rnd() * nodes)}`).join('\n')
-}
 
 function flowchartSubgraphs(groups: number, perGroup: number): string {
   const out = ['flowchart LR']

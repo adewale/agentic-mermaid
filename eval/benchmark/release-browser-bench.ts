@@ -1,3 +1,4 @@
+import './ci-policy-enforce.ts'
 // Advisory competitiveness scorecard. All renderers consume the same complete
 // upstream inventory in one Chromium tab. Candidate JS comes from the verified
 // publication tarball, never a separately rebuilt source bundle.

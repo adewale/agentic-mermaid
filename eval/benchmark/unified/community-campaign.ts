@@ -4,6 +4,7 @@ import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { assertBenchmarkExecutionAllowed } from '../ci-policy.ts'
 import { prepareCommunity } from './community.ts'
 import { prepareCommunityBrowsers } from './community-browser.ts'
 import type { CommunityArtifact } from './community-types.ts'
@@ -83,6 +84,7 @@ function candidateArtifact(options: ReturnType<typeof parseOptions>, advance: Ta
   }
 }
 export async function main(argv = process.argv.slice(2)): Promise<void> {
+  assertBenchmarkExecutionAllowed()
   const preparing = argv.includes('--prepare-only')
   const advanceIndex = argv.indexOf('--advance-from'),
     advanceFrom = advanceIndex >= 0 ? argv[advanceIndex + 1] : undefined
@@ -97,7 +99,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
     const startedAt = new Date().toISOString()
     const targetAdvance = advanceFrom ? { from: originalTarget(resolve(advanceFrom)), to: targetIdentity(options) } : undefined
     if (targetAdvance) {
-      const catalog = JSON.parse(readFileSync(join(options.harnessRoot, 'docs/mermaid-community.json'), 'utf8')),
+      const catalog = JSON.parse(readFileSync(options.communityCatalogFile ?? join(options.harnessRoot, 'docs/mermaid-community.json'), 'utf8')),
         self = catalog.nodes.find((node: { benchmark?: { adapter?: string } }) => node.benchmark?.adapter === 'agentic')
       if (!self) throw Error('Catalog declares no local candidate')
       const source = options.communityArtifacts ?? process.env.AM_BENCH_COMMUNITY_ARTIFACTS,

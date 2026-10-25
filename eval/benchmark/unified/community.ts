@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, unlinkSy
 import { dirname, join, resolve } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { assertBenchmarkExecutionAllowed } from '../ci-policy.ts'
 import { MICRO_WORKLOADS } from '../micro-bench-cases.ts'
 import { type CatalogArtifactAdmission, createCatalogEligibility } from './catalog-eligibility.ts'
 import { assertCommunityNotInterrupted, trackCommunityProcess } from './community-process.ts'
@@ -200,7 +201,7 @@ function validateFrozenCommunityEntry(entry: PreparedCommunity, node: CommunityN
 function loadFrozenCommunity(options: UnifiedRunOptions, nodes: CommunityNode[]): PreparedCommunity[] {
   const path = options.communityPreparedFile!,
     raw = JSON.parse(readFileSync(path, 'utf8')) as PreparedCommunity[]
-  if (!Array.isArray(raw) || raw.length !== nodes.length || new Set(raw.map(entry => entry.node.id)).size !== nodes.length || nodes.some(node => !raw.some(entry => entry.node.id === node.id))) throw Error('Frozen preparation must contain every current catalog ID exactly once')
+  if (!Array.isArray(raw) || new Set(raw.map(entry => entry.node.id)).size !== raw.length || (!options.communityProjects && raw.length !== nodes.length) || nodes.some(node => !raw.some(entry => entry.node.id === node.id))) throw Error('Frozen preparation must contain every selected catalog ID exactly once')
   const prepared = nodes.map(node => validateFrozenCommunityEntry(raw.find(entry => entry.node.id === node.id)!, node, options))
   mkdirSync(options.out, { recursive: true })
   writeFileSync(join(options.out, 'community-prepared.json'), JSON.stringify(prepared, null, 2))
@@ -218,7 +219,8 @@ export async function prepareCommunity(options: UnifiedRunOptions): Promise<Prep
   const driver = options.harnessRoot ?? options.root,
     cache = resolve(process.env.AM_COMMUNITY_CACHE ?? join(driver, 'node_modules/.cache/unified-community'))
   mkdirSync(cache, { recursive: true })
-  const catalog = JSON.parse(readFileSync(join(driver, 'docs/mermaid-community.json'), 'utf8')) as { nodes: CommunityNode[] }
+  const catalog = JSON.parse(readFileSync(options.communityCatalogFile ?? join(driver, 'docs/mermaid-community.json'), 'utf8')) as { nodes: CommunityNode[] }
+  catalog.nodes = selectCommunityProjects(catalog.nodes, options.communityProjects)
   if (options.communityPreparedFile) return loadFrozenCommunity(options, catalog.nodes)
   const manifestPath = options.communityArtifacts ?? process.env.AM_BENCH_COMMUNITY_ARTIFACTS
   const provided = manifestPath ? (JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<string, CommunityArtifact>) : {}
@@ -322,6 +324,13 @@ export async function prepareCommunity(options: UnifiedRunOptions): Promise<Prep
   mkdirSync(options.out, { recursive: true })
   writeFileSync(join(options.out, 'community-prepared.json'), JSON.stringify(prepared, null, 2))
   return prepared
+}
+
+export function selectCommunityProjects(nodes: CommunityNode[], projects?: string[]): CommunityNode[] {
+  if (new Set(nodes.map(node => node.id)).size !== nodes.length) throw Error('Duplicate community catalog IDs')
+  if (!projects) return nodes
+  if (!projects.length || projects.some(id => !id || !nodes.some(node => node.id === id)) || new Set(projects).size !== projects.length) throw Error('Community project selection must contain unique known catalog IDs')
+  return nodes.filter(node => projects.includes(node.id))
 }
 
 function envelope(node: CommunityNode, output: string, workload: UnifiedWorkload, round: number): BenchmarkObservation {
@@ -804,7 +813,7 @@ function loadCommunityInputs(options: UnifiedRunOptions): { workloads: UnifiedWo
   }
   return { workloads: input.workloads, gaps: [], reference: input.reference ?? null, source: resolve(options.communityInputsFile) }
 }
-function verifyFrozenBrowserEngine(peer: import('./community-browser.ts').PreparedCommunityBrowser) {
+export function verifyFrozenBrowserEngine(peer: import('./community-browser.ts').PreparedCommunityBrowser) {
   if (peer.browserStatus !== 'prepared') return
   const engine = peer.browser!,
     entry = resolve(engine.root, engine.entry)
@@ -824,7 +833,7 @@ async function communityBrowsers(prepared: PreparedCommunity[], options: Unified
     return missing
   }
   const raw = JSON.parse(readFileSync(path, 'utf8')) as import('./community-browser.ts').PreparedCommunityBrowser[]
-  if (!Array.isArray(raw) || raw.length !== prepared.length || new Set(raw.map(peer => peer.node.id)).size !== prepared.length) throw Error('Frozen browser snapshot must contain each prepared catalog ID exactly once')
+  if (!Array.isArray(raw) || (!options.communityProjects && raw.length !== prepared.length) || new Set(raw.map(peer => peer.node.id)).size !== raw.length) throw Error('Frozen browser snapshot must contain each selected catalog ID exactly once')
   const loaded = prepared.map(entry => {
     const peer = raw.find(peer => peer.node.id === entry.node.id)
     if (!peer || !sameProtocol(peer.node.benchmark, entry.node.benchmark)) throw Error('Frozen browser catalog/config differs: ' + entry.node.id)
@@ -839,6 +848,7 @@ async function communityBrowsers(prepared: PreparedCommunity[], options: Unified
   return loaded
 }
 export async function runCommunitySuite(options: UnifiedRunOptions): Promise<UnifiedSuiteResult> {
+  assertBenchmarkExecutionAllowed()
   const startedAt = new Date().toISOString(),
     observations: BenchmarkObservation[] = [],
     gaps: string[] = [],
@@ -868,7 +878,7 @@ export async function runCommunitySuite(options: UnifiedRunOptions): Promise<Uni
   const browser = await import('./community-browser.ts'),
     preparedBrowsers = await communityBrowsers(prepared, options)
   const driver = options.harnessRoot ?? options.root,
-    catalog = JSON.parse(readFileSync(join(driver, 'docs/mermaid-community.json'), 'utf8')) as { nodes: CommunityNode[] }
+    catalog = JSON.parse(readFileSync(options.communityCatalogFile ?? join(driver, 'docs/mermaid-community.json'), 'utf8')) as { nodes: CommunityNode[] }
   const aliasPlan = sourceAliasPlan(prepared, catalog),
     aliasProofPath = join(options.out, 'community-alias-proof.json')
   writeFileSync(

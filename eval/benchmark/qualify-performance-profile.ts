@@ -1,3 +1,4 @@
+import './ci-policy-enforce.ts'
 // Correctness qualification, never a speed benchmark. Every official fence
 // remains accounted for; exact duplicate sources reuse the same observation.
 import { mkdirSync, writeFileSync } from 'node:fs'

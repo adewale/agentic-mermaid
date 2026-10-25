@@ -1,3 +1,4 @@
+import './ci-policy-enforce.ts'
 // Serial runner: use the maintained peer adapters/protocol, not another timer.
 import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'

@@ -1,3 +1,4 @@
+import '../ci-policy-enforce.ts'
 /** Current-head PR comparisons. Preparation is separate from sequential clocks. */
 import { execFileSync, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'

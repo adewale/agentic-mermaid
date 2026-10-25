@@ -14,7 +14,8 @@
       "**/*.jsonc",
       "!eval/agent-usage/transcripts/**",
       "!eval/mermaid-upstream-suite-bench/upstream-*/**",
-      "!src/__tests__/testdata/**"
+      "!src/__tests__/testdata/**",
+      "!eval/benchmark/**"
     ]
   },
   "formatter": {

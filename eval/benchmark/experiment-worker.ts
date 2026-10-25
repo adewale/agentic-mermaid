@@ -1,3 +1,4 @@
+import './ci-policy-enforce.ts'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { MICRO_WORKLOADS } from './micro-bench-cases.ts'

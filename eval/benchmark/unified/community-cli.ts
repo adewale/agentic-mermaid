@@ -74,7 +74,7 @@ function shippedFiles(root: string, directory = join(root, 'dist')): Array<{ pat
 }
 function candidateVariants(options: Options, prepared: PreparedCommunity[]): Variant[] {
   const base = prepared.find(entry => entry.node.benchmark?.adapter === 'agentic')
-  if (!base) throw Error('Prepared catalog has no Agentic Mermaid node')
+  if (!base) return []
   const pkg = read(join(options.packageRoot, 'package.json'))
   const cliPath = typeof pkg.bin === 'string' ? pkg.bin : (pkg.bin?.am ?? pkg.bin?.['agentic-mermaid'])
   if (!cliPath) throw Error('Installed Agentic Mermaid package declares no CLI')
@@ -460,6 +460,20 @@ export async function runCommunityCliSuite(options: UnifiedRunOptions): Promise<
   return envelope
 }
 export { ranksFor as rankCommunityCliObservations, resourceDiagnostic as runCommunityResourceDiagnostic, resourceObserver as observeCommunityResourceTool, resourceRanksFor as rankCommunityCliResources }
+
+/** The cache binds the same public CLI variants and observer as timed execution. */
+export function communityCliCacheIdentity(options: Pick<Options, 'target' | 'packageRoot'>, prepared: PreparedCommunity[]) {
+  return {
+    observer: resourceObserver(),
+    candidates: candidateVariants(options as Options, prepared).map(variant => {
+      try {
+        return { variant: variant.variant, identity: admittedIdentity(variant.prepared.artifact!) }
+      } catch (error) {
+        return { variant: variant.variant, error: String(error) }
+      }
+    }),
+  }
+}
 
 if (import.meta.main) {
   const values = new Map<string, string>()
