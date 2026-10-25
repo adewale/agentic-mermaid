@@ -720,9 +720,13 @@ export function routeAddsCrossings(points: Point[], edge: PositionedEdge, ctx: L
 }
 
 export function routeEntersNodeBox(points: readonly Point[], node: PositionedNode): boolean {
-  // A plain rectangle fills its whole interior. The half-pixel contact
-  // tolerance must not hide real shaft ink inside an unrelated card.
-  const inset = node.shape === 'rectangle' && (node.semanticShape === undefined || node.semanticShape === 'rect') ? 0 : 0.5
+  // These canonical decorations add internal lines to a full rectangle; they
+  // do not leave an empty contact band around its body. Other symbols keep
+  // their existing shape-specific tolerance, even when based on a rectangle.
+  const rectangularBody = (node.shape === 'rectangle' || node.shape === 'subroutine')
+    && (node.semanticShape === undefined || node.semanticShape === 'rect' || node.semanticShape === 'fr-rect'
+      || node.semanticShape === 'lin-rect' || node.semanticShape === 'div-rect' || node.semanticShape === 'win-pane')
+  const inset = rectangularBody ? 0 : 0.5
   for (let i = 1; i < points.length; i++) {
     const a = points[i - 1]!, b = points[i]!
     const xLo = Math.min(a.x, b.x), xHi = Math.max(a.x, b.x)

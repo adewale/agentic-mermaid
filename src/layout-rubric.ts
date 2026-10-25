@@ -163,8 +163,8 @@ function slantedPolygonVertices(node: PositionedNode): Point[] {
 /**
  * Whether an axis-aligned segment passes through a node's rendered footprint
  * (not merely its bbox — a route grazing the empty corner outside a circle's
- * disk or a diamond's facet is legal). Plain rectangles use their open
- * interior; curved and decorated shapes retain the half-pixel tolerance.
+ * disk or a diamond's facet is legal). Plain and explicitly decorated full
+ * rectangles use their open interior; curved shapes retain the tolerance.
  */
 export function segmentThroughShape(a: Point, b: Point, node: PositionedNode): boolean {
   const cx = node.x + node.width / 2
@@ -173,7 +173,10 @@ export function segmentThroughShape(a: Point, b: Point, node: PositionedNode): b
   const hh = node.height / 2
   const xLo = Math.min(a.x, b.x), xHi = Math.max(a.x, b.x)
   const yLo = Math.min(a.y, b.y), yHi = Math.max(a.y, b.y)
-  const inset = node.shape === 'rectangle' && (node.semanticShape === undefined || node.semanticShape === 'rect') ? 0 : 0.5
+  const rectangularBody = (node.shape === 'rectangle' || node.shape === 'subroutine')
+    && (node.semanticShape === undefined || node.semanticShape === 'rect' || node.semanticShape === 'fr-rect'
+      || node.semanticShape === 'lin-rect' || node.semanticShape === 'div-rect' || node.semanticShape === 'win-pane')
+  const inset = rectangularBody ? 0 : 0.5
   const inBbox = xHi > node.x + inset && xLo < node.x + node.width - inset &&
     yHi > node.y + inset && yLo < node.y + node.height - inset
   if (!inBbox) return false

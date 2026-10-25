@@ -184,13 +184,17 @@ it('keeps later fan-out repairs clear of a peer route moved earlier in the same 
 })
 
 describe('route proposal crossing consistency', () => {
-  it.each([0.02425, 0.035, 0.3].flatMap(intrusion => ['route proposal', 'final safety net'].map(phase => ({ intrusion, phase }))))('repairs an unrelated rectangle intrusion in $phase at $intrusion pixels', ({ intrusion, phase }) => {
+  it.each([0.02425, 0.035, 0.3].flatMap(intrusion => ['rectangle', 'subroutine', 'fr-rect', 'subproc', 'lin-rect', 'div-rect', 'win-pane'].flatMap(shape => ['route proposal', 'final safety net'].map(phase => ({ intrusion, phase, shape })))))('repairs an unrelated $shape intrusion in $phase at $intrusion pixels', ({ intrusion, phase, shape: cardShape }) => {
     const node = (id: string, x: number, y: number, width: number, height: number): PositionedNode =>
       ({ id, label: id, shape: 'rectangle', x, y, width, height })
     const nodes = [node('A', 0, 0, 20, 20), node('B', 400, 100, 20, 20),
       node('C', 200 - intrusion, 40, 20, 20), node('D', -20, 60, 20, 20),
       node('E', 198, 60, 1, 20), node('F', 201, 60, 1, 20), node('G', 500, 60, 20, 20)]
-    const graph = parseMermaid('flowchart LR\nA-->B\nD-->E\nF-->G\nC')
+    const cardDeclaration = cardShape === 'rectangle' ? 'C' : cardShape === 'subroutine' ? 'C[[C]]' : `C@{ shape: ${cardShape}, label: "C" }`
+    const graph = parseMermaid(`flowchart LR\nA-->B\nD-->E\nF-->G\n${cardDeclaration}`)
+    const parsedCard = graph.nodes.get('C')!
+    nodes[2]!.shape = parsedCard.shape
+    if (parsedCard.semanticShape) nodes[2]!.semanticShape = parsedCard.semanticShape
     // The two neighboring shafts leave a narrow clear channel. The existing
     // route uses it but enters C's real fill; a safe Z adds one legal crossing.
     const paths = [
@@ -200,11 +204,17 @@ describe('route proposal crossing consistency', () => {
     const edges: PositionedEdge[] = graph.edges.map((edge, index) => ({ ...edge, edgeIndex: index,
       points: paths[index]!.map(([x, y]) => ({ x: x!, y: y! })) }))
     const edge = edges[0]!, card = nodes[2]!, contacts = [edge.points[0], edge.points.at(-1)]
+    // Each selected semantic decoration has this full opaque rectangle as
+    // its fill; its internal line subpaths do not subtract any body ink.
     const finalPaint = () => certifyScenePaint({ family: 'flowchart', width: 550, height: 150,
       transparent: false, colors: { bg: '#fff', fg: '#111' }, parts: [
         connector({ id: 'A->B', role: 'edge', lineStyle: 'solid', endpoints: { from: 'A', to: 'B' },
           geometry: { kind: 'polyline', points: edge.points }, paint: { stroke: '#111', strokeWidth: '1' } }),
-        shape({ id: 'C', role: 'node', geometry: { kind: 'rect', x: card.x, y: card.y, width: card.width, height: card.height }, paint: { fill: '#fff' } }),
+        shape({ id: 'C', role: 'node', geometry: cardShape === 'subroutine' ? { kind: 'compound', children: [
+          { kind: 'rect', x: card.x, y: card.y, width: card.width, height: card.height },
+          { kind: 'line', x1: card.x + 8, y1: card.y, x2: card.x + 8, y2: card.y + card.height },
+          { kind: 'line', x1: card.x + card.width - 8, y1: card.y, x2: card.x + card.width - 8, y2: card.y + card.height },
+        ] } : { kind: 'rect', x: card.x, y: card.y, width: card.width, height: card.height }, paint: { fill: '#fff' } }),
       ] })
     expect(finalPaint().issues).toContainEqual(expect.objectContaining({ code: 'CONNECTOR_CARD_CROSSING', id: 'A->B', by: 'C' }))
     expect(countEdgeCrossings(edges)).toBe(0)
