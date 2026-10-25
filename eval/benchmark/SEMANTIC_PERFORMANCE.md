@@ -45,8 +45,11 @@ endpoint observability is explicitly unavailable, not semantic equivalence.
 Those peers retain label-checked timings but cannot pass semantic numeric gates.
 These checks do not prove attachment geometry, edge multiplicity or aesthetics.
 
-Warm tracks prime three real calls, then record 31 individual call durations and
+Warm tracks prime at least 20 real calls and 1,000 ms of elapsed warmup, then
+record 31 individual call durations and
 three independent V8 allocation probes, subject to the recorded case deadline.
+Actual warmup calls, elapsed time and completion are retained per observation.
+A failed or incomplete warmup remains an error; it cannot supply a numeric pass.
 They do not report a percentile of batch averages as call p95. A minimum of 20
 complete calls per warm case is required for tail qualification. Quick mode is a
 functional smoke policy, never performance qualification. Legacy `bench:peers`
