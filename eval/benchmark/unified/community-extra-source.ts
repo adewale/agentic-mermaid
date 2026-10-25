@@ -1,3 +1,4 @@
+import '../ci-policy-enforce.ts'
 /** Pinned source-only comparator acquisition. Importing this module performs no
  * acquisition, compilation or product invocation; prepare runs outside clocks. */
 import { execFileSync, spawn } from 'node:child_process'

@@ -1,3 +1,4 @@
+import './ci-policy-enforce.ts'
 // Advisory: packaged timing/coverage, source-only stage attribution, and sampled
 // CPU profiles are separate passes. Never compare instrumented calls to Bezel.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'

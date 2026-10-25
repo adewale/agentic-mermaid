@@ -1,3 +1,4 @@
+import './ci-policy-enforce.ts'
 // Complement Dave's SVG-return timing with the actual editor: input through
 // verified DOM and two animation frames, plus main-thread timer delay.
 import { createHash } from 'node:crypto'

@@ -1,3 +1,4 @@
+import './ci-policy-enforce.ts'
 import { consumePeerOutput, emptyTrackObservation, finalizeTrackObservation, inspectPeerSemantics, peerTrackVariant } from './peer-tracks.ts'
 import type { PeerConsumer, PeerPhase, PeerStatus, PeerTrackObservation, TrackInput, TrackVariant, PeerVariantDomain } from './peer-tracks.ts'
 

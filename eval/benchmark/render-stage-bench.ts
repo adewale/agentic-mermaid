@@ -1,3 +1,4 @@
+import './ci-policy-enforce.ts'
 // Diagnostic phase costs complement packed end-to-end release measurements.
 // Times are inclusive: layout contains ELK, and Scene contains lowering and
 // admission. Depth/parent metadata preserve actual nesting; do not sum them.

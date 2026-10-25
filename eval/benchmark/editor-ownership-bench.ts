@@ -1,3 +1,4 @@
+import './ci-policy-enforce.ts'
 // Controlled production-adapter comparison, separate from session timings.
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'

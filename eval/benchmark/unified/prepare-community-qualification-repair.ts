@@ -1,3 +1,4 @@
+import '../ci-policy-enforce.ts'
 /** Prepare a fresh independent qualification helper while preserving every admitted engine asset. */
 
 import { execFileSync } from 'node:child_process'

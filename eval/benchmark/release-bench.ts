@@ -1,3 +1,4 @@
+import './ci-policy-enforce.ts'
 // Compare built packages in alternating fresh Node processes. Publication runs
 // use --candidate-tarball: the measured bytes are the bytes queued for npm.
 // Reports are generated evidence, never committed baselines.

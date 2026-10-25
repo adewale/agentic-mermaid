@@ -1,3 +1,4 @@
+import './ci-policy-enforce.ts'
 // Profile current public SVG renders by stage; community end-to-end timings
 // remain in bench:peers, so no peer's internal stages are guessed.
 import { spawnSync } from 'node:child_process'

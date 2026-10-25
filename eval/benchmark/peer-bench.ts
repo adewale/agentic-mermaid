@@ -1,3 +1,4 @@
+import './ci-policy-enforce.ts'
 // Peer benchmark: the same workloads in agentic-mermaid's built package and in
 // the browserless peers from eval/fork-graph, each timed in fresh processes.
 //

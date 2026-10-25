@@ -90,7 +90,7 @@ export function benchmarkSuites(options: SuiteOptions): SuiteDefinition[] {
     policy: 'Requires the completed sibling community artifacts; fresh-process CLI variants use matched fixed inputs. Child RSS/CPU are a separate post-latency diagnostic pass; source aliases are not additional independent engines.',
   })
   for (const [script, command] of Object.entries(pkg.scripts)) {
-    if (!script.startsWith('bench:') || script === 'bench:charts' || script === 'bench:peers:qualify' || /eval\/benchmark\/(?:unified\/(?:run|pr-campaign|update-scorecard)|suite)\.ts/.test(command)) continue
+    if (!script.startsWith('bench:') || script === 'bench:charts' || script === 'bench:peers:qualify' || /eval\/benchmark\/(?:commands|unified\/(?:run|pr-campaign|project-update|update-scorecard)|suite)\.ts/.test(command)) continue
     const id = script.slice('bench:'.length),
       args = ['bun', 'run', script],
       prerequisites: string[] = []

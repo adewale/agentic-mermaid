@@ -1,3 +1,4 @@
+import './ci-policy-enforce.ts'
 // One release-benchmark measurement in a fresh Node process, against one built
 // package. Run by release-bench.ts; Node strips the types.
 //

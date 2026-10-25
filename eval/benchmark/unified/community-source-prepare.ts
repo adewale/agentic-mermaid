@@ -1,3 +1,4 @@
+import '../ci-policy-enforce.ts'
 import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { createWriteStream, existsSync, mkdirSync, readFileSync, statfsSync, writeFileSync } from 'node:fs'

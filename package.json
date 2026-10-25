@@ -222,7 +222,11 @@
     "bench:pinned-mermaid": "bun run eval/benchmark/unified/run.ts --profile full --suites pinned-reference-score,pinned-semantic-tests,pinned-operation-tests,pinned-grammar-tests,pinned-semantic-corpus,pinned-grammar-corpus,upstream-imported",
     "bench:prs": "bun run eval/benchmark/unified/pr-campaign.ts",
     "bench:scorecard": "bun run eval/benchmark/unified/update-scorecard.ts",
-    "bench:charts": "python3 eval/benchmark/unified/charts.py"
+    "bench:charts": "python3 eval/benchmark/unified/charts.py",
+    "bench:test": "bun run eval/benchmark/commands.ts test",
+    "bench:typecheck": "bun run eval/benchmark/commands.ts typecheck",
+    "bench:lint": "bun run eval/benchmark/commands.ts lint",
+    "bench:community:update": "bun run eval/benchmark/unified/project-update.ts"
   },
   "dependencies": {
     "@resvg/resvg-js": "2.6.2",

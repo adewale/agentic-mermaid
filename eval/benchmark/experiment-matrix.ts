@@ -1,3 +1,4 @@
+import './ci-policy-enforce.ts'
 // Fresh-process, sequential feature screening. Finalists still need the full
 // canonical release/browser/peer/micro suites; this is not their replacement.
 import { spawnSync } from 'node:child_process'

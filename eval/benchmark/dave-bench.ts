@@ -1,3 +1,4 @@
+import './ci-policy-enforce.ts'
 // Everyday entry to the existing exact-artifact browser scorecard. Keep the
 // implementation shared with publication CI; only warm-up policy differs.
 import { spawnSync } from 'node:child_process'
