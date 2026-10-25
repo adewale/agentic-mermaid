@@ -1,9 +1,11 @@
 import './ci-policy-enforce.ts'
 import { consumePeerOutput, emptyTrackObservation, finalizeTrackObservation, inspectPeerSemantics, peerTrackVariant } from './peer-tracks.ts'
 import type { PeerConsumer, PeerPhase, PeerStatus, PeerTrackObservation, TrackInput, TrackVariant, PeerVariantDomain } from './peer-tracks.ts'
+import type { PELE_SEMANTIC_ADAPTER } from './pele-semantics.ts'
 
 type Render = (source: string) => unknown
 export interface TrackJob {
+  semanticAdapter?: typeof PELE_SEMANTIC_ADAPTER.id
   phase: PeerPhase; consumer: PeerConsumer; round: number; samples: number; allocationSamples: number; maxCaseMs: number; warmCalls?: number; warmupMs?: number; coldSamples?: number; coldProbe?: 'timing' | 'allocation' | 'diagnostic'
 }
 const firstLine = (error: unknown) => String(error instanceof Error ? error.message : error).split('\n')[0]!
@@ -45,7 +47,7 @@ export async function measurePeerTrack(options: {
   }
   const inspect = (svg: string, variant: TrackVariant) => {
     const checked = validate(svg, variant)
-    const semantic = inspectPeerSemantics(svg, variant, peer === 'agentic' || peer.startsWith('agentic-'))
+    const semantic = inspectPeerSemantics(svg, variant, peer === 'agentic' || peer.startsWith('agentic-'), track.semanticAdapter)
     const status: PeerStatus = checked.error || semantic.failures.length ? 'error' : checked.missing.length ? 'lost-labels' : 'ok'
     return { status, semantic, ...(checked.missing.length ? { missing: checked.missing.length, detail: checked.missing.slice(0, 3).join(', ') } : {}), ...(checked.error || semantic.failures.length ? { detail: checked.error ?? semantic.failures.join('; ') } : {}) }
   }

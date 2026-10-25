@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { performanceMarkdown, performanceScorecard, PERFORMANCE_POLICY, type PerformanceReport, type PerformanceScope } from './performance-gates.ts'
 import { PEER_CONSUMERS, PEER_PHASES } from './peer-tracks.ts'
+import { PEER_TRACK_SCHEDULES } from './peer-track-schedule.ts'
 import { ROOT } from './revision-tree.ts'
 import { assertMatchedAgenticRuntimes, frozenRuntimePolicy, installAgenticRuntime } from './release-baseline.ts'
 
@@ -25,6 +26,8 @@ const candidateSha = digest(candidate), baselineSha = digest(baseline)
 for (const [flag, actual] of [['--candidate-sha256', candidateSha], ['--baseline-sha256', baselineSha]] as const) if (!option(flag) || option(flag) !== actual) throw new Error(`${flag} must match the verified archive`)
 const cache = option('--elk-cache', 'off')!
 if (!['on', 'off'].includes(cache)) throw new Error('--elk-cache must be on or off')
+const schedule = option('--track-schedule', 'peer-block-v1')!
+if (!(PEER_TRACK_SCHEDULES as readonly string[]).includes(schedule)) throw new Error('--track-schedule must be a known peer schedule')
 const rounds = Number(option('--rounds', '5'))
 if (!Number.isSafeInteger(rounds) || rounds < 1) throw new Error('--rounds must be a positive integer')
 const phase = option('--phase'), consumer = option('--consumer')
@@ -34,14 +37,14 @@ const scope = phase === undefined ? undefined : { phase, consumer } as Performan
 const out = resolve(option('--out', 'bench-report/semantic-performance')!)
 const runtimeSource = resolve(option('--runtime-source', ROOT)!)
 mkdirSync(out, { recursive: true })
-const receipt: { status: string; complete: boolean; scopeComplete: boolean; scope: PerformanceScope | null; historicalAnchor: string; candidateSha: string; baselineSha: string; cache: string; rounds: number; quick: boolean; steps: object[] } = {
-  status: 'incomplete', complete: false, scopeComplete: false, scope: scope ?? null, historicalAnchor: PERFORMANCE_POLICY.historicalAnchor, candidateSha, baselineSha, cache, rounds, quick: args.includes('--quick'), steps: [],
+const receipt: { status: string; complete: boolean; scopeComplete: boolean; scope: PerformanceScope | null; historicalAnchor: string; candidateSha: string; baselineSha: string; cache: string; schedule: string; rounds: number; quick: boolean; steps: object[] } = {
+  status: 'incomplete', complete: false, scopeComplete: false, scope: scope ?? null, historicalAnchor: PERFORMANCE_POLICY.historicalAnchor, candidateSha, baselineSha, cache, schedule, rounds, quick: args.includes('--quick'), steps: [],
 }
 const save = () => writeFileSync(join(out, 'qualification-status.json'), `${JSON.stringify(receipt, null, 2)}\n`)
 save()
 async function run(name: string, aa: boolean): Promise<PerformanceReport> {
   const json = join(out, `${name}.json`)
-  const command = ['run', 'eval/benchmark/peer-bench.ts', '--peers', 'agentic,beautiful,zombie,pele', '--tracks', scope?.phase ?? 'all', ...(scope ? ['--track-consumers', scope.consumer] : []), '--rounds', String(rounds), '--elk-cache', cache,
+  const command = ['run', 'eval/benchmark/peer-bench.ts', '--peers', 'agentic,beautiful,zombie,pele', '--tracks', scope?.phase ?? 'all', ...(scope ? ['--track-consumers', scope.consumer] : []), '--track-schedule', schedule, '--rounds', String(rounds), '--elk-cache', cache,
     '--candidate-tarball', aa ? baseline : candidate, '--candidate-sha256', aa ? baselineSha : candidateSha,
     '--baseline-tarball', baseline, '--baseline-sha256', baselineSha, '--runtime-source', runtimeSource, '--json', json, '--markdown', join(out, `${name}.md`), ...(args.includes('--quick') ? ['--quick'] : [])]
   const started = new Date().toISOString()
