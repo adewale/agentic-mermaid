@@ -23,6 +23,28 @@ const parse = (s: string) => {
 }
 
 describe('class — parse', () => {
+  test('classDiagram-v2 uses the native Class reader, editing and output paths', async () => {
+    const body = '\nclass Account {\n+int balance\n}\nAccount --> Ledger : records\n'
+    const ordinary = parse('classDiagram' + body)
+    const source = 'classDiagram-v2' + body
+    const alias = parse(source)
+    expect(alias.kind).toBe('class')
+    expect(alias.body).toEqual(ordinary.body)
+    expect(renderSourceSVG(source)).toBe(renderSourceSVG('classDiagram' + body))
+    expect(renderSourceASCII(source)).toBe(renderSourceASCII('classDiagram' + body))
+    const edited = mutate(alias, { kind: 'rename_class', from: 'Account', to: 'Wallet' })
+    expect(edited.ok).toBe(true)
+    if (!edited.ok) throw new Error(JSON.stringify(edited.error))
+    const output = serializeMermaid(edited.value)
+    expect(output).toStartWith('classDiagram\n')
+    expect(asClass(parse(output))!.body.classes.map(node => node.id)).toEqual(['Wallet', 'Ledger'])
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.accepts(source)).toBe(true)
+      expect(await upstream.accepts(output)).toBe(true)
+    } finally { upstream.close() }
+  })
+
   test.each([
     'class Animal:::somecl--ass {\n-int sizeInFeet\n-canE1..*t()\n}\nclassDef someclass fill:#f96',
     'class A:::a-b',

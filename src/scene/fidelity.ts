@@ -52,6 +52,20 @@ function num(s: string | undefined): number | undefined {
   return Number.isFinite(n) ? n : undefined
 }
 
+// The SVG writer retains twelve significant digits. Compare geometry values
+// independently of their spelling, keeping command order and token counts.
+function near(a: number, b: number): boolean {
+  return Number.isFinite(a) && Number.isFinite(b)
+    && Math.abs(a - b) <= 5e-12 * Math.max(Math.abs(a), Math.abs(b), Number.MIN_VALUE)
+}
+
+function sameNumericPayload(a: string, b: string): boolean {
+  const number = /[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?/g
+  const left = a.match(number) ?? [], right = b.match(number) ?? []
+  return a.replace(number, '#').replace(/[\s,]/g, '') === b.replace(number, '#').replace(/[\s,]/g, '')
+    && left.length === right.length && left.every((value, index) => near(Number(value), Number(right[index])))
+}
+
 function geometryProblems(geom: Geometry, els: Array<{ tag: string; attrs: Map<string, string> }>, path: string, problems: string[]): number {
   // Returns how many elements this geometry consumed.
   const el = els[0]
@@ -65,7 +79,7 @@ function geometryProblems(geom: Geometry, els: Array<{ tag: string; attrs: Map<s
     const parsed = num(attr)
     const numericallyEquivalent = typeof semantic === 'number'
       && parsed !== undefined
-      && Math.abs(parsed - semantic) <= Number.EPSILON * 8 * Math.max(1, Math.abs(parsed), Math.abs(semantic))
+      && near(parsed, semantic)
     if (String(semantic) !== attr && !numericallyEquivalent) {
       problems.push(`${path}.${field}: semantic ${semantic} != crisp ${attr}`)
     }
@@ -99,14 +113,14 @@ function geometryProblems(geom: Geometry, els: Array<{ tag: string; attrs: Map<s
     case 'polyline': {
       const e = want(geom.kind); if (!e) return 1
       const expected = geom.points.map(p => `${p.x},${p.y}`).join(' ')
-      if (e.attrs.get('points') !== expected) {
+      if (!sameNumericPayload(expected, e.attrs.get('points') ?? '')) {
         problems.push(`${path}.points: semantic "${expected.slice(0, 60)}" != crisp "${(e.attrs.get('points') ?? '').slice(0, 60)}"`)
       }
       return 1
     }
     case 'path': {
       const e = want('path'); if (!e) return 1
-      if (e.attrs.get('d') !== geom.d) {
+      if (!sameNumericPayload(geom.d, e.attrs.get('d') ?? '')) {
         problems.push(`${path}.d: semantic "${geom.d.slice(0, 60)}" != crisp "${(e.attrs.get('d') ?? '').slice(0, 60)}"`)
       }
       return 1
@@ -376,7 +390,7 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[], 
       const el = els.find(e => e.tag === 'text')
       if (!el) { problems.push(`${path}(text:${node.id}): crisp has no <text>`); return }
       const fs = el.attrs.get('font-size')
-      if (fs !== undefined && num(fs) !== node.fontSize) {
+      if (fs !== undefined && !near(num(fs) ?? Number.NaN, node.fontSize)) {
         problems.push(`${path}(text:${node.id}).fontSize: semantic ${node.fontSize} != crisp ${fs}`)
       }
       for (const [attribute, field] of [['font-weight', 'fontWeight'], ['letter-spacing', 'letterSpacing']] as const) {
@@ -386,7 +400,7 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[], 
           const numeric = attribute === 'font-weight'
             ? actual === 'normal' ? 400 : actual === 'bold' ? 700 : num(actual)
             : actual === 'normal' ? 0 : num(actual.replace(/px$/, ''))
-          if (numeric !== expected) problems.push(`${path}(text:${node.id}).${field}: retained ${expected} != crisp ${actual}`)
+          if (!near(numeric ?? Number.NaN, expected)) problems.push(`${path}(text:${node.id}).${field}: retained ${expected} != crisp ${actual}`)
         }
       }
       // Text geometry: semantic x/y/anchor must match the drawn attributes.
