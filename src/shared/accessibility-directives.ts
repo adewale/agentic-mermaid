@@ -1,5 +1,6 @@
 // Mermaid-universal accessibility directives — accTitle / accDescr single
-// lines and accDescr { … } blocks — are legal in every diagram family.
+// lines and accDescr { … } blocks — belong to our shared source envelope.
+// Families without a pinned Mermaid production diagnose this native extension.
 // Source normalization owns their grammar. Family parsers receive the
 // directive-free grammar view plus this typed projection; they must not scan
 // the source for the same metadata a second time.

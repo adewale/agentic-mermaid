@@ -286,11 +286,13 @@ afterAll(async () => {
 
 it('standalone editor stays within its single-renderer payload budget', async () => {
   const html = new Uint8Array(await Bun.file(join(ROOT, 'editor.html')).arrayBuffer())
-  // The paired macOS/Bun 1.4.2 build adds 2,914 gzip bytes over f4f6d14b
-  // (1,261,463 → 1,264,377). Allow the observed platform compression difference;
-  // the single-engine graph and relative payload gates also apply.
-  expect(html.byteLength).toBeLessThanOrEqual(4_100_000)
-  expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_267_500)
+  // Paired macOS/Bun 1.4.2 builds, c727ed8c → 26b5744c:
+  // raw 4,089,615 → 4,124,010; gzip 1,267,058 → 1,279,000.
+  // Five production codec/config modules share the same engine; dependency
+  // inputs are unchanged. Keep ~11 KB raw / 3 KB gzip headroom; the
+  // single-engine graph and relative payload gates also apply.
+  expect(html.byteLength).toBeLessThanOrEqual(4_135_000)
+  expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_282_000)
 })
 
 it('standalone editor renders and verifies with one persistent Blob worker', async () => {
