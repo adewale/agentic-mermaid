@@ -1,10 +1,13 @@
 import { describe, expect, test } from 'bun:test'
-import { PERFORMANCE_POLICY as policy, performanceScorecard, type PerformanceReport } from '../../eval/benchmark/performance-gates.ts'
+import { PERFORMANCE_POLICY as policy, performanceScorecard, type PerformanceReport, type PerformanceScope } from '../../eval/benchmark/performance-gates.ts'
+import * as campaignGates from '../../eval/benchmark/performance-gates.ts'
+import type { SemanticPerformanceShard } from '../../eval/benchmark/performance-gates.ts'
+const aggregateSemanticPerformance = (shards: readonly SemanticPerformanceShard[]) => campaignGates.aggregateSemanticPerformance(shards)
 
 const beforeSha = 'a'.repeat(64), afterSha = 'b'.repeat(64)
-function report(id: string, aa = false): PerformanceReport {
+function report(id: string, aa = false, scope?: PerformanceScope): PerformanceReport {
   const observations: PerformanceReport['tracks']['observations'] = []
-  for (const peer of ['agentic', 'agentic-baseline', ...policy.competitivePeers]) for (let round = 0; round < 5; round++) for (const workload of [...policy.fullAgenticCoverage, ...policy.scaling]) for (const phase of policy.phases) for (const consumer of policy.consumers) {
+  for (const peer of ['agentic', 'agentic-baseline', ...policy.competitivePeers]) for (let round = 0; round < 5; round++) for (const workload of [...policy.fullAgenticCoverage, ...policy.scaling]) for (const phase of scope ? [scope.phase] : policy.phases) for (const consumer of scope ? [scope.consumer] : policy.consumers) {
     const unsupported = consumer === 'receipt-json-utf8' && !peer.startsWith('agentic')
     observations.push({ peer, round, workload, phase, consumer, status: unsupported ? 'unsupported' : 'ok', callSamplesMs: Array(31).fill(1), allocationSamplesBytes: [100, 100, 100],
       semantic: { ok: !unsupported, checks: unsupported ? [] : ['labels', 'xml', 'authored structure'], failures: [], unsupported: unsupported ? ['no receipt API'] : [] }, diagnostics: { status: peer === 'agentic' ? 'observed' : 'unobserved', complete: true, counts: {} } })
@@ -12,9 +15,63 @@ function report(id: string, aa = false): PerformanceReport {
   return { status: 'completed', runId: id, config: { rounds: 5, timing: { warmupMs: 250 } }, policy: { elkCache: 'off', aplEnvironment: {}, executionEnvironment: { experiments: null, nodeOptions: null, bunOptions: null, nodeEnv: null, timezone: null } },
     environment: { node: '24.19.0', cpu: 'test', hostname: 'same-runner', platform: 'linux', arch: 'x64', logicalCpus: 4 },
     pins: [{ peer: 'agentic', runtimeDependencySha256: beforeSha, identity: { sha256: aa ? beforeSha : afterSha } }, { peer: 'agentic-baseline', runtimeDependencySha256: beforeSha, identity: { sha256: beforeSha } }, ...policy.competitivePeers.map(peer => ({ peer, runtimeDependencySha256: beforeSha, integrity: 'sha512-pinned', source: { version: '1' } }))],
-    tracksConfig: { samples: 31, allocationSamples: 3, harnessRevision: 'c'.repeat(40), harnessDirty: false }, tracks: { schemaVersion: 1, contractVersion: policy.version, cohort: policy.cohort, observations } }
+    tracksConfig: { samples: 31, allocationSamples: 3, harnessRevision: 'c'.repeat(40), harnessDirty: false,
+      inputs: Object.fromEntries([...policy.fullAgenticCoverage, ...policy.scaling].map(id => [id, { source: `fixture:${id}`, expected: [id] }])) },
+    tracks: { phases: scope ? [scope.phase] : policy.phases, consumers: scope ? [scope.consumer] : policy.consumers, schemaVersion: 1, contractVersion: policy.version, cohort: policy.cohort, observations } }
 }
 const setup = () => ({ candidate: report('ab'), controls: [report('aa1', true), report('aa2', true)] })
+
+function campaign(): SemanticPerformanceShard[] {
+  return ['off', 'on'].flatMap(cache => policy.phases.flatMap(phase => policy.consumers.map(consumer => {
+    const scope = { phase, consumer }, id = `${cache}/${phase}/${consumer}`
+    const candidate = report(`${id}/ab`, false, scope), controls = [report(`${id}/aa1`, true, scope), report(`${id}/aa2`, true, scope)]
+    for (const r of [candidate, ...controls]) { r.policy.elkCache = cache; r.environment.hostname = id }
+    return { cache, scope, scopeComplete: true, candidateSha: afterSha, baselineSha: beforeSha, candidate, controls }
+  })))
+}
+
+describe('complete semantic campaign aggregation', () => {
+  test('separate runners qualify only when every cache, phase and consumer completes', () => {
+    const shards = campaign(), first = shards[0]!
+    const partial = performanceScorecard(first.candidate!, first.controls!, first.scope)
+    expect(partial.scopeQualified).toBe(true)
+    expect(partial.campaignComplete).toBe(false)
+    expect(partial.performanceQualified).toBe(false)
+    const complete = aggregateSemanticPerformance(shards)
+    expect(complete.campaignComplete).toBe(true)
+    expect(complete.performanceQualified).toBe(true)
+    expect(new Set(complete.shards.map(s => s.environment.hostname)).size).toBe(16)
+    expect(aggregateSemanticPerformance(shards.slice(1)).campaignComplete).toBe(false)
+    expect(aggregateSemanticPerformance([...shards.slice(1), shards[1]!]).campaignComplete).toBe(false)
+  })
+
+  test('an interrupted shard, foreign control runner, archive or authored input cannot complete', () => {
+    for (const fault of ['interrupted', 'runner', 'archive', 'input'] as const) {
+      const shards = campaign(), target = shards.at(-1)!
+      if (fault === 'interrupted') target.scopeComplete = false
+      if (fault === 'runner') target.controls![0]!.environment.hostname = 'foreign'
+      if (fault === 'archive') target.candidate!.pins[0]!.identity!.sha256 = 'd'.repeat(64)
+      if (fault === 'input') target.candidate!.tracksConfig!.inputs = { replaced: { source: 'different' } }
+      const score = aggregateSemanticPerformance(shards)
+      expect(score.campaignComplete, fault).toBe(false)
+      expect(score.performanceQualified, fault).toBe(false)
+    }
+  })
+
+  test('a regression or uncalibrated allocation in the last shard remains decisive', () => {
+    const shards = campaign(), last = shards.at(-1)!
+    for (const row of last.candidate!.tracks.observations) if (row.peer === 'agentic' && row.workload === 'seq20') row.allocationSamplesBytes.fill(200)
+    const failed = aggregateSemanticPerformance(shards)
+    expect(failed.campaignComplete).toBe(true)
+    expect(failed.ok).toBe(false)
+    expect(failed.shards.at(-1)!.score.releaseRegression.some(g => g.workload === 'seq20' && g.metric === 'allocation' && g.status === 'fail')).toBe(true)
+    for (const row of last.controls![0]!.tracks.observations) if (row.peer === 'agentic' && row.workload === 'seq20') row.allocationSamplesBytes.fill(200)
+    const noisy = aggregateSemanticPerformance(shards)
+    expect(noisy.campaignComplete).toBe(true)
+    expect(noisy.performanceQualified).toBe(false)
+    expect(noisy.shards.at(-1)!.score.releaseRegression.some(g => g.workload === 'seq20' && g.metric === 'allocation' && g.status === 'uncalibrated')).toBe(true)
+  })
+})
 
 describe('calibrated semantic performance decisions', () => {
   test('default feature selection is distinct from an explicitly empty legacy profile', () => {
