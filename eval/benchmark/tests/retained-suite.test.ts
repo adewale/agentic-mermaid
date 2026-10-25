@@ -31,6 +31,12 @@ test('publication preserves raw clocks, separates actual samples and metadata, a
   expect(published.observations.map(row => row.samplesMs)).toEqual([[2], [2], undefined, undefined])
   raw.observations.push({ ...raw.observations[0]! })
   expect(() => publicationResult(raw, 'pele')).toThrow('Duplicate measured sample coordinates')
+  raw.observations.pop()
+  const resource = { ...raw.observations[0]!, samplesMs: undefined, mode: 'fresh-process-resource-paired-control' }
+  raw.observations.push(resource)
+  expect(publicationResult(raw, 'pele').observations).toHaveLength(5)
+  raw.observations.push(resource)
+  expect(() => publicationResult(raw, 'pele')).toThrow('Duplicate measured sample coordinates')
 })
 
 test('explicit recovery publishes completed matching raw evidence without measuring; cancellation or changed identity cannot recover', async () => {
@@ -54,9 +60,10 @@ test('explicit recovery publishes completed matching raw evidence without measur
   writeFileSync(join(attempt, 'publication-failure.json'), JSON.stringify({ attempt: 'different', identity, stage: 'publication', state: 'incomplete', error: 'Error: Invalid benchmark record store: duplicate observation identity' }))
   await expect(runRetainedSuite(options)).rejects.toThrow('attempt-bound')
   reset()
+  const eligibleCache = readFileSync(join(out, 'cache.json'), 'utf8')
   await expect(runRetainedSuite({ ...options, identity: () => ({ ...identity, artifact: 'changed' }) })).rejects.toThrow('attempt-bound')
+  expect(readFileSync(join(out, 'cache.json'), 'utf8')).toBe(eligibleCache)
   expect(existsSync(join(root, 'records/current.json'))).toBe(false)
-  reset()
   const recovered = await runRetainedSuite(options)
   expect(readFileSync(join(attempt, 'raw-result.json'), 'utf8')).toBe(rawBytes)
   expect(recovered.observations[0]!.samplesMs).toEqual([2])
