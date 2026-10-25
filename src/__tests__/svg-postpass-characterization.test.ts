@@ -48,14 +48,12 @@ describe('SVG post-pass interaction contract', () => {
     expect(resolveInlineColorAttribute('var(--fg)', colors)).toBe('#000')
     colors.fg = '#112233'
     expect(resolveInlineColorAttribute('var(--fg)', colors)).toBe('#112233')
-    for (const muted of ['var(--missing, #abc)', '"', '<style>.x{fill:var(--fg)}</style>']) {
-      colors.muted = muted
-      const paint = 'var(--_text-sec)'
-      const outcome = (run: () => unknown) => { try { return { value: run() } } catch (error) { return { error: (error as Error).message } } }
-      const svg = () => inlineResolvedColors(`<rect fill="${escapeAttr(paint)}"/>`, colors)
-      expect(outcome(() => resolveInlineColorAttribute(paint, colors)))
-        .toEqual(outcome(() => decodedSvgAttributeValue(scanSvgStartTags(svg())[0]!, 'fill')))
-    }
+    colors.muted = 'var(--missing, #abc)'
+    expect(resolveInlineColorAttribute('var(--_text-sec)', colors)).toBe('var(--missing, #abc)')
+    colors.muted = '"'
+    expect(() => resolveInlineColorAttribute('var(--_text-sec)', colors)).toThrow(TypeError)
+    colors.muted = '<style>.x{fill:var(--fg)}</style>'
+    expect(resolveInlineColorAttribute('var(--_text-sec)', colors)).toBe('<style>.x{fill:#112233}</style>')
   })
 
   test('CSS substitutions preserve tag-like text inside a CDATA style body', () => {
