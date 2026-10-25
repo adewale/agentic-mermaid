@@ -82,7 +82,17 @@ const stableRepresentativeCues = {
   block:
     'Seven components occupy four authored composite groups, including nested Delivery/Persistence inside a two-column Gateway plane span, two empty cells and durable queue/store artwork. Follow six complete labeled connections; Batch enters Ingress from the west while Enqueue leaves south, preserving distinct physical contacts.',
 } as const
+const ownershipGoldenIds = new Set(['corpus/flowchart/94', 'corpus/flowchart/95', 'corpus/flowchart/96', 'corpus/state/0', 'corpus/state/1', 'corpus/state/8', 'corpus/state/14', 'corpus/state/16', 'corpus/state/17', 'corpus/state/18', 'corpus/state/19'])
 const fixtures: Fixture[] = [
+  ...corpusSamples.filter(sample => ownershipGoldenIds.has(sample.id)).map(sample => ({
+    id: `compat-${sample.id.replaceAll('/', '-')}`,
+    title: `${sample.id}: ownership and contextual endpoint baseline`,
+    source: sample.source,
+    captureLayout: true as const,
+    cue: sample.family === 'flowchart'
+      ? 'Inspect the complete subgraph membership after earlier references, with unchanged authored edges. Added members change container sizes and placement; this is an intentional topology correction.'
+      : 'Inspect one contextual start/end per scope, all authored transitions, and separate concurrent regions. Generated endpoint names now include the region; unchanged names are not a paint contract.',
+  })),
   {
     id: "compat-flowchart-membership",
     title: "Flowchart references retain their owning subgraphs",
