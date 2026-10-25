@@ -198,7 +198,7 @@ describe('native block', () => {
       expect(await upstream.accepts(serializeMermaid(recovered))).toBe(true)
     } finally { upstream.close() }
   })
-  test('accessibility extensions stay renderable and source-preserved without typed regeneration', async () => {
+  test('accessibility extensions stay editable through native metadata comments', async () => {
     const { startUpstreamMermaid } = await import('./helpers/upstream-mermaid.ts')
     const upstream = startUpstreamMermaid()
     try {
@@ -208,15 +208,15 @@ describe('native block', () => {
         const result = parse(source)
         expect(result.ok).toBe(true)
         if (!result.ok) throw Error(JSON.stringify(result.error))
-        expect(result.value.body.kind).toBe('opaque')
-        expect(serializeMermaid(result.value)).toBe(source)
+        expect(result.value.body.kind).toBe('block')
+        expect(await upstream.publicAccepts(serializeMermaid(result.value))).toBe(true)
         expect(renderMermaidSVG(result.value)).toBe(renderMermaidSVG(source))
         expect(renderMermaidASCII(result.value)).toBe(renderMermaidASCII(source))
         expect(renderMermaidSVG(source)).toContain('Visible')
         for (const input of [source, result.value]) {
           expect(verifyMermaid(input).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'block_accessibility' }))
         }
-        expect(mutate(result.value, { kind: 'rename_block', from: 'a', to: 'b' }).ok).toBe(false)
+        expect(mutate(result.value, { kind: 'rename_block', from: 'a', to: 'b' }).ok).toBe(true)
       }
       const literal = structured('block\na["accTitle: label"]')
       expect(verifyMermaid(literal).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])

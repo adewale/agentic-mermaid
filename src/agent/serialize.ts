@@ -1,3 +1,4 @@
+import { configDirective } from '../shared/pinned-mermaid-config/merge.js'
 import { canonicalWrapperConfig } from './wrapper-portability.ts'
 import { restoreBodyComments } from './body-comments.ts'
 // ============================================================================
@@ -39,8 +40,9 @@ export interface SerializeOptions {
    * header; source-preserving bodies keep theirs in place and are unaffected.
    * 'canonical' synthesizes Mermaid's documented shape
    * instead: one frontmatter block with `title`/`displayMode` at the top
-   * level and everything else nested under `config:`, init directives folded
-   * in (invalid configuration must be repaired before canonical export), and
+   * level and config values nested under `config:`. A single object init
+   * directive folds in; multiple init layers retain their order and boundaries.
+   * Invalid configuration must be repaired before canonical export, and
    * wrapper comments dropped. Diagrams without a captured wrapper (e.g.
    * synthesized from JSON payloads) always use canonical synthesis.
    */
@@ -68,9 +70,27 @@ export function serializeMermaid(d: ParsedDiagram, opts: SerializeOptions = {}):
   // cannot hold. Fold those directives after authored configuration, before
   // removing them from the body, so canonical export retains their meaning.
   const meta = mode === 'canonical'
-    ? { ...d.meta, initDirectives: [...d.meta.initDirectives, ...mermaidInitDirectives(preservedBody)] }
+    ? { ...d.meta, initDirectives: serializedInitLayers(d.meta, preservedBody) }
     : d.meta
   return wrapperPrefix(meta, mode, bodySource, d.kind) + bodySource
+}
+
+/** A preserved body already owns its authored layers. Only directives newly
+ * produced by a family writer extend the source metadata's ordered list. */
+function serializedInitLayers(meta: ValidDiagramMeta, body: string): ValidDiagramMeta['initDirectives'] {
+  const layers = [...meta.initDirectives]
+  const owned = new Map<string, number>()
+  for (const layer of layers) {
+    const key = mermaidInitDirectiveIdentity(layer)
+    owned.set(key, (owned.get(key) ?? 0) + 1)
+  }
+  for (const layer of mermaidInitDirectives(body)) {
+    const key = mermaidInitDirectiveIdentity(layer)
+    const remaining = owned.get(key) ?? 0
+    if (remaining) owned.set(key, remaining - 1)
+    else layers.push(layer)
+  }
+  return layers
 }
 
 /** The wrapper text to emit before the diagram body for the given policy. */
@@ -130,26 +150,23 @@ function postWrapperInitDirectives(meta: ValidDiagramMeta, bodySource: string): 
 /**
  * Canonical wrapper synthesis (Mermaid's documented frontmatter shape):
  * `title`/`displayMode` stay top-level, all other keys nest under `config:`.
- * Every parseable init directive is folded into the effective frontmatter in
- * authored order. Re-emitting an earlier raw directive is never safe: even if
- * one of its fields remains live, another may have been overridden later, and
- * Mermaid would apply that stale raw value after the synthesized frontmatter.
+ * A single object init layer folds into frontmatter. Multiple init layers
+ * retain their order and boundaries: the pin sanitizes each before merging,
+ * which changes null/type transitions. The raw YAML layer is read separately
+ * so no already-folded directive is applied twice.
  * Unparseable directives fail canonical export; verbatim mode preserves
  * their authored source for repair.
  */
 export function renderMeta(meta: ValidDiagramMeta, family?: string): string {
   const parts: string[] = []
-  const effectiveFrontmatter = canonicalWrapperConfig(meta, family)
-  if (Object.keys(effectiveFrontmatter).length > 0) {
-    const top: Record<string, unknown> = {}
-    const config: Record<string, unknown> = {}
-    for (const [key, value] of Object.entries(effectiveFrontmatter)) {
-      if (key === 'title' || key === 'displayMode') top[key] = value
-      else config[key] = value
-    }
-    const doc: Record<string, unknown> = { ...top }
-    if (Object.keys(config).length > 0) doc.config = config
+  const canonical = canonicalWrapperConfig(meta, family)
+  if (Object.keys(canonical.metadata).length || Object.keys(canonical.config).length) {
+    const doc: Record<string, unknown> = { ...canonical.metadata }
+    if (Object.keys(canonical.config).length) doc.config = canonical.config
     parts.push(`---\n${stringifyMermaidYaml(doc)}---\n`)
+  }
+  for (const layer of canonical.directives) {
+    parts.push(configDirective(layer.kind, layer.payload, layer.hasArgs) + '\n')
   }
   return parts.join('')
 }

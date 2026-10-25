@@ -1,5 +1,33 @@
-import type { Direction, PositionedEdge, PositionedNode } from '../../types.ts'
+import type { Direction, Point, PositionedEdge, PositionedNode } from '../../types.ts'
 import { DEFAULTS } from '../geometry.ts'
+import { isOutwardShapeApproach } from '../../shape-clipping.ts'
+
+function outwardEndpoint(points: Point[], node: PositionedNode | undefined, start: boolean): boolean | undefined {
+  if (!node) return undefined
+  const index = start ? 0 : points.length - 1, step = start ? 1 : -1
+  const endpoint = points[index]
+  if (!endpoint) return false
+  for (let next = index + step; next >= 0 && next < points.length; next += step) {
+    const adjacent = points[next]!
+    if (adjacent.x !== endpoint.x || adjacent.y !== endpoint.y) return isOutwardShapeApproach(node, endpoint, adjacent)
+  }
+  return false
+}
+
+/** Project the same endpoint adjustment for admission and commit. Retaining
+ * zero-length points here matters: the next nonzero shaft may be a tangent. */
+function shiftedEndpointPoints(points: Point[], horizontal: boolean, sourceDelta?: number, targetDelta?: number): Point[] {
+  if (points.length < 2 || sourceDelta === undefined && targetDelta === undefined) return points
+  const projected = points.map(point => ({ ...point }))
+  const main = horizontal ? 'x' : 'y'
+  for (const [delta, index, adjacent] of [[sourceDelta, 0, 1], [targetDelta, projected.length - 1, projected.length - 2]] as const) {
+    if (delta === undefined) continue
+    const point = projected[index]!, neighbor = projected[adjacent]!
+    point[main] += delta
+    if (neighbor[main] === point[main] - delta) neighbor[main] += delta
+  }
+  return projected
+}
 
 /**
  * ELK's orthogonal edge routing staggers nodes within the same layer to create
@@ -30,10 +58,17 @@ export function alignLayerNodes(
   // Build set of directly-connected node pairs.
   // Nodes connected by an edge must not be merged into the same layer.
   const connectedPairs = new Set<string>()
+  const incident = new Map<string, PositionedEdge[]>()
   for (const edge of edges) {
     connectedPairs.add(`${edge.source}:${edge.target}`)
     connectedPairs.add(`${edge.target}:${edge.source}`)
+    for (const id of new Set([edge.source, edge.target])) {
+      const entries = incident.get(id) ?? []
+      entries.push(edge)
+      incident.set(id, entries)
+    }
   }
+  const nodeMap = new Map(nodes.map(node => [node.id, node]))
 
   // ELK's stagger creates small gaps between adjacent nodes in the same layer
   // (typically edgeEdge spacing = 12px per routing channel). Adjacent layers
@@ -111,6 +146,34 @@ export function alignLayerNodes(
       return Math.abs(target - oldPos) > 0.5 && snapOccludes(node, target)
     })) continue
 
+    const moves = new Map(layer.flatMap(node => {
+      const delta = target - (isHorizontal ? node.x : node.y)
+      return Math.abs(delta) > 0.5 ? [[node.id, delta] as const] : []
+    }))
+    const projectedNodes = new Map(layer.map(node => [node.id, {
+      ...node, ...(isHorizontal ? { x: node.x + (moves.get(node.id) ?? 0) } : { y: node.y + (moves.get(node.id) ?? 0) }),
+    }]))
+    const checked = new Set<PositionedEdge>()
+    let breaksApproach = false
+    for (const id of moves.keys()) {
+      for (const edge of incident.get(id) ?? []) {
+        if (checked.has(edge) || edge.style === 'invisible') continue
+        checked.add(edge)
+        const before = { ...edge, points: shiftedEndpointPoints(edge.points, isHorizontal, deltas.get(edge.source), deltas.get(edge.target)) }
+        const after = { ...edge, points: shiftedEndpointPoints(edge.points, isHorizontal,
+          moves.get(edge.source) ?? deltas.get(edge.source), moves.get(edge.target) ?? deltas.get(edge.target)) }
+        for (const start of [true, false]) {
+          const endpoint = start ? edge.source : edge.target
+          const node = nodeMap.get(endpoint), projected = projectedNodes.get(endpoint) ?? node
+          if (outwardEndpoint(before.points, node, start) === true &&
+            outwardEndpoint(after.points, projected, start) !== true) breaksApproach = true
+        }
+      }
+    }
+    // Alignment is cosmetic. Preserve the complete layer and its existing
+    // route when snapping would consume or reverse an outward terminal stub.
+    if (breaksApproach) continue
+
     for (const node of layer) {
       const oldPos = isHorizontal ? node.x : node.y
       const delta = target - oldPos
@@ -127,48 +190,8 @@ export function alignLayerNodes(
 
   if (deltas.size === 0) return
 
-  // Build node lookup for edge adjustment
-  const nodeMap = new Map(nodes.map(n => [n.id, n]))
-
   // Adjust edge endpoints to match shifted node positions
   for (const edge of edges) {
-    if (edge.points.length < 2) continue
-
-    const srcDelta = deltas.get(edge.source)
-    const tgtDelta = deltas.get(edge.target)
-
-    if (srcDelta != null) {
-      // Shift first point and any subsequent points in the initial vertical/horizontal run
-      const first = edge.points[0]!
-      if (isHorizontal) {
-        first.x += srcDelta
-        // Shift second point if it's part of a straight vertical exit
-        if (edge.points.length > 1 && edge.points[1]!.x === first.x - srcDelta) {
-          edge.points[1]!.x += srcDelta
-        }
-      } else {
-        first.y += srcDelta
-        if (edge.points.length > 1 && edge.points[1]!.y === first.y - srcDelta) {
-          edge.points[1]!.y += srcDelta
-        }
-      }
-    }
-
-    if (tgtDelta != null) {
-      const last = edge.points[edge.points.length - 1]!
-      if (isHorizontal) {
-        last.x += tgtDelta
-        if (edge.points.length > 1) {
-          const prev = edge.points[edge.points.length - 2]!
-          if (prev.x === last.x - tgtDelta) prev.x += tgtDelta
-        }
-      } else {
-        last.y += tgtDelta
-        if (edge.points.length > 1) {
-          const prev = edge.points[edge.points.length - 2]!
-          if (prev.y === last.y - tgtDelta) prev.y += tgtDelta
-        }
-      }
-    }
+    edge.points = shiftedEndpointPoints(edge.points, isHorizontal, deltas.get(edge.source), deltas.get(edge.target))
   }
 }

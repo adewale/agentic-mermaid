@@ -20,7 +20,7 @@ import { drawBox } from './draw.ts'
 import { maxLineWidth, lineCount } from './multiline-utils.ts'
 import { getShapeDimensions } from './shapes/index.ts'
 import { placeCompoundItems } from './compound-placement.ts'
-import { reserveGraphEdgeCapacity, GRAPH_EDGE_APPROACH } from './graph-capacity.ts'
+import { reserveGraphEdgeCapacity, graphRoutingUnits, unsafeGraphContacts, GRAPH_EDGE_APPROACH, allocatedGraphPort, graphEndpointOf } from './graph-capacity.ts'
 
 // ============================================================================
 // Grid coordinate → drawing coordinate conversion
@@ -417,56 +417,119 @@ function nodeBounds(node: AsciiNode): GridBounds | null {
   return { minX: x, minY: y, maxX: x + 2, maxY: y + 2 }
 }
 
-/** Reserve terminal capacity for the complete containment tree, rather than
- * assuming the normal card-to-card gap also fits arbitrarily nested frames.
- * Logical placement and routes stay fixed; only empty spacer rows/columns grow. */
-function reserveContainerEnvelopes(graph: AsciiGraph): void {
-  if (!graph.subgraphs.length) return
-  const projected = projectNodeEnvelopes(graph)
-  interface Envelope { bounds: GridBounds; logical: GridBounds; node?: AsciiNode; group?: AsciiSubgraph }
+/** Reserve complete painted envelopes across the containment tree. Logical
+ * blocks choose safe separating cuts; shared track widths can still make
+ * centred physical cards exceed those blocks. */
+function reserveProtectedEnvelopes(graph: AsciiGraph): void {
+  let projected = projectNodeEnvelopes(graph)
+  // Ordinary cards contained by their disjoint logical blocks need no pair
+  // scan. Compound frames, or cards enlarged beyond a block, need measured
+  // separation rather than the logical-placement assumption.
+  if (!graph.subgraphs.length && !graph.edges.some(edge => edge.cellAllocation) && graph.nodes.every(node => {
+    const end = gridToDrawingCoord(graph, { x: node.gridCoord!.x + 2, y: node.gridCoord!.y + 2 })
+    const bounds = projected.get(node)!
+    return bounds.maxX <= end.x && bounds.maxY <= end.y
+  })) return
+  interface Envelope { bounds: GridBounds; logical: GridBounds; node?: AsciiNode; group?: AsciiSubgraph; approach?: { edge: AsciiEdge; start: boolean } }
   const envelopes: Envelope[] = []
-  for (const [node, bounds] of projected) envelopes.push({ node, bounds, logical: nodeBounds(node)! })
+  const endpointEnvelopes = new Map<AsciiNode | AsciiSubgraph, Envelope>()
+  for (const [node, bounds] of projected) {
+    const envelope = { node, bounds, logical: nodeBounds(node)! }
+    envelopes.push(envelope); endpointEnvelopes.set(node, envelope)
+  }
   for (const group of graph.subgraphs) {
     const logical = boundsOfNodes(group.nodes)
-    if (logical && !group.concurrencyRegion) envelopes.push({ group, logical, bounds: { minX: group.minX, minY: group.minY, maxX: group.maxX, maxY: group.maxY } })
+    if (!logical) continue
+    const envelope = { group, logical, bounds: { minX: group.minX, minY: group.minY, maxX: group.maxX, maxY: group.maxY } }
+    endpointEnvelopes.set(group, envelope)
+    if (!group.concurrencyRegion) envelopes.push(envelope)
+  }
+  const approachBounds = (envelope: Envelope, bounds: GridBounds): GridBounds | undefined => {
+    const { edge, start } = envelope.approach!, point = allocatedGraphPort(edge, start, bounds)
+    if (!point) return undefined
+    const direction = start ? edge.startDir : edge.endDir, dx = direction.x - 1, dy = direction.y - 1
+    // Graph markers occupy one cell: the end marker at distance 1 lies in
+    // this exterior run; a start marker at distance 0 lies on its own envelope.
+    return {
+      minX: Math.min(point.x + dx, point.x + dx * GRAPH_EDGE_APPROACH), maxX: Math.max(point.x + dx, point.x + dx * GRAPH_EDGE_APPROACH),
+      minY: Math.min(point.y + dy, point.y + dy * GRAPH_EDGE_APPROACH), maxY: Math.max(point.y + dy, point.y + dy * GRAPH_EDGE_APPROACH),
+    }
+  }
+  for (const edge of graph.edges) if (edge.cellAllocation) for (const start of [true, false]) {
+    const base = endpointEnvelopes.get(graphEndpointOf(edge, start))!
+    const envelope: Envelope = { ...base, approach: { edge, start } }, bounds = approachBounds(envelope, base.bounds)
+    if (bounds) { envelope.bounds = bounds; envelopes.push(envelope) }
   }
   const related = (a: Envelope, b: Envelope): boolean => {
+    if (a.node && a.node === b.node) return true
     if (a.group && b.node) return a.group.nodes.includes(b.node)
     if (b.group && a.node) return b.group.nodes.includes(a.node)
     if (a.group && b.group) return isAncestorOrSelf(a.group, b.group) || isAncestorOrSelf(b.group, a.group)
-    return true // individual cards already occupy disjoint logical blocks
+    return false
   }
-  const rows = new Map<number, number>(), columns = new Map<number, number>()
-  const clearance = 2 // one visible terminal cell between unrelated envelopes
-  for (let index = 0; index < envelopes.length; index++) for (let next = index + 1; next < envelopes.length; next++) {
-    const a = envelopes[index]!, b = envelopes[next]!
-    if (related(a, b)) continue
-    const first = a.bounds, second = b.bounds
-    if (first.maxX + clearance <= second.minX || second.maxX + clearance <= first.minX
-      || first.maxY + clearance <= second.minY || second.maxY + clearance <= first.minY) continue
-    const candidates: Array<{ axis: 'x' | 'y'; index: number; extra: number }> = []
-    for (const axis of ['x', 'y'] as const) {
-      const min = axis === 'x' ? 'minX' : 'minY', max = axis === 'x' ? 'maxX' : 'maxY'
-      if (a.logical[max] < b.logical[min]) candidates.push({ axis, index: b.logical[min] - 1, extra: first[max] + clearance - second[min] })
-      if (b.logical[max] < a.logical[min]) candidates.push({ axis, index: a.logical[min] - 1, extra: second[max] + clearance - first[min] })
+  interface Constraint { axis: 'x' | 'y'; index: number; left: Envelope; right: Envelope; clearance: number }
+  const active = new Map<string, Constraint>(), declined = new Set<string>()
+  const measure = (): void => {
+    projected = projectNodeEnvelopes(graph)
+    for (const envelope of envelopes) {
+      const bounds = envelope.node ? projected.get(envelope.node)! : {
+        minX: envelope.group!.minX, minY: envelope.group!.minY,
+        maxX: envelope.group!.maxX, maxY: envelope.group!.maxY,
+      }
+      envelope.bounds = envelope.approach ? approachBounds(envelope, bounds)! : bounds
     }
-    // A separating logical gap can only gain capacity when other reservations
-    // grow. Batch the largest deficit per spacer: no repeated paint/settle loop.
-    candidates.sort((a, b) => a.extra - b.extra || (a.axis === (graph.config.graphDirection === 'TD' ? 'y' : 'x') ? -1 : 1))
-    const candidate = candidates[0]
-    if (!candidate) {
-      const firstId = a.group?.id ?? a.node!.name, secondId = b.group?.id ?? b.node!.name
+  }
+  for (;;) {
+    // At cut k the left members end by k, so their drawing anchors and widths
+    // read only tracks below k. Later cuts cannot enlarge that left envelope;
+    // right anchors only stay or increase. Selected approaches add only fixed
+    // face/slot offsets, preserving that monotonicity. Re-solve ordered cuts when
+    // a newly witnessed pair activates a lower cut. Each round adds a finite
+    // envelope pair; this is constraint closure, not a settling-radius limit.
+    for (const axis of ['x', 'y'] as const) {
+      const cuts = new Map<number, Constraint[]>()
+      for (const constraint of active.values()) if (constraint.axis === axis) {
+        const constraints = cuts.get(constraint.index) ?? []
+        constraints.push(constraint); cuts.set(constraint.index, constraints)
+      }
+      for (const [index, constraints] of [...cuts].sort(([a], [b]) => a - b)) {
+        measure()
+        const min = axis === 'x' ? 'minX' : 'minY', max = axis === 'x' ? 'maxX' : 'maxY'
+        const extra = Math.max(0, ...constraints.map(({ left, right, clearance }) => left.bounds[max] + clearance - right.bounds[min]))
+        const sizes = axis === 'x' ? graph.columnWidth : graph.rowHeight
+        if (extra) sizes.set(index, (sizes.get(index) ?? 0) + extra)
+      }
+    }
+    measure()
+    let activated = false
+    for (let index = 0; index < envelopes.length; index++) for (let next = index + 1; next < envelopes.length; next++) {
+      const a = envelopes[index]!, b = envelopes[next]!, key = `${index}:${next}`
+      if (related(a, b) || active.has(key) || declined.has(key)) continue
+      const first = a.bounds, second = b.bounds
+      // Cards/frames retain one blank cell. An approach already measures its
+      // required exterior cells; those cells must simply clear other envelopes.
+      const clearance = a.approach || b.approach ? 1 : 2
+      if (first.maxX + clearance <= second.minX || second.maxX + clearance <= first.minX
+        || first.maxY + clearance <= second.minY || second.maxY + clearance <= first.minY) continue
+      const candidates: Array<Constraint & { extra: number }> = []
+      for (const axis of ['x', 'y'] as const) {
+        const min = axis === 'x' ? 'minX' : 'minY', max = axis === 'x' ? 'maxX' : 'maxY'
+        if (a.logical[max] < b.logical[min]) candidates.push({ axis, index: b.logical[min] - 1, left: a, right: b, clearance, extra: first[max] + clearance - second[min] })
+        if (b.logical[max] < a.logical[min]) candidates.push({ axis, index: a.logical[min] - 1, left: b, right: a, clearance, extra: second[max] + clearance - first[min] })
+      }
+      candidates.sort((a, b) => a.extra - b.extra || (a.axis === (graph.config.graphDirection === 'TD' ? 'y' : 'x') ? -1 : 1))
+      const candidate = candidates[0]
+      if (candidate) { active.set(key, candidate); activated = true; continue }
+      declined.add(key)
+      const nameOf = (envelope: Envelope) => envelope.approach ? `${envelope.approach.edge.id}:${envelope.approach.start ? 'start' : 'end'}` : envelope.group?.id ?? envelope.node!.name
+      const firstId = nameOf(a), secondId = nameOf(b)
       graph.canvas.report({
         code: 'TERMINAL_GEOMETRY_COLLISION', feature: `container-envelope:${firstId}:${secondId}`,
         message: `Unrelated envelopes ${firstId} and ${secondId} interleave in both logical axes; spacer capacity cannot separate them.`,
       })
-      continue
     }
-    const reservations = candidate.axis === 'x' ? columns : rows
-    reservations.set(candidate.index, Math.max(reservations.get(candidate.index) ?? 0, candidate.extra))
+    if (!activated) return
   }
-  for (const [index, extra] of columns) graph.columnWidth.set(index, (graph.columnWidth.get(index) ?? 0) + extra)
-  for (const [index, extra] of rows) graph.rowHeight.set(index, (graph.rowHeight.get(index) ?? 0) + extra)
 }
 
 /** Measure cards and complete nested frames from the same grid projection. */
@@ -891,25 +954,45 @@ export function createMapping(graph: AsciiGraph): void {
     reserveSubgraphHeaders(graph)
   }
 
-  reserveGraphEdgeCapacity(graph, () => projectNodeEnvelopes(graph))
-  if (graph.edges.some(edge => edge.cellAllocation)) {
-    graph.bundles = []
-    graph.trunkJunctions = []
-    for (const edge of graph.edges) { delete edge.bundle; delete edge.sharedTrunk; delete edge.pathToJunction }
+  const units = graphRoutingUnits(graph), selected = new Set<AsciiEdge>()
+  const original = {
+    columns: new Map(graph.columnWidth), rows: new Map(graph.rowHeight),
+    bundles: graph.bundles, junctions: graph.trunkJunctions,
+    edges: new Map(graph.edges.map(edge => [edge, { startDir: edge.startDir, endDir: edge.endDir, bundle: edge.bundle, sharedTrunk: edge.sharedTrunk, pathToJunction: edge.pathToJunction }])),
+    insets: new Map(graph.subgraphs.map(group => [group, group.insets ? { ...group.insets } : undefined])),
+    canvas: graph.canvas, drawn: new Map(graph.nodes.map(node => [node, node.drawn])),
   }
-
-  reserveContainerEnvelopes(graph)
-
-  // Convert grid coords → drawing coords and generate box drawings
-  for (const node of graph.nodes) {
-    node.drawingCoord = gridToDrawingCoord(graph, node.gridCoord!)
-    node.drawing = drawBox(node, graph)
+  const project = (): void => {
+    graph.columnWidth = new Map(original.columns); graph.rowHeight = new Map(original.rows)
+    graph.offsetX = 0; graph.offsetY = 0; graph.canvas = original.canvas.blank()
+    graph.canvas.overlay(original.canvas)
+    for (const [group, insets] of original.insets) group.insets = insets ? { ...insets } : undefined
+    for (const [edge, route] of original.edges) {
+      Object.assign(edge, route); delete edge.cellAllocation; delete edge.cellRoute
+      if (selected.has(edge)) { delete edge.bundle; delete edge.sharedTrunk; delete edge.pathToJunction }
+    }
+    graph.bundles = original.bundles.filter(bundle => !bundle.edges.some(edge => selected.has(edge)))
+    const retainedTrunks = new Set(graph.edges.filter(edge => !selected.has(edge)).map(edge => edge.sharedTrunk))
+    graph.trunkJunctions = original.junctions.filter(junction => retainedTrunks.has(junction.trunk))
+    reserveGraphEdgeCapacity(graph, () => projectNodeEnvelopes(graph), selected)
+    reserveProtectedEnvelopes(graph)
+    for (const node of graph.nodes) {
+      node.drawn = original.drawn.get(node)!
+      node.drawingCoord = gridToDrawingCoord(graph, node.gridCoord!)
+      node.drawing = drawBox(node, graph)
+    }
+    setCanvasSizeToGrid(graph.canvas, graph.columnWidth, graph.rowHeight)
+    calculateSubgraphBoundingBoxes(graph)
+    offsetDrawingForSubgraphs(graph)
   }
+  graph.reserveRouteUnits = edges => {
+    const before = selected.size
+    for (const edge of edges) for (const member of units.get(edge) ?? [edge]) selected.add(member)
+    if (selected.size === before) return false
+    project(); return true
+  }
+  if (!graph.reserveRouteUnits(unsafeGraphContacts(graph))) project()
 
-  // Set canvas size and compute subgraph bounding boxes
-  setCanvasSizeToGrid(graph.canvas, graph.columnWidth, graph.rowHeight)
-  calculateSubgraphBoundingBoxes(graph)
-  offsetDrawingForSubgraphs(graph)
 }
 
 // ============================================================================
@@ -941,7 +1024,7 @@ function mirrorHorizontalGrid(graph: AsciiGraph): void {
   }
   // TD is the only bundling mode, so an LR-derived RL projection has no
   // EdgeBundle/pathToJunction state to mirror.
-  graph.trunkJunctions = graph.trunkJunctions.map(point)
+  graph.trunkJunctions = graph.trunkJunctions.map(junction => ({ ...point(junction), trunk: junction.trunk }))
 
   const mirroredGrid = new OccupancyMap<AsciiNode>()
   for (const [key, node] of graph.grid) {
@@ -974,7 +1057,7 @@ function shareSiblingEdgeTrunks(graph: AsciiGraph): void {
     groups.set(key, list)
   }
 
-  const junctionKeys = new Set(graph.trunkJunctions.map(gridKey))
+  const junctionKeys = new Set(graph.trunkJunctions.map(junction => `${junction.trunk}:${gridKey(junction)}`))
 
   for (const edges of groups.values()) {
     if (edges.length < 2) continue
@@ -1011,9 +1094,9 @@ function shareSiblingEdgeTrunks(graph: AsciiGraph): void {
       edge.path = [...trunk, ...mergePath(route).slice(1)]
       first.sharedTrunk ??= `trunk:${first.id ?? first.sourceIndex}`
       edge.sharedTrunk = first.sharedTrunk
-      const key = gridKey(branchPoint)
+      const key = `${first.sharedTrunk}:${gridKey(branchPoint)}`
       if (!junctionKeys.has(key)) {
-        graph.trunkJunctions.push(branchPoint)
+        graph.trunkJunctions.push({ ...branchPoint, trunk: first.sharedTrunk })
         junctionKeys.add(key)
       }
       increaseGridSizeForPath(graph, edge.path)

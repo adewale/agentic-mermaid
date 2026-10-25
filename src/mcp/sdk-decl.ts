@@ -627,12 +627,12 @@ interface FlowchartGraph {
   linkStyles: Map<number | 'default', Record<string, string>>
 }
 
-interface StateNode { id: string; label?: string; labelContent?: LabelContent; declaredBare?: true; stereotype?: 'fork' | 'join' | 'choice' | 'history' | 'deep-history'; states?: StateNode[]; transitions?: StateTransition[]; regions?: StateRegion[]; className?: string; style?: Record<string, string>; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
+interface StateNode { id: string; label?: string; labelContent?: LabelContent; declaredBare?: true; declarationBeforeTransition?: number; stereotype?: 'fork' | 'join' | 'choice' | 'history' | 'deep-history'; states?: StateNode[]; transitions?: StateTransition[]; regions?: StateRegion[]; className?: string; style?: Record<string, string>; styleDeclarations?: [string, string][]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
 interface StateRegion { states: StateNode[]; transitions: StateTransition[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
 interface StateTransition { from: string; to: string; fromClass?: string; toClass?: string; label?: string; labelContent?: LabelContent; style?: Record<string, string> }   // from/to may be '[*]' or a history ref ('[H]', 'X[H*]'); fromClass/toClass class such an endpoint ('[*]:::c --> A')
 interface StateNote { target: string; side: 'left' | 'right'; text: string; textContent?: LabelContent }
 interface StateFloatingNote { id: string; text: string; textContent?: LabelContent; scope?: { parent: string; region?: number } }
-interface StateBody { floatingNotes?: StateFloatingNote[]; unresolvedClasses?: Array<{ id: string; className: string }>; unresolvedStyles?: Array<{ id: string; style: Record<string,string> }>; kind: 'state'; states: StateNode[]; transitions: StateTransition[]; notes?: StateNote[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'; classDefs?: Record<string, Record<string, string>>; defaultTransitionStyle?: Record<string, string> }
+interface StateBody { floatingNotes?: StateFloatingNote[]; unresolvedClasses?: Array<{ id: string; className: string }>; unresolvedStyles?: Array<{ id: string; style: Record<string,string>; styleDeclarations?: [string, string][] }>; kind: 'state'; states: StateNode[]; transitions: StateTransition[]; notes?: StateNote[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'; classDefs?: Record<string, Record<string, string>>; classDefDeclarations?: Record<string, [string, string][]>; defaultTransitionStyle?: Record<string, string> }
 
 type SeqParticipantKind = 'participant' | 'actor' | 'boundary' | 'control' | 'entity' | 'database' | 'collections' | 'queue'
 interface SeqParticipant { wrap?: boolean; id: string; label: string; labelContent?: LabelContent; kind: SeqParticipantKind; declaration?: 'participant' | 'actor'; links?: Record<string, string> }
@@ -657,14 +657,14 @@ interface TimelineSection { id: string; label?: string; periods: TimelinePeriod[
 // direction: explicit \`timeline TD\`/\`timeline LR\` header token (TD = vertical, upstream PR #7270); undefined = LR default.
 interface TimelineBody { kind: 'timeline'; direction?: 'LR' | 'TD'; title?: string; accessibilityTitle?: string; accessibilityDescription?: string; sections: TimelineSection[] }
 
-interface ClassNode { isInterface?: boolean; id: string; generic?: string; label?: string; labelContent?: LabelContent; members: string[]; namespace?: string; className?: string; style?: Record<string, string>; href?: string; tooltip?: string }
+interface ClassNode { isInterface?: boolean; id: string; generic?: string; label?: string; labelContent?: LabelContent; members: string[]; namespace?: string; className?: string; style?: Record<string, string>; styleDeclarations?: [string, string][]; href?: string; tooltip?: string }
 type ClassRelationKind = 'inheritance' | 'composition' | 'aggregation' | 'association' | 'dependency' | 'realization' | 'link-solid' | 'link-dashed' | 'lollipop'
 interface ClassRelation { from: string; to: string; kind: ClassRelationKind; label?: string; labelContent?: LabelContent; fromCardinality?: string; fromCardinalityContent?: LabelContent; toCardinality?: string; toCardinalityContent?: LabelContent; markerAt?: 'from' | 'to' | 'both' | 'none'; fromKind?: ClassRelationKind; toKind?: ClassRelationKind; lineStyle?: 'solid' | 'dashed' }
 interface ClassNote { text: string; textContent?: LabelContent; for?: string }
 // namespace paths are dot-joined (e.g. 'Platform.Auth'); namespaces render as
 // compound boxes and serialize to "namespace path { ... }" blocks.
 interface ClassNamespaceDecl { name: string; label?: string; labelContent?: LabelContent }
-interface ClassBody { kind: 'class'; title?: string; classes: ClassNode[]; relations: ClassRelation[]; notes: ClassNote[]; namespaces?: ClassNamespaceDecl[]; classDefs?: Record<string, Record<string, string>> }
+interface ClassBody { kind: 'class'; title?: string; classes: ClassNode[]; relations: ClassRelation[]; notes: ClassNote[]; namespaces?: ClassNamespaceDecl[]; classDefs?: Record<string, Record<string, string>>; classDefDeclarations?: Record<string, [string, string][]> }
 
 type ErCardinality = 'one-only' | 'zero-or-one' | 'zero-or-many' | 'one-or-many' | 'parent'
 interface ErAttribute { text: string }

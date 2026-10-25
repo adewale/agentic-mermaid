@@ -118,16 +118,17 @@ const noteAttachmentCases = [
   { name: 'a nested composite target in RL', source: 'stateDiagram-v2\ndirection RL\nstate Outer {\n state Inner {\n  B\n }\n}\nnote right of Inner: Group note', notes: [{ target: 'Inner', text: 'Group note', kind: 'cluster' }] },
   { name: 'a simple leaf', source: 'stateDiagram-v2\nA --> B\nnote right of A: Leaf note', notes: [{ target: 'A', text: 'Leaf note', kind: 'node' }] },
   { name: 'an incoming-marker face in LR', source: 'stateDiagram-v2\ndirection LR\nA --> B\nnote left of B: Note', notes: [{ target: 'B', text: 'Note', kind: 'node' }] },
+  { name: 'an incoming-marker face with zero horizontal padding', source: 'stateDiagram-v2\ndirection LR\nA --> B\nnote left of B: Note', paddingX: 0, notes: [{ target: 'B', text: 'Note', kind: 'node' }] },
   { name: 'an incoming-marker face in RL', source: 'stateDiagram-v2\ndirection RL\nA --> B\nnote right of B: Note', notes: [{ target: 'B', text: 'Note', kind: 'node' }] },
   { name: 'a nested incoming-marker face', source: 'stateDiagram-v2\ndirection LR\nstate Outer {\n A --> B\n}\nnote left of B: Note', notes: [{ target: 'B', text: 'Note', kind: 'node' }] },
   { name: 'opposite sides of concurrent regions', source: 'stateDiagram-v2\nstate Outer {\n A --> B\n --\n C --> D\n}\nnote left of C: First\nnote right of A: Second', notes: [{ target: 'C', text: 'First', kind: 'node' }, { target: 'A', text: 'Second', kind: 'node' }] },
   { name: 'an outer composite', source: 'stateDiagram-v2\nstate Outer {\n A --> B\n}\nnote left of Outer: Outer note', notes: [{ target: 'Outer', text: 'Outer note', kind: 'cluster' }] },
   { name: 'both sides of an empty composite', source: 'stateDiagram-v2\nstate Empty {\n}\nnote left of Empty: Left empty\nnote right of Empty: Right empty', notes: [{ target: 'Empty', text: 'Left empty', kind: 'cluster' }, { target: 'Empty', text: 'Right empty', kind: 'cluster' }] },
-] satisfies Array<{ name: string; source: string; notes: Array<{ target: string; text: string; kind: 'node' | 'cluster' }> }>
+] satisfies Array<{ name: string; source: string; paddingX?: number; notes: Array<{ target: string; text: string; kind: 'node' | 'cluster' }> }>
 
 describe('State terminal notes and concurrency regions (B05/S4)', () => {
   for (const useAscii of [false, true]) test.each(noteAttachmentCases)('attaches $name with complete owned geometry (ASCII=' + useAscii + ')', fixture => {
-    const result = renderMermaidASCIIWithReceipt(fixture.source, { useAscii, colorMode: 'none' })
+    const result = renderMermaidASCIIWithReceipt(fixture.source, { useAscii, colorMode: 'none', paddingX: fixture.paddingX })
     const doc = terminalDocumentOf(result)!
     expect(doc).toBeDefined()
     const regions = doc.regions()
@@ -135,7 +136,8 @@ describe('State terminal notes and concurrency regions (B05/S4)', () => {
       const note = regions.find(region => region.kind === 'node' && region.id === `note#${index}`)!
       expect(note, spec.text).toBeDefined()
       expect(note.projectedText).toBe(spec.text)
-      expect([note.parentKind, note.parentId]).toEqual([spec.kind, spec.target])
+      expect(note.annotationTarget).toEqual({ kind: spec.kind, id: spec.target })
+      expect(note.parentId).toBeUndefined()
       for (const text of note.authoredTextCells ?? []) {
         const cell = doc.cell(text.column, text.row)
         expect(cell?.glyph).toBe(text.glyph)
@@ -151,6 +153,7 @@ describe('State terminal notes and concurrency regions (B05/S4)', () => {
     expectTransitionMarkers(doc, regions.filter(region => region.kind === 'edge' && !fixture.notes.some((_, index) => region.to === `note#${index}`)))
     expect(doc.diagnostics).toEqual([])
     expect(result.terminalStyle.diagnostics.filter(diagnostic => /COLLISION|OVERLAP|ROUTE.*FAIL|ATTACH/.test(diagnostic.code))).toEqual([])
+    expect(structuredClone(result.receipt.layoutCertification)).toMatchObject({ status: 'passed', issues: [], budget: { exhausted: false } })
   })
 
   for (const useAscii of [false, true]) test(`reserves independent note approaches between interleaved groups (ASCII=${useAscii})`, () => {
@@ -159,7 +162,8 @@ describe('State terminal notes and concurrency regions (B05/S4)', () => {
     for (const [index, target, text] of [[0, 'A', 'Anote'], [1, 'D', 'Dnote']] as const) {
       const note = regions.find(region => region.kind === 'node' && region.id === `note#${index}`)!
       expect(note?.projectedText).toBe(text)
-      expect(note?.parentId).toBe(target)
+      expect(note?.annotationTarget).toEqual({ id: target, kind: 'node' })
+      expect(note?.parentId).toBeUndefined()
       const edge = regions.find(region => region.kind === 'edge' && region.from === target && region.to === note.id)!
       expect(edge).toBeDefined()
       expectAttachedNote(doc, edge, 'node')
@@ -199,20 +203,6 @@ describe('State terminal notes and concurrency regions (B05/S4)', () => {
       }
       expect(doc.diagnostics).toEqual([])
     }
-  })
-
-  for (const useAscii of [false, true]) test(`retains a note and reports an infeasible attachment without partial ink or ports (ASCII=${useAscii})`, () => {
-    const result = renderMermaidASCIIWithReceipt('stateDiagram-v2\ndirection LR\nA --> B\nnote left of B: Note', { useAscii, colorMode: 'none', paddingX: 0 })
-    const doc = terminalDocumentOf(result)!, regions = doc.regions()
-    expect(result.text).toContain('Note')
-    expect(regions.find(region => region.kind === 'node' && region.id === 'note#0')?.projectedText).toBe('Note')
-    const failures = doc.diagnostics.filter(diagnostic => diagnostic.feature === 'state-note:note#0')
-    expect(failures).toHaveLength(1)
-    expect(failures[0]).toMatchObject({ code: 'TERMINAL_GEOMETRY_COLLISION', feature: 'state-note:note#0' })
-    expect(result.terminalStyle.diagnostics).toContainEqual(failures[0]!)
-    expect(regions.some(region => region.id === 'note#0:link')).toBe(false)
-    expect([...doc.entries()].some(([, , cell]) => cell.owners.some(owner => owner.id === 'note#0:link'))).toBe(false)
-    expectTransitionMarkers(doc, regions.filter(region => region.kind === 'edge'))
   })
 
   test('places an intact right-note box beside its target with a continuous connector', () => {
