@@ -1,5 +1,6 @@
 import { describe, expect, spyOn, test } from 'bun:test'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { consumePeerOutput, finalizeTrackObservation, emptyTrackObservation, inspectPeerSemantics, parsePeerTracks, peerTrackVariant, peerRuntimeDependencyGraph, percentile, peerExecutionEnvironment } from '../../eval/benchmark/peer-tracks.ts'
@@ -322,6 +323,50 @@ describe('maintained consumed peer protocol', () => {
   })
 })
 describe('first-use process scheduling', () => {
+  test.each([undefined, 'paired-cold-ordinal-v1', 'unknown'] as const)('qualification forwards or rejects schedule %s before launching measurements', async requested => {
+    const dir = mkdtempSync(join(tmpdir(), 'peer-qualification-schedule-'))
+    const root = resolve(import.meta.dir, '../..')
+    try {
+      const baseline = join(dir, 'baseline.tgz'), candidate = join(dir, 'candidate.tgz'), script = join(dir, 'qualification.mjs'), out = join(dir, 'out')
+      const executable = join(dir, 'capture-child'), captured = join(dir, 'child-command.json')
+      writeFileSync(baseline, 'baseline')
+      writeFileSync(candidate, 'candidate')
+      writeFileSync(executable, `#!${process.execPath}\nimport { writeFileSync } from 'node:fs'; writeFileSync(${JSON.stringify(captured)}, JSON.stringify(process.argv.slice(2))); process.exit(1)`)
+      chmodSync(executable, 0o755)
+      writeFileSync(script, `
+        import { mock } from 'bun:test'
+        import { readFileSync } from 'node:fs'
+        let installations = 0, error
+        mock.module(${JSON.stringify(join(root, 'eval/benchmark/release-baseline.ts'))}, () => ({
+          frozenRuntimePolicy: () => ({}), assertMatchedAgenticRuntimes() {},
+          installAgenticRuntime() { installations++; return { runtime: {} } },
+        }))
+        process.argv = [process.execPath, ${JSON.stringify(join(root, 'eval/benchmark/qualify-peer-performance.ts'))}, ...process.argv.slice(2)]
+        process.execPath = ${JSON.stringify(executable)}
+        try { await import(${JSON.stringify(join(root, 'eval/benchmark/qualify-peer-performance.ts'))}) }
+        catch (caught) { error = caught.message }
+        let command
+        try { command = JSON.parse(readFileSync(${JSON.stringify(captured)}, 'utf8')) } catch {}
+        console.log(JSON.stringify({ command, installations, error }))
+      `)
+      const digest = (path: string) => createHash('sha256').update(readFileSync(path)).digest('hex')
+      const child = await runChild(process.execPath, [script, '--baseline-tarball', baseline, '--candidate-tarball', candidate, '--baseline-sha256', digest(baseline), '--candidate-sha256', digest(candidate), '--out', out, ...(requested === undefined ? [] : ['--track-schedule', requested])], { cwd: root })
+      expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+      const result = JSON.parse(child.stdout)
+      if (requested === 'unknown') {
+        expect(result).toEqual({ installations: 0, error: '--track-schedule must be a known peer schedule' })
+      } else {
+        const schedule = requested ?? 'peer-block-v1'
+        expect(result.installations).toBe(2)
+        expect(result.command.slice(result.command.indexOf('--track-schedule'), result.command.indexOf('--track-schedule') + 2)).toEqual(['--track-schedule', schedule])
+        expect(result.command.slice(result.command.indexOf('--candidate-tarball'), result.command.indexOf('--candidate-tarball') + 2)).toEqual(['--candidate-tarball', baseline])
+        expect(result.error).toContain('aa-1 did not complete')
+        const receipt = JSON.parse(readFileSync(join(out, 'qualification-status.json'), 'utf8'))
+        expect(receipt).toMatchObject({ schedule, status: 'incomplete', complete: false, steps: [{ name: 'aa-1', command: result.command, exit: 1 }] })
+      }
+    } finally { rmSync(dir, { recursive: true, force: true }) }
+  })
+
   test('comparison sides stay adjacent at each case/probe/ordinal and reverse without changing the population', () => {
     const jobs = pairedColdTrackSchedule(['candidate', 'baseline'], ['flow', 'sequence'], 21, 3, 0)
     expect(jobs).toHaveLength(100)

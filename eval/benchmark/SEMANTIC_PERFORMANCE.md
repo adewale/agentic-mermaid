@@ -304,6 +304,9 @@ ordinal and round; two-sided controls are adjacent. Every timing, allocation and
 diagnostic call still uses its own fresh process. The default remains
 `peer-block-v1`.
 
+`qualify-peer-performance.ts` accepts the same option, forwards it to both A/A
+controls and the comparison, and records it in the qualification receipt.
+
 The schedule is part of the control fingerprint and reproduction command, so
 changing it requires fresh matching controls. Use the option in an explicit local
 measurement session. It changes acquisition order and makes no renderer
