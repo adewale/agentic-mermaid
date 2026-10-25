@@ -1,0 +1,386 @@
+name: Final selected-source qualification (one-off evidence)
+
+# Evidence only. Root copies this exact file over the registered manual workflow
+# on a child commit; neither override nor diagnostic helpers belongs on main.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  BASELINE_SOURCE: 5d1e3f76c8e9280400652b0b862ad35d01eaf69a
+  CANDIDATE_SOURCE: eaa29d25a72116a95f273425de773ef00c30ce96
+  MAINTAINED_HARNESS: 06c3eaa72e153f6c7434278b65ef3d099d1c5863
+  TRACK_SCHEDULE: paired-cold-ordinal-v1
+
+jobs:
+  artifact:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+          no-cache: true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24.19.0'
+          package-manager-cache: false
+      - name: Freeze the exact final source and maintained protocol
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git fetch --no-tags origin "$MAINTAINED_HARNESS"
+          git merge-base --is-ancestor "$MAINTAINED_HARNESS" HEAD
+          git diff --exit-code "$MAINTAINED_HARNESS" -- src eval package.json bun.lock
+          test -z "$(git status --porcelain -- src eval)"
+          mkdir -p final-packages
+          python diagnostic/final-campaign/package-evidence.py design final-packages
+      - name: Build both exact source archives once
+        env:
+          BASELINE_SOURCE: ${{ env.BASELINE_SOURCE }}
+          CANDIDATE_SOURCE: ${{ env.CANDIDATE_SOURCE }}
+        run: |
+          set -euo pipefail
+          npm install -g npm@11.18.0 --ignore-scripts
+          test "$(node --version)" = v24.19.0
+          test "$(bun --version)" = 1.4.2
+          test "$(npm --version)" = 11.18.0
+          bun install --frozen-lockfile
+          for side in baseline candidate; do
+            source_sha="$BASELINE_SOURCE"
+            if [ "$side" = candidate ]; then source_sha="$CANDIDATE_SOURCE"; fi
+            git fetch --no-tags origin "$source_sha"
+            source_tree="$RUNNER_TEMP/final-runtime-$side"
+            git worktree add --detach "$source_tree" "$source_sha"
+            test "$(git -C "$source_tree" rev-parse HEAD)" = "$source_sha"
+            (
+              cd "$source_tree"
+              bun install --frozen-lockfile
+              bun run build
+              bun run scripts/ci/verify-publish-package.ts --pack-destination "$GITHUB_WORKSPACE/final-packages/$side/package"
+              git diff --exit-code
+              mkdir -p "$GITHUB_WORKSPACE/final-packages/$side/runtime-source"
+              cp bun.lock package.json "$GITHUB_WORKSPACE/final-packages/$side/runtime-source/"
+              jq -n --arg source "$source_sha" --arg harness "$GITHUB_SHA" --arg workflow "${GITHUB_WORKFLOW_SHA:-}" \
+                --arg archive "$(jq -er '.sha256' "$GITHUB_WORKSPACE/final-packages/$side/package/package-manifest.json")" \
+                '{sourceRevision:$source,harnessRevision:$harness,workflowRevision:$workflow,archiveSha256:$archive,performanceQualified:false}' \
+                > "$GITHUB_WORKSPACE/final-packages/$side/provenance.json"
+              closure="$GITHUB_WORKSPACE/final-packages/$side/closure"
+              mkdir -p "$closure"
+              node -p 'JSON.stringify(process.versions,null,2)' > "$closure/runtime.json"
+              bun --version > "$closure/bun-version.txt"
+              npm --version > "$closure/npm-version.txt"
+              node "$GITHUB_WORKSPACE/node_modules/publint/src/cli.js" --version > "$closure/publint-version.txt"
+              node "$GITHUB_WORKSPACE/node_modules/@arethetypeswrong/cli/dist/index.js" --version > "$closure/attw-version.txt"
+              cp dist/metafile-esm.json "$closure/metafile-esm.json"
+              cp scripts/build/browser-lazy-budgets.json "$closure/browser-lazy-budgets.json"
+              cap_exit=0
+              bun scripts/build/browser-lazy-report.ts --json > "$closure/browser-lazy-report.json" \
+                2> "$closure/browser-lazy-report.stderr.log" || cap_exit=$?
+              jq -n --argjson exit "$cap_exit" '{exit:$exit,retried:false}' > "$closure/browser-lazy-report-status.json"
+              test "$cap_exit" -eq 0
+              archive="$GITHUB_WORKSPACE/final-packages/$side/package/package.tgz"
+              integrity="$(jq -er '.integrity' "$GITHUB_WORKSPACE/final-packages/$side/package/package-manifest.json")"
+              bun run "$GITHUB_WORKSPACE/eval/benchmark/release-baseline.ts" \
+                --install "$archive" --prefix "$RUNNER_TEMP/closed-consumer-$side" \
+                --runtime-source "$source_tree" --out "$closure/runtime" --label "$side" \
+                --expected-integrity "$integrity" > "$closure/installation.json"
+              node "$GITHUB_WORKSPACE/diagnostic/final-campaign/installed-package-capture.mjs" \
+                "$RUNNER_TEMP/closed-consumer-$side/node_modules/agentic-mermaid" \
+                "$closure/installed.json.gz" > "$closure/consumer-capture.json"
+              node "$GITHUB_WORKSPACE/node_modules/publint/src/cli.js" run "$archive" --strict \
+                > "$closure/publint.log" 2>&1
+              node "$GITHUB_WORKSPACE/node_modules/@arethetypeswrong/cli/dist/index.js" \
+                "$archive" --profile esm-only --exclude-entrypoints ./browser --format json \
+                > "$closure/attw.json" 2> "$closure/attw.stderr.log"
+            )
+          done
+          cmp final-packages/baseline/runtime-source/package.json final-packages/candidate/runtime-source/package.json
+          cmp final-packages/baseline/runtime-source/bun.lock final-packages/candidate/runtime-source/bun.lock
+          node diagnostic/final-campaign/compare-installed-packages.mjs \
+            final-packages/baseline/closure/installed.json.gz \
+            final-packages/candidate/closure/installed.json.gz final-packages/closure-comparison
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          merge-multiple: true
+          artifact-ids: '12614488791'
+          run-id: '40235414753'
+          github-token: ${{ github.token }}
+          path: historical-warm
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          merge-multiple: true
+          artifact-ids: '12615141303'
+          run-id: '40235653236'
+          github-token: ${{ github.token }}
+          path: historical-cold
+      - name: Compare actual rebase archives and every emitted JavaScript member
+        run: |
+          python diagnostic/final-campaign/package-evidence.py compare-rebase final-packages historical-warm historical-cold
+          python diagnostic/final-campaign/package-evidence.py verify final-packages
+      - name: Retain exact closed archives and frozen source policies
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: final-qualified-packages-${{ github.run_id }}
+          path: final-packages/
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    name: Full release controls / cache ${{ matrix.cache }}
+    needs: artifact
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        cache: ['off', 'on']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+          no-cache: true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24.19.0'
+          package-manager-cache: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: final-qualified-packages-${{ github.run_id }}
+          path: final-packages
+      - name: Verify exact supplied bytes and frozen harness before acquisition
+        run: |
+          set -euo pipefail
+          bun install --frozen-lockfile
+          npm install -g npm@11.18.0 --ignore-scripts
+          test "$(node --version)" = v24.19.0
+          test "$(bun --version)" = 1.4.2
+          test "$(npm --version)" = 11.18.0
+          git fetch --no-tags origin "$MAINTAINED_HARNESS"
+          git merge-base --is-ancestor "$MAINTAINED_HARNESS" HEAD
+          git diff --exit-code "$MAINTAINED_HARNESS" -- src eval package.json bun.lock
+          test -z "$(git status --porcelain -- src eval)"
+          python diagnostic/final-campaign/package-evidence.py verify final-packages
+      - name: Acquire fixed serial A/A, A/A, A/B once
+        env:
+          CACHE_POLICY: ${{ matrix.cache }}
+        run: |
+          set -euo pipefail
+          mkdir -p release-evidence
+          cp final-packages/design.json release-evidence/design.json
+          failed=0
+          for report in aa-1 aa-2 candidate; do
+            candidate_side=baseline
+            if [ "$report" = candidate ]; then candidate_side=candidate; fi
+            out="release-evidence/$report"
+            mkdir -p "$out"
+            started="$(date -u +%FT%TZ)"
+            code=0
+            timeout --signal=TERM --kill-after=15s 75m bun run eval/benchmark/release-bench.ts \
+              --candidate-tarball "final-packages/$candidate_side/package/package.tgz" \
+              --candidate-sha256 "$(jq -er '.sha256' "final-packages/$candidate_side/package/package-manifest.json")" \
+              --baseline-tarball final-packages/baseline/package/package.tgz \
+              --baseline-sha256 "$(jq -er '.sha256' final-packages/baseline/package/package-manifest.json)" \
+              --runtime-source final-packages/baseline/runtime-source --elk-cache "$CACHE_POLICY" \
+              --rounds 3 --reps 5 --budget-ms 4200000 --out "$out" > "$out/stdout.log" 2> "$out/stderr.log" || code=$?
+            jq -n --arg name "$report" --arg started "$started" --arg finished "$(date -u +%FT%TZ)" \
+              --arg candidateSide "$candidate_side" --argjson exit "$code" \
+              '{name:$name,started:$started,finished:$finished,candidateSide:$candidateSide,exit:$exit,retried:false}' > "$out/acquisition-status.json"
+            if [ "$code" -ne 0 ]; then failed=1; fi
+          done
+          test "$failed" -eq 0
+      - name: Retain all raw controls, comparison and incomplete outcomes
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: final-release-${{ github.run_id }}-cache-${{ matrix.cache }}
+          path: release-evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+  browser:
+    name: Full advisory browser / cache ${{ matrix.cache }}
+    needs: artifact
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        cache: ['off', 'on']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+          no-cache: true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24.19.0'
+          package-manager-cache: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: final-qualified-packages-${{ github.run_id }}
+          path: final-packages
+      - name: Verify exact supplied bytes and frozen harness before acquisition
+        run: |
+          set -euo pipefail
+          bun install --frozen-lockfile
+          npm install -g npm@11.18.0 --ignore-scripts
+          test "$(node --version)" = v24.19.0
+          test "$(bun --version)" = 1.4.2
+          test "$(npm --version)" = 11.18.0
+          git fetch --no-tags origin "$MAINTAINED_HARNESS"
+          git merge-base --is-ancestor "$MAINTAINED_HARNESS" HEAD
+          git diff --exit-code "$MAINTAINED_HARNESS" -- src eval package.json bun.lock
+          test -z "$(git status --porcelain -- src eval)"
+          python diagnostic/final-campaign/package-evidence.py verify final-packages
+      - name: Install the frozen harness Chromium
+        timeout-minutes: 20
+        run: bunx playwright install --with-deps chromium || bunx playwright install chromium
+      - name: Acquire the maintained advisory A/B browser report once
+        env:
+          CACHE_POLICY: ${{ matrix.cache }}
+        run: |
+          set -euo pipefail
+          mkdir -p browser-evidence
+          cp final-packages/design.json browser-evidence/design.json
+          failed=0
+          for report in candidate; do
+            candidate_side=baseline
+            if [ "$report" = candidate ]; then candidate_side=candidate; fi
+            out="browser-evidence/$report"
+            mkdir -p "$out"
+            started="$(date -u +%FT%TZ)"
+            code=0
+            timeout --signal=TERM --kill-after=15s 12m bun run eval/benchmark/release-browser-bench.ts \
+              --candidate-tarball "final-packages/$candidate_side/package/package.tgz" \
+              --candidate-sha256 "$(jq -er '.sha256' "final-packages/$candidate_side/package/package-manifest.json")" \
+              --baseline-tarball final-packages/baseline/package/package.tgz \
+              --baseline-sha256 "$(jq -er '.sha256' final-packages/baseline/package/package-manifest.json)" \
+              --runtime-source final-packages/baseline/runtime-source --elk-cache "$CACHE_POLICY" \
+              --rounds 3 --out "$out" > "$out/stdout.log" 2> "$out/stderr.log" || code=$?
+            jq -n --arg name "$report" --arg started "$started" --arg finished "$(date -u +%FT%TZ)" \
+              --arg candidateSide "$candidate_side" --argjson exit "$code" \
+              '{name:$name,started:$started,finished:$finished,candidateSide:$candidateSide,exit:$exit,retried:false}' > "$out/acquisition-status.json"
+            if [ "$code" -ne 0 ]; then failed=1; fi
+          done
+          test "$failed" -eq 0
+      - name: Retain all raw controls, comparison and incomplete outcomes
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: final-browser-${{ github.run_id }}-cache-${{ matrix.cache }}
+          path: browser-evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+  semantic:
+    name: Semantic ${{ matrix.cache }} / ${{ matrix.phase }} / ${{ matrix.consumer }}
+    needs: artifact
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        cache: ['off', 'on']
+        phase: ['first-use', 'warm-new-source', 'exact-repeat', 'label-edit']
+        consumer: ['svg-utf8', 'receipt-json-utf8']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+          no-cache: true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24.19.0'
+          package-manager-cache: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: final-qualified-packages-${{ github.run_id }}
+          path: final-packages
+      - name: Verify exact supplied bytes and frozen harness before acquisition
+        run: |
+          set -euo pipefail
+          bun install --frozen-lockfile
+          npm install -g npm@11.18.0 --ignore-scripts
+          test "$(node --version)" = v24.19.0
+          test "$(bun --version)" = 1.4.2
+          test "$(npm --version)" = 11.18.0
+          git fetch --no-tags origin "$MAINTAINED_HARNESS"
+          git merge-base --is-ancestor "$MAINTAINED_HARNESS" HEAD
+          git diff --exit-code "$MAINTAINED_HARNESS" -- src eval package.json bun.lock
+          test -z "$(git status --porcelain -- src eval)"
+          python diagnostic/final-campaign/package-evidence.py verify final-packages
+      - name: Run the maintained full qualifier with fresh paired controls
+        env:
+          CACHE_POLICY: ${{ matrix.cache }}
+          TRACK_PHASE: ${{ matrix.phase }}
+          TRACK_CONSUMER: ${{ matrix.consumer }}
+        run: |
+          set -euo pipefail
+          mkdir -p semantic-evidence
+          cp final-packages/design.json semantic-evidence/design.json
+          bun run eval/benchmark/qualify-peer-performance.ts \
+            --candidate-tarball final-packages/candidate/package/package.tgz \
+            --candidate-sha256 "$(jq -er '.sha256' final-packages/candidate/package/package-manifest.json)" \
+            --baseline-tarball final-packages/baseline/package/package.tgz \
+            --baseline-sha256 "$(jq -er '.sha256' final-packages/baseline/package/package-manifest.json)" \
+            --runtime-source final-packages/baseline/runtime-source --elk-cache "$CACHE_POLICY" --rounds 5 \
+            --track-schedule "$TRACK_SCHEDULE" --phase "$TRACK_PHASE" --consumer "$TRACK_CONSUMER" --out semantic-evidence
+      - name: Retain every original semantic report, worker and adverse gate
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: final-semantic-${{ github.run_id }}-${{ matrix.cache }}-${{ matrix.phase }}-${{ matrix.consumer }}
+          path: semantic-evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+  semantic-campaign:
+    needs: [artifact, semantic]
+    if: ${{ always() && !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+          no-cache: true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24.19.0'
+          package-manager-cache: false
+      - run: bun install --frozen-lockfile
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: final-semantic-${{ github.run_id }}-*
+          path: semantic-shards
+      - name: Apply maintained all16 source-matched campaign decision
+        run: bun run eval/benchmark/aggregate-semantic-performance.ts semantic-shards semantic-campaign
+      - name: Retain full decision including missing or failed scopes
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: final-semantic-campaign-${{ github.run_id }}
+          path: semantic-campaign/
+          if-no-files-found: error
+          retention-days: 30
