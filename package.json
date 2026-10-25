@@ -120,6 +120,7 @@
     "assets/fonts/",
     "assets/hero.png",
     "docs/*.md",
+    "!docs/community-benchmark-ranking.md",
     "docs/schemas/style-spec.schema.json",
     "examples/styles/",
     "skills/",
