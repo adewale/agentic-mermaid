@@ -56,7 +56,7 @@ import type { MICRO_WORKLOADS } from './micro-bench-cases.ts'
 import { allocationProbe, median } from './bench-stats.ts'
 import { missingSvgLabels } from './release-bench-fidelity.ts'
 import { git, ROOT } from './revision-tree.ts'
-import { PEER_CONSUMERS, PEER_VARIANT_DOMAINS, PEER_FROZEN_COHORT, PEER_EXPECTED_LABELS, emptyTrackObservation, finalizeTrackObservation, parsePeerTracks, peerRuntimeDependencyGraph, peerExecutionEnvironment } from './peer-tracks.ts'
+import { PEER_CONSUMERS, PEER_VARIANT_DOMAINS, PEER_FROZEN_COHORT, PEER_EXPECTED_LABELS, emptyTrackObservation, finalizeTrackObservation, parsePeerTracks, parsePeerConsumers, peerRuntimeDependencyGraph, peerExecutionEnvironment } from './peer-tracks.ts'
 import type { PeerTrackObservation, PeerTrackReport } from './peer-tracks.ts'
 import { measurePeerTrack } from './peer-track-worker.ts'
 import type { TrackJob } from './peer-track-worker.ts'
@@ -524,7 +524,7 @@ const UNSUPPORTED = /Invalid mermaid header|No diagram type detected|UnknownDiag
 
 function parseArgs(argv: readonly string[]): Map<string, string> {
   const flags = new Set(['quick', 'child', 'corpus', 'aa'])
-  const valued = new Set(['peers', 'workloads', 'rounds', 'json', 'markdown', 'agentic-npm', 'job', 'out', 'candidate-tarball', 'candidate-sha256', 'elk-cache', 'tracks', 'baseline-tarball', 'baseline-sha256', 'runtime-source'])
+  const valued = new Set(['peers', 'workloads', 'rounds', 'json', 'markdown', 'agentic-npm', 'job', 'out', 'candidate-tarball', 'candidate-sha256', 'elk-cache', 'tracks', 'track-consumers', 'baseline-tarball', 'baseline-sha256', 'runtime-source'])
   const options = new Map<string, string>()
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i]!.replace(/^--/, '')
@@ -539,6 +539,8 @@ function parseArgs(argv: readonly string[]): Map<string, string> {
   if (options.has('baseline-sha256') && !/^[a-f0-9]{64}$/.test(options.get('baseline-sha256')!)) throw new Error('--baseline-sha256 must be a lowercase SHA-256 digest')
   if (options.has('aa') && options.has('baseline-tarball')) throw new Error('--aa and --baseline-tarball are separate controls')
   parsePeerTracks(options.get('tracks'))
+  parsePeerConsumers(options.get('track-consumers'))
+  if (options.has('track-consumers') && !parsePeerTracks(options.get('tracks')).length) throw new Error('--track-consumers requires --tracks')
   return options
 }
 
@@ -908,6 +910,7 @@ async function main(): Promise<void> {
   if (inventory && args.has('quick')) throw new Error('--corpus and --quick are separate sampling policies')
   const timing: Timing = inventory ? { warmCalls: 1, warmupMs: 0, samples: 3, minSampleMs: 0, maxCaseMs: 5000 } : args.has('quick') ? QUICK_TIMING : TIMING
   const phases = parsePeerTracks(args.get('tracks'))
+  const consumers = parsePeerConsumers(args.get('track-consumers'))
   if (inventory && phases.length) throw new Error('--tracks uses synthetic semantic contracts and cannot be combined with --corpus')
   const npmVersion = args.get('agentic-npm')
   if (npmVersion !== undefined && !/^\d+\.\d+\.\d+(?:-[\w.-]+)?$/.test(npmVersion)) throw new Error('--agentic-npm takes an exact version such as 0.4.1')
@@ -994,12 +997,12 @@ async function main(): Promise<void> {
       if (selected.includes('mesh50')) { scaling.push('mesh100'); trackSources.mesh100 = flowchartMesh(100, 40); trackExpected.mesh100 = range('label ', 40) }
     }
     const trackSettings = { coldSamples: args.has('quick') ? 3 : 21, warmCalls: args.has('quick') ? 3 : 20, warmupMs: args.has('quick') ? 0 : 1000, warmupVariants: 20, samples: args.has('quick') ? 3 : 31, allocationSamples: 3, maxCaseMs: args.has('quick') ? timing.maxCaseMs : 30_000 }
-    const tracks: PeerTrackReport = { schemaVersion: 1, contractVersion: 'semantic-peer-v1', cohort: PEER_FROZEN_COHORT, phases, consumers: PEER_CONSUMERS, scaling, observations: [] }
+    const tracks: PeerTrackReport = { schemaVersion: 1, contractVersion: 'semantic-peer-v1', cohort: PEER_FROZEN_COHORT, phases, consumers, scaling, observations: [] }
     const trackWorkloads = [...workloads.svg, ...scaling]
     const trackInputs = Object.fromEntries(trackWorkloads.map(id => [id, { source: trackSources[id], expected: trackExpected[id] }]))
     const harnessRevision = git(['rev-parse', 'HEAD'])
     const harnessDirty = git(['status', '--porcelain', '--', 'eval/benchmark']).length > 0
-    const tracksConfig = { variantDomains: PEER_VARIANT_DOMAINS, phases, consumers: PEER_CONSUMERS, ...trackSettings, minimumTailCalls: 20, inputs: trackInputs, harnessRevision, harnessDirty }
+    const tracksConfig = { variantDomains: PEER_VARIANT_DOMAINS, phases, consumers, ...trackSettings, minimumTailCalls: 20, inputs: trackInputs, harnessRevision, harnessDirty }
     const processes: ProcessRecord[] = []
     for (let round = 0; round < rounds; round++) {
       for (const { prepared: entry, output } of phases.length ? [] : round % 2 === 0 ? jobs : [...jobs].reverse()) {
@@ -1008,7 +1011,7 @@ async function main(): Promise<void> {
         processes.push(observation)
         appendFileSync(rawSamples, `${JSON.stringify({ type: 'process', ...observation })}\n`)
       }
-      if (phases.length) for (const entry of round % 2 === 0 ? prepared : [...prepared].reverse()) for (const phase of phases) for (const consumer of PEER_CONSUMERS) {
+      if (phases.length) for (const entry of round % 2 === 0 ? prepared : [...prepared].reverse()) for (const phase of phases) for (const consumer of consumers) {
         console.error(`round ${round + 1}/${rounds}: ${entry.peer.id} ${phase} ${consumer} (${trackWorkloads.length} workloads)`)
         tracks.observations.push(...await runTrackProcess(entry, trackWorkloads, { ...trackSettings, phase, consumer, round }, { scratch, bundle, timing, sources: trackSources, expectedLabels: trackExpected, elkCache, rawSamples }))
         writeFileSync(jsonPath, `${JSON.stringify({ ...metadata, status: 'incomplete', tracks, tracksConfig }, null, 2)}\n`)
@@ -1051,7 +1054,7 @@ async function main(): Promise<void> {
     out.push(`- Machine: ${cpus()[0]?.model ?? 'unknown CPU'}, ${cpus().length} logical CPUs, ${(totalmem() / 1024 ** 3).toFixed(0)} GiB, ${process.platform} ${process.arch} ${release()}; load average ${startLoad.map(value => value.toFixed(2)).join(' ')} at start, ${loadavg()[0]!.toFixed(2)} at end`)
     out.push(`- Runtimes: Node ${nodeVersion} (Node workers), Bun ${process.versions.bun ?? 'n/a'} (orchestrator)`)
     const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`
-    const command = ['bun run bench:peers', '--peers', quote(peers.map(peer => peer.id).join(',')), '--workloads', quote(selected.join(',')), '--rounds', String(rounds), '--elk-cache', elkCache, ...(phases.length ? ['--tracks', quote(phases.join(','))] : []), ...(args.has('aa') ? ['--aa'] : []), ...(args.has('baseline-tarball') ? ['--baseline-tarball', quote(resolve(args.get('baseline-tarball')!)), '--baseline-sha256', args.get('baseline-sha256')!] : []), ...(args.has('quick') ? ['--quick'] : []), ...(inventory ? ['--corpus'] : []), ...(npmVersion ? ['--agentic-npm', quote(npmVersion)] : []), ...(args.has('candidate-tarball') ? ['--candidate-tarball', quote(resolve(args.get('candidate-tarball')!)), '--candidate-sha256', args.get('candidate-sha256')!] : [])]
+    const command = ['bun run bench:peers', '--peers', quote(peers.map(peer => peer.id).join(',')), '--workloads', quote(selected.join(',')), '--rounds', String(rounds), '--elk-cache', elkCache, ...(phases.length ? ['--tracks', quote(phases.join(',')), '--track-consumers', quote(consumers.join(','))] : []), ...(args.has('aa') ? ['--aa'] : []), ...(args.has('baseline-tarball') ? ['--baseline-tarball', quote(resolve(args.get('baseline-tarball')!)), '--baseline-sha256', args.get('baseline-sha256')!] : []), ...(args.has('quick') ? ['--quick'] : []), ...(inventory ? ['--corpus'] : []), ...(npmVersion ? ['--agentic-npm', quote(npmVersion)] : []), ...(args.has('candidate-tarball') ? ['--candidate-tarball', quote(resolve(args.get('candidate-tarball')!)), '--candidate-sha256', args.get('candidate-sha256')!] : [])]
     out.push('- Reproduce:', '', '```sh', command.join(' '), '```')
     out.push(`- Policy: ELK cache ${elkCache}; built-in Scene assertions off; Node --expose-gc and final untimed GC; APL environment ${JSON.stringify(policy.aplEnvironment)}`)
     if (inventory)
