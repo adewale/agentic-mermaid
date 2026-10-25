@@ -24,7 +24,7 @@ witnesses. Readable aliases, Unicode whitespace, compact statements, comments,
 leading-dot numbers, native-only identifiers and empty containers are not
 missing rendering features. Their intended readings are retained; no blanket
 warning is added merely because a fuzzer found another spelling. Class-header
-aliases and Quadrant statement separators have separate active fixes.
+aliases and Quadrant statement separators were fixed separately in #505.
 
 Empty State notes and accessibility descriptions retain explicit empty fields
 using block syntax. C4 raw statement reuse must satisfy its argument lexer;
