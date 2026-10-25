@@ -54,6 +54,21 @@ async function declarations(file: string, names: string[]): Promise<string> {
     throw new Error(`Missing pinned declaration ${name} in ${file}`)
   }).join('\n')
 }
+async function directiveSelector(file: string, owner: string): Promise<string> {
+  const source = ts.createSourceFile(file, await readFile(file, 'utf8'), ts.ScriptTarget.Latest, true)
+  let selector: string | undefined
+  function visit(node: ts.Node): void {
+    if (ts.isCallExpression(node) && (ts.isIdentifier(node.expression) ? node.expression.text : ts.isPropertyAccessExpression(node.expression) ? node.expression.name.text : '') === 'detectDirective') selector = node.arguments[1]?.getText(source)
+    ts.forEachChild(node, visit)
+  }
+  for (const statement of source.statements) if (ts.isVariableStatement(statement)) for (const item of statement.declarationList.declarations) {
+    if (ts.isIdentifier(item.name) && item.name.text === owner && item.initializer) visit(item.initializer)
+  }
+  if (!selector) throw new Error(`Missing directive selector in ${owner}`)
+  return selector
+}
+const initSelector = await directiveSelector(join(src, 'utils.ts'), 'detectInit')
+const wrapSelector = await directiveSelector(join(src, 'preprocess.ts'), 'processDirectives')
 const directivePrograms = await declarations(join(src, 'utils.ts'), ['directiveWithoutOpen', 'detectDirective', 'detectInit', 'removeDirectives'])
 const directiveRegex = await declarations(join(src, 'diagram-api/regexes.ts'), ['directiveRegex'])
 const directivePhase = await declarations(join(src, 'preprocess.ts'), ['processDirectives'])
@@ -76,30 +91,41 @@ ${directiveRegex}
 ${directivePrograms}
 const utils={detectInit,detectDirective};
 ${directivePhase}
-export function initDirective(payload){
+export function configDirective(kind,payload,hasArgs=true){
+ if(!/^\\w+$/.test(kind))throw new Error('Invalid directive name');
+ if(!hasArgs)return '%%{'+kind+'}%%';
  const json=(Object.is(payload,-0)?'-0':JSON.stringify(payload)).replace(/[&<>#%'\\u2028\\u2029]/g,character=>'\\\\u'+character.charCodeAt(0).toString(16).padStart(4,'0'));
- const code='%%{init: '+json+'}%%';
+ const code='%%{'+kind+': '+json+'}%%';
  directiveRegex.lastIndex=0;const match=directiveRegex.exec(code);directiveRegex.lastIndex=0;
- const parsed=detectDirective(code,'init');
+ const parsed=detectDirective(code,kind);
  if(!match||match[0]!==code||!Object.is(typeof parsed.args,typeof payload))throw new Error('init argument has no complete pinned scalar token');
  return code;
+}
+export function initDirective(payload){return configDirective('init',payload);}
+export function mergeConfigSource(frontmatter,code,diagramType,preserveText=false){
+ activeDiagramType=diagramType;preserveStrings=preserveText;
+ try{return merge({},structuredClone(frontmatter),processDirectives(code).directive);}
+ finally{preserveStrings=false;}
 }
 export function mergeConfig(frontmatter,directives,diagramType,wrap=false,preserveText=false){
  activeDiagramType=diagramType;preserveStrings=preserveText;
  try{
   const code=directives.map(initDirective).join('\\n')+(wrap?'\\n%%{wrap}%%':'');
-  return merge({},structuredClone(frontmatter),processDirectives(code).directive);
+  return mergeConfigSource(frontmatter,code,diagramType,preserveText);
  }finally{preserveStrings=false;}
 }
 `
 const runtimeEntry = mergeEntry + `
 import * as config from ${JSON.stringify(join(src, 'config.ts'))};
 export function validateConfig(frontmatter,directives,diagramType,metadata={},wrap=false){
+ return validateConfigSource(frontmatter,directives.map(initDirective).join('\\n')+(wrap?'\\n%%{wrap}%%':''),diagramType,metadata);
+}
+export function validateConfigSource(frontmatter,code,diagramType,metadata={}){
  const prepared=structuredClone(frontmatter);
  // frontmatter.ts coerces truthy metadata before preprocess.ts injects it.
  if(metadata.title)metadata.title.toString();
  if(metadata.displayMode){const mode=metadata.displayMode.toString();if(!prepared.gantt)prepared.gantt={};prepared.gantt.displayMode=mode;}
- const combined=mergeConfig(prepared,directives,diagramType,wrap);
+ const combined=mergeConfigSource(prepared,code,diagramType);
  config.reset();config.saveConfigFromInitialize({});config.setSiteConfig({});
  try{config.setDiagramConfigScope(diagramType);config.addDirective(combined);}
  finally{try{config.setDiagramConfigScope(undefined);}finally{config.reset();}}
@@ -107,6 +133,13 @@ export function validateConfig(frontmatter,directives,diagramType,metadata={},wr
 `
 const output = join(root, 'src/shared/pinned-mermaid-config')
 await mkdir(output, { recursive: true })
+await writeFile(join(output, 'directive-types.ts'), `// Generated from Mermaid ${policy.pin.version} (${revision}).
+// Selectors owned by detectInit and processDirectives. Rebuild with the config generator.
+export function isMermaidConfigDirective(raw: string): boolean {
+  const kind = /%%\\{\\s*(\\w+)/.exec(raw)?.[1]
+  return kind !== undefined && (kind.match(${initSelector}) !== null || kind.match(${wrapSelector}) !== null)
+}
+`)
 const scratch = await mkdtemp(join(tmpdir(), 'mermaid-config-program-'))
 try {
   for (const [name, entry] of [['merge', mergeEntry], ['runtime', runtimeEntry]] as const) {

@@ -1,3 +1,4 @@
+import { readAuthoredGrammarAccessibility } from '../shared/grammar-text.ts'
 import { C4AmbiguousArgumentError, parseC4Diagram } from '../c4/parser.ts'
 import { buildC4SourceMap, lintC4, mutateC4, parseC4Body, renderC4 } from './c4-body.ts'
 import { withMutationDraft } from './mutation-draft.ts'
@@ -1296,8 +1297,9 @@ export const ARCHITECTURE_AGENT_HOOKS = {
 export const MINDMAP_AGENT_HOOKS = {
   renderSource: () => 'serialized',
   extractLabels: extractLabelsGeneric,
-  parse: ({ source, opaqueSource }) => {
+  parse: ({ source, opaqueSource, meta }) => {
     try {
+      meta.accessibility = readAuthoredGrammarAccessibility(meta.accessibility)
       // The opaque source starts at the header, after the wrapper's lines.
       const body = parseMindmapBody(source.familyBody, opaqueSource)
       return ok(mindmapSerializationProblem(body, opaqueSource) ? { kind: 'opaque', family: 'mindmap', source: opaqueSource } : body)
@@ -1422,7 +1424,12 @@ export const SANKEY_AGENT_HOOKS = {
   buildSourceMap: buildChartSourceMap,
   .../* @__PURE__ */ structuredFamilyHooks('sankey', {
     headerOk: h => /^sankey(?:-beta)?\s*$/i.test(h),
-    parseBody: parseSankeyBody,
+    parseBody: (lines, accessibility) => {
+      // This family's metadata lives only in the universal envelope.
+      const logical = readAuthoredGrammarAccessibility(accessibility)
+      Object.assign(accessibility, logical)
+      return parseSankeyBody(lines)
+    },
     serialize: renderSankey,
     mutate: mutateSankey,
   }),

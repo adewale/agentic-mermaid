@@ -145,12 +145,13 @@ describe('wrapper fidelity (1C): verbatim round-trip by default', () => {
     } finally { upstream.close() }
   })
 
-  test('a directive that configures nothing is removed, as Mermaid removes it, and is not a dropped comment', () => {
+  test('an inert directive is removed without becoming config or a dropped comment', () => {
     const source = 'stateDiagram-v2\n  A --> B : go %%{config: {"theme": "dark"}}%%'
     const parsed = parseMermaid(source)
     if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
     expect(parsed.value.canonicalSource).toBe('stateDiagram-v2\nA --> B : go')
     expect(parsed.value.meta.initDirectives).toEqual([])
+    expect(parsed.value.meta.frontmatter?.theme).toBeUndefined()
     expect(serializeMermaid(parsed.value)).toBe('stateDiagram-v2\n  A --> B : go\n')
     expect(verifyMermaid(source).warnings).toEqual([])
   })
@@ -535,6 +536,46 @@ describe('wrapper fidelity (1C): canonical synthesis on demand', () => {
         if (!control.ok) throw new Error('Expected negative scalar control')
         expect(await pin.publicAccepts(serializeMermaid(control.value, { wrapper: 'canonical' }))).toBe(true)
       }
+    } finally { pin.close() }
+  })
+
+  test('directive names, occurrence count and case survive source ownership and canonical export', async () => {
+    const pin = startUpstreamMermaid()
+    try {
+      for (const directives of [
+        '%%{preinit:{"theme":"dark"}}%%',
+        '%%{preinitialize:{"theme":"dark"}}%%',
+        '%%{init:{"wrap":true}}%%\n%%{nowrap}%%',
+        '%%{init:{"wrap":true}}%%\n%%{nowrap}%%\n%%{nowrap}%%',
+        '%%{init:{"wrap":true}}%%\n%%{unwrap}%%\n%%{wraparound}%%',
+        '%%{INIT:{"theme":"dark"}}%%',
+      ]) {
+        for (const leading of [true, false]) {
+          const source = leading ? directives + '\nflowchart LR\nA --> B' : 'flowchart LR\n' + directives + '\nA --> B'
+          const original = await pin.project(source, d => ({ theme: d.db.getData().config.theme, wrap: !!d.db.getData().config.wrap }))
+          expect(original.ok, source).toBe(true)
+          const parsed = parseMermaid(source)
+          if (!parsed.ok || !original.ok) throw new Error('Expected directive source')
+          expect({ theme: parsed.value.meta.frontmatter?.theme ?? 'default', wrap: !!parsed.value.meta.frontmatter?.wrap }, source).toEqual(original.value)
+          const canonical = serializeMermaid(parsed.value, { wrapper: 'canonical' })
+          expect(await pin.project(canonical, d => ({ theme: d.db.getData().config.theme, wrap: !!d.db.getData().config.wrap })), source).toEqual(original)
+          const reload = parseMermaid(canonical)
+          if (!reload.ok) throw new Error('Expected canonical reload')
+          expect(serializeMermaid(reload.value, { wrapper: 'canonical' })).toBe(canonical)
+        }
+      }
+    } finally { pin.close() }
+  })
+
+  test('a separated directive close is a diagnosed generous read and exports valid syntax', async () => {
+    const source = '%%{init:{"theme":"dark"}} %%\nflowchart LR\nA --> B'
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error('Expected repairable close')
+    expect(verifyMermaid(parsed.value).warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'separated_directive_close')).toBe(true)
+    const pin = startUpstreamMermaid()
+    try {
+      expect(await pin.publicAccepts(source)).toBe(false)
+      expect(await pin.publicAccepts(serializeMermaid(parsed.value, { wrapper: 'canonical' }))).toBe(true)
     } finally { pin.close() }
   })
 

@@ -509,6 +509,10 @@ function cleanupWarningsForDiagram(d: ParsedDiagram, authored?: string): LayoutW
     line: wrapper.slice(0, wrapper.indexOf('---')).split(/\r\n?|\n/).length,
     message: 'Frontmatter without a content line is read as no configuration. Pinned Mermaid rejects adjacent delimiters; serialization omits them.',
   }] : []
+  for (const directive of d.meta.initDirectives) if (/\}\s+%%\s*$/.test(directive.raw)) wrapperWarnings.push({
+    code: 'UNSUPPORTED_SYNTAX', syntax: 'separated_directive_close',
+    message: 'Directive closing delimiters must be contiguous in pinned Mermaid. Native reading repairs the separated close; canonical serialization emits }%%.',
+  })
   const cleanup = sourceCleanup(d.source)
   if (cleanup) return [...wrapperWarnings, ...mermaidCleanupWarnings(cleanup)]
   if (authored !== undefined) return [...wrapperWarnings, ...mermaidCleanupWarnings(authored)]
@@ -700,6 +704,13 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
   const familySourceWarnings =
     d.kind === 'flowchart' ? dedupedConcat(atAuthoredLines(flowchartUnsupportedSyntaxWarnings(d.canonicalSource), line => authoredLineForCanonical(d.source, line)), flowchartShapeSubstitutionWarnings(d)) : d.kind === 'quadrant' ? quadrantInertStyleWarnings(d) : d.kind === 'treemap' ? treemapNumericExtensionWarnings(d) : []
   const sourceWarnings = dedupedConcat(familySourceWarnings, upstreamRejectedSyntaxWarnings(d, authored))
+  // Native comment metadata is absent from canonical grammar lines. Diagnose
+  // the semantic portability boundary even after source comment cleanup.
+  if (['block', 'sankey', 'mindmap', 'ishikawa'].includes(d.kind)
+    && (d.meta.accessibility.title !== undefined || d.meta.accessibility.descr !== undefined)
+    && !sourceWarnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === `${d.kind}_accessibility`)) {
+    sourceWarnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax: `${d.kind}_accessibility`, message: `${d.kind} accessibility metadata is carried in native comments on export. External Mermaid ignores this metadata; diagram topology is preserved.` })
+  }
   const bareHeader = hasOnlyHeader(d)
   // The header starts the body, on the line after the authored wrapper.
   const wrapperLines = d.meta.wrapperSource?.match(/\n/g)?.length ?? 0

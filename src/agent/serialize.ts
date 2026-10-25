@@ -1,4 +1,4 @@
-import { initDirective } from '../shared/pinned-mermaid-config/merge.js'
+import { configDirective } from '../shared/pinned-mermaid-config/merge.js'
 import { canonicalWrapperConfig } from './wrapper-portability.ts'
 import { restoreBodyComments } from './body-comments.ts'
 // ============================================================================
@@ -166,8 +166,7 @@ export function renderMeta(meta: ValidDiagramMeta, family?: string): string {
     parts.push(`---\n${stringifyMermaidYaml(doc)}---\n`)
   }
   for (const layer of canonical.directives) {
-    if (layer.kind === 'wrap') { parts.push('%%{wrap}%%\n'); continue }
-    parts.push(initDirective(layer.payload) + '\n')
+    parts.push(configDirective(layer.kind, layer.payload, layer.hasArgs) + '\n')
   }
   return parts.join('')
 }

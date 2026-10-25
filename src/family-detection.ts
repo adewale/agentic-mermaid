@@ -1,3 +1,5 @@
+import { isMermaidConfigDirective } from './shared/pinned-mermaid-config/directive-types.ts'
+import { decodeXML } from 'entities'
 import type { FamilyDescriptor } from './agent/families.ts'
 import { detectInstalledFamilyDescriptorFromFirstLine, installedFamilyStatementEnds } from './agent/family-router.ts'
 import type {
@@ -13,8 +15,8 @@ import {
   UPSTREAM_MERMAID_FAMILY_INDEX,
   type UpstreamHeaderMatch,
 } from './upstream-family-index.ts'
-import { matchMermaidFrontmatter, normalizeFamilyDetectionLine, splitHeaderStatement } from './mermaid-source-wrapper.ts'
-import { parseAccessibilityDirective, statementEndAt } from './shared/accessibility-directives.ts'
+import { INIT_DIRECTIVE_REGEX, matchMermaidFrontmatter, mermaidFirstLine, normalizeFamilyDetectionLine, splitHeaderStatement } from './mermaid-source-wrapper.ts'
+import { classifyNativeAccessibilityRegions, maskMermaidConfigForGrammar, parseAccessibilityDirective, statementEndAt } from './shared/accessibility-directives.ts'
 
 export type MermaidFamilyClassification =
   | { kind: 'registered'; familyId: FamilyId }
@@ -95,16 +97,21 @@ function accessibilityDirectiveSpans(
   source: string,
   bodyStart: number,
   lineStarts = sourceLineStarts(source),
-  header = source.slice(bodyStart).trimStart().split(/\r\n?|\n/, 1)[0]!,
+  header = mermaidFirstLine(source),
 ): readonly SourceSpan[] {
   const physical = [...source.slice(bodyStart).matchAll(/[^\r\n]*(?:\r\n?|\n|$)/g)]
   const physicalLines = physical.map(match => match[0])
-  const lines = physicalLines.map(line => line.replace(/[\r\n]+$/, ''))
+  const authored = source.slice(bodyStart)
+  const quoted = installedFamilyStatementEnds(decodeXML(header), maskMermaidConfigForGrammar(authored).split(/\r\n?|\n/))
+  const regions = classifyNativeAccessibilityRegions(authored, quoted)
+  const grammar = authored.split('')
+  for (const region of regions.directives) for (let offset = region.start; offset < region.end; offset++) if (grammar[offset] !== '\r' && grammar[offset] !== '\n') grammar[offset] = ' '
+  const lines = grammar.join('').split(/\r\n?|\n/)
   const offsets = physical.map(match => bodyStart + match.index)
   const spans: SourceSpan[] = []
   // A line inside a statement's quoted text is the family's, as in source
   // normalization.
-  const statementEnds = installedFamilyStatementEnds(header, lines)
+  const statementEnds = installedFamilyStatementEnds(decodeXML(header), lines)
   for (let index = 0; index < lines.length; index++) {
     const directive = parseAccessibilityDirective(lines, index)
     // An unclosed block consumes the remainder of the source. Continuing
@@ -140,17 +147,21 @@ function universalDirectiveSpans(
 > {
   const frontmatter = matchMermaidFrontmatter(source)
   const frontmatterEnd = frontmatter?.source.length ?? 0
+  const accessibilityDirectives = accessibilityDirectiveSpans(source, frontmatterEnd, lineStarts, header)
+  const grammar = source.split('')
+  for (const span of accessibilityDirectives) if (/^\s*%% agentic-mermaid (?:accTitle|accDescr):/.test(source.slice(span.start.offset, span.end.offset))) {
+    for (let offset = span.start.offset; offset < span.end.offset; offset++) if (grammar[offset] !== '\r' && grammar[offset] !== '\n') grammar[offset] = ' '
+  }
   const initDirectives = matchingSpans(
     // Source normalization recognizes init/initialize directives anywhere
     // after frontmatter, not only in the leading wrapper. Trace the same
     // admitted directives so meta.initDirectives and preserved spans cannot
     // disagree for an in-body directive.
-    source.slice(frontmatterEnd),
-    /^[ \t]*%%\{\s*(?:(?:init|initialize)\s*:[\s\S]*?|wrap\s*)\}\s*%%[ \t]*(?:\r\n?|\n|$)|%%\{\s*(?:(?:init|initialize)\s*:[\s\S]*?|wrap\s*)\}\s*%%/gmi,
+    grammar.join('').slice(frontmatterEnd),
+    new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'),
     frontmatterEnd,
     lineStarts,
-  )
-  const accessibilityDirectives = accessibilityDirectiveSpans(source, bodyStart, lineStarts, header)
+  ).filter(span => isMermaidConfigDirective(source.slice(span.start.offset, span.end.offset)))
   return {
     ...(frontmatter
       ? { frontmatter: sourceSpan(lineStarts, 0, frontmatterEnd) }
@@ -164,7 +175,7 @@ function universalDirectiveSpans(
 export function maskAccessibilityDirectivesForSourceMap(source: string): string {
   const chars = source.split('')
   const lineStarts = sourceLineStarts(source)
-  for (const directive of accessibilityDirectiveSpans(source, 0, lineStarts)) {
+  for (const directive of accessibilityDirectiveSpans(source, matchMermaidFrontmatter(source)?.source.length ?? 0, lineStarts)) {
     for (let offset = directive.start.offset; offset < directive.end.offset; offset++) {
       if (chars[offset] !== '\n' && chars[offset] !== '\r') chars[offset] = ' '
     }
@@ -179,13 +190,13 @@ export function maskAccessibilityDirectivesForSourceMap(source: string): string 
 export function sourcePreservationSpans(
   source: string,
   header: string,
-  familyLineBoundary = 0,
+  familyLineBoundary?: number,
 ): PreservedSourceSpans {
   const lineStarts = sourceLineStarts(source)
   let headerStart = -1
   let headerEnd = -1
   let payloadStart = source.length
-  const searchStart = Math.max(0, Math.min(source.length, familyLineBoundary))
+  const searchStart = Math.max(0, Math.min(source.length, familyLineBoundary ?? 0))
   let lineStart = searchStart
   while (lineStart <= source.length) {
     const lineBreak = /\r\n?|\n/g
@@ -227,7 +238,7 @@ export function sourcePreservationSpans(
   }
   return Object.freeze({
     source: sourceSpan(lineStarts, 0, source.length),
-    ...(lineStart > 0 ? { wrapper: sourceSpan(lineStarts, 0, lineStart) } : {}),
+    ...((familyLineBoundary ?? lineStart) > 0 ? { wrapper: sourceSpan(lineStarts, 0, familyLineBoundary ?? lineStart) } : {}),
     ...universalDirectiveSpans(source, payloadStart, header, lineStarts),
     header: sourceSpan(lineStarts, headerStart, headerEnd),
     body: sourceSpan(lineStarts, payloadStart, source.length),
@@ -247,7 +258,7 @@ export function classifyMermaidFamilyFromFirstLine(
 export function familyDetectionDiagnostic(
   classification: Exclude<MermaidFamilyClassification, { kind: 'registered' }>,
   source: string,
-  familyLineBoundary = 0,
+  familyLineBoundary?: number,
   authoredHeader?: string,
 ): FamilyDetectionDiagnostic {
   const mermaidVersion = UPSTREAM_MERMAID_FAMILY_INDEX.provenance.version
@@ -334,7 +345,7 @@ export function requireRegisteredMermaidFamily(
   firstLine: string,
   source: string,
   mode: 'strict' | 'loose' = 'strict',
-  familyLineBoundary = 0,
+  familyLineBoundary?: number,
 ): FamilyId {
   return requireRegisteredMermaidFamilyDescriptor(firstLine, source, mode, familyLineBoundary).id
 }
@@ -343,7 +354,7 @@ export function requireRegisteredMermaidFamilyDescriptor(
   firstLine: string,
   source: string,
   mode: 'strict' | 'loose' = 'strict',
-  familyLineBoundary = 0,
+  familyLineBoundary?: number,
   authoredHeader?: string,
 ): FamilyDescriptor {
   const classification = classifyMermaidFamilyDescriptorFromFirstLine(firstLine, mode)

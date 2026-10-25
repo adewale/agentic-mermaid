@@ -19,6 +19,10 @@ frontmatter; multiple init layers retain their order because Mermaid sanitizes
 them before merging. Truthy `displayMode` metadata also keeps init layers separate
 so frontmatter injection occurs in its original phase. Init and wrap directives
 remain distinct, and legacy init `config` is scoped to the detected diagram.
+The pinned selector also recognizes names such as `preinit` and repeated
+`nowrap`; canonical export retains those names and counts rather than folding
+them into an init/wrap flag. Separated closing delimiters are read generously
+and diagnosed; canonical export emits contiguous `}%%`.
 
 Native effective config is separate from authored layers. Parsed diagrams retain
 raw YAML in `meta.wrapperSource` and each directive in `meta.initDirectives`;

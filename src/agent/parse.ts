@@ -17,7 +17,7 @@ import { tokenize as tokenizeRequirement } from '../requirement/lexer.ts'
 import { parseKanbanDiagram } from '../kanban/parser.ts'
 import { readGanttStatements } from '../gantt/parser.ts'
 import { statementText, trailingCommentStart } from '../shared/trailing-comment.ts'
-import { statementEndAt } from '../shared/accessibility-directives.ts'
+import { parseAccessibilityDirective, statementEndAt } from '../shared/accessibility-directives.ts'
 import { splitAuthoredPieTitleLine } from '../pie/source-title.ts'
 import { decodeXML } from 'entities'
 import {
@@ -118,7 +118,22 @@ function semanticFamilyLineSource(
   source: string,
   familyLineBoundary: number,
 ): { readonly source: string; readonly authoredHeader: string } {
-  const lineStart = Math.max(0, Math.min(source.length, familyLineBoundary))
+  let lineStart = Math.max(0, Math.min(source.length, familyLineBoundary))
+  // Native metadata is mutable envelope content, so it need not belong to
+  // the immutable wrapper. Select the header through the classified envelope,
+  // including multiline config/trivia interleaved with those fields.
+  const firstLine = /^[^\r\n]*/.exec(source.slice(lineStart))![0]
+  if (parseAccessibilityDirective([firstLine], 0)?.form === 'native') {
+    const grammar = maskAccessibilityDirectivesForSourceMap(source)
+      .replace(new RegExp(MERMAID_DIRECTIVE_REGEX.source, 'gm'), token => token.replace(/[^\r\n]/g, ' '))
+    while (lineStart < source.length) {
+      const line = /^[^\r\n]*/.exec(grammar.slice(lineStart))![0]
+      if (line.trim() && !line.trimStart().startsWith('%%')) break
+      lineStart += line.length
+      if (source[lineStart] === '\r') lineStart++
+      if (source[lineStart] === '\n') lineStart++
+    }
+  }
   const lineBreak = /[\r\n]/g
   lineBreak.lastIndex = lineStart
   const physicalEnd = lineBreak.exec(source)?.index ?? source.length

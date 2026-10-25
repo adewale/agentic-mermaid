@@ -1,6 +1,6 @@
 import { mergeFrontmatterMaps, mermaidAuthoredFrontmatter, mermaidInitDirectiveLayer, type MermaidFrontmatterMap, type MermaidConfigDirectiveLayer } from '../mermaid-source.ts'
-import { validateConfig } from '../shared/pinned-mermaid-config/runtime.js'
-import { mergeConfig } from '../shared/pinned-mermaid-config/merge.js'
+import { validateConfig, validateConfigSource } from '../shared/pinned-mermaid-config/runtime.js'
+import { mergeConfigSource, configDirective } from '../shared/pinned-mermaid-config/merge.js'
 import { pinnedMermaidDiagramType } from '../shared/pinned-mermaid-diagram-type.ts'
 import type { ValidDiagramMeta } from './types.ts'
 
@@ -29,17 +29,17 @@ export function canonicalWrapperConfig(meta: ValidDiagramMeta, family?: string):
     return layer
   })
   const payloads = directives.filter(layer => layer.kind === 'init').map(layer => layer.payload)
-  const wrap = directives.some(layer => layer.kind === 'wrap')
   const type = pinnedMermaidDiagramType(family ?? '')
   try {
-    if (payloads.length > 1 || (top.displayMode && payloads.length)) {
-      validateConfig(authored, payloads, type, top, wrap)
+    const code = directives.map(layer => configDirective(layer.kind, layer.payload, layer.hasArgs)).join('\n')
+    if (payloads.length > 1 || (top.displayMode && payloads.length) || directives.some(layer => layer.kind !== 'init' && layer.kind !== 'wrap')) {
+      validateConfigSource(authored, code, type, top)
       return { metadata: top, config: authored, directives }
     }
     // Keep the original payload through directive processing: scalars reject
     // wrap assignment, while the pinned merge ignores array own properties.
-    validateConfig(authored, payloads, type, top, wrap)
-    const config = mergeConfig(authored, payloads, type, wrap) as MermaidFrontmatterMap
+    validateConfigSource(authored, code, type, top)
+    const config = mergeConfigSource(authored, code, type) as MermaidFrontmatterMap
     validateConfig(config, [], type, top)
     return { metadata: top, config, directives: [] }
   } catch (error) {

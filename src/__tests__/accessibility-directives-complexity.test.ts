@@ -1,4 +1,5 @@
 import { expect, test } from 'bun:test'
+import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
 import { maskAccessibilityDirectivesForSourceMap, sourcePreservationSpans } from '../family-detection.ts'
 import { parseAccessibilityDirective, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
@@ -46,4 +47,14 @@ test('repeated unclosed accDescr blocks do not rescan the remaining source', () 
     expect(maskAccessibilityDirectivesForSourceMap(source)).toBe(source)
     expect(parseRegisteredMermaid(source).ok).toBe(true)
   }, 12_000)
+})
+
+
+test('native transport respects ordinary description blocks without repeated suffix scans', () => {
+  expectNearLinearGrowth('native transport beside repeated unclosed descriptions', size => {
+    const source = `block\n${'accDescr {\n'.repeat(size)}%% agentic-mermaid accTitle: "hidden"\nA["A"]`
+    const normalized = normalizeMermaidSource(source)
+    expect(normalized.accessibility).toEqual({})
+    expect(normalized.familyBody).toContain('%% agentic-mermaid accTitle: "hidden"')
+  }, 4000)
 })

@@ -162,10 +162,28 @@ Accessibility descriptions normalize physical CR/CRLF to logical newlines before
 refolding. A successful mutation must retain the normalized fields in body,
 metadata and reloaded source. Values a family writer cannot spell without
 closing a description block or creating a directive return `INVALID_OP`
-atomically. Block, Mindmap, Sankey and Ishikawa accessibility remain warned
-native extensions. The pinned Ishikawa parser reads these lines as fishbone
-nodes, even when it accepts the source, so parse acceptance does not establish
-metadata support.
+atomically. Block, Mindmap, Sankey and Ishikawa writers carry accessibility
+in owned `%% agentic-mermaid accTitle/accDescr: <JSON string>` comments. Each
+JSON string transports an authored grammar-text field, shielding global
+entities, XML and init-directive processing before its field decoder runs.
+The shared envelope classifies these as metadata rather than ordinary comments.
+Native edits, JSON reload and SVG retain the fields; captured YAML stays verbatim.
+External Mermaid ignores this metadata while retaining the actual topology, so
+verify still reports the family's accessibility warning. Raw accessibility
+statements remain generous reads. Pin acceptance of an Ishikawa/Mindmap raw
+statement that becomes a node is never credited as metadata support.
+
+State nodes retain the boundary of their standalone declaration among their
+owning scope's transitions. Canonical writing merges these recorded events;
+contextual start/end nodes remain at the transition that creates them. Edits
+retain or rebase boundaries, with one survivor-prefix map for a deletion batch.
+Notes that create ordinary states receive a declaration at that boundary.
+Stereotypes still precede first use because the external type semantics require
+it. Legacy/synthetic bodies without provenance keep a deterministic fallback.
+This removes avoidable movement around isolated declarations and contextual
+pseudostates. It does not preserve global event order for a detached composite
+block that canonical writing relocates into its first owning scope; identities,
+parents, endpoints and content remain the contract in that pre-existing case.
 
 Pinned-suite counts, red/green discrimination, the combined adversarial audit,
 exact-head CI results and publishing evidence belong in the PR description.
@@ -544,7 +562,7 @@ identified below; this record does not excuse them as opaque preservation.
 | Flowchart `;` read by the entity prepass | **Keep reading and warn (`flowchart_entity_semicolon`).** | Implemented: Mermaid reads `#fff;` as an entity code, and drops the last `;` of a line where `style` or `classDef` precedes `:…#`, joining what follows to the statement. It rejects such lines (`linkStyle 0 stroke:#f00;` alone included) or reads them otherwise (`style A fill:#f00;B` styles A with `fill:#f00B` and draws no B). |
 | Flowchart subgraph with no `end` | **Keep reading and warn (`flowchart_unclosed_subgraph`).** | Implemented: a subgraph still open at the end of the source closes there and holds what follows it; the writer writes its `end`. Mermaid rejects the diagram. |
 | Flowchart `end` with no subgraph open | **Keep reading and warn (`flowchart_stray_end`).** | Implemented: the stray `end` is ignored, and a statement after it on its line (`end B --> C`) is read. Mermaid rejects both. |
-| Mindmap accessibility directives | **Read them as the accessible title and description and warn (`mindmap_accessibility`); write them as written.** | Implemented: Mermaid 12.2's mindmap grammar has no accessibility statements, so it draws `accTitle: x` under the root as a node, and rejects it before the root as a second root. Authors write it, as in every other family, for the SVG's title, which ours draws. Mermaid has no spelling that keeps it, so the writer keeps the directive before the root, as for ER attributes Mermaid cannot read, and verify says so. |
+| Mindmap accessibility directives | **Read native metadata and warn (`mindmap_accessibility`); write owned native comments.** | Mermaid has no Mindmap accessibility production and can interpret raw directives as nodes. Typed output carries the title/description in JSON grammar-text comments which native consumers read and external Mermaid ignores. Diagram topology remains portable; external accessibility remains unsupported. |
 | An accTitle or accDescr without its colon | **Read it as the directive, without a warning.** | Every Mermaid grammar reads only `accTitle:` and `accDescr:` (or an `accDescr {` block). Without the colon, most families reject the line, State, ER and Timeline read its words as states, entities or an event, and Class drops them. Ours reads `accTitle Sales` as the accessible title in every family, and the writer adds the colon. The warning (`accessibility_colon`) was removed: 0 of 106,252 real-world diagrams use the construct. |
 | `accDescr {…}` blanks in Langium families | **Keep the text as written silently.** | Implemented: Mermaid's Langium-grammar families (Architecture, GitGraph, Packet, Pie, Radar, Treemap and the others under its `parser` package) collapse each run of blanks in a block description to one space; its Jison families (Flowchart, Sequence, …) keep the text as written, and so does ours in every family. |
 | Mindmap node text ending in whitespace | **Trim it silently.** | Implemented: Mermaid keeps the space in `root ` (header-line `mindmap root ` or a node line), so its id is `root `. Ours trims the text, as everywhere else, and writes `root`; the space draws nothing. |

@@ -4,7 +4,9 @@ They contain no Mermaid parser, renderer, DOM or Node runtime dependency.
 
 `merge.js` owns directive argument tokens, init-layer sanitization, nonclobbering
 bounded assignment, legacy diagram scoping, wrap processing and frontmatter
-merge. Its directive lexer, detectInit and processDirectives are copied from
+merge. Raw directive names, argument presence and occurrence count survive until
+the pinned phase consumes them. `directive-types.ts` contains the selectors
+extracted from those same pinned functions for lightweight source ownership. Its directive lexer, detectInit and processDirectives are copied from
 trusted pinned TypeScript initializers rather than approximated by hand. The
 argument constructor checks complete token consumption and argument type; it
 preserves negative zero and shields source-global preprocessing. Native normalization uses that
