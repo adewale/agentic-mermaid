@@ -1,0 +1,66 @@
+name: PR512 one peer acquisition completion after the retained timeout
+on:
+  push:
+    branches:
+      - codex/pr512-peer-completion-20261025
+permissions:
+  contents: read
+jobs:
+  peer-completion:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: 95e10353289d5c4df3e7ab2e227fca65b2e7dcef
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version: 1.4.2
+          no-cache: true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 24.19.0
+          package-manager-cache: false
+      - name: Verify unchanged source and actual closed package bytes
+        run: |
+          test "$(git rev-parse HEAD)" = 95e10353289d5c4df3e7ab2e227fca65b2e7dcef
+          git fetch --no-tags origin 1894f97b32888b68f7b0d026dc61efa0e74d1727
+          test "$(git diff --name-only 1894f97b32888b68f7b0d026dc61efa0e74d1727 HEAD)" = .github/workflows/release-benchmark.yml
+          npm install -g npm@11.18.0 --ignore-scripts
+          test "$(npm --version)" = 11.18.0
+          bun install --frozen-lockfile
+          bun run build
+          bun run scripts/ci/verify-publish-package.ts --pack-destination peer-completion/package
+          printf '%s  peer-completion/package/package.tgz\n' 86ea82eb3381ac30b7d42aea93a8d2b8d736dfcf1512472db93b770f17f05537 | sha256sum --check
+      - name: Acquire the missing cache-off population once within the declared budget
+        timeout-minutes: 11
+        run: |
+          python - <<'PYTHON'
+          import datetime,json,os,pathlib,subprocess
+          root=pathlib.Path('peer-completion').resolve()
+          policy={'declaredAt':datetime.datetime.now(datetime.timezone.utc).isoformat(),'cause':{'run':40238747426,'artifact':12617738711,'originalLimitSeconds':300,'originalExit':124,'originalStatus':'incomplete; preserved without replacement'},'checkoutSource':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'productionAndHarnessReference':'1894f97b32888b68f7b0d026dc61efa0e74d1727','wrapperRevision':os.environ.get('GITHUB_SHA'),'onlySourceChange':'.github/workflows/release-benchmark.yml: acquisition wall budgets','candidateArchiveSha256':'86ea82eb3381ac30b7d42aea93a8d2b8d736dfcf1512472db93b770f17f05537','attempts':1,'wallBudgetSeconds':600,'rounds':5,'elkCache':'off','peers':['agentic','beautiful','zombie','pele'],'scope':'Complete only the missing legacy advisory peer acquisition. Samples, cohort, peer pins, harness and correctness rules are unchanged. Not an independent semantic confidence study, not a replacement native release timing report, and not a retry until green.'}
+          assert policy['checkoutSource']=='95e10353289d5c4df3e7ab2e227fca65b2e7dcef'
+          (root/'predeclared-policy.json').write_text(json.dumps(policy,indent=2)+'\n')
+          cmd=['timeout','--kill-after=15s','600s','bun','run','bench:peers','--runtime-source',str(pathlib.Path.cwd()),'--peers',','.join(policy['peers']),'--candidate-tarball',str(root/'package/package.tgz'),'--candidate-sha256',policy['candidateArchiveSha256'],'--rounds','5','--elk-cache','off','--json',str(root/'peers-off.json'),'--markdown',str(root/'peers-off.md')]
+          with (root/'acquisition.log').open('w') as log:r=subprocess.run(cmd,stdout=log,stderr=subprocess.STDOUT)
+          (root/'completion-status.json').write_text(json.dumps({'exit':r.returncode,'endedAt':datetime.datetime.now(datetime.timezone.utc).isoformat(),'attempts':1},indent=2)+'\n')
+          raise SystemExit(r.returncode)
+          PYTHON
+      - name: Require every planned peer worker and workload observation
+        if: always()
+        run: |
+          node --input-type=module <<'JS'
+          import {readFileSync,writeFileSync} from 'node:fs'
+          const d=JSON.parse(readFileSync('peer-completion/peers-off.json','utf8'))
+          const workers=d.processes??[]
+          const complete=d.status==='completed' && workers.length===d.config.rounds*d.config.peers.length && workers.every(w=>Number.isFinite(w.importMs)&&[w.rssBytes,w.peakRssBytes,w.settledHeapBytes].every(x=>Number.isFinite(x)&&x>=0)&&w.restarts===0) && d.coverage.every(r=>r.missing===0)
+          writeFileSync('peer-completion/independent-completeness.json',JSON.stringify({complete,workers:workers.length,expectedWorkers:d.config.rounds*d.config.peers.length},null,2)+'\n')
+          if(!complete)throw Error('The single completion attempt is incomplete; retain all evidence')
+          JS
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: peer-completion-95e10353-${{ github.run_id }}
+          path: peer-completion/
+          if-no-files-found: error
+          retention-days: 30
