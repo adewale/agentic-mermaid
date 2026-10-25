@@ -433,8 +433,8 @@ test('archive acquisition pins the frozen runtime closure without changing shipp
       mkdirSync(join(pkg, 'dist'))
       writeFileSync(join(pkg, 'dist/index.js'), "throw Error('BENCHMARK_WORKER_STARTED')")
     }
-    // Keep archive creation inside the same owned deadline as acquisition.
-    // A synchronous tar wait would also block this worker's test timeout.
+    // Fixture setup owns external processes too: keep tar and its pipes
+    // under the same child deadline and cleanup as acquisition.
     const packed = await runChild('tar', ['-czf', path, '-C', root, 'package'])
     expect({ status: packed.status, stderr: packed.stderr }).toEqual({ status: 0, stderr: '' })
     const bytes = readFileSync(path), integrity = `sha512-${createHash('sha512').update(bytes).digest('base64')}`
