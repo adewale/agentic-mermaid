@@ -236,6 +236,23 @@ checkout, although its target consumers import only supplied public artifacts.
 
 ## Is the suite sufficient for a Mermaid-baseline ranking?
 
+The completed current comparison supports a scoped cost judgment. In five
+counterbalanced renderer rounds across 48 shared positive cases, Agentic cost
+0.2989 times Mermaid and Pele cost 0.0616 times Mermaid. The same-artifact
+Mermaid control ratio was 1.0110, within the declared 0.9–1.1 gate; both widened
+cost envelopes stayed below 1. Fresh browser startup and document V8 heap also
+passed that repeatability rule. These are comparisons of the frozen f8a2437b
+product, not measurements of newer main or causal release improvements.
+
+The Node lane completed 25 first-result samples and five separate resource
+passes per tool. Its startup/RSS ratios remain descriptive because it has no
+paired A/A experiment and the public parsers return different structures.
+An exact repeat reused all six browser/Node project records, created no new
+attempt directories or record files, and preserved the original dates and
+observations. The strict-negative parser disagreement remains visible on reuse.
+The maintained [results](../../docs/community-benchmark-ranking.md#pinned-mermaid-baseline-25-october-2026)
+and [baseline guide](visualizations/MERMAID-BASELINE.md) give scopes and commands.
+
 It is useful for scoped regression decisions and capability comparisons. It is
 not a complete independent conformance, visual-quality or production-cost
 assessment. Pinned Mermaid 12.2.0 is now the explicit baseline for comparable

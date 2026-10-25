@@ -1,5 +1,27 @@
 # Compare with the pinned Mermaid
 
+Collect the current public browser and Node parser baselines with the unified
+controller. Supply installed, frozen package roots; the reference prefix must
+contain the pinned Mermaid package and its dependencies.
+
+```sh
+bun run bench --profile full \
+  --suites mermaid-baseline-browser,mermaid-baseline-compatibility \
+  --projects adewale/agentic-mermaid,obsidianmd/pele,mermaid-js/mermaid \
+  --package-root /artifacts/agentic-mermaid \
+  --portable-project obsidianmd/pele --portable-artifact-root /artifacts/pele \
+  --mermaid-dir /sources/mermaid --reference-dir /artifacts/mermaid-reference \
+  --node-executable /tools/node --startup-observer /tools/time \
+  --executable /tools/chromium --rounds 5 \
+  --benchmark-records /evidence/records --out /evidence/current --allow-incomplete
+```
+
+Repeat with the same inputs to reuse the original project records. Select a
+single project with `--projects` to update only its measurements. A mixed
+collection window retains descriptive ratios but cannot qualify a new paired
+renderer win. Unsupported cases and strict-negative disagreements remain in the
+results; `--allow-incomplete` does not suppress failures.
+
 `mermaid_baseline.py` reads retained reports. It never imports a renderer,
 starts a browser, fetches dependencies, or reruns a benchmark. Its outputs are
 `summary.json`, `report.md`, and standalone SVG charts made with Python's standard
