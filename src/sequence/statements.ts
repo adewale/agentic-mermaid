@@ -17,7 +17,7 @@ export function isSequenceCommentLine(line: string): boolean {
 }
 
 export function splitSequenceStatementLines(lines: readonly string[]): string[] {
-  return scanStatementLines(lines, rawStatement)
+  return scanSequenceStatementLines(lines).map(statement => statement.raw)
 }
 
 export interface SequenceSourceSpan {
@@ -29,24 +29,13 @@ export interface SequenceSourceSpan {
 }
 
 export function scanSequenceStatementLines(lines: readonly string[]): SequenceSourceSpan[] {
-  return scanStatementLines(lines, sourceSpan)
-}
-
-function rawStatement(raw: string): string { return raw }
-function sourceSpan(raw: string, line: number, column: number): SequenceSourceSpan {
-  return { raw, line, column, endColumn: column + raw.length }
-}
-
-// Raw-line consumers need the same lexical decisions without allocating source
-// coordinates for every statement and then immediately discarding them.
-function scanStatementLines<T>(lines: readonly string[], statement: (raw: string, line: number, column: number) => T): T[] {
-  const statements: T[] = []
+  const statements: SequenceSourceSpan[] = []
   let inAccessibilityDescription = false
   for (const [lineNumber, physicalLine] of lines.entries()) {
     let lineOffset = 0
     const pushStatement = (raw: string, start: number): void => {
       const column = lineOffset + start
-      statements.push(statement(raw, lineNumber, column))
+      statements.push({ raw, line: lineNumber, column, endColumn: column + raw.length })
     }
     let line = physicalLine
     if (inAccessibilityDescription) {
