@@ -333,6 +333,8 @@ async function runInternal(id: string, options: SuiteOptions): Promise<UnifiedSu
     'stable-support': ['stable-support-run.ts', 'runStableSupportSuite'],
     'entry-startup': ['retained-campaigns.ts', 'runRetainedEntryStartupSuite'],
     'upstream-test-assertions': ['retained-campaigns.ts', 'runRetainedUpstreamTestSuite'],
+    'mermaid-baseline-browser': ['mermaid-baseline.ts', 'runMermaidBrowserBaseline'],
+    'mermaid-baseline-compatibility': ['mermaid-baseline.ts', 'runMermaidParserBaseline'],
   }
   const [file, name] = entry[id] ?? []
   if (!file || !name) throw new Error(`No internal suite ${id}`)

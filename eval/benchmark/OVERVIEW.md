@@ -14,6 +14,13 @@ For individual entry points and prerequisites, use the [inventory](INVENTORY.md)
 The [assessment](ASSESSMENT.md) explains the limits of existing measurements.
 The [package guide](README.md) covers installation, updates and extraction seams.
 
+Pinned Mermaid 12.2.0 is the baseline for every comparable public operation.
+Reports use tool cost divided by actual Mermaid cost, with Mermaid at **1**.
+Lower cost is better; coverage and checked meaning use absolute denominators
+and differences from Mermaid's observed result. Missing APIs, missing evidence
+and unresolved noise do not become zero-cost wins. A single overall score would
+hide these distinctions.
+
 ## Primary questions
 
 | Question | Owning benchmark | What the result can establish |
@@ -23,6 +30,7 @@ The [package guide](README.md) covers installation, updates and extraction seams
 | Do we cover every required diagram family? | `stable-support`, with `family` functionality | Executed public SVG/label admission for every policy-stable family, plus unresolved exclusions conservatively retained. Native operations and painted fidelity need their own evidence. |
 | How quickly can each entry return its first usable result? | `entry-startup`, alongside the wider `invocation` matrix | Fresh process through fully consumed first payload; import/readiness/API clocks remain separate. Browser launch, CLI inputs, factory setup, optional backends and MCP initialization belong inside their declared startup boundaries. |
 | How much memory and CPU does it use? | Separate paired resource passes in `entry-startup` and the portable campaign | Whole-child high-water RSS/CPU and named JS/RSS snapshots. Browser document heap is not whole-browser, worker, native or GPU memory. |
+| Where do we stand against pinned Mermaid? | `mermaid-baseline-browser`, `mermaid-baseline-compatibility` and the baseline report reader | Same-source public SVG and syntax-admission work, first-result startup, scoped resources and delivery; same-artifact Mermaid controls qualify fresh renderer comparisons. |
 
 [Measurement rules](MEASUREMENT.md) explain how these lanes address interface
 changes, selection bias, warmup, missing cases and overfitting. Public docs and
