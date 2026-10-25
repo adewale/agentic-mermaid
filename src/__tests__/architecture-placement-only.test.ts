@@ -80,16 +80,31 @@ describe('Architecture placement-only ownership', () => {
     expect(full.edges.every(edge => edge.points.length >= 2)).toBe(true)
   })
 
-  test('retains every cross-scope edge as a rank constraint beyond the boundary-router limit', () => {
+  test('retains every cross-scope rank constraint when full boundary routing has no clear corridor', () => {
     const nodes = Array.from({ length: 18 }, (_, index) => ({ id: `n${index}`, width: 40, height: 30, parent: index < 9 ? 0 : 1 }))
     const input: MeasuredGraph = { nodes, groups: ['first', 'second'].map(id => ({ id, minWidth: 100, padding: { top: 20, left: 10, right: 10, bottom: 10 } })),
       edges: Array.from({ length: 18 }, (_, index) => ({ source: 9 + index % 9, target: index % 9, minSpan: index === 17 ? 3 : 1 })),
       direction: 'TB', padding: 20, nodeSpacing: 35, layerSpacing: 50 }
     const original = structuredClone(input)
-    expect(() => layoutAgenticGraph(input)).toThrow('agentic local cross-hierarchy size limit')
+    let routingFailure: unknown
+    try { layoutAgenticGraph(input) } catch (error) { routingFailure = error }
+    expect(routingFailure).toBeInstanceOf(GraphLayoutUnsupportedError)
+    expect((routingFailure as GraphLayoutUnsupportedError).reason).toBe('cross-hierarchy route has no bounded clear corridor')
     const placement = layoutAgenticGraph({ ...input, placementOnly: true })
+    const shortLinks = layoutAgenticGraph({ ...input, placementOnly: true, edges: input.edges.map(edge => ({ ...edge, minSpan: 1 })) })
     expect(placement.groups![1]!.y + placement.groups![1]!.height).toBeLessThan(placement.groups![0]!.y)
+    // The last parallel occurrence carries the longer authored span. Keeping
+    // only one edge per scope pair would lose this additional rank separation.
+    expect(placement.groups![0]!.y).toBeGreaterThan(shortLinks.groups![0]!.y)
     expect(placement.edges).toHaveLength(input.edges.length)
+    expect(placement.edges.every(edge => edge.points.length === 0)).toBe(true)
+    for (const [index, node] of placement.nodes.entries()) {
+      const group = placement.groups![nodes[index]!.parent]!
+      expect(node.x).toBeGreaterThanOrEqual(group.x + 10)
+      expect(node.y).toBeGreaterThanOrEqual(group.y + 20)
+      expect(node.x + nodes[index]!.width).toBeLessThanOrEqual(group.x + group.width - 10)
+      expect(node.y + nodes[index]!.height).toBeLessThanOrEqual(group.y + group.height - 10)
+    }
     expect(input).toEqual(original)
   })
 
@@ -104,9 +119,19 @@ describe('Architecture placement-only ownership', () => {
     }
   })
 
-  test('does not turn unsupported hints or defects into an edge-filtered retry', () => {
+  test('applies internal rank hints and propagates invalid hints and endpoint defects', () => {
     const graph = architectureToMermaidGraph(parseArchitectureDiagram(toMermaidLines('architecture-beta\nservice a(server)[A]\nservice b(server)[B]\na:R-->L:b')))
-    expect(() => layoutNativeGraphPlacementSync(graph, { layoutHints: { ranks: { a: 0 } } })).toThrow(GraphLayoutUnsupportedError)
+    const original = structuredClone(graph)
+    const plain = layoutNativeGraphPlacementSync(graph)
+    // Unlisted siblings default to partition zero, so a singleton zero hint
+    // retains placement while a positive partition places a after b in LR.
+    expect(layoutNativeGraphPlacementSync(graph, { layoutHints: { ranks: { a: 0 } } })).toEqual(plain)
+    const ranked = layoutNativeGraphPlacementSync(graph, { layoutHints: { ranks: { a: 1 } } })
+    const a = ranked.nodes.find(node => node.id === 'a')!, b = ranked.nodes.find(node => node.id === 'b')!
+    expect(b.x + b.width).toBeLessThan(a.x)
+    expect(ranked.nodes.map(node => node.id)).toEqual(plain.nodes.map(node => node.id))
+    expect(graph).toEqual(original)
+    expect(() => layoutNativeGraphPlacementSync(graph, { layoutHints: { ranks: { absent: 1 } } })).toThrow('LAYOUT_HINT_INVALID: unknown node')
     graph.edges[0]!.target = 'missing'
     expect(() => layoutNativeGraphPlacementSync(graph)).toThrow('unknown endpoint')
   })

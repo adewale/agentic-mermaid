@@ -13,11 +13,16 @@ export type NodeLaneIndexes = { x?: NodeLaneIndex | null; y?: NodeLaneIndex | nu
 
 const CELL_WIDTH = 128
 
-export function buildNodeLaneIndex(nodes: readonly PositionedNode[], cross: 'x' | 'y', clearance: number): NodeLaneIndex | null {
+type LaneBox = Pick<PositionedNode, 'x' | 'y' | 'width' | 'height'>
+type IndexCharge = (amount: number, kind: 'capacity' | 'work') => void
+
+export function buildNodeLaneIndex(nodes: readonly LaneBox[], cross: 'x' | 'y', clearance: number, charge?: IndexCharge): NodeLaneIndex | null {
   if (nodes.length < 32 || nodes.length > 0x10000000) return null
   let firstCell = Infinity, lastCell = -Infinity, memberships = 0
+  charge?.(2 * nodes.length, 'capacity')
   const starts = new Float64Array(nodes.length), ends = new Float64Array(nodes.length)
   for (let ordinal = 0; ordinal < nodes.length; ordinal++) {
+    charge?.(1, 'work')
     const node = nodes[ordinal]!
     const lo = node[cross] - clearance
     const hi = node[cross] + (cross === 'x' ? node.width : node.height) + clearance
@@ -30,16 +35,28 @@ export function buildNodeLaneIndex(nodes: readonly PositionedNode[], cross: 'x' 
     firstCell = Math.min(firstCell, start)
     lastCell = Math.max(lastCell, end)
   }
+  charge?.(1, 'work')
   const cells = lastCell - firstCell + 1
   if (!Number.isSafeInteger(cells) || cells > 8 * nodes.length) return null
+  charge?.(cells + 1, 'capacity')
   const offsets = new Uint32Array(cells + 1)
   for (let ordinal = 0; ordinal < nodes.length; ordinal++) {
-    for (let cell = starts[ordinal]! - firstCell; cell <= ends[ordinal]! - firstCell; cell++) offsets[cell + 1]!++
+    for (let cell = starts[ordinal]! - firstCell; cell <= ends[ordinal]! - firstCell; cell++) {
+      charge?.(1, 'work')
+      offsets[cell + 1]!++
+    }
   }
-  for (let cell = 1; cell <= cells; cell++) offsets[cell]! += offsets[cell - 1]!
+  for (let cell = 1; cell <= cells; cell++) {
+    charge?.(1, 'work')
+    offsets[cell]! += offsets[cell - 1]!
+  }
+  charge?.(cells + memberships, 'capacity')
   const cursors = offsets.slice(0, cells), ordinals = new Uint32Array(memberships)
   for (let ordinal = 0; ordinal < nodes.length; ordinal++) {
-    for (let cell = starts[ordinal]! - firstCell; cell <= ends[ordinal]! - firstCell; cell++) ordinals[cursors[cell]!++] = ordinal
+    for (let cell = starts[ordinal]! - firstCell; cell <= ends[ordinal]! - firstCell; cell++) {
+      charge?.(1, 'work')
+      ordinals[cursors[cell]!++] = ordinal
+    }
   }
   return { firstCell, offsets, ordinals }
 }

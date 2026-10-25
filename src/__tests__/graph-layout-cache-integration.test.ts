@@ -95,9 +95,8 @@ for (const family of ['flowchart', 'state'] as const) test(`native ${family} sna
 test('borrowed and public fallback hits notify each current request once and retain strict refusal', async () => {
   const child = await runChild(process.execPath, ['-e', `${prelude}
     withPerformanceExperiments(['text-spans', 'position-cache'], () => {
-      const source = ['flowchart TD', 'subgraph FallbackCacheOuter', ' subgraph FallbackCacheInner',
-        '  FallbackCacheA[Source] --> FallbackCacheB[Target]', ' end', 'end',
-        'FallbackCacheOuter --> FallbackCacheA'].join(String.fromCharCode(10))
+      const source = ['flowchart LR', 'subgraph FallbackCacheOuter', ' FallbackCacheA[Leaf]', 'end',
+        'FallbackCacheOuter ' + '-'.repeat(2049) + '> FallbackCacheA'].join(String.fromCharCode(10))
       const calls = { miss: [], borrowed: [], public: [], companion: [], rendered: [] }
       const options = name => ({ graphLayout: { backend: 'agentic', fallback: 'elk' },
         onConfigDiagnostic: value => calls[name].push(value) })
@@ -117,6 +116,7 @@ test('borrowed and public fallback hits notify each current request once and ret
       assert.equal(selected.fallback, 'elk')
       assert.deepEqual(selected.attempts.map(value => [value.backend, value.outcome]),
         [['agentic', 'unsupported'], ['elk', 'selected']])
+      assert.equal(selected.attempts[0].reason, 'agentic local rank-expansion limit')
       const repeated = observe(() => positionFamilyForNativeRender(borrowedRequest))
       assert.deepEqual(repeated.stages, [])
       assert.strictEqual(repeated.value, borrowed.value)

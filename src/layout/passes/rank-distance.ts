@@ -2,6 +2,7 @@ import type { MermaidGraph, MermaidSubgraph, Point, PositionedEdge, PositionedGr
 import { classifyRoutes, shapePorts, simplifyPolyline } from '../../route-contracts.ts'
 import { DEFAULTS, calculatePathMidpoint, findSubgraph, layoutFlow, nodeCrossCenter, nodeCrossSize, nodeMainCenter, nodeMainSize } from '../geometry.ts'
 import { doglegBetween, routeClearOfNodes } from './shared.ts'
+import { minimumLinkRankGap } from '../link-rank-gap.ts'
 
 export function honorLinkRankDistance(nodes: PositionedNode[], edges: PositionedEdge[], groups: PositionedGroup[], graph: MermaidGraph): void {
   if (!graph.edges.some(e => (e.length ?? 1) > 1)) return
@@ -199,7 +200,7 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
     const exitS = endpointExit(constraint.source), entryT = endpointEntry(constraint.target)
     if (exitS === null || entryT === null) continue
     const currentGap = (entryT - exitS) * f.sign
-    const minGap = DEFAULTS.layerSpacing + (length - 1) * (DEFAULTS.layerSpacing + 40)
+    const minGap = minimumLinkRankGap(length, DEFAULTS.layerSpacing)
     if (currentGap < minGap) moveSet(movableUnit(constraint.source, constraint.target), (minGap - currentGap) * f.sign)
   }
   // Containment does not impose a forward sibling rank. With no actual move,

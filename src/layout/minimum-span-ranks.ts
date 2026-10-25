@@ -1,9 +1,10 @@
-/** Minimize total edge span in an acyclic measured constraint graph. Unit
- * flow on every edge supplies the dual demands. Positive residual cycles
+/** Minimize weighted edge span in an acyclic measured constraint graph. Unit
+ * flow (or selected shortness priority) supplies the dual demands. Positive residual cycles
  * improve that feasible flow; absence of such a cycle certifies the recovered
  * rank potentials by primal/dual equality. This is bounded cycle cancellation,
  * not a network-simplex implementation. Exhaustion keeps the caller's ranks. */
 import type { MeasuredGraph } from './agentic-layered-core.ts'
+export const MAX_MEASURED_RANKS = 4096
 /** Private ranks are geometry constraints, not authored link lengths. Both
  * policies preserve minSpan; the compact candidate reserves a label rank only
  * on links with measured labels. The default remains the two-rank policy. */
@@ -11,12 +12,18 @@ export function privateRankSpan(edge: MeasuredGraph['edges'][number], compact = 
   return (compact && !edge.label ? 1 : 2) * edge.minSpan
 }
 
-export function minimumSpanRanks(input: Pick<MeasuredGraph, 'nodes' | 'edges' | 'compactPrivateRanks'>, work: { rankPairs: number }): Float64Array | undefined {
+export function assertPrivateRankSpan(edge: MeasuredGraph['edges'][number], compact: boolean, fail: (reason: string) => never): number {
+  const span = privateRankSpan(edge, compact)
+  if (!Number.isSafeInteger(span) || span >= MAX_MEASURED_RANKS) fail('agentic local rank-expansion limit')
+  return span
+}
+
+export function minimumSpanRanks(input: Pick<MeasuredGraph, 'nodes' | 'edges' | 'compactPrivateRanks'>, work: { rankPairs: number }, weighted = false): Float64Array | undefined {
   const n = input.nodes.length,
     edges = input.edges
   if (n === 0) return new Float64Array(0)
   if (work.rankPairs <= 0 || n > 64 || edges.length > 128 || edges.reduce((s, e) => s + e.minSpan, 0) > 128) return
-  const flow = new Int32Array(edges.length).fill(1)
+  const flow = weighted ? Int32Array.from(edges, edge => edge.short ? 100 : 1) : new Int32Array(edges.length).fill(1)
   const distance = new Float64Array(n), parent = new Int32Array(n), arc = new Int32Array(n)
   for (let augmentation = 0; augmentation < 128; augmentation++) {
     distance.fill(0); parent.fill(-1); arc.fill(0)
@@ -44,7 +51,8 @@ export function minimumSpanRanks(input: Pick<MeasuredGraph, 'nodes' | 'edges' | 
         }
       }
       if (changed < 0) {
-        const primal = edges.reduce((s, e) => s + distance[e.target]! - distance[e.source]!, 0),
+        const primal = weighted ? edges.reduce((s, e) => s + (e.short ? 100 : 1) * (distance[e.target]! - distance[e.source]!), 0)
+          : edges.reduce((s, e) => s + distance[e.target]! - distance[e.source]!, 0),
           dual = edges.reduce((s, e, i) => s + flow[i]! * privateRankSpan(e, input.compactPrivateRanks), 0)
         if (primal !== dual) throw new Error(`dual rank mismatch ${primal} ${dual}`)
         return distance

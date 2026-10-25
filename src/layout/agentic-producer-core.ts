@@ -6,6 +6,8 @@ import type { AgenticGraphBindings, AgenticGraphOptions } from '../layout-engine
 import type { AgenticLayout, MeasuredGraph } from './agentic-layered-core.ts'
 import { layoutLayeredGraph as layoutRawGraph } from './agentic-layered-core.ts'
 import { shortenMeasuredRoutes } from './shorten-measured-routes.ts'
+import { edgeSelectorIndices } from '../shared/edge-selectors.ts'
+import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
 export { improveArchitectureSiblingSlots } from './architecture-sibling-slots.ts'
 
 // Keep cache storage inside the optional solver chunk: importing shared
@@ -104,18 +106,103 @@ function placeNativeGraphCandidate(
       source.children.forEach(child => visit(child, index, direction))
     }
     graph.subgraphs.forEach(group => visit(group, undefined, graph.direction))
-    const nodes = [...graph.nodes].map(([id, node]) => {
+    const nodes: MeasuredGraph['nodes'][number][] = [...graph.nodes].map(([id, node]) => {
       if (groupIndices.has(id)) bindings.unsupported('overlapping node and frame identities')
       const owner = membership.get(id)
       return { id, ...(owner ? { parent: owner.parent } : {}), ...(options.nodeSizes?.get(id) ?? estimateNodeSize(id, resolveLabelContent(node.label, node.labelContent), node.shape, style, owner?.direction ?? graph.direction, options.stateVisual, node.labelBlock)) }
     })
     const indices = new Map(nodes.map((node, index) => [node.id, index]))
     for (const [id, index] of groupIndices) indices.set(id, nodes.length + index)
-    const edges = graph.edges.map(edge => {
+    const rankedParents = new Set<number>()
+    for (const [id, partition] of Object.entries(options.layoutHints?.ranks ?? {})) {
+      const index = indices.get(id)
+      if (index === undefined || !graph.nodes.has(id)) throw new Error(`LAYOUT_HINT_INVALID: unknown node "${id}"`)
+      if (!Number.isSafeInteger(partition) || partition < 0 || partition > 10000) throw new Error(`LAYOUT_HINT_INVALID: rank for "${id}" must be an integer in [0,10000]`)
+      const node = nodes[index]!
+      node.partition = partition
+      rankedParents.add(node.parent ?? -1)
+    }
+    for (const node of nodes) if (rankedParents.has(node.parent ?? -1) && node.partition === undefined) node.partition = 0
+    for (const group of groups) if (rankedParents.has(group.parent ?? -1)) group.partition = 0
+    if (options.layoutHints?.adjacent?.length) {
+      const siblings = new Map<number, number[]>()
+      const subjects = [...nodes, ...groups]
+      subjects.forEach((subject, index) => {
+        const parent = subject.parent ?? -1, children = siblings.get(parent) ?? []
+        children.push(index); siblings.set(parent, children)
+      })
+      const positions = new Map<number, number>()
+      for (const children of siblings.values()) children.forEach((subject, position) => positions.set(subject, position))
+      const grouped = new Set<number>(), blocks = new Map<number, Map<number, number[]>>()
+      for (const ids of options.layoutHints.adjacent) {
+        if (ids.length < 2) throw new Error('LAYOUT_HINT_INVALID: adjacent needs two or more nodes')
+        const members = ids.map(id => {
+          const index = indices.get(id)
+          if (index === undefined || !graph.nodes.has(id)) throw new Error(`LAYOUT_HINT_INVALID: unknown node "${id}"`)
+          return index
+        })
+        const parent = nodes[members[0]!]!.parent ?? -1
+        if (members.some(index => (nodes[index]!.parent ?? -1) !== parent)) throw new Error('LAYOUT_HINT_INVALID: adjacent nodes need the same container')
+        for (const index of members) {
+          if (grouped.has(index)) throw new Error('LAYOUT_HINT_INVALID: a node cannot repeat in adjacency groups')
+          grouped.add(index)
+        }
+        const local = blocks.get(parent) ?? new Map<number, number[]>()
+        local.set(Math.min(...members.map(index => positions.get(index)!)), members)
+        blocks.set(parent, local)
+      }
+      for (const [parent, local] of blocks) {
+        let order = 0
+        siblings.get(parent)!.forEach((index, position) => {
+          const block = local.get(position)
+          if (block) for (const member of block) subjects[member]!.modelOrder = order++
+          else if (!grouped.has(index)) subjects[index]!.modelOrder = order++
+        })
+      }
+    }
+    let preferred: Set<number> | undefined
+    if (options.layoutHints?.shortEdges?.length) {
+      preferred = new Set<number>()
+      const selectors = edgeSelectorIndices(graph.edges)
+      for (const id of options.layoutHints.shortEdges) {
+        const index = selectors.get(id)
+        if (index === undefined) throw new Error(`LAYOUT_HINT_INVALID: unknown edge "${id}"`)
+        preferred.add(index)
+      }
+    }
+    const ancestorEnd = groups.length ? (source: number, target: number): 'start' | 'end' | undefined => {
+      const encloses = (group: number, subject: number): boolean => {
+        for (let parent = subject < nodes.length ? nodes[subject]!.parent : groups[subject - nodes.length]!.parent; parent !== undefined; parent = groups[parent]!.parent) {
+          if (parent === group) return true
+        }
+        return false
+      }
+      if (source >= nodes.length && encloses(source - nodes.length, target)) return 'start'
+      if (target >= nodes.length && encloses(target - nodes.length, source)) return 'end'
+      return undefined
+    } : undefined
+    const edges = graph.edges.map((edge, index) => {
       const source = indices.get(edge.source), target = indices.get(edge.target)
       if (source === undefined || target === undefined) bindings.unsupported('unknown endpoint')
       const block = edge.label ? graphTextBlock(resolveLabelContent(edge.label, edge.labelContent), style, 'edge') : undefined
-      return { source, target, minSpan: edge.length ?? 1, ...(edge.style === 'invisible' ? { visible: false } : {}), ...(block ? { label: { width: block.width + 2 * LABEL_PILL_PADDING, height: block.height + 2 * LABEL_PILL_PADDING } } : {}) }
+      const boundaryEnd = ancestorEnd?.(source, target)
+      let boundaryMarker: { inset: number; height: number } | undefined
+      if (boundaryEnd) {
+        const points = boundaryEnd === 'start' ? [{ x: 0, y: 0 }, { x: 1, y: 0 }] : [{ x: 1, y: 0 }, { x: 0, y: 0 }]
+        const markers = graphEdgeMarkerPaintRegions({ ...edge, points, inlineStyle: resolveEdgeInlineStyle(index, graph) }, style).filter(marker => marker.position === boundaryEnd)
+        const marked = edge.style !== 'invisible' && (boundaryEnd === 'start' ? edge.hasArrowStart : edge.hasArrowEnd)
+        if (marked && !markers.length || markers.some(marker => !marker.bounds || ![marker.bounds.x0, marker.bounds.x1, marker.bounds.y0, marker.bounds.y1].every(Number.isFinite) || marker.bounds.x0 > marker.bounds.x1 || marker.bounds.y0 > marker.bounds.y1)) bindings.unsupported('ancestor marker paint bounds')
+        boundaryMarker = { inset: 0, height: 0 }
+        for (const marker of markers) {
+          boundaryMarker.inset = Math.max(boundaryMarker.inset, marker.bounds!.x1)
+          boundaryMarker.height = Math.max(boundaryMarker.height, 2 * Math.max(Math.abs(marker.bounds!.y0), Math.abs(marker.bounds!.y1)))
+        }
+        if (![boundaryMarker.inset, boundaryMarker.height].every(Number.isFinite)) bindings.unsupported('ancestor marker paint bounds')
+      }
+      // Match renderEdgeLabel's actual opaque halo only for the newly reserved
+      // ancestor corridor. Existing measured geometry keeps its prior sizes.
+      const halo = boundaryEnd && block ? Math.max(4, style.lineWidth * (edge.style === 'thick' ? 2 : 1) * 2) : 0
+      return { source, target, minSpan: edge.length ?? 1, ...(preferred?.has(index) ? { short: true as const } : {}), ...(boundaryMarker ? { boundaryMarker } : {}), ...(edge.style === 'invisible' ? { visible: false } : {}), ...(block ? { label: { width: block.width + 2 * LABEL_PILL_PADDING + 2 * halo, height: block.height + 2 * LABEL_PILL_PADDING + 2 * halo } } : {}) }
     })
     const shareCompleteFans = !options.stateVisual && !groups.length && [...graph.nodes.values()].every(node => node.shape === 'rectangle' && !node.semanticShape)
       && graph.edges.every((edge, index) => {
@@ -258,10 +345,6 @@ export function layoutNativeGraphCandidate(
   graph: MermaidGraph, options: AgenticGraphOptions, style: ResolvedRenderStyle,
   layoutAgenticGraph: (input: MeasuredGraph) => AgenticLayout, bindings: AgenticGraphBindings,
 ): PositionedGraph {
-  const hints = options.layoutHints
-  if (hints && (Object.keys(hints.ranks ?? {}).length || hints.adjacent?.length || hints.shortEdges?.length)) {
-    bindings.unsupported('layout hints')
-  }
   const candidate = selectNativeGraphCandidate(graph, options, style, layoutAgenticGraph, bindings)
   return certifyOwnedLayoutCandidate(graph, style, { strategy: 'agentic-layered', produce: () => candidate }, bindings)
 }
@@ -272,8 +355,6 @@ export function layoutNativeGraphPlacement(
   graph: MermaidGraph, options: AgenticGraphOptions, style: ResolvedRenderStyle,
   layoutAgenticGraph: (input: MeasuredGraph) => AgenticLayout, bindings: AgenticGraphBindings,
 ): Pick<PositionedGraph, 'width' | 'height' | 'nodes' | 'groups'> {
-  const hints = options.layoutHints
-  if (hints && (Object.keys(hints.ranks ?? {}).length || hints.adjacent?.length || hints.shortEdges?.length)) bindings.unsupported('layout hints')
   const placed = placeNativeGraphCandidate(graph, options, style, layoutAgenticGraph, bindings, true)
   return { width: placed.width, height: placed.height, nodes: placed.nodes, groups: placed.groups }
 }

@@ -1,10 +1,11 @@
 import { routeCrossHierarchy } from './compound-boundary-routes.ts'
+import { planAncestorBoundaryConnections, projectAncestorBoundaryPlaceholder } from './ancestor-boundary-routes.ts'
 import type { ChannelWork } from './channel-tracks.ts'
 import type { AgenticLayout, MeasuredGraph } from './agentic-layered-core.ts'
 import type { Direction } from '../types.ts'
 
 /** Place scopes bottom-up, then join leaves and frames through bounded boundary
- * corridors. Ancestor/descendant frame relationships still decline explicitly. */
+ * corridors. Explicit ancestor contacts reserve their own interior corridors. */
 export function layoutCompoundGraph(
   input: MeasuredGraph,
   layout: (flat: MeasuredGraph) => AgenticLayout,
@@ -12,17 +13,21 @@ export function layoutCompoundGraph(
   expansionLimit: number,
   routingWork: ChannelWork,
 ): AgenticLayout {
-  const groups = input.groups!, leafCount = input.nodes.length
+  let groups = input.groups!
+  const leafCount = input.nodes.length
   const count = leafCount + groups.length
   const owners = new Int32Array(count).fill(-1)
   const children: number[][] = Array.from({ length: groups.length + 1 }, () => [])
   const hosted: number[][] = Array.from({ length: groups.length + 1 }, () => [])
   const lifted = new Map<number, { source: number; target: number; host: number }>()
+  let ancestorEdges: number[] | undefined
   const ids = new Set<string>()
   for (let index = 0; index < count; index++) {
     const subject = index < leafCount ? input.nodes[index]! : groups[index - leafCount]!
     if (ids.has(subject.id)) throw new TypeError('Measured compound identities must be unique')
     ids.add(subject.id)
+    if (subject.modelOrder !== undefined && (!Number.isSafeInteger(subject.modelOrder) || subject.modelOrder < 0)) throw new TypeError('Invalid measured model order')
+    if (subject.partition !== undefined && (!Number.isSafeInteger(subject.partition) || subject.partition < 0 || subject.partition > 10000)) throw new TypeError('Invalid measured partition')
     const parent = subject.parent ?? -1
     if (!Number.isInteger(parent) || parent < -1 || parent >= groups.length || (parent >= 0 && index === leafCount + parent)) throw new TypeError('Invalid measured compound parent')
     if (index < leafCount) {
@@ -49,6 +54,8 @@ export function layoutCompoundGraph(
     const edge = input.edges[index]!
     if (!Number.isInteger(edge.source) || !Number.isInteger(edge.target) || edge.source < 0 || edge.target < 0 || edge.source >= count || edge.target >= count) throw new TypeError('Invalid measured compound endpoint')
     if (!Number.isSafeInteger(edge.minSpan) || edge.minSpan < 1 || (edge.label && ![edge.label.width, edge.label.height].every(value => Number.isFinite(value) && value >= 0))) throw new TypeError('Invalid measured compound edge dimensions')
+    if (edge.short !== undefined && edge.short !== true) throw new TypeError('Invalid measured short-edge preference')
+    if (edge.boundaryMarker !== undefined && (![edge.boundaryMarker.inset, edge.boundaryMarker.height].every(value => Number.isFinite(value) && value >= 0))) throw new TypeError('Invalid measured ancestor marker dimensions')
     let owner = owners[edge.source]!
     if (owner !== owners[edge.target]) {
       const ancestors = new Set<number>([-1])
@@ -59,12 +66,17 @@ export function layoutCompoundGraph(
         while (owners[endpoint] !== owner) endpoint = leafCount + owners[endpoint]!
         return endpoint
       }
-      lifted.set(index, { source: representative(edge.source), target: representative(edge.target), host: owner })
-      if (lifted.get(index)!.source === lifted.get(index)!.target) unsupported('ancestor container endpoints')
+      const source = representative(edge.source), target = representative(edge.target)
+      if (source === target) { (ancestorEdges ??= []).push(index); continue }
+      lifted.set(index, { source, target, host: owner })
     }
     hosted[owner + 1]!.push(index)
   }
-  if (!input.placementOnly && lifted.size && (groups.length > 16 || lifted.size > 16 || input.edges.length > 128)) unsupported('agentic local cross-hierarchy size limit')
+  const ancestorPlan = ancestorEdges ? planAncestorBoundaryConnections(input, owners, routingWork, unsupported) : undefined
+  if (ancestorPlan) {
+    if (ancestorEdges!.some(index => !ancestorPlan.connections.has(index))) throw new TypeError('Ancestor planner lost an authored endpoint occurrence')
+    groups = ancestorPlan.groups
+  }
   type Scope = { direction: Direction; placed: AgenticLayout; width: number; height: number; dx: number; dy: number }
   const scopes: Scope[] = new Array(groups.length + 1)
   let expandedVertices = 0
@@ -74,11 +86,11 @@ export function layoutCompoundGraph(
     const members = children[scope]!, local = new Map(members.map((id, index) => [id, index]))
     const nodes = members.map(id => {
       if (id < leafCount) {
-        const { id: identity, width, height } = input.nodes[id]!
-        return { id: identity, width, height }
+        const { id: identity, width, height, partition, modelOrder } = input.nodes[id]!
+        return { id: identity, width, height, partition, modelOrder }
       }
       const child = place(id - leafCount + 1, direction)
-      return { id: groups[id - leafCount]!.id, width: child.width, height: child.height }
+      return { id: groups[id - leafCount]!.id, width: child.width, height: child.height, partition: groups[id - leafCount]!.partition, modelOrder: groups[id - leafCount]!.modelOrder }
     })
     const edges = hosted[scope]!.map(index => {
       const edge = input.edges[index]!
@@ -119,10 +131,15 @@ export function layoutCompoundGraph(
     })
   }
   project(0, 0, 0)
+  if (ancestorPlan) for (const index of ancestorPlan.connections.keys()) edges[index] = projectAncestorBoundaryPlaceholder(ancestorPlan, index, frames, amount => {
+    if (!Number.isSafeInteger(amount) || amount < 0) throw new TypeError('Invalid ancestor placeholder reservation')
+    if (expandedVertices + amount > expansionLimit) unsupported('agentic local compound-expansion limit')
+    expandedVertices += amount
+  })
   const result: AgenticLayout = { topology: 'layered', width: root.width, height: root.height, nodes, groups: frames, edges, expandedVertices }
   // Every cross-scope edge participated at its lowest common scope. The
   // family owns boundary routing; omitting that work must not omit the edge's
   // placement influence as the previous filtered retry did.
-  if (!lifted.size || input.placementOnly) return result
-  return routeCrossHierarchy(input, result, owners, lifted, scopes.map(scope => scope.direction), routingWork, expansionLimit, unsupported)
+  if ((!lifted.size && !ancestorPlan) || input.placementOnly) return result
+  return routeCrossHierarchy(input, result, owners, lifted, scopes.map(scope => scope.direction), routingWork, expansionLimit, unsupported, ancestorPlan)
 }

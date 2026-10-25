@@ -22,6 +22,7 @@ import { generatedFlowchartSamples } from '../../eval/layout-compare/generated.t
 const SOURCE = 'flowchart TD\n A[Start] --> B[Finish]'
 const AGENTIC = { graphLayout: { backend: 'agentic' as const } }
 const FALLBACK = { graphLayout: { backend: 'agentic' as const, fallback: 'elk' as const } }
+const RANK_CAP_SOURCE = `flowchart LR\nsubgraph Outer\n A[Leaf]\nend\nOuter ${'-'.repeat(2049)}> A`
 
 describe('checked graph layout selection', () => {
   test('admits only closed, nonredundant selection objects and normalizes fallback', () => {
@@ -343,8 +344,27 @@ describe('checked graph layout selection', () => {
     }
   })
 
-  test('declines ancestor frame endpoints and attributes a requested ELK fallback consistently across cache states', () => {
-    const compound = 'flowchart TD\nsubgraph Outer\n subgraph Inner\n  A --> B\n end\nend\nOuter --> A'
+  test.each(['flowchart', 'state'].flatMap(family => ['TD', 'LR'].flatMap(direction => [
+    { family, direction, from: 'Outer', to: 'A', label: 'enters' },
+    { family, direction, from: 'A', to: 'Outer', label: 'returns' },
+  ])))('retains an authored containing-frame contact $from->$to in $family $direction', ({ family, direction, from, to, label }) => {
+    const source = family === 'flowchart' ? `flowchart ${direction}\nsubgraph Outer\n subgraph Inner\n  A --> B\n end\nend\n${from} -->|${label}| ${to}`
+      : `stateDiagram-v2\n direction ${direction === 'TD' ? 'TB' : direction}\nstate Outer {\n state Inner {\n  A --> B\n }\n}\n${from} --> ${to} : ${label}`
+    const stages: string[] = []
+    const rendered = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(source, AGENTIC))
+    expect(stages).not.toContain('elk')
+    expect(rendered.receipt.layoutDecisions?.[0]).toMatchObject({ selected: 'agentic', fallback: 'none' })
+    expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+    expect(rendered.svg).toContain(label)
+    expect(renderMermaidSVGWithReceipt(source, AGENTIC).svg).toBe(rendered.svg)
+    const result = layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true })
+    expect(result.layout.edges.map(edge => [edge.from, edge.to])).toEqual([['A', 'B'], [from, to]])
+    expect(result.layout.groups.find(group => group.id === 'Inner')).toMatchObject({ parentId: 'Outer', members: ['A', 'B'] })
+    expect(result.layout.paintCertification?.status).toBe('passed')
+  })
+
+  test('declines the explicit private-rank cap and attributes a requested ELK fallback consistently across cache states', () => {
+    const compound = RANK_CAP_SOURCE
     expect(() => renderMermaidSVGWithReceipt(compound, AGENTIC)).toThrow(GraphLayoutUnsupportedError)
     clearElkLayoutCache()
     const diagnostics: unknown[] = []
@@ -355,7 +375,7 @@ describe('checked graph layout selection', () => {
     expect(again.receipt).toEqual(first.receipt)
     expect(first.receipt.layoutDecisions).toEqual([expect.objectContaining({
       requested: 'agentic', selected: 'elk', fallback: 'elk', role: 'primary',
-      attempts: [expect.objectContaining({ backend: 'agentic', outcome: 'unsupported' }), { backend: 'elk', outcome: 'selected' }],
+      attempts: [expect.objectContaining({ backend: 'agentic', outcome: 'unsupported', reason: 'agentic local rank-expansion limit' }), { backend: 'elk', outcome: 'selected' }],
     })])
     expect(first.receipt.diagnostics).toContainEqual(expect.objectContaining({ code: 'GRAPH_LAYOUT_FALLBACK' }))
     expect(diagnostics).toHaveLength(2)
@@ -366,12 +386,13 @@ describe('checked graph layout selection', () => {
   })
 
   test.each([
-    ['flowchart', 'flowchart TD\nsubgraph Outer\n subgraph Inner\n  A --> B\n end\nend\nOuter --> A'],
+    ['flowchart', RANK_CAP_SOURCE],
   ])('never silently uses ELK for a strict Agentic %s request', (_family, source) => {
     expect(() => renderMermaidSVGWithReceipt(source, AGENTIC)).toThrow(GraphLayoutUnsupportedError)
     const result = renderMermaidSVGWithReceipt(source, FALLBACK)
     expect(result.receipt.layoutDecisions).toHaveLength(1)
     expect(result.receipt.layoutDecisions?.[0]).toMatchObject({ requested: 'agentic', selected: 'elk', fallback: 'elk' })
+    expect(result.receipt.layoutDecisions?.[0]?.attempts[0]).toMatchObject({ reason: 'agentic local rank-expansion limit' })
   })
 
   test('keeps terminal-cell layout independent and classifies optional companion execution', () => {

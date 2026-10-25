@@ -1,17 +1,19 @@
 import { refinePrivateChainOrder } from './chain-insertion-order.ts'
-import { minimumSpanRanks, privateRankSpan } from './minimum-span-ranks.ts'
+import { minimumSpanRanks, privateRankSpan, MAX_MEASURED_RANKS as MAX_RANKS } from './minimum-span-ranks.ts'
 import { compactMeasuredLoops } from './compact-measured-loops.ts'
 import type { Direction, Point } from '../types.ts'
 import { layoutSharedFan } from './shared-fan-core.ts'
 import { layoutCyclicGraph, type LayoutSearchWork } from './cycle-layout-search.ts'
 import { layoutCompoundGraph } from './agentic-compound-core.ts'
+import { feedbackOrder } from './cycle-order.ts'
 import { assignChannelTracks, type ChannelStep, type ChannelWork } from './channel-tracks.ts'
 
 export interface MeasuredGraph {
-  nodes: readonly { id: string; width: number; height: number; parent?: number }[]
+  /** Ordered partitions are local to a sibling scope; omitted values use zero. */
+  nodes: readonly { id: string; width: number; height: number; parent?: number; partition?: number; modelOrder?: number }[]
   /** Edges may address a frame at nodes.length + its group index. */
   groups?: readonly {
-    id: string; parent?: number; direction?: Direction; minWidth: number
+    id: string; parent?: number; partition?: number; modelOrder?: number; direction?: Direction; minWidth: number
     /** Measured painted header strip, excluding blank content padding. */
     headerHeight?: number
     padding: { top: number; right: number; bottom: number; left: number }
@@ -19,7 +21,7 @@ export interface MeasuredGraph {
   /** Label dimensions include the occupied painted body. Its own shaft is
    * masked by that body; foreign routes must stay outside it. Loop expansion
    * reserves additional space beside the arc instead of masking its shaft. */
-  edges: readonly { source: number; target: number; minSpan: number; visible?: boolean; label?: { width: number; height: number } }[]
+  edges: readonly { source: number; target: number; minSpan: number; short?: true; boundaryMarker?: { inset: number; height: number }; visible?: boolean; label?: { width: number; height: number } }[]
   direction: Direction
   padding: number
   nodeSpacing: number
@@ -66,7 +68,6 @@ interface Vertex {
 // These are local solver bounds, not a replacement for request admission.
 const MAX_NODES = 4096
 const MAX_EDGES = 16384
-const MAX_RANKS = 4096
 const MAX_EXPANDED_VERTICES = 32768
 const SWEEP_PAIRS = 4
 const LABEL_GAP = 8
@@ -106,8 +107,14 @@ export function layoutLayeredGraph(
   const horizontal = input.direction === 'LR' || input.direction === 'RL'
   const reverse = input.direction === 'BT' || input.direction === 'RL'
   const ids = new Set<string>()
+  let hasModelOrder = false
   for (const node of nodes) {
     if (node.parent !== undefined) throw new TypeError('Measured parent requires a compound scope')
+    if (node.modelOrder !== undefined) {
+      if (!Number.isSafeInteger(node.modelOrder) || node.modelOrder < 0) throw new TypeError('Invalid measured model order')
+      hasModelOrder = true
+    }
+    if (node.partition !== undefined && (!Number.isSafeInteger(node.partition) || node.partition < 0 || node.partition > 10000)) throw new TypeError('Invalid measured partition')
     if (ids.has(node.id)) throw new TypeError('Measured graph node identities must be unique')
     ids.add(node.id)
     if (!finiteSize(node.width, true) || !finiteSize(node.height, true)) throw new TypeError('Measured node dimensions must be finite and positive')
@@ -115,7 +122,7 @@ export function layoutLayeredGraph(
   const incoming: number[][] = nodes.map(() => [])
   const outgoing: number[][] = nodes.map(() => [])
   const indegree = new Uint32Array(nodes.length)
-  let hasLoops = false
+  let hasLoops = false, hasShortEdges = false
   for (let index = 0; index < edges.length; index++) {
     const edge = edges[index]!
     if (!Number.isInteger(edge.source) || !Number.isInteger(edge.target)
@@ -123,6 +130,9 @@ export function layoutLayeredGraph(
       throw new TypeError('Measured edge endpoint is outside the node array')
     }
     if (!Number.isSafeInteger(edge.minSpan) || edge.minSpan < 1) throw new TypeError('Measured edge minimum span must be a positive integer')
+    if (edge.short !== undefined && edge.short !== true) throw new TypeError('Invalid measured short-edge preference')
+    if (edge.boundaryMarker !== undefined && (![edge.boundaryMarker.inset, edge.boundaryMarker.height].every(value => Number.isFinite(value) && value >= 0))) throw new TypeError('Invalid measured ancestor marker dimensions')
+    hasShortEdges ||= edge.short === true
     if (edge.label && (!finiteSize(edge.label.width, false) || !finiteSize(edge.label.height, false))) {
       throw new TypeError('Measured edge label dimensions must be finite and nonnegative')
     }
@@ -132,6 +142,16 @@ export function layoutLayeredGraph(
     outgoing[edge.source]!.push(index)
     incoming[edge.target]!.push(index)
     indegree[edge.target] = indegree[edge.target]! + 1
+  }
+
+  const partitioned = nodes.some(node => (node.partition ?? 0) !== (nodes[0]?.partition ?? 0))
+  if (partitioned && edges.some(edge => (nodes[edge.source]!.partition ?? 0) > (nodes[edge.target]!.partition ?? 0))) {
+    // Partitions constrain placement, not authored arrow direction. Orient only
+    // the private placement graph, then restore each authored route occurrence.
+    const reversed = edges.map(edge => (nodes[edge.source]!.partition ?? 0) > (nodes[edge.target]!.partition ?? 0))
+    const placed = layoutLayeredGraph({ ...input, edges: edges.map((edge, index) => reversed[index]
+      ? { ...edge, source: edge.target, target: edge.source } : edge) }, forestLayout, unsupported, routingWork, searchWork)
+    return { ...placed, edges: placed.edges.map((edge, index) => reversed[index] ? { ...edge, points: [...edge.points].reverse() } : edge) }
   }
 
   if (hasLoops) {
@@ -150,7 +170,7 @@ export function layoutLayeredGraph(
       do { id = `\0agentic-loop:${helperId++}` } while (ids.has(id))
       ids.add(id)
       const target = expandedNodes.length
-      expandedNodes.push({ id, width: horizontal ? 1 : 40, height: horizontal ? 40 : 1 })
+      expandedNodes.push({ id, width: horizontal ? 1 : 40, height: horizontal ? 40 : 1, ...(partitioned ? { partition: nodes[edge.source]!.partition ?? 0 } : {}) })
       expandedEdges[index] = { ...edge, target, ...(edge.label ? { label: horizontal
         ? { width: edge.label.width, height: 2 * edge.label.height + 8 }
         : { width: 2 * edge.label.width + 8, height: edge.label.height } } : {}) }
@@ -181,9 +201,9 @@ export function layoutLayeredGraph(
     return compactMeasuredLoops(input, projected, searchWork)
   }
 
-  const shared = layoutSharedFan(input, incoming, outgoing, unsupported)
+  const shared = !partitioned && !hasModelOrder && !hasShortEdges && layoutSharedFan(input, incoming, outgoing, unsupported)
   if (shared) return shared
-  const forest = forestLayout(input)
+  const forest = !partitioned && !hasModelOrder && !hasShortEdges && forestLayout(input)
   if (forest) return { ...forest, expandedVertices: nodes.length }
 
   // The default reserves two private ranks per span. The optional compact
@@ -204,14 +224,30 @@ export function layoutLayeredGraph(
     }
   }
   if (queue.length !== nodes.length) {
+    if (partitioned) {
+      // Cross-partition links already point forward. A total private order
+      // inside each partition breaks its cycles without reversing that order.
+      const order = input.authoredCycleOrder ? Uint32Array.from(nodes, (_, index) => index) : feedbackOrder(incoming, outgoing, edges)
+      const reversed = edges.map(edge => (nodes[edge.source]!.partition ?? 0) === (nodes[edge.target]!.partition ?? 0) && order[edge.source]! > order[edge.target]!)
+      const placed = layoutLayeredGraph({ ...input, cycleOriented: true, edges: edges.map((edge, index) => reversed[index]
+        ? { ...edge, source: edge.target, target: edge.source } : edge) }, forestLayout, unsupported, routingWork, searchWork)
+      return { ...placed, edges: placed.edges.map((edge, index) => reversed[index] ? { ...edge, points: [...edge.points].reverse() } : edge) }
+    }
     return layoutCyclicGraph(input, incoming, outgoing,
       (flat, fail, work) => layoutLayeredGraph(flat, forestLayout, fail, work, searchWork),
       unsupported, routingWork, searchWork)
   }
+  const incomingWeight = hasShortEdges ? new Uint32Array(nodes.length) : undefined
+  const outgoingWeight = hasShortEdges ? new Uint32Array(nodes.length) : undefined
+  if (hasShortEdges) for (const edge of edges) {
+    const weight = edge.short ? 100 : 1
+    incomingWeight![edge.target] = incomingWeight![edge.target]! + weight
+    outgoingWeight![edge.source] = outgoingWeight![edge.source]! + weight
+  }
   // Move a vertex to a feasible bound that cannot increase total edge span.
   // Equal-degree moves favor the later bound; the fixed sweep limit keeps
   // this compaction deterministic even when several equally short ranks exist.
-  for (let sweep = 0; sweep < 4; sweep++) {
+  for (let sweep = 0; !partitioned && sweep < 4; sweep++) {
     let changed = false
     for (const reverse of [true, false]) {
       for (let cursor = 0; cursor < queue.length; cursor++) {
@@ -219,13 +255,59 @@ export function layoutLayeredGraph(
         let lower = 0, upper = maxRank
         for (const index of incoming[id]!) { const edge = edges[index]!; lower = Math.max(lower, rank[edge.source]! + privateRankSpan(edge, input.compactPrivateRanks)) }
         for (const index of outgoing[id]!) { const edge = edges[index]!; upper = Math.min(upper, rank[edge.target]! - privateRankSpan(edge, input.compactPrivateRanks)) }
-        const next = outgoing[id]!.length && outgoing[id]!.length >= incoming[id]!.length ? upper : lower
+        const later = hasShortEdges ? outgoingWeight![id]! >= incomingWeight![id]! : outgoing[id]!.length >= incoming[id]!.length
+        const next = outgoing[id]!.length && later ? upper : lower
         if (next !== rank[id]) { rank[id] = next; changed = true }
       }
     }
     if (!changed) break
   }
-  const optimalRanks = minimumSpanRanks(input, searchWork)
+  if (partitioned) {
+    // Compress numeric partitions to their authored order. Empty partition
+    // numbers consume no ranks; consecutive blocks share no placement layer.
+    const blocks = new Map<number, number[]>()
+    for (const index of queue) {
+      const partition = nodes[index]!.partition ?? 0
+      const block = blocks.get(partition) ?? []
+      block.push(index); blocks.set(partition, block)
+    }
+    let floor = 0
+    for (const partition of [...blocks.keys()].sort((a, b) => a - b)) {
+      let last = floor
+      for (const index of blocks.get(partition)!) {
+        let next = floor
+        for (const edgeIndex of incoming[index]!) {
+          const edge = edges[edgeIndex]!
+          next = Math.max(next, rank[edge.source]! + privateRankSpan(edge, input.compactPrivateRanks))
+        }
+        if (next >= MAX_RANKS) unsupported('agentic local rank-expansion limit')
+        rank[index] = next
+        last = Math.max(last, next)
+      }
+      floor = last + 1
+    }
+  }
+  if (partitioned && hasShortEdges) {
+    const windows = new Map<number, { lower: number; upper: number }>()
+    for (const [index, node] of nodes.entries()) {
+      const partition = node.partition ?? 0, window = windows.get(partition)
+      if (window) { window.lower = Math.min(window.lower, rank[index]!); window.upper = Math.max(window.upper, rank[index]!) }
+      else windows.set(partition, { lower: rank[index]!, upper: rank[index]! })
+    }
+    for (let sweep = 0; sweep < 4; sweep++) {
+      let changed = false
+      for (const reverse of [true, false]) for (let cursor = 0; cursor < queue.length; cursor++) {
+        const id = queue[reverse ? queue.length - 1 - cursor : cursor]!, window = windows.get(nodes[id]!.partition ?? 0)!
+        let lower = window.lower, upper = window.upper
+        for (const index of incoming[id]!) { const edge = edges[index]!; lower = Math.max(lower, rank[edge.source]! + privateRankSpan(edge, input.compactPrivateRanks)) }
+        for (const index of outgoing[id]!) { const edge = edges[index]!; upper = Math.min(upper, rank[edge.target]! - privateRankSpan(edge, input.compactPrivateRanks)) }
+        const next = outgoing[id]!.length && outgoingWeight![id]! >= incomingWeight![id]! ? upper : lower
+        if (next !== rank[id]) { rank[id] = next; changed = true }
+      }
+      if (!changed) break
+    }
+  }
+  const optimalRanks = !partitioned && minimumSpanRanks(input, searchWork, hasShortEdges)
   if (optimalRanks) rank.set(optimalRanks)
   maxRank = rank.reduce((maximum, value) => Math.max(maximum, value), 0)
   let expandedSize = nodes.length
@@ -273,6 +355,13 @@ export function layoutLayeredGraph(
   const bandWidths = new Float64Array(bands.length)
   const bandHeights = new Float64Array(bands.length)
   for (let index = 0; index < vertices.length; index++) bands[vertices[index]!.rank]!.push(index)
+  const preserveModelOrder = hasModelOrder ? (band: number[]): void => {
+    const ordered = band.filter(index => nodes[index]?.modelOrder !== undefined)
+    ordered.sort((a, b) => nodes[a]!.modelOrder! - nodes[b]!.modelOrder!)
+    let cursor = 0
+    for (let index = 0; index < band.length; index++) if (nodes[band[index]!]?.modelOrder !== undefined) band[index] = ordered[cursor++]!
+  } : undefined
+  if (preserveModelOrder) for (const band of bands) preserveModelOrder(band)
   let crossExtent = 0
   for (let index = 0; index < bands.length; index++) {
     const band = bands[index]!
@@ -323,6 +412,7 @@ export function layoutLayeredGraph(
         band[cursor] = vertex
       }
     } else band.sort((a, b) => barycenters[a]! - barycenters[b]! || a - b)
+    preserveModelOrder?.(band)
     assignBand(index)
   }
   const orderSlots = new Uint32Array(vertices.length)
@@ -381,6 +471,7 @@ export function layoutLayeredGraph(
       for (let rank = 0; rank < bands.length; rank++) {
         const band = bands[rank]!
         for (let index = 0; index + 1 < band.length; index++) {
+          if (hasModelOrder && nodes[band[index]!]?.modelOrder !== undefined && nodes[band[index + 1]!]?.modelOrder !== undefined) continue
           const a = vertices[band[index]!]!, b = vertices[band[index + 1]!]!
           const cost = a.incoming.length * b.incoming.length + a.outgoing.length * b.outgoing.length
           if (cost > routingWork.swaps) continue

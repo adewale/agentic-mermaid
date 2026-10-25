@@ -5,6 +5,10 @@ import { GraphLayoutUnsupportedError } from '../layout/backend.ts'
 import type { Direction, Point } from '../types.ts'
 import { countOpposingRouteOverlaps, countParallelRouteOverlaps } from '../layout-rubric.ts'
 import { assignChannelTracks } from '../layout/channel-tracks.ts'
+import { createEndpointSparseVisibilityGraph, createSparseAdjacencyStoragePool, createSparseQueryWorkspacePool, createSparseVisibilityGraph } from '../layout/compound-sparse-visibility.ts'
+import { createVisibilityGrid } from '../layout/compound-visibility.ts'
+import { createLazyVisibilityGrid } from '../layout/compound-lazy-visibility.ts'
+import { createCompoundObstacleIndex } from '../layout/compound-obstacle-index.ts'
 import { countPolylineCrossings } from '../shared/edge-crossings.ts'
 
 function measured(overrides: Partial<MeasuredGraph> = {}): MeasuredGraph {
@@ -47,6 +51,561 @@ function crossesInterior(a: Point, b: Point, box: Box): boolean {
 }
 
 describe('owned measured layered layout', () => {
+  test('sparse compound visibility preserves terminal leads around an overlapping obstacle union', () => {
+    const bounds = { x: 0, y: 0, width: 220, height: 160 }
+    const obstacles = [{ x: 0, y: 50, width: 20, height: 40 },
+      { x: 70, y: 25, width: 60, height: 75 }, { x: 105, y: 60, width: 55, height: 65 }]
+    const terminal = { port: { x: 20, y: 70 }, stub: { x: 28, y: 70 }, penalty: 0 }, goal = { x: 190, y: 70 }
+    const fail = (reason: string): never => { throw new GraphLayoutUnsupportedError(reason) }
+    const route = () => createSparseVisibilityGraph(bounds, obstacles, [terminal], [goal], 8,
+      { pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 }, 32768, fail).route([terminal], goal)
+    const points = route()
+    expect(route()).toEqual(points)
+    expect(points[0]).toEqual(terminal.port)
+    expect(points.at(-1)).toEqual(goal)
+    expect(points[1]!.y).toBe(terminal.port.y)
+    expect(points[1]!.x).toBeGreaterThanOrEqual(terminal.stub.x)
+    for (const point of points) {
+      expect(point.x).toBeGreaterThanOrEqual(bounds.x)
+      expect(point.x).toBeLessThanOrEqual(bounds.width)
+      expect(point.y).toBeGreaterThanOrEqual(bounds.y)
+      expect(point.y).toBeLessThanOrEqual(bounds.height)
+    }
+    for (let index = 1; index < points.length; index++) for (const obstacle of obstacles) {
+      expect(crossesInterior(points[index - 1]!, points[index]!, obstacle)).toBe(false)
+    }
+    const indexedWork = { pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 }
+    const indexed = createSparseVisibilityGraph(bounds, obstacles, [terminal], [goal], 8,
+      indexedWork, 32768, fail, undefined, false, () => createCompoundObstacleIndex(obstacles, indexedWork, fail))
+    expect(indexed.route([terminal], goal)).toEqual(points)
+    const constrained = createSparseVisibilityGraph(bounds, obstacles, [terminal], [goal], 8,
+      { pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 }, 32768, fail)
+      .route([terminal], goal, undefined, (a, b) => Math.min(a.y, b.y) >= 30)
+    expect(constrained.some(point => point.y >= 125)).toBe(true)
+    for (let index = 1; index < constrained.length; index++) {
+      expect(Math.min(constrained[index - 1]!.y, constrained[index]!.y)).toBeGreaterThanOrEqual(30)
+      for (const obstacle of obstacles) expect(crossesInterior(constrained[index - 1]!, constrained[index]!, obstacle)).toBe(false)
+    }
+  })
+
+  test('sparse compound visibility retains a clear route among staggered obstacles within its state budget', () => {
+    const bounds = { x: 0, y: 0, width: 600, height: 500 }
+    const obstacles = Array.from({ length: 40 }, (_, index) => ({ x: 20 + index * 12, y: 30 + index * 9, width: 4, height: 4 }))
+    const terminal = { port: { x: 0, y: 10 }, stub: { x: 8, y: 10 }, penalty: 0 }, goal = { x: 580, y: 10 }
+    const fail = (reason: string): never => { throw new GraphLayoutUnsupportedError(reason) }
+    const work = () => ({ pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 })
+    const graph = createSparseVisibilityGraph(bounds, obstacles, [terminal], [goal], 8, work(), 10000, fail)
+    expect(graph.vertices).toBeLessThanOrEqual(10000)
+    expect(graph.route([terminal], goal)).toEqual([terminal.port, goal])
+    expect(() => graph.route([terminal], goal, () => false)).toThrow('no bounded clear corridor')
+    expect(() => createSparseVisibilityGraph(bounds, obstacles, [terminal], [goal], 8, work(), 3, fail)).toThrow('visibility-expansion limit')
+    expect(() => createSparseVisibilityGraph(bounds, obstacles, [terminal], [goal], 8, { pairs: 0, arcs: 0, swaps: 0 }, 10000, fail)).toThrow('obstacle-work limit')
+  })
+
+  test('sparse solid projections retain the fresh-history route within a shared comparison budget', () => {
+    const bounds = { x: 0, y: 0, width: 600, height: 500 }
+    const obstacles = Array.from({ length: 40 }, (_, index) => ({ x: 20 + index * 12, y: 30 + index * 9, width: 4, height: 4 }))
+    const terminal = { port: { x: 0, y: 10 }, stub: { x: 8, y: 10 }, penalty: 0 }, goal = { x: 580, y: 10 }
+    const fail = (reason: string): never => { throw new GraphLayoutUnsupportedError(reason) }
+    const reference = createSparseVisibilityGraph(bounds, obstacles, [terminal], [goal], 8,
+      { pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 }, 10000, fail).route([terminal], goal)
+    const work = { pairs: 50000, arcs: 65536, swaps: 1_000_000 }
+    const indexed = createSparseVisibilityGraph(bounds, obstacles, [terminal], [goal], 8,
+      work, 10000, fail, undefined, false, () => createCompoundObstacleIndex(obstacles, work, fail))
+    expect(indexed.route([terminal], goal)).toEqual(reference)
+    expect(reference).toEqual([terminal.port, goal])
+    expect(work.pairs).toBeGreaterThanOrEqual(0)
+    expect(work.arcs).toBeGreaterThanOrEqual(0)
+  })
+
+  test('sparse compound visibility refuses an unreachable enclosed goal', () => {
+    const terminal = { port: { x: 0, y: 80 }, stub: { x: 8, y: 80 }, penalty: 0 }, goal = { x: 120, y: 80 }
+    const graph = createSparseVisibilityGraph({ x: 0, y: 0, width: 220, height: 160 }, [
+      { x: 90, y: 50, width: 60, height: 10 }, { x: 90, y: 100, width: 60, height: 10 },
+      { x: 90, y: 50, width: 10, height: 60 }, { x: 140, y: 50, width: 10, height: 60 },
+    ], [terminal], [goal], 8, { pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 }, 32768,
+    reason => { throw new GraphLayoutUnsupportedError(reason) })
+    expect(() => graph.route([terminal], goal)).toThrow('no bounded clear corridor')
+  })
+
+  test('endpoint sparse corridors retain all intersecting solids within the original host bounds', () => {
+    const obstacles = [{ x: 0, y: 40, width: 20, height: 40 }, { x: 90, y: 30, width: 30, height: 100 },
+      ...Array.from({ length: 40 }, (_, index) => ({ x: 300 + index * 6, y: 30 + index * 9, width: 4, height: 4 }))]
+    const terminal = { port: { x: 20, y: 60 }, stub: { x: 28, y: 60 }, penalty: 0 }, goal = { x: 230, y: 60 }
+    const graph = createEndpointSparseVisibilityGraph({ x: 0, y: 0, width: 600, height: 500 },
+      { x: 0, y: 0, width: 200, height: 200 }, obstacles, [terminal], goal, 8,
+      { pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 }, 300,
+      reason => { throw new GraphLayoutUnsupportedError(reason) })
+    expect(graph.vertices).toBeLessThanOrEqual(300)
+    const points = graph.route([terminal], goal)
+    expect(points[0]).toEqual(terminal.port)
+    expect(points.at(-1)).toEqual(goal)
+    expect(points[1]!.y).toBe(terminal.port.y)
+    expect(points[1]!.x).toBeGreaterThanOrEqual(terminal.stub.x)
+    for (const point of points) {
+      expect(point.x).toBeGreaterThanOrEqual(0)
+      expect(point.x).toBeLessThanOrEqual(238)
+      expect(point.y).toBeGreaterThanOrEqual(0)
+      expect(point.y).toBeLessThanOrEqual(216)
+    }
+    for (let index = 1; index < points.length; index++) for (const obstacle of obstacles) {
+      expect(crossesInterior(points[index - 1]!, points[index]!, obstacle)).toBe(false)
+    }
+  })
+
+  test('nested sparse queries reserve their cumulative capacity before a shared budget can be exceeded', () => {
+    const terminal = { port: { x: 0, y: 10 }, stub: { x: 8, y: 10 }, penalty: 0 }, goal = { x: 20, y: 10 }
+    const fail = (reason: string): never => { throw new GraphLayoutUnsupportedError(reason) }
+    let allocated = 0
+    const reserve = (amount: number): void => {
+      if (allocated + amount > 80) fail('shared expansion limit')
+      allocated += amount
+    }
+    const make = () => createSparseVisibilityGraph({ x: 0, y: 0, width: 20, height: 20 }, [], [terminal], [goal], 8,
+      { pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 }, 32768, fail, reserve)
+    const first = make(), second = make(), prepared = allocated
+    expect(() => first.route([terminal], goal, () => {
+      second.route([terminal], goal, () => { first.route([terminal], goal); return true })
+      return true
+    })).toThrow('shared expansion limit')
+    expect(allocated).toBeGreaterThan(prepared)
+    expect(allocated).toBeLessThanOrEqual(80)
+    expect(first.vertices + second.vertices).toBe(allocated)
+  })
+
+  test('sequential sparse goals reuse owned storage while active nested searches reserve their own workspace', () => {
+    const bounds = { x: 0, y: 0, width: 20, height: 20 }
+    const terminal = { port: { x: 0, y: 10 }, stub: { x: 8, y: 10 }, penalty: 0 }
+    const goals = [{ x: 20, y: 10 }, { x: 20, y: 20 }, { x: 20, y: 0 }]
+    const work = () => ({ pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 })
+    const fail = (reason: string): never => { throw new GraphLayoutUnsupportedError(reason) }
+    let allocated = 0
+    const reserve = (amount: number): void => { if (allocated + amount > 100) fail('shared expansion limit'); allocated += amount }
+    const graph = createSparseVisibilityGraph(bounds, [], [terminal], goals, 8, work(), 32768, fail, reserve)
+    for (const goal of goals) {
+      const fresh = createSparseVisibilityGraph(bounds, [], [terminal], goals, 8, work(), 32768, fail)
+      expect(graph.route([terminal], goal)).toEqual(fresh.route([terminal], goal))
+    }
+    expect(allocated).toBeLessThanOrEqual(100)
+    expect(graph.vertices).toBe(allocated)
+    let nestedAllocated = 0
+    const nested = createSparseVisibilityGraph(bounds, [], [terminal], goals, 8, work(), 32768, fail, amount => {
+      if (nestedAllocated + amount > 100) fail('shared expansion limit')
+      nestedAllocated += amount
+    })
+    expect(() => nested.route([terminal], goals[0]!, () => { nested.route([terminal], goals[1]!); return true })).toThrow('shared expansion limit')
+    expect(nested.vertices).toBe(nestedAllocated)
+    expect(nestedAllocated).toBeLessThanOrEqual(100)
+  })
+
+  test('successive sparse graphs share inactive physical query buffers without sharing active searches', () => {
+    const bounds = { x: 0, y: 0, width: 20, height: 20 }
+    const terminal = { port: { x: 0, y: 10 }, stub: { x: 8, y: 10 }, penalty: 0 }
+    const goals = [{ x: 20, y: 10 }, { x: 20, y: 20 }, { x: 20, y: 0 }]
+    const work = () => ({ pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 })
+    const fail = (reason: string): never => { throw new GraphLayoutUnsupportedError(reason) }
+    let allocated = 0
+    const reserve = (amount: number): void => { if (allocated + amount > 100) fail('shared expansion limit'); allocated += amount }
+    const pool = createSparseQueryWorkspacePool(reserve, fail), sharedWork = work(), graphs: ReturnType<typeof createSparseVisibilityGraph>[] = []
+    const queries = [
+      { bounds, terminal, goals, goal: goals[0]! },
+      { bounds: { x: 40, y: 0, width: 20, height: 10 }, terminal: { port: { x: 40, y: 10 }, stub: { x: 48, y: 10 }, penalty: 0 },
+        goals: [{ x: 60, y: 10 }, { x: 60, y: 0 }, { x: 48, y: 0 }], goal: { x: 60, y: 0 } },
+      { bounds: { x: 80, y: 0, width: 20, height: 20 }, terminal: { port: { x: 80, y: 10 }, stub: { x: 88, y: 10 }, penalty: 0 },
+        goals: [{ x: 100, y: 10 }, { x: 100, y: 20 }, { x: 100, y: 0 }], goal: { x: 100, y: 0 } },
+    ]
+    for (const query of queries) {
+      const graph = createSparseVisibilityGraph(query.bounds, [], [query.terminal], query.goals, 8, sharedWork, 32768, fail, reserve, false, undefined, pool)
+      graphs.push(graph)
+      const fresh = createSparseVisibilityGraph(query.bounds, [], [query.terminal], query.goals, 8, work(), 32768, fail)
+      expect(graph.route([query.terminal], query.goal)).toEqual(fresh.route([query.terminal], query.goal))
+    }
+    expect(allocated).toBeLessThanOrEqual(100)
+    expect(graphs.reduce((sum, graph) => sum + graph.vertices, pool.vertices)).toBe(allocated)
+    let nestedAllocated = 0
+    const nestedReserve = (amount: number): void => { if (nestedAllocated + amount > 100) fail('shared expansion limit'); nestedAllocated += amount }
+    const nestedPool = createSparseQueryWorkspacePool(nestedReserve, fail), nestedWork = work()
+    const make = () => createSparseVisibilityGraph(bounds, [], [terminal], goals, 8, nestedWork, 32768, fail, nestedReserve, false, undefined, nestedPool)
+    const first = make(), second = make()
+    expect(() => first.route([terminal], goals[0]!, () => { second.route([terminal], goals[1]!); return true })).toThrow('shared expansion limit')
+    expect(first.vertices + second.vertices + nestedPool.vertices).toBe(nestedAllocated)
+    expect(nestedAllocated).toBeLessThanOrEqual(100)
+  })
+
+  test('lazy dense visibility preserves legacy routes across queries and charges failures monotonically', () => {
+    const bounds = { x: 0, y: 0, width: 220, height: 160 }
+    const obstacles = [{ x: 70, y: 25, width: 60, height: 75 }, { x: 105, y: 60, width: 55, height: 65 }]
+    const terminals = [70, 120].map(y => ({ port: { x: 20, y }, stub: { x: 28, y }, penalty: 0 }))
+    const goals = [{ x: 190, y: 70 }, { x: 190, y: 120 }], blocked = { x: 90, y: 50 }
+    const work = () => ({ pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 })
+    const fail = (reason: string): never => { throw new GraphLayoutUnsupportedError(reason) }
+    const legacy = createVisibilityGrid(bounds, obstacles, terminals, [...goals, blocked], 8, work(), 32768, fail)
+    let allocated = 0
+    const reserve = (amount: number): void => {
+      if (allocated + amount > 32768) fail('shared expansion limit')
+      allocated += amount
+    }
+    const lazy = createLazyVisibilityGrid(bounds, obstacles, terminals, [...goals, blocked], 8, work(), 32768, fail, reserve)
+    for (let index = 0; index < goals.length; index++) {
+      const expected = legacy.route([terminals[index]!], goals[index]!)
+      expect(lazy.route([terminals[index]!], goals[index]!)).toEqual(expected)
+      expect(lazy.vertices).toBe(allocated)
+    }
+    const before = allocated
+    expect(() => lazy.route(terminals, blocked)).toThrow('no clear anchor')
+    expect(lazy.vertices).toBeGreaterThanOrEqual(before)
+    expect(lazy.vertices).toBe(allocated)
+    let limited = 0
+    const capped = createLazyVisibilityGrid(bounds, obstacles, terminals, goals, 8, work(), 32768, fail, amount => {
+      if (limited + amount > 64) fail('shared expansion limit')
+      limited += amount
+    })
+    expect(() => capped.route(terminals, goals[0]!)).toThrow('shared expansion limit')
+    expect(limited).toBeLessThanOrEqual(64)
+    expect(capped.vertices).toBe(limited)
+  })
+
+  test('retired sparse graphs reuse physical adjacency storage within a cumulative arc budget', () => {
+    const work = { pairs: 1_000_000, arcs: 180, swaps: 1_000_000 }
+    const fail = (reason: string): never => { throw new GraphLayoutUnsupportedError(reason) }
+    const reservations: number[] = []
+    const pool = createSparseAdjacencyStoragePool(amount => {
+      if (work.arcs < amount) fail('shared adjacency limit')
+      work.arcs -= amount; reservations.push(amount)
+    }, fail)
+    const paths: Point[][] = [], expected: Point[][] = []
+    for (const offset of [0, 40, -40]) {
+      const bounds = { x: offset, y: offset, width: 20, height: 20 }
+      const terminal = { port: { x: offset, y: offset + 5 }, stub: { x: offset + 8, y: offset + 5 }, penalty: 0 }, goal = { x: offset + 20, y: offset + 15 }
+      const reference = createSparseVisibilityGraph(bounds, [], [terminal], [goal], 8,
+        { pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 }, 32768, fail).route([terminal], goal)
+      const graph = createSparseVisibilityGraph(bounds, [], [terminal], [goal], 8,
+        work, 32768, fail, undefined, false, undefined, undefined, undefined, pool)
+      paths.push(graph.route([terminal], goal)); expected.push(reference)
+      graph.retire()
+    }
+    expect(paths).toEqual(expected)
+    expect(reservations).toHaveLength(1)
+    expect(pool.arcs).toBe(reservations[0]!)
+    expect(work.arcs).toBeGreaterThanOrEqual(0)
+  })
+
+  test('simultaneous sparse graph leases isolate nested searches and reject retirement or stale reuse', () => {
+    const work = { pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 }
+    const fail = (reason: string): never => { throw new GraphLayoutUnsupportedError(reason) }
+    const pool = createSparseAdjacencyStoragePool(amount => {
+      if (work.arcs < amount) fail('shared adjacency limit')
+      work.arcs -= amount
+    }, fail)
+    const make = (offset: number, corner = false) => {
+      const bounds = { x: offset, y: offset, width: 20, height: 20 }
+      const terminal = corner ? { port: { x: offset, y: offset }, stub: { x: offset, y: offset }, penalty: 0 }
+        : { port: { x: offset, y: offset + 5 }, stub: { x: offset + 8, y: offset + 5 }, penalty: 0 }
+      const goal = { x: offset + 20, y: offset + (corner ? 20 : 15) }
+      const graph = createSparseVisibilityGraph(bounds, [], [terminal], [goal], 8, work, 32768, fail,
+        undefined, false, undefined, undefined, undefined, pool)
+      const expected = createSparseVisibilityGraph(bounds, [], [terminal], [goal], 8,
+        { pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 }, 32768, fail).route([terminal], goal)
+      return { graph, terminal, goal, expected }
+    }
+    const first = make(0), firstCapacity = pool.arcs, second = make(40)
+    expect(pool.arcs).toBe(firstCapacity * 2)
+    const firstPoints = first.graph.route([first.terminal], first.goal, () => {
+      expect(() => first.graph.retire()).toThrow('active query')
+      expect(second.graph.route([second.terminal], second.goal, () => {
+        expect(() => second.graph.retire()).toThrow('active query')
+        expect(() => first.graph.retire()).toThrow('active query')
+        return true
+      })).toEqual(second.expected)
+      return true
+    })
+    expect(firstPoints).toEqual(first.expected)
+    second.graph.retire()
+    const third = make(-40)
+    expect(pool.arcs).toBe(firstCapacity * 2)
+    const beforeStale = { ...work }
+    expect(() => second.graph.route([second.terminal], second.goal)).toThrow('retired sparse graph')
+    expect(work).toEqual(beforeStale)
+    second.graph.retire()
+    const beforeFourth = pool.arcs, fourth = make(80, true)
+    expect(pool.arcs).toBeGreaterThan(beforeFourth)
+    expect(third.graph.route([third.terminal], third.goal)).toEqual(third.expected)
+    expect(fourth.graph.route([fourth.terminal], fourth.goal)).toEqual(fourth.expected)
+    expect(first.graph.route([first.terminal], first.goal)).toEqual(firstPoints)
+    first.graph.retire(); third.graph.retire(); fourth.graph.retire()
+  })
+
+  test('a failed sparse construction releases its lease while preserving another live graph', () => {
+    const work = { pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 }
+    const fail = (reason: string): never => { throw new GraphLayoutUnsupportedError(reason) }
+    const pool = createSparseAdjacencyStoragePool(amount => {
+      if (work.arcs < amount) fail('shared adjacency limit')
+      work.arcs -= amount
+    }, fail)
+    const bounds = { x: 0, y: 0, width: 20, height: 20 }, terminal = { port: { x: 0, y: 5 }, stub: { x: 8, y: 5 }, penalty: 0 }, goal = { x: 20, y: 15 }
+    const live = createSparseVisibilityGraph(bounds, [], [terminal], [goal], 8, work, 32768, fail,
+      undefined, false, undefined, undefined, undefined, pool)
+    const firstCapacity = pool.arcs, expected = live.route([terminal], goal), original = structuredClone(expected)
+    const queries = createCompoundObstacleIndex([], work, fail), interrupted = new Error('construction interrupted')
+    let abort = true
+    const provider = { ...queries, entersSegment: (...args: Parameters<typeof queries.entersSegment>) => {
+      if (abort) throw interrupted
+      return queries.entersSegment(...args)
+    } }
+    const construct = () => createSparseVisibilityGraph(bounds, [], [terminal], [goal], 8, work, 32768, fail,
+      undefined, false, () => provider, undefined, undefined, pool)
+    expect(construct).toThrow(interrupted)
+    expect(pool.arcs).toBe(firstCapacity * 2)
+    abort = false
+    const next = construct()
+    expect(pool.arcs).toBe(firstCapacity * 2)
+    expect(next.route([terminal], goal)).toEqual(original)
+    expect(live.route([terminal], goal)).toEqual(original)
+    expect(expected).toEqual(original)
+    next.retire(); live.retire()
+  })
+
+  test('adjacency growth retains full old buffers and refuses capacity reuse while both leases are live', () => {
+    const work = { pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 }
+    const fail = (reason: string): never => { throw new GraphLayoutUnsupportedError(reason) }
+    const reservations: number[] = []
+    let retained = 0
+    const pool = createSparseAdjacencyStoragePool(amount => {
+      if (retained + amount > 80 || work.arcs < amount) fail('shared adjacency limit')
+      work.arcs -= amount; retained += amount; reservations.push(amount)
+    }, fail)
+    const bounds = { x: 0, y: 0, width: 20, height: 20 }, goal = { x: 20, y: 20 }
+    const corner = { port: { x: 0, y: 0 }, stub: { x: 0, y: 0 }, penalty: 0 }
+    const side = { port: { x: 0, y: 5 }, stub: { x: 8, y: 5 }, penalty: 0 }
+    const make = (terminal: typeof corner) => createSparseVisibilityGraph(bounds, [], [terminal], [goal], 8,
+      work, 32768, fail, undefined, false, undefined, undefined, undefined, pool)
+    const small = make(corner)
+    small.retire()
+    const large = make(side)
+    expect(reservations).toHaveLength(2)
+    expect(reservations[1]!).toBeGreaterThan(reservations[0]!)
+    expect(pool.arcs).toBe(reservations[0]! + reservations[1]!)
+    const smallAgain = make(corner), beforeRejected = pool.arcs
+    expect(() => make(side)).toThrow('shared adjacency limit')
+    expect(pool.arcs).toBe(beforeRejected)
+    expect(large.route([side], goal).at(-1)).toEqual(goal)
+    expect(smallAgain.route([corner], goal).at(-1)).toEqual(goal)
+    expect(retained).toBe(pool.arcs)
+    large.retire(); smallAgain.retire()
+  })
+
+  test('interior sparse guides use free outer strips without refunding a previous search', () => {
+    const bounds = { x: 0, y: 0, width: 100, height: 100 }
+    const obstacles = [{ x: 0, y: 0, width: 80, height: 20 }, { x: 0, y: 60, width: 80, height: 20 },
+      { x: 40, y: 40, width: 20, height: 20 }]
+    const terminal = { port: { x: 60, y: 50 }, stub: { x: 68, y: 50 }, penalty: 0 }, goal = { x: 60, y: 90 }
+    const work = { pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 }
+    const fail = (reason: string): never => { throw new GraphLayoutUnsupportedError(reason) }
+    let allocated = 0
+    const reserve = (amount: number): void => { if (allocated + amount > 32768) fail('shared expansion limit'); allocated += amount }
+    const canTraverse = (a: Point, b: Point): boolean => a.x !== b.x || ![0, 80, 100].includes(a.x)
+    const first = createSparseVisibilityGraph(bounds, obstacles, [terminal], [goal], 8, work, 32768, fail, reserve)
+    try { first.route([terminal], goal, undefined, canTraverse) } catch (error) { if (!(error instanceof GraphLayoutUnsupportedError)) throw error }
+    const prior = allocated, pairsBefore = work.pairs
+    const retry = createSparseVisibilityGraph(bounds, obstacles, [terminal], [goal], 8, work, 32768 - allocated, fail, reserve, true)
+    const points = retry.route([terminal], goal, undefined, canTraverse)
+    expect(points.some(point => point.x === 90 && point.y === 90)).toBe(true)
+    expect(points[0]).toEqual(terminal.port)
+    expect(points.at(-1)).toEqual(goal)
+    expect(allocated).toBeGreaterThan(prior)
+    expect(allocated).toBe(first.vertices + retry.vertices)
+    expect(work.pairs).toBeLessThan(pairsBefore)
+    for (let index = 1; index < points.length; index++) for (const obstacle of obstacles) {
+      expect(crossesInterior(points[index - 1]!, points[index]!, obstacle)).toBe(false)
+    }
+  })
+
+  test.each([false, true])('outer sparse guides split at actual parallel rails while preserving perpendicular crossings (transpose %s)', transpose => {
+    const point = (x: number, y: number): Point => transpose ? { x: y, y: x } : { x, y }
+    const bounds = { x: 0, y: 0, width: 100, height: 100 }
+    const obstacles = [{ x: 0, y: 0, width: 80, height: 20 }, { x: 0, y: 60, width: 80, height: 20 },
+      { x: 40, y: 40, width: 20, height: 20 }].map(box => transpose
+      ? { x: box.y, y: box.x, width: box.height, height: box.width } : box)
+    const terminal = { port: point(60, 50), stub: point(68, 50), penalty: 0 }, goal = point(60, 90)
+    const rails = [[point(90, 0), point(90, 100)], [point(80, 70), point(100, 70)]] as const
+    const original = structuredClone(rails)
+    const work = { pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 }
+    const fail = (reason: string): never => { throw new GraphLayoutUnsupportedError(reason) }
+    let allocated = 0
+    const reserve = (amount: number): void => { if (allocated + amount > 32768) fail('shared expansion limit'); allocated += amount }
+    const canTraverse = (a: Point, b: Point): boolean => transpose
+      ? a.y !== b.y || ![0, 80, 90, 100].includes(a.y)
+      : a.x !== b.x || ![0, 80, 90, 100].includes(a.x)
+    const first = createSparseVisibilityGraph(bounds, obstacles, [terminal], [goal], 8, work, 32768, fail, reserve, true)
+    expect(() => first.route([terminal], goal, undefined, canTraverse)).toThrow('no bounded clear corridor')
+    const prior = allocated, pairsBefore = work.pairs
+    const retry = createSparseVisibilityGraph(bounds, obstacles, [terminal], [goal], 8, work, 32768 - allocated, fail, reserve, true, undefined, undefined, rails)
+    const points = retry.route([terminal], goal, undefined, canTraverse)
+    expect(points).toContainEqual(point(85, 90))
+    expect(points[0]).toEqual(terminal.port)
+    expect(points.at(-1)).toEqual(goal)
+    expect(allocated).toBeGreaterThan(prior)
+    expect(allocated).toBe(first.vertices + retry.vertices)
+    expect(work.pairs).toBeLessThan(pairsBefore)
+    expect(rails).toEqual(original)
+    expect(countPolylineCrossings([{ points }, { points: [...rails[1]] }])).toBe(1)
+    for (let index = 1; index < points.length; index++) for (const obstacle of obstacles) {
+      expect(crossesInterior(points[index - 1]!, points[index]!, obstacle)).toBe(false)
+    }
+  })
+
+  test('sparse root transitions retain their selected nonzero lead before alternative paths merge', () => {
+    const bounds = { x: 0, y: 0, width: 40, height: 40 }, obstacles = [{ x: 0, y: 0, width: 10, height: 40 }]
+    const terminal = { port: { x: 10, y: 10 }, stub: { x: 18, y: 10 }, penalty: 0 }, goal = { x: 30, y: 30 }
+    const work = () => ({ pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 })
+    const fail = (reason: string): never => { throw new GraphLayoutUnsupportedError(reason) }
+    const canTraverse = (a: Point, b: Point): boolean => a.x !== b.x || ![18, 30].includes(a.x)
+    const graph = createSparseVisibilityGraph(bounds, obstacles, [terminal], [goal], 8, work(), 32768, fail)
+    const points = graph.route([terminal], goal, path => path[1]!.y === terminal.port.y && path[1]!.x >= terminal.stub.x
+      && path.at(-2)!.y === goal.y && path.filter(p => p.x === terminal.port.x && p.y === terminal.port.y).length === 1, canTraverse)
+    expect(points[0]).toEqual(terminal.port)
+    expect(points[1]!.y).toBe(terminal.port.y)
+    expect(points[1]!.x).toBeGreaterThanOrEqual(terminal.stub.x)
+    expect(points.at(-1)).toEqual(goal)
+    for (let index = 1; index < points.length; index++) expect(crossesInterior(points[index - 1]!, points[index]!, obstacles[0]!)).toBe(false)
+    const zero = { port: terminal.port, stub: terminal.port, penalty: 0 }
+    const synthetic = createSparseVisibilityGraph(bounds, obstacles, [zero], [goal], 8, work(), 32768, fail)
+    expect(synthetic.route([zero], goal, path => path.at(-2)!.y === goal.y, canTraverse).at(-1)).toEqual(goal)
+  })
+
+  test('retains labelled cyclic leaf contacts across nested compound scopes', () => {
+    const padding = { top: 35, right: 24, bottom: 24, left: 24 }
+    const pairs = [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [8, 9], [9, 0], [0, 2], [3, 5], [6, 8], [9, 1], [1, 0], [9, 9]]
+    const input = measured({ nodes: Array.from({ length: 10 }, (_, index) => ({
+      id: `card-${index}`, width: 70 + index % 3 * 20, height: 40 + index % 2 * 12, parent: index < 5 ? 0 : 1,
+    })), groups: [{ id: 'outer', minWidth: 150, padding }, { id: 'inner', parent: 0, minWidth: 150, padding }],
+    edges: pairs.map(([source, target], index) => ({ source: source!, target: target!, minSpan: 1,
+      ...(index % 3 === 0 ? { label: { width: 80 + index % 4 * 20, height: 18 } } : {}) })) })
+    const original = structuredClone(input), output = layoutAgenticGraph(input)
+    expect(input).toEqual(original)
+    expect(layoutAgenticGraph(input)).toEqual(output)
+    expect(output.edges).toHaveLength(input.edges.length)
+    const boxes = output.nodes.map((point, index) => ({ ...input.nodes[index]!, ...point }))
+    for (const [index, route] of output.edges.entries()) {
+      const edge = input.edges[index]!
+      expect(onOutline(route.points[0]!, boxes[edge.source]!)).toBe(true)
+      expect(onOutline(route.points.at(-1)!, boxes[edge.target]!)).toBe(true)
+      for (let segment = 1; segment < route.points.length; segment++) {
+        for (const box of boxes) expect(crossesInterior(route.points[segment - 1]!, route.points[segment]!, box)).toBe(false)
+        for (const frame of output.groups!) expect(crossesInterior(route.points[segment - 1]!, route.points[segment]!, { ...frame, height: padding.top })).toBe(false)
+      }
+      if (edge.label) expect(route.labelPosition).toBeDefined()
+    }
+  })
+
+  test.each(['TD', 'BT', 'LR', 'RL'] as const)('partition blocks preserve spans, parallel contacts and loops in %s', direction => {
+    const input = measured({ direction, nodes: [
+      { id: 'a', width: 80, height: 40, partition: 0 },
+      { id: 'b', width: 60, height: 55, partition: 0 },
+      { id: 'c', width: 100, height: 30, partition: 10000 },
+      { id: 'unlisted', width: 70, height: 45 },
+    ], edges: [
+      { source: 0, target: 1, minSpan: 3 },
+      { source: 1, target: 2, minSpan: 1 },
+      { source: 2, target: 0, minSpan: 2, label: { width: 80, height: 20 } },
+      { source: 2, target: 0, minSpan: 1 },
+      { source: 2, target: 2, minSpan: 1 },
+    ] })
+    const original = structuredClone(input), output = layoutAgenticGraph(input)
+    expect(input).toEqual(original)
+    expect(layoutAgenticGraph(input)).toEqual(output)
+    const boxes = output.nodes.map((point, index) => ({ ...input.nodes[index]!, ...point }))
+    const horizontal = direction === 'LR' || direction === 'RL'
+    const reverse = direction === 'BT' || direction === 'RL'
+    const before = (a: Box, b: Box) => reverse
+      ? (horizontal ? a.x : a.y) >= (horizontal ? b.x + b.width : b.y + b.height)
+      : (horizontal ? a.x + a.width : a.y + a.height) <= (horizontal ? b.x : b.y)
+    for (const index of [0, 1, 3]) expect(before(boxes[index]!, boxes[2]!)).toBe(true)
+    const mainGap = horizontal ? Math.abs(boxes[1]!.x - boxes[0]!.x) : Math.abs(boxes[1]!.y - boxes[0]!.y)
+    expect(mainGap).toBeGreaterThanOrEqual(input.layerSpacing * 3)
+    expect(output.edges).toHaveLength(input.edges.length)
+    for (const [index, route] of output.edges.entries()) {
+      const authored = input.edges[index]!
+      expect(onOutline(route.points[0]!, boxes[authored.source]!)).toBe(true)
+      expect(onOutline(route.points.at(-1)!, boxes[authored.target]!)).toBe(true)
+      for (let segment = 1; segment < route.points.length; segment++) for (const box of boxes) {
+        expect(crossesInterior(route.points[segment - 1]!, route.points[segment]!, box)).toBe(false)
+      }
+    }
+    expect(output.edges[2]!.labelPosition).toBeDefined()
+    expect(() => layoutAgenticGraph({ ...input, edges: [{ source: 0, target: 2, minSpan: 2048 }] })).toThrow('rank-expansion limit')
+    expect(() => layoutAgenticGraph({ ...input, nodes: input.nodes.map(node => ({ ...node, partition: -1 })) })).toThrow('Invalid measured partition')
+  })
+
+  test('direct compound corridors retain more than sixteen authored cross-scope leaf contacts', () => {
+    const padding = { top: 40, right: 24, bottom: 24, left: 24 }
+    const input = measured({ direction: 'LR', nodes: Array.from({ length: 34 }, (_, index) => ({
+      id: `leaf-${index}`, width: 80, height: 36, parent: index < 17 ? 0 : 1,
+    })), groups: [{ id: 'left', minWidth: 120, padding }, { id: 'right', minWidth: 120, padding }],
+    edges: Array.from({ length: 17 }, (_, index) => ({ source: index, target: index + 17, minSpan: 1 })) })
+    const original = structuredClone(input), output = layoutAgenticGraph(input)
+    expect(input).toEqual(original)
+    expect(layoutAgenticGraph(input)).toEqual(output)
+    expect(output.edges).toHaveLength(17)
+    expect(output.boundaryRoutes).toEqual(Array.from({ length: 17 }, (_, index) => index))
+    const boxes = output.nodes.map((point, index) => ({ ...input.nodes[index]!, ...point }))
+    for (const [index, route] of output.edges.entries()) {
+      expect(onOutline(route.points[0]!, boxes[index]!)).toBe(true)
+      expect(onOutline(route.points.at(-1)!, boxes[index + 17]!)).toBe(true)
+      for (let segment = 1; segment < route.points.length; segment++) {
+        for (const box of boxes) expect(crossesInterior(route.points[segment - 1]!, route.points[segment]!, box)).toBe(false)
+        for (const frame of output.groups!) expect(crossesInterior(route.points[segment - 1]!, route.points[segment]!, { ...frame, height: padding.top })).toBe(false)
+      }
+    }
+    expect(() => layoutLayeredGraph(input, () => undefined, reason => { throw new GraphLayoutUnsupportedError(reason) }, { pairs: 0, arcs: 0, swaps: 0 })).toThrow(GraphLayoutUnsupportedError)
+  })
+
+  test('compound fan-out reserves distinct authored source rays beyond twelve incident edges', () => {
+    const padding = { top: 40, right: 24, bottom: 24, left: 24 }
+    const input = measured({ direction: 'LR', nodes: [
+      { id: 'hub', width: 120, height: 80, parent: 0 },
+      ...Array.from({ length: 18 }, (_, index) => ({ id: `target-${index}`, width: 80, height: 36, parent: 1 })),
+    ], groups: [{ id: 'left', minWidth: 120, padding }, { id: 'right', minWidth: 120, padding }],
+    edges: Array.from({ length: 18 }, (_, index) => ({ source: 0, target: index + 1, minSpan: 1 })) })
+    const output = layoutAgenticGraph(input)
+    expect(layoutAgenticGraph(input)).toEqual(output)
+    expect(output.edges).toHaveLength(18)
+    const boxes = output.nodes.map((point, index) => ({ ...input.nodes[index]!, ...point }))
+    const starts = output.edges.map(route => `${route.points[0]!.x},${route.points[0]!.y}`)
+    expect(new Set(starts).size).toBe(18)
+    for (const [index, route] of output.edges.entries()) {
+      expect(onOutline(route.points[0]!, boxes[0]!)).toBe(true)
+      expect(onOutline(route.points.at(-1)!, boxes[index + 1]!)).toBe(true)
+      for (let segment = 1; segment < route.points.length; segment++) {
+        for (const box of boxes) expect(crossesInterior(route.points[segment - 1]!, route.points[segment]!, box)).toBe(false)
+        for (const frame of output.groups!) expect(crossesInterior(route.points[segment - 1]!, route.points[segment]!, { ...frame, height: padding.top })).toBe(false)
+      }
+    }
+  })
+
+  test('preserves reciprocal authored routes within an ordered partition', () => {
+    const input = measured({ nodes: [
+      { id: 'a', width: 80, height: 40, partition: 0 },
+      { id: 'b', width: 60, height: 55, partition: 0 },
+      { id: 'c', width: 100, height: 30, partition: 1 },
+    ], edges: [
+      { source: 0, target: 1, minSpan: 1 }, { source: 1, target: 0, minSpan: 1 }, { source: 1, target: 2, minSpan: 1 },
+    ] })
+    const original = structuredClone(input), output = layoutAgenticGraph(input)
+    expect(input).toEqual(original)
+    expect(layoutAgenticGraph(input)).toEqual(output)
+    const boxes = output.nodes.map((point, index) => ({ ...input.nodes[index]!, ...point }))
+    expect(boxes[2]!.y).toBeGreaterThanOrEqual(Math.max(boxes[0]!.y + boxes[0]!.height, boxes[1]!.y + boxes[1]!.height))
+    for (const [index, route] of output.edges.entries()) {
+      const edge = input.edges[index]!
+      expect(onOutline(route.points[0]!, boxes[edge.source]!)).toBe(true)
+      expect(onOutline(route.points.at(-1)!, boxes[edge.target]!)).toBe(true)
+      for (let segment = 1; segment < route.points.length; segment++) for (const box of boxes) {
+        expect(crossesInterior(route.points[segment - 1]!, route.points[segment]!, box)).toBe(false)
+      }
+    }
+  })
+
   test.each([0, 310, 1_000_000])('retains feasible compact long-edge routes with joint-order budget %s', blockPairs => {
     const input = measured({ compactPrivateRanks: true,
       nodes: Array.from({ length: 5 }, (_, index) => ({ id: String(index), width: 40, height: 40 })),
@@ -439,7 +998,16 @@ describe('owned measured layered layout', () => {
     expect(() => layoutAgenticGraph({ ...input, edges: [{ source: 1, target: 3, minSpan: 1 }] })).toThrow('no bounded clear corridor')
     const frameLink = layoutAgenticGraph({ ...input, edges: [{ source: 1, target: input.nodes.length + 2, minSpan: 1 }] })
     expect(onOutline(frameLink.edges[0]!.points.at(-1)!, frameLink.groups![2]!)).toBe(true)
-    expect(() => layoutAgenticGraph({ ...input, edges: [{ source: input.nodes.length, target: 1, minSpan: 1 }] })).toThrow('ancestor container endpoints')
+    const ancestor = layoutAgenticGraph({ ...input, edges: [{ source: input.nodes.length, target: 1, minSpan: 1 }] })
+    expect(onOutline(ancestor.edges[0]!.points[0]!, ancestor.groups![0]!)).toBe(true)
+    expect(onOutline(ancestor.edges[0]!.points.at(-1)!, { ...input.nodes[1]!, ...ancestor.nodes[1]! })).toBe(true)
+    expect(ancestor.edges[0]!.points[1]!.x).toBeGreaterThan(ancestor.edges[0]!.points[0]!.x)
+    for (let segment = 1; segment < ancestor.edges[0]!.points.length; segment++) {
+      const a = ancestor.edges[0]!.points[segment - 1]!, b = ancestor.edges[0]!.points[segment]!
+      for (const frame of ancestor.groups!) expect(crossesInterior(a, b, { ...frame, height: pad.top })).toBe(false)
+      for (let node = 0; node < input.nodes.length; node++) expect(crossesInterior(a, b, { ...input.nodes[node]!, ...ancestor.nodes[node]! })).toBe(false)
+    }
+    expect(() => layoutAgenticGraph({ ...input, edges: [{ source: input.nodes.length, target: 1, minSpan: 2048 }] })).toThrow('rank-expansion limit')
     expect(() => layoutAgenticGraph({ ...input, groups: input.groups!.map((group, index) => index === 0 ? { ...group, parent: 1 } : group) })).toThrow(TypeError)
     expect(() => layoutAgenticGraph({ ...input, groups: input.groups!.map(group => ({ ...group, headerHeight: pad.top + 1 })) })).toThrow('Invalid measured compound header')
   })
