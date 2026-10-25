@@ -14,6 +14,102 @@ import { renderMermaidSVG } from '../index.ts'
 import { labelRect } from '../route-contracts.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
+import { trimOccludedShapeEndpoint } from '../shape-clipping.ts'
+
+describe('outward exact endpoint approaches', () => {
+  const source = 'flowchart LR\nsubgraph S\nA\nend\nA o-- kept label --o B'
+  const rotate = (point: Point, turns: number): Point => {
+    let { x, y } = point
+    for (let i = 0; i < turns; i++) [x, y] = [500 - y, x]
+    return { x, y }
+  }
+  const rotateNode = (node: PositionedNode, turns: number): PositionedNode => {
+    const a = rotate(node, turns), b = rotate({ x: node.x + node.width, y: node.y + node.height }, turns)
+    return { ...node, x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), width: Math.abs(b.x - a.x), height: Math.abs(b.y - a.y) }
+  }
+  for (const turns of [0, 1, 2, 3]) for (const reversed of [false, true]) {
+    it(`trims a hidden multi-segment ${reversed ? 'target' : 'source'} prefix at rotation ${turns}`, () => {
+      const graph = parseMermaid(source), authored = graph.edges[0]!
+      const nodes: PositionedNode[] = [
+        { ...graph.nodes.get('A')!, x: 100, y: 100, width: 100, height: 100 },
+        { ...graph.nodes.get('B')!, x: 300, y: 100, width: 40, height: 40 },
+      ].map(node => rotateNode(node, turns))
+      const points = [[200, 150], [180, 150], [180, 120], [180, 60], [320, 60], [320, 100]].map(([x, y]) => rotate({ x: x!, y: y! }, turns))
+      const expected = [[180, 100], [180, 60], [320, 60], [320, 100]].map(([x, y]) => rotate({ x: x!, y: y! }, turns))
+      const edge: PositionedEdge = { ...authored, id: 'authored-edge', edgeIndex: 0, points,
+        labelPosition: rotate({ x: 250, y: 60 }, turns) }
+      if (reversed) {
+        ;[edge.source, edge.target] = [edge.target, edge.source]
+        points.reverse(); expected.reverse()
+        ;[graph.edges[0]!.source, graph.edges[0]!.target] = [graph.edges[0]!.target, graph.edges[0]!.source]
+      }
+      const before = { source: edge.source, target: edge.target, id: edge.id, label: edge.label,
+        hasArrowStart: edge.hasArrowStart, hasArrowEnd: edge.hasArrowEnd, startMarker: edge.startMarker, endMarker: edge.endMarker }
+      applyRouteContracts({ nodes, edges: [edge], groups: [] }, graph, new Set(), resolveRenderStyle())
+      expect(edge.points).toEqual(expected)
+      expect({ source: edge.source, target: edge.target, id: edge.id, label: edge.label,
+        hasArrowStart: edge.hasArrowStart, hasArrowEnd: edge.hasArrowEnd, startMarker: edge.startMarker, endMarker: edge.endMarker }).toEqual(before)
+      expect(edge.edgeIndex).toBe(0)
+      expect(edge.labelPosition).toEqual(rotate({ x: 250, y: 60 }, turns))
+      const endpoint = reversed ? edge.points.at(-1)! : edge.points[0]!
+      const adjacent = reversed ? edge.points.at(-2)! : edge.points[1]!
+      const node = nodes[0]!
+      // Independent rectangle half-plane: the first visible shaft points out
+      // of the actual face; a coordinate on the opposite face is insufficient.
+      const dx = adjacent.x - endpoint.x, dy = adjacent.y - endpoint.y
+      expect(endpoint.x === node.x && dx < 0 || endpoint.x === node.x + node.width && dx > 0 ||
+        endpoint.y === node.y && dy < 0 || endpoint.y === node.y + node.height && dy > 0).toBe(true)
+      expect(assessLayout(graph, { nodes, edges: [edge], groups: [], width: 500, height: 500 }).metrics.endpointApproaches).toBe(0)
+    })
+  }
+
+  it.each(['source', 'target'] as const)('rejects a residual tangent %s instead of certifying its boundary coordinate', endpoint => {
+    const graph = parseMermaid('flowchart LR\nA --> B')
+    const nodes: PositionedNode[] = [
+      { ...graph.nodes.get('A')!, x: 0, y: 0, width: 100, height: 100 },
+      { ...graph.nodes.get('B')!, x: 200, y: 0, width: 100, height: 100 },
+    ]
+    const edge: PositionedEdge = { ...graph.edges[0]!, edgeIndex: 0, points: endpoint === 'source'
+      ? [{ x: 50, y: 0 }, { x: 100, y: 0 }, { x: 200, y: 0 }]
+      : [{ x: 100, y: 0 }, { x: 200, y: 0 }, { x: 250, y: 0 }] }
+    const result = assessLayout(graph, { nodes, edges: [edge], groups: [], width: 400, height: 200 })
+    expect(result.metrics.offOutlineEndpoints).toBe(0)
+    expect(result.metrics.endpointApproaches).toBeGreaterThan(0)
+    expect(hardViolations(result).some(failure => failure.metric === 'endpointApproaches')).toBe(true)
+  })
+
+  it('preserves a valid exterior self-loop and its return', () => {
+    const graph = parseMermaid('flowchart LR\nA --> A'), nodes: PositionedNode[] = [
+      { ...graph.nodes.get('A')!, x: 100, y: 100, width: 100, height: 100 },
+    ]
+    const edge: PositionedEdge = { ...graph.edges[0]!, edgeIndex: 0,
+      points: [{ x: 200, y: 140 }, { x: 240, y: 140 }, { x: 240, y: 160 }, { x: 200, y: 160 }] }
+    const points = structuredClone(edge.points)
+    edge.points = trimOccludedShapeEndpoint(edge.points, nodes[0]!, true)
+    edge.points = trimOccludedShapeEndpoint(edge.points, nodes[0]!, false)
+    expect(edge.points).toEqual(points)
+    const result = assessLayout(graph, { nodes, edges: [edge], groups: [], width: 300, height: 300 })
+    expect(result.metrics.endpointApproaches).toBe(0)
+  })
+
+  it('feedback shortening retains a smooth source normal instead of replacing its exterior stub with a tangent', () => {
+    const source = 'flowchart LR\nA[ok]\nB[ok]\nC[ok]\nD[warnings]\nE([process the input])\nA-->B\nB-->C\nA-->D\nC-->E\nB-->|yes|C\nE-->|no|A'
+    const graph = parseMermaid(source), positioned = layoutGraphSync(graph)
+    const edge = positioned.edges.find(edge => edge.source === 'E' && edge.target === 'A')!
+    const owner = positioned.nodes.find(node => node.id === 'E')!
+    const p = edge.points[0]!, q = edge.points.find(point => point.x !== p.x || point.y !== p.y)!
+    // Independent capsule normal: use its circular cap center or straight
+    // body's centerline, rather than the production approach predicate.
+    const cx = owner.x + owner.width / 2, cy = owner.y + owner.height / 2
+    const core = (owner.width - owner.height) / 2
+    const capX = Math.max(cx - core, Math.min(cx + core, p.x))
+    expect((p.x - capX) * (q.x - p.x) + (p.y - cy) * (q.y - p.y)).toBeGreaterThan(0)
+    expect(edge.label).toBe('no')
+    expect(edge.edgeIndex).toBe(5)
+    expect(edge.hasArrowEnd).toBe(true)
+    expect(hardViolations(assessLayout(graph, positioned))).toEqual([])
+  })
+})
 
 describe('route proposal crossing consistency', () => {
   it.each([false, true])('does not add a crossing when the other route is subdivided=%s', subdivided => {

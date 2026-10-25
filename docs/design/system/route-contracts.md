@@ -156,6 +156,17 @@ the current node box when exactly one face identifies the attachment side.
 Ambiguous corners remain unresolved for the existing route repair and final
 certification; clipping does not guess a side or replace a successful contact.
 
+After route normalization, an exact endpoint's first nonzero shaft must depart
+outward from its painted boundary. A hidden or boundary-running prefix may be
+trimmed to its first usable boundary crossing, retaining the existing exterior
+subpath and then reallocating physical ports. This does not erase an exterior
+excursion, re-anchor an outside stale endpoint, or remove a self-loop return.
+Unrepaired inward or tangent shafts fail the hard `endpointApproaches` metric;
+conservative envelopes retain their explicitly weaker policy. Feedback
+tightening also proves both proposed terminal approaches before it can remove a
+valid exterior stub. These are local contact proofs, not proofs that the rest
+of an edge never re-enters either incident node.
+
 **Proof-free simplifications (all edges):** remove consecutive duplicate
 points and collinear midpoints. These preserve the drawn geometry exactly;
 no certificate change beyond `bendCount`.
