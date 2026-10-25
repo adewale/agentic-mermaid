@@ -479,26 +479,24 @@ describe('async family-loaded browser renderer', () => {
     page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))
     try {
       await page.goto(`${base}/blank.html`)
-      const svgs = await page.evaluate(async ({ entryUrl, backend }) => {
+      const sources = [
+        'flowchart LR\n  A --> B',
+        'flowchart TB\nsubgraph One\n A --> B\nend\nsubgraph Two\n C --> D\nend\nB -->|handoff| C',
+        'stateDiagram-v2\nstate One {\nA --> B\n}\nstate Two {\nC --> D\n}\nB --> C : handoff',
+        'classDiagram\nnamespace One {\nclass A\n}\nnamespace Two {\nclass B\n}\nA --> B : handoff',
+        'architecture-beta\nservice a(server)[A]\nservice b(server)[B]\na:R --> L:b',
+        'classDiagram\nclass Account {\n+String name\n}\nAccount --> Audit : records',
+        'classDiagram\nnamespace Platform {\nclass A\nclass B\nA --> B : delegates\nnamespace Domain {\nclass User\n}\n}',
+        'erDiagram\nCUSTOMER ||--o{ ORDER : places',
+        'erDiagram\nsubgraph Accounts\n CUSTOMER ||--o{ ORDER : places\nend\nsubgraph Audit\n AUDIT\nend\nAccounts ||--|| Audit : reports\nORDER ||..o{ AUDIT : logs',
+        'stateDiagram-v2\n  [*] --> Ready',
+        'requirementDiagram\nrequirement fast {\ntext: Respond quickly\n}\nelement suite {\ntype: "test"\n}\nsuite - verifies -> fast',
+      ]
+      const svgs = await page.evaluate(async ({ entryUrl, backend, sources }) => {
         const api = await import(entryUrl)
-        return Promise.all([
-          api.renderMermaidSVGAsync('flowchart LR\n  A --> B', { graphLayout: { backend } }),
-          api.renderMermaidSVGAsync('flowchart TB\nsubgraph One\n A --> B\nend\nsubgraph Two\n C --> D\nend\nB -->|handoff| C', { graphLayout: { backend } }),
-          api.renderMermaidSVGAsync('stateDiagram-v2\nstate One {\nA --> B\n}\nstate Two {\nC --> D\n}\nB --> C : handoff', { graphLayout: { backend } }),
-          api.renderMermaidSVGAsync('classDiagram\nnamespace One {\nclass A\n}\nnamespace Two {\nclass B\n}\nA --> B : handoff', { graphLayout: { backend } }),
-          api.renderMermaidSVGAsync('architecture-beta\nservice a(server)[A]\nservice b(server)[B]\na:R --> L:b', { graphLayout: { backend } }),
-          api.renderMermaidSVGAsync('classDiagram\nclass Account {\n+String name\n}\nAccount --> Audit : records', { graphLayout: { backend } }),
-          api.renderMermaidSVGAsync('classDiagram\nnamespace Platform {\nclass A\nclass B\nA --> B : delegates\nnamespace Domain {\nclass User\n}\n}', { graphLayout: { backend } }),
-          api.renderMermaidSVGAsync('erDiagram\nCUSTOMER ||--o{ ORDER : places', { graphLayout: { backend } }),
-          api.renderMermaidSVGAsync('erDiagram\nsubgraph Accounts\n CUSTOMER ||--o{ ORDER : places\nend\nsubgraph Audit\n AUDIT\nend\nAccounts ||--|| Audit : reports\nORDER ||..o{ AUDIT : logs', { graphLayout: { backend } }),
-          api.renderMermaidSVGAsync('stateDiagram-v2\n  [*] --> Ready', { graphLayout: { backend } }),
-          api.renderMermaidSVGAsync('requirementDiagram\nrequirement fast {\ntext: Respond quickly\n}\nelement suite {\ntype: "test"\n}\nsuite - verifies -> fast', { graphLayout: { backend } }),
-        ])
-      }, { entryUrl: `${base}/dist/browser-lazy/index.js`, backend })
-      expect(svgs).toEqual([
-        renderMermaidSVG('flowchart LR\n  A --> B', { graphLayout: { backend } }),
-        renderMermaidSVG('stateDiagram-v2\n  [*] --> Ready', { graphLayout: { backend } }),
-      ])
+        return Promise.all(sources.map(source => api.renderMermaidSVGAsync(source, { graphLayout: { backend } })))
+      }, { entryUrl: `${base}/dist/browser-lazy/index.js`, backend, sources })
+      expect(svgs).toEqual(sources.map(source => renderMermaidSVG(source, { graphLayout: { backend } })))
       expect(requests.filter(path => path === lazyImplementationChunk())).toHaveLength(backend === 'elk' ? 1 : 0)
       expect(requests.filter(path => path === lazyImplementationChunk('/layout/agentic-layered-core.ts'))).toHaveLength(backend === 'agentic' ? 1 : 0)
     } finally {
