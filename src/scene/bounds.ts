@@ -77,14 +77,8 @@ function pathBounds(d: string, visit?: (segment: TypedPathSegment) => boolean, w
   }
   const include = (px: number, py: number): boolean => {
     if (!Number.isFinite(px) || !Number.isFinite(py)) return false
-    if (result) {
-      result.x0 = Math.min(result.x0, px); result.y0 = Math.min(result.y0, py)
-      result.x1 = Math.max(result.x1, px); result.y1 = Math.max(result.y1, py)
-    } else result = { x0: px, y0: py, x1: px, y1: py }
-    if (visit) {
-      segmentBounds!.x0 = Math.min(segmentBounds!.x0, px); segmentBounds!.y0 = Math.min(segmentBounds!.y0, py)
-      segmentBounds!.x1 = Math.max(segmentBounds!.x1, px); segmentBounds!.y1 = Math.max(segmentBounds!.y1, py)
-    }
+    result = unionSceneBounds(result, { x0: px, y0: py, x1: px, y1: py })
+    if (visit) segmentBounds = unionSceneBounds(segmentBounds, { x0: px, y0: py, x1: px, y1: py })
     return true
   }
   while (true) {
@@ -402,18 +396,10 @@ export function transformedBounds(box: AxisAlignedBox, transform?: SceneTransfor
   if (![box.x0, box.y0, box.x1, box.y1].every(Number.isFinite)) return undefined
   if (!transform) return box
   if (transform.kind === 'rotate') return rotateBoxBounds(box, { x: transform.cx, y: transform.cy }, transform.angle)
-  const [a, b, c, d, e, f] = transformMatrix(transform)
-  // Read every corner before arithmetic, as the tuple construction did, so a
-  // caller-owned box's getters keep their observation order.
-  const x00 = box.x0, y00 = box.y0, x01 = box.x0, y01 = box.y1
-  const x10 = box.x1, y10 = box.y0, x11 = box.x1, y11 = box.y1
-  const ax = a * x00 + c * y00 + e, ay = b * x00 + d * y00 + f
-  const bx = a * x01 + c * y01 + e, by = b * x01 + d * y01 + f
-  const cx = a * x10 + c * y10 + e, cy = b * x10 + d * y10 + f
-  const dx = a * x11 + c * y11 + e, dy = b * x11 + d * y11 + f
-  if (!Number.isFinite(ax) || !Number.isFinite(ay) || !Number.isFinite(bx) || !Number.isFinite(by)
-    || !Number.isFinite(cx) || !Number.isFinite(cy) || !Number.isFinite(dx) || !Number.isFinite(dy)) return undefined
-  return { x0: Math.min(ax, bx, cx, dx), y0: Math.min(ay, by, cy, dy), x1: Math.max(ax, bx, cx, dx), y1: Math.max(ay, by, cy, dy) }
+  const m = transformMatrix(transform)
+  const corners = [[box.x0, box.y0], [box.x0, box.y1], [box.x1, box.y0], [box.x1, box.y1]]
+    .map(([x, y]) => transformPoint({ x: x!, y: y! }, m))
+  return corners.every(point => Number.isFinite(point.x) && Number.isFinite(point.y)) ? pointsBounds(corners) : undefined
 }
 
 function composedTransform(parent: SceneTransform | undefined, child: SceneTransform | undefined): SceneTransform | undefined {
