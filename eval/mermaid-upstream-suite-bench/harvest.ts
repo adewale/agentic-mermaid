@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
-import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path'
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import ts from 'typescript'
 import { extractMermaidBlocks } from '../family-usage/count.ts'
@@ -193,7 +193,7 @@ function main(): void {
   const outputPath = realpathSync(OUTPUT), ledgerPath = realpathSync(BENCH)
   const output = statSync(outputPath), ledger = statSync(ledgerPath)
   const within = relative(ledgerPath, outputPath)
-  if (output.dev === ledger.dev && output.ino === ledger.ino || !isAbsolute(within) && within !== '..' && !within.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`)) throw new Error('Reconciliation output must be outside the historical fixture directory')
+  if (output.dev === ledger.dev && output.ino === ledger.ino || !isAbsolute(within) && within !== '..' && !within.startsWith(`..${sep}`)) throw new Error('Reconciliation output must be outside the historical fixture directory')
   writeJson(join(OUTPUT, 'reconciliation.json'), report)
   const witnessed = fixtureProvenance.filter(row => row.citations.every(citation => citation.status === 'witnessed')).length
   console.log(`${blocks.length} registration definitions; ${report.recoveredArgumentValues} recovered string arguments; ${report.unresolvedDefinitions} definitions with unresolved arguments.`)
@@ -320,6 +320,15 @@ function sourceLiterals(body: ts.Node, source: ts.SourceFile, checker: ts.TypeCh
     return constantString(node)
   }
   let unresolved = false
+  function stringTerm(node: ts.Node): boolean {
+    if (ts.isIdentifier(node) || ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) return true
+    if (ts.isParenthesizedExpression(node)) return stringTerm(node.expression)
+    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken) return stringTerm(node.left) && stringTerm(node.right)
+    return ts.isTemplateExpression(node) && node.templateSpans.every(span => stringTerm(span.expression))
+  }
+  function callReference(node: ts.Node): boolean {
+    return ts.isIdentifier(node) || ts.isPropertyAccessExpression(node) && callReference(node.expression)
+  }
   // A transparent wrapper is one call, optionally returned through a
   // zero-argument closure. No assignments, branches or other statements can
   // change the bound parameter before that source argument is consumed.
@@ -329,7 +338,7 @@ function sourceLiterals(body: ts.Node, source: ts.SourceFile, checker: ts.TypeCh
     if (ts.isExpressionStatement(node)) return wrappedCall(node.expression)
     if (ts.isParenthesizedExpression(node)) return wrappedCall(node.expression)
     if (ts.isArrowFunction(node) || ts.isFunctionExpression(node)) return node.parameters.length === 0 ? wrappedCall(node.body) : undefined
-    return ts.isCallExpression(node) ? node : undefined
+    return ts.isCallExpression(node) && callReference(node.expression) && node.arguments.every(stringTerm) ? node : undefined
   }
   function visit(node: ts.Node, parameters: Arguments, calls: ReadonlySet<ts.Node>): void {
     if (ts.isFunctionDeclaration(node) || ts.isMethodDeclaration(node) || ts.isGetAccessorDeclaration(node) || ts.isSetAccessorDeclaration(node)) return
@@ -361,7 +370,10 @@ function sourceLiterals(body: ts.Node, source: ts.SourceFile, checker: ts.TypeCh
           : declaration && ts.isVariableDeclaration(declaration) && ts.isVariableDeclarationList(declaration.parent)
             && declaration.parent.flags & ts.NodeFlags.Const && declaration.initializer
             && (ts.isArrowFunction(declaration.initializer) || ts.isFunctionExpression(declaration.initializer)) ? declaration.initializer : undefined
-        const call = helper?.body && wrappedCall(helper.body)
+        const parametersAreImmutable = helper?.parameters.every(parameter => ts.isIdentifier(parameter.name)
+          && !parameter.dotDotDotToken && !written.has(checker.getSymbolAtLocation(parameter.name)!)
+          && (!parameter.initializer || stringTerm(parameter.initializer))) && !dynamicScope
+        const call = helper?.body && parametersAreImmutable ? wrappedCall(helper.body) : undefined
         if (helper?.body && !calls.has(helper)) {
           const bound = new Map(parameters)
           for (let index = 0; index < helper.parameters.length; index++) {
@@ -371,7 +383,7 @@ function sourceLiterals(body: ts.Node, source: ts.SourceFile, checker: ts.TypeCh
             // Only a transparent call path permits argument substitution.
             // Other helpers expose their own closed literals, while their
             // mutable parameters remain unknown.
-            if (symbol) bound.set(symbol, call ? node.arguments[index] ? evaluate(node.arguments[index]!, parameters) : parameter.initializer ? evaluate(parameter.initializer, parameters) : undefined : undefined)
+            if (symbol) bound.set(symbol, call ? node.arguments[index] ? evaluate(node.arguments[index]!, parameters) : parameter.initializer ? evaluate(parameter.initializer, bound) : undefined : undefined)
           }
           const next = new Set(calls); next.add(helper)
           visit(call ?? helper.body, bound, next)
