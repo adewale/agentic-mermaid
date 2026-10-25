@@ -34,6 +34,45 @@ test('final paint order catches fully hidden text, including artwork with the sa
   expect(certifyScenePaint(scene([text, surface('rgba(255,255,255,0.5)')])).status).toBe('passed')
 })
 
+test.each([
+  ['var(--fg)', { bg: '#fff', fg: '#111' }, 'failed'],
+  ['var(--unknown, #fff)', { bg: '#fff', fg: '#111' }, 'failed'],
+  ['color-mix(in srgb, #000 50%, transparent)', { bg: '#fff', fg: '#111' }, 'failed'],
+  ['var(--surface)', { bg: '#fff', fg: '#111', surface: '#ffffff80' }, 'unverified'],
+  ['var(--host, #fff)', { bg: '#fff', fg: '#111', line: 'var(--host)' }, 'unverified'],
+  ['var(--fg)', { bg: 'var(--page)', fg: '#111' }, 'unverified'],
+] as const)('paint proof retains concrete and live opacity for %s with %j', (fill, colors, status) => {
+  const proof = certifyScenePaint({ ...scene([label(), surface(fill)]), colors })
+  expect(proof.status).toBe(status)
+  expect(proof.issues[0]?.code).toBe(status === 'failed' ? 'TEXT_OCCLUDED' : 'POTENTIAL_OCCLUSION')
+})
+
+test('paint certification observes caller palette getters and mutations on each call', () => {
+  let fill = '#fff'
+  const colors = { bg: '#fff', fg: '#111', get surface() { return fill } }
+  const doc = { ...scene([label(), surface('var(--surface)')]), colors }
+  expect(certifyScenePaint(doc).status).toBe('failed')
+  fill = '#ffffff80'
+  expect(certifyScenePaint(doc).status).toBe('unverified')
+  fill = '#fff'
+  expect(certifyScenePaint(doc).status).toBe('failed')
+})
+
+test('distinct paint resolutions observe the palette supplied for each value', () => {
+  const first = label()
+  const second = marks.text({ id: 'second', role: 'label', text: 'Read', block: first.block, x: 60, y: 30, fontSize: 12, anchor: 'start', paint: { fill: '#111' } })
+  const cover = (id: string, x: number, fill: string) => marks.shape({ id, role: 'node', geometry: { kind: 'rect', x, y: 10, width: 40, height: 60 }, paint: { fill } })
+  let palettes = 0
+  const doc: SceneDoc = {
+    ...scene([first, second, cover('first-cover', 10, 'var(--surface)'), cover('second-cover', 55, 'var(--surface, #fff)')]),
+    get colors() { return { bg: '#fff', fg: '#111', surface: palettes++ === 0 ? '#fff' : '#ffffff00' } },
+  }
+  const proof = certifyScenePaint(doc)
+  expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'TEXT_OCCLUDED', id: 'text', by: 'first-cover' }))
+  expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', id: 'second', by: 'second-cover' }))
+  expect(proof.issues).not.toContainEqual(expect.objectContaining({ code: 'TEXT_OCCLUDED', id: 'second' }))
+})
+
 test('path envelopes and affine empty corners never masquerade as solid occluders', () => {
   const path = marks.shape({ id: 'triangle', role: 'node', geometry: { kind: 'path', d: 'M10 10 L90 10 L90 70 Z' }, paint: { fill: '#fff' } })
   expect(certifyScenePaint(scene([label(), path])).issues.some(issue => issue.code === 'TEXT_OCCLUDED')).toBe(false)
@@ -350,10 +389,10 @@ test('the repaired native Architecture BUG-37 route receives a passed public cer
   expect(verified.layoutCertification?.issues).toEqual([])
 })
 
-test.each(['dashed', 'zero-width', 'transparent', 'zero-opacity'] as const)('%s shaft paint never proves hidden ink from an unpainted crossing', mode => {
-  const paint = { stroke: mode === 'transparent' ? 'rgba(0,0,0,0)' : '#111', strokeWidth: mode === 'zero-width' ? '0' : '1', ...(mode === 'zero-opacity' ? { opacity: '0' } : {}), ...(mode === 'dashed' ? { strokeDasharray: '1 100' } : {}) }
+test.each(['dashed', 'zero-width', 'transparent', 'resolved-transparent', 'zero-opacity'] as const)('%s shaft paint never proves hidden ink from an unpainted crossing', mode => {
+  const paint = { stroke: mode === 'transparent' ? 'rgba(0,0,0,0)' : mode === 'resolved-transparent' ? 'var(--surface)' : '#111', strokeWidth: mode === 'zero-width' ? '0' : '1', ...(mode === 'zero-opacity' ? { opacity: '0' } : {}), ...(mode === 'dashed' ? { strokeDasharray: '1 100' } : {}) }
   const edge = marks.connector({ id: 'route', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 5, y1: 30, x2: 95, y2: 30 }, paint, endpoints: { from: 'A', to: 'B' } })
-  const proof = certifyScenePaint(scene([edge, surface()]))
+  const proof = certifyScenePaint({ ...scene([edge, surface()]), colors: { bg: '#fff', fg: '#111', surface: '#00000000' } })
   expect(proof.status).toBe(mode === 'dashed' ? 'unverified' : 'passed')
   expect(proof.issues.some(issue => issue.code === 'CONNECTOR_CARD_CROSSING')).toBe(false)
 })
