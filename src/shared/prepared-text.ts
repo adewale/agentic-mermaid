@@ -108,7 +108,10 @@ function advance(runs: readonly DisplayRun[], options: PixelTextOptions): number
     const orphanMarks = graphemes(text).filter(cluster => /\p{M}/u.test(cluster) && [...cluster].every(char => getCharWidth(char) === 0)).length
     return Math.max(width, naturalWidth + orphanMarks * options.fontSize * 1.2) + Math.max(0, [...text].length - 1) * Math.abs(options.letterSpacing ?? 0)
   }
-  return (options.letterSpacing ?? 0) < 0 ? trackedBounds(grouped, options).width : Math.max(0, width + Math.max(0, graphemes(text).length - 1) * (options.letterSpacing ?? 0))
+  if ((options.letterSpacing ?? 0) < 0) return trackedBounds(grouped, options).width
+  const letterSpacing = options.letterSpacing ?? 0
+  const tracking = letterSpacing === 0 ? 0 : Math.max(0, graphemes(text).length - 1) * letterSpacing
+  return Math.max(0, width + tracking)
 }
 
 /** Positioned graphemes must be measured as the same graphemes that SVG will
