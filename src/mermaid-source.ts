@@ -595,9 +595,14 @@ function normalizeSource(
   }
   const familyBody = accessibilityScan.familyLines.join('\n')
   const state = /^stateDiagram(?:-v2)?(?=$|[\s;%])/i.test(processed.lines[0] ?? '')
+  const timeline = /^timeline(?=$|[\s;#%])/i.test(processed.lines[0] ?? '')
   const familyLines = state
     ? scanStateComments(accessibilityScan.familyLines).filter(line => line.noteBody || line.text.length > 0).map(line => line.text)
-    : toMermaidLines(familyBody)
+    : timeline
+      // Timeline's SECTION token consumes two spaces for an explicit empty
+      // heading. Trimming line ends first changes that token into a period.
+      ? accessibilityScan.familyLines.map(line => line.trimStart()).filter(line => line.trim().length > 0 && !COMMENT_LINE_REGEX.test(line))
+      : toMermaidLines(familyBody)
   const authored = sharesAuthoredGrammar ? undefined : normalizeSource(text, baseConfig, 'authored', cleanup)
 
   return {
