@@ -318,6 +318,26 @@ describe('bounded final layout certification', () => {
     expect(preference.compared[1]?.score).toMatchObject({ edgeCrossings: 1, totalBends: 3 })
     expect(preference.selectedScore).toEqual(preference.routing!.preference.selectedScore)
     expect(preference.selectedScore.area).toBeGreaterThan(preference.compared[0]!.score.area)
+    const a1 = positioned.nodes.find(node => node.id === 'a1')!
+    const repaired = positioned.edges.find(edge => edge.source === 'a1' && edge.target === 'a2')!
+    expect(repaired.points[0]).toEqual({ x: a1.x, y: a1.y + a1.height / 2 })
+    expect(repaired.routeCertificate).toMatchObject({ sourcePort: 'W', sourcePortAssignment: { side: 'W', port: 'W' } })
+    const noise = 1e-6
+    for (const edge of positioned.edges) {
+      for (const node of positioned.nodes.filter(node => node.id === edge.source || node.id === edge.target)) {
+        const contact = node.id === edge.source ? edge.points[0]! : edge.points.at(-1)!
+        const verticalFace = (Math.abs(contact.x - node.x) < noise || Math.abs(contact.x - node.x - node.width) < noise) && contact.y >= node.y - noise && contact.y <= node.y + node.height + noise
+        const horizontalFace = (Math.abs(contact.y - node.y) < noise || Math.abs(contact.y - node.y - node.height) < noise) && contact.x >= node.x - noise && contact.x <= node.x + node.width + noise
+        expect(verticalFace || horizontalFace).toBe(true)
+        for (let i = 1; i < edge.points.length; i++) {
+          const a = edge.points[i - 1]!, b = edge.points[i]!
+          const crosses = a.y === b.y
+            ? a.y > node.y + noise && a.y < node.y + node.height - noise && Math.max(a.x, b.x) > node.x + noise && Math.min(a.x, b.x) < node.x + node.width - noise
+            : a.x === b.x && a.x > node.x + noise && a.x < node.x + node.width - noise && Math.max(a.y, b.y) > node.y + noise && Math.min(a.y, b.y) < node.y + node.height - noise
+          expect(crosses).toBe(false)
+        }
+      }
+    }
   })
 
   test('no candidate succeeds on non-finite geometry, even when an outline checker could miss it', () => {

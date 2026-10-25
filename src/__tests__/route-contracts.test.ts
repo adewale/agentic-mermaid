@@ -15,6 +15,48 @@ import { labelRect } from '../route-contracts.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
 
+describe('cross-hierarchy rectangle endpoint contacts', () => {
+  for (const atSource of [true, false]) {
+    it.each([
+      ['W', [40, 20], [-60, 20], [-100, 0], [0, 20]],
+      ['E', [0, 20], [100, 20], [100, 0], [40, 20]],
+      ['N', [20, 40], [20, -60], [0, -100], [20, 0]],
+      ['S', [20, 0], [20, 100], [0, 100], [20, 40]],
+    ] as const)(`trims only interior ink at the ${atSource ? 'source' : 'target'} %s contact and rederives its port`, (side, far, outside, other, near) => {
+      const graph = parseMermaid(`flowchart LR\nsubgraph G\nA\nend\nB\n${atSource ? 'A-->B' : 'B-->A'}`)
+      const nodes: PositionedNode[] = [
+        { id: 'A', label: 'A', shape: 'rectangle', x: 0, y: 0, width: 40, height: 40 },
+        { id: 'B', label: 'B', shape: 'rectangle', x: other[0], y: other[1], width: 40, height: 40 },
+      ]
+      const route = (atSource ? [far, outside] : [outside, far]).map(([x, y]) => ({ x, y }))
+      const edge: PositionedEdge = { ...graph.edges[0]!, edgeIndex: 0, points: route }
+      applyRouteContracts({ nodes, edges: [edge], groups: [] }, graph, new Set(), resolveRenderStyle())
+      const expected = (atSource ? [near, outside] : [outside, near]).map(([x, y]) => ({ x, y }))
+      expect(edge.points).toEqual(expected)
+      const certificate = edge.routeCertificate!
+      expect(atSource ? certificate.sourcePort : certificate.targetPort).toBe(side)
+      expect(atSource ? certificate.sourcePortAssignment : certificate.targetPortAssignment).toMatchObject({ side, port: side, slotIndex: 0, slotCount: 1 })
+    })
+  }
+  it.each([
+    ['off-center', 'rectangle', [40, 10], [-60, 10], [-100, -10]],
+    ['inside neighbor', 'rectangle', [40, 20], [20, 20], [20, 0]],
+    ['tangent', 'rectangle', [40, 0], [-60, 0], [-100, -20]],
+    ['non-rectangle', 'circle', [40, 20], [-60, 20], [-100, 0]],
+  ] as const)('does not reinterpret a %s contact', (_name, shape, end, adjacent, other) => {
+    const graph = parseMermaid('flowchart LR\nsubgraph G\nA\nend\nB\nA-->B')
+    const nodes: PositionedNode[] = [
+      { id: 'A', label: 'A', shape, x: 0, y: 0, width: 40, height: 40 },
+      { id: 'B', label: 'B', shape: 'rectangle', x: other[0], y: other[1], width: 40, height: 40 },
+    ]
+    const points = [end, adjacent].map(([x, y]) => ({ x, y }))
+    const unchanged = structuredClone(points)
+    const edge: PositionedEdge = { ...graph.edges[0]!, edgeIndex: 0, points }
+    applyRouteContracts({ nodes, edges: [edge], groups: [] }, graph, new Set(), resolveRenderStyle())
+    expect(edge.points).toEqual(unchanged)
+  })
+})
+
 describe('route proposal crossing consistency', () => {
   it.each([false, true])('does not add a crossing when the other route is subdivided=%s', subdivided => {
     const node = (id: string, x: number, y: number, width: number, height: number): PositionedNode =>

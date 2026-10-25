@@ -638,6 +638,21 @@ function repairRectLikeEndpointOverflow(edge: PositionedEdge, node: PositionedNo
   const x1 = boundary.x + boundary.width
   const y0 = boundary.y
   const y1 = boundary.y + boundary.height
+  const adjacent = edge.points[isStart ? 1 : edge.points.length - 2]!
+  // A separately laid-out compound port can leave an exact far-side contact
+  // whose shaft runs through its own rectangle. Trim only that interior ink;
+  // an outside neighbor and an axis-aligned crossing prove the near contact.
+  // V1 side allocation can rederive only an exact designated cardinal port.
+  const side: PortSide | undefined = adjacent.y === p.y && p.y > y0 && p.y < y1
+    ? p.x === x1 && adjacent.x < x0 ? 'W' : p.x === x0 && adjacent.x > x1 ? 'E' : undefined
+    : adjacent.x === p.x && p.x > x0 && p.x < x1
+      ? p.y === y1 && adjacent.y < y0 ? 'N' : p.y === y0 && adjacent.y > y1 ? 'S' : undefined
+      : undefined
+  if (side && edge.source !== edge.target && portAt(node, p) === opposite(side)) {
+    const contact = pointOnRoutingBoundary(boundary, side, side === 'E' || side === 'W' ? p.y : p.x)
+    if (contact && portAt(node, contact) === side) edge.points[idx] = contact
+    return
+  }
   const near = (a: number, b: number) => Math.abs(a - b) <= PORT_TOLERANCE
   const pushStub = (outline: Point, stub: Point) => {
     edge.points[idx] = outline
