@@ -945,11 +945,13 @@ describe('backend registration and host policy', () => {
 
   test('snapshots backend identity, methods, and capabilities at registration', () => {
     const id = 'backend:test/immutable-snapshot'
+    const documents: unknown[] = []
     const backend = {
       ...DefaultBackend,
       id,
       capabilities: DefaultBackend.capabilities.map(claim => ({ ...claim, target: id })),
       render(doc: Parameters<typeof DefaultBackend.render>[0], context: Parameters<typeof DefaultBackend.render>[1]) {
+        documents.push(doc)
         return DefaultBackend.render(doc, context).replace('<svg ', `<svg data-snapshot-id="${this.id}" `)
       },
     }
@@ -959,6 +961,9 @@ describe('backend registration and host policy', () => {
       provenance: { owner: 'immutable-backend-test', source: 'test' },
     })
     try {
+      expect(documents.length).toBeGreaterThan(1)
+      expect(new Set(documents).size).toBe(documents.length)
+      expect(documents.every(Object.isFrozen)).toBe(true)
       backend.id = 'backend:test/tampered'
       backend.render = () => '<svg data-mutated="true" />'
       backend.capabilities.splice(0, backend.capabilities.length)
