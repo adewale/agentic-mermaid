@@ -138,20 +138,49 @@ describe('public hierarchy endpoints', () => {
     }
   }
 
-  test('authored identifiers resembling boundary ports retain their own endpoints', () => {
-    const source = `flowchart LR
+  test.each(['LR', 'RL', 'TB', 'BT'].flatMap(direction => [['sign_in_worker', 'Box_out_0'], ['Box_out_0', 'sign_in_worker']].map(([from, to]) => ({ direction, from: from!, to: to! }))))('authored identifiers resembling boundary ports retain their own endpoints $direction $from->$to', ({ direction, from, to }) => {
+    const source = `flowchart ${direction}
       Box_out_0[Client]
       subgraph Box
         direction TB
         sign_in_worker[Worker]
       end
-      sign_in_worker -->|reply| Box_out_0`
-    assertCleanHierarchyCase(source, 'sign_in_worker', 'Box_out_0')
-    const layout = layoutMermaidWithReceipt(source, { debug: true }).layout
-    expect(layout.nodes.map(node => node.id).sort()).toEqual(['Box_out_0', 'sign_in_worker'])
-    expect(layout.edges.map(edge => ({ from: edge.from, to: edge.to })))
-      .toEqual([{ from: 'sign_in_worker', to: 'Box_out_0' }])
-    expect(renderMermaidSVG(source)).toContain('reply')
+      ${from} -->|reply| ${to}`
+    assertCleanHierarchyCase(source, from, to)
+    for (const backend of ['elk', 'agentic'] as const) {
+      const options = { graphLayout: { backend, fallback: 'none' as const } }
+      const layout = layoutMermaidWithReceipt(source, { ...options, debug: true }).layout
+      expect(layout.nodes.map(node => node.id).sort()).toEqual(['Box_out_0', 'sign_in_worker'])
+      expect(layout.edges.map(edge => ({ from: edge.from, to: edge.to })))
+        .toEqual([{ from, to }])
+      const svg = renderMermaidSVG(source, options)
+      expect(svg).toContain('reply')
+      const carrier = scanSvgStartTags(svg).find(tag => decodedSvgAttributeValue(tag, 'data-role') === 'edge')!
+      const coordinates = decodedSvgAttributeValue(carrier, 'points')!.trim().split(/[\s,]+/).map(Number)
+      const points: Array<[number, number]> = Array.from({ length: coordinates.length / 2 }, (_, i) => [coordinates[i * 2]!, coordinates[i * 2 + 1]!])
+      expect(points).toEqual(layout.edges[0]!.path)
+      for (const [id, start] of [[from, true], [to, false]] as const) {
+        const node = layout.nodes.find(node => node.id === id)!
+        const path = start ? points : points.toReversed()
+        const endpoint = path[0]!, next = path.find(point => point[0] !== endpoint[0] || point[1] !== endpoint[1])!
+        const [x, y] = endpoint, [nx, ny] = next
+        const outward = Math.abs(x - node.x) < 1e-5 && nx < x && Math.abs(ny - y) < 1e-5
+          || Math.abs(x - node.x - node.w) < 1e-5 && nx > x && Math.abs(ny - y) < 1e-5
+          || Math.abs(y - node.y) < 1e-5 && ny < y && Math.abs(nx - x) < 1e-5
+          || Math.abs(y - node.y - node.h) < 1e-5 && ny > y && Math.abs(nx - x) < 1e-5
+        expect(outward, `${backend} ${id} must have a physical outward terminal lead`).toBe(true)
+        for (let i = 1; i < points.length; i++) {
+          const a = points[i - 1]!, b = points[i]!
+          // Reflection can put an exact border at 114.55399999999997 while
+          // x+w is 114.55399999999999; ignore only arithmetic noise.
+          const noise = 1e-6
+          const enters = a[0] === b[0]
+            ? a[0] > node.x + noise && a[0] < node.x + node.w - noise && Math.max(a[1], b[1]) > node.y + noise && Math.min(a[1], b[1]) < node.y + node.h - noise
+            : a[1] > node.y + noise && a[1] < node.y + node.h - noise && Math.max(a[0], b[0]) > node.x + noise && Math.min(a[0], b[0]) < node.x + node.w - noise
+          expect(enters, `${backend} emitted shaft must not traverse its own ${id} body`).toBe(false)
+        }
+      }
+    }
   })
 
   test('deep branches retain both parallel relationships and their labels', () => {

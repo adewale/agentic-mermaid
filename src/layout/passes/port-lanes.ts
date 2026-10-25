@@ -1,5 +1,5 @@
 import type { DiamondFacet, Direction, MermaidGraph, Point, PositionedEdge, PositionedGroup, PositionedNode } from '../../types.ts'
-import { portEndpointRate } from '../../layout-rubric.ts'
+import { portEndpointRate, segmentThroughShape } from '../../layout-rubric.ts'
 import { diamondFacetPorts, labelRect, laneContextFor, PORT_EXACT, shapePorts, simplifyPolyline, straightLaneFor } from '../../route-contracts.ts'
 import type { LabelMetricsStyle } from '../../route-contracts.ts'
 import { DEFAULTS, layoutDebug, layoutEnvFlag } from '../geometry.ts'
@@ -301,7 +301,26 @@ export function alignPortLaneCandidate(
     return { ref, lo, hi }
   }
 
-  const moveSafe = (node: PositionedNode, delta: number, aligned: PositionedEdge): boolean => {
+  // The opposite endpoint stays fixed when a terminal run translates. It is
+  // exempt at its own contact, but not where the translated run or adjoining
+  // hop would enter its body. Match shiftRun's affected points exactly.
+  const runCrossesFixedEndpoint = (edge: PositionedEdge, fromEnd: boolean, delta: number, fixed: PositionedNode, anchorFar = false): boolean => {
+    const pts = edge.points, end = fromEnd ? pts.length - 1 : 0, step = fromEnd ? -1 : 1
+    const far = fromEnd ? 0 : pts.length - 1, ref = pts[end]![cross]
+    let first = Infinity, last = -Infinity
+    for (let i = end; i >= 0 && i < pts.length && Math.abs(pts[i]![cross] - ref) <= 0.5; i += step) {
+      if (anchorFar && i === far) break
+      first = Math.min(first, i); last = Math.max(last, i)
+    }
+    if (last < first) return false
+    const translated = (i: number): Point => i >= first && i <= last ? { ...pts[i]!, [cross]: pts[i]![cross] + delta } : pts[i]!
+    for (let i = Math.max(1, first); i <= Math.min(pts.length - 1, last + 1); i++) {
+      if (segmentThroughShape(translated(i - 1), translated(i), fixed)) return true
+    }
+    return false
+  }
+
+  const moveSafe = (node: PositionedNode, delta: number, aligned: PositionedEdge, alignedPathReplaced = false): boolean => {
     if (frozen.has(node.id) || inGroup(node)) return false
     // The slide only helps if the resulting shared port lane is provably
     // clear of intermediate nodes — otherwise the straightener cannot
@@ -341,6 +360,8 @@ export function alignPortLaneCandidate(
         const hi = Math.max(run.ref + delta, hop.far)
         if (hopBlocked(hop.mainPos, lo, hi, exclude)) return false
       }
+      const fixed = nodeMap.get(tgtTouch ? e.source : e.target)
+      if (fixed && fixed !== node && !(isAligned && alignedPathReplaced) && runCrossesFixedEndpoint(e, tgtTouch, delta, fixed)) return false
     }
     const nx = isHorizontal ? node.x : node.x + delta
     const ny = isHorizontal ? node.y + delta : node.y
@@ -518,6 +539,12 @@ export function alignPortLaneCandidate(
           other.x, other.y, other.width, other.height)) return false
       }
     }
+    for (const edge of edges) {
+      const sourceMoves = ids.has(edge.source), targetMoves = ids.has(edge.target)
+      if (sourceMoves === targetMoves || edge.points.length === 0) continue
+      const fixed = nodeMap.get(targetMoves ? edge.source : edge.target)
+      if (fixed && runCrossesFixedEndpoint(edge, targetMoves, delta, fixed, true)) return false
+    }
     return true
   }
   const moveChain = (chain: PositionedNode[], delta: number): void => {
@@ -665,7 +692,7 @@ export function alignPortLaneCandidate(
       const slidesSafe = (lanes: Lane[]): boolean => lanes.every(l => {
         const t = nodeMap.get(l.edge.target)!
         const delta = l.cross - portCross(t)
-        return Math.abs(delta) <= 0.5 || moveSafe(t, delta, l.edge)
+        return Math.abs(delta) <= 0.5 || moveSafe(t, delta, l.edge, true)
       })
 
       // Prefer the facet-mids; for vertical flow fall back to the wider E/W
@@ -752,7 +779,7 @@ export function alignPortLaneCandidate(
       const facingHalf = crossSize(tgt) / 2
       if (Math.abs(srcCenterCross - tgtCenterCross) < facingHalf * 0.5) continue
       const delta = vertex[cross] - portCross(src)
-      if (Math.abs(delta) > 0.5 && !moveSafe(src, delta, e)) continue
+      if (Math.abs(delta) > 0.5 && !moveSafe(src, delta, e, true)) continue
       // The straight lane from the source's facing port to the vertex must be
       // clear and run forward.
       const srcExit = isHorizontal ? (sign > 0 ? 'E' : 'W') : (sign > 0 ? 'S' : 'N')

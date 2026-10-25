@@ -20,6 +20,7 @@ import { createTextMeasurementExecution, withTextMeasurementExecution } from '..
 import { connector, shape } from '../scene/marks.ts'
 import { certifyScenePaint } from '../scene/paint-certification.ts'
 import { rerouteEdgesThroughNodes } from '../layout/passes/obstacle-routing.ts'
+import { alignPortLanes } from '../layout/passes/port-lanes.ts'
 import { trimOccludedShapeEndpoint } from '../shape-clipping.ts'
 import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
 
@@ -2262,6 +2263,21 @@ describe('port ranking — sharp bits win when a side carries one line (issue #2
       const center = q[cross] + (cross === 'y' ? q.height : q.width) / 2
       expect(Math.abs(Math.abs(a.points[0]![cross] - center) - Math.abs(b.points[0]![cross] - center))).toBeLessThanOrEqual(0.75)
     }
+    // A facet proposal replaces its aligned staircase entirely. Translating
+    // that discarded staircase would cut the diamond, but neither actual
+    // replacement enters it: its east boundary is x=60 at y=20 and y=60.
+    const graph = parseMermaid('flowchart LR\nQ{Decide} --> P[One]\nQ --> R[Two]')
+    const nodes: PositionedNode[] = [
+      { id: 'Q', label: 'Decide', shape: 'diamond', x: 0, y: 0, width: 80, height: 80 },
+      { id: 'P', label: 'One', shape: 'rectangle', x: 160, y: 120, width: 20, height: 10 },
+      { id: 'R', label: 'Two', shape: 'rectangle', x: 160, y: 180, width: 20, height: 10 },
+    ]
+    const edges = graph.edges.map((edge, i) => ({ ...edge, points: [{ x: 40, y: 80 }, { x: 40, y: i === 0 ? 125 : 185 }, { x: 160, y: i === 0 ? 125 : 185 }] }))
+    alignPortLanes(nodes, edges, [], 'LR', resolveRenderStyle())
+    expect(edges.map(edge => edge.points)).toEqual([
+      [{ x: 60, y: 20 }, { x: 160, y: 20 }],
+      [{ x: 60, y: 60 }, { x: 160, y: 60 }],
+    ])
   })
 
   it('a TD decision fork/rejoin exits the diamond through lower facet ports before honoring target lanes', () => {
