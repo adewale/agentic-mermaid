@@ -496,7 +496,6 @@ function readC4(input: string | readonly string[], admitWork: boolean): C4Body {
     if (args.some(arg => arg.name && arg.value === '')) diagnostic(body, statement.id, 'c4_empty_named_argument', 'Empty named arguments are retained; pinned Mermaid requires a positional empty slot')
     const element = ELEMENT.exec(macro)
     const mermaidMacro = Boolean(element && !(element[1] === 'Person' && element[2])) || Object.hasOwn(BOUNDARIES, macro) || RELATIONS.has(macro) || MERMAID_C4_DIRECTIVES.has(macro)
-    if (mermaidMacro && !c4ArgumentsArePortable(args)) diagnostic(body, statement.id, 'c4_argument_token', 'The argument spelling is a reader extension; serialization constructs positional and named tokens with Mermaid quotes and separators')
     if (mermaidMacro && parents.length) boundaryStatements.add(parents.at(-1)!)
     if (mermaidMacro && args.some(ambiguousNamedArgument)) throw new C4AmbiguousArgumentError(`C4 argument is ambiguous in ${text}: separate named arguments with commas and use $name="value", or quote the entire value when it is literal text`)
     // A bare positional value consumes through the next comma in Mermaid's

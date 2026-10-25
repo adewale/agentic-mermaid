@@ -525,7 +525,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
   if (stateWriteProblem(body)) return null
   preserveOrphanedImplicitStates(body)
   try { renderState(body) } catch (error) {
-    if (error instanceof StateOwnershipError) return null
+    if (error instanceof StateWriteError) return null
     throw error
   }
   return body
@@ -813,10 +813,10 @@ export function renderState(body: StateBody): string {
   }
   collect(body.states, body.transitions)
   for (const state of styledStates) {
-    for (const className of graphClassNames(state.className)) out.push(`  class ${state.id} ${className}`)
+    for (const className of graphClassNames(state.className)) out.push(stateClassAssignment(state.id, className))
     if (state.style) out.push(classLikeStyleStatement(`  style ${state.id} `, state.style, undefined, state.styleDeclarations))
   }
-  for (const { id, className } of body.unresolvedClasses ?? []) out.push(`  class ${id} ${className}`)
+  for (const { id, className } of body.unresolvedClasses ?? []) out.push(stateClassAssignment(id, className))
   for (const { id, style, styleDeclarations } of body.unresolvedStyles ?? []) out.push(classLikeStyleStatement(`  style ${id} `, style, undefined, styleDeclarations))
   if (body.defaultTransitionStyle) out.push(`  linkStyle default ${serializeStyleProps(body.defaultTransitionStyle)}`)
   transitions.forEach((transition, index) => {
@@ -827,7 +827,12 @@ export function renderState(body: StateBody): string {
   return source
 }
 
-class StateOwnershipError extends Error {}
+class StateWriteError extends Error {}
+
+function stateClassAssignment(id: string, className: string): string {
+  if (!portableStyleTarget(id)) throw new StateWriteError(`State class target "${id}" needs letters, digits or underscore for portable export`)
+  return `  class ${id} ${className}`
+}
 
 /** A successful structured edit must have a Mermaid spelling with the same
  * ownership. Cross-scope references can claim a moved state before its new
@@ -835,12 +840,12 @@ class StateOwnershipError extends Error {}
 function assertWrittenStateOwnership(body: StateBody, source: string): void {
   const { statements } = readStateStatements(scanStateComments(source.split('\n')))
   const identities = resolveStateIdentities(statements)
-  if (identities.issue) throw new StateOwnershipError(identities.issue)
+  if (identities.issue) throw new StateWriteError(identities.issue)
   const visit = (states: StateNode[], scope?: StateScope): void => {
     for (const state of states) {
       const actual = identities.ownerOf(state.id)
       if (!identities.authored.has(state.id) || stateScopeKey(actual) !== stateScopeKey(scope)) {
-        throw new StateOwnershipError(`State '${state.id}' cannot retain its requested scope in Mermaid source. Move or remove transitions that claim it in another scope before changing its ownership.`)
+        throw new StateWriteError(`State '${state.id}' cannot retain its requested scope in Mermaid source. Move or remove transitions that claim it in another scope before changing its ownership.`)
       }
       if (state.regions) state.regions.forEach((region, index) => visit(region.states, { parent: state.id, region: index }))
       else if (state.states) visit(state.states, { parent: state.id })
@@ -859,14 +864,12 @@ function stateWriteProblem(body: StateBody): string | undefined {
   // composites use Mermaid's exclusive struct state, where these are IDs.
   const endpoint = body.transitions.find(item => item.label !== undefined && /^acc(?:Title|Descr)$/i.test(item.to))?.to
   let invalid = body.unresolvedStyles?.find(item => !portableStyleTarget(item.id))?.id
-  let invalidClassTarget = body.unresolvedClasses?.find(item => !portableStyleTarget(item.id))?.id
   let invalidBoundary = false
   let invalidStyle = Object.keys(body.classDefDeclarations ?? {}).some(name => !Object.hasOwn(body.classDefs ?? {}, name)) || Object.entries(body.classDefs ?? {}).some(([name, style]) => !portableClassLikeStyleProps(style, ownStyleDeclarations(body.classDefDeclarations, name))) || body.unresolvedStyles?.some(item => !portableClassLikeStyleProps(item.style, item.styleDeclarations))
   const visit = (states: StateNode[], transitions: StateTransition[]): void => {
     for (const state of states) {
       if (state.declarationBeforeTransition !== undefined && (!Number.isInteger(state.declarationBeforeTransition) || state.declarationBeforeTransition < 0 || state.declarationBeforeTransition > transitions.length)) invalidBoundary = true
       if (state.style && !portableStyleTarget(state.id)) invalid ??= state.id
-      if (state.className && !portableStyleTarget(state.id)) invalidClassTarget ??= state.id
       if (state.styleDeclarations && !state.style || state.style && !portableClassLikeStyleProps(state.style, state.styleDeclarations)) invalidStyle = true
       if (state.regions) for (const region of state.regions) visit(region.states, region.transitions)
       else if (state.states) visit(state.states, state.transitions ?? [])
@@ -874,7 +877,6 @@ function stateWriteProblem(body: StateBody): string | undefined {
   }
   visit(body.states, body.transitions)
   if (invalidBoundary) return 'State declaration boundary must be an integer within its owning transition sequence'
-  if (invalidClassTarget !== undefined) return `State class target "${invalidClassTarget}" cannot be written as a class assignment in pinned Mermaid; use a target containing only letters, digits, or underscore for typed class editing`
   if (invalidStyle) return 'State style contains text outside the supported SVG attribute domain'
   if (endpoint !== undefined) return `A top-level labeled State transition to "${endpoint}" cannot be written in pinned Mermaid because the destination and colon start an accessibility directive; rename the destination or remove the label for typed editing`
   return invalid === undefined ? undefined : `State style target "${invalid}" cannot be written in pinned Mermaid; style targets must contain only letters, digits, or underscore`
@@ -1477,7 +1479,7 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
   const writeProblem = stateWriteProblem(next)
   if (writeProblem) return err({ code: 'INVALID_OP', message: writeProblem })
   try { renderState(next) } catch (error) {
-    if (error instanceof StateOwnershipError) return err({ code: 'INVALID_OP', message: error.message })
+    if (error instanceof StateWriteError) return err({ code: 'INVALID_OP', message: error.message })
     throw error
   }
   return ok(next)
