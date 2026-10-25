@@ -25,10 +25,12 @@ export default defineConfig({
   target: 'es2022',
   outDir: 'dist',
   // Keep Node syntax intact: syntax folding slowed the first repeated State
-  // renders in installed Node comparisons. Compact whitespace while preserving
-  // identifiers and the lazy ELK loader; browser builds minify independently.
+  // renders in installed Node comparisons. Compact whitespace and identifiers
+  // independently; documented diagnostic names remain explicit in the source.
+  // The lazy ELK loader stays external; browser builds minify independently.
   esbuildOptions(options) {
     options.minifyWhitespace = true
+    options.minifyIdentifiers = true
   },
   // Bundle roughjs/perfect-freehand into every installed entry: Node ESM
   // cannot resolve roughjs' extensionless bin/generator subpath. They remain

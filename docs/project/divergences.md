@@ -725,13 +725,21 @@ pending. Source completion is separate from npm publication and hosted delivery.
   contracts, including native C4's diagnostic hook. Final-head checks are
   recorded in the PR; merge remains pending. It is not a dependency of
   CONS-46 or of completing these grammar dispositions.
+- The Class header alias and Quadrant statement separators from BUG-56 now
+  use their native family readers. `classDiagram-v2` remains editable and
+  exports the canonical `classDiagram` header. Quadrant separates statements
+  outside quoted labels and functional styles, including a separator after
+  its header; titles keep their entire physical line. Pinned-Mermaid checks
+  cover accepted input and edited canonical output. These source changes do
+  not establish publication or hosted delivery.
 
 The #363 investigation is complete independently of those runtime delivery
 steps: every original item has a decision and a recorded implementation status.
 Closing the investigation does not assert that every reader/export gap is fixed.
 
-Original BUG-54/56/58 remain the references for the Quadrant portability and
-Class/Quadrant/Architecture reader gaps in the tables. Architecture ID/icon
+Original BUG-54/56/58 remain historical references for the Quadrant portability
+and reader decisions in the tables. BUG-56's reader witnesses are implemented;
+its historical rows are not an active backlog. Architecture ID/icon
 exports and the empty-Class spelling remain explicit limits. BUG-57 is a
 consistent local reading, not a remaining defect. No new issues or parity-only
 work are implied by these decisions.

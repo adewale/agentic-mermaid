@@ -1,4 +1,5 @@
 import { observeCache } from '../performance-observations.ts'
+import { formatSvgNumber } from '../shared/svg-number.ts'
 // ============================================================================
 // StyleBackend interface + DefaultBackend + backend registry (SPEC §3.2).
 //
@@ -129,7 +130,7 @@ export function composeGroup(
  *  every backend when a style is active and the document isn't transparent. */
 export function pageRectFor(doc: Pick<SceneDoc, 'width' | 'height' | 'transparent'>, ctx: StyleBackendContext): string {
   if (!ctx.style || doc.transparent) return ''
-  return `<rect width="${doc.width}" height="${doc.height}" fill="var(--bg)" data-backdrop="page" />`
+  return `<rect width="${formatSvgNumber(doc.width)}" height="${formatSvgNumber(doc.height)}" fill="var(--bg)" data-backdrop="page" />`
 }
 
 export const DefaultBackend: StyleBackend = {

@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="573.54" height="176.4" viewBox="0 0 573.54 176.4" style="--bg:#fff5df;--fg:#2b2725;--line:#1f3d5a;--accent:#ff5a5f;--muted:#876a52;--surface:#ffd166;--border:#1f3d5a;--font:EB Garamond;background:#fff5df" aria-labelledby="mindmap-title" aria-roledescription="mindmap" role="img" class="am-05t8w5s1y6ge2z">
+<svg xmlns="http://www.w3.org/2000/svg" width="573.54" height="176.4" viewBox="0 0 573.54 176.4" style="--bg:#fff5df;--fg:#2b2725;--line:#1f3d5a;--accent:#ff5a5f;--muted:#876a52;--surface:#ffd166;--border:#1f3d5a;--font:EB Garamond;background:#fff5df" aria-labelledby="mindmap-title" aria-roledescription="mindmap" role="img" class="am-15uwr4e071eaxg">
 <style>
-  svg.am-05t8w5s1y6ge2z { font-family: var(--font, 'EB Garamond'), system-ui, sans-serif; }
-  svg.am-05t8w5s1y6ge2z {
+  svg.am-15uwr4e071eaxg { font-family: var(--font, 'EB Garamond'), system-ui, sans-serif; }
+  svg.am-15uwr4e071eaxg {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #2b2725;
     --_text-sec:      #876a52;
@@ -31,26 +31,26 @@
 <path d="M130.18 88.2 C122.41 88.03, 119.89 87.63, 109.82 88.7" fill="none" stroke="#a50d26" stroke-width="3.75" stroke-linecap="round" stroke-linejoin="miter" stroke-miterlimit="4" />
 <g class="mindmap-node depth-0" data-id="root" data-label="Product" data-role="node">
   <circle cx="273.33" cy="88.2" r="39.93" fill="#f5585c" stroke="#f5585c" stroke-width="1.5" />
-  <text paint-order="stroke" stroke="#fff5df" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="273.33000000000004" y="88.2" text-anchor="middle" font-size="14" font-weight="700" fill="#2b2725" data-prepared-text="true" dy="4.8999999999999995" textLength="55.86000000000001" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Product</text>
+  <text paint-order="stroke" stroke="#fff5df" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="273.33" y="88.2" text-anchor="middle" font-size="14" font-weight="700" fill="#2b2725" data-prepared-text="true" dy="4.9" textLength="55.86" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Product</text>
 </g>
 <g class="mindmap-node depth-1" data-id="Research" data-label="Research" data-branch-index="0" data-parent-id="root" data-role="node">
   <rect x="333.26" y="70.1" width="93.3" height="36.2" rx="16" ry="16" fill="#ffc7b9" stroke="#ff5a5f" stroke-width="1.5" />
-  <text paint-order="stroke" stroke="#fff5df" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="379.90999999999997" y="88.19999999999999" text-anchor="middle" font-size="14" font-weight="700" fill="#2b2725" data-prepared-text="true" dy="4.8999999999999995" textLength="69.3" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Research</text>
+  <text paint-order="stroke" stroke="#fff5df" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="379.91" y="88.2" text-anchor="middle" font-size="14" font-weight="700" fill="#2b2725" data-prepared-text="true" dy="4.9" textLength="69.3" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Research</text>
 </g>
 <g class="mindmap-node depth-2" data-id="Interviews" data-label="Interviews" data-branch-index="0" data-parent-id="Research" data-role="node">
   <rect x="446.56" y="32" width="94.98" height="36.2" rx="16" ry="16" fill="#ffd6c5" stroke="#ff5a5f" stroke-width="1.5" />
-  <text paint-order="stroke" stroke="#fff5df" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="494.05" y="50.1" text-anchor="middle" font-size="14" font-weight="700" fill="#2b2725" data-prepared-text="true" dy="4.8999999999999995" textLength="70.97999999999998" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Interviews</text>
+  <text paint-order="stroke" stroke="#fff5df" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="494.05" y="50.1" text-anchor="middle" font-size="14" font-weight="700" fill="#2b2725" data-prepared-text="true" dy="4.9" textLength="70.98" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Interviews</text>
 </g>
 <g class="mindmap-node depth-2" data-id="Evidence" data-label="Evidence" data-branch-index="0" data-parent-id="Research" data-role="node">
   <rect x="446.56" y="108.2" width="89.94" height="36.2" rx="16" ry="16" fill="#ffd6c5" stroke="#ff5a5f" stroke-width="1.5" />
-  <text paint-order="stroke" stroke="#fff5df" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="491.53" y="126.30000000000001" text-anchor="middle" font-size="14" font-weight="700" fill="#2b2725" data-prepared-text="true" dy="4.8999999999999995" textLength="65.93999999999998" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Evidence</text>
+  <text paint-order="stroke" stroke="#fff5df" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="491.53" y="126.3" text-anchor="middle" font-size="14" font-weight="700" fill="#2b2725" data-prepared-text="true" dy="4.9" textLength="65.94" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Evidence</text>
 </g>
 <g class="mindmap-node depth-1" data-id="Delivery" data-label="Delivery" data-branch-index="1" data-parent-id="root" data-role="node">
   <rect x="130.18" y="70.1" width="83.22" height="36.2" rx="16" ry="16" fill="#e4afa8" stroke="#a50d26" stroke-width="1.5" />
-  <text paint-order="stroke" stroke="#fff5df" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="171.79000000000002" y="88.19999999999999" text-anchor="middle" font-size="14" font-weight="700" fill="#2b2725" data-prepared-text="true" dy="4.8999999999999995" textLength="59.22" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Delivery</text>
+  <text paint-order="stroke" stroke="#fff5df" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="171.79" y="88.2" text-anchor="middle" font-size="14" font-weight="700" fill="#2b2725" data-prepared-text="true" dy="4.9" textLength="59.22" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Delivery</text>
 </g>
 <g class="mindmap-node depth-2" data-id="Launch" data-label="Launch" data-branch-index="1" data-parent-id="Delivery" data-role="node">
   <rect x="32" y="70.1" width="78.18" height="36.2" rx="16" ry="16" fill="#edc7ba" stroke="#a50d26" stroke-width="1.5" />
-  <text paint-order="stroke" stroke="#fff5df" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="71.09" y="88.19999999999999" text-anchor="middle" font-size="14" font-weight="700" fill="#2b2725" data-prepared-text="true" dy="4.8999999999999995" textLength="54.18" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Launch</text>
+  <text paint-order="stroke" stroke="#fff5df" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="71.09" y="88.2" text-anchor="middle" font-size="14" font-weight="700" fill="#2b2725" data-prepared-text="true" dy="4.9" textLength="54.18" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Launch</text>
 </g>
 </svg>

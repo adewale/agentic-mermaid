@@ -1946,6 +1946,34 @@ export function applyRouteContracts(
     if (!tightened && inRunRange(mainOf(p0)) && hopClear(mainOf(p0), crossOf(p0))) {
       tightened = buildRoute(mainOf(p0), crossOf(p0), p0)
     }
+    // A label or self-loop may block the immediate exit while a long escape
+    // stub hides a forward sibling's label. Shorten that stub at a proved
+    // clear hop, retaining both endpoints and the existing outer channel.
+    // Siblings retry together: an inner return can vacate the outer return's
+    // hop without adding a crossing or another bend.
+    if (!tightened && runStart === 2 && Math.abs(crossOf(points[1]!) - crossOf(p0)) < EPS &&
+      ctx.edges.some(other => other.source === edge.source && other !== edge && sharedTrunkConflict(other, ctx.edges, ctx.style))) {
+      const outward = Math.sign(mainOf(points[1]!) - mainOf(p0))
+      const candidates = [mainOf(p0) + outward * 12]
+      for (const other of ctx.edges) {
+        if (other === edge) continue
+        for (const point of other.points) candidates.push(mainOf(point) + outward * 12)
+        const pill = labelRect(other, ctx.style)
+        if (pill) candidates.push((graphAxis.main === 'x' ? pill.x + (outward > 0 ? pill.w : 0) : pill.y + (outward > 0 ? pill.h : 0)) + outward * (CLEARANCE + EPS))
+      }
+      candidates.sort((a, b) => (a - b) * outward)
+      for (const coordinate of candidates) {
+        if ((coordinate - mainOf(p0)) * outward < 12 - EPS ||
+          (mainOf(points[1]!) - coordinate) * outward <= EPS || !inRunRange(coordinate)) continue
+        if (!hopClear(coordinate, crossOf(p0))) continue
+        const stub = graphAxis.main === 'x' ? { x: coordinate, y: crossOf(p0) } : { x: crossOf(p0), y: coordinate }
+        const hop = graphAxis.main === 'x' ? { x: coordinate, y: extreme } : { x: extreme, y: coordinate }
+        const candidate = [p0, stub, hop, ...points.slice(runStart + 1)]
+        if (countRouteCrossings(candidate, edge, ctx) > countRouteCrossings(points, edge, ctx)) continue
+        tightened = candidate
+        break
+      }
+    }
     // Tail tightening — symmetric: enter the target via its channel-facing
     // PORT (the South/North side midpoint), truncating the run at the
     // target's center and hopping up from the channel.
