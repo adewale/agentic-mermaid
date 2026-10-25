@@ -334,7 +334,7 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
       '',
       '## Fixed-work CLI child resources',
       '',
-      'A separately instrumented GNU-time pass follows every uninstrumented CLI latency round. Peak RSS is the maximum per-case child value; CPU sums fresh-process cases. These values include runtime/shared code and are not PSS, allocation or leak measurements. CPU fields have 10 ms reporting grain; the conservative allowance is not a confidence interval.',
+      'One separately instrumented GNU-time pass follows all uninstrumented CLI latency rounds. Peak RSS is the maximum per-case child value; CPU sums fresh-process cases. These values include runtime/shared code and are not PSS, allocation or leak measurements. CPU fields have 10 ms reporting grain; the conservative allowance is not a confidence interval.',
       '',
       '| Implementation | Output | Required cases | Peak child RSS, MiB | Reported user + system CPU, ms | Conservative CPU interval, ms |',
       '|---|---|---:|---:|---:|---:|',
@@ -542,7 +542,7 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
           const values = delivery.map(row => row.metrics?.[key]).filter((v): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0)
           return values.length ? number(median(values) / 1024, 1) : 'N/A'
         }
-        lines.push(`| ${escape(r.label ?? r.id)} | ${count('family')} | ${count('invocation')} | ${escape(configuration?.profile)} / ${configuration?.rounds ?? '—'} | ${payload('initialGzipBytes')} | ${payload('gzipBytes')} |`)
+        lines.push(`| ${escape(r.label ?? r.id)} [${escape(r.id)} · ${escape(r.integration)} · ${escape(r.head?.slice(0, 12))}] | ${count('family')} | ${count('invocation')} | ${escape(configuration?.profile)} / ${configuration?.rounds ?? '—'} | ${payload('initialGzipBytes')} | ${payload('gzipBytes')} |`)
       }
       lines.push('', `Full per-metric rows, fresh bracketing controls, broad family/invocation results and artifact identities: [PR campaign evidence](${escape(relative(dirname(output), prFile))}). Source-conflicting heads and own bases stay exploratory; no merge readiness is implied.`)
     } else lines.push('No PR campaign supplied to this snapshot. Refresh with `--prs` after running `bench:prs`; historical PR scores are not relabeled as current.')
@@ -671,18 +671,18 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
     const latest = admission.currentInvocationRun
     lines.push(
       '',
+      `Actual execution census: **${escape(latest.attemptCensus.completeness)}**. ${escape(latest.attemptCensus.scope)} Public function exports without direct operation witnesses remain explicitly unmeasured: ${latest.attemptCensus.publicFunctionsWithoutDirectWitness.length} export/runtime/round groups; full names are retained in admitted chart data.`,
+      '',
+      ...latest.attemptCensus.gaps.map((gap: unknown) => `- ${escape(gap)}`),
+    )
+    lines.push(
+      '',
       `Separately built native/site source proof: ${escape(latest.assetsProof.file)}. Native executable SHA256 ${escape(latest.assetsProof.native.sha256)}; ${latest.assetsProof.websiteFiles} admitted built website files. npm archive identity alone does not identify the compiled executable.`,
       '',
       '### Latest pinned Dave and parser evidence',
       '',
       '| Dave engine | Accepted / identical occurrences | Median full attempt cost, ms |',
       '|---|---:|---:|',
-    )
-    lines.push(
-      '',
-      `Actual execution census: **${escape(latest.attemptCensus.completeness)}**. ${escape(latest.attemptCensus.scope)} Public function exports without direct operation witnesses remain explicitly unmeasured: ${latest.attemptCensus.publicFunctionsWithoutDirectWitness.length} export/runtime/round groups; full names are retained in admitted chart data.`,
-      '',
-      ...latest.attemptCensus.gaps.map((gap: unknown) => `- ${escape(gap)}`),
     )
     const dave = JSON.parse(readFileSync(latest.daveFile, 'utf8'))
     for (const engine of dave.engines) lines.push(`| ${escape(engine.label)} | ${engine.accepted} / ${engine.population} | ${number(median(engine.attemptMs))} |`)
