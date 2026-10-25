@@ -185,6 +185,8 @@ describe('maintained consumed peer protocol', () => {
     expect(shortened.allocations).toEqual(complete.allocations)
     expect(shortened.diagnostic).toBe(complete.diagnostic)
     expect(shortened.row.insufficientSamples).toBe(true)
+    expect(shortened.row.status).toBe('error')
+    expect(shortened.row.detail).toBe('incomplete timing population: expected 4, observed 3')
   })
   test('cold call does not warm first, and unavailable receipts remain explicit', async () => {
     let calls = 0
@@ -272,6 +274,15 @@ describe('maintained consumed peer protocol', () => {
       expect(rows.filter(row => row.type === 'progress').every(row => row.observation.consumedBytes > 0)).toBe(true)
       expect(rows.find(row => row.type === 'track').observation).toMatchObject({ peer: 'agentic-baseline', status: 'ok', counts: { ok: 3 }, insufficientSamples: true })
       expect(rows.find(row => row.type === 'track').observation.allocationSamplesBytes).toHaveLength(3)
+      writeFileSync(entry, `export const renderMermaidSVG = () => { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 3); return ${JSON.stringify(svg)} }; export const renderMermaidSVGWithReceipt = () => ({svg:renderMermaidSVG(), receipt:{complete:[1,2,3]}})`)
+      writeFileSync(job, JSON.stringify({ peer: 'agentic-baseline', output: 'svg', entry, timing: { warmCalls: 0, warmupMs: 0, samples: 3, minSampleMs: 0, maxCaseMs: 1 }, track: { ...track, samples: 3, warmCalls: 0, maxCaseMs: 1, consumer: 'receipt-json-utf8' }, workloads: [input] }))
+      writeFileSync(out, '')
+      const shortened = await runChild('node', ['--expose-gc', bundle, '--child', '--job', job, '--out', out], { cwd: root })
+      expect({ status: shortened.status, stderr: shortened.stderr }).toEqual({ status: 0, stderr: '' })
+      const truncated = readFileSync(out, 'utf8').trim().split('\n').map(line => JSON.parse(line)).find(row => row.type === 'track').observation
+      expect(truncated).toMatchObject({ status: 'error', detail: 'incomplete timing population: expected 3, observed 1' })
+      expect(truncated.callSamplesMs).toHaveLength(1)
+      expect(truncated.allocationSamplesBytes).toHaveLength(3)
       writeFileSync(entry, `let calls = 0; export const renderMermaidSVG = () => { if (++calls !== 1) throw new Error('warmed cold worker'); return ${JSON.stringify(svg)} }; export const renderMermaidSVGWithReceipt = () => ({svg:renderMermaidSVG(), receipt:{complete:[1,2,3]}})`)
       for (const coldProbe of ['timing', 'allocation', 'diagnostic']) {
         writeFileSync(job, JSON.stringify({ peer: 'agentic-baseline', output: 'svg', entry, timing: { warmCalls: 1, warmupMs: 0, samples: 3, minSampleMs: 0, maxCaseMs: 100 }, track: { ...track, phase: 'first-use', coldProbe, consumer: 'receipt-json-utf8' }, workloads: [input] }))
