@@ -371,7 +371,20 @@ export async function runCommunityCliCohort(options: Options) {
   const latencyFinishedAt = options.resourceOnly ? null : new Date().toISOString(),
     diagnostics: BenchmarkObservation[] = []
   // Every latency round is complete before the separately instrumented resource phase begins.
-  if (observer.error) diagnostics.push({ suite: 'community-cli', surface: 'cli:end-to-end', runtime: 'unmeasured', family: '*', caseId: 'resource-observer', operation: 'resource-diagnostic', format: 'mixed', mode: 'instrumented-resource-only', status: 'blocked', detail: observer.error })
+  if (!variants.some(variant => variant.outputs.length))
+    diagnostics.push({
+      suite: 'community-cli',
+      surface: 'cli:end-to-end',
+      runtime: 'unmeasured',
+      family: '*',
+      caseId: 'no-cli-variant',
+      operation: 'capability',
+      format: 'mixed',
+      mode: 'capability',
+      status: 'not-applicable',
+      detail: 'The selected projects have no bound public CLI variant for these outputs; no latency or resource pass was executed.',
+    })
+  else if (observer.error) diagnostics.push({ suite: 'community-cli', surface: 'cli:end-to-end', runtime: 'unmeasured', family: '*', caseId: 'resource-observer', operation: 'resource-diagnostic', format: 'mixed', mode: 'instrumented-resource-only', status: 'blocked', detail: observer.error })
   for (const variant of variants)
     for (const output of variant.outputs)
       for (const workload of workloads.filter(w => output !== 'terminal' || terminalIds.includes(w.id))) {
@@ -406,7 +419,7 @@ export async function runCommunityCliCohort(options: Options) {
     id: 'community-cli',
     resourceOnly: options.resourceOnly ?? false,
     resourcePasses: 1,
-    latencyMeasured: !options.resourceOnly,
+    latencyMeasured: !options.resourceOnly && variants.some(variant => variant.outputs.length),
     status: [...observations, ...diagnostics].some(row => row.status === 'failed') ? 'failed' : [...observations, ...diagnostics].some(row => row.status === 'blocked') ? 'blocked' : 'passed',
     startedAt,
     finishedAt: new Date().toISOString(),
