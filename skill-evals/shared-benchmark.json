@@ -27,7 +27,7 @@
       "difficulty": "extended",
       "success_goals": ["outcome", "process"],
       "trigger_type": "explicit",
-      "prompt": "Use the attached C4 context fixture. With the library channel, rename the payments element to provider while retaining both separate Shop-to-Payments interactions. Add an external System called audit with label Audit service and a Shop-to-Audit relationship labeled Records purchase. Verify the result, inspect the semantic facts, then serialize. Write outputs/c4-context/final.mmd and outputs/c4-context/verify.json and include both contents. Show the typed C4 mutation path and preserve the existing interaction labels and HTTPS technology.",
+      "prompt": "Use the attached C4 context fixture. With the library channel, rename the payments element to provider while retaining both separate Shop-to-Payments interactions. Add an external System called audit with label Audit service and a Shop-to-Audit relationship labeled Records purchase. Verify the result, inspect the semantic facts, then serialize. Write outputs/c4-context/final.mmd and outputs/c4-context/verify.json and include both contents. Show the typed C4 mutation path and preserve the existing interaction labels and HTTPS technology. Preserve original meaning beyond the requested edit. Write the complete verifyMermaid(finalSource) result as verify.json; the grader independently checks the saved source and stable verification decisions. A proposed code sketch alone is not a completed artifact.",
       "files": ["fixtures/c4-context/input.mmd"],
       "tags": ["family:c4", "channel:library", "fixture", "artifact", "positive"],
       "expected_behavior": [
@@ -36,10 +36,9 @@
         "Verifies and inspects semantic facts before serializing; does not rewrite C4 as a flowchart."
       ],
       "assertions": [
-        { "name": "artifact-final", "type": "file_exists", "path": "outputs/c4-context/final.mmd" },
-        { "name": "artifact-verify", "type": "file_exists", "path": "outputs/c4-context/verify.json" },
         { "name": "c4-loop", "type": "contains_all", "values": ["asC4", "rename_element", "add_element", "add_relationship", "verifyMermaid", "describeMermaidFacts", "serializeMermaid"] },
-        { "name": "preserved-interactions", "type": "contains_all", "values": ["Authorizes", "Checks status", "HTTPS", "Records purchase", "provider"] }
+        { "name": "preserved-interactions", "type": "contains_all", "values": ["Authorizes", "Checks status", "HTTPS", "Records purchase", "provider"] },
+        { "name": "artifact-semantics", "type": "script", "command": ["bun", "oracles/diagram-artifact.ts", "{output_dir}", "pos-family-c4-context-fixture"], "severity": "critical", "oracle": "strong" }
       ]
     },
     {
@@ -118,20 +117,10 @@
       "difficulty": "extended",
       "success_goals": ["outcome", "process"],
       "trigger_type": "explicit",
-      "prompt": "Use the attached Mermaid fixture. With the Agentic Mermaid library channel, edit the existing flowchart so a caching tier sits between API and DB. Produce artifact files under outputs/flowchart-cache/final.mmd and outputs/flowchart-cache/verify.json, include their contents in your final answer, and show the exact evidence from the library validator. Do not edit by source concatenation when a typed op exists.",
+      "prompt": "Use the attached Mermaid fixture. With the Agentic Mermaid library channel, edit the existing flowchart so a caching tier sits between API and DB. Produce artifact files under outputs/flowchart-cache/final.mmd and outputs/flowchart-cache/verify.json, include their contents in your final answer, and show the exact evidence from the library validator. Do not edit by source concatenation when a typed op exists. Name the new rectangle node Cache, replace API -> DB with API -> Cache -> DB, and preserve Client -> API and the Database cylinder. Preserve original meaning beyond the requested edit. Write the complete verifyMermaid(finalSource) result as verify.json; the grader independently checks the saved source and stable verification decisions. A proposed code sketch alone is not a completed artifact.",
       "files": ["fixtures/flowchart-cache/input.mmd"],
       "expected_behavior": ["Reads the fixture source.", "Uses parseMermaid -> asFlowchart -> mutate -> verifyMermaid -> serializeMermaid.", "Uses kind-discriminated ops and unwraps Result.value.", "Produces changed source and verify evidence."],
       "assertions": [
-        {
-          "name": "artifact-final",
-          "type": "file_exists",
-          "path": "outputs/flowchart-cache/final.mmd"
-        },
-        {
-          "name": "artifact-verify",
-          "type": "file_exists",
-          "path": "outputs/flowchart-cache/verify.json"
-        },
         {
           "name": "library-loop",
           "type": "contains_all",
@@ -146,7 +135,8 @@
           "name": "kind-op",
           "type": "contains",
           "value": "kind"
-        }
+        },
+        { "name": "artifact-semantics", "type": "script", "command": ["bun", "oracles/diagram-artifact.ts", "{output_dir}", "pos-family-flowchart-library-fixture"], "severity": "critical", "oracle": "strong" }
       ],
       "tags": ["family:flowchart", "channel:library", "fixture", "artifact", "positive"]
     },
@@ -158,20 +148,10 @@
       "difficulty": "extended",
       "success_goals": ["outcome", "process", "efficiency"],
       "trigger_type": "explicit",
-      "prompt": "Use the attached Mermaid fixture. In one hosted sandbox call, parse the existing sequence diagram, narrow it, add an API recovery attempt before the final response, verify, and serialize. Produce outputs/sequence-retry/final.mmd and outputs/sequence-retry/verify.json, include both contents in the final answer, and include the verification result. Use typed mutation where supported.",
+      "prompt": "Use the attached Mermaid fixture. In one hosted sandbox call, parse the existing sequence diagram, narrow it, add an API recovery attempt before the final response, verify, and serialize. Produce outputs/sequence-retry/final.mmd and outputs/sequence-retry/verify.json, include both contents in the final answer, and include the verification result. Use typed mutation where supported. Add API->>DB: Retry immediately before API-->>Client: Response; retain all four original messages and participant order. Preserve original meaning beyond the requested edit. Write the complete verifyMermaid(finalSource) result as verify.json; the grader independently checks the saved source and stable verification decisions. A proposed code sketch alone is not a completed artifact.",
       "files": ["fixtures/sequence-retry/input.mmd"],
       "expected_behavior": ["Chooses Code Mode execute(code).", "Uses parseMermaid, asSequence, mutate add_message, verifyMermaid, serializeMermaid.", "Produces artifacts and verification evidence."],
       "assertions": [
-        {
-          "name": "artifact-final",
-          "type": "file_exists",
-          "path": "outputs/sequence-retry/final.mmd"
-        },
-        {
-          "name": "artifact-verify",
-          "type": "file_exists",
-          "path": "outputs/sequence-retry/verify.json"
-        },
         {
           "name": "code-mode",
           "type": "contains_any",
@@ -186,7 +166,8 @@
           "name": "retry",
           "type": "regex",
           "pattern": "add_message[\\s\\S]*(?:Retry|retry)"
-        }
+        },
+        { "name": "artifact-semantics", "type": "script", "command": ["bun", "oracles/diagram-artifact.ts", "{output_dir}", "pos-family-sequence-code-mode-fixture"], "severity": "critical", "oracle": "strong" }
       ],
       "tags": ["family:sequence", "channel:mcp-code-mode", "fixture", "artifact", "positive"]
     },
@@ -198,20 +179,10 @@
       "difficulty": "extended",
       "success_goals": ["outcome", "process"],
       "trigger_type": "explicit",
-      "prompt": "Use the attached Mermaid fixture. Use the CLI channel to add a Ship period under the Build section with an artifact event, verify it, and render at least one text or image output. Include exact command sketches for the mutation and rendering steps, write outputs/timeline-release/final.mmd and outputs/timeline-release/verify.json, and include their contents in your final answer.",
+      "prompt": "Use the attached Mermaid fixture. Use the CLI channel to add a Ship period under the Build section with an artifact event, verify it, and render at least one text or image output. Include exact command sketches for the mutation and rendering steps, write outputs/timeline-release/final.mmd and outputs/timeline-release/verify.json, and include their contents in your final answer. Name the new period Ship and its event Artifact, under Build; preserve both existing sections and events. Preserve original meaning beyond the requested edit. Write the complete verifyMermaid(finalSource) result as verify.json; the grader independently checks the saved source and stable verification decisions. A proposed code sketch alone is not a completed artifact.",
       "files": ["fixtures/timeline-release/input.mmd"],
       "expected_behavior": ["Chooses CLI commands for shell-only workflow.", "Uses am mutate with --op or --ops and kind-discriminated timeline ops.", "Uses verify evidence and mentions render formats."],
       "assertions": [
-        {
-          "name": "artifact-final",
-          "type": "file_exists",
-          "path": "outputs/timeline-release/final.mmd"
-        },
-        {
-          "name": "artifact-verify",
-          "type": "file_exists",
-          "path": "outputs/timeline-release/verify.json"
-        },
         {
           "name": "cli",
           "type": "contains_all",
@@ -226,7 +197,8 @@
           "name": "formats",
           "type": "contains_all",
           "values": ["ASCII", "PNG", "SVG"]
-        }
+        },
+        { "name": "artifact-semantics", "type": "script", "command": ["bun", "oracles/diagram-artifact.ts", "{output_dir}", "pos-family-timeline-cli-fixture"], "severity": "critical", "oracle": "strong" }
       ],
       "tags": ["family:timeline", "channel:cli", "fixture", "artifact", "positive"]
     },
@@ -238,20 +210,10 @@
       "difficulty": "extended",
       "success_goals": ["outcome", "process"],
       "trigger_type": "explicit",
-      "prompt": "Use the attached Mermaid fixture. With the library channel, add a billing-record class and a relation from PaymentService to it, then verify and serialize. Write outputs/class-payment/final.mmd and outputs/class-payment/verify.json, include both contents in the final answer, and show Result.value handling.",
+      "prompt": "Use the attached Mermaid fixture. With the library channel, add a billing-record class and a relation from PaymentService to it, then verify and serialize. Write outputs/class-payment/final.mmd and outputs/class-payment/verify.json, include both contents in the final answer, and show Result.value handling. Name the new class Receipt and use an association PaymentService --> Receipt; preserve Invoice and the existing creates relation. Preserve original meaning beyond the requested edit. Write the complete verifyMermaid(finalSource) result as verify.json; the grader independently checks the saved source and stable verification decisions. A proposed code sketch alone is not a completed artifact.",
       "files": ["fixtures/class-payment/input.mmd"],
       "expected_behavior": ["Uses asClass before mutation.", "Uses add_class and add_relation with relKind, not source splicing.", "Verifies before serializing."],
       "assertions": [
-        {
-          "name": "artifact-final",
-          "type": "file_exists",
-          "path": "outputs/class-payment/final.mmd"
-        },
-        {
-          "name": "artifact-verify",
-          "type": "file_exists",
-          "path": "outputs/class-payment/verify.json"
-        },
         {
           "name": "class-loop",
           "type": "contains_all",
@@ -266,7 +228,8 @@
           "name": "receipt",
           "type": "contains",
           "value": "Receipt"
-        }
+        },
+        { "name": "artifact-semantics", "type": "script", "command": ["bun", "oracles/diagram-artifact.ts", "{output_dir}", "pos-family-class-library-fixture"], "severity": "critical", "oracle": "strong" }
       ],
       "tags": ["family:class", "channel:library", "fixture", "artifact", "positive"]
     },
@@ -278,20 +241,10 @@
       "difficulty": "extended",
       "success_goals": ["outcome", "process"],
       "trigger_type": "explicit",
-      "prompt": "Use the attached Mermaid fixture. With the library channel, add a catalog-item entity with id/name attributes and relate ORDER to it. Verify and serialize. Write outputs/er-orders/final.mmd and outputs/er-orders/verify.json, include both contents, and show the exact typed ops.",
+      "prompt": "Use the attached Mermaid fixture. With the library channel, add a catalog-item entity with id/name attributes and relate ORDER to it. Verify and serialize. Write outputs/er-orders/final.mmd and outputs/er-orders/verify.json, include both contents, and show the exact typed ops. Name the new entity PRODUCT with string id PK and string name attributes; add ORDER ||--o{ PRODUCT : contains, preserving CUSTOMER, ORDER and their attributes/relation. Preserve original meaning beyond the requested edit. Write the complete verifyMermaid(finalSource) result as verify.json; the grader independently checks the saved source and stable verification decisions. A proposed code sketch alone is not a completed artifact.",
       "files": ["fixtures/er-orders/input.mmd"],
       "expected_behavior": ["Uses asEr before mutation.", "Uses add_entity/add_attribute/add_relation with cardinalities.", "Verifies before serializing."],
       "assertions": [
-        {
-          "name": "artifact-final",
-          "type": "file_exists",
-          "path": "outputs/er-orders/final.mmd"
-        },
-        {
-          "name": "artifact-verify",
-          "type": "file_exists",
-          "path": "outputs/er-orders/verify.json"
-        },
         {
           "name": "er-loop",
           "type": "contains_all",
@@ -306,7 +259,8 @@
           "name": "cards",
           "type": "contains_any",
           "values": ["leftCard", "rightCard", "||", "o{"]
-        }
+        },
+        { "name": "artifact-semantics", "type": "script", "command": ["bun", "oracles/diagram-artifact.ts", "{output_dir}", "pos-family-er-library-fixture"], "severity": "critical", "oracle": "strong" }
       ],
       "tags": ["family:er", "channel:library", "fixture", "artifact", "positive"]
     },
@@ -318,20 +272,10 @@
       "difficulty": "extended",
       "success_goals": ["outcome", "process"],
       "trigger_type": "explicit",
-      "prompt": "Use the attached Mermaid fixture. With the library channel, add an order-check task in the Pay section of the existing journey diagram, then verify and serialize. Write outputs/journey-checkout/final.mmd and outputs/journey-checkout/verify.json, include both contents, and show the typed Journey mutation path.",
+      "prompt": "Use the attached Mermaid fixture. With the library channel, add an order-check task in the Pay section of the existing journey diagram, then verify and serialize. Write outputs/journey-checkout/final.mmd and outputs/journey-checkout/verify.json, include both contents, and show the typed Journey mutation path. Name the new task Review order, with score 4 and actor Customer, appended under Pay; preserve all existing tasks and actors. Preserve original meaning beyond the requested edit. Write the complete verifyMermaid(finalSource) result as verify.json; the grader independently checks the saved source and stable verification decisions. A proposed code sketch alone is not a completed artifact.",
       "files": ["fixtures/journey-checkout/input.mmd"],
       "expected_behavior": ["Uses asJourney before mutation.", "Uses add_task rather than source splicing.", "Verifies before serializing."],
       "assertions": [
-        {
-          "name": "artifact-final",
-          "type": "file_exists",
-          "path": "outputs/journey-checkout/final.mmd"
-        },
-        {
-          "name": "artifact-verify",
-          "type": "file_exists",
-          "path": "outputs/journey-checkout/verify.json"
-        },
         {
           "name": "journey-loop",
           "type": "contains_all",
@@ -341,7 +285,8 @@
           "name": "review-order",
           "type": "contains",
           "value": "Review order"
-        }
+        },
+        { "name": "artifact-semantics", "type": "script", "command": ["bun", "oracles/diagram-artifact.ts", "{output_dir}", "pos-family-journey-library-fixture"], "severity": "critical", "oracle": "strong" }
       ],
       "tags": ["family:journey", "channel:library", "fixture", "artifact", "positive"]
     },
@@ -353,20 +298,10 @@
       "difficulty": "extended",
       "success_goals": ["outcome", "process"],
       "trigger_type": "explicit",
-      "prompt": "Use the attached Mermaid fixture. With the library channel, add Apr with value 90 to the existing XY chart, then verify and serialize. Write outputs/xychart-growth/final.mmd and outputs/xychart-growth/verify.json, include both contents, and show the typed XY chart mutation path.",
+      "prompt": "Use the attached Mermaid fixture. With the library channel, add Apr with value 90 to the existing XY chart, then verify and serialize. Write outputs/xychart-growth/final.mmd and outputs/xychart-growth/verify.json, include both contents, and show the typed XY chart mutation path. Preserve original meaning beyond the requested edit. Write the complete verifyMermaid(finalSource) result as verify.json; the grader independently checks the saved source and stable verification decisions. A proposed code sketch alone is not a completed artifact.",
       "files": ["fixtures/xychart-growth/input.mmd"],
       "expected_behavior": ["Uses asXyChart before mutation.", "Updates axis categories and series values with typed ops.", "Verifies before serializing."],
       "assertions": [
-        {
-          "name": "artifact-final",
-          "type": "file_exists",
-          "path": "outputs/xychart-growth/final.mmd"
-        },
-        {
-          "name": "artifact-verify",
-          "type": "file_exists",
-          "path": "outputs/xychart-growth/verify.json"
-        },
         {
           "name": "xychart-loop",
           "type": "contains_all",
@@ -381,7 +316,8 @@
           "name": "formats",
           "type": "contains_all",
           "values": ["ASCII", "PNG", "SVG"]
-        }
+        },
+        { "name": "artifact-semantics", "type": "script", "command": ["bun", "oracles/diagram-artifact.ts", "{output_dir}", "pos-family-xychart-library-fixture"], "severity": "critical", "oracle": "strong" }
       ],
       "tags": ["family:xychart", "channel:library", "fixture", "artifact", "positive"]
     },
@@ -393,20 +329,10 @@
       "difficulty": "extended",
       "success_goals": ["outcome", "process"],
       "trigger_type": "explicit",
-      "prompt": "Use the attached Mermaid fixture. With the library channel, add a caching service between API and Database in the existing architecture diagram, then verify and serialize. Write outputs/architecture-cache/final.mmd and outputs/architecture-cache/verify.json, include both contents, and show the typed Architecture mutation path.",
+      "prompt": "Use the attached Mermaid fixture. With the library channel, add a caching service between API and Database in the existing architecture diagram, then verify and serialize. Write outputs/architecture-cache/final.mmd and outputs/architecture-cache/verify.json, include both contents, and show the typed Architecture mutation path. Name the new service ID and label Cache, place it in app, replace api:R -- L:db with api:R -- L:Cache and Cache:R -- L:db, and retain the existing service IDs/icons. Preserve original meaning beyond the requested edit. Write the complete verifyMermaid(finalSource) result as verify.json; the grader independently checks the saved source and stable verification decisions. A proposed code sketch alone is not a completed artifact.",
       "files": ["fixtures/architecture-cache/input.mmd"],
       "expected_behavior": ["Uses asArchitecture before mutation.", "Uses add_service and add_edge rather than source splicing.", "Verifies before serializing."],
       "assertions": [
-        {
-          "name": "artifact-final",
-          "type": "file_exists",
-          "path": "outputs/architecture-cache/final.mmd"
-        },
-        {
-          "name": "artifact-verify",
-          "type": "file_exists",
-          "path": "outputs/architecture-cache/verify.json"
-        },
         {
           "name": "architecture-loop",
           "type": "contains_all",
@@ -421,7 +347,8 @@
           "name": "formats",
           "type": "contains_all",
           "values": ["ASCII", "PNG", "SVG"]
-        }
+        },
+        { "name": "artifact-semantics", "type": "script", "command": ["bun", "oracles/diagram-artifact.ts", "{output_dir}", "pos-family-architecture-library-fixture"], "severity": "critical", "oracle": "strong" }
       ],
       "tags": ["family:architecture", "channel:library", "fixture", "artifact", "positive"]
     },
@@ -433,20 +360,10 @@
       "difficulty": "extended",
       "success_goals": ["outcome", "process"],
       "trigger_type": "explicit",
-      "prompt": "Use the attached Mermaid fixture. With the library channel, add an unsuccessful terminal state and a Processing transition into it with a failure label, then verify and serialize. Write outputs/state-lifecycle/final.mmd and outputs/state-lifecycle/verify.json, include both contents, and show the typed State mutation path.",
+      "prompt": "Use the attached Mermaid fixture. With the library channel, add an unsuccessful terminal state and a Processing transition into it with a failure label, then verify and serialize. Write outputs/state-lifecycle/final.mmd and outputs/state-lifecycle/verify.json, include both contents, and show the typed State mutation path. Name the new state Failed, label Processing --> Failed as error, and add Failed --> [*] so it is terminal; retain every existing state and transition. Preserve original meaning beyond the requested edit. Write the complete verifyMermaid(finalSource) result as verify.json; the grader independently checks the saved source and stable verification decisions. A proposed code sketch alone is not a completed artifact.",
       "files": ["fixtures/state-lifecycle/input.mmd"],
       "expected_behavior": ["Uses asState before mutation.", "Uses add_state and add_transition with kind-discriminated ops.", "Verifies before serializing."],
       "assertions": [
-        {
-          "name": "artifact-final",
-          "type": "file_exists",
-          "path": "outputs/state-lifecycle/final.mmd"
-        },
-        {
-          "name": "artifact-verify",
-          "type": "file_exists",
-          "path": "outputs/state-lifecycle/verify.json"
-        },
         {
           "name": "state-loop",
           "type": "contains_all",
@@ -456,7 +373,8 @@
           "name": "failed",
           "type": "contains_all",
           "values": ["Failed", "error"]
-        }
+        },
+        { "name": "artifact-semantics", "type": "script", "command": ["bun", "oracles/diagram-artifact.ts", "{output_dir}", "pos-family-state-library-fixture"], "severity": "critical", "oracle": "strong" }
       ],
       "tags": ["family:state", "channel:library", "fixture", "artifact", "positive"]
     },
@@ -468,20 +386,10 @@
       "difficulty": "core",
       "success_goals": ["outcome", "process"],
       "trigger_type": "explicit",
-      "prompt": "Use the attached Mermaid fixture. With the library channel, add a PDF slice with value 10 to the existing pie chart, then verify and serialize. Write outputs/pie-exports/final.mmd and outputs/pie-exports/verify.json, include both contents, and show the typed Pie mutation path.",
+      "prompt": "Use the attached Mermaid fixture. With the library channel, add a PDF slice with value 10 to the existing pie chart, then verify and serialize. Write outputs/pie-exports/final.mmd and outputs/pie-exports/verify.json, include both contents, and show the typed Pie mutation path. Preserve original meaning beyond the requested edit. Write the complete verifyMermaid(finalSource) result as verify.json; the grader independently checks the saved source and stable verification decisions. A proposed code sketch alone is not a completed artifact.",
       "files": ["fixtures/pie-exports/input.mmd"],
       "expected_behavior": ["Uses asPie before mutation.", "Uses add_slice with a positive finite value.", "Verifies before serializing."],
       "assertions": [
-        {
-          "name": "artifact-final",
-          "type": "file_exists",
-          "path": "outputs/pie-exports/final.mmd"
-        },
-        {
-          "name": "artifact-verify",
-          "type": "file_exists",
-          "path": "outputs/pie-exports/verify.json"
-        },
         {
           "name": "pie-loop",
           "type": "contains_all",
@@ -491,7 +399,8 @@
           "name": "pdf",
           "type": "contains_all",
           "values": ["PDF", "10"]
-        }
+        },
+        { "name": "artifact-semantics", "type": "script", "command": ["bun", "oracles/diagram-artifact.ts", "{output_dir}", "pos-family-pie-library-fixture"], "severity": "critical", "oracle": "strong" }
       ],
       "tags": ["family:pie", "channel:library", "fixture", "artifact", "positive"]
     },
@@ -503,20 +412,10 @@
       "difficulty": "extended",
       "success_goals": ["outcome", "process"],
       "trigger_type": "explicit",
-      "prompt": "Use the attached Mermaid fixture. With the library channel, move the protocol-integration point to [0.70, 0.40], then verify and serialize. Write outputs/quadrant-priorities/final.mmd and outputs/quadrant-priorities/verify.json, include both contents, and show the typed Quadrant mutation path.",
+      "prompt": "Use the attached Mermaid fixture. With the library channel, move the protocol-integration point to [0.70, 0.40], then verify and serialize. Write outputs/quadrant-priorities/final.mmd and outputs/quadrant-priorities/verify.json, include both contents, and show the typed Quadrant mutation path. The point to move is MCP setup. Preserve its label and all other points, axes and quadrant labels. Preserve original meaning beyond the requested edit. Write the complete verifyMermaid(finalSource) result as verify.json; the grader independently checks the saved source and stable verification decisions. A proposed code sketch alone is not a completed artifact.",
       "files": ["fixtures/quadrant-priorities/input.mmd"],
       "expected_behavior": ["Uses asQuadrant before mutation.", "Uses move_point with coordinates inside [0, 1].", "Verifies before serializing."],
       "assertions": [
-        {
-          "name": "artifact-final",
-          "type": "file_exists",
-          "path": "outputs/quadrant-priorities/final.mmd"
-        },
-        {
-          "name": "artifact-verify",
-          "type": "file_exists",
-          "path": "outputs/quadrant-priorities/verify.json"
-        },
         {
           "name": "quadrant-loop",
           "type": "contains_all",
@@ -526,7 +425,8 @@
           "name": "mcp",
           "type": "contains_all",
           "values": ["MCP setup", "0.7", "0.4"]
-        }
+        },
+        { "name": "artifact-semantics", "type": "script", "command": ["bun", "oracles/diagram-artifact.ts", "{output_dir}", "pos-family-quadrant-library-fixture"], "severity": "critical", "oracle": "strong" }
       ],
       "tags": ["family:quadrant", "channel:library", "fixture", "artifact", "positive"]
     },
@@ -538,20 +438,10 @@
       "difficulty": "extended",
       "success_goals": ["outcome", "process"],
       "trigger_type": "explicit",
-      "prompt": "Use the attached Mermaid fixture. With the library channel, add a documentation task after the build task and before release, then verify and serialize. Write outputs/gantt-release/final.mmd and outputs/gantt-release/verify.json, include both contents, and show the typed Gantt mutation path.",
+      "prompt": "Use the attached Mermaid fixture. With the library channel, add a documentation task after the build task and before release, then verify and serialize. Write outputs/gantt-release/final.mmd and outputs/gantt-release/verify.json, include both contents, and show the typed Gantt mutation path. Name the new task Docs with ID docs and duration 1d in Build, starting after build; change Release to start after docs and preserve its milestone, ID rel, and 0d duration. Preserve original meaning beyond the requested edit. Write the complete verifyMermaid(finalSource) result as verify.json; the grader independently checks the saved source and stable verification decisions. A proposed code sketch alone is not a completed artifact.",
       "files": ["fixtures/gantt-release/input.mmd"],
       "expected_behavior": ["Uses asGantt before mutation.", "Uses add_task or set_task_dates with deterministic date/dependency semantics.", "Verifies before serializing."],
       "assertions": [
-        {
-          "name": "artifact-final",
-          "type": "file_exists",
-          "path": "outputs/gantt-release/final.mmd"
-        },
-        {
-          "name": "artifact-verify",
-          "type": "file_exists",
-          "path": "outputs/gantt-release/verify.json"
-        },
         {
           "name": "gantt-loop",
           "type": "contains_all",
@@ -561,7 +451,8 @@
           "name": "docs",
           "type": "contains",
           "value": "Docs"
-        }
+        },
+        { "name": "artifact-semantics", "type": "script", "command": ["bun", "oracles/diagram-artifact.ts", "{output_dir}", "pos-family-gantt-library-fixture"], "severity": "critical", "oracle": "strong" }
       ],
       "tags": ["family:gantt", "channel:library", "fixture", "artifact", "positive"]
     },
@@ -573,7 +464,7 @@
       "difficulty": "core",
       "success_goals": ["outcome", "process"],
       "trigger_type": "explicit",
-      "prompt": "Use the attached Mindmap fixture. Add a pre-merge checking child under Research with the typed library API, verify, and serialize. Write outputs/mindmap-product/final.mmd and outputs/mindmap-product/verify.json.",
+      "prompt": "Use the attached Mindmap fixture. Add a pre-merge checking child under Research with the typed library API, verify, and serialize. Write outputs/mindmap-product/final.mmd and outputs/mindmap-product/verify.json. Use Validation for the new child ID and label; preserve Product, Research, Interviews, Delivery and Launch with their existing parent links. Preserve original meaning beyond the requested edit. Write the complete verifyMermaid(finalSource) result as verify.json; the grader independently checks the saved source and stable verification decisions. A proposed code sketch alone is not a completed artifact.",
       "files": ["fixtures/mindmap-product/input.mmd"],
       "expected_behavior": ["Uses asMindmap and add_node.", "Verifies before serializing."],
       "assertions": [
@@ -586,7 +477,8 @@
           "name": "validation",
           "type": "contains",
           "value": "Validation"
-        }
+        },
+        { "name": "artifact-semantics", "type": "script", "command": ["bun", "oracles/diagram-artifact.ts", "{output_dir}", "pos-family-mindmap-library-fixture"], "severity": "critical", "oracle": "strong" }
       ],
       "tags": ["family:mindmap", "channel:library", "fixture", "artifact", "positive"]
     },
@@ -598,7 +490,7 @@
       "difficulty": "extended",
       "success_goals": ["outcome", "process"],
       "trigger_type": "explicit",
-      "prompt": "Use the attached GitGraph fixture. Create a documentation branch, append a commit, return to main, merge it, verify, and serialize with the typed library API. Write outputs/gitgraph-release/final.mmd and outputs/gitgraph-release/verify.json.",
+      "prompt": "Use the attached GitGraph fixture. Create a documentation branch, append a commit, return to main, merge it, verify, and serialize with the typed library API. Write outputs/gitgraph-release/final.mmd and outputs/gitgraph-release/verify.json. Name the branch docs, use commit ID docs-change with message Write docs, then checkout main and merge docs with ID docs-merge. Preserve base, release, and their original messages/parentage. Preserve original meaning beyond the requested edit. Write the complete verifyMermaid(finalSource) result as verify.json; the grader independently checks the saved source and stable verification decisions. A proposed code sketch alone is not a completed artifact.",
       "files": ["fixtures/gitgraph-release/input.mmd"],
       "expected_behavior": ["Uses asGitGraph and replay mutation ops.", "Verifies before serializing."],
       "assertions": [
@@ -611,7 +503,8 @@
           "name": "docs",
           "type": "contains",
           "value": "docs"
-        }
+        },
+        { "name": "artifact-semantics", "type": "script", "command": ["bun", "oracles/diagram-artifact.ts", "{output_dir}", "pos-family-gitgraph-library-fixture"], "severity": "critical", "oracle": "strong" }
       ],
       "tags": ["family:gitgraph", "channel:library", "fixture", "artifact", "positive"]
     },
@@ -691,17 +584,11 @@
       "difficulty": "extended",
       "trigger_type": "explicit",
       "success_goals": ["outcome", "process", "efficiency"],
-      "prompt": "Use the attached state-diagram source. On hosted Agentic Mermaid MCP, add an unsuccessful terminal state named Failed and a failure transition from Processing into it in one structured request. This uses known fields and no custom control flow. Show which embedded verification fields must pass before accepting returned source; do not fabricate a response. End with one fenced JSON object containing exactly `{\"tool\": <selected tool>, \"arguments\": <argument object>}`.",
+      "prompt": "Use the attached state-diagram source. On hosted Agentic Mermaid MCP, add an unsuccessful terminal state named Failed and a transition labeled error from Processing into it, plus Failed --> [*] to make it terminal in one structured request. This uses known fields and no custom control flow. Show which embedded verification fields must pass before accepting returned source; do not fabricate a response. End with one fenced JSON object containing exactly `{\"tool\": <selected tool>, \"arguments\": <argument object>}`.",
       "files": ["fixtures/mcp-state-failure/input.mmd"],
       "expected_behavior": ["Uses the direct mutate tool with an ordered ops array.", "Checks the mutate response's embedded verify result.", "Does not use execute for a straightforward declarative edit."],
       "assertions": [
-        {
-          "name": "executable-mutation-request",
-          "type": "script",
-          "command": ["bun", "oracles/hosted-mcp-request.ts", "{output_dir}", "mutate", "--source-file", "fixtures/mcp-state-failure/input.mmd", "--family", "state", "--result-contains", "Failed,Processing --> Failed"],
-          "severity": "critical",
-          "oracle": "strong"
-        },
+        { "name": "executable-mutation-request", "type": "script", "command": ["bun", "oracles/hosted-mcp-request.ts", "{output_dir}", "mutate", "--source-file", "fixtures/mcp-state-failure/input.mmd", "--family", "state", "--fact", "state Failed", "--fact", "edge Processing -> Failed : error", "--fact", "edge Failed -> [*]"], "severity": "critical", "oracle": "strong" },
         { "name": "embedded-verification", "type": "contains_all", "values": ["verify.ok", "verify.warnings"] },
         { "name": "no-execute", "type": "excludes_any", "values": ["execute(code)", "mermaid.execute", "name: 'execute'", "\"name\": \"execute\""] }
       ],
@@ -1077,52 +964,34 @@
       "difficulty": "extended",
       "success_goals": ["outcome", "process"],
       "trigger_type": "explicit",
-      "prompt": "Use the attached Mermaid radar fixture. With the library channel, add a Safety axis (filling existing curves with 0) and a second curve b[\"Model B\"] with values 5,3,4,2, then verify and serialize. Write outputs/radar-profile/final.mmd and outputs/radar-profile/verify.json, include both contents, and show the typed Radar mutation path.",
+      "prompt": "Use the attached Mermaid radar fixture. With the library channel, add a Safety axis (filling existing curves with 0) and a second curve b[\"Model B\"] with values 5,3,4,2, then verify and serialize. Write outputs/radar-profile/final.mmd and outputs/radar-profile/verify.json, include both contents, and show the typed Radar mutation path. Use axis ID safety with label Safety, append it after Cost, and preserve Model A as 4,5,3,0 and the existing max 5. Preserve original meaning beyond the requested edit. Write the complete verifyMermaid(finalSource) result as verify.json; the grader independently checks the saved source and stable verification decisions. A proposed code sketch alone is not a completed artifact.",
       "files": ["fixtures/radar-profile/input.mmd"],
       "tags": ["family:radar", "channel:library"],
       "expected_behavior": ["Uses asRadar before mutation.", "Uses add_axis (which reshapes every curve's value vector) and add_curve with one value per axis.", "Verifies before serializing."],
       "assertions": [
         {
-          "name": "artifact-final",
-          "type": "file_exists",
-          "path": "outputs/radar-profile/final.mmd"
-        },
-        {
-          "name": "artifact-verify",
-          "type": "file_exists",
-          "path": "outputs/radar-profile/verify.json"
-        },
-        {
           "name": "radar-loop",
           "type": "contains_all",
           "values": ["asRadar", "add_axis", "add_curve"]
-        }
+        },
+        { "name": "artifact-semantics", "type": "script", "command": ["bun", "oracles/diagram-artifact.ts", "{output_dir}", "pos-family-radar-profile-fixture"], "severity": "critical", "oracle": "strong" }
       ]
     },
     {
       "id": "pos-family-sankey-budget-fixture",
       "split": "tune",
       "kind": "positive",
-      "prompt": "Use the attached Mermaid sankey fixture. With the library channel, rename the Electricity node to Grid, add a Grid,Losses,56.69 flow, then verify and serialize. Write outputs/sankey-budget/final.mmd and outputs/sankey-budget/verify.json, include both contents, and show the typed Sankey mutation path.",
+      "prompt": "Use the attached Mermaid sankey fixture. With the library channel, rename the Electricity node to Grid, add a Grid,Losses,56.69 flow, then verify and serialize. Write outputs/sankey-budget/final.mmd and outputs/sankey-budget/verify.json, include both contents, and show the typed Sankey mutation path. Preserve original meaning beyond the requested edit. Write the complete verifyMermaid(finalSource) result as verify.json; the grader independently checks the saved source and stable verification decisions. A proposed code sketch alone is not a completed artifact.",
       "files": ["fixtures/sankey-budget/input.mmd"],
       "tags": ["family:sankey", "channel:library"],
       "expected_behavior": ["Uses asSankey before mutation.", "Uses rename_node (which rewrites every source/target occurrence and rejects label collisions) and add_link.", "Verifies before serializing."],
       "assertions": [
         {
-          "name": "artifact-final",
-          "type": "file_exists",
-          "path": "outputs/sankey-budget/final.mmd"
-        },
-        {
-          "name": "artifact-verify",
-          "type": "file_exists",
-          "path": "outputs/sankey-budget/verify.json"
-        },
-        {
           "name": "sankey-loop",
           "type": "contains_all",
           "values": ["asSankey", "rename_node", "add_link"]
-        }
+        },
+        { "name": "artifact-semantics", "type": "script", "command": ["bun", "oracles/diagram-artifact.ts", "{output_dir}", "pos-family-sankey-budget-fixture"], "severity": "critical", "oracle": "strong" }
       ]
     },
     {
@@ -1133,26 +1002,17 @@
       "difficulty": "core",
       "success_goals": ["outcome", "process"],
       "trigger_type": "explicit",
-      "prompt": "Use the attached packet fixture with Agentic Mermaid in the library channel. Rename the first field to Protocol version, then append an 8-bit Checksum field. Keep the existing field widths and contiguous bit offsets. Parse, narrow, mutate, verify and serialize. Write outputs/packet-native/final.mmd and outputs/packet-native/verify.json, include both contents, and show the typed editing path. Preserve the family domain form.",
+      "prompt": "Use the attached packet fixture with Agentic Mermaid in the library channel. Rename the first field to Protocol version, then append an 8-bit Checksum field. Keep the existing field widths and contiguous bit offsets. Parse, narrow, mutate, verify and serialize. Write outputs/packet-native/final.mmd and outputs/packet-native/verify.json, include both contents, and show the typed editing path. Preserve the family domain form. Preserve original meaning beyond the requested edit. Write the complete verifyMermaid(finalSource) result as verify.json; the grader independently checks the saved source and stable verification decisions. A proposed code sketch alone is not a completed artifact.",
       "files": ["fixtures/packet-native/input.mmd"],
       "tags": ["family:packet", "channel:library", "fixture", "artifact", "positive"],
       "expected_behavior": ["Uses asPacket and the native set_field_label operation after inspecting structured identities.", "Preserves ordered domain content, parent membership and distinct relationships.", "Calls verifyMermaid before serializeMermaid and writes reviewable artifacts."],
       "assertions": [
         {
-          "name": "artifact-final",
-          "type": "file_exists",
-          "path": "outputs/packet-native/final.mmd"
-        },
-        {
-          "name": "artifact-verify",
-          "type": "file_exists",
-          "path": "outputs/packet-native/verify.json"
-        },
-        {
           "name": "packet-loop",
           "type": "contains_all",
           "values": ["asPacket", "set_field_label", "verifyMermaid", "serializeMermaid"]
-        }
+        },
+        { "name": "artifact-semantics", "type": "script", "command": ["bun", "oracles/diagram-artifact.ts", "{output_dir}", "pos-family-packet-native-fixture"], "severity": "critical", "oracle": "strong" }
       ]
     },
     {
@@ -1163,26 +1023,17 @@
       "difficulty": "core",
       "success_goals": ["outcome", "process"],
       "trigger_type": "explicit",
-      "prompt": "Use the attached kanban fixture with Agentic Mermaid in the library channel. Move parser into done after research without losing its assignee or priority. Keep both authored column and task identities. Parse, narrow, mutate, verify and serialize. Write outputs/kanban-native/final.mmd and outputs/kanban-native/verify.json, include both contents, and show the typed editing path. Preserve the family domain form.",
+      "prompt": "Use the attached kanban fixture with Agentic Mermaid in the library channel. Move parser into done after research without losing its assignee or priority. Keep both authored column and task identities. Parse, narrow, mutate, verify and serialize. Write outputs/kanban-native/final.mmd and outputs/kanban-native/verify.json, include both contents, and show the typed editing path. Preserve the family domain form. Preserve original meaning beyond the requested edit. Write the complete verifyMermaid(finalSource) result as verify.json; the grader independently checks the saved source and stable verification decisions. A proposed code sketch alone is not a completed artifact.",
       "files": ["fixtures/kanban-native/input.mmd"],
       "tags": ["family:kanban", "channel:library", "fixture", "artifact", "positive"],
       "expected_behavior": ["Uses asKanban and the native move_task operation after inspecting structured identities.", "Preserves ordered domain content, parent membership and distinct relationships.", "Calls verifyMermaid before serializeMermaid and writes reviewable artifacts."],
       "assertions": [
         {
-          "name": "artifact-final",
-          "type": "file_exists",
-          "path": "outputs/kanban-native/final.mmd"
-        },
-        {
-          "name": "artifact-verify",
-          "type": "file_exists",
-          "path": "outputs/kanban-native/verify.json"
-        },
-        {
           "name": "kanban-loop",
           "type": "contains_all",
           "values": ["asKanban", "move_task", "verifyMermaid", "serializeMermaid"]
-        }
+        },
+        { "name": "artifact-semantics", "type": "script", "command": ["bun", "oracles/diagram-artifact.ts", "{output_dir}", "pos-family-kanban-native-fixture"], "severity": "critical", "oracle": "strong" }
       ]
     },
     {
@@ -1193,26 +1044,17 @@
       "difficulty": "core",
       "success_goals": ["outcome", "process"],
       "trigger_type": "explicit",
-      "prompt": "Use the attached requirement fixture with Agentic Mermaid in the library channel. Rename suite to evidence while retaining both distinct verifies and traces relationships, then change reliable verification to Analysis. Parse, narrow, mutate, verify and serialize. Write outputs/requirement-native/final.mmd and outputs/requirement-native/verify.json, include both contents, and show the typed editing path. Preserve the family domain form.",
+      "prompt": "Use the attached requirement fixture with Agentic Mermaid in the library channel. Rename suite to evidence while retaining both distinct verifies and traces relationships, then change reliable verification to Analysis. Parse, narrow, mutate, verify and serialize. Write outputs/requirement-native/final.mmd and outputs/requirement-native/verify.json, include both contents, and show the typed editing path. Preserve the family domain form. Preserve original meaning beyond the requested edit. Write the complete verifyMermaid(finalSource) result as verify.json; the grader independently checks the saved source and stable verification decisions. A proposed code sketch alone is not a completed artifact.",
       "files": ["fixtures/requirement-native/input.mmd"],
       "tags": ["family:requirement", "channel:library", "fixture", "artifact", "positive"],
       "expected_behavior": ["Uses asRequirement and the native rename_node operation after inspecting structured identities.", "Preserves ordered domain content, parent membership and distinct relationships.", "Calls verifyMermaid before serializeMermaid and writes reviewable artifacts."],
       "assertions": [
         {
-          "name": "artifact-final",
-          "type": "file_exists",
-          "path": "outputs/requirement-native/final.mmd"
-        },
-        {
-          "name": "artifact-verify",
-          "type": "file_exists",
-          "path": "outputs/requirement-native/verify.json"
-        },
-        {
           "name": "requirement-loop",
           "type": "contains_all",
           "values": ["asRequirement", "rename_node", "verifyMermaid", "serializeMermaid"]
-        }
+        },
+        { "name": "artifact-semantics", "type": "script", "command": ["bun", "oracles/diagram-artifact.ts", "{output_dir}", "pos-family-requirement-native-fixture"], "severity": "critical", "oracle": "strong" }
       ]
     },
     {
@@ -1223,26 +1065,17 @@
       "difficulty": "core",
       "success_goals": ["outcome", "process"],
       "trigger_type": "explicit",
-      "prompt": "Use the attached block fixture with Agentic Mermaid in the library channel. Rename primary to writer, keep Data services and its membership, and preserve the authored empty cell and writer-to-replica connection. Parse, narrow, mutate, verify and serialize. Write outputs/block-native/final.mmd and outputs/block-native/verify.json, include both contents, and show the typed editing path. Preserve the family domain form.",
+      "prompt": "Use the attached block fixture with Agentic Mermaid in the library channel. Rename primary to writer, keep Data services and its membership, and preserve the authored empty cell and writer-to-replica connection. Parse, narrow, mutate, verify and serialize. Write outputs/block-native/final.mmd and outputs/block-native/verify.json, include both contents, and show the typed editing path. Preserve the family domain form. Preserve original meaning beyond the requested edit. Write the complete verifyMermaid(finalSource) result as verify.json; the grader independently checks the saved source and stable verification decisions. A proposed code sketch alone is not a completed artifact.",
       "files": ["fixtures/block-native/input.mmd"],
       "tags": ["family:block", "channel:library", "fixture", "artifact", "positive"],
       "expected_behavior": ["Uses asBlock and the native rename_block operation after inspecting structured identities.", "Preserves ordered domain content, parent membership and distinct relationships.", "Calls verifyMermaid before serializeMermaid and writes reviewable artifacts."],
       "assertions": [
         {
-          "name": "artifact-final",
-          "type": "file_exists",
-          "path": "outputs/block-native/final.mmd"
-        },
-        {
-          "name": "artifact-verify",
-          "type": "file_exists",
-          "path": "outputs/block-native/verify.json"
-        },
-        {
           "name": "block-loop",
           "type": "contains_all",
           "values": ["asBlock", "rename_block", "verifyMermaid", "serializeMermaid"]
-        }
+        },
+        { "name": "artifact-semantics", "type": "script", "command": ["bun", "oracles/diagram-artifact.ts", "{output_dir}", "pos-family-block-native-fixture"], "severity": "critical", "oracle": "strong" }
       ]
     },
     {
@@ -1253,26 +1086,17 @@
       "difficulty": "core",
       "success_goals": ["outcome", "process"],
       "trigger_type": "explicit",
-      "prompt": "Use the attached treemap fixture with Agentic Mermaid in the library channel. Use the native body to identify Design and change its value to 50. Preserve its Build parent and the Engineering value. Parse, narrow, mutate, verify and serialize. Write outputs/treemap-native/final.mmd and outputs/treemap-native/verify.json, include both contents, and show the typed editing path. Preserve the family domain form.",
+      "prompt": "Use the attached treemap fixture with Agentic Mermaid in the library channel. Use the native body to identify Design and change its value to 50. Preserve its Build parent and the Engineering value. Parse, narrow, mutate, verify and serialize. Write outputs/treemap-native/final.mmd and outputs/treemap-native/verify.json, include both contents, and show the typed editing path. Preserve the family domain form. Preserve original meaning beyond the requested edit. Write the complete verifyMermaid(finalSource) result as verify.json; the grader independently checks the saved source and stable verification decisions. A proposed code sketch alone is not a completed artifact.",
       "files": ["fixtures/treemap-native/input.mmd"],
       "tags": ["family:treemap", "channel:library", "fixture", "artifact", "positive"],
       "expected_behavior": ["Uses asTreemap and the native set_value operation after inspecting structured identities.", "Preserves ordered domain content, parent membership and distinct relationships.", "Calls verifyMermaid before serializeMermaid and writes reviewable artifacts."],
       "assertions": [
         {
-          "name": "artifact-final",
-          "type": "file_exists",
-          "path": "outputs/treemap-native/final.mmd"
-        },
-        {
-          "name": "artifact-verify",
-          "type": "file_exists",
-          "path": "outputs/treemap-native/verify.json"
-        },
-        {
           "name": "treemap-loop",
           "type": "contains_all",
           "values": ["asTreemap", "set_value", "verifyMermaid", "serializeMermaid"]
-        }
+        },
+        { "name": "artifact-semantics", "type": "script", "command": ["bun", "oracles/diagram-artifact.ts", "{output_dir}", "pos-family-treemap-native-fixture"], "severity": "critical", "oracle": "strong" }
       ]
     },
     {
@@ -1283,26 +1107,17 @@
       "difficulty": "core",
       "success_goals": ["outcome", "process"],
       "trigger_type": "explicit",
-      "prompt": "Use the attached ishikawa fixture with Agentic Mermaid in the library channel. Identify the Tooling category from its native node identity and add a Cold caches cause beneath it. Retain the effect and the complete existing cause hierarchy. Parse, narrow, mutate, verify and serialize. Write outputs/ishikawa-native/final.mmd and outputs/ishikawa-native/verify.json, include both contents, and show the typed editing path. Preserve the family domain form.",
+      "prompt": "Use the attached ishikawa fixture with Agentic Mermaid in the library channel. Identify the Tooling category from its native node identity and add a Cold caches cause beneath it. Retain the effect and the complete existing cause hierarchy. Parse, narrow, mutate, verify and serialize. Write outputs/ishikawa-native/final.mmd and outputs/ishikawa-native/verify.json, include both contents, and show the typed editing path. Preserve the family domain form. Preserve original meaning beyond the requested edit. Write the complete verifyMermaid(finalSource) result as verify.json; the grader independently checks the saved source and stable verification decisions. A proposed code sketch alone is not a completed artifact.",
       "files": ["fixtures/ishikawa-native/input.mmd"],
       "tags": ["family:ishikawa", "channel:library", "fixture", "artifact", "positive"],
       "expected_behavior": ["Uses asIshikawa and the native add_cause operation after inspecting structured identities.", "Preserves ordered domain content, parent membership and distinct relationships.", "Calls verifyMermaid before serializeMermaid and writes reviewable artifacts."],
       "assertions": [
         {
-          "name": "artifact-final",
-          "type": "file_exists",
-          "path": "outputs/ishikawa-native/final.mmd"
-        },
-        {
-          "name": "artifact-verify",
-          "type": "file_exists",
-          "path": "outputs/ishikawa-native/verify.json"
-        },
-        {
           "name": "ishikawa-loop",
           "type": "contains_all",
           "values": ["asIshikawa", "add_cause", "verifyMermaid", "serializeMermaid"]
-        }
+        },
+        { "name": "artifact-semantics", "type": "script", "command": ["bun", "oracles/diagram-artifact.ts", "{output_dir}", "pos-family-ishikawa-native-fixture"], "severity": "critical", "oracle": "strong" }
       ]
     }
   ],

@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { isAbsolute, join, resolve } from 'node:path'
+import { checkMermaid } from '../../src/agent/facts.ts'
 import { applyOps } from '../../src/agent/apply.ts'
 import { parseRegisteredMermaid } from '../../src/agent/parse.ts'
 import { verifyMermaid } from '../../src/agent/verify.ts'
@@ -19,6 +20,7 @@ export interface HostedMcpExpectation {
   family?: string
   format?: 'text' | 'json' | 'facts'
   detail?: 'signatures' | 'fields'
+  requiredFacts?: string[]
   resultContains?: string[]
   classRelation?: {
     from: string
@@ -117,6 +119,14 @@ export function gradeHostedMcpRequest(text: string, expectation: HostedMcpExpect
           for (const token of expectation.resultContains ?? []) {
             if (!applied.source.includes(token)) problems.push(`result source does not contain ${JSON.stringify(token)}`)
           }
+          if (expectation.requiredFacts?.length) {
+            const parsed = parseRegisteredMermaid(applied.source)
+            if (!parsed.ok) problems.push('mutation source does not parse for semantic checks')
+            else {
+              const checked = checkMermaid(parsed.value, expectation.requiredFacts)
+              problems.push(...checked.missing.map(fact => `result lacks semantic fact: ${fact}`))
+            }
+          }
           if (expectation.classRelation) {
             const parsed = parseRegisteredMermaid(applied.source)
             if (!parsed.ok || parsed.value.body.kind !== 'class') {
@@ -149,9 +159,11 @@ function option(name: string): string | undefined {
 }
 
 if (import.meta.main) {
+  // Evaluator SDK calls must not enter the observed agent trace.
+  delete process.env.AM_TRACE_LOG
   const outputDir = process.argv[2]
   const tool = process.argv[3]
-  if (!outputDir || !tool) throw new Error('usage: hosted-mcp-request.ts OUTPUT_DIR TOOL [--source TEXT | --source-file PATH] [--family ID] [--format text|json|facts] [--detail signatures|fields] [--result-contains text,text] [--class-relation from,to,kind[,label]]')
+  if (!outputDir || !tool) throw new Error('usage: hosted-mcp-request.ts OUTPUT_DIR TOOL [--source TEXT | --source-file PATH] [--family ID] [--format text|json|facts] [--detail signatures|fields] [--result-contains text,text] [--fact EXACT_FACT] [--class-relation from,to,kind[,label]]')
   const sourceFile = option('--source-file')
   const sourceLiteral = option('--source')
   if (sourceFile && sourceLiteral !== undefined) throw new Error('use either --source or --source-file, not both')
@@ -171,6 +183,7 @@ if (import.meta.main) {
     ...(format ? { format } : {}),
     ...(detail ? { detail } : {}),
     resultContains: (option('--result-contains') ?? '').split(',').filter(Boolean),
+    requiredFacts: process.argv.flatMap((value, index, args) => value === '--fact' && args[index + 1] ? [args[index + 1]!] : []),
     ...(classRelationParts.length > 0
       ? {
           classRelation: {
