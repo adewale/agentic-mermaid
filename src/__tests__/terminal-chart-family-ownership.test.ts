@@ -118,6 +118,7 @@ describe('terminal outline and chart ownership', () => {
       expect(region.projectedText?.match(/<b>/g)).toHaveLength(1)
       expect(region.projectedText?.match(/<\/b>/g)).toHaveLength(1)
       expect(region.projectedText).not.toContain('<br/>')
+      expect(region.projectedText?.replace(/\s+/g, ' ')).toBe(label)
     }
   })
 
@@ -155,6 +156,7 @@ describe('terminal outline and chart ownership', () => {
   test('highlighted zero Pie entries reserve marker and raw-value width before wrapping', () => {
     const source = '---\nconfig:\n  pie:\n    highlightSlice: Zero entry\n---\npie showData\n"Zero entry" : 0'
     const hard = renderMermaidASCII(source, { targetWidth: 50, colorMode: 'none' })
+    expect(hard.replace(/[-\s>]/g, '')).toContain('Zeroentry')
     expect(hard).toContain('> ')
     expect(hard).toContain('0.0%  [0]')
     expect(hard).not.toContain('█')
@@ -166,7 +168,11 @@ describe('terminal outline and chart ownership', () => {
     const document = capture(config => renderSankeyAscii(['sankey-beta', 'Source,Target,2', 'Source,Target,1'], config, 'none', DEFAULT_ASCII_THEME))
     const edges = document.regions().filter(region => region.kind === 'edge')
     expect(edges.map(region => region.id).sort()).toEqual(['link:Source->Target', 'link:Source->Target#1'])
-    expect(edges[0]!.ownedCellSpans.some(span => edges[1]!.ownedCellSpans.some(other => span.row !== other.row))).toBe(true)
+    const footprints = edges.map(edge => new Set([...document.entries()].filter(([, , cell]) => cell.owners.some(owner => owner.kind === 'edge' && owner.id === edge.id)).map(([x, y]) => `${x},${y}`)))
+    for (const [index, footprint] of footprints.entries()) {
+      expect(footprint.size).toBeGreaterThan(0)
+      expect([...footprint].some(cell => !footprints[1 - index]!.has(cell))).toBe(true)
+    }
     expect(authored(document, 'Target').map(cell => cell.glyph).join('')).toBe('TargetTarget')
   })
 

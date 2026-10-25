@@ -26,7 +26,10 @@ import { ARROW_HEAD, FLOWCHART_DOTTED_DASH, resolveRenderStyle } from '../styles
 import type { EdgeMarker, EdgeStyle, PositionedEdge } from '../types.ts'
 
 function layoutEdges(source: string): PositionedEdge[] {
-  return layoutGraphSync(parseMermaid(source)).edges
+  const graph = parseMermaid(source), positioned = layoutGraphSync(graph)
+  expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+  expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
+  return positioned.edges
 }
 
 function findEdge(edges: PositionedEdge[], from: string, to: string): PositionedEdge {
@@ -42,7 +45,10 @@ function isStraight(e: PositionedEdge): boolean {
 }
 
 function geometry(source: string): string {
-  const positioned = layoutGraphSync(parseMermaid(source))
+  const graph = parseMermaid(source)
+  const positioned = layoutGraphSync(graph)
+  expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+  expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
   return JSON.stringify({
     nodes: positioned.nodes.map(n => [n.id, n.x, n.y, n.width, n.height]),
     edges: positioned.edges.map(e => [e.source, e.target, e.points]),
@@ -51,7 +57,10 @@ function geometry(source: string): string {
 
 function zeroHardViolations(source: string): void {
   const graph = parseMermaid(source)
-  expect(hardViolations(assessLayout(graph, layoutGraphSync(graph)))).toEqual([])
+  const positioned = layoutGraphSync(graph)
+  expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+  expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
+  expect(hardViolations(assessLayout(graph, positioned))).toEqual([])
 }
 
 function rectsOverlap(
@@ -225,6 +234,8 @@ function expectBalancedTerminalLabelCorridor(
 }
 
 function stableProductLoopGeometry(positioned: ReturnType<typeof layoutGraphSync>) {
+  expect(positioned.nodes.map(node => node.id).sort()).toEqual(['A', 'B', 'C', 'D'])
+  expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual([['A', 'B', undefined], ['B', 'C', 'yes'], ['B', 'D', 'needs work']])
   const round = (n: number) => Math.round(n * 1000) / 1000
   return {
     nodes: positioned.nodes.map(n => ({
@@ -492,9 +503,13 @@ describe('syntax range — & multi-edge chains hit the same fan heuristics', () 
   Q -->|alpha| A[Alpha]
   Q -->|beta path| B[Beta]
   Q -.->|gamma| C[Gamma]`
-    const positioned = layoutGraphSync(parseMermaid(source))
+    const graph = parseMermaid(source)
+    const positioned = layoutGraphSync(graph)
+    expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+    expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
     const style = resolveRenderStyle({})
     const branchEdges = positioned.edges.filter(e => e.source === 'Q')
+    expect(branchEdges.map(edge => [edge.target, edge.label]).sort()).toEqual([['A', 'alpha'], ['B', 'beta path'], ['C', 'gamma']])
     const labelRects = branchEdges.map(edge => {
       expect(edge.routeCertificate?.invariant).toBe('bundle')
       expect(distanceToPolyline(edge.labelPosition!, edge.points)).toBeLessThanOrEqual(0.001)
@@ -521,13 +536,17 @@ describe('syntax range — & multi-edge chains hit the same fan heuristics', () 
   C --> F[Done]
   D --> F
   E --> F`
-    const positioned = layoutGraphSync(parseMermaid(source))
+    const graph = parseMermaid(source)
+    const positioned = layoutGraphSync(graph)
+    expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+    expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
     const style = resolveRenderStyle({})
     const nodes = new Map(positioned.nodes.map(node => [node.id, node]))
     const center = nodes.get('B')!.x + nodes.get('B')!.width / 2
     expect(nodes.get('D')!.x + nodes.get('D')!.width / 2).toBeCloseTo(center, 3)
     expect(nodes.get('F')!.x + nodes.get('F')!.width / 2).toBeCloseTo(center, 3)
     const branchEdges = positioned.edges.filter(e => e.source === 'B')
+    expect(branchEdges.map(edge => [edge.target, edge.label]).sort()).toEqual([['C', 'alpha'], ['D', 'beta'], ['E', 'gamma']])
     const labelRects = branchEdges.map(edge => {
       expect(edge.routeCertificate?.sourcePort).toBeDefined()
       expect(edge.routeCertificate?.targetPort).toBe('N')

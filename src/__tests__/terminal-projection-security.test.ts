@@ -2,11 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { colorizeText } from '../ascii/ansi.ts'
 import { DeferredDependencyError } from '../layout/certification-error.ts'
-import {
-  SHARED_RENDER_OPTION_FIELD_DESCRIPTORS,
-  resolveRenderRequest,
-  type SharedRenderOptionField,
-} from '../render-contract.ts'
+import { resolveRenderRequest } from '../render-contract.ts'
 import { getStyle, knownStyles, validateStyleSpec } from '../scene/style-registry.ts'
 import {
   primitiveCapabilityClaimKey,
@@ -362,11 +358,11 @@ describe('canonical terminal field applicability', () => {
       embedFontImport: false, compact: true, idPrefix: 'terminal-', security: 'strict', seed: 7,
     }
     const rendered = renderMermaidASCIIWithReceipt(SOURCE, { ...options, colorMode: 'none' })
-    const features = new Set(rendered.terminalStyle.diagnostics.map(diagnostic => diagnostic.feature))
-    for (const [field, descriptor] of Object.entries(SHARED_RENDER_OPTION_FIELD_DESCRIPTORS) as Array<[SharedRenderOptionField, (typeof SHARED_RENDER_OPTION_FIELD_DESCRIPTORS)[SharedRenderOptionField]]>) {
-      if (options[field] === undefined) continue
-      if (descriptor.terminal === 'consumed') expect(features.has(`render-option:${field}`)).toBe(false)
-      else expect(features.has(`render-option:${field}`), field).toBe(true)
+    for (const [code, fields] of [
+      ['TERMINAL_RENDER_OPTION_PROJECTED', ['muted', 'surface', 'font', 'transparent', 'interactive', 'shadow']],
+      ['TERMINAL_RENDER_OPTION_NOT_APPLICABLE', ['padding', 'nodeSpacing', 'layerSpacing', 'wrappingWidth', 'componentSpacing', 'class', 'architecture', 'timeline', 'journey', 'gantt', 'embedFontImport', 'compact', 'idPrefix', 'security', 'seed']],
+    ] as const) {
+      for (const field of fields) expect(rendered.terminalStyle.diagnostics).toContainEqual(expect.objectContaining({ code, feature: `render-option:${field}` }))
     }
   })
 })

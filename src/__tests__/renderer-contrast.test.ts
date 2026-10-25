@@ -32,7 +32,9 @@ describe('#116 auto-contrast node text on custom fills', () => {
 
   test('no custom fill → theme default (not forced black/white)', () => {
     const svg = renderMermaidSVG('flowchart TD\n  A')
+    expect(svg).toMatch(/<text\b[^>]*>A<\/text>/)
     const fill = firstTextFill(svg)
+    expect(fill).toBeDefined()
     expect(fill).not.toBe('#FFFFFF')
     expect(fill).not.toBe('#000000')
   })

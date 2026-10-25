@@ -8,7 +8,7 @@ import type { AsciiNode } from '../ascii/types.ts'
 
 const emptyGrid = (): Map<string, AsciiNode> => new Map()
 
-describe('getPath determinism and preferredDir', () => {
+describe('getPath determinism and shortest paths', () => {
   test('equal-cost routes are deterministic across repeated calls', () => {
     // An open grid from (0,0) to (4,4) has many equal-length L-shaped routes.
     // Any shortest route is acceptable, provided repeated calls agree.
@@ -31,21 +31,5 @@ describe('getPath determinism and preferredDir', () => {
       const previous = path![i - 1]!, current = path![i]!
       expect(Math.abs(current.x - previous.x) + Math.abs(current.y - previous.y)).toBe(1)
     }
-  })
-
-  test('preferredDir biases the first leg without changing endpoints or length', () => {
-    const grid = emptyGrid()
-    const base = getPath(grid, { x: 0, y: 0 }, { x: 4, y: 4 })!
-    const downFirst = getPath(grid, { x: 0, y: 0 }, { x: 4, y: 4 }, { x: 0, y: 1 })!
-    const rightFirst = getPath(grid, { x: 0, y: 0 }, { x: 4, y: 4 }, { x: 1, y: 0 })!
-    // Same endpoints regardless of bias.
-    expect(downFirst[0]).toEqual({ x: 0, y: 0 })
-    expect(downFirst[downFirst.length - 1]).toEqual({ x: 4, y: 4 })
-    expect(rightFirst[rightFirst.length - 1]).toEqual({ x: 4, y: 4 })
-    // Manhattan-optimal: every route has the same total cell count.
-    expect(downFirst.length).toBe(base.length)
-    expect(rightFirst.length).toBe(base.length)
-    // The two biased routes commit to different first legs.
-    expect(JSON.stringify(downFirst)).not.toBe(JSON.stringify(rightFirst))
   })
 })

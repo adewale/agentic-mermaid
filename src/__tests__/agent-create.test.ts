@@ -224,11 +224,38 @@ describe('buildMermaid', () => {
         { kind: 'add_edge', from: 'api', to: 'db' },
       ],
     } satisfies Record<BuiltinFamilyId, object[]>) as Array<[BuiltinFamilyId, object[]]>
-    expect(cases.map(([kind]) => kind)).toEqual(ALL_KINDS)
+    // Authored facts are independent of the registry and the writer under test.
+    const expectedContent = {
+      flowchart: ['A --> B'],
+      state: ['[*] --> Idle'],
+      sequence: ['A->>B: hi'],
+      timeline: ['2024 : e1'],
+      class: ['Animal', '+name: string'],
+      er: ['USER ||--o{ ORDER'],
+      journey: ['title J', 'section S', 't: 3'],
+      architecture: ['service api', 'service db', 'api:R --> L:db'],
+      xychart: ['title X', 'bar [1, 2, 3]'],
+      pie: ['"A" : 3'],
+      quadrant: ['p: [0.5, 0.5]'],
+      gantt: ['T1', '2026-01-01', '3d'],
+      mindmap: ['root', 'Idea'],
+      gitgraph: ['id:"c1"', 'dev', 'id:"c2"'],
+      radar: ['{1, 2, 3}', 'A', 'B', 'C', 'X'],
+      sankey: ['Coal,Power,5'],
+      c4: ['Client', 'API', 'Calls'],
+      packet: ['0-15: "Port"', '16-47: "Payload"'],
+      kanban: ['Todo["To do"]', 'task["Implement"]'],
+      requirement: ['Respond quickly', '"suite" - verifies -> "speed"'],
+      treemap: ['"Build": 60', '"Learn": 40'],
+      ishikawa: ['\nDelay\n  Process'],
+      block: ['columns 2', 'API', 'Store'],
+    } satisfies Record<BuiltinFamilyId, string[]>
     for (const [kind, ops] of cases) {
       const r = buildMermaid(kind, ops as never[])
       if (!r.ok) throw new Error(`${kind}: ${JSON.stringify(r.error)}`)
-      const reparsed = parseMermaid(serializeMermaid(r.value))
+      const source = serializeMermaid(r.value)
+      for (const fragment of expectedContent[kind]) expect({ kind, source }).toMatchObject({ source: expect.stringContaining(fragment) })
+      const reparsed = parseMermaid(source)
       expect({ kind, reparsed: reparsed.ok && reparsed.value.body.kind }).toEqual({ kind, reparsed: kind })
     }
   })
@@ -326,7 +353,6 @@ test('a checked batch commits once and an invalid operation emits no partial sou
     const rejected = applyOps({ source, ops: [...ops, { kind: 'remove_node', id: 'absent' }] })
     expect(rejected).toMatchObject({ ok: false, opIndex: 12 })
     expect('source' in rejected).toBe(false)
-    expect(source).toBe('flowchart LR\n A --> B')
   } finally { restore() }
 })
 

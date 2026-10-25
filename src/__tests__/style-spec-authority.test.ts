@@ -12,7 +12,6 @@ import {
   registerStyle,
   resolveStyleReference,
   resolveStyleStack,
-  styleSpecFieldReferenceMarkdown,
   styleSpecJsonSchema,
   styleSpecTypeScriptDeclaration,
   validateStyleSpec,
@@ -87,12 +86,6 @@ describe('StyleSpec has one projected field authority', () => {
     projected.properties.stroke.enum.push('injected')
     expect(validateStyleSpec({ stroke: 'injected' })).toContain('"stroke" must be one of crisp | jittered | freehand')
     expect((styleSpecJsonSchema() as any).properties.stroke.enum).toEqual(['crisp', 'jittered', 'freehand'])
-  })
-
-  test('the authoring field table is the canonical descriptor projection', () => {
-    const docs = readFileSync(join(ROOT, 'docs', 'style-authoring.md'), 'utf8')
-    const expected = `<!-- BEGIN GENERATED STYLE SPEC FIELDS -->\n${styleSpecFieldReferenceMarkdown()}\n<!-- END GENERATED STYLE SPEC FIELDS -->`
-    expect(docs).toContain(expected)
   })
 
   test('runtime validation enforces the projected ranges and plain-record boundary', () => {

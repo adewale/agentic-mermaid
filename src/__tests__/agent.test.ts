@@ -346,7 +346,9 @@ describe('flowchart mutate — six ops', () => {
   })
   test('remove_edge', () => {
     const r = mutate(flowchart('flowchart TD\n  A --> B\n  B --> C'), { kind: 'remove_edge', id: 'A->B' })
-    expect(r.ok && r.value.body.graph.edges.length).toBe(1)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.body.graph.edges.map(edge => [edge.source, edge.target])).toEqual([['B', 'C']])
   })
   test('edge and node removals remap numeric linkStyle targets to surviving edge indices', () => {
     const source = 'flowchart TD\n  A --> B\n  B --> C\n  C --> D\n  linkStyle 0 stroke:#111\n  linkStyle 1 stroke:#f00\n  linkStyle 2 stroke:#0f0\n  linkStyle default stroke:#888'
@@ -378,7 +380,10 @@ describe('flowchart mutate — six ops', () => {
   test('input not mutated', () => {
     const f = flowchart('flowchart TD\n  A --> B')
     const before = [...f.body.graph.nodes.keys()].sort()
-    mutate(f, { kind: 'add_node', id: 'C', label: 'C' })
+    const edited = mutate(f, { kind: 'add_node', id: 'C', label: 'C' })
+    expect(edited.ok).toBe(true)
+    if (!edited.ok) return
+    expect(edited.value.body.graph.nodes.get('C')).toMatchObject({ id: 'C', label: 'C' })
     expect([...f.body.graph.nodes.keys()].sort()).toEqual(before)
   })
 })
@@ -402,7 +407,10 @@ describe('sequence mutate — five ops', () => {
   })
   test('add_message implicit participants', () => {
     const r = mutate(sequence('sequenceDiagram\n  A->>B: Hi'), { kind: 'add_message', from: 'C', to: 'D', text: 'New' })
-    expect(r.ok && r.value.body.participants.map(p => p.id).includes('C')).toBe(true)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.value.body.participants.map(p => p.id)).toEqual(expect.arrayContaining(['C', 'D']))
+    expect(r.value.body.messages).toContainEqual(expect.objectContaining({ from: 'C', to: 'D', text: 'New' }))
   })
   test('remove_message by index', () => {
     const r = mutate(sequence('sequenceDiagram\n  A->>B: First\n  B-->>A: Second'), { kind: 'remove_message', index: 0 })
@@ -717,6 +725,9 @@ describe('synthesizeFromGraph', () => {
       },
     })
     expect(r.ok).toBe(true)
+    if (!r.ok || r.value.body.kind !== 'flowchart') throw new Error('Expected Flowchart')
+    expect([...r.value.body.graph.nodes.keys()]).toEqual(['A'])
+    expect(r.value.body.graph.edges).toEqual([])
   })
 
   test('synthesizeFromGraph: invalid body.kind returns error', () => {
@@ -891,7 +902,7 @@ describe('synthesizeFromGraph', () => {
     expect(r.value.body.graph.subgraphs[0]!.nodeIds).toEqual([])
   })
 
-  test('synthesizeFromGraph: linkStyles accept Map, Array, plain object, and `default` key', () => {
+  test('synthesizeFromGraph: style maps accept Map, Array and object wire representations', () => {
     // Plain object with numeric + 'default' keys
     const r1 = synthesizeFromGraph({
       kind: 'flowchart',
@@ -1071,9 +1082,11 @@ describe('verify', () => {
     expect(codes({ suppress: ['DUPLICATE_EDGE', 'UNREACHABLE_NODE'] })).toEqual([])
   })
   test('finite coordinates only', () => {
-    const flat = JSON.stringify(verifyMermaid('flowchart TD\n  A --> B\n  B --> C').layout)
-    expect(flat).not.toContain('NaN')
-    expect(flat).not.toContain('Infinity')
+    const layout = verifyMermaid('flowchart TD\n  A --> B\n  B --> C').layout
+    expect(layout.nodes.map(node => node.id).sort()).toEqual(['A', 'B', 'C'])
+    expect(layout.edges).toHaveLength(2)
+    const coordinates = [layout.bounds.w, layout.bounds.h, ...layout.nodes.flatMap(node => [node.x, node.y, node.w, node.h]), ...layout.edges.flatMap(edge => edge.path.flat())]
+    for (const coordinate of coordinates) expect(Number.isFinite(coordinate)).toBe(true)
   })
   test('no seed field on layout', () => {
     expect('seed' in verifyMermaid('flowchart TD\n  A --> B').layout).toBe(false)
@@ -1129,7 +1142,7 @@ describe('asFlowchart / asSequence return null on the wrong family', () => {
   test('asFlowchart returns null for sequence body', () => {
     expect(asFlowchart(parse('sequenceDiagram\n  A->>B: Hi'))).toBeNull()
   })
-  test('asFlowchart returns null for opaque body (class)', () => {
+  test('asFlowchart returns null for structured Class body', () => {
     expect(asFlowchart(parse('classDiagram\n  A <|-- B'))).toBeNull()
   })
   test('asSequence returns null for flowchart body', () => {

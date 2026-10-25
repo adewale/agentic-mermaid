@@ -435,6 +435,7 @@ describe('runPipeline invariant enforcement', () => {
   test('a whole-graph translate after the freeze is allowed', () => {
     const ctx: TestCtx = { frozen: false, nodes: [{ x: 0, y: 0, width: 1, height: 1 }], log: [] }
     expect(() => runPipeline(ctx, [mkPass({ id: 'freeze', freezesNodes: true }), mkPass({ id: 'translate', mutates: ['translate'], run: moveFirstNode })])).not.toThrow()
+    expect(ctx.nodes[0]!.x).toBe(9)
   })
 
   test('a post-freeze edge rewrite dropping its certificate always fails', () => {
@@ -509,6 +510,8 @@ describe('runPipeline invariant enforcement', () => {
         ],
       ),
     ).not.toThrow()
+    expect(ctx.edges![0]!.points).toEqual([{ x: 0, y: 0 }, { x: 5, y: 5 }, { x: 10, y: 0 }])
+    expect(ctx.edges![0]!.routeCertificate).toEqual({ invariant: 'explained-detour' })
   })
 
   test('production rejects node movement even from a pass declaring only edge effects', () => {
@@ -573,13 +576,18 @@ describe('runPipeline invariant enforcement', () => {
   test('a losing cosmetic proposal restores its owned geometry before dependent passes', () => {
     const node = { x: 0, y: 0, width: 1, height: 1 }
     const ctx: TestCtx = { frozen: false, nodes: [node], log: [] }
+    const executions: string[] = []
     runPipeline(ctx, [mkPass({ id: 'proposal', proposal: true, mayChangeMetrics: { symErr: 'improve-only' }, run: c => {
+      executions.push('proposal')
       const x = c.nodes[0]!.x
       c.nodes[0]!.x = 9
-      return () => { c.nodes[0]!.x = x }
-    } }), mkPass({ id: 'dependent', after: ['proposal'], run: c => { expect(c.nodes[0]).toBe(node); expect(node.x).toBe(0) } })], {
+      return () => { executions.push('rollback'); c.nodes[0]!.x = x }
+    } }), mkPass({ id: 'dependent', after: ['proposal'], run: c => { executions.push('dependent'); expect(c.nodes[0]).toBe(node); expect(node.x).toBe(0) } })], {
       measureMetrics: c => ({ symErr: c.nodes[0]!.x, hard: 0 }),
     })
+    expect(executions).toEqual(['proposal', 'rollback', 'dependent'])
+    expect(ctx.nodes[0]).toBe(node)
+    expect(node.x).toBe(0)
   })
 
   test.each(['hard', 'freeze', 'measurement'] as const)('a cosmetic rollback cannot conceal a %s failure', kind => {

@@ -81,14 +81,16 @@ describe('bounded generic bundle proposals', () => {
       run(context)
     }
     try {
-      const selected = layoutGraphSync(parseMermaid(source))
+      const graph = parseMermaid(source), selected = layoutGraphSync(graph)
       expect(rejected).toBe(1)
       expect(selected.certification).toMatchObject({ status: 'passed', hardViolations: 0 })
       expect(selected.certification?.preference.routing).toMatchObject({
         strategy: 'bundled',
         preference: { reason: 'alternative-invalid' },
       })
-      expect(hardViolations(assessLayout(parseMermaid(source), selected))).toEqual([])
+      expect(hardViolations(assessLayout(graph, selected))).toEqual([])
+      expect(selected.edges.map(edge => [edge.edgeIndex, edge.source, edge.target])).toEqual(
+        graph.edges.map((edge, index) => [index, edge.source, edge.target]))
       expect(selected.edges.every(edge => edge.points.length >= 2)).toBe(true)
     } finally {
       first.run = run

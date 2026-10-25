@@ -19,6 +19,7 @@ test('successful accessibility edits close through body, metadata and source wit
   const original = structuredClone(parsed.value)
   for (const description of ['one\n}\naccDescr {\ntwo', '{unfinished', 'one\r\ntwo', 'ordinary description']) {
     const result = mutate(parsed.value, { kind: 'set_accessibility_description', description })
+    if (description === 'ordinary description' || description === 'one\r\ntwo') expect(result.ok).toBe(true)
     if (!result.ok) {
       expect(result.error.code).toBe('INVALID_OP')
     } else {
@@ -131,14 +132,16 @@ describe('#7349 AX tree — describeMermaid({format:json})', () => {
   test('sequence: participants → nodes, messages → edges', () => {
     const tree = describeMermaidTree(parseMermaidOk('sequenceDiagram\n Alice->>Bob: Hi\n Bob-->>Alice: Hello'))
     expect(tree.nodes.map(n => n.id).sort()).toEqual(['Alice', 'Bob'])
-    expect(tree.edges.length).toBe(2)
-    expect(tree.edges[0]!.label).toBe('Hi')
+    expect(tree.edges.map(({ from, to, label }) => ({ from, to, label }))).toEqual([
+      { from: 'Alice', to: 'Bob', label: 'Hi' },
+      { from: 'Bob', to: 'Alice', label: 'Hello' },
+    ])
   })
 
   test('class: classes → nodes, relations → edges', () => {
     const tree = describeMermaidTree(parseMermaidOk('classDiagram\n class A\n class B\n A <|-- B'))
     expect(tree.nodes.map(n => n.id).sort()).toEqual(['A', 'B'])
-    expect(tree.edges.length).toBe(1)
+    expect(tree.edges).toEqual([{ from: 'A', to: 'B', label: 'inheritance' }])
   })
 
   test('an unregistered source → preserved-family JSON tree, not a throw', () => {

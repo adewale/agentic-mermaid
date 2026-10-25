@@ -19,32 +19,6 @@ function parse(text: string) {
 }
 
 describe('parseSequenceDiagram – autonumber', () => {
-  it.each([
-    ['repeated enable', ['autonumber', 'A->>B: one', 'autonumber', 'A->>B: two', 'A->>B: three'], [1, 2, 3]],
-    ['custom-step resume', ['autonumber 10 2', 'A->>B: one', 'autonumber', 'A->>B: two', 'A->>B: three'], [10, 12, 14]],
-    ['hidden messages still count', ['autonumber 10 2', 'A->>B: one', 'autonumber off', 'A->>B: two', 'autonumber', 'A->>B: three'], [10, undefined, 14]],
-    ['late enable', ['A->>B: one', 'autonumber', 'A->>B: two', 'A->>B: three'], [undefined, 2, 3]],
-    ['start-only resets increment', ['autonumber 10 2', 'A->>B: one', 'autonumber 20', 'A->>B: two', 'A->>B: three'], [10, 20, 21]],
-    ['explicit zero start', ['autonumber 0', 'A->>B: one', 'A->>B: two', 'A->>B: three'], [0, 1, 2]],
-    ['explicit zero increment', ['autonumber 7 0', 'A->>B: one', 'autonumber', 'A->>B: two', 'A->>B: three'], [7, 7, 7]],
-  ] as const)('preserves control intent across surfaces: %s', (_name, statements, expected) => {
-    const source = ['sequenceDiagram', ...statements].join('\n')
-    expect(parse(source).messages.map(message => message.number)).toEqual([...expected])
-    const parsed = parseRegisteredMermaid(source)
-    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
-    const serialized = serializeMermaid(parsed.value)
-    expect(parse(serialized).messages.map(message => message.number)).toEqual([...expected])
-    expect(renderMermaidSVG(parsed.value)).toBe(renderMermaidSVG(source))
-    const labels = ['one', 'two', 'three'].map((label, index) => expected[index] === undefined ? label : `${expected[index]}. ${label}`)
-    expect(layoutSequenceDiagram(parse(source)).messages.map(message => message.label)).toEqual(labels)
-    for (const useAscii of [false, true]) {
-      const output = renderMermaidASCII(parsed.value, { useAscii, colorMode: 'none' })
-      expect(output).toBe(renderMermaidASCII(serialized, { useAscii, colorMode: 'none' }))
-      for (const [index, label] of ['one', 'two', 'three'].entries()) {
-        if (expected[index] !== undefined) expect(output).toContain(`${expected[index]}. ${label}`)
-      }
-    }
-  })
 
   it('config initializes visibility while ordered controls survive fragments, edits and PNG rendering', () => {
     const source = '%%{init: {"sequence":{"showSequenceNumbers":true}}}%%\nsequenceDiagram\nA->>B: one\nloop work\nautonumber off\nB->>A: hidden\nend\nautonumber 10 2\nA->>B: three\nautonumber\nB->>A: four'
@@ -148,6 +122,7 @@ describe('parseSequenceDiagram – autonumber', () => {
     ['start only resets increment', ['autonumber 10 2', 'autonumber 20', ''], [10, 20, 21]],
     ['zero start', ['autonumber 0', '', ''], [0, 1, 2]],
     ['zero increment survives resume', ['autonumber 7 0', 'autonumber off', 'autonumber'], [7, undefined, 7]],
+    ['zero increment on repeated enable', ['autonumber 7 0', 'autonumber', ''], [7, 7, 7]],
     ['fractional resume', ['autonumber .1 .01', 'autonumber off', 'autonumber'], [0.1, undefined, 0.12]],
   ] as const)('preserves control intent: %s', (_name, controls, expected) => {
     const source = `sequenceDiagram\n${controls[0]}\nA->>B: first\n${controls[1]}\nB->>A: second\n${controls[2]}\nA->>B: third`
@@ -157,7 +132,7 @@ describe('parseSequenceDiagram – autonumber', () => {
     if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
     const serialized = serializeMermaid(parsed.value)
     expect(parse(serialized).messages.map(message => message.number)).toEqual([...expected])
-    for (const renderedSource of [source, serialized]) {
+    for (const renderedSource of [source, serialized, parsed.value]) {
       const svg = renderMermaidSVG(renderedSource)
       for (const useAscii of [true, false]) {
         const terminal = renderMermaidASCII(renderedSource, { useAscii })

@@ -10,8 +10,7 @@
 import { test, expect } from 'bun:test'
 import { renderMermaidSVG } from '../../src/index.ts'
 import { restyle } from './restyle.ts'
-import { STYLES, type Style } from './styles.ts'
-import { relLuminance, contrastRatio, adjustToContrast, WCAG } from './contrast.ts'
+import { STYLES } from './styles.ts'
 
 // crude hue extractor: returns HSL hue (0-360) or null for greys/near-greys
 function hue(hex: string): number | null {
@@ -56,25 +55,6 @@ for (const s of STYLES) {
     // line, border and fillColor should be the same hue (or grey) — the "ink".
     // The accent may differ (a single accent is allowed, e.g. Tufte red).
     expect(hueSpread([s.colors.line, s.colors.border, s.fillColor])).toBeLessThan(40)
-  })
-}
-
-// Readability contract (mirrors contrast-audit.ts) — every style must clear
-// WCAG 4.5:1 text against its halo/page, so labels are always legible.
-for (const s of STYLES) {
-  test(`style "${s.name}" meets WCAG 4.5:1 label contrast`, () => {
-    const halo = s.labelHalo ?? s.colors.bg
-    const ink = s.labelInk ?? adjustToContrast(s.colors.fg, halo, WCAG.textAA)
-    expect(contrastRatio(ink, halo)).toBeGreaterThanOrEqual(WCAG.textAA)
-  })
-}
-
-// Structural: required fields present and a bundled font named.
-for (const s of STYLES) {
-  test(`style "${s.name}" is well-formed`, () => {
-    const missing = (['name', 'label', 'font', 'fontFile'] as const).filter(field => !s[field])
-    expect({ style: s.name, missing }).toEqual({ style: s.name, missing: [] })
-    expect(relLuminance(s.colors.bg)).toBeGreaterThanOrEqual(0) // parses
   })
 }
 

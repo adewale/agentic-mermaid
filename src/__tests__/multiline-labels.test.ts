@@ -836,12 +836,18 @@ describe('renderMermaidSVGAsync – markdown markers in plain flowchart labels',
 
 function extractFirstRectHeight(svg: string): number {
   const match = svg.match(/<rect[^>]*height="(\d+(?:\.\d+)?)"/)
-  return match ? parseFloat(match[1]!) : 0
+  if (!match) throw new Error('Expected a rendered rectangle with positive height')
+  const value = Number(match[1])
+  expect(Number.isFinite(value) && value > 0).toBe(true)
+  return value
 }
 
 function extractFirstRectWidth(svg: string): number {
   const match = svg.match(/<rect[^>]*width="(\d+(?:\.\d+)?)"/)
-  return match ? parseFloat(match[1]!) : 0
+  if (!match) throw new Error('Expected a rendered rectangle with positive width')
+  const value = Number(match[1])
+  expect(Number.isFinite(value) && value > 0).toBe(true)
+  return value
 }
 
 // Properties over random multi-line labels. The metrics are a pure function of

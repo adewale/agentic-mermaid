@@ -71,9 +71,13 @@ describe('derived structural outline contrast', () => {
 
   it('every built-in look × palette keeps derived outlines legible on its page', () => {
     const descriptors = knownStyleDescriptors().filter(style => style.identity.provenance.source === 'built-in')
+    const looks = descriptors.filter(style => style.kind === 'look')
+    const palettes = descriptors.filter(style => style.kind === 'palette')
+    expect(looks.length).toBeGreaterThan(0)
+    expect(palettes.length).toBeGreaterThan(0)
     const failures: string[] = []
-    for (const look of descriptors.filter(style => style.kind === 'look')) {
-      for (const palette of descriptors.filter(style => style.kind === 'palette')) {
+    for (const look of looks) {
+      for (const palette of palettes) {
         const colors = resolveColors({ ...DEFAULTS, ...resolveStyleStack([look.inputName, palette.inputName])!.colors })
         const ratio = contrast(colors.nodeStroke, colors.bg)
         if (!(ratio >= 3)) failures.push(`${look.inputName} × ${palette.inputName}: ${ratio}`)

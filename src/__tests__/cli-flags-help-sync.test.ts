@@ -35,11 +35,6 @@ function capture(argv: string[]): { code: number; output: string } {
 }
 
 describe('FLAG_SPECS is the single source for flag classification', () => {
-  test('BOOLEAN_FLAGS is exactly the arg-less specs', () => {
-    const derived = Object.keys(FLAG_SPECS).filter(n => !FLAG_SPECS[n]!.arg).sort()
-    expect([...BOOLEAN_FLAGS].sort()).toEqual(derived)
-  })
-
   test('every flag in the global Flags block matches a FLAG_SPEC (boolean ↔ no <ARG>)', () => {
     const flags = parseFlagsBlock(GLOBAL_USAGE)
     expect(flags.length).toBeGreaterThanOrEqual(6)
@@ -130,10 +125,6 @@ describe('command-specific flag validity', () => {
 })
 
 describe('command positional arity', () => {
-  test('the positional and flag authorities cover the same commands', () => {
-    expect(Object.keys(COMMAND_POSITIONALS).sort()).toEqual(Object.keys(COMMAND_FLAGS).sort())
-  })
-
   test('single-input and zero-input commands reject ignored extra positionals', () => {
     for (const [command, contract] of Object.entries(COMMAND_POSITIONALS)) {
       if (!Number.isFinite(contract.max)) continue

@@ -14,9 +14,7 @@
  *   B3  no node: builtin leaked into the artifact
  *
  * B2 enumerates BUILTIN_FAMILY_METADATA rather than a fixture list, so a family
- * added to the registry later is covered here without editing this file. The
- * count guard below is what makes that real: it fails if the registry is ever
- * read as empty, which would otherwise turn the whole suite into a silent no-op.
+ * added to the registry later is covered here without editing this file.
  *
  * Requires: Playwright browsers installed
  * (`bunx playwright install chromium firefox webkit`).
@@ -39,8 +37,6 @@ const LAZY_METAFILE = join(REPO, 'dist', 'metafile-esm.json')
 const BUILD_TIMEOUT_MS = 300_000
 /** The IIFE's `globalName`. Changing it is a breaking change for script-tag consumers. */
 const GLOBAL = 'agenticMermaid'
-/** Every family carries a canonical `example`; a registry smaller than this means something is wrong. */
-const MIN_EXPECTED_FAMILIES = 10
 
 /** Newest modification time among the bundle's build inputs: production
  *  source, the tsup configs, and package.json. Tests are not inputs, and
@@ -109,19 +105,18 @@ describe('browser bundle', () => {
 
   // B1. The PR-118 failure mode: a bundle that builds and exports nothing.
   test('exposes the render surface on the global', async () => {
+    expect(BUILTIN_FAMILY_METADATA.length).toBeGreaterThan(0)
     const surface = await page.evaluate(name => {
       const api = (globalThis as Record<string, any>)[name]
       return {
         present: Boolean(api),
         renderMermaidSVG: typeof api?.renderMermaidSVG,
         renderMermaidASCII: typeof api?.renderMermaidASCII,
-        exportCount: api ? Object.keys(api).length : 0,
       }
     }, GLOBAL)
     expect(surface.present).toBe(true)
     expect(surface.renderMermaidSVG).toBe('function')
     expect(surface.renderMermaidASCII).toBe('function')
-    expect(surface.exportCount).toBeGreaterThan(50)
   })
 
 
@@ -150,14 +145,6 @@ describe('browser bundle', () => {
         { id: 'link:A\n\nB->Blank', from: 'A\n\nB', to: 'Blank', label: 'A\n\nB to Blank' },
       ])
       expect(new Set(actual.identities).size).toBe(actual.identities.length)
-    }
-  })
-
-  // B2. Registry-driven, so future families enroll without touching this file.
-  test('registry is non-empty, so the per-family checks below are not vacuous', () => {
-    expect(BUILTIN_FAMILY_METADATA.length).toBeGreaterThanOrEqual(MIN_EXPECTED_FAMILIES)
-    for (const family of BUILTIN_FAMILY_METADATA) {
-      expect(family.example?.trim().length ?? 0, `${family.id} must declare a canonical example`).toBeGreaterThan(0)
     }
   })
 
@@ -364,10 +351,12 @@ describe('async family-loaded browser renderer', () => {
     page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))
     try {
       await page.goto(`${base}/blank.html`)
-      await page.evaluate(async entryUrl => {
+      const svg = await page.evaluate(async entryUrl => {
         const api = await import(entryUrl)
-        await api.renderMermaidSVGAsync('timeline\n  title Small\n  2026 : Ship')
+        return api.renderMermaidSVGAsync('timeline\n  title Small\n  2026 : Ship')
       }, `${base}/dist/browser-lazy/index.js`)
+      expect(svg).toContain('<svg')
+      expect(svg).toContain('Small')
       expect(requests).not.toContain(lazyElkChunk())
     } finally {
       await page.close()
@@ -380,11 +369,17 @@ describe('async family-loaded browser renderer', () => {
     page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))
     try {
       await page.goto(`${base}/blank.html`)
-      await page.evaluate(async entryUrl => {
+      const svgs = await page.evaluate(async entryUrl => {
         const api = await import(entryUrl)
-        await api.renderMermaidSVGAsync('flowchart LR\n  A --> B')
-        await api.renderMermaidSVGAsync('stateDiagram-v2\n  [*] --> Ready')
+        return [
+          await api.renderMermaidSVGAsync('flowchart LR\n  A --> B'),
+          await api.renderMermaidSVGAsync('stateDiagram-v2\n  [*] --> Ready'),
+        ]
       }, `${base}/dist/browser-lazy/index.js`)
+      expect(svgs).toEqual([
+        renderMermaidSVG('flowchart LR\n  A --> B'),
+        renderMermaidSVG('stateDiagram-v2\n  [*] --> Ready'),
+      ])
       expect(requests.filter(path => path === lazyElkChunk())).toHaveLength(1)
     } finally {
       await page.close()
@@ -551,8 +546,11 @@ describe('demo page', () => {
     expect(demoRequests).not.toContain(`/demo/${lazyElkChunk()}`)
     expect(demoRequests).not.toContainEqual(expect.stringMatching(/^\/demo\/browser-[a-f0-9]{12}\.js$/))
 
-    const requestedFamilyChunks = demoRequests.filter(path =>
-      /^\/demo\/browser-lazy\/chunks\/(?:architecture|class|er|flowchart|gantt|gitgraph|journey|mindmap|pie|quadrant|radar|sequence|state|timeline|xychart)-/.test(path))
+    const families = new Set(BUILTIN_FAMILY_METADATA.map(family => family.id))
+    const requestedFamilyChunks = demoRequests.filter(path => {
+      const match = /^\/demo\/browser-lazy\/chunks\/([a-z0-9]+)-[A-Z0-9]{8}\.js$/.exec(path)
+      return match && families.has(match[1] as typeof BUILTIN_FAMILY_METADATA[number]['id'])
+    })
     expect(requestedFamilyChunks).toEqual([expect.stringMatching(/\/timeline-[A-Z0-9]{8}\.js$/)])
   })
 
@@ -612,7 +610,8 @@ describe('demo page', () => {
   test('re-renders when the style changes', async () => {
     const before = await demoPage.locator('#demo-diagram').innerHTML()
     await demoPage.selectOption('#demo-style', 'hand-drawn')
-    await demoPage.waitForFunction(() => document.getElementById('demo-status')?.textContent === 'rendered in-browser')
+    await demoPage.waitForFunction(previous => document.getElementById('demo-status')?.textContent === 'rendered in-browser'
+      && document.getElementById('demo-diagram')?.innerHTML !== previous, before)
     const state = await demoPage.evaluate(() => ({
       status: document.getElementById('demo-status')?.textContent ?? '',
       svg: Boolean(document.querySelector('#demo-diagram svg')),

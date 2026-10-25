@@ -86,8 +86,10 @@ describe('verify — empty layouts never verify clean', () => {
     expect(r.warnings).toEqual([])
   })
 
-  test('opaque-only sequence content that DOES lay out stays ok', () => {
+  test('note-only sequence content that lays out stays ok', () => {
     const r = verifyMermaid('sequenceDiagram\n  Note over Alice: hello')
+    expect(r.ok).toBe(true)
+    expect(r.layout.nodes.length).toBeGreaterThan(0)
     expect(r.warnings.map(w => w.code)).not.toContain('EMPTY_DIAGRAM')
   })
 
@@ -176,7 +178,10 @@ describe('render-parity gate (RENDER_FAILED)', () => {
       const parsed = parseMermaid(source)
       if (!parsed.ok) throw new Error(`parse failed: ${source}`)
       const fromSource = verifyMermaid(source)
-      expect({ source, ok: fromSource.ok, codes: fromSource.warnings.map(w => w.code) }).toEqual({ source, ok: true, codes: verifyMermaid(parsed.value).warnings.map(w => w.code) })
+      const fromParsed = verifyMermaid(parsed.value)
+      expect({ source, ok: fromSource.ok, codes: fromSource.warnings.map(w => w.code) }).toEqual({ source, ok: true, codes: fromParsed.warnings.map(w => w.code) })
+      expect(fromParsed.ok).toBe(true)
+      expect(fromParsed.checks).toEqual(fromSource.checks)
     }
   })
 
@@ -209,7 +214,7 @@ describe('render-parity gate (RENDER_FAILED)', () => {
     }
   })
 
-  test('suppressing RENDER_FAILED restores the old lenient verdict', () => {
+  test('suppressing RENDER_FAILED removes that diagnostic', () => {
     const r = verifyMermaid('quadrantChart\n  title T\n  x-axis L --> R\n  y-axis B --> T2\n  P: 0.5, 0.5', { suppress: ['RENDER_FAILED'] })
     expect(r.warnings.map(w => w.code)).not.toContain('RENDER_FAILED')
   })

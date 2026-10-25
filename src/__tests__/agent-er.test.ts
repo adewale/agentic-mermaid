@@ -255,7 +255,9 @@ describe('ER — mutate', () => {
       leftCard: 'one-only', rightCard: 'zero-or-many', label: 'has',
     })
     if (!r.ok) throw new Error()
-    expect(r.value.body.relations[0]!.label).toBe('has')
+    expect(r.value.body.relations).toEqual([{
+      from: 'A', to: 'B', leftCard: 'one-only', rightCard: 'zero-or-many', dashed: false, label: 'has',
+    }])
   })
 
   test('errors', () => {

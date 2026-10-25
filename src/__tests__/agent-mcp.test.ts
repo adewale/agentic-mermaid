@@ -241,9 +241,17 @@ describe('sandbox — isolation + sad paths', () => {
     const toSortedCtor = await executeInSandbox(`
       const r = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B\\n  C --> D')
       const flow = mermaid.asFlowchart(r.value)
-      let leaked = 'blocked'
-      flow.body.graph.edges.toSorted((a, b) => { try { leaked = a.constructor.constructor('return typeof process')() } catch (_) { leaked = 'blocked' }; return 0 })
-      return leaked
+      const edges = flow.body.graph.edges
+      const compared = new Set()
+      const escapes = []
+      const sorted = edges.toSorted((a, b) => {
+        for (const edge of [a, b]) {
+          compared.add(edge.source)
+          try { escapes.push(edge.constructor.constructor('return typeof process')()) } catch (_) { escapes.push('blocked') }
+        }
+        return b.source.localeCompare(a.source)
+      })
+      return { compared: [...compared].sort(), escapes: [...new Set(escapes)], sorted: sorted.map(e => e.source), original: edges.map(e => e.source) }
     `)
     const mapGetOrInsert = await executeInSandbox(`
       const r = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')
@@ -282,7 +290,15 @@ describe('sandbox — isolation + sad paths', () => {
     expect(arrayMutation.error).toContain('read-only')
     expect(mapMutation.error).toContain('read-only')
     expect(findLastCtor).toMatchObject({ ok: true, value: 'blocked' })
-    expect(toSortedCtor).toMatchObject({ ok: true, value: 'blocked' })
+    expect(toSortedCtor).toMatchObject({
+      ok: true,
+      value: {
+        compared: ['A', 'C'],
+        escapes: ['blocked'],
+        sorted: ['C', 'A'],
+        original: ['A', 'C'],
+      },
+    })
     expect(mapGetOrInsert.error).toContain('read-only')
     expect(defineGetter.ok).toBe(false)
     expect(lookupProtoMapMutator.ok).toBe(false)
@@ -1142,10 +1158,17 @@ describe('CLI — sad paths via runCli', () => {
   test('format idempotent over 3 rounds', () => {
     const tmp = tmpFile('fmt.mmd', 'flowchart TD\n  A[Alpha] --> B{D}\n  B -->|yes| C((End))\n')
     const r1 = capture(() => runCli(['format', tmp]))
+    expect({ code: r1.code, err: r1.err }).toEqual({ code: 0, err: '' })
     writeFileSync(tmp, r1.out)
     const r2 = capture(() => runCli(['format', tmp]))
+    expect({ code: r2.code, err: r2.err }).toEqual({ code: 0, err: '' })
     writeFileSync(tmp, r2.out)
     const r3 = capture(() => runCli(['format', tmp]))
+    expect({ code: r3.code, err: r3.err }).toEqual({ code: 0, err: '' })
+    const parsed = parseRegisteredMermaid(r3.out)
+    if (!parsed.ok || parsed.value.body.kind !== 'flowchart') throw new Error('Expected formatted flowchart')
+    expect([...parsed.value.body.graph.nodes.values()].map(node => [node.id, node.label])).toEqual([['A', 'Alpha'], ['B', 'D'], ['C', 'End']])
+    expect(parsed.value.body.graph.edges.map(edge => [edge.source, edge.target, edge.label])).toEqual([['A', 'B', undefined], ['B', 'C', 'yes']])
     expect(r2.out).toEqual(r1.out)
     expect(r3.out).toEqual(r1.out)
   })

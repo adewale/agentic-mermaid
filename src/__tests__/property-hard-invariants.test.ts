@@ -49,6 +49,8 @@ function offences(id: string, source: string): string[] {
     return [`${id}: unparseable — ${error instanceof Error ? error.message : String(error)}`]
   }
   const positioned = layoutGraphSync(graph)
+  expect(positioned.nodes.map(node => node.id).sort(), `${id}: authored nodes`).toEqual([...graph.nodes.keys()].sort())
+  expect(positioned.edges.map(edge => JSON.stringify([edge.source, edge.target])).sort(), `${id}: authored edges`).toEqual(graph.edges.map(edge => JSON.stringify([edge.source, edge.target])).sort())
   return hardViolations(assessLayout(graph, positioned)).map(v => `${id}: ${v.metric} — ${v.detail}`)
 }
 

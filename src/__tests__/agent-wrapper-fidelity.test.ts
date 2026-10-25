@@ -166,12 +166,17 @@ describe('wrapper fidelity (1C): verbatim round-trip by default', () => {
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) return
     expect(parsed.value.body.kind).toBe('mindmap')
+    if (parsed.value.body.kind !== 'mindmap') return
+    const hierarchy = { label: 'root', children: [{ label: 'child', children: [{ label: 'grandchild', children: [] }] }] }
+    expect(parsed.value.body.root).toMatchObject(hierarchy)
     const serialized = serializeMermaid(parsed.value)
     expect(serialized.match(/%%\{init:/g)).toHaveLength(1)
     const reparsed = parseMermaid(serialized)
     expect(reparsed.ok).toBe(true)
     if (!reparsed.ok) return
     expect(reparsed.value.body.kind).toBe('mindmap')
+    if (reparsed.value.body.kind !== 'mindmap') return
+    expect(reparsed.value.body.root).toMatchObject(hierarchy)
     expect(serializeMermaid(reparsed.value)).toBe(serialized)
   })
 
@@ -773,13 +778,13 @@ test('structured edits retain repeated body comments and rationale', () => {
     expect(out.match(/%% keep this reason/g)).toHaveLength(2)
     expect(out).toContain('%% endpoint rationale')
     const edited = parsed.value.kind === 'flowchart' ? mutate(parsed.value, { kind: 'add_node', id: 'D', label: 'Extra' }) : mutate(parsed.value, { kind: 'add_state', id: 'D' })
-    if (parsed.value.kind === 'flowchart') {
-      if (!edited.ok) throw new Error(edited.error.message)
-      expect(serializeMermaid(edited.value)).toContain('%% endpoint rationale')
-    }
-    const reloaded = parseMermaid(out)
+    if (!edited.ok) throw new Error(edited.error.message)
+    const editedSource = serializeMermaid(edited.value)
+    expect(editedSource.match(/%% keep this reason/g)).toHaveLength(2)
+    expect(editedSource).toContain('%% endpoint rationale')
+    const reloaded = parseMermaid(editedSource)
     if (!reloaded.ok) throw new Error('reload failed')
-    expect(serializeMermaid(reloaded.value)).toBe(out)
+    expect(serializeMermaid(reloaded.value)).toBe(editedSource)
   }
 })
 
@@ -790,7 +795,11 @@ test('comment anchors survive renaming and JSON transport; metadata cannot intro
   const renamed = mutate(parsed.value, { kind: 'rename_node', from: 'A', to: 'Renamed' })
   if (!renamed.ok) throw new Error(renamed.error.message)
   const source = serializeMermaid(renamed.value)
-  expect(source.indexOf('%% name rationale')).toBeLessThan(source.indexOf('Renamed['))
+  const commentIndex = source.indexOf('%% name rationale')
+  const nodeIndex = source.indexOf('Renamed[')
+  expect(commentIndex).toBeGreaterThanOrEqual(0)
+  expect(nodeIndex).toBeGreaterThanOrEqual(0)
+  expect(commentIndex).toBeLessThan(nodeIndex)
   const payload = JSON.parse(JSON.stringify(renamed.value, (_key, value) => value instanceof Map ? Object.fromEntries(value) : value))
   const restored = synthesizeFromGraph(payload)
   if (!restored.ok) throw new Error('JSON reload failed')

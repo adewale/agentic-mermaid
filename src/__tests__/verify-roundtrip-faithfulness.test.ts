@@ -73,7 +73,6 @@ test('retained Pie comments are not reported as lost, including when rendering f
     for (const background of ['white', 'notacolor()']) {
       const result = verifyMermaid(input, {
         renderOptions: { mermaidConfig: { themeVariables: { background } } },
-        suppress: ['COMMENT_DROPPED'],
       })
       expect(result.warnings.some(warning => warning.code === 'COMMENT_DROPPED')).toBe(false)
       expect(result.checks).toEqual({ renderability: background === 'white' ? 'passed' : 'failed', sourceLoss: 'not-detected', taskCorrectness: 'not-checked' })

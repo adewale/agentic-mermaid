@@ -80,7 +80,9 @@ describe('renderArchitectureSvg', () => {
     const scene = lowerArchitectureScene({ positioned: makeDiagram(), colors: lightColors, resolved: { renderOptions: {} } })
     const definitions = scene.parts.find(part => part.id === 'defs')
     if (definitions?.kind !== 'document') throw new Error('missing architecture definitions')
-    for (const marker of definitions.markerResources ?? []) {
+    const markers = definitions.markerResources
+    expect(markers?.map(marker => marker.id).sort()).toEqual(['architecture-arrow-end', 'architecture-arrow-start'])
+    for (const marker of markers!) {
       if (marker.geometry?.kind !== 'polygon' || !marker.ref) throw new Error('missing arrow geometry')
       const contactX = marker.id.endsWith('start')
         ? Math.min(...marker.geometry.points.map(point => point.x))

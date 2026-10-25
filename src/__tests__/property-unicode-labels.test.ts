@@ -45,6 +45,8 @@ function assertSound(src: string): void {
   expect(p.ok).toBe(true)
   if (!p.ok) return
   const layout = layoutMermaid(p.value)
+  expect(layout.nodes.map(node => node.id).sort()).toEqual(['A', 'B', 'C'])
+  expect(layout.edges.map(edge => [edge.from, edge.to])).toEqual([['A', 'B'], ['B', 'C']])
   expect(Number.isFinite(layout.bounds.w) && Number.isFinite(layout.bounds.h)).toBe(true)
   for (const n of layout.nodes) expect(Number.isFinite(n.x) && Number.isFinite(n.w) && n.w >= 0).toBe(true)
   expect(JSON.stringify(layoutMermaid(p.value))).toBe(JSON.stringify(layout)) // determinism
@@ -59,7 +61,7 @@ function assertSound(src: string): void {
 }
 
 describe('unicode / XML-significant label fuzz (escaping + measurement axis)', () => {
-  it('flowchart node + edge labels survive any unicode / metacharacter content', () => {
+  it('Unicode/metacharacter labels retain graph structure, finite measurement and escaped output', () => {
     fc.assert(
       fc.property(labelArb, labelArb, labelArb, labelArb, (a, b, c, e) => {
         assertSound(`flowchart TD\n  A["${esc(a)}"] -->|${esc(e)}| B["${esc(b)}"]\n  B --> C["${esc(c)}"]`)
