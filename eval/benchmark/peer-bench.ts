@@ -62,6 +62,8 @@ import type { PeerTrackObservation, PeerTrackReport } from './peer-tracks.ts'
 import { measurePeerTrack } from './peer-track-worker.ts'
 import type { TrackJob } from './peer-track-worker.ts'
 import { combineColdTrackRows, coldTrackGroups, pairedColdTrackSchedule, PEER_TRACK_SCHEDULES, type ColdTrackGroup, type PeerTrackSchedule } from './peer-track-schedule.ts'
+import { PELE_SEMANTIC_ADAPTER } from './pele-semantics.ts'
+import { selectedPeerSemanticAdapter } from './peer-semantic-adapters.ts'
 import { frozenRuntimePolicy, installAgenticRuntime, installedNpmPackagePin, inspectAgenticRuntime, assertMatchedAgenticRuntimes, type RuntimePolicy, type RuntimeReceipt } from './release-baseline.ts'
 
 type WorkloadId = string
@@ -129,7 +131,7 @@ const PEERS: readonly Peer[] = [
     svg: beautifulApi.svg,
     terminal: { ...beautifulApi.terminal, subpath: './ascii', api: `zombie-mermaid/ascii ${beautifulApi.terminal.api}` },
   },
-  { id: 'pele', source: { registry: 'npm', name: 'pele', version: '1.6.0' }, runtime: 'node', svg: { subpath: '.', api: 'render(source).svg', make: m => source => m.render(source).svg }, note: 'returns { svg, ... }; only .svg is read' },
+  { id: 'pele', source: { registry: 'npm', name: 'pele', version: PELE_SEMANTIC_ADAPTER.version }, runtime: 'node', svg: { subpath: '.', api: 'render(source).svg', make: m => source => m.render(source).svg }, note: 'returns { svg, ... }; only .svg is read' },
   {
     id: 'sketch',
     source: { registry: 'git', repo: 'https://github.com/Gaurav-Gosain/tuios', commit: '880e652ee56b1607cc454847a359703d7cdc88e6', module: 'sketch' },
@@ -806,7 +808,7 @@ async function runTrackProcess(prepared: Prepared, workloads: readonly string[],
       continue
     }
     const base = join(context.scratch, key)
-    const job: WorkerJob = { peer: prepared.peer.id, output: 'svg', entry: packageEntry(prepared.root!, prepared.peer.svg.subpath), timing: context.timing, track: { ...track, coldProbe: probe },
+    const job: WorkerJob = { peer: prepared.peer.id, output: 'svg', entry: packageEntry(prepared.root!, prepared.peer.svg.subpath), timing: context.timing, track: { ...track, coldProbe: probe, semanticAdapter: selectedPeerSemanticAdapter({ peer: prepared.peer.id, version: prepared.version, integrity: prepared.integrity }) },
       workloads: group.map(id => ({ id, source: context.sources[id]!, expected: context.expectedLabels[id]!, svgLabelPrefixes: SVG_LABEL_PREFIXES[id] })) }
     writeFileSync(`${base}.job.json`, JSON.stringify(job))
     const receipts = `${context.rawSamples}.${key}.jsonl`
@@ -990,14 +992,18 @@ async function main(): Promise<void> {
     const trackWorkloads = [...workloads.svg, ...scaling]
     const trackInputs = Object.fromEntries(trackWorkloads.map(id => [id, { source: trackSources[id], expected: trackExpected[id] }]))
     const harnessRevision = git(['rev-parse', 'HEAD'])
-    const harnessDirty = git(['status', '--porcelain', '--', 'eval/benchmark']).length > 0
+    // Semantic adapters also import geometry/color helpers from src.
+    const harnessDirty = git(['status', '--porcelain', '--untracked-files=no']).length > 0 || git(['status', '--porcelain', '--', 'src', 'eval']).length > 0
     const tracksConfig = { variantDomains: PEER_VARIANT_DOMAINS, phases, consumers, ...trackSettings, ...(phases.length ? {
       consumption: 'indexed-utf8-checksum-v1',
       warmupSources: 'fresh-edit-ordinals-v1',
       schedule: trackSchedule,
       apiBindings: prepared.map(({ peer }) => ({ peer: peer.id, svg: peer.svg ? { subpath: peer.svg.subpath, api: peer.svg.api } : null,
         receipt: peer.id === 'agentic' || peer.id.startsWith('agentic-') ? 'renderMermaidSVGWithReceipt(source); availability is retained per observation' : null })),
-      rendererEnvironment: { host: 'Node public SVG API; no browser mount/adaptation', fontAndMeasurerOptions: 'pinned peer defaults; no overrides supplied', validation: 'Resvg(svg, {font:{loadSystemFonts:false}})' },
+      rendererEnvironment: { host: 'Node public SVG API; no browser mount/adaptation', fontAndMeasurerOptions: 'pinned peer defaults; no overrides supplied', validation: 'Resvg(svg, {font:{loadSystemFonts:false}})',
+        semanticAdapters: prepared.filter(entry => entry.peer.id === 'pele').map(entry => ({ adapter: PELE_SEMANTIC_ADAPTER, selected: selectedPeerSemanticAdapter({ peer: entry.peer.id, version: entry.version, integrity: entry.integrity }) ?? null, installedVersion: entry.version, installedIntegrity: entry.integrity ?? null })),
+        sourceBinding: 'exact clean full harness Git revision; tracked inputs and new src/eval sources',
+      },
       freshness: { firstUse: 'first API render in each fresh process after import/setup', exactRepeat: 'identical source bytes and repeated labels', warmNewSource: 'authored visible-label/relationship edits and graph-ID renaming where defined; unchanged labels may reuse typography caches', labelEdit: 'authored visible-label/relationship edit; graph IDs retained' },
     } : {}), minimumTailCalls: 20, inputs: trackInputs, harnessRevision, harnessDirty }
     const processes: ProcessRecord[] = []

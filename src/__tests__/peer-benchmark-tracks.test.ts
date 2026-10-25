@@ -89,6 +89,52 @@ describe('maintained consumed peer protocol', () => {
     expect(inspectPeerSemantics(erSvg, er).ok).toBe(true)
     expect(inspectPeerSemantics(erSvg.replace('data-entity2="E1"', 'data-entity2="E0"'), er).failures).toContain('1 authored directed endpoint pairs absent')
   })
+  test.each([
+    { id: 'flow5', source: 'flowchart TD\n A_X[Start] --> B[End]\n A_X --> B\n B --> A_X', nodes: ['A_X', 'B'], edges: ['L_A_X_B_0', 'L_A_X_B_2', 'L_B_A_X_0'] },
+    { id: 'class80', source: 'classDiagram\n class C_0 {\n +int field0\n +method0()\n }\n C_0 <|-- C1\n C1 <|-- C_0', nodes: ['C_0', 'C1'], edges: ['id_C_0_C1_1', 'id_C1_C_0_2'] },
+    { id: 'er40', source: 'erDiagram\n E_0 {\n int id PK\n string name0\n }\n E_0 ||--o{ E1 : has\n E1 ||--o{ E_0 : has', nodes: ['E_0', 'E1'], edges: ['id_entity-E_0-0_entity-E1-1_0', 'id_entity-E1-1_entity-E_0-0_1'] },
+  ])('pinned Pele $id adapter observes owned wrapper identities and directed multiplicity', fixture => {
+    const graph = { id: fixture.id, source: fixture.source, expected: fixture.nodes }
+    const edge = (id: string) => `<g class="pele-edge" data-id="${id}"><path d="M0 0L10 10"/></g>`
+    const rendered = `<svg><g class="pele-edges" fill="none" stroke="#111">${fixture.edges.map(edge).join('')}</g>${fixture.nodes.map(id => `<g class="pele-node" data-id="${id}"><rect width="10" height="10"/></g>`).join('')}<g class="pele-edge-label" data-id="${fixture.edges[0]}"><text>has</text></g></svg>`
+    const inspect = (value: string, source: string = graph.source) => inspectPeerSemantics(value, { ...graph, source }, false, 'pele-1.9.0-rendered-ids-v1')
+    expect(inspect(rendered).ok).toBe(true)
+    expect(inspectPeerSemantics(rendered, graph).ok).toBe(false) // frozen generic method is unchanged
+    expect(inspect(rendered.replace(edge(fixture.edges[0]!), '')).ok).toBe(false)
+    expect(inspect(rendered.replace(edge(fixture.edges[0]!), edge(fixture.edges[1]!))).ok).toBe(false)
+    expect(inspect(rendered.replace('d="M0 0L10 10"', 'd="M0 0"')).failures).toContain('Pele edge wrapper has no nonempty owned path')
+    for (const shaft of ['<path d="M0 0L0 0"/>', '<path d="M0 0M10 10"/>', '<path d="M0 0L0 0M10 10L10 10"/>', '<defs><path d="M0 0L10 10"/></defs>', '<!--<path d="M0 0L10 10"/>-->', '<![CDATA[<path d="M0 0L10 10"/>]]>', '<path visibility="hidden" d="M0 0L10 10"/>', '<path stroke="none" d="M0 0L10 10"/>', '<path stroke="#0000" d="M0 0L10 10"/>', '<path stroke="rgba(0,0,0,0)" d="M0 0L10 10"/>', '<path stroke-dasharray="0 99999" d="M0 0L10 10"/>']) {
+      expect(inspect(rendered.replace('<path d="M0 0L10 10"/>', shaft)).ok).toBe(false)
+    }
+    expect(inspect(rendered.replace(edge(fixture.edges[0]!), `<text>${edge(fixture.edges[0]!)}</text>`)).ok).toBe(false)
+    const variableStroke = rendered.replace('<svg>', '<svg style="--_l:var(--pele-line,#1f1f1f)">').replace('stroke="#111"', 'stroke="var(--_l)"')
+    expect(inspect(variableStroke).ok).toBe(true)
+    expect(inspect(variableStroke.replace('style="--_l:var(--pele-line,#1f1f1f)"', 'style="--_l:var(--pele-line,#1f1f1f);--_l:#0000"')).ok).toBe(false)
+    expect(inspect(rendered.replace(`data-id="${fixture.nodes[0]}"`, `data-id="${fixture.nodes[1]}"`)).ok).toBe(false)
+    // Keep every label and identity string: change an actual wrapper endpoint.
+    const wrong = fixture.id === 'flow5' ? 'L_A_X_A_X_0' : fixture.id === 'class80' ? 'id_C_0_C_0_1' : 'id_entity-E_0-0_entity-E_0-0_0'
+    expect(inspect(rendered.replace(edge(fixture.edges[0]!), edge(wrong))).failures).toContain('Pele rendered directed endpoint multiset differs from authored relations')
+    expect(inspect(rendered, graph.source + '\n click A_X "https://example.com"').ok).toBe(false)
+    expect(inspectPeerSemantics(rendered, graph, false, 'pele-1.9.1-rendered-ids-v1').ok).toBe(false)
+    if (fixture.id !== 'flow5') {
+      const declared = graph.source + `\n ${fixture.id === 'class80' ? 'class ' : ''}Isolated {\n ${fixture.id === 'class80' ? '+' : ''}int value\n }`
+      expect(inspect(rendered.replace('</svg>', '<text>Isolated</text></svg>'), declared).ok).toBe(false)
+      expect(inspect(rendered.replace('</svg>', '<g class="pele-node" data-id="Isolated"><rect width="10" height="10"/></g></svg>'), declared).ok).toBe(true)
+    }
+  })
+  test('Pele leaves ambiguous encodings and Sequence/State endpoints unqualified', () => {
+    const graph = { id: 'flow5', source: 'flowchart TD\n A_B --> C\n A --> B_C', expected: [] }
+    const rendered = '<svg><g class="pele-edge" data-id="L_A_B_C_0"><path d="M0 0L10 10"/></g><g class="pele-edge" data-id="L_A_B_C_2"><path d="M0 0L10 10"/></g>' + ['A_B', 'C', 'A', 'B_C'].map(id => `<g class="pele-node" data-id="${id}"/>`).join('') + '</svg>'
+    const ambiguous = inspectPeerSemantics(rendered, graph, false, 'pele-1.9.0-rendered-ids-v1')
+    expect(ambiguous.ok).toBe(false)
+    expect(ambiguous.unsupported).toContain('ambiguous Pele rendered endpoint identity encoding')
+    for (const [id, source, edgeId] of [['seq20', 'sequenceDiagram\n A->>B: unchanged', 'i0'], ['state80', 'stateDiagram-v2\n A --> B: unchanged', 'edge0']]) {
+      const unobservable = inspectPeerSemantics(`<svg><g class="pele-edge" data-id="${edgeId}"><path d="M0 0L10 10"/></g></svg>`, { id: id!, source: source!, expected: ['unchanged'] }, false, 'pele-1.9.0-rendered-ids-v1')
+      expect(unobservable.ok).toBe(false)
+      expect(unobservable.failures).toEqual([])
+      expect(unobservable.unsupported).toContain('pele-1.9.0-rendered-ids-v1: rendered endpoints unobservable for this family or source grammar')
+    }
+  })
   test('consumes complete UTF8 and evaluates serialized receipt getters', () => {
     let reads = 0
     const value = { svg: svg.replace('Start', '東京'), get receipt() { reads++; return { deeply: { bound: '東京', fields: [1, 2, 3] } } } }

@@ -86,6 +86,18 @@ complete calls per warm case is required for tail qualification. Quick mode is a
 functional smoke policy, never performance qualification. Legacy `bench:peers`
 without `--tracks` keeps its existing warmup and calibrated-loop methodology.
 
+The new Node peer lane explicitly advances to Pele 1.9.0, matching PR #492's
+shared active policy; the frozen 1.6.0 evidence above remains historical.
+Its rendered-endpoint adapter is selected only for the actual installed peer,
+version and exact fetched integrity. Complete metadata, selection and actual
+pin enter the control fingerprint. Flowchart/Class/ER admission observes owned
+rendered wrappers and nondegenerate shafts; Sequence/State stay unavailable in
+the fixed denominator. See the bounded
+[adapter contract](../../docs/design/system/pele-peer-observability.md).
+Geometry/color dependencies bind to the exact clean harness Git revision;
+all tracked changes and new source under `src`/`eval` invalidate cleanliness.
+Earlier controls with unavailable endpoint observability do not transfer.
+
 ## Calibration and decisions
 
 `bench:peers:qualify` runs **two independent A/A reports**, followed by the
