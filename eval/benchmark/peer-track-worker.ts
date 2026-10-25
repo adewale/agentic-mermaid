@@ -1,9 +1,9 @@
 import { consumePeerOutput, emptyTrackObservation, finalizeTrackObservation, inspectPeerSemantics, peerTrackVariant } from './peer-tracks.ts'
-import type { PeerConsumer, PeerPhase, PeerStatus, PeerTrackObservation, TrackInput, TrackVariant } from './peer-tracks.ts'
+import type { PeerConsumer, PeerPhase, PeerStatus, PeerTrackObservation, TrackInput, TrackVariant, PeerVariantDomain } from './peer-tracks.ts'
 
 type Render = (source: string) => unknown
 export interface TrackJob {
-  phase: PeerPhase; consumer: PeerConsumer; round: number; samples: number; allocationSamples: number; maxCaseMs: number; warmCalls?: number; warmupMs?: number; coldSamples?: number; coldProbe?: 'timing' | 'allocation' | 'diagnostic'
+  phase: PeerPhase; consumer: PeerConsumer; round: number; samples: number; allocationSamples: number; maxCaseMs: number; warmCalls?: number; warmupMs?: number; warmupVariants?: number; coldSamples?: number; coldProbe?: 'timing' | 'allocation' | 'diagnostic'
 }
 const firstLine = (error: unknown) => String(error instanceof Error ? error.message : error).split('\n')[0]!
 const unsupported = /Invalid mermaid header|No diagram type detected|UnknownDiagramError|Unrecognized Mermaid header|unsupported.*(?:diagram|Agentic)|diagram type is not supported/i
@@ -27,8 +27,13 @@ export async function measurePeerTrack(options: {
   const global = globalThis as unknown as Record<symbol, unknown>
   const priorObserver = global[observerKey]
   delete global[observerKey]
-  let variantCounter = 0
-  const next = (): TrackVariant => peerTrackVariant(input, track.phase, ++variantCounter)
+  const counters: Record<PeerVariantDomain, number> = { timing: 0, warmup: 0, allocation: 0, diagnostic: 0 }
+  let latest: TrackVariant | undefined
+  const next = (domain: PeerVariantDomain): TrackVariant => {
+    const ordinal = ++counters[domain]
+    const variant = domain === 'warmup' ? (ordinal - 1) % (track.warmupVariants ?? 20) + 1 : ordinal
+    return latest = peerTrackVariant(input, track.phase, variant, domain)
+  }
   const invoke = async (variant: TrackVariant) => {
     const start = performance.now()
     let value = render(variant.source)
@@ -50,12 +55,12 @@ export async function measurePeerTrack(options: {
       let warm = 0
       const primed = () => warm >= (track.warmCalls ?? 3) && performance.now() - warmStarted >= (track.warmupMs ?? 0)
       while (!primed()) {
-        const variant = next()
+        const variant = next('warmup')
         const result = await invoke(variant)
         const checked = inspect(result.svg, variant)
         row.warmup = { calls: ++warm, elapsedMs: performance.now() - warmStarted, complete: false }
         if (checked.status !== 'ok') {
-          row.calls.push({ index: -warm, variant: variant.variant, elapsedMs: result.elapsedMs, ...checked, detail: checked.detail ?? 'warmup failed semantic/label validation' })
+          row.calls.push({ index: -warm, variant: variant.variant, domain: variant.domain, elapsedMs: result.elapsedMs, ...checked, detail: checked.detail ?? 'warmup failed semantic/label validation' })
           return finalizeTrackObservation(row)
         }
         if (!primed() && row.warmup.elapsedMs >= track.maxCaseMs) throw new Error('warmup reached its case deadline before the required priming completed')
@@ -65,13 +70,13 @@ export async function measurePeerTrack(options: {
     const coldProbe = track.phase === 'first-use' ? track.coldProbe ?? 'timing' : undefined
     const started = performance.now()
     for (let index = 0; index < (coldProbe ? coldProbe === 'timing' ? 1 : 0 : track.samples); index++) {
-      const variant = next()
+      const variant = next('timing')
       try {
         const result = await invoke(variant)
-        row.calls.push({ index, variant: variant.variant, elapsedMs: result.elapsedMs, consumedBytes: result.bytes, checksum: result.checksum, ...inspect(result.svg, variant) })
+        row.calls.push({ index, variant: variant.variant, domain: variant.domain, elapsedMs: result.elapsedMs, consumedBytes: result.bytes, checksum: result.checksum, ...inspect(result.svg, variant) })
       } catch (error) {
         const detail = firstLine(error)
-        row.calls.push({ index, variant: variant.variant, status: unsupported.test(detail) ? 'unsupported' : 'error', detail })
+        row.calls.push({ index, variant: variant.variant, domain: variant.domain, status: unsupported.test(detail) ? 'unsupported' : 'error', detail })
       }
       options.progress?.(row)
       if (performance.now() - started > track.maxCaseMs) break
@@ -79,14 +84,14 @@ export async function measurePeerTrack(options: {
     if (coldProbe && coldProbe !== 'allocation') row.allocationUnsupported = 'first-use allocation requires a separate fresh-process observation; warm probes are not equivalent'
     else if (!allocation) row.allocationUnsupported = 'runtime has no V8 GC-boundary allocation probe'
     else for (let index = 0; index < (coldProbe === 'allocation' ? 1 : track.allocationSamples); index++) {
-      const variant = next()
+      const variant = next('allocation')
       let result: Awaited<ReturnType<typeof invoke>> | undefined
       try {
         const bytes = await allocation(async () => { result = await invoke(variant) })
         const checked = inspect(result!.svg, variant)
         if (checked.status !== 'ok') throw new Error(checked.detail ?? `allocation observation ${checked.status}`)
         row.allocationSamplesBytes.push(bytes)
-        if (coldProbe === 'allocation') row.calls.push({ index: 0, variant: variant.variant, consumedBytes: result!.bytes, checksum: result!.checksum, ...checked })
+        if (coldProbe === 'allocation') row.calls.push({ index: 0, variant: variant.variant, domain: variant.domain, consumedBytes: result!.bytes, checksum: result!.checksum, ...checked })
       } catch (error) { (row.allocationErrors ??= []).push(firstLine(error)) }
     }
     if (coldProbe && coldProbe !== 'diagnostic') row.diagnostics.detail = 'cold diagnostic replay needs another fresh process; this worker has already rendered'
@@ -99,19 +104,19 @@ export async function measurePeerTrack(options: {
         if (row.diagnostics.events.length < 100) row.diagnostics.events.push({ ...event })
       }
       try {
-        const variant = next()
+        const variant = next('diagnostic')
         const result = await invoke(variant)
         delete global[observerKey]
         const checked = inspect(result.svg, variant)
         if (checked.status !== 'ok') throw new Error(checked.detail ?? checked.status)
-        if (coldProbe === 'diagnostic') row.calls.push({ index: 0, variant: variant.variant, consumedBytes: result.bytes, checksum: result.checksum, ...checked })
+        if (coldProbe === 'diagnostic') row.calls.push({ index: 0, variant: variant.variant, domain: variant.domain, consumedBytes: result.bytes, checksum: result.checksum, ...checked })
         row.diagnostics.complete = row.diagnostics.status === 'observed'
       } catch (error) { row.diagnostics.complete = false; row.diagnostics.detail = firstLine(error) }
       delete global[observerKey]
     }
   } catch (error) {
     const detail = firstLine(error)
-    row.calls.push({ index: row.calls.length, variant: variantCounter, status: unsupported.test(detail) ? 'unsupported' : 'error', detail })
+    row.calls.push({ index: row.calls.length, variant: latest?.variant ?? 0, domain: latest?.domain, status: unsupported.test(detail) ? 'unsupported' : 'error', detail })
   } finally {
     if (priorObserver === undefined) delete global[observerKey]
     else global[observerKey] = priorObserver

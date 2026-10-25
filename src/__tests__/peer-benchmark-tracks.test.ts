@@ -12,6 +12,30 @@ const input = { id: 'flow5', source: 'flowchart TD\n A[Start] --> B[End]', expec
 const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="20" height="20"/><g data-id="A"/><g data-id="B"/><path d="M0 0L10 10" data-from="A" data-to="B"/><text>Start</text><text>End</text></svg>'
 const track = { phase: 'exact-repeat', consumer: 'svg-utf8', round: 0, samples: 21, allocationSamples: 3, maxCaseMs: 1000 } as const
 
+async function captureVariantStreams(phase: 'warm-new-source' | 'label-edit', callMs: number, options: { warmCalls: number; warmupMs: number; samples: number; maxCaseMs: number }) {
+  let ticks = 0
+  const sources: string[] = [], timed: string[] = [], allocations: string[] = []
+  let diagnostic: string | undefined
+  const clock = spyOn(performance, 'now').mockImplementation(() => ticks)
+  try {
+    const row = await measurePeerTrack({ peer: 'fake', input, track: { ...track, ...options, phase, allocationSamples: 1 },
+      render(source) {
+        ticks += callMs
+        sources.push(source)
+        const nodes = [...source.matchAll(/([A-Za-z_]\w*)\[([^\]]+)\]/g)]
+        const [from, to] = nodes.map(match => match[1]!)
+        if ((globalThis as Record<symbol, unknown>)[Symbol.for('agentic-mermaid.performance-observer.v1')]) diagnostic = source
+        return svg.replaceAll('data-id="A"', `data-id="${from}"`).replaceAll('data-id="B"', `data-id="${to}"`)
+          .replace('data-from="A" data-to="B"', `data-from="${from}" data-to="${to}"`).replace('<text>Start</text>', `<text>${nodes[0]![2]}</text>`)
+      },
+      validate: () => ({ missing: [] }),
+      progress() { timed.push(sources.at(-1)!) },
+      async allocation(run) { await run(); allocations.push(sources.at(-1)!); return 1000 },
+    })
+    return { row, sources, timed, allocations, diagnostic }
+  } finally { clock.mockRestore() }
+}
+
 describe('maintained consumed peer protocol', () => {
   test('records only known runtime selectors while preserving explicit empty experiments', () => {
     expect(peerExecutionEnvironment({})).toEqual({ experiments: null, nodeOptions: null, bunOptions: null, nodeEnv: null, timezone: null })
@@ -122,6 +146,35 @@ describe('maintained consumed peer protocol', () => {
       expect(row.allocationSamplesBytes).toEqual([])
       expect(row.calls[0]!.detail).toContain('warmup reached its case deadline')
     } finally { clock.mockRestore() }
+  })
+  test.each(['warm-new-source', 'label-edit'] as const)('%s pairs actual input bytes despite unequal warmup counts', async phase => {
+    const options = { warmCalls: 20, warmupMs: 50, samples: 2, maxCaseMs: 100 }
+    const fast = await captureVariantStreams(phase, 1, options)
+    const slow = await captureVariantStreams(phase, 2, options)
+    const expected = phase === 'warm-new-source'
+      ? ['flowchart TD\n v1_A[q1] --> v1_B[End]', 'flowchart TD\n v2_A[q2] --> v2_B[End]']
+      : ['flowchart TD\n A[q1] --> B[End]', 'flowchart TD\n A[q2] --> B[End]']
+    expect(fast.row.warmup!.calls).not.toBe(slow.row.warmup!.calls)
+    for (const observed of [fast, slow]) {
+      expect(observed.row.status).toBe('ok')
+      expect(new Set(observed.sources.slice(0, observed.row.warmup!.calls)).size).toBe(20)
+      expect(observed.timed).toEqual(expected)
+      expect(observed.row.calls.map(call => [call.variant, call.domain])).toEqual([[1, 'timing'], [2, 'timing']])
+      for (const source of observed.timed) expect(observed.sources.filter(value => value === source)).toHaveLength(1)
+      expect(observed.allocations).toEqual([phase === 'warm-new-source' ? 'flowchart TD\n a1_A[a1] --> a1_B[End]' : 'flowchart TD\n A[a1] --> B[End]'])
+      expect(observed.diagnostic).toBe(phase === 'warm-new-source' ? 'flowchart TD\n d1_A[d1] --> d1_B[End]' : 'flowchart TD\n A[d1] --> B[End]')
+    }
+  })
+  test('a timing deadline cannot shift allocation or diagnostic source inputs', async () => {
+    const options = { warmCalls: 0, warmupMs: 0, samples: 4, maxCaseMs: 100 }
+    const complete = await captureVariantStreams('warm-new-source', 1, options)
+    const shortened = await captureVariantStreams('warm-new-source', 1, { ...options, maxCaseMs: 2 })
+    expect(complete.timed).toHaveLength(4)
+    expect(shortened.timed).toHaveLength(3)
+    expect(shortened.timed).toEqual(complete.timed.slice(0, 3))
+    expect(shortened.allocations).toEqual(complete.allocations)
+    expect(shortened.diagnostic).toBe(complete.diagnostic)
+    expect(shortened.row.insufficientSamples).toBe(true)
   })
   test('cold call does not warm first, and unavailable receipts remain explicit', async () => {
     let calls = 0
