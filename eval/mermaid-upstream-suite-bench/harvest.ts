@@ -208,7 +208,10 @@ function extractTestBlocks(text: string, family: Family, file: string): TestBloc
   host.getSourceFile = name => name === source.fileName ? source : undefined
   host.fileExists = name => name === source.fileName
   host.readFile = name => name === source.fileName ? source.text : undefined
-  const checker = ts.createProgram([source.fileName], options, host).getTypeChecker()
+  const program = ts.createProgram([source.fileName], options, host)
+  const syntax = program.getSyntacticDiagnostics(source)
+  if (syntax.length) throw new Error(`Cannot inventory invalid upstream syntax in ${file}: ${ts.flattenDiagnosticMessageText(syntax[0]!.messageText, '\n')}`)
+  const checker = program.getTypeChecker()
   const written = new Set<ts.Symbol>()
   let dynamicScope = false
   const target = (node: ts.Node): void => {

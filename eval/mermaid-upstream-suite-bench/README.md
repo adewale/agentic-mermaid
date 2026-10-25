@@ -37,7 +37,9 @@ including JavaScript specs. `it.each` is one registration definition; its
 runtime rows are not guessed. Imported test aliases and global test APIs are
 distinguished from locally shadowed functions. Values come from actual candidate
 source-call arguments, including `Diagram.fromText` and renderer `draw` calls.
-Closed constants and never-written `let` bindings can be recovered. A local
+Closed string constants and never-written `let` bindings can be recovered.
+Mutable/hoisted `var` bindings and implicit coercions remain unknown. Values are
+deduplicated within each registration, not counted as call occurrences. A local
 helper substitutes parameters only along a transparent return/call path; other
 helper parameters, mutations, tags, external values and transforms remain
 unknown. Literal inputs to an unknown transform are recorded separately from
