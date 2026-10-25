@@ -3,7 +3,7 @@ import type { PeerConsumer, PeerPhase, PeerStatus, PeerTrackObservation, TrackIn
 
 type Render = (source: string) => unknown
 export interface TrackJob {
-  phase: PeerPhase; consumer: PeerConsumer; round: number; samples: number; allocationSamples: number; maxCaseMs: number; warmCalls?: number
+  phase: PeerPhase; consumer: PeerConsumer; round: number; samples: number; allocationSamples: number; maxCaseMs: number; warmCalls?: number; coldSamples?: number; coldProbe?: 'timing' | 'allocation' | 'diagnostic'
 }
 const firstLine = (error: unknown) => String(error instanceof Error ? error.message : error).split('\n')[0]!
 const unsupported = /Invalid mermaid header|No diagram type detected|UnknownDiagramError|Unrecognized Mermaid header|unsupported.*(?:diagram|Agentic)|diagram type is not supported/i
@@ -56,8 +56,9 @@ export async function measurePeerTrack(options: {
         }
       }
     }
+    const coldProbe = track.phase === 'first-use' ? track.coldProbe ?? 'timing' : undefined
     const started = performance.now()
-    for (let index = 0; index < (track.phase === 'first-use' ? 1 : track.samples); index++) {
+    for (let index = 0; index < (coldProbe ? coldProbe === 'timing' ? 1 : 0 : track.samples); index++) {
       const variant = next()
       try {
         const result = await invoke(variant)
@@ -69,9 +70,9 @@ export async function measurePeerTrack(options: {
       options.progress?.(row)
       if (performance.now() - started > track.maxCaseMs) break
     }
-    if (track.phase === 'first-use') row.allocationUnsupported = 'first-use allocation requires a separate fresh-process observation; warm probes are not equivalent'
+    if (coldProbe && coldProbe !== 'allocation') row.allocationUnsupported = 'first-use allocation requires a separate fresh-process observation; warm probes are not equivalent'
     else if (!allocation) row.allocationUnsupported = 'runtime has no V8 GC-boundary allocation probe'
-    else for (let index = 0; index < track.allocationSamples; index++) {
+    else for (let index = 0; index < (coldProbe === 'allocation' ? 1 : track.allocationSamples); index++) {
       const variant = next()
       let result: Awaited<ReturnType<typeof invoke>> | undefined
       try {
@@ -79,9 +80,10 @@ export async function measurePeerTrack(options: {
         const checked = inspect(result!.svg, variant)
         if (checked.status !== 'ok') throw new Error(checked.detail ?? `allocation observation ${checked.status}`)
         row.allocationSamplesBytes.push(bytes)
+        if (coldProbe === 'allocation') row.calls.push({ index: 0, variant: variant.variant, consumedBytes: result!.bytes, checksum: result!.checksum, ...checked })
       } catch (error) { (row.allocationErrors ??= []).push(firstLine(error)) }
     }
-    if (track.phase === 'first-use') row.diagnostics.detail = 'cold diagnostic replay needs another fresh process; this worker has already rendered'
+    if (coldProbe && coldProbe !== 'diagnostic') row.diagnostics.detail = 'cold diagnostic replay needs another fresh process; this worker has already rendered'
     else {
       global[observerKey] = (event: Record<string, unknown>) => {
         if (event?.version !== 1 || !['scope', 'cache', 'fallback'].includes(String(event.kind))) return
@@ -96,6 +98,7 @@ export async function measurePeerTrack(options: {
         delete global[observerKey]
         const checked = inspect(result.svg, variant)
         if (checked.status !== 'ok') throw new Error(checked.detail ?? checked.status)
+        if (coldProbe === 'diagnostic') row.calls.push({ index: 0, variant: variant.variant, consumedBytes: result.bytes, checksum: result.checksum, ...checked })
         row.diagnostics.complete = row.diagnostics.status === 'observed'
       } catch (error) { row.diagnostics.complete = false; row.diagnostics.detail = firstLine(error) }
       delete global[observerKey]
