@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
-import { terminalDocumentOf } from '../ascii/terminal-document.ts'
+import { terminalDocumentOf, type TerminalDocument } from '../ascii/terminal-document.ts'
 
 interface Bounds { left: number; top: number; right: number; bottom: number }
 const strokePorts: Record<string, number> = {
@@ -11,7 +11,7 @@ const strokePorts: Record<string, number> = {
   '▲': 5, '▼': 5, '^': 5, 'v': 5, '◄': 10, '►': 10, '<': 10, '>': 10, '◯': 15, 'o': 15, '✕': 15, 'x': 15,
 }
 
-function completeComposition(source: string, useAscii: boolean, labels: Record<string, string>): void {
+function completeComposition(source: string, useAscii: boolean, labels: Record<string, string>): TerminalDocument {
   const rendered = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none' })
   const document = terminalDocumentOf(rendered)!, regions = document.regions()
   for (const [id, label] of Object.entries(labels)) {
@@ -65,6 +65,13 @@ function completeComposition(source: string, useAscii: boolean, labels: Record<s
     }
     const normal = { T: [0, -1], R: [1, 0], B: [0, 1], L: [-1, 0] } as const
     const [sx, sy] = normal[start.side!], [tx, ty] = normal[end.side!]
+    for (const port of [start, end]) for (const expected of port.markers ?? []) {
+      const [dx, dy] = normal[port.side!], cell = document.cell(port.x + dx * (port.markerOffset ?? 0), port.y + dy * (port.markerOffset ?? 0))!
+      const glyph = expected.shape === 'wide-circle' ? useAscii ? 'o' : '◯' : expected.shape === 'cross' ? useAscii ? 'x' : '✕'
+        : (useAscii ? { T: 'v', R: '<', B: '^', L: '>' } : { T: '▼', R: '◄', B: '▲', L: '►' })[port.side!]
+      expect(cell.kind).toBe('marker'); expect(cell.glyph).toBe(glyph); expect(cell.width).toBe(1)
+      expect(cell.owners.some(owner => owner.kind === 'edge' && owner.id === edge.id)).toBe(true)
+    }
     const exit = `${start.x + sx},${start.y + sy}`
     const markerX = end.x + tx * (end.markerOffset ?? 1), markerY = end.y + ty * (end.markerOffset ?? 1)
     const arrow = end.markers?.some(marker => marker.shape === 'arrow')
@@ -97,6 +104,8 @@ function completeComposition(source: string, useAscii: boolean, labels: Record<s
     for (const cell of edge.authoredTextCells ?? []) expect(labelSeen.has(`${cell.column},${cell.row}`)).toBe(true)
   }
   expect(document.diagnostics).toEqual([])
+  expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+  return document
 }
 
 for (const direction of ['TD', 'BT', 'LR', 'RL']) for (const depth of [1, 3, 5]) for (const useAscii of [false, true]) {
@@ -187,6 +196,39 @@ Cluster ==> Done`, useAscii, { A: 'A', Cluster: 'Cluster', In: 'In', Work: 'Work
 }
 
 for (const direction of ['TD', 'BT', 'LR', 'RL']) for (const useAscii of [false, true]) {
+  test(`${direction} selected approaches clear wide sibling cards and complete nested headers (${useAscii ? 'ASCII' : 'Unicode'})`, () => {
+    for (const [link, shape] of [['-->', 'arrow'], ['<-->', 'arrow'], ['o--o', 'wide-circle'], ['x--x', 'cross']] as const) {
+      const document = completeComposition(`flowchart ${direction}
+subgraph Outer[Outer 日本<br>complete]
+subgraph Inner[Inner 👩‍💻]
+direction TD
+A[First 界界👩‍💻 é]
+B[Last]
+end
+X[Outside wide track 日本語]
+end
+subgraph Sibling[Sibling é<br>wide 日本]
+C[Sibling card]
+end
+A -->|one界| X
+A -->|two| X
+X -->|return| A
+X ${link}|back| B
+X -->|branch| C
+B -->|self| B`, useAscii, { Outer: 'Outer 日本\ncomplete', Inner: 'Inner 👩‍💻', Sibling: 'Sibling é\nwide 日本', A: 'First 界界👩‍💻 é', B: 'Last', X: 'Outside wide track 日本語', C: 'Sibling card' })
+      const edge = document.regions().find(region => region.kind === 'edge' && region.from === 'X' && region.to === 'B')!
+      expect(edge.projectedText).toBe('back')
+      expect(edge.ports!.find(port => port.end === 'start')!.markers?.map(marker => marker.shape)).toEqual(link === '-->' ? [] : [shape])
+      expect(edge.ports!.find(port => port.end === 'end')!.markers?.map(marker => marker.shape)).toEqual([shape])
+    }
+  })
+  test(`${direction} ordinary parallel and reciprocal selected approaches preserve both marker ends (${useAscii ? 'ASCII' : 'Unicode'})`, () => {
+    completeComposition(`flowchart ${direction}
+A[Wide 界界👩‍💻 é] <-->|request| B[Server]
+A o--o|other| B
+B x--x|return| A
+B --> C[Done]`, useAscii, { A: 'Wide 界界👩‍💻 é', B: 'Server', C: 'Done' })
+  })
   test(`${direction} nested cuts retain complete directional relationship ink (${useAscii ? 'ASCII' : 'Unicode'})`, () => {
     completeComposition(`flowchart ${direction}
 subgraph Outer[Outer 界<br>complete]

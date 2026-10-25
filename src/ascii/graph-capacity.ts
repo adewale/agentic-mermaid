@@ -1,4 +1,4 @@
-import type { AsciiGraph, AsciiNode, AsciiSubgraph, AsciiEdge, Direction } from './types.ts'
+import type { AsciiGraph, AsciiNode, AsciiSubgraph, AsciiEdge, Direction, DrawingCoord } from './types.ts'
 import { Up, Down, Left, Right } from './types.ts'
 import { maxLineWidth, lineCount } from './multiline-utils.ts'
 
@@ -11,6 +11,19 @@ export const graphEndpointOf = (edge: AsciiEdge, start: boolean): Endpoint => st
   ? edge.attachFromSubgraph ?? edge.fromSubgraph ?? edge.from
   : edge.attachToSubgraph ?? edge.toSubgraph ?? edge.to
 const membersOf = (endpoint: Endpoint): readonly AsciiNode[] => isGroup(endpoint) ? endpoint.nodes : [endpoint]
+
+/** A relative face allocation projects from the current complete envelope.
+ * Capacity reservation and painting must use the same physical contact. */
+export function allocatedGraphPort(edge: AsciiEdge, start: boolean, bounds: Bounds): DrawingCoord | undefined {
+  const endpoint = graphEndpointOf(edge, start), direction = start ? edge.startDir : edge.endDir
+  const offset = start ? edge.cellAllocation!.startOffset : edge.cellAllocation!.endOffset
+  const horizontal = direction.x !== 1, available = horizontal ? bounds.maxY - bounds.minY : bounds.maxX - bounds.minX
+  const minimum = isGroup(endpoint) && horizontal ? lineCount(endpoint.name) + 1 : 1
+  if (!Number.isSafeInteger(offset) || offset < minimum || offset >= available) return undefined
+  return horizontal ? { x: direction.x === 0 ? bounds.minX : bounds.maxX, y: bounds.minY + offset }
+    : { x: bounds.minX + offset, y: direction.y === 0 ? bounds.minY : bounds.maxY }
+}
+
 const logicalBounds = (endpoint: Endpoint): Bounds => {
   const members = membersOf(endpoint)
   return {

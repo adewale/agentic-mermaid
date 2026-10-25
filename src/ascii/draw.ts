@@ -27,7 +27,7 @@ import { measuredText, terminalCellConnections, type MeasuredTerminalText, type 
 import type { PathOccupancy } from './occupancy.ts'
 import { getPath, mergePath } from './pathfinder.ts'
 import { allocateFacePort } from './terminal-geometry.ts'
-import { GRAPH_EDGE_APPROACH, graphEndpointOf, type GraphEndpoint } from './graph-capacity.ts'
+import { GRAPH_EDGE_APPROACH, allocatedGraphPort, graphEndpointOf, type GraphEndpoint } from './graph-capacity.ts'
 
 /** Protect admitted headers and cards before routing in terminal cells. The
  * grid router cannot see text measured inside a container's header band. */
@@ -1425,18 +1425,11 @@ function planAllocatedGraphRoutes(graph: AsciiGraph, protectedCells: PathOccupan
   const step = (point: DrawingCoord, direction: Direction, count: number) => ({ x: point.x + (direction.x - 1) * count, y: point.y + (direction.y - 1) * count })
   const inside = (box: Rectangle, x: number, y: number) => x >= box.x - (box.height > 1 ? 1 : 0) && x < box.x + box.width && y >= box.y && y < box.y + box.height
   const endpoint = (edge: AsciiEdge, start: boolean): DrawingCoord | undefined => {
-    const node = start ? edge.from : edge.to, direction = start ? edge.startDir : edge.endDir
-    const group = start ? edge.attachFromSubgraph ?? edge.fromSubgraph : edge.attachToSubgraph ?? edge.toSubgraph
-    const offset = start ? edge.cellAllocation!.startOffset : edge.cellAllocation!.endOffset
-    const horizontal = dirEquals(direction, Left) || dirEquals(direction, Right)
-    const available = group ? horizontal ? group.maxY - group.minY : group.maxX - group.minX
-      : horizontal ? node.drawing!.height - 1 : node.drawing!.width - 1
-    const minimum = group && horizontal ? splitLines(group.name).length + 1 : 1
-    if (!Number.isSafeInteger(offset) || offset < minimum || offset >= available) return undefined
-    const point = group ? getSubgraphAttachmentPoint(graph, group, node, direction) : getNodeAttachmentPoint(graph, node, direction)
-    if (dirEquals(direction, Left) || dirEquals(direction, Right)) point.y = (group?.minY ?? node.drawingCoord!.y) + offset
-    else point.x = (group?.minX ?? node.drawingCoord!.x) + offset
-    return point
+    const target = graphEndpointOf(edge, start)
+    return allocatedGraphPort(edge, start, 'children' in target ? target : {
+      minX: target.drawingCoord!.x, minY: target.drawingCoord!.y,
+      maxX: target.drawingCoord!.x + target.drawing!.width - 1, maxY: target.drawingCoord!.y + target.drawing!.height - 1,
+    })
   }
   for (const edge of edges) {
     const start = endpoint(edge, true), end = endpoint(edge, false)

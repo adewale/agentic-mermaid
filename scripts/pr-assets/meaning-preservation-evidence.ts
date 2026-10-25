@@ -891,6 +891,11 @@ const fixtures: Fixture[] = [
 ]
 const terminalFixtures = [
   {
+    id: 'terminal-approach-envelopes',
+    source: 'flowchart LR\nsubgraph Outer[Outer 日本<br>complete]\nsubgraph Inner[Inner 👩‍💻]\ndirection TD\nA[First 界界👩‍💻 é]\nB[Last]\nend\nX[Outside wide track 日本語]\nend\nsubgraph Sibling[Sibling é<br>wide 日本]\nC[Sibling card]\nend\nA -->|one界| X\nA -->|two| X\nX -->|return| A\nX -->|back| B\nX -->|branch| C\nB -->|self| B',
+    cue: 'Before, X to B is an owned endpoint summary because its selected approach intersects A before path search starts. After, inspect the complete back route and marker tail, clear sibling cards, all six relationships and complete wide/multiline labels. Capacity reserves the measured approach through the same relative face projection used by painting. The owning test checks actual directional ink and strict certification in all four directions and both formats; this one source does not prove arbitrary routing completeness.',
+  },
+  {
     id: 'terminal-state-declaration-timing',
     source: 'stateDiagram-v2\nstate "Idle" as A\nstate "Other" as D\n[*] --> A\nA --> B',
     mutation: { kind: 'rename_state', from: 'B', to: 'C' },
