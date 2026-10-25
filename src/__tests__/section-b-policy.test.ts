@@ -117,6 +117,7 @@ describe('Section B semantic policy', () => {
     const baseline = renderMermaidSVG(source)
     const branded = renderMermaidSVG(source, { style: policyStyle() as any })
     const paths = (svg: string) => [...svg.matchAll(/class="pie-slice[^\"]*"[^>]*d="([^"]+)"/g)].map(match => match[1])
+    expect(paths(baseline)).toHaveLength(2)
     expect(paths(branded)).toEqual(paths(baseline))
     expect(branded).toContain('data-label="Beta"')
     expect(branded).toContain('fill="#ff00ff"')
@@ -149,7 +150,8 @@ describe('Section B semantic policy', () => {
       roles: { label: { textColor: '#dddddd' } },
       constraints: [{ kind: 'contrast', action: 'warn', minimum: 4.5 }],
     } as any
-    const before = renderMermaidSVG(source, { style: low })
+    const before = renderMermaidSVG(source, { style: { roles: low.roles } })
+    expect(renderMermaidSVG(source, { style: low })).toBe(before)
     const warned = verifyMermaid(source, { renderOptions: { style: low } })
     expect(warned.warnings).toContainEqual(expect.objectContaining({
       code: 'BRAND_CONSTRAINT_WARNING', constraint: 'contrast', measurement: 'measurable', minimum: 4.5,
@@ -249,7 +251,8 @@ describe('Section B semantic policy', () => {
         { kind: 'mono-role', action: 'warn', role: 'edge' },
       ],
     } as any
-    const svg = renderMermaidSVG(source, { style })
+    const svg = renderMermaidSVG(source, { style: { colors: style.colors, roles: style.roles } })
+    expect(renderMermaidSVG(source, { style })).toBe(svg)
     const result = verifyMermaid(source, { renderOptions: { style } })
     expect(result.warnings).toContainEqual(expect.objectContaining({
       code: 'BRAND_CONSTRAINT_WARNING', constraint: 'accent-area', measurement: 'measurable',
@@ -270,7 +273,7 @@ describe('Section B semantic policy', () => {
           { kind: 'mono-role', action: 'warn', role: 'node' },
         ],
       } as const,
-      before = renderMermaidSVG(source, { style }),
+      before = renderMermaidSVG(source, { style: { colors: style.colors, roles: style.roles } }),
       result = verifyMermaid(source, { renderOptions: { style } })
     expect(result.warnings).toContainEqual(expect.objectContaining({ code: 'BRAND_CONSTRAINT_WARNING', constraint: 'accent-area', measurement: 'measurable', maximum: 0, actual: expect.any(Number) }))
     expect(result.warnings).toContainEqual(expect.objectContaining({ code: 'BRAND_CONSTRAINT_WARNING', constraint: 'mono-role', role: 'node', measurement: 'measurable', foreground: '#ff0000' }))

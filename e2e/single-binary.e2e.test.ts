@@ -4,9 +4,9 @@
 
 import { describe, test, expect } from 'bun:test'
 import { spawnSync } from 'node:child_process'
-import { existsSync, readFileSync, writeFileSync, mkdtempSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { tmpdir } from 'node:os'
+import { useTempDirs } from '../src/__tests__/helpers/temp-dir.ts'
 
 const REPO = join(import.meta.dir, '..')
 const ENTRY = join(REPO, 'bin', 'am.ts')
@@ -14,7 +14,7 @@ const BUILD_TIMEOUT_MS = 120_000
 const RUN_TIMEOUT_MS = 30_000
 
 // Build once into a temp dir so we don't fight the gitignored dist/am.
-const work = mkdtempSync(join(tmpdir(), 'am-bin-'))
+const work = useTempDirs('am-bin-').dir()
 const BIN = join(work, 'am')
 const build = spawnSync('bun', ['build', ENTRY, '--compile', '--outfile', BIN], { encoding: 'utf8', timeout: BUILD_TIMEOUT_MS })
 const haveBinary = build.status === 0 && existsSync(BIN)
@@ -41,14 +41,17 @@ describe('#1018 single-binary distribution', () => {
   test('binary renders ASCII', () => {
     const r = spawnSync(BIN, ['render', '--format', 'ascii', fixture], { encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
     expect(r.status).toBe(0)
-    expect(r.stdout.length).toBeGreaterThan(0)
+    expect(r.stdout).toContain('Start')
+    expect(r.stdout).toContain('End')
+    expect(r.stdout).toContain('+')
+    expect(r.stdout).toMatch(/^[\x00-\x7f]*$/)
   })
 
   test('binary emits capabilities JSON', () => {
     const r = spawnSync(BIN, ['capabilities', '--json'], { encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
     expect(r.status).toBe(0)
     const cap = JSON.parse(r.stdout)
-    expect(Array.isArray(cap.families)).toBe(true)
+    expect(cap.families.find((family: { id: string }) => family.id === 'flowchart')?.mutationOps).toContain('add_node')
   })
 
   test('binary renders PNG (resvg native addon embeds)', () => {
@@ -69,5 +72,3 @@ describe('#1018 single-binary distribution', () => {
 // No cold-start timing gate here: a wall-clock ceiling is not a merge blocker
 // (docs/testing-strategy.md), and on a loaded runner the binary's cold start
 // (~1s) is no faster than `bun bin/am.ts`. "binary renders SVG" covers the run.
-// (temp dir under os.tmpdir() is left for the OS to reclaim — deleting it
-// at module-load would race the test bodies.)

@@ -7,18 +7,25 @@ import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
 
 describe('rendered output has no ugly-layout defects', () => {
   test('clean built-in flows have no hard defects', () => {
-    for (const src of [
-      'flowchart TD\n  A --> B\n  A --> C',
-      'flowchart LR\n  A --> B\n  B --> A',
-      'flowchart TD\n  Q{Decide} -- a --> P[One]\n  Q -- b --> R[Two]',
-    ]) {
-      expect(detectSvg(renderMermaidSVG(src, { embedFontImport: false })).filter(f => f.severity === 'hard')).toEqual([])
+    for (const [src, nodes, edges] of [
+      ['flowchart TD\n  A --> B\n  A --> C', ['A', 'B', 'C'], [['A', 'B'], ['A', 'C']]],
+      ['flowchart LR\n  A --> B\n  B --> A', ['A', 'B'], [['A', 'B'], ['B', 'A']]],
+      ['flowchart TD\n  Q{Decide} -- a --> P[One]\n  Q -- b --> R[Two]', ['P', 'Q', 'R'], [['Q', 'P'], ['Q', 'R']]],
+    ] as const) {
+      const svg = renderMermaidSVG(src, { embedFontImport: false })
+      expect([...svg.matchAll(/<g class="node" data-id="([^"]+)"/g)].map(match => match[1]).sort()).toEqual([...nodes])
+      expect([...svg.matchAll(/<(?:path|polyline)\b[^>]*class="edge"[^>]*>/g)].map(([tag]) => [tag.match(/data-from="([^"]+)"/)?.[1], tag.match(/data-to="([^"]+)"/)?.[1]])).toEqual(edges.map(pair => [...pair]))
+      expect(detectSvg(svg).filter(f => f.severity === 'hard')).toEqual([])
     }
   })
 
   test('CJK Gantt label regions do not include timeline glyphs', () => {
     const source = 'gantt\n  dateFormat YYYY-MM-DD\n  section 设计阶段\n    界面设计 :ui, 2024-04-01, 5d'
     const rendered = renderMermaidASCIIWithMeta(source, { useAscii: false })
+    expect(rendered.ascii).toContain('设计阶段')
+    expect(rendered.ascii).toContain('界面设计')
+    const task = rendered.regions.find(region => region.projectedText?.includes('界面设计'))
+    expect(task?.authoredTextCells?.length).toBeGreaterThan(0)
     expect(detectAscii(rendered.ascii, rendered.regions)).toEqual([])
   })
 

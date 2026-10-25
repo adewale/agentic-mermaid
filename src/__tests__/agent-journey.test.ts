@@ -534,9 +534,14 @@ describe('journey round-trip property', () => {
             ...s.tasks.map(t => `    ${t.text}: ${t.score}${t.actors.length ? `: ${t.actors.join(', ')}` : ''}`),
           ])].join('\n')
           const d = journey(src)
+          const meaning = (diagram: JourneyValidDiagram) => diagram.body.sections.map(section => ({
+            label: section.label,
+            tasks: section.tasks.map(({ text, score, actors }) => ({ text, score, actors })),
+          }))
+          expect(meaning(d)).toEqual(sections)
           const out = serializeMermaid(d)
           const d2 = journey(out)
-          expect(d2.body).toEqual(d.body)
+          expect(meaning(d2)).toEqual(sections)
           expect(serializeMermaid(d2)).toBe(out)
         },
       ),

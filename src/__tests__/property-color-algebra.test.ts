@@ -217,28 +217,9 @@ describe('buildStyleBlock contains all derived vars', () => {
 // ============================================================================
 
 describe('buildShadowDefs conditional behavior', () => {
-  it('returns empty string when shadow is false or undefined', () => {
-    fc.assert(
-      fc.property(diagramColorsArb, (colors) => {
-        const noShadow = { ...colors, shadow: false }
-        const undefinedShadow = { ...colors, shadow: undefined }
-
-        expect(buildShadowDefs(noShadow)).toBe('')
-        expect(buildShadowDefs(undefinedShadow)).toBe('')
-      }),
-      fcParameters({ numRuns: NUM_RUNS }),
-    )
-  })
-
-  it('contains <filter when shadow is true', () => {
-    fc.assert(
-      fc.property(diagramColorsArb, (colors) => {
-        const withShadow = { ...colors, shadow: true }
-        const result = buildShadowDefs(withShadow)
-
-        expect(result).toContain('<filter')
-      }),
-      fcParameters({ numRuns: NUM_RUNS }),
-    )
+  it.each([false, undefined, true])('emits a shadow filter exactly when shadow is %s', shadow => {
+    const result = buildShadowDefs({ bg: '#ffffff', fg: '#111111', shadow })
+    if (shadow) expect(result).toContain('<filter')
+    else expect(result).toBe('')
   })
 })

@@ -5,7 +5,7 @@
 // script can look up an op's exact shape instead of guessing.
 
 import { describe, test, expect } from 'bun:test'
-import { describeOps, opSignatures } from '../agent/op-schema.ts'
+import { describeOps } from '../agent/op-schema.ts'
 import { buildChecked } from '../agent/apply.ts'
 import { buildCapabilities } from '../cli/index.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
@@ -66,13 +66,13 @@ describe('op field notes (mutator-enforced constraints + omit-defaults)', () => 
 describe('Code Mode can self-discover op shapes', () => {
   test('mermaid.opSignatures + mermaid.describeOps are reachable and carry notes', async () => {
     const r = await executeInSandbox(
-      'return { sig: mermaid.opSignatures("quadrant")[3], xNote: mermaid.describeOps("quadrant").add_point[1].note }',
+      'return { sig: mermaid.opSignatures("quadrant").find(sig => sig.startsWith("add_point(")), xNote: mermaid.describeOps("quadrant").add_point.find(field => field.name === "x").note }',
       {},
     )
     expect(r.ok).toBe(true)
     if (!r.ok) return
     const v = r.value as { sig: string; xNote: string }
-    expect(v.sig).toBe(opSignatures('quadrant')[3]!)
+    expect(v.sig).toBe('add_point(label, x, y)')
     expect(v.xNote).toBe('0..1')
   })
 

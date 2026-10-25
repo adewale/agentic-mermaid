@@ -9,6 +9,9 @@ import type { MermaidGraph, PositionedEdge } from '../types.ts'
 function cleanLayout(source: string): { graph: MermaidGraph; edgeSummary: string[] } {
   const graph = parseMermaid(source)
   const positioned = layoutGraphSync(graph)
+  expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+  expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
+  for (const group of graph.subgraphs) expect(positioned.groups.map(item => item.id)).toContain(group.id)
   expect(hardViolations(assessLayout(graph, positioned))).toEqual([])
   expect(auditRouteContracts(positioned, graph)).toEqual([])
   return {

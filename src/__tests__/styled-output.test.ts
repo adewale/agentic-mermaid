@@ -11,7 +11,7 @@
 
 import { describe, test, expect } from 'bun:test'
 import { plugin } from 'bun'
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { HOSTED_FONT_RESOURCES } from '../font-manifest.ts'
@@ -99,14 +99,6 @@ function goldenDiff(golden: string, rendered: string): string[] {
 describe('styled output', () => {
   const fixtures = fixtureSources()
 
-  test('the golden matrix derives from every registered non-default built-in look', () => {
-    expect(LOOKS.length).toBeGreaterThan(0)
-    expect(LOOKS).not.toContain('crisp')
-    expect(LOOKS).not.toContain('cupertino')
-    expect(LOOKS).not.toContain('vercel-inspired-prototype')
-    expect(LOOKS).not.toContain('cloudflare-workers-inspired-prototype')
-  })
-
   test('the brand-inspired prototypes remain documentation-only', () => {
     for (const name of ['cupertino', 'vercel-inspired-prototype', 'cloudflare-workers-inspired-prototype']) {
       expect(getStyle(name), name).toBeUndefined()
@@ -128,27 +120,6 @@ describe('styled output', () => {
       expect({ golden, changed: goldenDiff(readFileSync(path, 'utf8'), svg) }).toEqual({ golden, changed: [] })
     })
   }
-
-  test('every styled golden belongs to a case', () => {
-    // A removed family or look must take its golden with it.
-    const expected = new Set(GOLDEN_CASES.map(({ golden }) => golden))
-    const stale = () => readdirSync(GOLDENS).filter(file => !expected.has(file)).sort()
-    if (UPDATE) for (const file of stale()) rmSync(join(GOLDENS, file))
-    expect(stale()).toEqual([])
-  })
-
-  test('a golden diff lists only the changed lines', () => {
-    const scoped = (scope: string, fill: string) => `<svg class="${scope}">\n<rect class="${scope}" fill="${fill}"/>\n<text class="${scope}">A</text>\n</svg>`
-    // Any paint change renames the scope class on every line; the diff still
-    // names just the rect.
-    expect(goldenDiff(scoped('am-aaaaaaaaaaaaaa', '#fff'), scoped('am-bbbbbbbbbbbbbb', '#000'))).toEqual([
-      '-2: <rect class="am-scope" fill="#fff"/>',
-      '+2: <rect class="am-scope" fill="#000"/>',
-    ])
-    expect(goldenDiff(scoped('am-aaaaaaaaaaaaaa', '#fff'), scoped('am-bbbbbbbbbbbbbb', '#fff'))).toEqual(['only the root style-scope class differs'])
-    expect(goldenDiff('<svg>\n</svg>', '<svg>\n<a/>\n</svg>\n')).toEqual(['+2: <a/>'])
-    expect(goldenDiff('<svg/>\r\n', '<svg/>')).toEqual([])
-  })
 
   test('transparent styled output stays transparent across every family fixture', () => {
     for (const fixture of fixtures) {

@@ -68,6 +68,7 @@ describe('wrapParagraph', () => {
       expect(visualWidth(line)).toBeLessThanOrEqual(8)
     }
     expect(lines).toContain('review')
+    expect(lines.join('').replace(/[-\s]/g, '')).toBe('国際化🙂担当reviewteam')
   })
 })
 

@@ -180,7 +180,9 @@ end`
     let checked = 0
     fc.assert(fc.property(labelArb, fc.integer({ min: 0, max: SOURCES.length - 1 }), (label, which) => {
       const source = SOURCES[which]!(label)
-      for (const region of claims(source)) {
+      const regions = claims(source)
+      expect(regions.length, source).toBeGreaterThan(0)
+      for (const region of regions) {
         checked++
         expect({ source, id: region.id, projectedText: region.projectedText })
           .toEqual({ source, id: region.id, projectedText: region.drawn })

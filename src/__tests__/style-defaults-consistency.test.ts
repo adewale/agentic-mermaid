@@ -13,7 +13,6 @@ import { layoutClassDiagram } from '../class/layout.ts'
 import { parseErDiagram } from '../er/parser.ts'
 import { layoutErDiagram } from '../er/layout.ts'
 import { measureTextWidth } from '../text-metrics.ts'
-import { FONT_SIZES } from '../styles.ts'
 
 const LONG_NAME =
   'ExtremelyLongDescriptiveDomainAggregateRootRepositoryNameForTheCustomerBillingReconciliationLedger'
@@ -22,20 +21,22 @@ function toLines(text: string): string[] {
   return text.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
 }
 
-/** The font-weight the rendered SVG declares on the element containing `text`. */
-function drawnWeight(svg: string, text: string): number {
+/** Typography actually declared on the rendered title. */
+function drawnTypography(svg: string, text: string): { size: number; weight: number } {
   const el = svg.match(new RegExp(`<text[^>]*>[^<]*${text}`))
   expect(el).not.toBeNull()
-  const m = el![0].match(/font-weight="(\d+)"/)
-  expect(m).not.toBeNull()
-  return Number(m![1])
+  const weight = Number(el![0].match(/font-weight="(\d+)"/)?.[1])
+  const size = Number(el![0].match(/font-size="([\d.]+)"/)?.[1])
+  expect(Number.isFinite(weight) && weight > 0).toBe(true)
+  expect(Number.isFinite(size) && size > 0).toBe(true)
+  return { size, weight }
 }
 
 describe('layout sizes titles at the weight the renderer draws', () => {
   it('class: header box fits the title at its drawn weight', () => {
     const source = `classDiagram\n  class ${LONG_NAME}`
     const svg = renderMermaidSVG(source)
-    const weight = drawnWeight(svg, LONG_NAME)
+    const { size, weight } = drawnTypography(svg, LONG_NAME)
 
     const positioned = layoutClassDiagram(parseClassDiagram(toLines(source)))
     const node = positioned.classes.find(c => c.label === LONG_NAME)
@@ -44,20 +45,20 @@ describe('layout sizes titles at the weight the renderer draws', () => {
     // measures at a lighter weight than the renderer draws, a title this long
     // outgrows that slack and overflows the box.
     expect(node!.width).toBeGreaterThanOrEqual(
-      measureTextWidth(LONG_NAME, FONT_SIZES.nodeLabel, weight)
+      measureTextWidth(LONG_NAME, size, weight)
     )
   })
 
   it('er: entity header box fits the title at its drawn weight', () => {
     const source = `erDiagram\n  ${LONG_NAME} {\n    string id\n  }`
     const svg = renderMermaidSVG(source)
-    const weight = drawnWeight(svg, LONG_NAME)
+    const { size, weight } = drawnTypography(svg, LONG_NAME)
 
     const positioned = layoutErDiagram(parseErDiagram(toLines(source)))
     const node = positioned.entities.find(e => e.label === LONG_NAME)
     expect(node).toBeDefined()
     expect(node!.width).toBeGreaterThanOrEqual(
-      measureTextWidth(LONG_NAME, FONT_SIZES.nodeLabel, weight)
+      measureTextWidth(LONG_NAME, size, weight)
     )
   })
 })

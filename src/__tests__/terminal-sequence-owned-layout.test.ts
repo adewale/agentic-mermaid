@@ -26,6 +26,8 @@ describe('Sequence terminal ordered ownership and measured fragment bounds', () 
   test('parallel overlays share rows for independent branches and join below their complete owned ink', () => {
     const { output, doc, region, block } = render('participant D\npar_over Independent\nA->>B: first\nA->>B: longest\nand Other\nC->>D: second\nend\nA->>D: joined')
     const lines = output.split('\n')
+    expect(output).toContain('first')
+    expect(output).toContain('second')
     expect(lines.findIndex(line => line.includes('first'))).toBe(lines.findIndex(line => line.includes('second')))
     expect(output).toContain('[Other]')
     expect(region('message:0').canvasRow).toBe(region('message:2').canvasRow)
@@ -140,7 +142,9 @@ end`, useAscii)
     expect(output).toContain('leftmost')
     expect(output).toContain('right side')
     expect(output).toContain('across actors')
-    for (const note of regions.filter(item => item.id.startsWith('note:'))) {
+    const notes = regions.filter(item => item.id.startsWith('note:'))
+    expect(notes.map(note => note.id).sort()).toEqual(['note:0', 'note:1', 'note:2'])
+    for (const note of notes) {
       for (let y = note.canvasRow + 1; y < bottom(note) - 1; y++) {
         for (let x = note.canvasColStart + 1; x < right(note) - 1; x++) {
           const cell = doc.cell(x, y)!
@@ -180,7 +184,7 @@ end`)
     expect(regions.some(item => item.id === 'B')).toBe(true)
     const cells = [...doc.entries()].filter(([, , cell]) => cell.kind === 'text' && cell.owners.some(owner => owner.id === 'message:0'))
     expect(cells.map(([, , cell]) => cell.glyph).join('')).toContain('a very long label')
-    expect(output).toContain('retained')
+    for (const word of ['a', 'very', 'long', 'label', 'with', 'every', 'word', 'retained']) expect(output).toContain(word)
   })
 
   test.each([
@@ -225,7 +229,7 @@ end`)
     expect(doc.diagnostics.filter(item => /COLLISION|OVERLAP/.test(item.code))).toEqual([])
   })
 
-  test.each([false, true])('mixed-height participant labels join every lifeline to its measured card (ASCII=%s)', useAscii => {
+  test.each([false, true])('mixed-height labels keep the shorter participant lifeline joined to its card (ASCII=%s)', useAscii => {
     const config: AsciiConfig = { useAscii, paddingX: 1, paddingY: 1, boxBorderPadding: 1, graphDirection: 'TD' }
     const artifact = renderSequenceAscii('sequenceDiagram\nparticipant A as Short\nparticipant B as First<br/>Second<br/>Third\nA->>B: message', config)
     serializeTerminalArtifact(artifact)

@@ -19,12 +19,16 @@ const STYLE = {
 } as const
 
 function radarGeometry(svg: string): string[] {
-  return [...svg.matchAll(/class="radar-area"[^>]*(?:points|d)="([^"]+)"/g)].map(match => match[1]!)
+  return [...svg.matchAll(/class="radar-area"[^>]*\s(?:points|d)="([^"]+)"/g)].map(match => match[1]!)
 }
 
 function barGeometry(svg: string): string[] {
   return [...svg.matchAll(/<rect\b[^>]*\sclass="xychart-bar[^>]*>/g)]
-    .map(([tag]) => ['x', 'y', 'width', 'height'].map(name => tag.match(new RegExp(`\\s${name}="([^"]+)"`))?.[1]).join(','))
+    .map(([tag]) => ['x', 'y', 'width', 'height'].map(name => {
+      const value = tag.match(new RegExp(`\\s${name}="([^"]+)"`))?.[1]
+      if (value === undefined) throw new Error(`Missing bar ${name}`)
+      return value
+    }).join(','))
 }
 
 describe('Section B chart semantic bindings', () => {
@@ -34,8 +38,16 @@ describe('Section B chart semantic bindings', () => {
     const xyBaseline = renderMermaidSVG(XY)
     const xyBranded = renderMermaidSVG(XY, { style: STYLE as any })
 
+    expect(radarGeometry(radarBaseline)).toHaveLength(1)
+    expect(radarGeometry(radarBaseline)[0]).toMatch(/[0-9]/)
     expect(radarGeometry(radarBranded)).toEqual(radarGeometry(radarBaseline))
-    expect(barGeometry(xyBaseline).length).toBeGreaterThan(0)
+    expect(barGeometry(xyBaseline)).toHaveLength(3)
+    for (const geometry of barGeometry(xyBaseline)) {
+      const values = geometry.split(',').map(Number)
+      expect(values).toHaveLength(4)
+      expect(values.every(Number.isFinite)).toBe(true)
+      expect(values[2]! > 0 && values[3]! > 0).toBe(true)
+    }
     expect(barGeometry(xyBranded)).toEqual(barGeometry(xyBaseline))
     expect(radarBranded).toMatch(/class="radar-area"[^>]*fill="#ff00ff"[^>]*stroke="#007700"/)
     expect(xyBranded).toMatch(/class="xychart-bar[^>]* fill="#ff00ff" stroke="#007700" stroke-width="6"/)

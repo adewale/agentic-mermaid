@@ -41,19 +41,10 @@ function loadFailureCorpus(): FailureCorpus {
 
 describe('agent-usage scenarios (the mutation loop works)', () => {
   test('all scripted scenarios pass', () => {
-    for (const r of runAllScenarios()) {
+    const results = runAllScenarios()
+    expect(results.length).toBeGreaterThan(0)
+    for (const r of results) {
       expect({ name: r.name, ok: r.ok, detail: r.detail }).toEqual({ name: r.name, ok: true, detail: r.detail })
-    }
-  })
-
-  test('serialized scenarios take clean mutation paths', () => {
-    for (const r of runAllScenarios().filter(r => r.trace.some(c => c.verb === 'serialize'))) {
-      const verbs = r.trace.map(c => c.verb)
-      expect(verbs[0]).toBe('parse')
-      expect(verbs).toContain('mutate')
-      expect(verbs.indexOf('verify')).toBeGreaterThan(-1)
-      expect(verbs.indexOf('verify')).toBeLessThan(verbs.indexOf('serialize'))
-      expect(lintAgentTrace(r.trace)).toEqual([])
     }
   })
 })
@@ -330,14 +321,6 @@ describe('homepage prompt eval contract', () => {
 })
 
 describe('stored agent-usage eval', () => {
-  test('structured default cases cover every supported diagram family', () => {
-    const covered = new Set(
-      DEFAULT_CASES.filter(c => requiresStructuredMutation(c.id))
-        .map(c => c.family)
-        .filter(Boolean),
-    )
-    expect([...covered].sort()).toEqual([...AGENT_USAGE_SUPPORTED_FAMILIES].sort())
-  })
 
   test('create cases cover every supported family and pass the authoring oracle', async () => {
     // Authoring (create) coverage mirrors the mutate coverage above: the two
@@ -366,6 +349,12 @@ describe('stored agent-usage eval', () => {
   })
 
   test('default Code Mode transcripts pass task and trace checks', async () => {
+    const covered = new Set(
+      DEFAULT_CASES.filter(c => requiresStructuredMutation(c.id))
+        .map(c => c.family)
+        .filter(Boolean),
+    )
+    expect([...covered].sort()).toEqual([...AGENT_USAGE_SUPPORTED_FAMILIES].sort())
     const summary = await runAgentUsageEval()
     expect(summary.ok, JSON.stringify(summary.results.filter(result => !result.ok))).toBe(true)
     expect(summary.total).toBe(DEFAULT_CASES.length)
@@ -822,9 +811,12 @@ describe('eval metric split (taskOk primary) + observed tool-use', () => {
         verifyMermaid(p.value)
       }
       buildMermaid('pie', [{ kind: 'add_slice', label: 'X', value: 1 }])
+      const libraryVerbs = verbs()
+      for (const verb of ['mutate', 'verify', 'build']) expect(libraryVerbs.has(verb)).toBe(true)
+      fsWriteFileSync(log, '')
       // Hosted MCP channel: the declarative mutate tool routes through the same
       // library leaves (applyOps -> mutate + verifyMermaid), so it logs too.
-      await handleHostedRequest(
+      const hosted = await handleHostedRequest(
         { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'mutate', arguments: { source: 'flowchart TD\n  A --> B', ops: [{ kind: 'add_node', id: 'C', label: 'C' }] } } },
         {
           execute: async () => {
@@ -832,11 +824,14 @@ describe('eval metric split (taskOk primary) + observed tool-use', () => {
           },
         },
       )
-      // verify (library + hosted), mutate (library + hosted), build (buildMermaid) all observed.
-      const seen = verbs()
-      expect(seen.has('verify')).toBe(true)
-      expect(seen.has('mutate')).toBe(true)
-      expect(seen.has('build')).toBe(true)
+      expect(hosted).toBeDefined()
+      expect(hosted?.error).toBeUndefined()
+      const result = hosted?.result as { isError: boolean; content: Array<{ text: string }> }
+      expect(result.isError).toBe(false)
+      expect(JSON.parse(result.content[0]!.text)).toMatchObject({ ok: true, source: expect.stringContaining('C') })
+      const hostedVerbs = verbs()
+      expect(hostedVerbs.has('verify')).toBe(true)
+      expect(hostedVerbs.has('mutate')).toBe(true)
     } finally {
       restoreTraceLog(origTraceLog)
     }

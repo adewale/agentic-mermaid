@@ -104,14 +104,14 @@ describe('mermaid-js legacy docs corpus (271 examples, 12 families)', () => {
     quadrant: { minParse: 1.0, minVerify: 1.0, minRoundTrip: 1.0 },
     // Gantt entries were appended from syntax/gantt.md (11 unique examples,
     // deduped — the docs repeat each rendered example) alongside the upstream
-    // test-suite bench in eval/mermaid-gantt-bench/. Verify floor 0.80 (9/11):
+    // test-suite bench in eval/mermaid-gantt-bench/. Two explicit verify failures:
     // one docs entry is a directive-only fragment (no tasks → EMPTY_DIAGRAM,
     // rendered as an explicit empty template), and one ends a task with an
     // inline `%% not yet official` comment that even upstream only "renders"
     // via its wall-clock fallback (ledger entry e9 in the gantt bench) — ours
     // reports UNRESOLVABLE_SCHEDULE by name. Same honest-fragment class as the
-    // state-family floor; round-trip stays lossless for both.
-    gantt: { minParse: 1.0, minVerify: 0.8, minRoundTrip: 1.0 },
+    // lossless-fragment contract; round-trip stays lossless for both.
+    gantt: { minParse: 1.0, minVerify: 9 / 11, minRoundTrip: 1.0 },
   }
 
   test.skipIf(divergences.length === 0)('divergence entries preserve their declared source behavior', () => {
@@ -205,7 +205,28 @@ describe('mermaid-js legacy docs corpus (271 examples, 12 families)', () => {
         verify: `${verifyOk}/${N} (${((verifyOk / N) * 100).toFixed(0)}%)`,
         roundTrip: `${roundTripOk}/${N} (${((roundTripOk / N) * 100).toFixed(0)}%)`,
       }
-      // Floor each rate at the expected minimum to catch regressions.
+      // Gantt documentation includes an empty fragment and raw themeCSS that
+      // the public security boundary rejects. Check each verdict
+      // independently so an improvement cannot hide another example regressing.
+      if (family === 'gantt') {
+        const rejected: Record<string, 'EMPTY_DIAGRAM' | 'RENDER_FAILED'> = {
+          'gantt:syntax/gantt.md#6': 'EMPTY_DIAGRAM',
+          'gantt:syntax/gantt.md#10': 'RENDER_FAILED',
+        }
+        expect(entries.filter(entry => corpusKey(entry) in rejected)).toHaveLength(2)
+        for (const entry of entries) {
+          const result = verifyMermaid(entry.source)
+          const warning = rejected[corpusKey(entry)]
+          expect({ key: corpusKey(entry), ok: result.ok }).toEqual({ key: corpusKey(entry), ok: warning === undefined })
+          if (warning) expect(result.warnings.map(value => value.code)).toContain(warning)
+          if (corpusKey(entry) === 'gantt:syntax/gantt.md#10') {
+            expect(result.warnings).toContainEqual(expect.objectContaining({
+              code: 'RENDER_FAILED', reason: expect.stringContaining('Raw Mermaid themeCSS is not allowed'), origin: 'config',
+            }))
+          }
+        }
+      }
+      // Floor each all-green rate at the expected minimum to catch regressions.
       const checks = {
         parseFloor: parseOk / N >= ex.minParse,
         verifyFloor: verifyOk / N >= ex.minVerify,

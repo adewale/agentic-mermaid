@@ -1,8 +1,8 @@
 // Fuzz the REAL consumer path: `npm pack` -> install the tarball into a clean
 // project -> drive the installed package and its bins under plain Node with
 // fast-check-generated input. This is the last artifact layer the suite did not
-// cover. dist-artifact-fuzz.e2e.test.ts checks the built bundle by file path;
-// this checks what actually ships and installs — files[] completeness, the
+// cover. dist-artifact.e2e.test.ts owns distinct bundler/dependency-loading risks;
+// this owns differential fuzz of what actually ships and installs — files[] completeness, the
 // exports map resolving bare specifiers, bin linking, native-dep install, and
 // the CLI/MCP bins as spawned Node processes.
 //
@@ -33,7 +33,7 @@ const REPO = join(import.meta.dir, '..')
 const BUILD_TIMEOUT_MS = 180_000
 const INSTALL_TIMEOUT_MS = 240_000
 const RUN_TIMEOUT_MS = 180_000
-const PNG_PARITY_N = 6
+const PNG_PARITY_N = 8
 const PACKAGE_FAMILY_FIXTURES = [
   { family: 'mindmap', source: 'mindmap\n  Root\n    Research\n      Evidence' },
   { family: 'gitgraph', source: 'gitGraph\n  commit id:"base" msg:"Foundation"\n  branch feature\n  commit id:"work"' },
@@ -84,10 +84,9 @@ const familyHeaderArb = fc.constantFrom(...BUILTIN_FAMILY_METADATA.map(family =>
 const mixedArb = fc.oneof(
   flowchartArb,
   fc.tuple(familyHeaderArb, fc.array(fc.string({ maxLength: 30 }), { maxLength: 6 })).map(([h, b]) => [h, ...b].join('\n')),
-  // Batch/MCP transport is line-delimited JSON/JSONL, so a body must not carry a
-  // newline or it splits into two lines; keep the mixed arm single-line.
-  fc.string({ maxLength: 80 }).map(s => s.replace(/[\n\r]/g, ' ')),
-  specialCharStringArb.map(s => s.replace(/[\n\r]/g, ' ')),
+  // JSON.stringify escapes embedded line breaks in every consumer transport.
+  fc.string({ maxLength: 120 }),
+  specialCharStringArb,
 )
 const codeArb = fc.oneof(
   fc.string({ maxLength: 80 }).map(s => s.replace(/[\n\r]/g, ' ')),
@@ -193,6 +192,33 @@ process.stdout.write(JSON.stringify({ resolved, results, pngResults }))
 `
 
 describe('installed tarball — library', () => {
+  test('public package entries keep internal Style aliases out of runtime and typed consumers', () => {
+    expect(haveConsumer).toBe(true)
+    const consumer = join(work, 'public-api.mts')
+    writeFileSync(consumer, `
+import { renderMermaidSVG as baseRender } from 'agentic-mermaid';
+import { renderMermaidSVG as agentRender } from 'agentic-mermaid/agent';
+import { renderMermaidSVG as coreRender } from 'agentic-mermaid/agent/core';
+const rendered: string[] = [baseRender('flowchart LR\\nA-->B'), agentRender('flowchart LR\\nA-->B'), coreRender('flowchart LR\\nA-->B')];
+// @ts-expect-error internal implementation aliases are not public exports
+import { TUFTE_STYLE_ALIAS as baseAlias } from 'agentic-mermaid';
+// @ts-expect-error internal implementation aliases are not public exports
+import { TUFTE_STYLE_ALIAS as agentAlias } from 'agentic-mermaid/agent';
+// @ts-expect-error internal implementation aliases are not public exports
+import { TUFTE_STYLE_ALIAS as coreAlias } from 'agentic-mermaid/agent/core';
+`)
+    const types = spawnSync(NODE!, [join(REPO, 'node_modules/typescript/bin/tsc'), '--noEmit', '--skipLibCheck', '--target', 'ESNext', '--module', 'NodeNext', '--moduleResolution', 'NodeNext', consumer], {
+      cwd: work, encoding: 'utf8', timeout: RUN_TIMEOUT_MS,
+    })
+    expect({ status: types.status, stdout: types.stdout, stderr: types.stderr }).toEqual({ status: 0, stdout: '', stderr: '' })
+    const runtime = spawnSync(NODE!, ['--input-type=module', '--eval', `
+const entries = await Promise.all(['agentic-mermaid', 'agentic-mermaid/agent', 'agentic-mermaid/agent/core'].map(name => import(name)));
+console.log(JSON.stringify(entries.map(entry => Object.hasOwn(entry, 'TUFTE_STYLE_ALIAS'))));
+`], { cwd: work, encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
+    expect({ status: runtime.status, stderr: runtime.stderr }).toEqual({ status: 0, stderr: '' })
+    expect(JSON.parse(runtime.stdout)).toEqual([false, false, false])
+  }, RUN_TIMEOUT_MS)
+
   test('published documentation entry points have no broken relative links', () => {
     expect(haveConsumer).toBe(true)
     for (const relativeHubPath of ['README.md', 'docs/README.md']) {
@@ -212,8 +238,8 @@ describe('installed tarball — library', () => {
 
   test('resolves all three entry points and renders every registered family identically to source', () => {
     expect(haveConsumer).toBe(true)
-    const flow = fc.sample(flowchartArb, 50)
-    const mixed = fc.sample(mixedArb, 50)
+    const flow = fc.sample(flowchartArb, 120)
+    const mixed = fc.sample(mixedArb, 120)
     const canonicalInputs = BUILTIN_FAMILY_METADATA.map(family => family.example)
     const inputs = [...flow, ...canonicalInputs, ...PACKAGE_FAMILY_FIXTURES.map(fixture => fixture.source), ...mixed]
     const fixtureStart = flow.length + canonicalInputs.length
@@ -242,9 +268,14 @@ describe('installed tarball — library', () => {
 
     const crashParity: unknown[] = []
     const equivalence: unknown[] = []
+    expect(results).toHaveLength(inputs.length)
     for (let i = 0; i < inputs.length; i++) {
       const ref = { layout: refLayout(inputs[i]!), svg: refSvg(inputs[i]!), ascii: refTerminalDefault(inputs[i]!) }
       for (const ch of ['layout', 'svg', 'ascii'] as const) {
+        if (i < flow.length) {
+          expect(ref[ch], `valid source ${ch}: ${inputs[i]}`).not.toBe('THREW')
+          expect(results[i]![ch], `installed ${ch}: ${inputs[i]}`).not.toBe('THREW')
+        }
         const refThrew = ref[ch] === 'THREW'
         const gotThrew = results[i]![ch] === 'THREW'
         if (refThrew !== gotThrew) crashParity.push({ src: inputs[i], ch, ref: refThrew, got: gotThrew })
@@ -256,6 +287,8 @@ describe('installed tarball — library', () => {
     BUILTIN_FAMILY_METADATA.forEach((family, index) => {
       const result = results[flow.length + index]!
       expect(result.kind, family.id).toBe(family.id)
+      expect(result.layout, family.id).not.toBe('THREW')
+      expect(refLayout(family.example), family.id).not.toBe('THREW')
       expect(result.svg, family.id).not.toBe('THREW')
       expect(result.ascii, family.id).not.toBe('THREW')
     })

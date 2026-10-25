@@ -93,13 +93,27 @@ describe('route-contract structural fuzz (strong oracle on generated structure)'
         const src = toSource(d)
         const graph = parseMermaid(src)
         const positioned = layoutGraphSync(graph)
+        expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+        expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
 
         // finiteness + containment
         expect(Number.isFinite(positioned.width) && Number.isFinite(positioned.height)).toBe(true)
         for (const node of positioned.nodes) {
-          expect(Number.isFinite(node.x) && Number.isFinite(node.y)).toBe(true)
+          expect([node.x, node.y, node.width, node.height].every(Number.isFinite)).toBe(true)
+          expect(node.x).toBeGreaterThanOrEqual(0)
+          expect(node.y).toBeGreaterThanOrEqual(0)
+          expect(node.x + node.width).toBeLessThanOrEqual(positioned.width)
+          expect(node.y + node.height).toBeLessThanOrEqual(positioned.height)
           expect(node.width).toBeGreaterThanOrEqual(0)
           expect(node.height).toBeGreaterThanOrEqual(0)
+        }
+
+        for (const edge of positioned.edges) for (const point of edge.points) {
+          expect([point.x, point.y].every(Number.isFinite)).toBe(true)
+          expect(point.x).toBeGreaterThanOrEqual(0)
+          expect(point.y).toBeGreaterThanOrEqual(0)
+          expect(point.x).toBeLessThanOrEqual(positioned.width)
+          expect(point.y).toBeLessThanOrEqual(positioned.height)
         }
 
         // the strong oracle: routes obey the contracts the passes maintain
@@ -142,7 +156,11 @@ describe('route-contract structural fuzz (strong oracle on generated structure)'
 describe('regression: ROUTE_LABEL_ON_SHARED_TRUNK is repaired', () => {
   const auditCodes = (src: string): string[] => {
     const graph = parseMermaid(src)
-    return auditRouteContracts(layoutGraphSync(graph), graph).map(f => f.code)
+    const positioned = layoutGraphSync(graph)
+    expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+    expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
+    for (const edge of positioned.edges.filter(edge => edge.label)) expect(edge.labelPosition).toBeDefined()
+    return auditRouteContracts(positioned, graph).map(f => f.code)
   }
 
   it.each(['TD', 'BT', 'LR', 'RL'])('feedback exits leave a private label segment in %s', direction => {

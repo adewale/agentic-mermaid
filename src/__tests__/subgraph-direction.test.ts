@@ -11,7 +11,7 @@ import { parseRegisteredMermaid as parseMermaid, layoutMermaid } from '../agent/
 import { renderMermaidASCII, renderMermaidASCIIWithReceipt } from '../index.ts'
 import { terminalDocumentOf } from '../ascii/terminal-document.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
-import { assessLayout, hardViolations } from '../layout-rubric.ts'
+import { assessLayout, hardViolations, onShapeOutline } from '../layout-rubric.ts'
 import { parseMermaid as parseGraph } from '../parser.ts'
 
 function layoutOf(source: string) {
@@ -80,6 +80,11 @@ X --> A
 C --> Y
 Y`)
     const positioned = layoutGraphSync(graph)
+    expect(positioned.edges.map(edge => [edge.source, edge.target]).sort()).toEqual([['B', 'C'], ['A', 'B'], ['X', 'A'], ['C', 'Y']].sort())
+    for (const edge of positioned.edges) {
+      expect(onShapeOutline(positioned.nodes.find(node => node.id === edge.source)!, edge.points[0]!)).toBe(true)
+      expect(onShapeOutline(positioned.nodes.find(node => node.id === edge.target)!, edge.points.at(-1)!)).toBe(true)
+    }
     expect(hardViolations(assessLayout(graph, positioned))).toEqual([])
     if (!withOverride) {
       const a = positioned.nodes.find(n => n.id === 'A')!
@@ -121,19 +126,13 @@ describe('subgraph direction override (ASCII grid layout)', () => {
     expect(row.indexOf('Transform')).toBeLessThan(row.indexOf('Store'))
   })
 
-  test('edges to a subgraph id attach to the container instead of creating a phantom node box', () => {
-    const out = renderMermaidASCII(LR_INSIDE_TD)
-    const lines = out.split('\n')
-    expect(lines.filter(l => l.includes('Pipeline')).length).toBe(1)
-    expect(out).toContain('Done')
-  })
-
-  test('subgraph-id container edges work in 7-bit ASCII mode too', () => {
+  test('container heading and member labels remain visible in 7-bit ASCII', () => {
     const out = renderMermaidASCII(LR_INSIDE_TD, { useAscii: true })
     expect(out.split('\n').filter(l => l.includes('Pipeline')).length).toBe(1)
     expect(out).toContain('Fetch')
     expect(out).toContain('Done')
     expect(out).toContain('+')
+    expect(out).toMatch(/^[\x00-\x7f]*$/)
   })
 
   test('nested edges to a child subgraph id still do not create a phantom node box', () => {

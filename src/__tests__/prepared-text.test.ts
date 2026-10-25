@@ -146,7 +146,12 @@ describe('prepared display text', () => {
     it(`wraps whole visible graphemes: ${source}`, () => {
       const block = preparePixelText(source, { ...typography, display: 'literal', maxWidth: 75 })
       expect(block.lines.join('').replace(/-/g, '')).toBe(source)
-      for (const line of block.lines) expect(line).not.toMatch(/^(?:\p{M}|\u200d)|\u200d$/u)
+      const boundaries = new Set([0, ...Array.from(new Intl.Segmenter('en', { granularity: 'grapheme' }).segment(source), part => part.index + part.segment.length)])
+      let offset = 0
+      for (const line of block.lines) {
+        offset += line.replace(/-$/, '').length
+        expect(boundaries.has(offset), `wrap at source offset ${offset}`).toBe(true)
+      }
     })
   }
 

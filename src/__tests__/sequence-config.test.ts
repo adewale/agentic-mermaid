@@ -51,7 +51,7 @@ describe('SequenceRuntimeConfig type + resolution', () => {
     expect(renderMermaidASCII(source, { colorMode: 'none' })).not.toContain('nowrap:')
   })
 
-  test('the typed shape accepts the documented keys', () => {
+  test('documented typed actor dimensions reach layout', () => {
     // Compile-time: this assignment fails tsc if the typed surface is missing.
     const config: SequenceRuntimeConfig = {
       actorMargin: 100, width: 150, height: 65,
@@ -59,7 +59,9 @@ describe('SequenceRuntimeConfig type + resolution', () => {
       messageMargin: 35, noteMargin: 10, activationWidth: 10,
       showSequenceNumbers: true, mirrorActors: true, wrap: false,
     }
-    expect(config.actorMargin).toBe(100)
+    const result = positioned(SRC, config)
+    expect(result.actors).toHaveLength(2)
+    for (const actor of result.actors) expect({ width: actor.width, height: actor.height }).toEqual({ width: 150, height: 65 })
   })
 
   test('resolveSequenceConfig reads frontmatter and init directives', () => {

@@ -43,7 +43,14 @@ describe('label line breaks display as pinned upstream draws them', () => {
   it.each(CASES)('%s', (context, source, written, breaks) => {
     const expected = breaks ? ['Na', 'Nb'] : [written]
     const ascii = renderMermaidASCII(source, { colorMode: 'none' }).split('\n')
-    expect({ context, svg: labelPieces(svgLines(renderMermaidSVG(source))), ascii: labelPieces(ascii) })
+    const svg = svgLines(renderMermaidSVG(source))
+    if (breaks) for (const lines of [ascii, svg]) {
+      const first = lines.findIndex(line => line.includes('Na'))
+      const second = lines.findIndex(line => line.includes('Nb'))
+      expect(first).toBeGreaterThanOrEqual(0)
+      expect(second).toBeGreaterThan(first)
+    }
+    expect({ context, svg: labelPieces(svg), ascii: labelPieces(ascii) })
       .toEqual({ context, svg: expected, ascii: expected })
   })
 })

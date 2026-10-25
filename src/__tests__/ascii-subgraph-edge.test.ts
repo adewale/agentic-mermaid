@@ -135,6 +135,7 @@ describe('BUILD-14: edge endpoint is a subgraph id (ASCII)', () => {
 
   test('TD: Start and Done remain outside the container in the outer TD flow', () => {
     const out = renderMermaidASCII(LR_INSIDE_TD)
+    for (const label of ['Start', 'Done', 'Pipeline', 'Store']) expect(rowOf(out, label)).toBeGreaterThanOrEqual(0)
     // Start is above the container; Done is below it.
     expect(rowOf(out, 'Start')).toBeLessThan(rowOf(out, 'Pipeline'))
     expect(rowOf(out, 'Done')).toBeGreaterThan(rowOf(out, 'Store'))
@@ -203,6 +204,8 @@ describe('BUILD-14: edge endpoint is a subgraph id (ASCII)', () => {
     const secondFrameTop = lines.findLastIndex(
       (line, index) => index < secondRow && line.includes('┌') && line.includes('┐'),
     )
+    expect(firstFrameBottom).toBeGreaterThanOrEqual(0)
+    expect(secondFrameTop).toBeGreaterThanOrEqual(0)
     expect(firstFrameBottom).toBeLessThan(secondFrameTop)
   })
 
@@ -277,6 +280,8 @@ describe('BUILD-14: edge endpoint is a subgraph id (ASCII)', () => {
 
     // The container title "P" appears once; the ignored "Real Node" label
     // produces no phantom box.
+    expect(count(out, ' P ')).toBe(1)
+    expect(rowOf(out, 'Start')).toBeGreaterThanOrEqual(0)
     expect(out).not.toContain('Real Node')
     expect(count(out, 'Done')).toBe(1)
     // Internal nodes render inside the container.

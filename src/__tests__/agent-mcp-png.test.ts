@@ -66,18 +66,26 @@ describe('MCP — render_png tool', () => {
     for (let i = 0; i < PNG_MAGIC.length; i++) expect(bytes[i]).toBe(PNG_MAGIC[i]!)
   })
 
-  test('honors scale option', async () => {
+  test('honors scale on a fractional canvas', async () => {
+    const source = 'flowchart TD\n  A --> B'
+    const options = { padding: 40.1 }
     const small = await handleRequest({
       jsonrpc: '2.0', id: 2, method: 'tools/call',
-      params: { name: 'render_png', arguments: { source: 'flowchart TD\n  A --> B', scale: 1 } },
+      params: { name: 'render_png', arguments: { source, options, scale: 1 } },
     })
     const big = await handleRequest({
       jsonrpc: '2.0', id: 3, method: 'tools/call',
-      params: { name: 'render_png', arguments: { source: 'flowchart TD\n  A --> B', scale: 3 } },
+      params: { name: 'render_png', arguments: { source, options, scale: 3 } },
     })
     const a = JSON.parse((small!.result as { content: Array<{ text: string }> }).content[0]!.text) as { png_base64: string }
     const b = JSON.parse((big!.result as { content: Array<{ text: string }> }).content[0]!.text) as { png_base64: string }
-    expect(Buffer.from(b.png_base64, 'base64').length).toBeGreaterThan(Buffer.from(a.png_base64, 'base64').length)
+    const smallPng = decodePng(Buffer.from(a.png_base64, 'base64'))
+    const bigPng = decodePng(Buffer.from(b.png_base64, 'base64'))
+    // Each raster rounds up its scaled intrinsic dimensions independently.
+    for (const [small, big] of [[smallPng.width, bigPng.width], [smallPng.height, bigPng.height]] as const) {
+      expect(big).toBeGreaterThanOrEqual(small * 3 - 2)
+      expect(big).toBeLessThanOrEqual(small * 3)
+    }
   })
 
   test('honors background option', async () => {

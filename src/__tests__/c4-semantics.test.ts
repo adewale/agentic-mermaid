@@ -107,8 +107,18 @@ describe('C4 authored semantics', () => {
         return `${macro}(${macro}, "${macro}"${role === 'System' ? ', "description"' : ', "technology", "description"'})`
       }))).join('\n')
     const body = parseC4Diagram(source)
-    expect(body.elements).toHaveLength(20)
-    expect(body.elements.slice(0, 2).map(record => [record.kind, record.shape, record.external])).toEqual([['person', 'person', false], ['person', 'person', true]])
+    expect(body.elements.map(record => [record.id, record.kind, record.shape, record.external])).toEqual([
+      ['p', 'person', 'person', false], ['px', 'person', 'person', true],
+      ['System', 'system', 'rectangle', false], ['System_Ext', 'system', 'rectangle', true],
+      ['SystemDb', 'system', 'database', false], ['SystemDb_Ext', 'system', 'database', true],
+      ['SystemQueue', 'system', 'queue', false], ['SystemQueue_Ext', 'system', 'queue', true],
+      ['Container', 'container', 'rectangle', false], ['Container_Ext', 'container', 'rectangle', true],
+      ['ContainerDb', 'container', 'database', false], ['ContainerDb_Ext', 'container', 'database', true],
+      ['ContainerQueue', 'container', 'queue', false], ['ContainerQueue_Ext', 'container', 'queue', true],
+      ['Component', 'component', 'rectangle', false], ['Component_Ext', 'component', 'rectangle', true],
+      ['ComponentDb', 'component', 'database', false], ['ComponentDb_Ext', 'component', 'database', true],
+      ['ComponentQueue', 'component', 'queue', false], ['ComponentQueue_Ext', 'component', 'queue', true],
+    ])
     expect(body.elements.find(record => record.id === 'ComponentDb_Ext')).toMatchObject({ kind: 'component', shape: 'database', external: true, technology: 'technology', description: 'description' })
     expect(body.elements.find(record => record.id === 'SystemQueue')).toMatchObject({ kind: 'system', shape: 'queue', external: false, description: 'description' })
     expect(renderC4(body)).toBe(source)
@@ -482,7 +492,6 @@ UpdateElementStyle(g,$borderColor="navy")`
       expect(result.value.relationships.map((record: { from: string; to: string; label: string }) => ({ from: projectEntityMarkers(record.from), to: projectEntityMarkers(record.to), label: projectEntityMarkers(record.label) }))).toEqual([{ from: '資料 é 👩‍💻', to: 'A\nB', label: 'Quoted "edge"' }])
     } finally { upstream.close() }
   })
-
 
   test('new directive-like C4 argument text keeps exact identities and values in portable output', async () => {
     const upstream = startUpstreamMermaid()

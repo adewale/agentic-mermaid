@@ -251,12 +251,19 @@ line [1]`
 
 describe('xychart ASCII – titles and axes', () => {
   it('renders chart title centered', () => {
-    const result = render(`xychart-beta
-      title "My Chart"
-      x-axis [A, B]
-      bar [10, 20]`)
-    const titleLine = result.split('\n').find(l => l.includes('My Chart'))
-    expect(titleLine).toContain('My Chart')
+    for (const width of [40, 48]) {
+      const result = renderMermaidASCII(`xychart-beta
+        title "My Chart"
+        x-axis [A, B]
+        bar [10, 20]`, { colorMode: 'none', targetWidth: width })
+      const titleLine = result.split('\n').find(line => line.includes('My Chart'))
+      expect(titleLine).toBeDefined()
+      // Center in the requested terminal canvas; trailing blank cells are
+      // trimmed from emitted rows, so ink width is not the canvas width.
+      const left = visualWidth(titleLine!.slice(0, titleLine!.indexOf('My Chart')))
+      const right = width - left - visualWidth('My Chart')
+      expect(Math.abs(left - right)).toBeLessThanOrEqual(1)
+    }
   })
 
   it('renders x-axis title', () => {

@@ -118,6 +118,15 @@ describe('node-link and edge-label readability ratchet (corpus + fuzzed families
         if (error instanceof Error && error.message.startsWith('Raw Mermaid themeCSS is not allowed in default security mode')) return false
         throw error
       }
+      if (id.startsWith('fuzz/')) {
+        const visibleLabels = [
+          ...layout.nodes.map(node => node.label),
+          ...layout.edges.map(edge => edge.label?.text),
+          ...layout.groups.map(group => group.label),
+          ...(layout.labels ?? []).map(label => label.text),
+        ].filter(label => typeof label === 'string' && label.trim().length > 0)
+        expect(visibleLabels.length, `${id}: generated authored labels must reach the audit`).toBeGreaterThan(0)
+      }
       const n = auditReadability(layout).length
       if (n > 0) { total += n; offenders.push(`${id}×${n}`) }
       return true
