@@ -9,6 +9,7 @@ export interface UnifiedRunOptions {
   referenceDir?: string
   benchmarkRecordStore?: string
   benchmarkForce?: boolean
+  benchmarkResumeAttempt?: string
   startupSamples?: number
   startupSurfaces?: readonly ('library' | 'cli' | 'mcp' | 'browser')[]
   nodeExecutable?: string

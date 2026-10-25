@@ -78,6 +78,16 @@ enter an SVG speed rank. A project that loses one required case cannot enter a
 complete fixed-core rank using just its successful subset. Forks with verified artifact and protocol equivalence may share explicitly
 attributed evidence; they are not independent votes.
 
+If collection completed but publication rejected repeated observation IDs, the
+controller can recover that exact attempt with
+`--benchmark-resume-attempt /absolute/project-output/attempts/ID`, one selected
+project and one retained suite. Recovery checks the original identity against
+current artifacts and settings, validates distinct measured sample coordinates,
+and preserves the original sampler response as `raw-result.json`. It adds record
+ownership and observation IDs without launching measurement workers. Cancelled,
+partial or changed-identity attempts cannot use this recovery path. Normal
+updates use the retained record automatically; they do not need this flag.
+
 ## Keep the comparison lanes distinct
 
 | Lane | What stays stable | What it can support |
