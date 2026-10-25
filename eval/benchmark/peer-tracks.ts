@@ -24,8 +24,10 @@ export type PeerPhase = (typeof PEER_PHASES)[number]
 export type PeerConsumer = (typeof PEER_CONSUMERS)[number]
 export type PeerStatus = 'ok' | 'lost-labels' | 'unsupported' | 'error'
 export interface PeerSemantic { ok: boolean; checks: string[]; unsupported: string[]; failures: string[] }
+export type PeerVariantDomain = 'timing' | 'warmup' | 'allocation' | 'diagnostic'
+export const PEER_VARIANT_DOMAINS = Object.freeze({ timing: Object.freeze({ label: 'q', identity: 'v' }), warmup: Object.freeze({ label: 'w', identity: 'w' }), allocation: Object.freeze({ label: 'a', identity: 'a' }), diagnostic: Object.freeze({ label: 'd', identity: 'd' }) } as const)
 export interface PeerCallObservation {
-  index: number; variant: number; status: PeerStatus; elapsedMs?: number; consumedBytes?: number; checksum?: number; missing?: number; detail?: string; semantic?: PeerSemantic
+  index: number; variant: number; domain?: PeerVariantDomain; status: PeerStatus; elapsedMs?: number; consumedBytes?: number; checksum?: number; missing?: number; detail?: string; semantic?: PeerSemantic
 }
 export interface PeerTrackObservation {
   peer: string; round: number; workload: string; phase: PeerPhase; consumer: PeerConsumer; status: PeerStatus
@@ -41,7 +43,7 @@ export interface PeerTrackReport {
   consumers: readonly PeerConsumer[]; scaling: readonly string[]; observations: PeerTrackObservation[]
 }
 export interface TrackInput { id: string; source: string; expected: readonly string[]; svgLabelPrefixes?: readonly string[] }
-export interface TrackVariant extends TrackInput { variant: number }
+export interface TrackVariant extends TrackInput { variant: number; domain: PeerVariantDomain }
 
 export function parsePeerTracks(value: string | undefined): PeerPhase[] {
   if (value === undefined) return []
@@ -54,11 +56,12 @@ export function parsePeerTracks(value: string | undefined): PeerPhase[] {
 /** Real edits of visible text; relationship edits preserve graph identity.
  * New-source additionally renames the seven graph fixtures' authored IDs.
  * Other families change a real label, never a comment/cache-busting suffix. */
-export function peerTrackVariant(input: TrackInput, phase: PeerPhase, variant: number): TrackVariant {
-  if (phase === 'first-use' || phase === 'exact-repeat') return { ...input, variant: 0 }
+export function peerTrackVariant(input: TrackInput, phase: PeerPhase, variant: number, domain: PeerVariantDomain = 'timing'): TrackVariant {
+  if (phase === 'first-use' || phase === 'exact-repeat') return { ...input, variant: 0, domain }
   const previous = input.expected[0]
   if (!previous) throw new Error(`No authored label-edit contract for ${input.id}`)
-  const label = `q${variant.toString(36)}`
+  const prefixes = PEER_VARIANT_DOMAINS[domain]
+  const label = `${prefixes.label}${variant.toString(36)}`
   let source = input.source
   let expected = [...input.expected]
   if (input.id === 'class80') {
@@ -77,11 +80,11 @@ export function peerTrackVariant(input: TrackInput, phase: PeerPhase, variant: n
   }
   if (source === input.source) throw new Error(`Label edit did not change ${input.id}`)
   if (phase === 'warm-new-source' && /^(?:flow5|tree\d+|mesh\d+|seq20|class80|er40|state80)$/.test(input.id)) {
-    const rename = (text: string) => text.replace(/\b(?:[A-E]|n\d+|P\d+|C\d+|E\d+|S\d+)\b/g, id => `v${variant}_${id}`)
+    const rename = (text: string) => text.replace(/\b(?:[A-E]|n\d+|P\d+|C\d+|E\d+|S\d+)\b/g, id => `${prefixes.identity}${variant}_${id}`)
     source = rename(source)
     expected = expected.map(rename)
   }
-  return { ...input, source, expected, variant }
+  return { ...input, source, expected, variant, domain }
 }
 
 /** Source syntax is intentionally bounded to these synthetic fixture families,
