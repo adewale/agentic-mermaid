@@ -246,13 +246,10 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
       const quote = svg[end]
       if (quote !== '"' && quote !== "'") return false
       const valueStart = ++end
-      while (end < svg.length && svg[end] !== quote) {
-        if (svg[end] === '<') return false
-        end++
-      }
-      if (end >= svg.length) return false
+      end = svg.indexOf(quote, valueStart)
+      if (end < 0) return false
       const value = svg.slice(valueStart, end)
-      if (!hasWellFormedXmlReferences(value)) return false
+      if (value.includes('<') || !hasWellFormedXmlReferences(value)) return false
       // Namespace expansion never consumes ordinary unprefixed attributes:
       // their raw names already prove uniqueness. Still validate every value
       // and report its raw bytes to security in the original lexical order.
