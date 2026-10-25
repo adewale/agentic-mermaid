@@ -12,11 +12,13 @@ import { describe, test, expect } from 'bun:test'
 import { parseMermaid } from '../parser.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { assessLayout, hardViolations } from '../layout-rubric.ts'
-import { auditRouteContracts } from '../route-contracts.ts'
+import { auditRouteContracts, invalidEndpointApproaches } from '../route-contracts.ts'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { honorLinkRankDistance } from '../layout/passes/rank-distance.ts'
-import type { PositionedNode } from '../types.ts'
+import type { PositionedNode, PositionedEdge, PositionedGroup } from '../types.ts'
+import { segmentEntersMeasuredBox } from '../layout/measured-route-safety.ts'
+import { renderMermaidSVGWithReceipt } from '../index.ts'
 
 const cases: [string, string][] = [
   // Shove lands a node on a bystander: nodeOverlaps + edgeThroughNode without
@@ -50,6 +52,34 @@ const cases: [string, string][] = [
 ]
 
 describe('honorLinkRankDistance packing: a shove never leaves overlaps or blocked rebuilt routes', () => {
+  test.each(['G ---> A', 'A ---> G'])('a public ELK ancestor link preserves the real outward leaf contact without a rank move: %s', relationship => {
+    const source = `flowchart TD\nsubgraph G[Group]\nA[Leaf]\nend\n${relationship}`, graph = parseMermaid(source)
+    const placed = layoutGraphSync(graph, { graphLayout: { backend: 'elk' } }), edge = placed.edges[0]!, leaf = placed.nodes.find(node => node.id === 'A')!
+    expect(graph.edges[0]!.length).toBe(2)
+    expect([edge.source, edge.target]).toEqual(relationship.startsWith('G') ? ['G', 'A'] : ['A', 'G'])
+    expect(invalidEndpointApproaches(edge, edge.source === 'A' ? leaf : undefined, edge.target === 'A' ? leaf : undefined)).toBe(0)
+    for (let index = 1; index < edge.points.length; index++) expect(segmentEntersMeasuredBox(edge.points[index - 1]!, edge.points[index]!, leaf)).toBe(false)
+    expect(renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'elk' } }).receipt.layoutCertification?.status).toBe('passed')
+  })
+
+  test('a no-move containing-frame constraint preserves its owned route and label; a real shove still reconnects', () => {
+    const graph = parseMermaid('flowchart TD\nsubgraph G[Group]\nA[Leaf]\nend\nA --->|distance| G')
+    const nodes: PositionedNode[] = [{ id: 'A', label: 'Leaf', shape: 'rectangle', x: 50, y: 100, width: 60, height: 40 }]
+    const groups: PositionedGroup[] = [{ id: 'G', label: 'Group', x: 20, y: 20, width: 150, height: 180, children: [] }]
+    const edges: PositionedEdge[] = [{ ...graph.edges[0]!, edgeIndex: 0, points: [{ x: 80, y: 140 }, { x: 80, y: 200 }], labelPosition: { x: 80, y: 170 } }]
+    const before = structuredClone({ nodes, groups, edges })
+    honorLinkRankDistance(nodes, edges, groups, graph)
+    expect({ nodes, groups, edges }).toEqual(before)
+
+    const forward = parseMermaid('flowchart TD\nA ---> B')
+    const moving: PositionedNode[] = [{ id: 'A', label: 'A', shape: 'rectangle', x: 0, y: 0, width: 10, height: 10 }, { id: 'B', label: 'B', shape: 'rectangle', x: 0, y: 40, width: 10, height: 10 }]
+    const routes: PositionedEdge[] = [{ ...forward.edges[0]!, edgeIndex: 0, points: [{ x: 5, y: 10 }, { x: 5, y: 40 }] }]
+    honorLinkRankDistance(moving, routes, [], forward)
+    expect(moving[1]!.y).toBe(146)
+    expect(routes[0]!.points.at(-1)).toEqual({ x: 5, y: 146 })
+    expect(invalidEndpointApproaches(routes[0]!, moving[0], moving[1])).toBe(0)
+  })
+
   test.each(['LR', 'RL', 'TD', 'BT'] as const)('repairs simultaneous %s shove overlaps and downstream movement while preserving pre-existing overlaps', direction => {
     const graph = parseMermaid(`flowchart ${direction}\nA ----> B\nB --> C\nD\nE\nP\nQ`)
     const horizontal = direction === 'LR' || direction === 'RL'

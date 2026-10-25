@@ -202,6 +202,9 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
     const minGap = DEFAULTS.layerSpacing + (length - 1) * (DEFAULTS.layerSpacing + 40)
     if (currentGap < minGap) moveSet(movableUnit(constraint.source, constraint.target), (minGap - currentGap) * f.sign)
   }
+  // Containment does not impose a forward sibling rank. With no actual move,
+  // its existing inside-facing frame route must not be rebuilt as a dogleg.
+  if (!changed.size) return
   refreshChangedPairs()
 
   // Treat the shove as physical: whatever it lands on is pushed ahead, never
