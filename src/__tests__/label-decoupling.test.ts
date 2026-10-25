@@ -37,16 +37,24 @@ function abPortGap(): number {
 
 describe('label decoupling (APL_DECOUPLE_LABELS)', () => {
   test('default path: the labelled edge keeps its mid-port (symmetric fan-in dogleg)', () => {
+    const previous = process.env.APL_DECOUPLE_LABELS
     delete process.env.APL_DECOUPLE_LABELS
-    expect(abPortGap()).toBeLessThanOrEqual(1) // mid-port exit — co-rank centres the hub, no decoupling
+    try {
+      expect(abPortGap()).toBeLessThanOrEqual(1) // mid-port exit — co-rank centres the hub, no decoupling
+    } finally {
+      if (previous === undefined) delete process.env.APL_DECOUPLE_LABELS
+      else process.env.APL_DECOUPLE_LABELS = previous
+    }
   })
 
   test('with decoupling enabled: the labelled edge still keeps its mid-port', () => {
+    const previous = process.env.APL_DECOUPLE_LABELS
     process.env.APL_DECOUPLE_LABELS = '1'
     try {
       expect(abPortGap()).toBeLessThanOrEqual(1) // mid-port — the decoupling mechanism
     } finally {
-      delete process.env.APL_DECOUPLE_LABELS
+      if (previous === undefined) delete process.env.APL_DECOUPLE_LABELS
+      else process.env.APL_DECOUPLE_LABELS = previous
     }
   })
 })

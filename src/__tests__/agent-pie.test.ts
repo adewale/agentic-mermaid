@@ -326,9 +326,16 @@ describe('pie round-trip property', () => {
           if (title) lines.push(`  title ${title}`)
           for (const s of slices) lines.push(`  "${s.label}" : ${s.value}`)
           const d = pie(lines.join('\n'))
+          const expected = { showData, title, slices }
+          const meaning = (diagram: PieValidDiagram) => ({
+            showData: diagram.body.showData,
+            title: diagram.body.title,
+            slices: diagram.body.slices.map(({ label, value }) => ({ label, value })),
+          })
+          expect(meaning(d)).toEqual(expected)
           const out = serializeMermaid(d)
           const d2 = pie(out)
-          expect(d2.body).toEqual(d.body)
+          expect(meaning(d2)).toEqual(expected)
           expect(serializeMermaid(d2)).toBe(out)
         },
       ),

@@ -98,9 +98,9 @@ three aliases fail at import too, which is the easy case.
 upstream theme names are all valid style names; `knownStyles()` lists every
 registered one.
 
-`src/__tests__/upstream-export-migration.test.ts` keeps this table honest: it
-reads upstream's own type declarations and fails if an upstream export is
-neither exported here nor documented above.
+The table above provides migration guidance. Installed package consumer tests
+check the shipped runtime exports and TypeScript declarations, including refusal
+of removed aliases.
 
 ## Mermaid config and source wrappers
 

@@ -209,6 +209,7 @@ test.each(['LR', 'RL'])('shared %s trunk junction belongs to each route traversi
   const y = branch.ports!.find(port => port.end === 'end')!.y
   expect(doc.cell(x, y)?.glyph).toBe(direction === 'LR' ? '├' : '┤')
   expect(doc.cell(x, y)?.owners.map(owner => owner.id)).toContain(through.id)
+  expect(doc.cell(x, y)?.owners.map(owner => owner.id)).toContain(branch.id)
   expect(hasOwnedRoute(doc, through)).toBe(true)
 })
 

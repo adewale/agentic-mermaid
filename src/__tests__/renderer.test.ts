@@ -227,36 +227,27 @@ describe('renderSvg – new shapes (Batch 2)', () => {
     const node = makeNode({ shape: 'asymmetric', width: 100, height: 40 })
     const graph = makeGraph({ nodes: [node] })
     const svg = renderSvg(graph, lightColors)
-    expect(svg).toContain('<polygon')
-    // Match the shape polygon (comma-separated "x,y" pairs), not the arrowhead polygons
-    // Arrowhead polygons use space-separated "x y," format, while shape polygons use "x,y x,y" format
-    const allPolygons = [...svg.matchAll(/points="([^"]+)"/g)]
-    // The shape polygon is the last one (rendered after defs/arrowheads)
-    const shapePolygon = allPolygons[allPolygons.length - 1]
-    const points = shapePolygon?.[1]?.split(' ') ?? []
-    expect(points.length).toBe(5)
+    const polygon = [...svg.matchAll(/<polygon\b[^>]*>/g)].find(match => match[0].includes('data-id="node-shape:A"'))?.[0]
+    expect(polygon).toBeDefined()
+    expect(polygon!.match(/\bpoints="([^"]+)"/)?.[1]).toBe('112,100 200,100 200,140 112,140 100,120')
   })
 
   it('renders trapezoid with 4-point <polygon>', () => {
     const node = makeNode({ shape: 'trapezoid', width: 100, height: 40 })
     const graph = makeGraph({ nodes: [node] })
     const svg = renderSvg(graph, lightColors)
-    expect(svg).toContain('<polygon')
-    const allPolygons = [...svg.matchAll(/points="([^"]+)"/g)]
-    const shapePolygon = allPolygons[allPolygons.length - 1]
-    const points = shapePolygon?.[1]?.split(' ') ?? []
-    expect(points.length).toBe(4)
+    const polygon = [...svg.matchAll(/<polygon\b[^>]*>/g)].find(match => match[0].includes('data-id="node-shape:A"'))?.[0]
+    expect(polygon).toBeDefined()
+    expect(polygon!.match(/\bpoints="([^"]+)"/)?.[1]).toBe('115,100 185,100 200,140 100,140')
   })
 
   it('renders trapezoid-alt with 4-point <polygon>', () => {
     const node = makeNode({ shape: 'trapezoid-alt', width: 100, height: 40 })
     const graph = makeGraph({ nodes: [node] })
     const svg = renderSvg(graph, lightColors)
-    expect(svg).toContain('<polygon')
-    const allPolygons = [...svg.matchAll(/points="([^"]+)"/g)]
-    const shapePolygon = allPolygons[allPolygons.length - 1]
-    const points = shapePolygon?.[1]?.split(' ') ?? []
-    expect(points.length).toBe(4)
+    const polygon = [...svg.matchAll(/<polygon\b[^>]*>/g)].find(match => match[0].includes('data-id="node-shape:A"'))?.[0]
+    expect(polygon).toBeDefined()
+    expect(polygon!.match(/\bpoints="([^"]+)"/)?.[1]).toBe('100,100 200,100 185,140 115,140')
   })
 })
 

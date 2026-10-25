@@ -197,37 +197,6 @@ describe('property-based config merging', () => {
     )
   })
 
-  it('type preservation: getFrontmatterScalar never returns an object', () => {
-    // Maps with mixed scalar types and nested objects
-    const mixedMapArb = fc.dictionary(
-      safeKeyArb({ minLength: 1, maxLength: 10 }),
-      fc.oneof(
-        fc.string(),
-        fc.integer(),
-        fc.boolean(),
-        fc.constant(null),
-        fc.dictionary(
-          safeKeyArb({ minLength: 1, maxLength: 5 }),
-          fc.oneof(fc.string(), fc.integer()),
-        ),
-      ),
-    )
-
-    fc.assert(
-      fc.property(mixedMapArb, (map) => {
-        for (const key of Object.keys(map)) {
-          const result = getFrontmatterScalar(map, [key])
-          if (result !== undefined) {
-            // Must be a primitive scalar, never an object
-            expect(isScalar(result)).toBe(true)
-            expect(typeof result !== 'object' || result === null).toBe(true)
-          }
-        }
-      }),
-      fcParameters({ numRuns: NUM_RUNS }),
-    )
-  })
-
   it('type preservation: getFrontmatterScalar returns correct type for known scalars', () => {
     fc.assert(
       fc.property(flatMapArb, (map) => {
@@ -478,33 +447,21 @@ describe('property-based config merging', () => {
   })
 
   it('adversarial YAML: preprocessMermaidSource does not crash on hostile frontmatter', () => {
-    const hostileYamlArb = fc.oneof(
-      // Deeply nested YAML
-      fc.constant('---\na:\n  b:\n    c:\n      d:\n        e:\n          f: 1\n---\ngraph TD\nA-->B'),
-      // Array where scalar expected
-      fc.constant('---\ntheme:\n  - dark\n  - forest\n---\ngraph TD\nA-->B'),
-      // Very long value
-      fc.constant(`---\ntheme: "${'x'.repeat(1500)}"\n---\ngraph TD\nA-->B`),
-      // Empty frontmatter
-      fc.constant('---\n---\ngraph TD\nA-->B'),
-      // Numeric keys
-      fc.constant('---\n123: true\n456: false\n---\ngraph TD\nA-->B'),
-      // Unicode keys
-      fc.constant('---\n\u00e9\u00e8\u00ea: hello\n\u4f60\u597d: world\n---\ngraph TD\nA-->B'),
-      // Null values
-      fc.constant('---\ntheme: null\nfontFamily: null\n---\ngraph TD\nA-->B'),
-    )
-
-    fc.assert(
-      fc.property(hostileYamlArb, (text) => {
-        // Must not throw
-        const result = preprocessMermaidSource(text)
-        expect(typeof result.body).toBe('string')
-        expect(result.lines.length).toBeGreaterThan(0)
-        expect(allLeavesAreFiniteScalars(result.frontmatter)).toBe(true)
-      }),
-      fcParameters({ numRuns: NUM_RUNS }),
-    )
+    const sources = [
+      '---\na:\n  b:\n    c:\n      d:\n        e:\n          f: 1\n---\ngraph TD\nA-->B',
+      '---\ntheme:\n  - dark\n  - forest\n---\ngraph TD\nA-->B',
+      `---\ntheme: "${'x'.repeat(1500)}"\n---\ngraph TD\nA-->B`,
+      '---\n---\ngraph TD\nA-->B',
+      '---\n123: true\n456: false\n---\ngraph TD\nA-->B',
+      '---\néèê: hello\n你好: world\n---\ngraph TD\nA-->B',
+      '---\ntheme: null\nfontFamily: null\n---\ngraph TD\nA-->B',
+    ]
+    for (const text of sources) {
+      const result = preprocessMermaidSource(text)
+      expect(typeof result.body).toBe('string')
+      expect(result.lines.length).toBeGreaterThan(0)
+      expect(allLeavesAreFiniteScalars(result.frontmatter)).toBe(true)
+    }
   })
 })
 

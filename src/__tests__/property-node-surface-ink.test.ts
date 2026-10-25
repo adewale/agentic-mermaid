@@ -24,6 +24,9 @@ const surfaceArb = fc.integer({ min: 0, max: 0xffffff }).map(n => `#${n.toString
 
 function illegibleText(source: string, colors: { bg: string; fg: string; surface: string }): string[] {
   const census = measureRenderedText(renderMermaidSVG(source, colors))
+  const drawn = census.texts.filter(text => text.content !== '' && text.pixels > 0)
+  expect(drawn.length, 'rendered text is present').toBeGreaterThan(0)
+  expect(drawn.filter(text => text.contrast !== undefined).length, 'concrete text contrast is measured').toBeGreaterThan(0)
   return census.texts
     .filter(text => text.content !== '' && text.contrast !== undefined && text.contrast < requiredContrast(text))
     .map(text => `"${text.content}" ${text.ink} on ${text.surround} is ${text.contrast!.toFixed(2)}:1`)

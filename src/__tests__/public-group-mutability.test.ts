@@ -114,6 +114,7 @@ describe('public native leaf mutations', () => {
     const backend = getBackend(backendId)!
     const pristine = backend.render(scene, { seed: 0 })
     box.geometry.x += 7
+    expect(backend.render(scene, { seed: 0 })).not.toBe(pristine)
     box.paint.fill = '#123456'
     name.paint.fill = '#654321'
     group.join = ' '
@@ -123,7 +124,6 @@ describe('public native leaf mutations', () => {
     expect(changed).toContain('#123456')
     expect(changed).toContain('#654321')
     expect(changed).toContain(`${group.open} `)
-    expect(DefaultBackend.drawNode(box, { seed: 0 })).toContain(`x="${box.geometry.x}"`)
     expect(Object.isFrozen(scene)).toBe(false)
   })
 

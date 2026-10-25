@@ -36,6 +36,9 @@ describe('ASCII box-start connector sits on the node border', () => {
 
   test('unlabeled fan-out stays flush (no regression on the easy case)', () => {
     const out = renderMermaidASCII('flowchart LR\n  A --> B\n  A --> C')
+    for (const label of [' A ', ' B ', ' C ']) expect(out).toContain(label)
+    expect(out.match(/►/g)).toHaveLength(2)
+    expect(out).toMatch(/A ├─/)
     expect(out).not.toMatch(/│ +├/)
   })
 })

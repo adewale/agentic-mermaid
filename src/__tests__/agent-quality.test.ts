@@ -336,7 +336,7 @@ describe('quality metrics — deterministic', () => {
     ])).minimumNodeSpacing).toBe(0)
   })
 
-  test('indexes large edge-free layouts without an all-pairs spacing scan', () => {
+  test('measures spacing correctly in a 10,000-node edge-free layout', () => {
     const nodes = Array.from({ length: 10_000 }, (_, index) => ({
       id: `N${index}`, x: f((index % 100) * 20), y: f(Math.floor(index / 100) * 20),
       w: f(10), h: f(10), shape: 'rectangle', label: '',

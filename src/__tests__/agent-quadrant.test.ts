@@ -552,9 +552,12 @@ describe('quadrant round-trip property', () => {
           if (title) lines.push(`  title ${title}`)
           for (const p of points) lines.push(`  ${p.label}: [${p.x}, ${p.y}]`)
           const d = quadrant(lines.join('\n'))
+          const expected = { title, points }
+          const meaning = (diagram: QuadrantValidDiagram) => ({ title: diagram.body.title, points: diagram.body.points })
+          expect(meaning(d)).toEqual(expected)
           const out = serializeMermaid(d)
           const d2 = quadrant(out)
-          expect(d2.body).toEqual(d.body)
+          expect(meaning(d2)).toEqual(expected)
           expect(serializeMermaid(d2)).toBe(out)
         },
       ),

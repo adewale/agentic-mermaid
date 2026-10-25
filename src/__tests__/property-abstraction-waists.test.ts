@@ -12,7 +12,7 @@ import { normalizeFamilyLayoutResult, positionResolvedFamily } from '../position
 import { resolvedRenderExecutionPlanOf, resolveRenderRequest } from '../render-contract.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { DEFAULTS } from '../theme.ts'
-import type { EdgeRouteCertificate, FamilyEdgeRouteCertificate, PositionedDiagram, RegionContainmentCertificate, RenderContext, RenderOptions, RouteCertificate } from '../types.ts'
+import type { PositionedDiagram, RenderContext, RenderOptions } from '../types.ts'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { type FamilyMetamorphic, METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
 import { useTestChildren } from './helpers/test-child.ts'
@@ -520,95 +520,49 @@ describe('property: color-resolution waist', () => {
   })
 })
 
-describe('property: layout certificate proof waist', () => {
-  const flowchartCert = fc
-    .record({
-      edgeIndex: fc.nat(100),
-      routeClass: fc.constantFrom<RouteCertificate['routeClass']>('primary-forward', 'feedback', 'self-loop', 'container', 'cross-hierarchy'),
-      invariant: fc.constantFrom<RouteCertificate['invariant']>('straight', 'explained-detour', 'bundle', 'outer-feedback', 'feedback-detour', 'self-loop', 'container-attach', 'unverified-shape'),
-      bendCount: fc.nat(8),
-    })
-    .map(cert => cert as RouteCertificate)
-
-  const familyEdgeCert: fc.Arbitrary<FamilyEdgeRouteCertificate> = fc.oneof(
-    fc.record({
-      family: fc.constantFrom<'class' | 'er'>('class', 'er'),
-      edgeIndex: fc.nat(100),
-      routeClass: fc.constant<'family-layout'>('family-layout'),
-      invariant: fc.constantFrom<'orthogonal-box' | 'unverified-family-route'>('orthogonal-box', 'unverified-family-route'),
-      bendCount: fc.nat(8),
-      orthogonal: fc.boolean(),
-      sourceBoundary: fc.boolean(),
-      targetBoundary: fc.boolean(),
-    }),
-    fc.record({
-      family: fc.constant<'architecture'>('architecture'),
-      edgeIndex: fc.nat(100),
-      routeClass: fc.constant<'family-layout'>('family-layout'),
-      invariant: fc.constantFrom<'side-anchored' | 'unverified-family-route'>('side-anchored', 'unverified-family-route'),
-      bendCount: fc.nat(8),
-      orthogonal: fc.boolean(),
-      sourceSide: fc.constantFrom('L', 'R', 'T', 'B'),
-      targetSide: fc.constantFrom('L', 'R', 'T', 'B'),
-      sourceBoundary: fc.constantFrom('item', 'group'),
-      targetBoundary: fc.constantFrom('item', 'group'),
-      sourceAnchored: fc.boolean(),
-      targetAnchored: fc.boolean(),
-      placement: fc.constantFrom<'satisfied' | 'conflicted'>('satisfied', 'conflicted'),
-      sourceFacesTarget: fc.boolean(),
-      targetFacesSource: fc.boolean(),
-      obstacleFree: fc.boolean(),
-    }),
-    fc.record({
-      family: fc.constant<'sequence'>('sequence'),
-      edgeIndex: fc.nat(100),
-      routeClass: fc.constant<'family-layout'>('family-layout'),
-      invariant: fc.constantFrom<'lifeline-message' | 'self-message' | 'unverified-family-route'>('lifeline-message', 'self-message', 'unverified-family-route'),
-      bendCount: fc.nat(8),
-      horizontal: fc.boolean(),
-      sourceLifeline: fc.boolean(),
-      targetLifeline: fc.boolean(),
-      selfMessage: fc.boolean(),
-    }),
-  )
-
-  const regionCert: fc.Arbitrary<RegionContainmentCertificate> = fc.record({
-    family: fc.constantFrom('timeline', 'xychart', 'pie', 'quadrant', 'gantt'),
-    elementId: TAG,
-    routeClass: fc.constant<'family-layout'>('family-layout'),
-    invariant: fc.constantFrom('timeline-interval', 'plot-contained', 'legend-contained', 'section-contained', 'unverified-family-layout'),
-    bounds: fc.record({
-      x: fc.integer({ min: -100, max: 100 }),
-      y: fc.integer({ min: -100, max: 100 }),
-      w: fc.integer({ min: 1, max: 500 }),
-      h: fc.integer({ min: 1, max: 500 }),
-    }),
-    center: fc.record({
-      x: fc.integer({ min: -100, max: 600 }),
-      y: fc.integer({ min: -100, max: 600 }),
-    }),
-    containment: fc.constantFrom('bounds', 'center'),
-    withinBounds: fc.boolean(),
-    groupId: fc.option(TAG, { nil: undefined }),
-    withinGroup: fc.option(fc.boolean(), { nil: undefined }),
+describe('layout certificate proof classification', () => {
+  test('edge certificates retain route classification even when geometric checks fail', () => {
+    for (const invariant of ['straight', 'explained-detour', 'bundle', 'outer-feedback', 'feedback-detour', 'self-loop', 'container-attach', 'unverified-shape'] as const) {
+      expect(layoutCertificateProof({ edgeIndex: 0, routeClass: 'primary-forward', bendCount: 0, invariant })).toBe('edge-route')
+    }
+    for (const family of ['class', 'er'] as const) {
+      for (const invariant of ['orthogonal-box', 'unverified-family-route'] as const) {
+        expect(layoutCertificateProof({ family, edgeIndex: 1, routeClass: 'family-layout', invariant, bendCount: 0, orthogonal: true, sourceBoundary: true, targetBoundary: true })).toBe('edge-route')
+      }
+      for (const [orthogonal, sourceBoundary, targetBoundary] of [[false, true, true], [true, false, true], [true, true, false]] as const) {
+        expect(layoutCertificateProof({ family, edgeIndex: 0, routeClass: 'family-layout', invariant: 'unverified-family-route', bendCount: 1,
+          orthogonal, sourceBoundary, targetBoundary,
+        })).toBe('edge-route')
+      }
+    }
+    for (const invariant of ['side-anchored', 'unverified-family-route'] as const) {
+      expect(layoutCertificateProof({ family: 'architecture', edgeIndex: 0, routeClass: 'family-layout', invariant,
+        bendCount: 0, orthogonal: true, sourceSide: 'R', targetSide: 'L', sourceBoundary: 'item', targetBoundary: 'item',
+        sourceAnchored: true, targetAnchored: true, placement: 'satisfied', sourceFacesTarget: true, targetFacesSource: true, obstacleFree: true,
+      })).toBe('edge-route')
+    }
+    expect(layoutCertificateProof({ family: 'architecture', edgeIndex: 0, routeClass: 'family-layout', invariant: 'unverified-family-route',
+      bendCount: 2, orthogonal: false, sourceSide: 'R', targetSide: 'L', sourceBoundary: 'item', targetBoundary: 'group',
+      sourceAnchored: false, targetAnchored: false, placement: 'conflicted', sourceFacesTarget: false, targetFacesSource: false, obstacleFree: false,
+    })).toBe('edge-route')
+    for (const invariant of ['lifeline-message', 'self-message', 'unverified-family-route'] as const) {
+      expect(layoutCertificateProof({ family: 'sequence', edgeIndex: 0, routeClass: 'family-layout', invariant,
+        bendCount: 0, horizontal: true, sourceLifeline: true, targetLifeline: true, selfMessage: false,
+      })).toBe('edge-route')
+    }
   })
 
-  test('edge-indexed certificates always classify as edge-route proofs', () => {
-    fc.assert(
-      fc.property(fc.oneof(flowchartCert, familyEdgeCert), cert => {
-        expect(layoutCertificateProof(cert)).toBe('edge-route')
-      }),
-      fcParameters({ numRuns: RUNS }),
-    )
-  })
-
-  test('element-indexed certificates always classify as region-containment proofs', () => {
-    fc.assert(
-      fc.property(regionCert, cert => {
-        expect(layoutCertificateProof(cert)).toBe('region-containment')
-      }),
-      fcParameters({ numRuns: RUNS }),
-    )
+  test('valid element certificates retain region-containment classification', () => {
+    expect(layoutCertificateProof({ family: 'pie', elementId: 'failed-legend', routeClass: 'family-layout', invariant: 'unverified-family-layout',
+      bounds: { x: 0, y: 0, w: 40, h: 20 }, center: { x: 100, y: 100 }, containment: 'center', withinBounds: false, groupId: 'legend', withinGroup: false,
+    })).toBe('region-containment')
+    for (const family of ['timeline', 'xychart', 'pie', 'quadrant', 'gantt'] as const) {
+      for (const invariant of ['timeline-interval', 'plot-contained', 'legend-contained', 'section-contained', 'unverified-family-layout'] as const) {
+        expect(layoutCertificateProof({ family, elementId: 'authored-element', routeClass: 'family-layout', invariant,
+          bounds: { x: 0, y: 0, w: 40, h: 20 }, center: { x: 20, y: 10 }, containment: 'bounds', withinBounds: true,
+        })).toBe('region-containment')
+      }
+    }
   })
 })
 

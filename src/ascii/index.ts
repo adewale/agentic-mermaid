@@ -369,31 +369,3 @@ function terminalControlsReplaced(source: Readonly<NormalizedMermaidSource>): bo
     || containsControls(source.comments)
     || containsControls(source.accessibility)
 }
-
-/**
- * Loop 9 M13: wrap a single label string at word boundaries to fit a column
- * width. Words longer than `maxLineWidth` emit a warn and render as-is.
- * Returns the label with `<br/>` separators between wrapped lines.
- */
-export function wrapLabel(text: string, maxLineWidth: number): string {
-  if (visualWidth(text) <= maxLineWidth) return text
-  const words = text.split(/\s+/).filter(Boolean)
-  const lines: string[] = []
-  let current = ''
-  for (const word of words) {
-    if (visualWidth(word) > maxLineWidth) {
-      // Word can't fit on its own line — emit warning, render anyway.
-      // eslint-disable-next-line no-console
-      console.warn(`wrapLabel: word "${word.slice(0, 20)}..." exceeds maxLineWidth=${maxLineWidth}`)
-      if (current) lines.push(current)
-      lines.push(word)
-      current = ''
-      continue
-    }
-    if (current.length === 0) current = word
-    else if (visualWidth(current) + 1 + visualWidth(word) <= maxLineWidth) current += ' ' + word
-    else { lines.push(current); current = word }
-  }
-  if (current) lines.push(current)
-  return lines.join('<br/>')
-}

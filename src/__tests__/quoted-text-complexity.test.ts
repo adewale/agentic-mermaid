@@ -15,6 +15,7 @@ test('the line that closes quoted text is found in linear time', () => {
     expectNearLinearGrowth(shape, size => {
       const lines = Array.from({ length: size }, (_, index) => line(index))
       const ends = quotedTextEnds(lines)
+      expect(ends).toHaveLength(size)
       expect(ends.every((value, index) => value === end(index))).toBe(true)
     }, 20_000)
   }

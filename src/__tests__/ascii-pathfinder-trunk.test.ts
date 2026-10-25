@@ -45,7 +45,7 @@ describe('#113 fanout trunk-sharing', () => {
     expect(new Set(junctions.map(j => j.split('@')[1]!.split(',')[0])).size).toBe(1)
   })
 
-  test('no floating connectors — every branch glyph connects to a line', () => {
+  test('a fan-out fork row contains a horizontal line', () => {
     const out = renderMermaidASCII('flowchart TD\n  A --> B\n  A --> C\n  A --> D')
     const lines = out.split('\n')
     // A row containing a fork glyph must also contain a horizontal run, so the

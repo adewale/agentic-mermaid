@@ -222,6 +222,9 @@ describe('Edge Approach Direction', () => {
 
           // Edge exits A from bottom, so first segment should be vertical
           expect(isVerticalSegment(firstSeg!.p1, firstSeg!.p2)).toBe(true)
+          const source = positioned.nodes.find(node => node.id === 'A')!
+          expect(Math.abs(firstSeg!.p1.y - (source.y + source.height))).toBeLessThan(1)
+          expect(firstSeg!.p2.y).toBeGreaterThan(firstSeg!.p1.y)
         }
       }
     })
@@ -240,6 +243,9 @@ describe('Edge Approach Direction', () => {
 
           // Edge exits A from right, so first segment should be horizontal
           expect(isHorizontalSegment(firstSeg!.p1, firstSeg!.p2)).toBe(true)
+          const source = positioned.nodes.find(node => node.id === 'A')!
+          expect(Math.abs(firstSeg!.p1.x - (source.x + source.width))).toBeLessThan(1)
+          expect(firstSeg!.p2.x).toBeGreaterThan(firstSeg!.p1.x)
         }
       }
     })
@@ -262,6 +268,9 @@ describe('Edge Approach Direction', () => {
       const finalSegAB = getFinalSegment(edgeAB!.points)
       expect(finalSegAB).not.toBeNull()
       expect(isVerticalSegment(finalSegAB!.p1, finalSegAB!.p2)).toBe(true)
+      const target = positioned.nodes.find(node => node.id === 'B')!
+      expect(Math.abs(finalSegAB!.p2.y - target.y)).toBeLessThan(1)
+      expect(finalSegAB!.p1.y).toBeLessThan(finalSegAB!.p2.y)
     })
 
     it('edges should terminate at diamond vertices, not bounding box', () => {

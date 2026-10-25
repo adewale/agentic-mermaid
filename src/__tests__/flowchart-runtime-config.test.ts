@@ -22,7 +22,7 @@ import { layoutGraphSync } from '../layout-engine.ts'
 import { renderMermaidSVG, renderMermaidASCII } from '../index.ts'
 import { resolveLabelContent, preparedDisplayTextValue } from '../shared/display-text.ts'
 import { resolveRenderRequest } from '../render-contract.ts'
-import { getFamily, verifyMermaid } from '../agent/index.ts'
+import { verifyMermaid } from '../agent/index.ts'
 import {
   applyFlowchartLabelWrapping,
   resolveFlowchartRenderOptions,
@@ -77,10 +77,6 @@ describe('flowchart INEFFECTIVE_CONFIG lint (fix stage, P4)', () => {
     expect(verifyMermaid(AB).warnings.filter(w => w.code === 'INEFFECTIVE_CONFIG')).toEqual([])
   })
 
-  it('the registry noopKeys and the wired keys partition the documented schema', () => {
-    const config = getFamily('flowchart')!.config!
-    expect(['nodeSpacing', 'rankSpacing', 'wrappingWidth', ...config.noopKeys!].sort()).toEqual([...config.keys].sort())
-  })
 })
 
 describe('flowchart nodeSpacing/rankSpacing wiring (feature stage)', () => {

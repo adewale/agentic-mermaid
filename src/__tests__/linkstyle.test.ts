@@ -58,19 +58,23 @@ describe('linkStyle – state diagram parser', () => {
 describe('linkStyle – SVG integration', () => {
   it('applies linkStyle stroke color to SVG edge', () => {
     const svg = renderMermaidSVG('graph TD\n  A --> B\n  linkStyle 0 stroke:#ff0000')
-    expect(svg).toContain('stroke="#ff0000"')
+    const edges = [...svg.matchAll(/<polyline class="edge"[^>]*>/g)].map(([tag]) => tag)
+    expect(edges).toHaveLength(1)
+    expect(edges[0]).toContain('stroke="#ff0000"')
   })
 
   it('applies linkStyle stroke-width to SVG edge', () => {
     const svg = renderMermaidSVG('graph TD\n  A --> B\n  linkStyle 0 stroke-width:3px')
-    expect(svg).toContain('stroke-width="3px"')
+    const edge = [...svg.matchAll(/<polyline class="edge"[^>]*>/g)].map(([tag]) => tag)
+    expect(edge).toHaveLength(1)
+    expect(edge[0]).toContain('stroke-width="3px"')
   })
 
   it('applies linkStyle default to all edges', () => {
     const svg = renderMermaidSVG('graph TD\n  A --> B\n  B --> C\n  linkStyle default stroke:#00ff00')
-    const matches = svg.match(/stroke="#00ff00"/g)
-    expect(matches).not.toBeNull()
-    expect(matches!.length).toBeGreaterThanOrEqual(2)
+    const edges = [...svg.matchAll(/<polyline class="edge"[^>]*>/g)].map(([tag]) => tag)
+    expect(edges).toHaveLength(2)
+    for (const edge of edges) expect(edge).toContain('stroke="#00ff00"')
   })
 
   it('index-specific linkStyle overrides default', () => {

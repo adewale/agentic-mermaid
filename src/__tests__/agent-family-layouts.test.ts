@@ -18,10 +18,12 @@ const EPS = 1
 
 describe('rounded chart projection boundaries', () => {
   it.each([
-    ['gantt', 'gantt\n  dateFormat YYYY-MM-DD\n  section Delivery\n  Begin :a, 2024-01-01, 1d\n  Finish :b, 2024-01-12, 5d'],
-    ['xychart', 'xychart\n  x-axis 0 --> 1\n  line [1, 2]'],
-  ])('%s retains contained geometry at fractional and canvas boundaries', (_family, source) => {
-    const { layout } = layoutMermaidWithReceipt(source!)
+    ['gantt', 'gantt\n  dateFormat YYYY-MM-DD\n  section Delivery\n  Begin :a, 2024-01-01, 1d\n  Finish :b, 2024-01-12, 5d', ['a', 'b']],
+    ['xychart', 'xychart\n  x-axis 0 --> 1\n  line [1, 2]', ['line#0:pt#0', 'line#0:pt#1']],
+  ] as const)('%s retains contained geometry at fractional and canvas boundaries', (_family, source, nodeIds) => {
+    const { layout } = layoutMermaidWithReceipt(source)
+    expect(layout.nodes.map(node => node.id)).toEqual([...nodeIds])
+    expect(layout.groups).toHaveLength(1)
     for (const node of layout.nodes) {
       expect(node.x).toBeGreaterThanOrEqual(0)
       expect(node.y).toBeGreaterThanOrEqual(0)
@@ -125,37 +127,43 @@ describe('QUAL-1 adapters: structured bodies do not reparse canonicalSource', ()
   const STRUCTURED = [
     {
       kind: 'xychart',
+      expectedNodes: [{id: 'bar#0:pt#0'}, {id: 'bar#0:pt#1'}, {id: 'bar#0:pt#2'}],
       source: 'xychart-beta\n  title Sales\n  x-axis [jan, feb, mar]\n  y-axis Revenue 0 --> 100\n  bar [30, 60, 90]',
       broken: 'xychart-beta\n  this would not produce chart nodes',
     },
     {
       kind: 'pie',
+      expectedNodes: [{id: 'slice#0:Dogs'}, {id: 'slice#1:Cats'}, {id: 'slice#2:Birds'}],
       source: SOURCES.pie!,
       broken: 'pie\n  this is not a slice',
     },
     {
       kind: 'quadrant',
+      expectedNodes: [{label: 'Point One'}, {label: 'Point Two'}],
       source: SOURCES.quadrant!,
       broken: 'quadrantChart\n  Broken: [2, 3]',
     },
     {
       kind: 'gantt',
+      expectedNodes: [{id: 'core', label: 'Core'}, {id: 'docs', label: 'Docs'}],
       source: 'gantt\n  section Build\n    Core :core, 2024-01-01, 2d\n    Docs :docs, after core, 1d',
       broken: 'gantt\n  Bad line without task metadata',
     },
     {
       kind: 'mindmap',
+      expectedNodes: [{label: 'Plan'}, {label: 'Build'}, {label: 'Ship'}],
       source: SOURCES.mindmap!,
       broken: 'mindmap\n  broken((different))',
     },
     {
       kind: 'gitgraph',
+      expectedNodes: [{id: 'start'}, {id: 'work'}],
       source: SOURCES.gitgraph!,
       broken: 'gitGraph\n  commit id:"different"',
     },
   ] as const
 
-  for (const { kind, source, broken } of STRUCTURED) {
+  for (const { kind, source, broken, expectedNodes } of STRUCTURED) {
     it(`${kind}: parsed body is enough to produce real geometry`, () => {
       const p = parseMermaid(source)
       expect(p.ok).toBe(true)
@@ -164,7 +172,8 @@ describe('QUAL-1 adapters: structured bodies do not reparse canonicalSource', ()
       const corrupted = { ...p.value, canonicalSource: broken }
       const layout = layoutMermaid(corrupted)
       expect(layout.kind).toBe(kind)
-      expect(layout.nodes.length).toBeGreaterThan(0)
+      expect(layout.nodes).toHaveLength(expectedNodes.length)
+      expect(layout.nodes).toEqual(expect.arrayContaining(expectedNodes.map(node => expect.objectContaining(node))))
       expect(layout.bounds.w).toBeGreaterThan(0)
       expect(layout.bounds.h).toBeGreaterThan(0)
     })

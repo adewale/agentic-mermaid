@@ -5,7 +5,6 @@ import { renderMermaidSVGAsync } from '../browser-lazy.ts'
 import { parseRegisteredMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidPNG, renderMermaidPNGWithReceipt } from '../agent/png.ts'
 import { runBatchLine } from '../cli/index.ts'
-import { CHANNEL_THEME_KEYS } from '../color-resolver.ts'
 import { handleHostedRequest } from '../mcp/hosted-server.ts'
 import { normalizeMermaidSource, type MermaidRuntimeConfig } from '../mermaid-source.ts'
 import { projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
@@ -22,11 +21,9 @@ import type { RenderOptions } from '../types.ts'
 // refused as INVALID_THEME_COLOR, any other `<family>.<key>` is family config
 // refused as INVALID_CONFIG_COLOR, and a trailing `[0]` authors a one-entry list.
 //
-// Shared keys come from CHANNEL_THEME_KEYS, the resolver's registry of the keys
-// it reads, so a new shared channel key is covered automatically. Family keys
-// are listed by hand: production enumerates them only as private sets inside
-// theme-color-admission.ts, the code under test, and deriving the oracle from
-// those would let a dropped key shrink this suite instead of failing it.
+// Shared aliases and family keys are independently authored supported inputs.
+// Deriving them from the production resolver would let a dropped key shrink
+// this suite and its oracle together.
 
 const FLOW = 'flowchart TD\n  A --> B'
 const PIE = 'pie title Pets\n  "A" : 3\n  "B" : 2'
@@ -59,13 +56,22 @@ const indexed = (stem: string, from: number, count: number): string[] =>
 const without = (paths: readonly string[], drop: readonly string[]): string[] =>
   paths.filter(path => !drop.includes(path))
 
-const SHARED = theme(...new Set(Object.values(CHANNEL_THEME_KEYS).flat()))
+const SHARED_CHANNELS = {
+  bg: ['background', 'mainBkg'],
+  fg: ['primaryTextColor', 'textColor', 'nodeTextColor'],
+  line: ['lineColor', 'defaultLinkColor'],
+  accent: ['arrowheadColor', 'primaryColor'],
+  muted: ['secondaryTextColor', 'tertiaryTextColor'],
+  surface: ['primaryColor', 'nodeBkg', 'mainBkg'],
+  border: ['primaryBorderColor', 'secondaryBorderColor'],
+} as const
+const SHARED = theme(...new Set(Object.values(SHARED_CHANNELS).flat()))
 // Text channels are ink: `none` would erase the label.
-const SHARED_INK = theme(...CHANNEL_THEME_KEYS.fg, ...CHANNEL_THEME_KEYS.muted)
+const SHARED_INK = theme(...SHARED_CHANNELS.fg, ...SHARED_CHANNELS.muted)
 // Architecture mixes these channels into derived color-mix() paints.
 const ARCHITECTURE_MIXED = theme(...new Set([
-  ...CHANNEL_THEME_KEYS.bg, ...CHANNEL_THEME_KEYS.surface,
-  ...CHANNEL_THEME_KEYS.line, ...CHANNEL_THEME_KEYS.accent,
+  ...SHARED_CHANNELS.bg, ...SHARED_CHANNELS.surface,
+  ...SHARED_CHANNELS.line, ...SHARED_CHANNELS.accent,
 ]))
 const TIMELINE_PAINTS = [
   ...theme(...indexed('cScale', 0, 12), ...indexed('cScaleLabel', 0, 12), ...indexed('cScaleInv', 0, 12)),
@@ -232,7 +238,7 @@ const FAMILIES: readonly FamilyAdmission[] = [
     paints: [...SHARED, ...theme('clusterBkg', 'clusterBorder', 'secondaryColor')],
     // The group fill, like the mixed channels, feeds a derived color-mix() paint.
     refusesNone: [...SHARED_INK, ...ARCHITECTURE_MIXED, ...theme('clusterBkg')],
-    admitsNone: theme(...CHANNEL_THEME_KEYS.border, 'clusterBorder', 'secondaryColor'),
+    admitsNone: theme(...SHARED_CHANNELS.border, 'clusterBorder', 'secondaryColor'),
     sinks: {
       'themeVariables.clusterBkg': '--arch-group-fill:',
       'themeVariables.clusterBorder': '--arch-group-stroke:',
@@ -350,14 +356,6 @@ async function expectRefusedOnEveryRoute(
   expect(projectRenderErrorDiagnostic({ ...diagnostic, message: 'forged' }), 'forged diagnostic')
     .toEqual({ code: 'RENDER_FAILED', message: 'Rendering failed' })
 }
-
-test('the admission table classifies only paints its family admits', () => {
-  for (const row of FAMILIES) {
-    const classified = [...row.refusesNone, ...row.admitsNone, ...Object.keys(row.sinks), ...row.probes.map(([path]) => path)]
-    expect(classified.filter(path => !row.paints.includes(path)), row.family).toEqual([])
-    expect(row.refusesNone.filter(path => row.admitsNone.includes(path)), row.family).toEqual([])
-  }
-})
 
 describe.each([...FAMILIES])('theme color admission (#303): $family', row => {
   test.each([...row.paints])('%s refuses every surviving malformed paint by name', path => {

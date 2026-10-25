@@ -189,14 +189,14 @@ describe('editor-codec fuzz: sanitizeEditorConfig allowlist', () => {
     expect(await api.getHashSource()).toContain('flowchart TD')
     expect(state).toEqual({ palette: '', style: 'crisp', seed: 0, config: {} })
 
-    const hostileSeed = btoa(unescape(encodeURIComponent(
+    const hostileSeed = await api.encodeSourceCompressed(
       '{"source":"flowchart TD\\n A --> B","seed":1e309}',
-    )))
+    )
     ;(window.location as { hash: string }).hash = '#' + hostileSeed
     state.seed = 23
-    expect(await api.getHashSource()).toBeNull()
-    expect(api.hashDecodeFailure).toBe('corrupt')
-    expect(state.seed).toBe(23)
+    expect(await api.getHashSource()).toBe('flowchart TD\n A --> B')
+    expect(api.hashDecodeFailure).toBeNull()
+    expect(state.seed).toBe(0)
 
     const fractionalSeed = await api.encodeSourceCompressed(JSON.stringify({
       source: 'flowchart TD\n  A --> B',

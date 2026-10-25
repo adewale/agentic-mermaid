@@ -9,7 +9,11 @@ function layoutOf(source: string): RenderedLayout {
   if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
   const verify = verifyMermaid(parsed.value)
   expect(verify.ok).toBe(true)
-  return layoutMermaid(parsed.value)
+  const layout = layoutMermaid(parsed.value)
+  if (parsed.value.body.kind !== 'flowchart') throw new Error('expected structured graph')
+  expect(layout.nodes.map(node => node.id).sort()).toEqual([...parsed.value.body.graph.nodes.keys()].sort())
+  expect(layout.edges.map(edge => [edge.from, edge.to, edge.label?.text]).sort()).toEqual(parsed.value.body.graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
+  return layout
 }
 
 function centers(layout: RenderedLayout): Map<string, { x: number; y: number }> {

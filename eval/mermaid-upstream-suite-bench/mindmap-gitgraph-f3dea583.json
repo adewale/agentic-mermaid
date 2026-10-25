@@ -862,7 +862,23 @@
       "assertions": {
         "commits": 5,
         "currentBranch": "main",
-        "customIds": []
+        "customIds": [],
+        "parentsByCommit": [
+          [],
+          [
+            0
+          ],
+          [
+            1
+          ],
+          [
+            0
+          ],
+          [
+            3,
+            2
+          ]
+        ]
       }
     },
     {

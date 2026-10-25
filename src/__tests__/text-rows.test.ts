@@ -34,6 +34,7 @@ test('wrapped and wide text stays inside ordered disjoint row regions without mu
     (labels, gap, minRowHeight, start) => {
       const items = labels.map((label, id) => Object.freeze({ id, block: block(label) }))
       const stack = layoutTextRows(items, { gap, minRowHeight, align: start ? 'start' : 'center' })
+      expect(stack.rows).toHaveLength(items.length)
       for (const [index, row] of stack.rows.entries()) {
         expect(row.item).toBe(items[index]!)
         expect(row.height).toBeGreaterThanOrEqual(minRowHeight)

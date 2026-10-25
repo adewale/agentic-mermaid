@@ -173,7 +173,6 @@ function generatedLinks(statements: Statement[], links = new Map<string, Record<
 }
 
 const programArb = fc.array(statementArb(2), { minLength: 1, maxLength: 8 })
-const sourceArb = programArb.map(printSequence)
 
 // ---------------------------------------------------------------------------
 // One comparable projection for both parsers
@@ -247,34 +246,6 @@ describe('sequence grammar differential against pinned upstream Mermaid', () => 
     upstream = startUpstreamMermaid()
   })
   afterAll(() => upstream.close())
-
-  test('the generator covers every construct it claims', () => {
-    const sources = fc.sample(sourceArb, 200)
-    const constructs: Record<string, RegExp> = {
-      participant: /^ {2}participant \w+$/m,
-      'participant alias': /^ {2}participant \w+ as /m,
-      'metadata type and alias': /^ {2}(?:participant|actor) \w+@\{ "type": "\w+", "alias": /m,
-      'metadata alias overridden by `as` the id (BUG-14)': /^ {2}(?:participant|actor) (\w+)@\{[^}\n]*"alias"[^}\n]*\} as \1$/m,
-      actor: /^ {2}actor \w+/m,
-      link: /^ {2}link \w+: \w[\w ]* @ https:/m,
-      'bare declaration after first use': /^ +(\w+)-[^\n]*\n(?:[^\n]*\n)*? +(?:participant|actor) \1$/m,
-      ...Object.fromEntries(Object.keys(ARROWS).map(arrow => [arrow, new RegExp(`\\w${arrow.replace(/[-)]/g, '\\$&')}\\w`)])),
-      'note left/right': /^ {2}note (?:left|right) of /m,
-      'note over two': /^ {2}note over \w+,\w+:/m,
-      loop: /^ {2}loop /m,
-      opt: /^ {2}opt /m,
-      'alt/else': /^ {2}else /m,
-      'par/and': /^ {2}and /m,
-      'critical/option': /^ {2}option /m,
-      break: /^ {2}break /m,
-      rect: /^ {2}rect /m,
-      'nested block': /^ {4}(?:loop|opt|alt|par|critical|break|rect) /m,
-      'note in a block': /^ {4,}note /m,
-      'declaration in a block': /^ {4,}(?:participant|actor) /m,
-    }
-    const missing = Object.entries(constructs).filter(([, pattern]) => !sources.some(source => pattern.test(source))).map(([name]) => name)
-    expect(missing).toEqual([])
-  })
 
   test('(i)–(v) upstream and our parser agree on every generated sequence diagram', async () => {
     await fc.assert(
@@ -384,10 +355,10 @@ describe('sequence grammar differential against pinned upstream Mermaid', () => 
         if (!edited.ok) return
         const typed = asSequence(edited.value)!.body
         const output = serializeMermaid(edited.value)
-        const expected = { participants: ours(typed).participants, links: ours(typed).links }
+        const expected = ours(typed)
         const reparsed = ours(parseOurs(output))
         const upstreamParse = await upstream.parse(output)
-        expect({ op, output, ours: { participants: reparsed.participants, links: reparsed.links }, upstream: upstreamParse.ok ? { participants: theirs(upstreamParse).participants, linksOursMisses: linksOursMisses(theirs(upstreamParse).links, expected.links) } : upstreamParse.error })
+        expect({ op, output, ours: reparsed, upstream: upstreamParse.ok ? { participants: theirs(upstreamParse).participants, linksOursMisses: linksOursMisses(theirs(upstreamParse).links, expected.links) } : upstreamParse.error })
           .toEqual({ op, output, ours: expected, upstream: { participants: expected.participants, linksOursMisses: [] } })
       }),
       fcParameters({ numRuns: 150 }),

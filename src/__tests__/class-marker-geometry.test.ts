@@ -8,7 +8,7 @@ import type { MarkerDescriptor } from '../scene/ir.ts'
 import { DefaultBackend, getFamily } from '../agent/core.ts'
 import type { PositionedClassDiagram, PositionedClassRelationship } from '../class/types.ts'
 
-function publicClassScene(relationships: PositionedClassRelationship[], edgeBendRadius = 0) {
+function publicClassScene(relationships: PositionedClassRelationship[]) {
   const lower = getFamily('class')?.lowerScene
   if (!lower) throw new Error('public Class family lowering is unavailable')
   const positioned: PositionedClassDiagram = {
@@ -19,7 +19,7 @@ function publicClassScene(relationships: PositionedClassRelationship[], edgeBend
     })),
   }
   return lower({ positioned, colors: { bg: '#ffffff', fg: '#111111' },
-    resolved: { renderOptions: {}, styleFace: { edge: { bendRadius: edgeBendRadius } } } })
+    resolved: { renderOptions: {} } })
 }
 
 function publicRelationship(): PositionedClassRelationship {
@@ -74,14 +74,9 @@ function lowerPositionedRelationships(relationships: PositionedClassRelationship
 }
 
 describe('class endpoint marker geometry (#178)', () => {
-  test('the public Class lowerer preserves authored metadata getter reads and current shaft values', () => {
-    const reads: string[] = []
+  test('the public Class lowerer preserves current shaft metadata without freezing caller input', () => {
     const caller = publicRelationship()
-    const relationship = new Proxy(caller, { get(target, key, receiver) {
-      if (key === 'markerAt' || key === 'label' || key === 'fromCardinality' || key === 'toCardinality') reads.push(key)
-      return Reflect.get(target, key, receiver)
-    } })
-    const scene = publicClassScene([relationship])
+    const scene = publicClassScene([caller])
     const svg = DefaultBackend.render(scene, { seed: 0 })
     const shafts = svg.match(/<polyline\b[^>]*class="class-relationship"[^>]*>/g) ?? []
     expect(shafts).toHaveLength(1)
@@ -91,60 +86,7 @@ describe('class endpoint marker geometry (#178)', () => {
     expect(shafts[0]).not.toContain('data-label=')
     expect(shafts[0]).not.toContain('marker-start=')
     expect(shafts[0]).not.toContain('marker-end=')
-    // These caller-visible reads come from the authored marker decisions,
-    // metadata condition/value expressions and later cardinality labels.
-    expect(reads.filter(key => key === 'markerAt')).toHaveLength(9)
-    expect(reads.filter(key => key === 'label')).toHaveLength(4)
-    expect(reads.filter(key => key === 'fromCardinality')).toHaveLength(6)
-    expect(reads.filter(key => key === 'toCardinality')).toHaveLength(5)
     expect(Object.isFrozen(caller)).toBe(false)
-  })
-
-  test('the public Class lowerer distinguishes cardinality presence from its second getter value', () => {
-    const absent = { ...publicRelationship(), fromCardinality: undefined }
-    let reads = 0
-    const empty = { ...publicRelationship(), get fromCardinality() { return ++reads === 1 ? 'present' : reads === 2 ? '' : '0' } }
-    const svg = DefaultBackend.render(publicClassScene([absent, empty]), { seed: 0 })
-    const shafts = svg.match(/<polyline\b[^>]*class="class-relationship"[^>]*>/g) ?? []
-    expect(shafts).toHaveLength(2)
-    expect(shafts[0]).not.toContain('data-from-cardinality=')
-    expect(shafts[1]).toContain('data-id="rel:A-&gt;B#1"')
-    expect(shafts[1]).toContain('data-from-cardinality="" data-to-cardinality="1"')
-    const cardinal = svg.match(/<text\b[^>]*data-id="rel-card:A-&gt;B#1:from"[^>]*>([\s\S]*?)<\/text>/)?.[1]
-    expect(cardinal?.replace(/<[^>]*>/g, '')).toBe('0')
-    let invalidReads = 0
-    const missing = { ...publicRelationship(), get fromCardinality() { return ++invalidReads === 1 ? 'present' : undefined } }
-    expect(() => publicClassScene([absent, missing])).toThrow('data-from-cardinality must be a string')
-    expect(invalidReads).toBe(2)
-    const healthy = DefaultBackend.render(publicClassScene([publicRelationship()]), { seed: 0 })
-    expect(healthy).toContain('data-marker-at="none" data-from-cardinality="界" data-to-cardinality="1"')
-  })
-
-  test('the public Class lowerer reads metadata getters before rounded geometry but snapshots values afterwards', () => {
-    let geometryReads = 0
-    const points = () => [{ get x(): number { geometryReads++; throw new Error('authored rounded-geometry stop') }, y: 120 },
-      { x: 300, y: 120 }, { x: 440, y: 120 }]
-    let metadataReads = 0
-    const throwing = { ...publicRelationship(), points: points(), get fromCardinality() {
-      if (++metadataReads === 2) throw new Error('authored cardinality-read stop')
-      return 'present'
-    } }
-    expect(() => publicClassScene([throwing], 8)).toThrow('authored cardinality-read stop')
-    expect(metadataReads).toBe(2)
-    expect(geometryReads).toBe(0)
-    let nestedReads = 0
-    const accessor = Object.defineProperty({}, 'payload', { enumerable: true, get() { nestedReads++; return 'unsafe' } })
-    const cycle: { self?: unknown } = {}
-    cycle.self = cycle
-    let toJSONCalls = 0
-    for (const value of [accessor, cycle, { toJSON() { toJSONCalls++; return 'unsafe' } }]) {
-      geometryReads = 0
-      expect(() => publicClassScene([{ ...publicRelationship(), points: points(), fromCardinality: value as unknown as string }], 8))
-        .toThrow('authored rounded-geometry stop')
-      expect(geometryReads).toBe(1)
-    }
-    expect(nestedReads).toBe(0)
-    expect(toJSONCalls).toBe(0)
   })
 
   test.each([

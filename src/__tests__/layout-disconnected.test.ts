@@ -265,7 +265,7 @@ describe('layoutGraph – mixed connected and disconnected', () => {
 // ============================================================================
 
 describe('layoutGraph – quality preservation', () => {
-  it('each component looks identical to standalone rendering', () => {
+  it('each component retains identical frame dimensions to standalone rendering', () => {
     // Render a single subgraph standalone
     const standalone = `graph LR
       subgraph S [Section]
