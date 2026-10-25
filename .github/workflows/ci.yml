@@ -234,7 +234,15 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Install Bun in the browser environment
+        if: ${{ matrix.suite == 'browser' || matrix.suite == 'browser-site' || matrix.suite == 'payload' }}
+        # The image has Node/npm but no unzip, which setup-bun requires.
+        run: |
+          npm install --global bun@1.4.2
+          test "$(bun --version)" = "1.4.2"
+
       - name: Setup Bun
+        if: ${{ matrix.suite != 'browser' && matrix.suite != 'browser-site' && matrix.suite != 'payload' }}
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
