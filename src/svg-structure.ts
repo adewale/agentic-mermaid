@@ -29,18 +29,20 @@ function isWhitespace(char: string | undefined): boolean {
 }
 
 function scanTagEnd(source: string, start: number): number {
-  let quote: '"' | "'" | undefined
-  for (let cursor = start; cursor < source.length; cursor++) {
-    const char = source[cursor]!
-    if (quote) {
-      if (char === quote) quote = undefined
-    } else if (char === '"' || char === "'") {
-      quote = char
-    } else if (char === '>') {
-      return cursor + 1
+  let end = source.indexOf('>', start)
+  if (end < 0) return -1
+  for (let cursor = start; cursor < end; cursor++) {
+    const char = source[cursor]
+    if (char !== '"' && char !== "'") continue
+    const close = source.indexOf(char, cursor + 1)
+    if (close < 0) return -1
+    cursor = close
+    if (close > end) {
+      end = source.indexOf('>', close + 1)
+      if (end < 0) return -1
     }
   }
-  return -1
+  return end + 1
 }
 
 /** Quote-aware lexical start-tag scan shared by safe SVG post-processors.
@@ -99,8 +101,9 @@ function scanStartTags(source: string, cssRanges?: SvgRange[], styleContexts?: S
         if (quote !== '"' && quote !== "'") break
         cursor++
         const valueStart = cursor
-        while (cursor < end - 1 && source[cursor] !== quote) cursor++
-        if (source[cursor] !== quote) break
+        const valueEnd = source.indexOf(quote, cursor)
+        if (valueEnd < 0 || valueEnd >= end - 1) break
+        cursor = valueEnd
         if (attributes) attributes.push(Object.freeze({ name, value: source.slice(valueStart, cursor), quote, nameStart, valueStart, valueEnd: cursor }))
         else if (first && first.name === first.expectedName) first.attribute(name, source.slice(valueStart, cursor))
         else if (cssRanges && CSS_VALUE_ATTRIBUTES.has(name)) {
