@@ -52,7 +52,8 @@ Actual warmup calls, elapsed time and completion are retained per observation.
 A failed or incomplete warmup remains an error; it cannot supply a numeric pass.
 Warmup, timing, allocation and diagnostics have separate ordinal counters and
 short authored-label/identifier namespaces. Warmup cycles a fixed 20-variant
-input working set, so faster priming cannot expand the input population. Timed source `q1`/`v1_*` therefore
+input working set, so faster priming cannot expand the input population. Timed
+source `q1`/`v1_*` therefore
 starts identically across peers regardless of how many warm calls fit in the
 elapsed interval. Warmup uses `w*`, allocation `a*`, and diagnostics `d*`, so a
 warm source cannot prime a measured new-source/edit input. Allocation and
@@ -197,14 +198,16 @@ layout candidates. Events contain scalar owner/outcome/reason fields, never
 source strings, cache keys or retained user objects. Observer exceptions cannot
 change rendering, and no public package export is added.
 
-The observer is absent during timing and allocation. Separate successful warm
+The observer is absent during timing and allocation. Separate successful
 replays collect hits, misses, bypasses, skipped stores and fallback reasons.
 Hit rate is `hits/(hits+misses)`, excluding bypasses. Positioned-cache events
 count one logical lookup: the private borrowed probe and any following cloned
 public probe do not count as two misses for one lookup. A graphical support event
 and successful complete replay establish observation; a scope event followed by
-an exception does not. Cold diagnostic replay and uninstrumented peers/baselines
-remain **unobserved**, never inferred zero hits. No fallback event during a
+an exception does not. Cold diagnostics use their own fresh first-render workers.
+Every successful candidate observation, including cold, requires a complete
+observed diagnostic replay to qualify. Uninstrumented peers/baselines remain
+**unobserved**, never inferred zero hits. No fallback event during a
 successful observed replay means zero observed fallbacks at the instrumented
 owners; this is not universal coverage of font/parser/routing fallbacks.
 
