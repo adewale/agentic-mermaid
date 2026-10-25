@@ -52,6 +52,7 @@ export function parseOptions(argv: string[]): RunnerOptions {
     'community-projects',
     'projects',
     'benchmark-records',
+    'benchmark-resume-attempt',
     'startup-samples',
     'startup-surfaces',
     'node-executable',
@@ -113,6 +114,7 @@ export function parseOptions(argv: string[]): RunnerOptions {
   if (options.has('projects') && options.has('community-projects')) throw Error('Use --projects or --community-projects, not both')
   const projects = (options.get('projects') ?? options.get('community-projects'))?.split(',')
   if (projects?.some(project => !project) || (projects && new Set(projects).size !== projects.length)) throw Error('--projects needs unique nonempty project IDs')
+  if (options.has('benchmark-resume-attempt') && (projects?.length !== 1 || selected?.length !== 1 || !['entry-startup', 'upstream-test-assertions'].includes(selected[0]!) || options.has('benchmark-force'))) throw Error('--benchmark-resume-attempt requires one selected project, one retained suite, and no --benchmark-force')
   const startupSurfaces = options.get('startup-surfaces')?.split(',') as RunnerOptions['startupSurfaces']
   if (startupSurfaces && (!startupSurfaces.length || new Set(startupSurfaces).size !== startupSurfaces.length || startupSurfaces.some(surface => !['library', 'cli', 'mcp', 'browser'].includes(surface)))) throw Error('--startup-surfaces needs unique library,cli,mcp,browser values')
   if (liveProvider && !['anthropic', 'openai-compatible'].includes(liveProvider)) throw new Error('--live-provider must be anthropic or openai-compatible')
@@ -147,6 +149,7 @@ export function parseOptions(argv: string[]): RunnerOptions {
     communityProjects: projects,
     benchmarkRecordStore: path('benchmark-records'),
     benchmarkForce: options.has('benchmark-force'),
+    benchmarkResumeAttempt: path('benchmark-resume-attempt'),
     startupSamples: options.has('startup-samples') ? positive('startup-samples', 5) : undefined,
     startupSurfaces,
     nodeExecutable: path('node-executable'),
@@ -460,7 +463,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   }
   if (argv.includes('--help')) {
     console.log(
-      'bun run bench [--profile smoke|full] [--list] [--suites ID,...] [--out DIR] [--rounds N]\n  --target CHECKOUT --package-root INSTALLED_PACKAGE\n  --candidate-tarball FILE --candidate-sha256 HEX\n  --baseline DIRECTORY | --baseline-npm SELECTOR; --baseline-ref GIT_REF\n  --baseline-tarball FILE --baseline-sha256 HEX | --baseline-lock FILE\n  --site WEBSITE_PUBLIC --ownership-site FROZEN_ORIGINAL_CANDIDATE_DIR --executable CHROMIUM --bezel-dir VERIFIED_WRAPPER\n  --mermaid-dir PINNED_SOURCE --reference-dir INDEPENDENT_INSTALL\n  --community-artifacts PEER_ADAPTER_MANIFEST --projects OWNER/PROJECT,...\n  --benchmark-records DIR --benchmark-force\n  --startup-samples N --startup-surfaces library,cli,mcp,browser\n  --node-executable NODE --bun-executable BUN --startup-observer GNU_TIME --native-executable AM\n  --live-provider anthropic|openai-compatible --live-model MODEL\n  --timeout-ms N --allow-incomplete\nSmoke enrolls every family in bounded adapters; full selects every maintained suite, including Dave, current-reference tests and historical imported corpora. Missing prerequisites remain blocked. Exit: 0 complete, 1 failed, 2 incomplete. --allow-incomplete permits blocked suites but never failures.',
+      'bun run bench [--profile smoke|full] [--list] [--suites ID,...] [--out DIR] [--rounds N]\n  --target CHECKOUT --package-root INSTALLED_PACKAGE\n  --candidate-tarball FILE --candidate-sha256 HEX\n  --baseline DIRECTORY | --baseline-npm SELECTOR; --baseline-ref GIT_REF\n  --baseline-tarball FILE --baseline-sha256 HEX | --baseline-lock FILE\n  --site WEBSITE_PUBLIC --ownership-site FROZEN_ORIGINAL_CANDIDATE_DIR --executable CHROMIUM --bezel-dir VERIFIED_WRAPPER\n  --mermaid-dir PINNED_SOURCE --reference-dir INDEPENDENT_INSTALL\n  --community-artifacts PEER_ADAPTER_MANIFEST --projects OWNER/PROJECT,...\n  --benchmark-records DIR --benchmark-force\n  --benchmark-resume-attempt COMPLETED_ATTEMPT_DIR (one project and retained suite)\n  --startup-samples N --startup-surfaces library,cli,mcp,browser\n  --node-executable NODE --bun-executable BUN --startup-observer GNU_TIME --native-executable AM\n  --live-provider anthropic|openai-compatible --live-model MODEL\n  --timeout-ms N --allow-incomplete\nSmoke enrolls every family in bounded adapters; full selects every maintained suite, including Dave, current-reference tests and historical imported corpora. Missing prerequisites remain blocked. Exit: 0 complete, 1 failed, 2 incomplete. --allow-incomplete permits blocked suites but never failures.',
     )
     return
   }

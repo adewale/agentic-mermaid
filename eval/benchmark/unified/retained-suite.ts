@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { basename, join, resolve } from 'node:path'
 import { assertBenchmarkExecutionAllowed } from '../ci-policy.ts'
 import { activateProjectRecord, findProjectRecord, publishProjectRecord, stableValue, type ProjectBenchmarkIdentity, type ProjectBenchmarkRecord } from './project-records.ts'
 import type { UnifiedSuiteResult } from './types.ts'
@@ -13,9 +13,26 @@ export interface RetainedSuiteOptions {
   out: string
   records: string
   force?: boolean
+  /** Explicitly publish a completed attempt whose publication alone failed. */
+  resumeAttempt?: string
   /** Re-evaluated after collection so changed artifacts cannot be published. */
   identity: () => ProjectBenchmarkIdentity
   measure: (directory: string) => Promise<UnifiedSuiteResult>
+}
+
+/** Publication adds ownership and row identity without changing sampler evidence.
+ * Repeated clocks must have distinct experimental coordinates, not just row IDs. */
+export function publicationResult(raw: UnifiedSuiteResult, project: string): UnifiedSuiteResult {
+  const seen = new Set<string>()
+  return { ...raw, observations: raw.observations.map((row, index) => {
+    if (row.samplesMs?.length) {
+      const coordinate = stableValue([row.suite, row.surface, row.runtime, row.family, row.caseId, row.operation, row.format, row.mode,
+        ...['round', 'sample', 'requestedOperation', 'resourcePass', 'checkpoint'].map(key => row.metrics?.[key] ?? null)])
+      if (seen.has(coordinate)) throw Error('Duplicate measured sample coordinates; row IDs cannot qualify repeated clocks')
+      seen.add(coordinate)
+    }
+    return { ...row, metrics: { ...row.metrics, implementation: project, project, metricId: `observation-${index + 1}` } }
+  }) }
 }
 
 /** One immutable attempt per selected project and lane. Reusing an attempt
@@ -23,6 +40,7 @@ export interface RetainedSuiteOptions {
 export async function runRetainedSuite(options: RetainedSuiteOptions): Promise<UnifiedSuiteResult> {
   assertBenchmarkExecutionAllowed()
   const identity = options.identity()
+  if (options.resumeAttempt && options.force) throw Error('Completed-attempt recovery cannot force a new measurement')
   mkdirSync(options.out, { recursive: true })
   mkdirSync(options.records, { recursive: true })
   const lock = join(options.records, Buffer.from(`${identity.project}:${identity.lane ?? 'community'}`).toString('base64url') + '.lock')
@@ -36,7 +54,7 @@ export async function runRetainedSuite(options: RetainedSuiteOptions): Promise<U
   process.once('SIGTERM', terminate)
   try {
     writeFileSync(fd, JSON.stringify({ project: identity.project, lane: identity.lane, pid: process.pid }))
-    const retained = options.force ? undefined : findProjectRecord(options.records, identity)
+    const retained = options.force || options.resumeAttempt ? undefined : findProjectRecord(options.records, identity)
     active()
     if (retained) {
       const result = read(join(retained.evidenceDirectory, 'result.json')) as UnifiedSuiteResult
@@ -49,13 +67,27 @@ export async function runRetainedSuite(options: RetainedSuiteOptions): Promise<U
       write(join(options.out, 'result.json'), result)
       return result
     }
-    const id = randomUUID()
+    const id = options.resumeAttempt ? basename(resolve(options.resumeAttempt)) : randomUUID()
     const directory = resolve(options.out, 'attempts', id)
-    mkdirSync(directory, { recursive: true })
-    write(join(directory, 'identity.json'), identity)
-    write(join(options.out, 'cache.json'), { project: identity.project, lane: identity.lane, state: 'running', pendingAttempt: id, published: false })
-    write(join(options.out, 'result.json'), { status: 'running', project: identity.project, pendingAttempt: id })
-    const result = await options.measure(directory)
+    let raw: UnifiedSuiteResult
+    if (options.resumeAttempt) {
+      if (resolve(options.resumeAttempt) !== directory) throw Error('Recovery attempt must belong to the selected project output directory')
+      const cache = read(join(options.out, 'cache.json')) as { project?: string; lane?: string; state?: string; published?: boolean; error?: string }
+      if (cache.project !== identity.project || cache.lane !== identity.lane || cache.state !== 'incomplete' || cache.published !== false || cache.error !== 'Error: Invalid benchmark record store: duplicate observation identity') throw Error('Recovery requires a completed attempt rejected only by the observation identity publication guard')
+      if (stableValue(read(join(directory, 'identity.json'))) !== stableValue(identity)) throw Error('Recovery measurement identity differs from the current requested identity')
+      raw = read(join(directory, existsSync(join(directory, 'raw-result.json')) ? 'raw-result.json' : 'result.json')) as UnifiedSuiteResult
+      if (!['passed', 'failed', 'blocked'].includes(raw.status) || !Array.isArray(raw.observations) || !raw.observations.length || !Number.isFinite(Date.parse(raw.startedAt)) || Date.parse(raw.finishedAt) < Date.parse(raw.startedAt) || !Number.isFinite(Date.parse(raw.finishedAt))) throw Error('Recovery requires a completed sampler result with ordered timestamps')
+    } else {
+      mkdirSync(directory, { recursive: true })
+      write(join(directory, 'identity.json'), identity)
+      write(join(options.out, 'cache.json'), { project: identity.project, lane: identity.lane, state: 'running', pendingAttempt: id, published: false })
+      write(join(options.out, 'result.json'), { status: 'running', project: identity.project, pendingAttempt: id })
+      raw = await options.measure(directory)
+      write(join(directory, 'raw-result.json'), raw)
+    }
+    // Preserve the exact original response on recovery, including its formatting.
+    if (!existsSync(join(directory, 'raw-result.json'))) writeFileSync(join(directory, 'raw-result.json'), readFileSync(join(directory, 'result.json')))
+    const result = publicationResult(raw, identity.project)
     active()
     assertBenchmarkExecutionAllowed()
     const current = options.identity()

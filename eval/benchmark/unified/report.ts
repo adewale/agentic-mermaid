@@ -46,11 +46,13 @@ const escape = (value: unknown): string =>
     .replaceAll('\n', ' ')
 const number = (value: number | undefined): string => (value === undefined ? '—' : value.toFixed(1))
 
+const implementationOf = (row: BenchmarkObservation): string => (typeof row.metrics?.implementation === 'string' && row.metrics.implementation.trim() ? row.metrics.implementation : typeof row.metrics?.project === 'string' && row.metrics.project.trim() ? row.metrics.project : 'agentic-mermaid')
+
 /** Rows are enrollment/execution evidence, not a guessed feature percentage. */
 export function coverageRows(observations: readonly BenchmarkObservation[]) {
   const groups = new Map<string, { suite: string; implementation: string; surface: string; runtime: string; family: string; operation: string; format: string; mode: string; statuses: Partial<Record<BenchmarkStatus, number>>; cases: Set<string> }>()
   for (const row of observations) {
-    const implementation = typeof row.metrics?.implementation === 'string' ? row.metrics.implementation : 'agentic-mermaid'
+    const implementation = implementationOf(row)
     const key = JSON.stringify([row.suite, implementation, row.surface, row.runtime, row.family, row.operation, row.format, row.mode])
     const group = groups.get(key) ?? { suite: row.suite, implementation, surface: row.surface, runtime: row.runtime, family: row.family, operation: row.operation, format: row.format, mode: row.mode, statuses: {}, cases: new Set<string>() }
     group.statuses[row.status] = (group.statuses[row.status] ?? 0) + 1
@@ -72,23 +74,7 @@ export function writeUnifiedReport(out: string, report: UnifiedReport): void {
   writeFileSync(join(out, 'coverage.csv'), coverageCsv.map(csv).join('\n') + '\n')
   const observationCsv = [
     ['suite', 'implementation', 'surface', 'runtime', 'family', 'case_id', 'operation', 'format', 'mode', 'status', 'samples_ms', 'bytes', 'metrics', 'findings', 'detail'],
-    ...observations.map(row => [
-      row.suite,
-      row.metrics?.implementation ?? 'agentic-mermaid',
-      row.surface,
-      row.runtime,
-      row.family,
-      row.caseId,
-      row.operation,
-      row.format,
-      row.mode,
-      row.status,
-      JSON.stringify(row.samplesMs ?? []),
-      row.bytes,
-      JSON.stringify(row.metrics ?? {}),
-      JSON.stringify(row.findings ?? []),
-      row.detail,
-    ]),
+    ...observations.map(row => [row.suite, implementationOf(row), row.surface, row.runtime, row.family, row.caseId, row.operation, row.format, row.mode, row.status, JSON.stringify(row.samplesMs ?? []), row.bytes, JSON.stringify(row.metrics ?? {}), JSON.stringify(row.findings ?? []), row.detail]),
   ]
   writeFileSync(join(out, 'observations.csv'), observationCsv.map(csv).join('\n') + '\n')
   const lines = [

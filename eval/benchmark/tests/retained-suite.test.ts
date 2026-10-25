@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { protocolIdentity } from '../unified/protocol-identity.ts'
-import { runRetainedSuite } from '../unified/retained-suite.ts'
+import { publicationResult, runRetainedSuite } from '../unified/retained-suite.ts'
 import { loadCurrentProjectRecords } from '../unified/project-records.ts'
 import type { UnifiedSuiteResult } from '../unified/types.ts'
 
@@ -16,6 +16,50 @@ const directory = () => {
   return path
 }
 const result = (): UnifiedSuiteResult => ({ id: 'fixture', status: 'passed', startedAt: '2026-10-25T00:00:00.000Z', finishedAt: '2026-10-25T00:00:01.000Z', observations: [{ suite: 'fixture', surface: 'public-api', runtime: 'node', family: 'flowchart', caseId: 'authored', operation: 'render', format: 'svg', mode: 'first-result', status: 'passed', samplesMs: [2] }], gaps: [] })
+
+test('publication preserves raw clocks, separates actual samples and metadata, and rejects duplicated clocks', () => {
+  const raw = result()
+  raw.observations[0]!.metrics = { round: 1, sample: 1 }
+  raw.observations.push({ ...raw.observations[0]!, metrics: { round: 1, sample: 2 } })
+  const info = { ...raw.observations[0]!, samplesMs: undefined, mode: 'download-closure' }
+  raw.observations.push(info, info)
+  const before = JSON.stringify(raw)
+  const published = publicationResult(raw, 'pele')
+  expect(JSON.stringify(raw)).toBe(before)
+  expect(new Set(published.observations.map(row => row.metrics!.metricId)).size).toBe(4)
+  expect(published.observations.every(row => row.metrics!.implementation === 'pele')).toBe(true)
+  expect(published.observations.map(row => row.samplesMs)).toEqual([[2], [2], undefined, undefined])
+  raw.observations.push({ ...raw.observations[0]! })
+  expect(() => publicationResult(raw, 'pele')).toThrow('Duplicate measured sample coordinates')
+})
+
+test('explicit recovery publishes completed matching raw evidence without measuring; cancellation or changed identity cannot recover', async () => {
+  const root = directory()
+  const out = join(root, 'out')
+  const attempt = join(out, 'attempts/completed')
+  mkdirSync(attempt, { recursive: true })
+  const identity = { project: 'pele', lane: 'startup', protocol: 'v1', artifact: 'original', measurement: 'node' }
+  const rawBytes = JSON.stringify(result(), null, 4) + '\n'
+  const reset = (state = 'incomplete') => {
+    writeFileSync(join(attempt, 'identity.json'), JSON.stringify(identity))
+    writeFileSync(join(attempt, 'result.json'), rawBytes)
+    writeFileSync(join(out, 'cache.json'), JSON.stringify({ project: 'pele', lane: 'startup', state, published: false, error: 'Error: Invalid benchmark record store: duplicate observation identity' }))
+  }
+  const options = { out, records: join(root, 'records'), resumeAttempt: attempt, identity: () => identity, measure: async () => { throw Error('Must not remeasure') } }
+  reset('cancelled')
+  await expect(runRetainedSuite(options)).rejects.toThrow('rejected only by')
+  reset()
+  await expect(runRetainedSuite({ ...options, identity: () => ({ ...identity, artifact: 'changed' }) })).rejects.toThrow('identity differs')
+  expect(existsSync(join(root, 'records/current.json'))).toBe(false)
+  reset()
+  const recovered = await runRetainedSuite(options)
+  expect(readFileSync(join(attempt, 'raw-result.json'), 'utf8')).toBe(rawBytes)
+  expect(recovered.observations[0]!.samplesMs).toEqual([2])
+  expect(recovered.startedAt).toBe(result().startedAt)
+  expect(loadCurrentProjectRecords(options.records)[0]!.id).toBe('completed')
+  const reused = await runRetainedSuite({ ...options, resumeAttempt: undefined })
+  expect(reused).toEqual(recovered)
+})
 
 test('retained selected-project results reuse clocks and dates; changed identity only measures that project', async () => {
   const root = directory()
