@@ -32,4 +32,5 @@ export interface UnifiedSuiteResult {
   observations: BenchmarkObservation[]
   gaps: string[]
   artifacts?: string[]
+  toolVersions?: import('../tool-versions.ts').BenchmarkToolVersion[]
 }

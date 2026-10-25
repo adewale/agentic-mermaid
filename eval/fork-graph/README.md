@@ -94,7 +94,7 @@ the command exits with a failure status so an incomplete run cannot look complet
 | `akashacms/mermaid-wasm-renderer` | binding | mermaid-wasm-renderer@0.3.1 | svg | peer (how `bench:peers` runs mermaid-rs) |
 | `Latias94/merman` | independent | @mermanjs/node@0.9.1 | svg, png, jpeg, pdf, ascii-unicode | peer, terminal-peer |
 | `dfadler/zombie-mermaid` | fork | zombie-mermaid@5.7.1 | svg, ascii-unicode | peer, terminal-peer |
-| `obsidianmd/pele` | independent | pele@1.6.0 | svg | peer |
+| `obsidianmd/pele` | independent | pele@1.9.0 | svg | peer |
 | `Gaurav-Gosain/tuios` (sketch) | port of Pele | PR #919, `880e652ee56b` (no module release checked) | svg, png, ascii-unicode | peer, terminal-peer |
 | `Mootikins/figurehead-rs` | independent | tag v0.4.3 | ascii-unicode | terminal-peer |
 | `fasouto/termaid` | independent | pypi:termaid@0.9.1 | ascii-unicode | terminal-peer |
@@ -120,7 +120,7 @@ git -C bm.git fetch -q --filter=tree:0 zombie main:refs/forks/zombie
 git -C bm.git rev-list --max-parents=0 HEAD refs/forks/zombie | sort -u        # one shared root: a fork
 git -C bm.git rev-list --left-right --count HEAD...refs/forks/zombie           # behind, ahead
 npm view pele version gitHead license --json                                    # published version
-curl -s https://registry.npmjs.org/-/npm/v1/attestations/pele@1.6.0             # provenance commit
+curl -s https://registry.npmjs.org/-/npm/v1/attestations/pele@1.9.0             # provenance commit
 ```
 
 ## Limits

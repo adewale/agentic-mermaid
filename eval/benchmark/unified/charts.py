@@ -16,6 +16,9 @@ import subprocess
 import tarfile
 from datetime import datetime
 from pathlib import Path
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from tool_versions import assert_tool_versions
 from statistics import median
 from textwrap import fill
 
@@ -637,7 +640,7 @@ def current_dave(original_directory, directory, target):
             if value is not None and following[0].get('identity',{}).get(key)!=value:raise ValueError('Current Dave changed pinned comparator identity '+str(previous.get('label'))+' '+key)
     for engine in after.get('engines',[]):
         if engine.get('population')!=1095 or not isinstance(engine.get('accepted'),int)or not 0<=engine['accepted']<=1095:raise ValueError('Current Dave engine has inconsistent acceptance census')
-    return after,dict(corpusInputs=1095,distinctInputs=corpus_after.get('distinctCount'),policy=after['policy'],browser=after['browser'],identities=identities,startedAt=after.get('startedAt'),finishedAt=after['finishedAt'],scope='Pinned Dave SVG artifact boundary. Its historical Pele1.6 comparator is separate from the expanded community Pele1.9 API benchmark.')
+    return after,dict(corpusInputs=1095,distinctInputs=corpus_after.get('distinctCount'),policy=after['policy'],browser=after['browser'],identities=identities,startedAt=after.get('startedAt'),finishedAt=after['finishedAt'],scope='Pinned Dave SVG artifact boundary. Actual comparator versions belong to the admitted comparison set; historical sets retain their original identities.')
 
 
 def invocation_correction(report, path):
@@ -960,7 +963,7 @@ class Figures:
             else:axes[1].text(0,index,'N/A: incomplete clocks',va='center',fontsize=7)
         axes[0].set_yticks(range(len(rows)),labels);axes[0].invert_yaxis();axes[0].set_xlim(0,100);axes[0].set_xlabel('Dave artifact acceptance, %; lower is not better')
         axes[1].set_xlabel('All1095 attempts, seconds; includes failures, not an efficiency rank')
-        self.save(figure,'current-dave-score-attempt-cost','Current-target Dave benchmark: acceptance and complete attempt cost','Exact unchanged pinned1095-occurrence corpus and browser policy; three rounds. Attempt cost includes rejected/failed inputs, so fast rejection is not a speed win. Matched-success comparisons use each comparator\'s own explicitly recorded common input IDs. Dave Pele1.6 and community Pele1.9 are separate versions and boundaries.',rows)
+        self.save(figure,'current-dave-score-attempt-cost','Current-target Dave benchmark: acceptance and complete attempt cost','Exact unchanged pinned1095-occurrence corpus and browser policy; three rounds. Attempt cost includes rejected/failed inputs, so fast rejection is not a speed win. Matched-success comparisons use each comparator\'s own explicitly recorded common input IDs. Actual comparator versions are read from admitted identities and must agree throughout the comparison set.',rows)
         matched=[]
         for row in result.get('matched',[]):
             own=row.get('candidateMs',[]);peer=row.get('comparatorMs',[])
@@ -971,7 +974,7 @@ class Figures:
             for index,row in enumerate(matched):
                 if finite(row['candidateOverComparator']):ax.scatter(row['candidateOverComparator'],index,color='#147d92')
             ax.axvline(1,color='#718ca1',linestyle='--');ax.set_xscale('log');ax.set_yticks(range(len(matched)),[str(row['comparator'])+' ('+str(row['sharedInputCount'])+' shared)'for row in matched]);ax.invert_yaxis();ax.set_xlabel('Agentic / comparator cost; <1 faster, >1 slower (log scale)')
-            self.save(figure,'current-dave-matched','Current-target Dave: comparator-specific shared-success work','Each row has its own frozen shared input IDs, never a single common cross-tool rank. Plotted ratio is derived from the recorded three candidate/comparator cost pairs; original owning ratios remain in reduced data. Historical Pele1.6 remains distinct from community Pele1.9.',matched)
+            self.save(figure,'current-dave-matched','Current-target Dave: comparator-specific shared-success work','Each row has its own frozen shared input IDs, never a single common cross-tool rank. Plotted ratio is derived from the recorded three candidate/comparator cost pairs; original owning ratios remain in reduced data. Historical sets retain their own versions; this set requires consistent actual tool versions.',matched)
 
     def svg_scatter(self, ranks, observations, enrolled_cases):
         enrolled=len({row['family'] for row in enrolled_cases})
@@ -1375,6 +1378,7 @@ def main():
     parser.add_argument('--suite-run',type=Path,action='append',default=[],help='Independent completed owning/environment correction ledger; repeatable, no rank or original-status replacement')
     parser.add_argument('--cli-native-proof',type=Path,help='Explicit bit-identical clean-source reproduction proof binding supplemental Agentic native CLI bytes to the frozen target')
     parser.add_argument('--cli-resource-run',type=Path,help='Explicit same-bindings fresh resource-only GNU-time observation; preserves every CLI latency row')
+    parser.add_argument('--tool-versions',type=Path,help='Explicit version manifest for one uniform comparison set; default is the current benchmark pins')
     args=parser.parse_args()
     if args.current_dave_run and not args.current_invocation_run:parser.error('--current-dave-run requires --current-invocation-run')
     if args.current_invocation_assets and not args.current_invocation_run:parser.error('--current-invocation-assets requires --current-invocation-run')
@@ -1442,6 +1446,20 @@ def main():
     if supplemental:
         ranks=[rank for rank in ranks if rank.get('surface')!='cli:end-to-end']+supplemental['ranks']
         observations=[row for row in observations if row.get('suite')!='community-cli']+supplemental_result.get('observations',[])+supplemental_result.get('diagnostics',[])
+    version_claims=[]
+    for row in observations:
+        metrics=row.get('metrics',{})
+        if metrics.get('implementation') and isinstance(metrics.get('version'),str):
+            version_claims.append(dict(tool=metrics.get('variantOf') or metrics['implementation'],version=metrics['version'],source=row.get('suite','observations'),**({'variant':metrics['variant']}if metrics.get('variant')else{})))
+    dave_files=[args.run/'dave/browser-report.json']
+    if current_dave_result:
+        version_claims.extend(dict(tool=row['name'],version=row['version'],source='current Dave',**({'variant':row['label']}if row['name']=='agentic-mermaid'and row['label']!='candidate'else{}))for row in current_dave_result.get('identities',[]))
+    if latest_invocation_metadata and latest_invocation_metadata.get('daveFile'):dave_files.append(Path(latest_invocation_metadata['daveFile']))
+    for path in dave_files:
+        for row in (load(path)or{}).get('identities',[]):
+            version_claims.append(dict(tool=row['name'],version=row.get('version'),source=str(path),**({'variant':row['label']}if row['name']=='agentic-mermaid'and row['label']!='candidate'else{})))
+    try:assert_tool_versions(version_claims,args.tool_versions)
+    except (ValueError,OSError,TypeError,KeyError)as error:parser.error(str(error))
     if args.validate_only:
         cli_metadata=dict(directory=supplemental['reportingDirectory'],familyRanks=supplemental['reportingFamilyRanks'],composition=supplemental_result.get('composition'),target=supplemental['evidence']['target'],nativeBinding=supplemental['reportingNativeBinding'],resourceCorrection=resource_metadata)if supplemental else None
         print(json.dumps(dict(protocol='unified-report-selection-v1',communityDirectory=str((args.community_run or (find(args.run,'community-result.json')or args.run).parent).resolve()),communityReplay=community_metadata,cliSupplement=cli_metadata,invocationCorrection=correction_metadata,referenceCorrection=reference_metadata,currentRun=current_metadata,additionalRun=additional_metadata,currentInvocationRun=latest_invocation_metadata,suiteRuns=suite_metadata,prCampaign=campaign_metadata,historicalPrCampaign=historical_campaign_metadata,familyCorrection=family_metadata),allow_nan=False))

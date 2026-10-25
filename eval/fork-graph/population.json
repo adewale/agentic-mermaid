@@ -1395,9 +1395,9 @@
         {
           "registry": "npm",
           "name": "pele",
-          "version": "1.6.0",
+          "version": "1.9.0",
           "license": "MIT",
-          "provenanceCommit": "659c3593ce43794dce7ec7ab45d424ad2de182a5",
+          "provenanceCommit": "e7f092a4de147cc32210913c20e36eaa5fcd0ef1",
           "publishedFromDefaultBranch": true
         }
       ],
