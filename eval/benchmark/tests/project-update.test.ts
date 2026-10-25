@@ -2,7 +2,8 @@ import { afterEach, expect, test } from 'bun:test'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { selectCommunityProjects } from '../unified/community.ts'
+import { communityCoreWorkloads, selectCommunityProjects } from '../unified/community.ts'
+import { runCommunityCliCohort } from '../unified/community-cli.ts'
 import { findProjectRecord, loadCurrentProjectRecords, type ProjectBenchmarkIdentity, type ProjectBenchmarkRecord } from '../unified/project-records.ts'
 import { renderProjectRecords, runRetainedCommunityCliSuite, updateProjectMarkdown, updateProjectRecords } from '../unified/project-update.ts'
 import type { CommunityNode } from '../unified/community-types.ts'
@@ -121,4 +122,17 @@ test('forced measurements retain new attempts without changing previous observat
   expect(loadCurrentProjectRecords(f.store)[0]!.id).toBe('forced-attempt')
   expect(before.id).toBe('owner/first-1')
   expect(before.observations).toEqual(fresh.observations)
+})
+test('an API-only project has no CLI resource prerequisite or latency measurement', async () => {
+  const f = fixture(),
+    run = join(f.directory, 'prepared')
+  mkdirSync(run)
+  writeFileSync(join(run, 'community-prepared.json'), JSON.stringify([{ node: { id: 'owner/api', roles: [], outputs: ['svg'], benchmark: { adapter: 'published-extra', outputs: ['svg'] } }, artifact: { kind: 'node', version: '1.0' } }]))
+  writeFileSync(join(run, 'community-inputs.json'), JSON.stringify({ workloads: communityCoreWorkloads() }))
+  const result = await runCommunityCliCohort({ run, out: join(f.directory, 'cli'), target: process.cwd(), packageRoot: process.cwd(), rounds: 1, observerExecutable: join(f.directory, 'missing-observer') })
+  expect(result.status).toBe('passed')
+  expect(result.latencyMeasured).toBe(false)
+  expect(result.observations).toEqual([])
+  expect(result.diagnostics.map(row => row.status)).toEqual(['not-applicable'])
+  expect(result.ranks).toEqual([])
 })
