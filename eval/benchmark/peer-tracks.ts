@@ -33,6 +33,7 @@ export interface PeerTrackObservation {
   counts: { ok: number; unsupported: number; lostLabels: number; errors: number }
   semantic: PeerSemantic
   diagnostics: { status: 'observed' | 'unobserved'; complete: boolean; counts: Record<string, number>; events: Record<string, unknown>[]; detail?: string }
+  warmup?: { calls: number; elapsedMs: number; complete: boolean }
   calls: PeerCallObservation[]; importMs?: number; setupMs?: number; detail?: string; allocationUnsupported?: string; allocationErrors?: string[]
 }
 export interface PeerTrackReport {
