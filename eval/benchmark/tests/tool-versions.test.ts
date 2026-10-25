@@ -1,9 +1,10 @@
 import { expect, test } from 'bun:test'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { assertBenchmarkSetVersions, assertBenchmarkToolVersion } from '../tool-versions.ts'
 import { writeUnifiedReport, type UnifiedReport } from '../unified/report.ts'
+import { runRetainedUpstreamTestSuite } from '../unified/retained-campaigns.ts'
 
 test('a benchmark set admits the same tool release across runtimes and rejects a different release', () => {
   expect(assertBenchmarkSetVersions([
@@ -17,6 +18,10 @@ test('a benchmark set admits the same tool release across runtimes and rejects a
     { tool: 'example/renderer', version: '2.1.0', source: 'browser' },
   ])).toThrow('Mixed tool versions')
   expect(() => assertBenchmarkSetVersions([{ tool: 'example/renderer', version: '', source: 'CLI' }])).toThrow('Missing artifact version')
+  for (const [name, project] of [['bezel', 'crabtalk/bezel'], ['beautiful-mermaid', 'lukilabs/beautiful-mermaid']]) expect(() => assertBenchmarkSetVersions([
+    { tool: name!, version: '1.0.0', source: 'peer' },
+    { tool: project!, version: '1.1.0', source: 'community' },
+  ])).toThrow('Mixed tool versions')
 })
 
 test('mixed actual tool releases cannot replace an existing unified report', () => {
@@ -36,6 +41,10 @@ test('mixed actual tool releases cannot replace an existing unified report', () 
   try {
     expect(() => writeUnifiedReport(out, report)).toThrow('Mixed tool versions')
     expect(readFileSync(join(out, 'report.json'), 'utf8')).toBe(existing)
+    report.suites = [report.suites[0]!]
+    delete report.suites[0]!.result!.observations[0]!.metrics!.version
+    expect(() => writeUnifiedReport(out, report)).toThrow('Missing artifact version')
+    expect(readFileSync(join(out, 'report.json'), 'utf8')).toBe(existing)
   } finally { rmSync(out, { recursive: true, force: true }) }
 })
 
@@ -49,4 +58,27 @@ test('explicit candidate and baseline variants keep their own identities without
     { tool: 'agentic-mermaid', version: '0.4.2', source: 'startup' },
     { tool: 'adewale/agentic-mermaid', version: '0.4.3', source: 'Dave', variant: 'candidate' },
   ])).toThrow('Mixed tool versions')
+  expect(() => assertBenchmarkSetVersions([
+    { tool: 'agentic', version: '0.4.2', source: 'startup' },
+    { tool: 'adewale/agentic-mermaid', version: '0.4.3', source: 'docs' },
+  ])).toThrow('Mixed tool versions')
+})
+
+test('an inherited Pele root cannot execute a different release under the selected artifact identity', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'tool-version-roots-'))
+  const previous = process.env.PELE_BENCHMARK_ROOT
+  const selected = join(root, 'selected')
+  const inherited = join(root, 'inherited')
+  mkdirSync(selected); mkdirSync(inherited)
+  writeFileSync(join(selected, 'package.json'), JSON.stringify({ name: 'pele', version: '1.9.0' }))
+  writeFileSync(join(inherited, 'package.json'), JSON.stringify({ name: 'pele', version: '1.6.0' }))
+  process.env.PELE_BENCHMARK_ROOT = inherited
+  try {
+    await expect(runRetainedUpstreamTestSuite({ root: process.cwd(), harnessRoot: process.cwd(), out: join(root, 'out'), benchmarkRecordStore: join(root, 'records'), rounds: 1, profile: 'smoke', portableArtifactRoot: selected, communityProjects: ['obsidianmd/pele'] })).rejects.toThrow('PELE_BENCHMARK_ROOT conflicts')
+    expect(existsSync(join(root, 'records'))).toBe(false)
+  } finally {
+    if (previous === undefined) delete process.env.PELE_BENCHMARK_ROOT
+    else process.env.PELE_BENCHMARK_ROOT = previous
+    rmSync(root, { recursive: true, force: true })
+  }
 })

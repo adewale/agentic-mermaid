@@ -22,13 +22,28 @@ def _text(value, field):
     return value.strip()
 
 
-def _project(value):
+def _name(value):
     value = _text(value, "tool")
     if value.startswith("npm:"):
         value = value[4:]
     if "/" in value and not value.startswith("@"):
         value = value.lower()
-    return TOOL_ALIASES.get(value, value)
+    return value
+
+
+def _resolve(value, aliases):
+    value = _name(value)
+    seen = []
+    while value in aliases:
+        if value in seen:
+            raise ValueError("Cyclic tool aliases: " + " -> ".join([*seen, value]))
+        seen.append(value)
+        value = _name(aliases[value])
+    return value
+
+
+def _project(value):
+    return _resolve(value, TOOL_ALIASES)
 
 
 def read_tool_versions(manifest_path=None):
@@ -36,20 +51,48 @@ def read_tool_versions(manifest_path=None):
     manifest = json.loads(path.read_text())
     if not isinstance(manifest, dict) or type(manifest.get("schemaVersion")) is not int or manifest.get("schemaVersion") != 1 or not isinstance(manifest.get("tools"), dict) or not manifest["tools"]:
         raise ValueError("Invalid tool version manifest: " + str(path))
+    declared_aliases = manifest.get("aliases", {})
+    if not isinstance(declared_aliases, dict):
+        raise ValueError("Tool aliases must be an explicit ownership mapping")
+    aliases = dict(TOOL_ALIASES)
+    normalized = {}
+    for alias, target in declared_aliases.items():
+        alias, target = _name(alias), _name(target)
+        if alias in normalized and normalized[alias] != target:
+            raise ValueError("Conflicting normalized tool alias: " + alias)
+        normalized[alias] = target
+        aliases[alias] = target
+    for alias in aliases:
+        _resolve(alias, aliases)
+    for alias in TOOL_ALIASES:
+        if _resolve(alias, aliases) != _project(alias):
+            raise ValueError("Conflicting established tool alias: " + alias)
     tools = {}
     for tool, pin in manifest["tools"].items():
-        tool = _project(tool)
+        tool = _resolve(tool, aliases)
         if not isinstance(pin, dict):
             raise ValueError("Invalid version pin for " + tool)
         version = _text(pin.get("version"), "version pin for " + tool)
         if tool in tools:
             raise ValueError("Repeated canonical tool pin: " + tool)
         tools[tool] = {**pin, "version": version}
-    return {"schemaVersion": 1, "tools": tools}
+    packages = {}
+    for tool, pin in tools.items():
+        package = pin.get("package")
+        if package is None:
+            continue
+        package = _name(package)
+        resolved = _resolve(package, aliases)
+        if resolved != package and resolved != tool:
+            raise ValueError("Package alias conflicts with owning tool: " + package)
+        if package in packages and packages[package] != tool:
+            raise ValueError("Package has conflicting tool owners: " + package)
+        packages[package] = tool
+    return {"schemaVersion": 1, "tools": tools, "aliases": {alias: _resolve(alias, aliases) for alias in aliases}}
 
 
 def canonical_tool(tool, manifest=None):
-    tool = _project(tool)
+    tool = _resolve(tool, {**TOOL_ALIASES, **(manifest or {}).get("aliases", {})})
     for project, pin in (manifest or {}).get("tools", {}).items():
         if pin.get("package") == tool:
             return project

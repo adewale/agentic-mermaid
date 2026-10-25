@@ -9,11 +9,11 @@ export interface BenchmarkToolVersion {
 }
 
 export const benchmarkToolPins = pins.tools
-const aliases: Record<string, string> = { pele: 'obsidianmd/pele', 'npm:pele': 'obsidianmd/pele', mermaid: 'mermaid-js/mermaid', 'npm:mermaid': 'mermaid-js/mermaid', 'agentic-mermaid': 'adewale/agentic-mermaid' }
+const aliases: Record<string, string> = { agentic: 'adewale/agentic-mermaid', pele: 'obsidianmd/pele', 'npm:pele': 'obsidianmd/pele', mermaid: 'mermaid-js/mermaid', 'npm:mermaid': 'mermaid-js/mermaid', 'agentic-mermaid': 'adewale/agentic-mermaid' }
 export const canonicalBenchmarkTool = (tool: string) => {
   const name = tool.startsWith('npm:') ? tool.slice(4) : tool
   const normalized = name.includes('/') && !name.startsWith('@') ? name.toLowerCase() : name
-  return aliases[normalized] ?? Object.entries(pins.tools).find(([, pin]) => pin.package === normalized)?.[0] ?? normalized
+  return aliases[normalized] ?? (pins.aliases as Record<string, string>)[normalized] ?? Object.entries(pins.tools).find(([, pin]) => pin.package === normalized)?.[0] ?? normalized
 }
 
 /** Admission/report policy, deliberately outside measured producer closures. */

@@ -299,6 +299,10 @@ export async function runReferenceScoreSuite(options: UnifiedRunOptions): Promis
     observations,
     gaps,
     artifacts: ['reference-score-raw.json', 'reference-score-eligibility.json', 'reference-score-diagnostics.json'],
+    toolVersions: [
+      { tool: 'adewale/agentic-mermaid', version: JSON.parse(readFileSync(join(target, 'package.json'), 'utf8')).version, source: join(target, 'package.json') },
+      { tool: 'mermaid-js/mermaid', version: provenance.version, source: 'admitted current reference' },
+    ],
   }
   writeFileSync(join(options.out, 'reference-score-result.json'), JSON.stringify(result, null, 2))
   return result
