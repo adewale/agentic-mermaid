@@ -81,6 +81,15 @@ The frozen Pele lane remains version 1.6.0; later source research at 1.10.0
 does not silently update that pin or turn a public SVG API into browser mount
 timing. Neither fresh identities nor one authored label edit means every
 unchanged label receives fresh text preparation.
+The rendered-endpoint adapter is selected only for the actual installed Pele
+peer, version and exact fetched integrity. Its complete versioned metadata and
+selected/actual pin enter the control fingerprint. Flowchart/Class/ER admission
+observes rendered owned wrappers and nondegenerate shafts; Sequence/State stay
+unavailable in the fixed denominator. See the bounded
+[adapter contract](../../docs/design/system/pele-peer-observability.md).
+Its geometry/color dependencies bind to the exact clean harness Git revision;
+all tracked changes and new source under `src`/`eval` invalidate cleanliness.
+Earlier controls with unavailable endpoint observability do not transfer.
 They do not report a percentile of batch averages as call p95. A minimum of 20
 complete calls per warm case is required for tail qualification. Quick mode is a
 functional smoke policy, never performance qualification. Legacy `bench:peers`
