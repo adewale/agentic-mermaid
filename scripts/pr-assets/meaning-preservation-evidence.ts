@@ -84,6 +84,13 @@ const stableRepresentativeCues = {
 } as const
 const ownershipGoldenIds = new Set(['corpus/flowchart/94', 'corpus/flowchart/95', 'corpus/flowchart/96', 'corpus/state/0', 'corpus/state/1', 'corpus/state/8', 'corpus/state/14', 'corpus/state/16', 'corpus/state/17', 'corpus/state/18', 'corpus/state/19'])
 const fixtures: Fixture[] = [
+  {
+    id: 'flowchart-feedback-outward-contact',
+    title: 'Feedback shortening retains the capsule’s outward source shaft',
+    source: 'flowchart LR\nA[ok]\nB[ok]\nC[ok]\nD[warnings]\nE([process the input])\nA-->B\nB-->C\nA-->D\nC-->E\nB-->|yes|C\nE-->|no|A',
+    captureLayout: true,
+    cue: 'Follow the no feedback edge from E. Before, shortening replaces its rightward source stub with a vertical tangent to the rounded cap. After, the existing outward stub and exterior route remain. All five authored nodes, six edge identities, labels and markers must remain; inspect the geometry sidecar alongside the render. This proves the shown shortening case, not arbitrary routing completeness.',
+  },
 
   ...corpusSamples.filter(sample => ownershipGoldenIds.has(sample.id)).map(sample => ({
     id: `compat-${sample.id.replaceAll('/', '-')}`,
