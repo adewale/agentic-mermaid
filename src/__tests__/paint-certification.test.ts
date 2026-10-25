@@ -3,7 +3,7 @@ import * as marks from '../scene/marks.ts'
 import { readFileSync } from 'node:fs'
 import { connectorMarkerPaintRegions, nodePaintBounds } from '../scene/bounds.ts'
 import { certifyNativePaint, certifyScenePaint } from '../scene/paint-certification.ts'
-import type { Geometry, MarkPaint, SceneDoc, SceneNode } from '../scene/ir.ts'
+import type { Geometry, MarkPaint, SceneDoc, SceneNode, SceneTransform, MarkerDescriptor } from '../scene/ir.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 import { getFamily, knownBuiltinFamilies } from '../agent/families.ts'
 import { layoutMermaidWithReceipt, verifyMermaid } from '../agent/core.ts'
@@ -102,7 +102,7 @@ test('path envelopes and affine empty corners never masquerade as solid occluder
 })
 
 test('endpoint symbols use final owned repaint order rather than marker counts', () => {
-  const marker = { id: 'arrow', shape: 'arrow' as const, bounds: { x0: -1, y0: -1, x1: 1, y1: 1 }, units: 'userSpaceOnUse' as const }
+  const marker = tipAnchoredArrow('arrow', { width: 8, height: 5 }, 'end', { fill: '#111' }, 'userSpaceOnUse')
   const fields = { id: 'relationship', role: 'edge' as const, lineStyle: 'solid' as const, geometry: { kind: 'line' as const, x1: 20, y1: 30, x2: 30, y2: 30 }, paint: { stroke: '#111', strokeWidth: '1' }, endpoints: { from: 'outside', to: 'cover' }, markers: { end: marker } }
   const svg = '<line x1="20" y1="30" x2="30" y2="30" stroke="#111" stroke-width="1" marker-end="url(#arrow)"/>'
   const edge = marks.connector(fields)
@@ -234,7 +234,7 @@ test('repaired non-scaling strokes remain explicitly outside final containment p
 })
 
 test('a differently scaled marker carrier cannot erase earlier occluded artwork', () => {
-  const marker = { id: 'arrow', shape: 'arrow' as const, bounds: { x0: -1, y0: -1, x1: 1, y1: 1 } }
+  const marker = tipAnchoredArrow('arrow', { width: 2, height: 2 }, 'end', { fill: '#111' })
   const fields = { id: 'relationship', role: 'edge' as const, lineStyle: 'solid' as const, geometry: { kind: 'line' as const, x1: 20, y1: 30, x2: 30, y2: 30 }, paint: { stroke: '#111', strokeWidth: '10' }, markers: { end: marker } }
   const edge = marks.connector(fields)
   const repaint = marks.connector({ ...fields, id: 'small-carrier', role: 'chrome', owner: { id: 'relationship', role: 'edge' }, paint: { stroke: '#111', strokeWidth: '1' } })
@@ -259,6 +259,78 @@ test('a zero-opacity group cannot repaint an earlier occluded endpoint marker', 
   expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'MARKER_OCCLUDED', id: 'relationship', by: 'cover' }))
   expect(certifyScenePaint(scene([hidden])).checks.markers).toBe(0)
   expect(certifyScenePaint(scene([edge, surface(), repaint])).status).toBe('passed')
+})
+
+test.each(['full', 'compound', 'fill-opacity-zero', 'thin', 'partial', 'repaint', 'dashed', 'translucent', 'unknown-width', 'unknown-opacity', 'non-scaling', 'scaled', 'rotated', 'sheared', 'circle', 'ellipse', 'polygon', 'marker-none', 'marker-unknown'] as const)('%s endpoint stroke cannot hide a fully covered marker behind its contact exemption', mode => {
+  const marker = tipAnchoredArrow('arrow', { width: 8, height: 5 }, 'end', { fill: mode === 'marker-none' ? 'none' : mode === 'marker-unknown' ? 'var(--unknown)' : '#000' }, 'userSpaceOnUse')
+  const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
+  const geometry: Geometry = mode === 'circle' ? { kind: 'circle', cx: 60, cy: 40, r: 20 } : mode === 'ellipse' ? { kind: 'ellipse', cx: 70, cy: 40, rx: 30, ry: 20 } : mode === 'polygon' ? { kind: 'polygon', points: [{ x: 40, y: 10 }, { x: 90, y: 10 }, { x: 90, y: 70 }, { x: 40, y: 70 }] } : { kind: 'rect', x: 40, y: 10, width: 50, height: 60 }
+  const paint: MarkPaint = { fill: '#fff', stroke: '#fff', strokeWidth: mode === 'thin' ? '1' : mode === 'partial' ? '4' : mode === 'unknown-width' ? 'var(--unknown,20)' : '20',
+    ...(mode === 'fill-opacity-zero' ? { fillOpacity: '0' } : {}),
+    ...(mode === 'dashed' ? { strokeDasharray: '4 4' } : {}),
+    ...(mode === 'translucent' ? { strokeOpacity: '0.5' } : mode === 'unknown-opacity' ? { strokeOpacity: 'var(--unknown,1)' } : {}),
+    ...(mode === 'non-scaling' ? { vectorEffect: 'non-scaling-stroke' as const } : {}),
+  }
+  const transform: SceneTransform | undefined = mode === 'scaled' ? { kind: 'matrix', a: 2, b: 0, c: 0, d: 2, e: -40, f: -40 }
+    : mode === 'rotated' ? { kind: 'rotate', angle: 45, cx: 40, cy: 40 }
+      : mode === 'sheared' ? { kind: 'matrix', a: 1, b: 0.3, c: 0, d: 1, e: 0, f: -12 } : undefined
+  const producer: DrawingProducer = factory => {
+    const fields = { id: 'edge', role: 'edge' as const, lineStyle: 'solid' as const, geometry: { kind: 'line' as const, x1: 20, y1: 40, x2: 40, y2: 40 }, paint: { stroke: '#000' }, endpoints: { from: 'outside', to: 'node', end: { owner: { id: 'node', role: 'node' as const }, point: { x: 40, y: 40 } } }, markers: { end: marker } }
+    return { ...scene([]), parts: [
+      factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'),
+      factory.definitions({ id: 'markers' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
+      factory.connector(fields),
+      factory.shape({ id: 'node', role: 'node', geometry: mode === 'compound' ? { kind: 'compound', children: [{ kind: 'rect', x: 80, y: 10, width: 10, height: 10 }, geometry] } : geometry, paint: mode === 'compound' ? { fill: 'none' } : paint, ...(mode === 'compound' ? { childPaints: [{ fill: '#fff' }, paint] } : {}), ...(transform ? { transform } : {}) }),
+      ...(mode === 'repaint' ? [factory.connector({ ...fields, id: 'repaint', role: 'chrome', owner: { id: 'edge', role: 'edge' } })] : []),
+      factory.documentClose(),
+    ] }
+  }
+  const drawing = drawNative(producer, context, 'flowchart')
+  expect(drawing.svg).toContain('stroke="#fff"')
+  // Actual triangle bounds [32,40]×[37.5,42.5] lie entirely within the
+  // opaque20px left stroke band [30,50]×[10,70], without being in the fill.
+  const expected = mode === 'full' || mode === 'compound' || mode === 'fill-opacity-zero' ? 'failed' : mode === 'thin' || mode === 'partial' || mode === 'repaint' ? 'passed' : 'unverified'
+  for (const proof of [certifyScenePaint(producer(marks, context)), certifyNativePaint(drawing.header, drawing.paint)]) {
+    expect(proof.status).toBe(expected)
+    if (expected === 'failed') expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'MARKER_OCCLUDED', id: 'edge', by: 'node' }))
+  }
+})
+
+test.each([
+  { markerKind: 'triangle', x: 35, singular: true },
+  { markerKind: 'triangle', x: 45, singular: true },
+  { markerKind: 'triangle', x: 45, singular: false },
+  { markerKind: 'circle', x: 45, singular: false },
+  { markerKind: 'cross', x: 45, singular: false },
+  { markerKind: 'cross-non-scaling', x: 45, singular: false },
+  { markerKind: 'none', x: 55, singular: false },
+  { markerKind: 'unknown', x: 55, singular: false },
+] as const)('$markerKind marker ancestor singular=$singular at x=$x retains world measurement evidence', ({ markerKind, x, singular }) => {
+  const noInkProof = markerKind === 'none' || markerKind === 'unknown'
+  const unsupportedInk = noInkProof || markerKind === 'cross-non-scaling'
+  const marker: MarkerDescriptor = markerKind === 'triangle' || noInkProof ? tipAnchoredArrow('arrow', { width: 8, height: 5 }, 'end', { fill: markerKind === 'none' ? 'none' : markerKind === 'unknown' ? 'var(--unknown)' : '#000' }, 'userSpaceOnUse')
+    : { id: 'arrow', shape: markerKind === 'circle' ? 'circle' : 'cross', size: { width: 4, height: 4 }, ref: { x: 2, y: 2 }, units: 'userSpaceOnUse', orient: 0, overflow: 'visible', geometry: markerKind === 'circle' ? { kind: 'circle', cx: 2, cy: 2, r: 2 } : { kind: 'path', d: 'M0,2 L4,2 M2,0 L2,4' }, paint: markerKind === 'circle' ? { fill: '#000' } : { fill: 'none', stroke: '#000', strokeWidth: '1', ...(markerKind === 'cross-non-scaling' ? { vectorEffect: 'non-scaling-stroke' as const } : {}) } }
+  const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
+  const a = singular ? 0 : 1, e = singular ? x : x - 40
+  const producer: DrawingProducer = factory => ({ ...scene([]), parts: [
+    factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'),
+    factory.definitions({ id: 'markers' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
+    factory.group({ id: 'ancestor', role: 'chrome', transform: { kind: 'matrix', a, b: 0, c: 0, d: 1, e, f: 0 }, open: `<g transform="matrix(${a} 0 0 1 ${e} 0)">`, close: '</g>', children: [{ node: factory.connector({ id: 'edge', role: 'chrome', lineStyle: 'solid', geometry: { kind: 'line', x1: 20, y1: 40, x2: 40, y2: 40 }, paint: { stroke: '#000' }, endpoints: { from: 'outside', to: 'node' }, markers: { end: marker } }), indent: 0 }] }),
+    factory.shape({ id: 'node', role: 'node', geometry: { kind: 'rect', x: 40, y: 10, width: 50, height: 60 }, paint: { fill: '#fff', stroke: '#fff', strokeWidth: '20' } }),
+    factory.documentClose(),
+  ] })
+  const drawing = drawNative(producer, context, 'flowchart')
+  expect(drawing.svg).toContain(`matrix(${a} 0 0 1 ${e} 0)`)
+  // A singular ancestor collapses the triangle to x=35 in the stroke band,
+  // or x=45 inside the fill. Neither has positive-area marker ink evidence.
+  for (const proof of [certifyScenePaint(producer(marks, context)), certifyNativePaint(drawing.header, drawing.paint)]) {
+    expect(proof.status).toBe(singular || unsupportedInk ? 'unverified' : 'failed')
+    if (singular) {
+      expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'UNMEASURED_PAINT', id: 'edge' }))
+      expect(proof.issues.some(issue => issue.code === 'MARKER_OCCLUDED')).toBe(false)
+    } else if (unsupportedInk) expect(proof.issues.some(issue => issue.code === 'MARKER_OCCLUDED')).toBe(false)
+    else expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'MARKER_OCCLUDED', id: 'edge', by: 'node' }))
+  }
 })
 
 test.each([
@@ -327,7 +399,7 @@ test.each([
   { first: { fill: '#fff' }, second: { fill: '#fff', fillOpacity: 'var(--unknown,0.5)' }, status: 'unverified' },
   { first: { fill: '#fff' }, second: { fill: '#fff', opacity: 'var(--unknown,0.5)' }, status: 'unverified' },
   { first: { fill: '#fff' }, second: { stroke: 'none' }, status: 'unverified' },
-] satisfies Array<{ first: MarkPaint; second: MarkPaint; status: string }>)('compound child fills $first / $second retain independent occluder evidence', ({ first, second, status }) => {
+] satisfies Array<{ first: MarkPaint; second: MarkPaint; status: 'passed' | 'failed' | 'unverified' }>)('compound child fills $first / $second retain independent occluder evidence', ({ first, second, status }) => {
   const marker = tipAnchoredArrow('arrow', { width: 8, height: 5 }, 'end', { fill: '#111' }, 'userSpaceOnUse')
   const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
   const producer: DrawingProducer = factory => ({ ...scene([]), parts: [
@@ -369,8 +441,9 @@ test.each(['unfilled-rect', 'filled-rect', 'unfilled-polygon', 'stroke-only-comp
   const drawing = drawNative(producer, context, 'flowchart')
   expect(drawing.svg).toContain('stroke-width="20"')
   // Marker x=31..39 lies wholly in the left stroke band x=30..50,
-  // although it is outside the rectangle's fill beginning at x=40.
-  const expected = clear ? 'passed' : 'unverified'
+  // although it is outside the rectangle's fill beginning at x=40. Exact
+  // continuous rectangle bands prove coverage; polygon/line bounds alone do not.
+  const expected = clear ? 'passed' : mode === 'unfilled-polygon' || mode === 'standalone-line' ? 'unverified' : 'failed'
   expect(certifyScenePaint(producer(marks, context)).status).toBe(expected)
   expect(certifyNativePaint(drawing.header, drawing.paint).status).toBe(expected)
 })
@@ -394,7 +467,7 @@ test.each(['transparent', 'translucent', 'dashed', 'group-opacity', 'compound-pi
   const marker = tipAnchoredArrow('arrow', { width: 8, height: 5 }, 'end', { fill: '#111' }, 'userSpaceOnUse')
   const edge = marks.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 10, y1: 40, x2: 40.4, y2: 40 }, paint: { stroke: '#111' }, endpoints: { from: 'outside', to: 'node' }, markers: { end: marker } })
   const geometry = { kind: 'rect' as const, x: 40, y: 10, width: 50, height: 60 }
-  const paint = { fill: '#fff', stroke: '#111', strokeWidth: '10', ...(mode === 'dashed' ? { strokeDasharray: '1 100' } : mode === 'transparent' || mode === 'translucent' ? { strokeOpacity: mode === 'transparent' ? '0' : '0.5' } : {}) }
+  const paint: MarkPaint = { fill: '#fff', stroke: '#111', strokeWidth: '10', ...(mode === 'dashed' ? { strokeDasharray: '1 100' } : mode === 'transparent' || mode === 'translucent' ? { strokeOpacity: mode === 'transparent' ? '0' : '0.5' } : {}) }
   const card = marks.shape({ id: 'node', role: 'node', geometry: mode === 'compound-piece' ? { kind: 'compound', children: [geometry] } : geometry, paint: mode === 'group-opacity' ? { fill: '#fff' } : paint, ...(mode === 'compound-piece' ? { childPaints: [{ fill: '#fff', stroke: 'none' }] } : {}) })
   const parts: SceneNode[] = [edge, card]
   if (mode === 'group-opacity') {
@@ -435,7 +508,7 @@ test('self-crossing filled polygons cannot prove that an overlapped marker is vi
 
 
 test.each(['non-scaling-stroke', 'rgba(0,0,0,0)', '#00000000'] as const)('%s outlines cannot hide a marker inside their endpoint body', mode => {
-  const edge = marks.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 10, y1: 50, x2: 40, y2: 50 }, paint: { stroke: '#111' }, endpoints: { from: 'outside', to: 'node' }, markers: { end: { id: 'arrow', shape: 'arrow', bounds: { x0: -1, y0: -1, x1: 1, y1: 1 }, units: 'userSpaceOnUse' } } })
+  const edge = marks.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 10, y1: 50, x2: 40, y2: 50 }, paint: { stroke: '#111' }, endpoints: { from: 'outside', to: 'node' }, markers: { end: tipAnchoredArrow('arrow', { width: 8, height: 5 }, 'end', { fill: '#111' }, 'userSpaceOnUse') } })
   const cover = marks.shape({ id: 'node', role: 'node', geometry: { kind: 'rect', x: 2, y: 2, width: 6, height: 6 }, paint: { fill: '#fff', stroke: mode === 'non-scaling-stroke' ? '#111' : mode, strokeWidth: '10', ...(mode === 'non-scaling-stroke' ? { vectorEffect: mode } : {}) }, transform: { kind: 'matrix', a: 10, b: 0, c: 0, d: 10, e: 0, f: 0 } })
   expect(certifyScenePaint({ ...scene([edge, cover]), height: 100 })).toMatchObject({ status: 'failed', issues: [expect.objectContaining({ code: 'MARKER_OCCLUDED', by: 'node' })] })
 })
