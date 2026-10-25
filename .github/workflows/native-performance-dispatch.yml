@@ -1,29 +1,26 @@
-name: Dispatch exact-head performance qualification
+name: Retain obsolete-base benchmark evidence
 on:
   push:
     branches: [codex/performance-dispatch-20261024]
 permissions:
   contents: read
 jobs:
-  dispatch:
+  retire-obsolete-base:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       contents: read
       actions: write
     steps:
-      - name: Qualify unchanged renderer with indexed UTF-8 consumer and complete populations
+      - name: Stop only superseded c7fa0ad after retaining its complete release reports
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          state="$(gh api repos/adewale/agentic-mermaid/actions/runs/40155781943 --jq .status)"
-          if [ "$state" != completed ]; then
-            gh api --method POST repos/adewale/agentic-mermaid/actions/runs/40155781943/cancel || test "$(gh api repos/adewale/agentic-mermaid/actions/runs/40155781943 --jq .status)" = completed
-          fi
-          head="$(gh api repos/adewale/agentic-mermaid/git/ref/heads/codex/contrast-qualification-20261025 --jq .object.sha)"
+          head="$(gh api repos/adewale/agentic-mermaid/actions/runs/40167575588 --jq .head_sha)"
           test "$head" = c7fa0ad3384157032dd65b60ca22a246658c00e0
-          runtime="$(gh api repos/adewale/agentic-mermaid/git/ref/heads/codex/contrast-search-reuse-20261025 --jq .object.sha)"
-          test "$runtime" = 35030ff3fb4d3f5c80bb975bc5019886d5eb2558
-          gh api --method POST repos/adewale/agentic-mermaid/actions/workflows/release-benchmark.yml/dispatches --input - <<'JSON'
-          {"ref":"codex/contrast-qualification-20261025","inputs":{"evidence-scope":"all","baseline-ref":"9b64b5f42a8260696052f8218fccfacd8ae44b80","fixed-baseline-sha":"2cff725d219c75b75593b1d3e9bacd74cba7a08e"}}
-          JSON
+          main="$(gh api repos/adewale/agentic-mermaid/git/ref/heads/main --jq .object.sha)"
+          test "$main" = 1c151890eb371b7d4bcaf98b1d8c2dc59f149cc8
+          state="$(gh api repos/adewale/agentic-mermaid/actions/runs/40167575588 --jq .status)"
+          if [ "$state" != completed ]; then
+            gh api --method POST repos/adewale/agentic-mermaid/actions/runs/40167575588/cancel
+          fi
