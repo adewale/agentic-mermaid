@@ -1,66 +1,38 @@
-name: Unit coverage diagnostic
-
-# Coverage locates under-tested source; behavioral assertions remain in CI.
-# Instrumentation is expensive on the corpus/property suites, so collect it
-# weekly and on demand rather than slowing every pull request.
+name: Bundle exemption review evidence
 on:
-  schedule:
-    - cron: '37 4 * * 1'
   workflow_dispatch:
-
 permissions:
   contents: read
-
-concurrency:
-  group: coverage-diagnostic
-  cancel-in-progress: false
-
 jobs:
-  unit:
+  evidence:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1/3, 2/3, 3/3]
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
           no-cache: true
-      - run: bun install --frozen-lockfile
-      - name: Build the Node bundle for cross-runtime contracts
-        run: bunx --no-install tsup
-      - name: Run covered unit shard
-        run: bun run test:coverage -- --shard=${{ matrix.shard }} --parallel=2
-      - name: Upload shard coverage
-        if: ${{ always() }}
+      - name: Preserve the generator and check out the immutable candidate
+        run: |
+          cp scripts/pr-assets/bundle-exemption-evidence.ts "$RUNNER_TEMP/bundle-exemption-evidence.ts"
+          git checkout --detach 6a4284f65ab5cf4edeb206ca2382e20eee73a34a
+          git worktree add --detach ../bundle-evidence-base c31d16d002adcad518b7fa9fa67f85d9be26eba6
+      - name: Install the frozen dependencies in both revisions
+        run: |
+          bun install --frozen-lockfile
+          cd ../bundle-evidence-base
+          bun install --frozen-lockfile
+      - name: Render the same injected fault through both production pipelines
+        run: |
+          bun "$RUNNER_TEMP/bundle-exemption-evidence.ts" "$GITHUB_WORKSPACE/../bundle-evidence-base" "$GITHUB_WORKSPACE" "$RUNNER_TEMP/bundle-exemption-review"
+          cp "$RUNNER_TEMP/bundle-exemption-evidence.ts" "$RUNNER_TEMP/bundle-exemption-review/"
+      - name: Attach generated evidence
         uses: actions/upload-artifact@v7
         with:
-          name: unit-coverage-${{ strategy.job-index }}
-          path: coverage/lcov.info
-          if-no-files-found: warn
-          retention-days: 7
-
-  merge:
-    needs: unit
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v7
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4.2
-          no-cache: true
-      - uses: actions/download-artifact@v8
-        with:
-          pattern: unit-coverage-*
-          path: coverage-shards
-      - run: bun run scripts/ci/merge-lcov.ts coverage-shards coverage/lcov.info 3
-      - uses: actions/upload-artifact@v7
-        with:
-          name: coverage-lcov
-          path: coverage/lcov.info
+          name: bundle-exemptions-6a4284f
+          path: ${{ runner.temp }}/bundle-exemption-review/
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 30
