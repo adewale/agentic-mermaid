@@ -166,12 +166,13 @@ linkStyle 1 stroke:#ffff00`, { colorMode: 'truecolor' })
 test.each(['TB', 'BT'] as const)('state note attachments retain physical ports after %s layout', direction => {
   const result = renderMermaidASCIIWithReceipt(`stateDiagram-v2\ndirection ${direction}\nA --> B\nnote left of A : Left note\nnote right of B : Right note`, { colorMode: 'none' })
   const doc = terminalDocumentOf(result)!
-  const notes = doc.regions().filter(region => region.kind === 'node' && region.parentId)
+  const notes = doc.regions().filter(region => region.kind === 'node' && region.annotationTarget)
   expect(notes.map(note => note.projectedText).sort()).toEqual(['Left note', 'Right note'])
   for (const note of notes) {
     const link = doc.regions().find(region => region.kind === 'edge' && region.to === note.id)!
-    expect(link.from).toBe(note.parentId)
-    expect(link.ports?.map(port => [port.nodeId, port.end])).toEqual([[note.parentId!, 'start'], [note.id, 'end']])
+    expect(note.parentId).toBeUndefined()
+    expect(link.from).toBe(note.annotationTarget!.id)
+    expect(link.ports?.map(port => [port.nodeId, port.end])).toEqual([[note.annotationTarget!.id, 'start'], [note.id, 'end']])
     for (const port of link.ports!) {
       expect(doc.cell(port.x, port.y)?.owners.some(owner => owner.id === port.nodeId)).toBe(true)
     }

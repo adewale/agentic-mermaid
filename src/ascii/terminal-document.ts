@@ -16,6 +16,8 @@ export interface TerminalOwner {
   kind?: TerminalIdentity['kind']
   sourceLine?: number
   parent?: Readonly<TerminalIdentity>
+  /** Semantic attachment only; grants no containment or geometry privileges. */
+  annotationTarget?: Readonly<TerminalIdentity>
   members?: readonly string[]
   /** Shared runs may join only when their family layout declares a bundle. */
   bundle?: string
@@ -135,6 +137,7 @@ export interface TerminalRegion {
   sourceLine?: number
   parentId?: string
   parentKind?: TerminalIdentity['kind']
+  annotationTarget?: Readonly<TerminalIdentity>
   members?: readonly string[]
   from?: string
   to?: string
@@ -168,12 +171,13 @@ const canonicalOwnerDefinitions = new WeakSet<TerminalOwner>()
 const canonicalOwnerSets = new WeakSet<readonly TerminalOwner[]>()
 const emptyOwners = Object.freeze([]) as unknown as TerminalOwnerSet
 canonicalOwnerSets.add(emptyOwners)
-const definitionFields = ['sourceLine', 'parent', 'bundle', 'from', 'to', 'members'] as const
+const definitionFields = ['sourceLine', 'parent', 'annotationTarget', 'bundle', 'from', 'to', 'members'] as const
 
 function snapshotOwner(owner: TerminalOwner): TerminalOwner {
   if (canonicalOwnerDefinitions.has(owner)) return owner
   const snapshot = { ...owner }
   if (snapshot.parent) snapshot.parent = Object.freeze({ ...snapshot.parent })
+  if (snapshot.annotationTarget) snapshot.annotationTarget = Object.freeze({ ...snapshot.annotationTarget })
   if (snapshot.members) snapshot.members = Object.freeze([...snapshot.members])
   Object.freeze(snapshot)
   canonicalOwnerDefinitions.add(snapshot)
@@ -185,7 +189,7 @@ function validateOwner(previous: TerminalOwner, incoming: TerminalOwner): void {
     const value = incoming[field]
     if (value !== undefined && (field === 'members'
       ? JSON.stringify(value) !== JSON.stringify(previous[field])
-      : field === 'parent' ? ownerKey(value as TerminalIdentity) !== (previous.parent ? ownerKey(previous.parent) : undefined)
+      : field === 'parent' || field === 'annotationTarget' ? ownerKey(value as TerminalIdentity) !== (previous[field] ? ownerKey(previous[field]) : undefined)
         : value !== previous[field])) throw new Error(`Inconsistent terminal element ${incoming.id}: ${field}`)
   }
 }
@@ -1210,6 +1214,7 @@ export class TerminalDocument {
         id: owner.id, kind: owner.kind ?? 'node',
         ...(owner.sourceLine === undefined ? {} : { sourceLine: owner.sourceLine }),
         ...(owner.parent === undefined ? {} : { parentId: owner.parent.id, parentKind: owner.parent.kind }),
+        ...(owner.annotationTarget === undefined ? {} : { annotationTarget: owner.annotationTarget }),
         ...(owner.members === undefined ? {} : { members: owner.members }),
         ...(owner.from === undefined ? {} : { from: owner.from }),
         ...(owner.to === undefined ? {} : { to: owner.to }),

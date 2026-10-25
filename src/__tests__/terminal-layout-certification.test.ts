@@ -196,10 +196,27 @@ describe('final terminal cell certification', () => {
   test('checks owned content against allocated container frames without treating hierarchy as a guessed box', () => {
     const rendered = renderMermaidASCIIWithReceipt('flowchart LR\nsubgraph outer[Outer]\nsubgraph inner[Inner]\nA["界 A"] --> B[B]\nend\nend\nB --> C[C]', { colorMode: 'none' })
     expect(rendered.receipt.layoutCertification?.status).toBe('passed')
-    const document = new TerminalDocument()
-    document.region({ id: 'frame', kind: 'cluster', members: ['child'] }, { x: 0, y: 0, width: 2, height: 2 })
-    document.textBlock(3, 1, measuredText('outside'), { owner: { id: 'child', kind: 'node', parent: { id: 'frame', kind: 'cluster' } } })
-    expect(inspect(document)).toMatchObject({ status: 'failed', issues: [expect.objectContaining({ code: 'TERMINAL_PARENT_FRAME_BREACH', elementId: 'child' })] })
+    for (const annotationTarget of [undefined, { id: 'frame', kind: 'cluster' as const }]) {
+      const document = new TerminalDocument()
+      document.region({ id: 'frame', kind: 'cluster', members: ['child'] }, { x: 0, y: 0, width: 2, height: 2 })
+      document.textBlock(3, 1, measuredText('outside'), { owner: { id: 'child', kind: 'node', parent: { id: 'frame', kind: 'cluster' }, annotationTarget } })
+      expect(inspect(document)).toMatchObject({ status: 'failed', issues: [expect.objectContaining({ code: 'TERMINAL_PARENT_FRAME_BREACH', elementId: 'child' })] })
+    }
+  })
+
+  test.each(['node', 'cluster'] as const)('annotation targets resolve by identity without implying %s containment', kind => {
+    const target: TerminalOwner = { id: 'target', kind, members: [] }
+    const valid = new TerminalDocument()
+    valid.region(target, { x: 0, y: 0, width: 2, height: 2 })
+    valid.textBlock(3, 0, 'Note', { owner: { id: 'note', kind: 'node', annotationTarget: { id: 'target', kind } } })
+    expect(structuredClone(inspect(valid))).toMatchObject({ status: 'passed', issues: [] })
+    for (const reference of [{ id: 'missing', kind }, { id: 'target', kind: kind === 'node' ? 'cluster' as const : 'node' as const }]) {
+      const invalid = new TerminalDocument()
+      invalid.region(target, { x: 0, y: 0, width: 2, height: 2 })
+      invalid.textBlock(3, 0, 'Note', { owner: { id: 'note', kind: 'node', annotationTarget: reference } })
+      expect(structuredClone(inspect(invalid))).toMatchObject({ status: 'unverified', issues: [expect.objectContaining({ code: 'TERMINAL_ANNOTATION_TARGET_UNAVAILABLE', elementId: 'note' })] })
+      expect(invalid.regions().find(region => region.id === 'note')?.annotationTarget).toEqual(reference)
+    }
   })
 
   test('preserves intentional bundles, perpendicular crossings and numeric-mark occlusion', () => {
