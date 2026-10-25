@@ -1,5 +1,95 @@
 # Mermaid community benchmark ranking
 
+## Pinned Mermaid baseline, 25 October 2026
+
+Pinned **Mermaid 12.2.0** is the reference, with cost **1** in each matched lane.
+Lower cost is better. Coverage uses its full declared denominator and the
+observed difference from Mermaid; it is never assumed to be 100%.
+
+This set uses Pele **1.9.0**, Agentic **0.4.2** from product source
+`f8a2437b19e67a850145b786f72baf719da52837`, and the pinned Mermaid source
+`1fb7869866dd619168d840291c9c54b4f129758b`. Agentic's frozen archive is
+`6ee46d4915028a25dd97dcbe4b834b1e3c5686537e2857dedf582b876eadd275`.
+Newer main commits are not represented by these product measurements.
+
+### Current matched costs
+
+| Public operation or delivery | Agentic / Mermaid | Pele / Mermaid | Mermaid | Interpretation |
+| --- | ---: | ---: | ---: | --- |
+| Browser SVG, 48-case reused-page batch | 0.2989 | 0.0616 | 1 | Five counterbalanced rounds; both lower cost under the declared repeatability envelope |
+| Fresh browser through first consumed SVG | 0.6545 | 0.4834 | 1 | 25 fresh launches per role; both lower cost under the same rule |
+| Browser document V8 heap, output held after GC | 0.3853 | 0.1119 | 1 | Five separate passes; document/module heap only |
+| Requested file gzip estimate through first SVG | 0.3209 | 0.0841 | 1 | Actual requested closure; not HTTP transfer bytes or full-library size |
+| Fresh Node through first consumed parser result | 0.3864 | 0.1407 | 1 | 25 unpaired samples; descriptive, different public return shapes |
+| Node parser whole-child peak RSS | 0.5337 | 0.3459 | 1 | Five separate resource passes; unpaired, includes the required host |
+| Dave docs, 821 common-success occurrences | 0.1435 | 0.0068 | 1 | Original three-round public-render protocol; advisory |
+| Complete monolithic browser-global gzip | 0.7600 | 0.1676 | 1 | Frozen shipped bytes; separate from lazy first-render delivery |
+
+The fresh browser collection ran **20:41:21–20:44:27 UTC** and retained 1,420
+observations from 140 completed browser passes: five renderer rounds, 25 startup
+samples and five resource passes for each of Mermaid A0, Agentic, Pele and
+Mermaid A1. No declared checks failed; unsupported families remain explicit.
+The Mermaid A1/A0 renderer ratio was **1.0110**. Widened render ratio envelopes
+were **0.2539–0.3471** for Agentic and **0.0492–0.0719** for Pele, both below 1.
+These are repeatability diagnostics, not confidence intervals or measurements
+of a release improvement. Render work includes consumed structured sidecars and
+family activation; it is not identical to Dave's public SVG-return boundary.
+
+Fresh Node median startup was **239.19 ms** for Agentic, **87.07 ms** for Pele
+and **618.98 ms** for Mermaid. Median whole-child peak RSS was **79.23 MiB**,
+**51.36 MiB** and **148.46 MiB**. Mermaid's required jsdom host setup is inside
+these scopes. These observations do not compare equal AST outputs, isolated API
+allocations or bare-Node SVG renderers.
+
+### Admission and original assertions
+
+| Check | Agentic | Pele | Mermaid baseline | Meaning |
+| --- | ---: | ---: | ---: | --- |
+| Dave docs occurrences returning SVG in all rounds | 823/1,095 | 1,063/1,095 | 1,061/1,095 | Agentic -238, Pele +2; acceptance is not complete fidelity |
+| Original Mindmap/GitGraph callbacks passed | 75/100 | 90/100 | 90/100 | Each has six private/unavailable callbacks and four upstream skips |
+| Authored browser checks | 51/53 | 52/53 | 52/53 | Includes three negative controls; XML/canvas/text, not full paint or meaning |
+| Public parser admission bindings | 70/74 | 73/74 | 73/74 | 51 unique source/prelude calls; corpus memberships are not independent inputs |
+
+Agentic lacks native Event Modeling here; default configurations for all three
+lack the ZenUML renderer. Issues [#501](https://github.com/adewale/agentic-mermaid/issues/501)
+and [#502](https://github.com/adewale/agentic-mermaid/issues/502) retain the docs,
+runtime and community evidence. The parser strict-negative disagreement for an
+unfinished sequence is reported separately from generous source preservation;
+this lane does not invoke Agentic's verifier and does not establish a product
+parser bug. Original callback failures also include diagnostic wording and
+empty-tag representation; they are not 15 missing diagram features.
+
+### Wider community and remaining limits
+
+The separate historical reduction retains **88 current catalog projects**:
+84 have earlier evidence and four remain unmeasured. Only **25 independent
+implementations plus four attributed aliases** qualify for the six-input
+browser SVG cost comparison. Its leading independent ratios are Bezel **0.0012**,
+Ondine **0.0014**, Pele **0.0018** and Frankenmermaid **0.0027**, versus Mermaid 1;
+Agentic is **0.0411**. Those October 24 artifacts, inputs and three-round windows
+remain historical and are not merged with the current 48-case experiment.
+Parser-only, terminal, editor and core-Mermaid-absent API boundaries are unranked
+where no common Mermaid operation exists.
+
+The broad historical qualifier admits Mermaid on **855/963** fixtures; 77 fail,
+30 are parser-only N/A and one is unsupported. Source/configuration quirks and
+qualifier weaknesses need review. A peer with more admissions has not thereby
+proved better Mermaid fidelity. The original-assertion projection covers only
+**99 of 3,995** inventoried declarations. Full feature combinations, independently
+reviewed community paint/meaning, whole-browser/native/GPU memory, leak slopes,
+concurrency and deployed costs remain incomplete. See the
+[assessment](../eval/benchmark/ASSESSMENT.md) and
+[overview](../eval/benchmark/OVERVIEW.md).
+
+Current tables, JSON and 14 standalone SVG charts:
+`/workspace/mermaid-unified-2026-10-25/continuation/mermaid-baseline/current-report`.
+The separate full historical baseline rank is in
+`/workspace/mermaid-unified-2026-10-25/continuation/mermaid-baseline-retained/historical-community`.
+The [baseline guide](../eval/benchmark/visualizations/MERMAID-BASELINE.md) gives
+collection, update and read-only report commands. An exact repeat reused all six new browser/Node records, with zero new measurement
+attempt directories or record files. Original IDs, raw observations and dates
+were preserved; reports do not create measurements.
+
 Updated from community evidence **2026-10-24T20:22:33.890Z → 2026-10-24T22:03:34.154Z**. Separate measurement and composition windows are identified below.
 
 Original full-run ledger: **failed**, 2026-10-24T14:59:47.204Z → 2026-10-24T18:01:45.267Z; target `2cff725d219c75b75593b1d3e9bacd74cba7a08e`. Explicit scoped replays below do not rewrite that aggregate status.
@@ -14,7 +104,7 @@ rejects it rather than relabelling historical measurements.
 bun run bench:scorecard -- --run /workspace/mermaid-unified-2026-10-24/all --prs /workspace/mermaid-unified-2026-10-24/prs-latest --community-run /workspace/mermaid-unified-2026-10-24/community-corrected/community --allow-community-target-change --invocation-correction /workspace/mermaid-unified-2026-10-24/invocation-corrected/invocation-corrected.json --reference-correction /workspace/mermaid-unified-2026-10-24/reference-correction/pinned-reference-score/reference-score-result.json --current-run /workspace/mermaid-unified-2026-10-24/current-main --additional-run /workspace/mermaid-unified-2026-10-24/late-matched-current --cli-native-proof /workspace/mermaid-unified-2026-10-24/prep/main-native-reproduction.json --historical-prs /workspace/mermaid-unified-2026-10-24/prs-current --current-invocation-run /workspace/mermaid-unified-2026-10-24/latest-main-full --current-invocation-assets /workspace/mermaid-unified-2026-10-24/prep/latest-main-invocation-assets.json --current-dave-run /workspace/mermaid-unified-2026-10-24/latest-main-dave --family-correction /workspace/mermaid-unified-2026-10-24/family-empty-correction/manifest.json --cli-resource-run /workspace/mermaid-unified-2026-10-24/cli-resources --suite-run /workspace/mermaid-unified-2026-10-24/corrections/browser-provisioned --suite-run /workspace/mermaid-unified-2026-10-24/corrections/family-owner --suite-run /workspace/mermaid-unified-2026-10-24/corrections/ownership --suite-run /workspace/mermaid-unified-2026-10-24/late-maintained
 ```
 
-The JSON community catalog enrolls **84 nodes**, with **84 configured candidates**. Configuration is not a working-API claim. Actual acquisition, unsupported operations, host failures and source-evidence aliases remain visible; none become passing renderer results by enrollment alone.
+The historical campaign enrolled **84 nodes**, with **84 configured candidates**; the current catalog has 88 projects as described above. Configuration is not a working-API claim. Actual acquisition, unsupported operations, host failures and source-evidence aliases remain visible; none become passing renderer results by enrollment alone.
 
 ## Comparison policy
 

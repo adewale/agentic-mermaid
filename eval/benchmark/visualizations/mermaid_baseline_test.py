@@ -159,13 +159,14 @@ class BaselineControls(unittest.TestCase):
                             "functionality": {"bindings": bindings, "uniqueInvocations": 2},
                             "startup": {"caseId": "two-node", "count": 2, "samplesMs": [scale, scale], "rows": [{"status": "passed"}, {"status": "passed"}], "scope": "spawn through consumed first parse"},
                             "resources": {"rows": [{"status": "passed", "wholeWorker": {"peakRssBytes": scale}}] * 2, "scope": "whole child peak"}})
-        path = self.write("parser.json", {"targets": targets, "settings": {"startupCase": {"id": "two-node"}, "startupSamples": 2, "resourceSamples": 2}})
+        path = self.write("parser.json", {"targets": targets, "commonQualifiedCaseIds": ["positive"], "settings": {"startupCase": {"id": "two-node"}, "startupSamples": 2, "resourceSamples": 2}})
         result, _ = baseline.parser_baseline(path)
         self.assertEqual(result["quality"][1]["statuses"], {"passed": 1, "unavailable": 1})
         cell = result["lanes"][0]["cells"][1]
         self.assertEqual((cell["ratio"], cell["status"], cell["classification"]), (.2, "unpaired-advisory", "unresolved"))
+        self.assertEqual((result["commonPositiveAdmission"]["bindingCount"], result["commonPositiveAdmission"]["uniqueInvocationCount"]), (1, 1))
         targets[1]["artifact"]["package"]["version"] = "different"
-        path.write_text(json.dumps({"targets": targets, "settings": {"startupCase": {"id": "two-node"}, "startupSamples": 2, "resourceSamples": 2}}))
+        path.write_text(json.dumps({"targets": targets, "commonQualifiedCaseIds": ["positive"], "settings": {"startupCase": {"id": "two-node"}, "startupSamples": 2, "resourceSamples": 2}}))
         with self.assertRaisesRegex(ValueError, "artifact version mismatch"):
             baseline.parser_baseline(path)
 

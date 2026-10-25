@@ -428,6 +428,8 @@ def browser_baseline(path):
                 if not timing and not rolling:
                     cell["status"] = "observed-delivery-cost"
                     cell["classification"] = "descriptive only"
+                    cell["envelope"] = None
+                    cell.pop("envelopeScope", None)
                 cell["toolMedianCost"] = median(values[role])
                 cell["mermaidMedianCost"] = median(values["mermaid-a0"])
             cells.append(cell)
@@ -513,9 +515,14 @@ def parser_baseline(path):
             else:
                 status = "passed" if r.get("publicAccepted") is True and r.get("accepted") is True and r.get("expectedTypeMatches") is True and r.get("preludeMatches") is True else "failed"
             statuses[status] += 1
-        quality.append({"tool": target["project"], "passed": statuses["passed"], "population": len(bindings), "uniqueInvocations": target["functionality"]["uniqueInvocations"], "statuses": dict(statuses), "scope": "Public parser acceptance/rejection and declared family/prelude bindings; duplicate corpus memberships are bindings, not independent invocations. No AST, rendering or semantic-fidelity equivalence"})
+        quality.append({"tool": target["project"], "passed": statuses["passed"], "population": len(bindings), "uniqueInvocations": target["functionality"]["uniqueInvocations"], "statuses": dict(statuses), "interpretationNotes": sorted({b["result"]["scopeNote"] for b in bindings if b["result"].get("scopeNote")}), "scope": "Public parser acceptance/rejection and declared family/prelude bindings; duplicate corpus memberships are bindings, not independent invocations. No AST, rendering or semantic-fidelity equivalence"})
     if any(ids != binding_sets[0] for ids in binding_sets):
         raise ValueError("Node parser targets have different functionality binding sets")
+    expected_common = [binding["bindingId"] for binding in baseline["functionality"]["bindings"] if len(targets) > 1 and binding["expectedAccepted"] and all(any(b["bindingId"] == binding["bindingId"] and b["result"]["status"] == "passed" and b["result"].get("accepted") is True for b in target["functionality"]["bindings"]) for target in targets)]
+    declared_common = report["commonQualifiedCaseIds"]
+    if len(declared_common) != len(set(declared_common)) or set(declared_common) != set(expected_common):
+        raise ValueError("Node parser shared positive binding ledger differs from actual target results")
+    unique_common = sorted({b["uniqueId"] for b in baseline["functionality"]["bindings"] if b["bindingId"] in declared_common})
     baseline_passed = next(r["passed"] for r in quality if r["tool"] == MERMAID)
     for row in quality:
         row["deltaPassedVersusMermaid"] = row["passed"] - baseline_passed
@@ -538,6 +545,7 @@ def parser_baseline(path):
             destination.append({"tool": target["project"], "version": None, "ratio": None, "status": "unranked", "classification": "unresolved", "reason": target["reason"]})
     return {"id": "node-parser-baseline", "source": str(path), "settings": report["settings"], "identities": [{"tool": t["project"], "artifact": {"target": t["artifact"]["target"], "package": {"name": t["artifact"]["package"]["name"], "version": t["artifact"]["package"]["version"]}, "entrySha256": t["artifact"]["entrySha256"]}, "fullReceiptSource": str(path), "recordId": t["recordId"], "startedAt": t["startedAt"], "finishedAt": t["finishedAt"]} for t in targets],
             "unavailableTargets": report.get("unavailableTargets", []),
+            "commonPositiveAdmission": {"bindingIds": declared_common, "bindingCount": len(declared_common), "uniqueInvocationIds": unique_common, "uniqueInvocationCount": len(unique_common), "scope": "Functional admission only. Repeated corpus memberships are not independent samples; startup/resource costs use their separate single two-node source."},
             "lanes": [{"id": "fresh-node-parser-first-consumed-result", "boundary": "Fresh parent spawn through first fully consumed serialized public parser return; host setup/jsdom/import included", "caseIds": [expected_case], "unit": "median milliseconds", "cells": cells, "noiseQualification": "Unpaired25-sample descriptive distributions; no A/A or statistically qualified speedup claim"},
                       {"id": "fresh-node-parser-whole-child-peak-rss", "boundary": "Separate fresh process import/setup/first consumed parse; GNU time whole-child peak RSS, not API allocation or browser memory", "caseIds": [expected_case], "unit": "peak RSS bytes", "cells": resource_cells, "noiseQualification": "Separate five-pass unpaired resource distributions; no calibrated efficiency claim"}],
             "quality": quality, "gaps": report.get("gaps", []) + ["Parser startup is not SVG rendering or warm public API latency. Resource snapshots/whole-child RSS use different scopes and are not pooled.", "This advisory ratio has no paired A/A calibration; all better/worse decisions remain unresolved."]}, claims
@@ -546,12 +554,20 @@ def parser_baseline(path):
 def markdown(report):
     lines = ["# Pinned Mermaid baseline", "", "Cost ratio = tool / Mermaid; Mermaid=1 and lower costs less. Each table has its own public boundary and exact input cohort. No overall score. Historical and current evidence are separate sets.", ""]
     for dataset in report["datasets"]:
-        lines += ["## " + dataset["id"], "", f"Evidence: `{dataset.get('source', dataset.get('sources'))}`", "", f"Window: {dataset.get('startedAt', 'see individual receipts')} → {dataset.get('finishedAt', 'see individual receipts')}", ""]
+        source_paths = [dataset["source"]] if dataset.get("source") else [source["path"] if isinstance(source, dict) else str(source) for source in dataset.get("sources", [])]
+        lines += ["## " + dataset["id"], "", "Evidence:", "", *[f"- `{path}`" for path in source_paths], ""]
+        if dataset.get("startedAt") and dataset.get("finishedAt"):
+            lines += [f"Window: {dataset['startedAt']} → {dataset['finishedAt']}", ""]
+        else:
+            lines += ["Windows: see the owning retained records referenced by these sources; detailed provenance is in summary.json.", ""]
         for lane in dataset["lanes"]:
-            lines += ["### " + lane["id"], "", lane["boundary"], "", lane.get("noiseQualification", ""), "", f"Matched inputs: {len(lane['caseIds'])}; units: {lane['unit']}.", "", "|Tool|Cost / Mermaid|Status|Decision|", "|---|---:|---|---|"]
+            lines += ["### " + lane["id"], "", lane["boundary"], "", lane.get("noiseQualification", ""), "", f"Matched inputs: {len(lane['caseIds'])}; units: {lane['unit']}.", "", "|Tool|Cost / Mermaid|Status|Decision|A1/A0 median|Repeatability envelope|", "|---|---:|---|---|---:|---|"]
             for cell in sorted(lane["cells"], key=lambda c: (c.get("ratio") is None, c.get("ratio") or 0, c["tool"])):
                 ratio = "—" if cell.get("ratio") is None else f"{cell['ratio']:.4f}"
-                lines.append(f"|{cell['tool']}|{ratio}|{cell['status']}{'; artifact alias of '+cell['aliasOf'] if cell.get('aliasOf') else ''}|{cell.get('classification', 'descriptive only')}|")
+                decision = "reference" if cell["tool"] == MERMAID and cell.get("ratio") == 1 else cell.get("classification", "descriptive only")
+                control = f"{cell['controlRatio']:.4f}" if cell.get("controlRatio") is not None else "—"
+                envelope = f"[{cell['envelope'][0]:.4f}, {cell['envelope'][1]:.4f}]" if cell.get("envelope") and cell["status"] == "repeatability-qualified" else "—"
+                lines.append(f"|{cell['tool']}|{ratio}|{cell['status']}{'; artifact alias of '+cell['aliasOf'] if cell.get('aliasOf') else ''}|{decision}|{control}|{envelope}|")
             lines.append("")
         if dataset["quality"]:
             lines += ["### Absolute admission / assertions", "", "|Tool|Passed / declared population|Passed delta versus Mermaid|Other outcomes|", "|---|---:|---:|---|"]
@@ -559,6 +575,11 @@ def markdown(report):
                 other = {k: v for k, v in row["statuses"].items() if k != "passed"}
                 lines.append(f"|{row['tool']}|{row['passed']}/{row['population']}|{row['deltaPassedVersusMermaid']:+}|{json.dumps(other, sort_keys=True)}|")
             lines += ["", dataset["quality"][0]["scope"], ""]
+            for row in dataset["quality"]:
+                lines += [f"{row['tool']}: {note}" for note in row.get("interpretationNotes", [])]
+            if dataset.get("commonPositiveAdmission"):
+                common = dataset["commonPositiveAdmission"]
+                lines += ["", f"Common positive admission: {common['bindingCount']} binding IDs / {common['uniqueInvocationCount']} unique source/prelude invocations. These are functional checks; startup/resource costs use one separate two-node source.", ""]
         lines += ["Remaining limits:", "", *["- " + gap for gap in dataset["gaps"]], ""]
     return "\n".join(lines)
 
