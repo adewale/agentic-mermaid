@@ -1,4 +1,5 @@
 import { sanitizeDisplayLines } from '../shared/text-controls.ts'
+import { decodeXML } from 'entities'
 // ============================================================================
 // Mark constructors — the only way family lowerings build scene nodes.
 //
@@ -35,7 +36,7 @@ import {
 } from './connector-geometry.ts'
 import { connectorInlineLabelText } from './bounds.ts'
 import { setConnectorTerminalProjection, copyDeferredTerminalProjection, deferredTerminalProjectionInput } from './deferred-terminal-projection.ts'
-import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
+import { visitSvgFirstTagAttributes } from '../svg-structure.ts'
 import { parseSvgTransform, transformMatrix } from './transforms.ts'
 import {
   admitWritableSceneNode,
@@ -73,18 +74,19 @@ const CUSTOM_PROPERTIES = /^\s*(?:--[A-Za-z0-9_-]+\s*:[^;]*(?:;\s*|$))*$/
 /** A group's open tag carries hooks, and the transform its typed field
  * declares; paint belongs to the marks inside it, which the writer paints. */
 function assertInertGroupOpen(id: string, open: string, transform: SceneTransform | undefined): void {
-  const tag = GROUP_OPEN.test(open) ? scanSvgStartTags(open)[0] : undefined
-  if (!tag || tag.name !== 'g') throw new TypeError(`Group "${id}" open must be one <g> tag with an optional <title>`)
   const names = new Set<string>()
-  for (const attribute of tag.attributes) {
-    if (names.has(attribute.name)) throw new TypeError(`Group "${id}" open has a duplicate "${attribute.name}"`)
-    names.add(attribute.name)
-    if (!GROUP_HOOK.test(attribute.name)) throw new TypeError(`Group "${id}" open sets "${attribute.name}"; paint and geometry belong to typed marks`)
-    if (attribute.name === 'style' && !CUSTOM_PROPERTIES.test(decodedSvgAttributeValue(tag, 'style') ?? '')) {
+  let rawTransform: string | undefined
+  const tag = GROUP_OPEN.test(open) ? visitSvgFirstTagAttributes(open, 'g', (name, value) => {
+    if (names.has(name)) throw new TypeError(`Group "${id}" open has a duplicate "${name}"`)
+    names.add(name)
+    if (!GROUP_HOOK.test(name)) throw new TypeError(`Group "${id}" open sets "${name}"; paint and geometry belong to typed marks`)
+    if (name === 'style' && !CUSTOM_PROPERTIES.test(decodeXML(value))) {
       throw new TypeError(`Group "${id}" open style may only set custom properties; paint belongs to typed marks`)
     }
-  }
-  const written = decodedSvgAttributeValue(tag, 'transform')
+    if (name === 'transform') rawTransform = value
+  }) : undefined
+  if (tag !== 'g') throw new TypeError(`Group "${id}" open must be one <g> tag with an optional <title>`)
+  const written = rawTransform === undefined ? undefined : decodeXML(rawTransform)
   const matrix = written === undefined ? undefined : parseSvgTransform(written)
   const typed = transform ? transformMatrix(transform) : undefined
   if (written !== undefined && !matrix) throw new TypeError(`Group "${id}" open has an unsupported transform`)

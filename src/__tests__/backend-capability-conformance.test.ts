@@ -136,6 +136,8 @@ describe('claim-keyed backend capability conformance', () => {
           [String.raw`<rect style="fill:java\73 cript:alert(1)"/>`, 'active content'],
           ['<style>rect{fill:expre/**/ssion(alert(1))}</style>', 'active content'],
           ['<rect x="1" x="2"/>', 'invalid SVG document envelope'],
+          ['<text>\ud800</text>', 'invalid SVG document envelope'],
+          ['<script>&#xFFFF;</script>', 'invalid SVG document envelope'],
         ] as const) {
           content = markup
           expect(() => renderer.renderMermaidSVG(source, { security })).toThrow(diagnostic)
@@ -168,11 +170,11 @@ describe('claim-keyed backend capability conformance', () => {
     const xmlns = 'xmlns="http://www.w3.org/2000/svg"'
     expect(verifySvgDocumentEnvelope(`<svg ${xmlns}><text>safe &amp; sound</text></svg>`)).toBe(true)
     // Raw XML characters and numeric references obey the same scalar bounds.
-    for (const text of ['\t\n\r', 'café 東京', '\u{10000}', '\u{10ffff}', '&#9;&#10;&#13;&#x10000;']) {
+    for (const text of ['\t\n\r', 'café 東京', '👩‍💻 é', '\u{10000}', '\u{10ffff}', '&#9;&#10;&#13;&#x10000;']) {
       expect(verifySvgDocumentEnvelope(`<svg ${xmlns}><text>${text}</text></svg>`), text).toBe(true)
       expect(verifySvgDocumentEnvelope(`<svg ${xmlns} data-label="${text}"></svg>`), text).toBe(true)
     }
-    for (const text of ['\u0000', '\u0008', '\u000b', '\u000c', '\u001f', '\ud800', '\udfff', '\ufffe', '\uffff', '&#0;', '&#xD800;', '&#xFFFE;', '&#x110000;']) {
+    for (const text of ['\u0000', '\u0008', '\u000b', '\u000c', '\u001f', '\ud800', '\udfff', '\ufffe', '\uffff', '&#0;', '&#xD800;', '&#xFFFE;', '&#xFFFF;', '&#x110000;']) {
       for (const document of [`<svg ${xmlns}><text>${text}</text></svg>`, `<svg ${xmlns} data-label="${text}"></svg>`]) {
         expect(verifySvgDocumentEnvelope(document), text).toBe(false)
         expect(() => applyOutputSecurityPolicy(document, 'strict')).toThrow(/invalid SVG document envelope/)
