@@ -182,3 +182,35 @@ test.each(['accessor', 'proxy'])('built-in fixture reuse leaves %s backend obser
   `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' } })
   expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
 })
+
+test('Sequence layout and drawing stay sibling stages through reentry and observer failure', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import assert from 'node:assert/strict'
+    import { renderMermaidSVGWithReceipt } from './src/index.ts'
+    import { withRenderStageObserver } from './src/render-stages.ts'
+    const source = 'sequenceDiagram\\nA->>B: Forward\\nB->>A: Back'
+    const expected = JSON.stringify(renderMermaidSVGWithReceipt(source))
+    const stages = []
+    let entered = false, nested
+    const result = withRenderStageObserver(sample => {
+      stages.push({ stage: sample.stage, depth: sample.depth, parent: sample.parent })
+      if (sample.stage === 'layout' && !entered) {
+        entered = true
+        nested = JSON.stringify(renderMermaidSVGWithReceipt(source))
+      }
+    }, () => renderMermaidSVGWithReceipt(source))
+    assert.equal(JSON.stringify(result), expected)
+    assert.equal(nested, expected)
+    assert.deepEqual(stages.map(sample => sample.stage), [
+      'request', 'layout', 'request', 'layout', 'drawing', 'paint-certification', 'svg-security',
+      'drawing', 'paint-certification', 'svg-security',
+    ])
+    assert.ok(stages.every(sample => sample.depth === 0 && sample.parent === undefined))
+    const fault = new Error('drawing observation stopped this call')
+    assert.throws(() => withRenderStageObserver(sample => {
+      if (sample.stage === 'drawing') throw fault
+    }, () => renderMermaidSVGWithReceipt(source)), error => error === fault)
+    assert.equal(JSON.stringify(renderMermaidSVGWithReceipt(source)), expected)
+  `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '0' } })
+  expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+})

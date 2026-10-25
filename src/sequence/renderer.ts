@@ -17,6 +17,7 @@ import { serializeMarkerResources } from '../scene/marker-resources.ts'
 import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
 import { messageLabelOcclusion, type VisibleSpan } from './label-occlusion.ts'
 import { semanticChildId } from '../scene/identity.ts'
+import { sequenceLineSinkOf } from '../scene/sequence-line-sink.ts'
 
 
 // ============================================================================
@@ -613,6 +614,9 @@ function renderMessage<T>(
   inkAt: SurfaceInk,
   markerResources: readonly MarkerDescriptor[],
 ): T {
+  // Identity-only lookup: a public/custom factory observes exactly its
+  // existing property/getter/callback sequence and receives no new probe.
+  const lineSink = sequenceLineSinkOf(marks)
   const children: Array<{ node: T; indent: number }> = []
   const startMarker = sequenceMarkerFor(markerResources, msg.startHead)
   const endMarker = sequenceMarkerFor(markerResources, msg.endHead)
@@ -680,9 +684,16 @@ function renderMessage<T>(
     // Normal message: horizontal arrow
     const p0 = msg.points[0]!
     const p1 = msg.points[msg.points.length - 1]!
+    const line = lineSink && msg.lineStyle === 'solid' && msg.startHead === 'none' && msg.endHead === 'filled'
+      && !msg.centralStart && !msg.centralEnd && endMarker?.id === 'seq-arrow'
+      ? lineSink({ id: `${sceneId}:line`, from: msg.from, to: msg.to,
+        x1: p0.x, y1: p0.y, x2: p1.x, y2: p1.y,
+        strokeColor: rawStroke, strokeWidth: linePaint.strokeWidth, label: msg.label,
+        ...(msg.labelContent ? { labelContent: msg.labelContent } : {}),
+      }) : undefined
     children.push({
       indent: 2,
-      node: marks.connector({
+      node: line ?? marks.connector({
         id: `${sceneId}:line`,
         role: 'message',
         geometry: { kind: 'line', x1: p0.x, y1: p0.y, x2: p1.x, y2: p1.y },
