@@ -1,11 +1,36 @@
 import { expect, test } from 'bun:test'
 import { createRequire } from 'node:module'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { baselineBrowserAction } from '../unified/baseline-browser-worker.mjs'
-import { baselineRoleOrder, qualifyBaselineBrowser, type BaselineBrowserCase } from '../unified/baseline-browser.ts'
+import { baselineBrowserCases, baselineRoleOrder, qualifyBaselineBrowser, type BaselineBrowserCase } from '../unified/baseline-browser.ts'
+import { runRetainedSuite } from '../unified/retained-suite.ts'
 
 const witness: BaselineBrowserCase = { id: 'independent-label-witness', family: 'flowchart', source: 'flowchart LR\nA[Alpha] --> B[Beta]', cohorts: ['test'], expected: { accept: true, labels: ['Alpha', 'Beta'] } }
 const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 40"><text>Alpha Beta</text></svg>'
+
+test('full browser case identity admits optional edit preludes before collection and reuses the completed record', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'browser-baseline-identity-'))
+  try {
+    let collections = 0
+    const options = {
+      out: join(directory, 'out'), records: join(directory, 'records'),
+      identity: () => ({ project: 'fixture/browser-baseline', lane: 'pinned-browser-baseline', protocol: { rendererRounds: 5, startupSamplesPerRole: 25, resourcePassesPerRole: 5, cases: baselineBrowserCases() }, artifact: { fixture: true }, measurement: { fixture: true } }),
+      measure: async () => {
+        collections++
+        return { id: 'pinned-browser-baseline', status: 'passed' as const, startedAt: '2026-10-25T00:00:00Z', finishedAt: '2026-10-25T00:00:01Z', observations: [{ suite: 'pinned-browser-baseline', surface: 'fixture', runtime: 'fixture', family: 'flowchart', caseId: 'identity-admission', operation: 'prepare', format: 'json', mode: 'fixture', status: 'passed' as const }], gaps: [] }
+      },
+    }
+    const first = await runRetainedSuite(options)
+    expect(first.status).toBe('passed')
+    expect(collections).toBe(1)
+    const repeated = await runRetainedSuite(options)
+    expect(repeated.observations).toEqual(first.observations)
+    expect(collections).toBe(1)
+    expect(JSON.parse(readFileSync(join(options.out, 'cache.json'), 'utf8')).reused).toBe(true)
+  } finally { rmSync(directory, { recursive: true, force: true }) }
+})
 
 test('baseline public-result gate checks authored SVG independently and never treats infrastructure failure as expected rejection', () => {
   expect(qualifyBaselineBrowser(witness, { accepted: true, svg, sidecarsComplete: true }).status).toBe('passed')
