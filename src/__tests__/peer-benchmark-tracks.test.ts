@@ -109,7 +109,8 @@ describe('maintained consumed peer protocol', () => {
     let allocations = 0
     let validations = 0
     const result = await measurePeerTrack({ peer: 'fake', input, track,
-      render() {
+      render(source) {
+        expect(source).toBe(input.source)
         if (global[observerKey]) { diagnostics++; global[observerKey]!({ version: 1, kind: 'scope', owner: 'graphical' }) }
         return svg
       },
@@ -167,7 +168,11 @@ describe('maintained consumed peer protocol', () => {
     expect(fast.row.warmup!.calls).not.toBe(slow.row.warmup!.calls)
     for (const observed of [fast, slow]) {
       expect(observed.row.status).toBe('ok')
-      expect(new Set(observed.sources.slice(0, observed.row.warmup!.calls)).size).toBe(20)
+      const priming = observed.sources.slice(0, observed.row.warmup!.calls)
+      expect(new Set(priming).size).toBe(observed.row.warmup!.calls)
+      expect(priming.at(-1)).toBe(phase === 'warm-new-source'
+        ? `flowchart TD\n w${observed.row.warmup!.calls}_A[w${observed.row.warmup!.calls.toString(36)}] --> w${observed.row.warmup!.calls}_B[End]`
+        : `flowchart TD\n A[w${observed.row.warmup!.calls.toString(36)}] --> B[End]`)
       expect(observed.timed).toEqual(expected)
       expect(observed.row.calls.map(call => [call.variant, call.domain])).toEqual([[1, 'timing'], [2, 'timing']])
       for (const source of observed.timed) expect(observed.sources.filter(value => value === source)).toHaveLength(1)
