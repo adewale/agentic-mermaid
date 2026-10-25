@@ -124,6 +124,15 @@ export function performanceScorecard(candidate: PerformanceReport, controls: rea
   check('Every Agentic scaling track succeeds', scalingMissing.length === 0, scalingMissing.join(', '))
   const agenticDiagnostics = observations.filter(o => o.peer === 'agentic' && o.status === 'ok')
   check('Actual candidate cache/fallback diagnostic replays complete', agenticDiagnostics.length > 0 && agenticDiagnostics.every(o => o.diagnostics?.status === 'observed' && o.diagnostics.complete === true))
+  if ([candidate, ...controls].some(r => r.tracksConfig?.consumption === 'indexed-utf8-checksum-v1')) {
+    check('Indexed consumer protocol matches every side', [candidate, ...controls].every(r => r.tracksConfig?.consumption === 'indexed-utf8-checksum-v1'))
+    const truncated = [candidate, ...controls].flatMap(r => r.tracks.observations.filter(o => {
+      if (o.status !== 'ok') return false
+      const planned = o.phase === 'first-use' ? r.tracksConfig?.coldSamples : r.tracksConfig?.samples
+      return typeof planned !== 'number' || !Number.isInteger(planned) || planned <= 0 || o.callSamplesMs.length !== planned
+    }).map(o => `${r.runId}/${key(o)}`))
+    check('Declared indexed timing populations complete', truncated.length === 0, truncated.join(', '))
+  }
 
   const graph = (r: PerformanceReport, peer: string) => r.pins.find(p => p.peer === peer)?.runtimeDependencySha256
   const graphValid = (s: string | undefined) => /^[a-f0-9]{64}$/.test(s ?? '')
