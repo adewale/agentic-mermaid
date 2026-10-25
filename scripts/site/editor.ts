@@ -237,7 +237,10 @@ async function generateEditorHtml(): Promise<string> {
     // terminal adapter; keep legal comments and escape script delimiters.
     const compressed = await minify(await buildResult.outputs[0]!.text(), {
       ecma: 2022, module: true, mangle: true,
-      compress: { defaults: false, join_vars: true, evaluate: true, unused: true, keep_fargs: true },
+      compress: {
+        defaults: false, join_vars: true, evaluate: true, unused: true, keep_fargs: true,
+        dead_code: true, conditionals: true, booleans: true, comparisons: true,
+      },
       format: { comments: 'some', inlineScript: true },
     })
     if (!compressed.code) throw new Error('Standalone runtime compression produced no module')
