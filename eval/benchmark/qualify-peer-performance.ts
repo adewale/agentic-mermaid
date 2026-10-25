@@ -4,7 +4,8 @@ import { createHash } from 'node:crypto'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { performanceMarkdown, performanceScorecard, PERFORMANCE_POLICY, type PerformanceReport } from './performance-gates.ts'
+import { performanceMarkdown, performanceScorecard, PERFORMANCE_POLICY, type PerformanceReport, type PerformanceScope } from './performance-gates.ts'
+import { PEER_CONSUMERS, PEER_PHASES } from './peer-tracks.ts'
 import { ROOT } from './revision-tree.ts'
 import { assertMatchedAgenticRuntimes, frozenRuntimePolicy, installAgenticRuntime } from './release-baseline.ts'
 
@@ -25,17 +26,21 @@ const cache = option('--elk-cache', 'off')!
 if (!['on', 'off'].includes(cache)) throw new Error('--elk-cache must be on or off')
 const rounds = Number(option('--rounds', '5'))
 if (!Number.isSafeInteger(rounds) || rounds < 1) throw new Error('--rounds must be a positive integer')
+const phase = option('--phase'), consumer = option('--consumer')
+if ((phase === undefined) !== (consumer === undefined)) throw new Error('Provide both --phase and --consumer for a qualification shard')
+if (phase !== undefined && (!(PEER_PHASES as readonly string[]).includes(phase) || !(PEER_CONSUMERS as readonly string[]).includes(consumer!))) throw new Error('Unknown qualification phase or consumer')
+const scope = phase === undefined ? undefined : { phase, consumer } as PerformanceScope
 const out = resolve(option('--out', 'bench-report/semantic-performance')!)
 const runtimeSource = resolve(option('--runtime-source', ROOT)!)
 mkdirSync(out, { recursive: true })
-const receipt: { status: string; complete: boolean; historicalAnchor: string; candidateSha: string; baselineSha: string; cache: string; rounds: number; quick: boolean; steps: object[] } = {
-  status: 'incomplete', complete: false, historicalAnchor: PERFORMANCE_POLICY.historicalAnchor, candidateSha, baselineSha, cache, rounds, quick: args.includes('--quick'), steps: [],
+const receipt: { status: string; complete: boolean; scopeComplete: boolean; scope: PerformanceScope | null; historicalAnchor: string; candidateSha: string; baselineSha: string; cache: string; rounds: number; quick: boolean; steps: object[] } = {
+  status: 'incomplete', complete: false, scopeComplete: false, scope: scope ?? null, historicalAnchor: PERFORMANCE_POLICY.historicalAnchor, candidateSha, baselineSha, cache, rounds, quick: args.includes('--quick'), steps: [],
 }
 const save = () => writeFileSync(join(out, 'qualification-status.json'), `${JSON.stringify(receipt, null, 2)}\n`)
 save()
 async function run(name: string, aa: boolean): Promise<PerformanceReport> {
   const json = join(out, `${name}.json`)
-  const command = ['run', 'eval/benchmark/peer-bench.ts', '--peers', 'agentic,beautiful,zombie,pele', '--tracks', 'all', '--rounds', String(rounds), '--elk-cache', cache,
+  const command = ['run', 'eval/benchmark/peer-bench.ts', '--peers', 'agentic,beautiful,zombie,pele', '--tracks', scope?.phase ?? 'all', ...(scope ? ['--track-consumers', scope.consumer] : []), '--rounds', String(rounds), '--elk-cache', cache,
     '--candidate-tarball', aa ? baseline : candidate, '--candidate-sha256', aa ? baselineSha : candidateSha,
     '--baseline-tarball', baseline, '--baseline-sha256', baselineSha, '--runtime-source', runtimeSource, '--json', json, '--markdown', join(out, `${name}.md`), ...(args.includes('--quick') ? ['--quick'] : [])]
   const started = new Date().toISOString()
@@ -65,11 +70,12 @@ try {
   // Independent processes and report IDs; no reused partial controls.
   const controls = [await run('aa-1', true), await run('aa-2', true)]
   const comparison = await run('candidate', false)
-  const score = performanceScorecard(comparison, controls)
+  const score = performanceScorecard(comparison, controls, scope)
   writeFileSync(join(out, 'gates.json'), `${JSON.stringify(score, null, 2)}\n`)
   writeFileSync(join(out, 'gates.md'), performanceMarkdown(score))
   receipt.status = score.status
-  receipt.complete = true
+  receipt.complete = scope === undefined
+  receipt.scopeComplete = true
   save()
   console.log(`Semantic performance qualification: ${score.status}; historical anchor remains ${receipt.historicalAnchor}`)
   if (!score.ok) process.exitCode = 1
