@@ -2952,3 +2952,160 @@ launching timing workers. No other community project was retimed.
 The [suite overview](../eval/benchmark/OVERVIEW.md) describes how to compare these
 lanes and where coverage remains partial.
 <!-- portable-pele-case-study:end -->
+
+<!-- primary-contract-results-2026-10-25:start -->
+## Docs, original tests, required families and startup, 25 October 2026
+
+These new lanes supplement the historical ranks above. They use the candidate
+rebuilt after rebasing onto main `f8a2437b19e67a850145b786f72baf719da52837`.
+Its publication archive SHA-256 is
+`6ee46d4915028a25dd97dcbe4b834b1e3c5686537e2857dedf582b876eadd275`.
+Benchmark changes do not establish a product optimization. Other community
+implementations retain their earlier measurements and dates.
+
+### Original Dave workload
+
+Measured 15:02:51–15:05:03 UTC in Chromium 154, three counterbalanced rounds,
+30 corpus warmups per engine/round, ELK cache disabled. All **1,095 official
+fence occurrences**, representing 546 distinct examples across 34 pages,
+remain in the denominator. Versions and boundaries match the original lane;
+its Pele **1.6.0** is distinct from Pele **1.9.0** in the startup campaign.
+
+| Implementation | Returns SVG in every round | Complete browser bundle gzip |
+| --- | ---: | ---: |
+| Agentic Mermaid 0.4.2 | 823/1,095 | 1,166.0 KiB |
+| Pele 1.6.0 | 1,063/1,095 | 246.9 KiB |
+| Mermaid 12.2.0 | 1,061/1,095 | 1,534.1 KiB |
+
+On the 823 shared-success occurrences, Agentic/Pele render-call ratios were
+13.60, 21.74 and 20.09; median **20.09×**. Against Mermaid, the shared cohort
+contains 821 occurrences and the median ratio is **0.17×**. This ranks returned
+SVG work, excluding import, validation and paint. Failed cases cannot become
+cheap successful renders. These three rounds do not provide a calibrated
+release-regression claim or a tail-latency estimate.
+
+Agentic's missing cases comprise 270 unsupported-family occurrences and two
+Gantt examples rejected by the default raw-`themeCSS` security policy. Event
+Modeling contributes 26 occurrences and ZenUML 32. Other excluded families
+remain in Dave even when their beta status excludes them from the stable-family
+requirement. Mermaid's own two asset/environment failures also remain visible.
+
+The lazy Agentic entry fetches 5.4 KiB gzip initially and **231.9 KiB through
+its first flowchart**. A bundled focused SVG consumer is 945.3 KiB gzip.
+Those are different deployment choices; an unloaded loader is not a renderer,
+and summing separately compressed files is not a single compressed archive.
+SVG acceptance is not native-semantic or painted fidelity.
+
+### Current original assertions and selected historical inputs
+
+The original-callback lane executes unchanged expectations from pinned Mermaid
+12.2.0 Mindmap/GitGraph specs through reviewed public-model adapters. The two
+files contain 99 declarations expanding to 100 callbacks. Failures stop a
+callback, so individual executed assertions are not a fixed score denominator.
+
+| Implementation | Passed callbacks | Failed | Private/unavailable | Upstream skipped |
+| --- | ---: | ---: | ---: | ---: |
+| Agentic Mermaid | 75 | 15 | 6 | 4 |
+| Pele 1.9.0 | 90 | 0 | 6 | 4 |
+| Mermaid 12.2.0 | 90 | 0 | 6 | 4 |
+
+Thirteen Agentic failures concern exact diagnostic wording despite actual
+rejection; two concern empty cherry-pick tags represented differently. These
+strict compatibility failures do not by themselves prove wrong drawings.
+The unchanged original spec expects an empty array where the historical
+adapted JSON expected an empty-string tag; the new lane exposes that old
+adaptation error without rewriting either historical file.
+
+The full monorepo inventory has **368 tracked spec/test files and 3,995 AST
+test declarations**. Most remain unprojected. Literal replay receives no
+original-assertion pass credit. Worker wall time includes imports, preparation,
+facades and assertions; it is not unchanged upstream-runner time.
+
+The separate selected-input reference lane accepted all 580 eligible inputs
+in both engines. Per round, Agentic passed **2,498/2,626** criteria and Mermaid
+**2,620/2,626**. This harvest contains Agentic-derived fields and existential
+label checks. Mermaid's six misses also show why it must not be presented as
+a complete fidelity oracle. Its scope and scores are not interchangeable with
+the original-callback table.
+
+### Required-family admission
+
+Both implementations pass public SVG and authored-label admission for all
+**20 policy-stable families**. Two unresolved maturity exclusions are retained
+conservatively as required: Agentic admits **20/22**, Pele **21/22**. Pele's
+additional admission is Event Modeling; ZenUML fails for both configured
+artifacts. The review uncertainty blocks a complete-library claim.
+
+Detailed implementation issues connect actual failures to open and closed
+community work: [Event Modeling #501](https://github.com/adewale/agentic-mermaid/issues/501)
+and [ZenUML #502](https://github.com/adewale/agentic-mermaid/issues/502). Source
+preservation is not native support. One representative per family does not
+exercise every feature, edit operation, configuration or painted relationship.
+
+### Fresh entry startup and resources
+
+The same authored small flowchart was consumed through the named SVG entries.
+Each latency distribution has **25 fresh process observations** across five
+rounds. p95 is nearest rank. Resource diagnostics use **five separate fresh
+paired passes**; peak RSS is whole-child lifetime, reported here as its median.
+Fresh processes do not imply a cold filesystem cache.
+
+| Runtime | Project / public entry | First fully consumed result, median / p95 ms | Peak RSS, median MiB |
+| --- | --- | ---: | ---: |
+| Node 24.19 | Agentic root | 267.00 / 291.18 | 64.86 |
+| Node 24.19 | Agentic `./svg` | 210.81 / 231.53 | 61.65 |
+| Node 24.19 | Pele root | 63.14 / 70.15 | 37.09 |
+| Bun 1.4.2 | Agentic root | 269.76 / 320.48 | 96.06 |
+| Bun 1.4.2 | Agentic `./svg` | 256.19 / 290.12 | 74.69 |
+| Bun 1.4.2 | Pele root | 96.53 / 108.03 | 59.54 |
+
+Node import medians were 151.94 ms for Agentic root, 106.23 ms for `./svg`,
+and 23.64 ms for Pele. Awaited first API calls were 85.40, 76.51 and 9.81 ms
+respectively. Import and rendering both contribute to the gap. These separate
+stage medians must not be added to synthesize a total. The focused entry's
+shorter startup supports choosing a narrower interface; it is not a before/after
+product speedup.
+
+The campaign records 147 Agentic and 76 Pele primary interfaces with 25 latency
+observations each, including explicitly separated namespace discovery. Agentic
+also exercises CLI aliases and input modes, its compiled native CLI, MCP
+stdio/HTTP, browser global/lazy/worker paths and the editor. Pele has no public
+CLI in the admitted package. Its nine additional diagram-entry families have
+import discovery but no independently authored startup-render fixture.
+Every executed startup/resource row passed; hosted MCP remains blocked.
+
+Import, API readiness, first consumed artifact and full CLI process completion
+have different clocks. The full editor workload is an eight-input burst through
+the latest verified DOM, not initial-preview startup. Browser document V8 heap
+excludes worker/native/GPU/whole-browser memory; native CLI and MCP do not expose
+injected JS snapshots. Memory domains overlap and cannot be stacked. CPU fields
+have 10 ms resolution; observed zero is censored, not free work. Dollars need an
+explicit rate or actual provider usage and are unavailable here.
+
+### Retention, evidence and remaining work
+
+Agentic startup ran 14:13:50–14:39:09 UTC; Pele ran 14:55:19–14:57:28 UTC.
+The completed Agentic attempt needed publication metadata repair. Its raw
+response, measurements and dates were preserved. An exact combined repeat
+reused records `3dedb582-150e-4ac3-9ba7-52c09029f96d` and
+`67b29bec-90cb-48ab-817d-07b43d87ca12` with no measurement workers. All three
+original-assertion records also reused unchanged. Cancellation, identity
+changes, duplicate experimental coordinates and recovery of the wrong attempt
+are rejected; a corrected recovery request can retry without losing eligibility.
+
+Raw reports and identities are retained under
+`/workspace/mermaid-unified-2026-10-25/continuation/` in `dave/`,
+`entry-startup-run/`, `upstream-run/`, `required-family-run/` and `records/`.
+`entry-no-retiming-proof.json` verifies unchanged sample fields and dates.
+The standalone chart reader lives in `eval/benchmark/visualizations/`; generated
+charts and tables belong in the external evidence directory, not npm or CI.
+
+The next useful coverage is original assertions beyond two families, richer
+cross-feature/operation witnesses, native relationship and paint checks, and
+initial editor/hosted/whole-browser memory measurements. There is no secret
+holdout, calibrated new Agentic release comparison, or current-head rerun of
+every open PR in this supplement. Earlier PR ranks retain their recorded heads.
+The [overview](../eval/benchmark/OVERVIEW.md),
+[inventory](../eval/benchmark/INVENTORY.md) and
+[measurement rules](../eval/benchmark/MEASUREMENT.md) define the wider suite.
+<!-- primary-contract-results-2026-10-25:end -->
