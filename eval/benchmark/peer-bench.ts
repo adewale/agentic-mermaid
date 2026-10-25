@@ -781,10 +781,18 @@ async function runTrackProcess(prepared: Prepared, workloads: readonly string[],
   scratch: string; bundle: string; timing: Timing; sources: Record<string, string>; expectedLabels: Record<string, readonly string[]>; rawSamples: string; elkCache: 'on' | 'off'
 }): Promise<PeerTrackObservation[]> {
   const rows: PeerTrackObservation[] = []
+  const diagnostics = new Map<string, PeerTrackObservation['diagnostics']>()
   // Every first-use workload has its own import/process, including receipt API.
-  const groups = track.phase === 'first-use' ? workloads.map(id => [id]) : [workloads]
-  for (const group of groups) {
-    const key = `${prepared.peer.id}-${track.phase}-${track.consumer}-r${track.round}-${group[0]}`
+  const cold = track.phase === 'first-use'
+  const groups = cold ? workloads.flatMap(id => [
+    ...Array.from({ length: track.coldSamples ?? 21 }, (_, sample) => ({ ids: [id], probe: 'timing' as const, sample })),
+    ...Array.from({ length: track.allocationSamples }, (_, sample) => ({ ids: [id], probe: 'allocation' as const, sample })),
+    { ids: [id], probe: 'diagnostic' as const, sample: 0 },
+  ]) : [{ ids: workloads, probe: undefined, sample: 0 }]
+  const unavailable = new Set<string>()
+  for (const { ids: group, probe, sample } of groups) {
+    if (unavailable.has(group[0]!)) continue
+    const key = `${prepared.peer.id}-${track.phase}-${track.consumer}-r${track.round}-${group[0]}-${probe ?? 'warm'}-${sample}`
     const failed = (id: string, status: 'error' | 'unsupported', detail: string) => {
       const row = emptyTrackObservation(prepared.peer.id, track.round, id, track.phase, track.consumer)
       row.calls.push({ index: 0, variant: 0, status, detail })
@@ -793,24 +801,41 @@ async function runTrackProcess(prepared: Prepared, workloads: readonly string[],
     if (prepared.error || !prepared.peer.svg || prepared.peer.runtime !== 'node') {
       const detail = prepared.error ?? 'enhanced consumed/semantic protocol requires a Node SVG adapter; legacy runtime results retained separately'
       rows.push(...group.map(id => failed(id, prepared.error ? 'error' : 'unsupported', detail)))
+      if (cold) unavailable.add(group[0]!)
       continue
     }
     const base = join(context.scratch, key)
-    const job: WorkerJob = { peer: prepared.peer.id, output: 'svg', entry: packageEntry(prepared.root!, prepared.peer.svg.subpath), timing: context.timing, track,
+    const job: WorkerJob = { peer: prepared.peer.id, output: 'svg', entry: packageEntry(prepared.root!, prepared.peer.svg.subpath), timing: context.timing, track: { ...track, coldProbe: probe },
       workloads: group.map(id => ({ id, source: context.sources[id]!, expected: context.expectedLabels[id]!, svgLabelPrefixes: SVG_LABEL_PREFIXES[id] })) }
     writeFileSync(`${base}.job.json`, JSON.stringify(job))
     const receipts = `${context.rawSamples}.${key}.jsonl`
     const run = await spawnWorker(['node', '--expose-gc', context.bundle, '--child', '--job', `${base}.job.json`, '--out', receipts], receipts, { importMs: 120_000, workloadMs: Math.max(60_000, 10 * track.maxCaseMs) }, context.elkCache)
-    for (const line of run.lines) appendFileSync(context.rawSamples, `${JSON.stringify({ peer: prepared.peer.id, round: track.round, phase: track.phase, consumer: track.consumer, ...line })}\n`)
+    for (const line of run.lines) appendFileSync(context.rawSamples, `${JSON.stringify({ peer: prepared.peer.id, round: track.round, phase: track.phase, consumer: track.consumer, coldProbe: probe, coldSample: sample, ...line })}\n`)
     const completed = run.lines.flatMap(line => line.type === 'track' ? [line.observation] : [])
     const imported = run.lines.find(line => line.type === 'import')
     if (track.phase === 'first-use' && imported?.type === 'import') for (const row of completed) Object.assign(row, { importMs: imported.importMs, setupMs: imported.setupMs })
     rows.push(...completed)
+    if (probe === 'diagnostic') for (const row of completed) diagnostics.set(row.workload, row.diagnostics)
+    if (cold && completed.some(row => row.status === 'unsupported')) unavailable.add(group[0]!)
     const fatal = run.lines.find(line => line.type === 'fatal')
     for (const id of group.filter(id => !completed.some(row => row.workload === id))) rows.push(failed(id, 'error', fatal?.type === 'fatal' ? fatal.error : run.exit ?? 'worker omitted observation'))
   }
-  for (const row of rows) appendFileSync(context.rawSamples, `${JSON.stringify({ type: 'track-observation', ...row })}\n`)
-  return rows
+  const observations = cold ? workloads.map(id => {
+    const parts = rows.filter(row => row.workload === id)
+    const row = emptyTrackObservation(prepared.peer.id, track.round, id, track.phase, track.consumer)
+    row.calls = parts.flatMap(part => part.calls).map((call, index) => ({ ...call, index }))
+    row.allocationSamplesBytes = parts.flatMap(part => part.allocationSamplesBytes)
+    row.allocationErrors = parts.flatMap(part => part.allocationErrors ?? [])
+    row.diagnostics = diagnostics.get(id) ?? row.diagnostics
+    const imports = parts.flatMap(part => part.importMs === undefined ? [] : [part.importMs])
+    const setups = parts.flatMap(part => part.setupMs === undefined ? [] : [part.setupMs])
+    if (imports.length) row.importMs = median(imports)
+    if (setups.length) row.setupMs = median(setups)
+    if (!row.allocationSamplesBytes.length) row.allocationUnsupported = parts.find(part => part.allocationUnsupported)?.allocationUnsupported
+    return finalizeTrackObservation(row)
+  }) : rows
+  for (const row of observations) appendFileSync(context.rawSamples, `${JSON.stringify({ type: 'track-observation', ...row })}\n`)
+  return observations
 }
 
 // --- Report -----------------------------------------------------------------
@@ -968,7 +993,7 @@ async function main(): Promise<void> {
       if (selected.includes('tree50')) { scaling.push('tree100'); trackSources.tree100 = flowchartTree(100); trackExpected.tree100 = range('Node ', 100) }
       if (selected.includes('mesh50')) { scaling.push('mesh100'); trackSources.mesh100 = flowchartMesh(100, 40); trackExpected.mesh100 = range('label ', 40) }
     }
-    const trackSettings = { warmCalls: 3, samples: args.has('quick') ? 3 : 31, allocationSamples: 3, maxCaseMs: args.has('quick') ? timing.maxCaseMs : 30_000 }
+    const trackSettings = { coldSamples: args.has('quick') ? 3 : 21, warmCalls: 3, samples: args.has('quick') ? 3 : 31, allocationSamples: 3, maxCaseMs: args.has('quick') ? timing.maxCaseMs : 30_000 }
     const tracks: PeerTrackReport = { schemaVersion: 1, contractVersion: 'semantic-peer-v1', cohort: PEER_FROZEN_COHORT, phases, consumers: PEER_CONSUMERS, scaling, observations: [] }
     const trackWorkloads = [...workloads.svg, ...scaling]
     const trackInputs = Object.fromEntries(trackWorkloads.map(id => [id, { source: trackSources[id], expected: trackExpected[id] }]))
@@ -1036,7 +1061,7 @@ async function main(): Promise<void> {
     out.push(`- Pins: ${prepared.map(entry => `${entry.peer.id} = ${entry.label}`).join('; ')}`)
     for (const entry of prepared) for (const lock of entry.dependencyLocks ?? []) out.push(`- ${entry.peer.id} ${lock.source}: ${lock.path} (SHA-256 ${lock.sha256})`)
     out.push(
-      phases.length ? `- Track method: ${rounds} paired round(s), ${trackSettings.warmCalls} priming calls, up to ${trackSettings.samples} individually clocked calls (minimum 20 for tail qualification), ${trackSettings.allocationSamples} separate allocation probes, wall cap ${trackSettings.maxCaseMs} ms; consumption inside clocks and allocation probes, validation outside. First-use has one call in a fresh worker per case/consumer, no priming or warm allocation probe. Diagnostics replay is untimed. No observable endpoint contract means semantic.ok=false and excludes semantic numeric qualification.` : `- Method: ${rounds} round(s), one fresh process per peer and output, order alternating; per workload one first render, then ≥${timing.warmCalls} warm calls and ≥${timing.warmupMs} ms, ≤${timing.samples} samples of ≥${timing.minSampleMs} ms (at least ${MIN_SAMPLES}), capped near ${timing.maxCaseMs} ms; every complete output checked outside timing for labels and parseable SVG, captured in batches of at most 64 returns (about 1 MiB at the first output size), with output stores and per-batch clocks included; medians across rounds, ± is the median MAD/median.`,
+      phases.length ? `- Track method: ${rounds} paired round(s), ${trackSettings.warmCalls} priming calls, up to ${trackSettings.samples} individually clocked calls (minimum 20 for tail qualification), ${trackSettings.allocationSamples} separate allocation probes, wall cap ${trackSettings.maxCaseMs} ms; consumption inside clocks and allocation probes, validation outside. First-use has ${trackSettings.coldSamples} timing calls, ${trackSettings.allocationSamples} allocation probes and one untimed diagnostic call, each in its own fresh worker per case/consumer/round, with no earlier render. Diagnostics replay is untimed. No observable endpoint contract means semantic.ok=false and excludes semantic numeric qualification.` : `- Method: ${rounds} round(s), one fresh process per peer and output, order alternating; per workload one first render, then ≥${timing.warmCalls} warm calls and ≥${timing.warmupMs} ms, ≤${timing.samples} samples of ≥${timing.minSampleMs} ms (at least ${MIN_SAMPLES}), capped near ${timing.maxCaseMs} ms; every complete output checked outside timing for labels and parseable SVG, captured in batches of at most 64 returns (about 1 MiB at the first output size), with output stores and per-batch clocks included; medians across rounds, ± is the median MAD/median.`,
     )
     out.push(`- Not covered: ${NOT_COVERED.join('; ')}`)
     for (const warning of warnings) out.push(`- Warning: ${warning}`)
@@ -1124,7 +1149,7 @@ async function main(): Promise<void> {
       }
     }
     if (phases.length) out.push('', '## Consumed SVG coverage across every phase/round', '', markdownTable(['peer', 'population', 'label/geometry OK', 'semantic qualified', 'unsupported', 'lost labels', 'errors', 'missing'], coverage.map(row => [row.peer, ...[row.population, row.ok, 'semanticQualified' in row ? row.semanticQualified : 0, row.unsupported, row.lostLabels, row.errors, row.missing].map(String)])), '', 'Receipt availability and coverage are counted separately.', '', markdownTable(['peer', 'receipt population', 'OK', 'unsupported', 'lost labels', 'errors', 'missing'], receiptCoverage.map(row => [row.peer, ...[row.population, row.ok, row.unsupported, row.lostLabels, row.errors, row.missing].map(String)])))
-    if (phases.length) out.push('', '## Consumed semantic tracks', '', 'Per-call observations, allocation samples, bounded identity/endpoint checks and untimed cache/fallback diagnostics are retained in JSON under tracks.observations. First-use uses a fresh process for each workload and consumer. Cold tails remain insufficient below 20 independent rounds; receipt-unavailable peers are explicitly unsupported. These contracts do not establish visual equivalence or endpoint attachment geometry.', '', markdownTable(['peer', 'phase', 'consumer', 'workload', 'status', 'calls', 'p50 ms', 'p95 ms'], tracks.observations.map(row => [row.peer, row.phase, row.consumer, row.workload, row.status, String(row.callSamplesMs.length), formatMs(row.p50Ms), formatMs(row.p95Ms)]), 5))
+    if (phases.length) out.push('', '## Consumed semantic tracks', '', 'Per-call observations, allocation samples, bounded identity/endpoint checks and untimed cache/fallback diagnostics are retained in JSON under tracks.observations. First-use uses a fresh process for each workload and consumer. Cold tails require 20 independent first-render workers per round; receipt-unavailable peers are explicitly unsupported. These contracts do not establish visual equivalence or endpoint attachment geometry.', '', markdownTable(['peer', 'phase', 'consumer', 'workload', 'status', 'calls', 'p50 ms', 'p95 ms'], tracks.observations.map(row => [row.peer, row.phase, row.consumer, row.workload, row.status, String(row.callSamplesMs.length), formatMs(row.p50Ms), formatMs(row.p95Ms)]), 5))
     const markdown = `${out.join('\n')}\n`
     console.log(markdown)
     writeFileSync(markdownPath, markdown)
