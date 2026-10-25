@@ -1,7 +1,7 @@
 import { renderContractDigest } from '../render-contract.ts'
 import { secureTerminalHtmlOutput, terminalOutputPlainText } from '../terminal-security.ts'
 import type { ColorMode } from './types.ts'
-import { terminalGlyphForPaint, type TerminalDocument, type TerminalOwner } from './terminal-document.ts'
+import { terminalGlyphForPaint, type TerminalDocument, type TerminalOwner, type TerminalPort } from './terminal-document.ts'
 import { visualWidth, WIDE_CHAR_CONTINUATION } from './width.ts'
 
 export type TerminalCertificationStatus = 'passed' | 'failed' | 'unverified'
@@ -40,7 +40,7 @@ const limitations = Object.freeze([
   'Checks cover the retained terminal cell projection and its emitted encoding, not pixel geometry, font ink or terminal emulator behavior.',
   'Identity and membership checks use native declarations; they do not establish complete correspondence with every authored family model.',
   'Declared route bundles, perpendicular crossings and numeric marks may share cells; composition diagnostics distinguish rejected content from those intentional overlaps.',
-  'Endpoint checks validate retained ports and markers; they do not prove complete authored-route connectivity for every family.',
+  'Directional owned-ink connectivity is checked only for explicitly connected native routes; other families retain endpoint and marker checks without a complete route proof.',
   'A passing cell contract does not certify aesthetic spacing, contrast or the legibility of a particular display.',
 ])
 const identityKeys = new WeakMap<Pick<TerminalOwner, 'id' | 'kind'>, string>()
@@ -139,6 +139,11 @@ export function certifyTerminalLayout(
     }
     const frames = new Map<string, { x: number; y: number; width: number; height: number }>()
     for (const [owner, bounds] of evidence.declarations) { visit(); frames.set(keyOf(owner), bounds) }
+    const connected = new Map<string, { owner: TerminalOwner; ports: TerminalPort[]; cells: Map<string, number> }>()
+    for (const owner of owners.values()) {
+      visit()
+      if (owner.route === 'connected') connected.set(keyOf(owner), { owner, ports: [], cells: new Map() })
+    }
     const expectedText = new Set<string>()
     for (const allocation of evidence.textAllocations) {
       visit(); coverage.textAllocations++
@@ -175,6 +180,13 @@ export function certifyTerminalLayout(
       else if (visible) { coverage.unownedCells++; add('TERMINAL_CELL_OWNER_UNAVAILABLE', 'unverified', 'A visible cell has no native semantic ownership.', undefined, x, y) }
       for (const owner of cell.owners) {
         visit()
+        const route = connected.get(keyOf(owner))
+        if (route && cell.glyph.trim() && cell.width === 1) {
+          const mask = cell.kind === 'stroke' ? cell.stroke?.mask : cell.kind === 'marker'
+            ? cell.marker?.direction === 'L' || cell.marker?.direction === 'R' ? 10 : cell.marker?.direction === 'T' || cell.marker?.direction === 'B' ? 5 : undefined
+            : undefined
+          if (mask) route.cells.set(siteOf(x, y), mask)
+        }
         if (!owners.has(keyOf(owner))) add('TERMINAL_CELL_OWNER_UNKNOWN', 'failed', 'A final cell names an undeclared identity.', owner.id, x, y)
         if (owner.parent && (['group', 'cluster', 'subgraph'].includes(owner.parent.kind) || owner.kind === 'compartment')) {
           const frame = frames.get(keyOf(owner.parent))
@@ -200,11 +212,63 @@ export function certifyTerminalLayout(
     }
     for (const [owner, port] of evidence.ports) {
       visit(); coverage.ports++
+      connected.get(keyOf(owner))?.ports.push(port)
       if (port.markers) coverage.markerContracts++
       else add('TERMINAL_MARKER_CONTRACT_UNAVAILABLE', 'unverified', 'An endpoint has no independent native marker expectation.', owner.id, port.x, port.y)
       const endpoint = port.end === 'start' ? owner.from : owner.to
       if (endpoint !== undefined && endpoint !== port.nodeId) add('TERMINAL_PORT_ENDPOINT_MISMATCH', 'failed', 'The allocated port disagrees with the native endpoint identity.', owner.id, port.x, port.y)
       if (!byId.has(port.nodeId)) add('TERMINAL_PORT_TARGET_UNAVAILABLE', 'unverified', 'A port target has no retained identity declaration.', owner.id, port.x, port.y)
+      if (port.boundary) {
+        const boundaryKey = keyOf(port.boundary), seen = new Set<string>()
+        let item = owners.get(keyOf({ id: port.nodeId, kind: 'node' })), ancestor = false
+        while (item?.parent) {
+          visit()
+          const parentKey = keyOf(item.parent)
+          if (seen.has(parentKey)) break
+          seen.add(parentKey)
+          if (parentKey === boundaryKey) { ancestor = true; break }
+          item = owners.get(parentKey)
+        }
+        if (!ancestor || !['group', 'cluster', 'subgraph'].includes(port.boundary.kind)) add('TERMINAL_PORT_BOUNDARY_MISMATCH', 'failed', 'The physical port boundary is not a declared container ancestor of its authored endpoint.', owner.id, port.x, port.y)
+        const frame = frames.get(boundaryKey)
+        if (!frame) add('TERMINAL_PORT_BOUNDARY_UNAVAILABLE', 'unverified', 'The physical port boundary has no allocated frame.', owner.id, port.x, port.y)
+        else if (!port.markerProjection) {
+          const horizontal = port.side === 'L' || port.side === 'R'
+          const distance = port.side === 'L' ? frame.x - port.x : port.side === 'R' ? port.x - (frame.x + frame.width - 1)
+            : port.side === 'T' ? frame.y - port.y : port.y - (frame.y + frame.height - 1)
+          const along = horizontal ? port.y - frame.y : port.x - frame.x
+          if (!port.side || distance < 0 || distance > 1 || along < 0 || along >= (horizontal ? frame.height : frame.width)) add('TERMINAL_PORT_BOUNDARY_CONTACT', 'failed', 'The physical port does not touch its declared container face.', owner.id, port.x, port.y)
+        }
+      }
+    }
+    for (const { owner, ports, cells } of connected.values()) {
+      visit()
+      if (ports.length === 2 && ports.every(port => port.markerProjection && port.markerProjection === ports[0]!.markerProjection)) continue
+      const start = ports.find(port => port.end === 'start'), end = ports.find(port => port.end === 'end')
+      for (const port of ports) {
+        visit()
+        const physical = port.boundary ?? { id: port.nodeId, kind: 'node' as const }, physicalKey = keyOf(physical)
+        const frame = frames.get(physicalKey), mask = cells.get(siteOf(port.x, port.y)) ?? 0
+        const dx = port.side === 'R' ? 1 : port.side === 'L' ? -1 : 0, dy = port.side === 'B' ? 1 : port.side === 'T' ? -1 : 0
+        const inward = port.side === 'T' ? 4 : port.side === 'R' ? 8 : port.side === 'B' ? 1 : port.side === 'L' ? 2 : 0
+        const distance = !frame ? -1 : dx ? dx > 0 ? port.x - (frame.x + frame.width - 1) : frame.x - port.x
+          : dy > 0 ? port.y - (frame.y + frame.height - 1) : frame.y - port.y
+        const contact = distance < 0 || distance > 1 ? undefined : document.cell(port.x - dx * distance, port.y - dy * distance)
+        if (!frame || !(mask & inward) || !contact?.glyph.trim() || (contact.kind !== 'stroke' && contact.kind !== 'marker')
+          || !contact.owners.some(candidate => { visit(); return keyOf(candidate) === physicalKey })) add('TERMINAL_ROUTE_CONTACT_FAILED', 'failed', 'A connected route lacks visible owned connector and surface ink at its declared physical face.', owner.id, port.x, port.y)
+      }
+      const first = start && siteOf(start.x, start.y), last = end && siteOf(end.x, end.y)
+      const queue = first && cells.has(first) ? [first] : [], seen = new Set(queue)
+      for (let index = 0; index < queue.length && !seen.has(last ?? ''); index++) {
+        visit()
+        const here = queue[index]!, [x, y] = here.split(',').map(Number), mask = cells.get(here)!
+        for (const [dx, dy, bit, opposite] of [[0, -1, 1, 4], [1, 0, 2, 8], [0, 1, 4, 1], [-1, 0, 8, 2]] as const) {
+          visit()
+          const next = siteOf(x! + dx, y! + dy)
+          if ((mask & bit) && ((cells.get(next) ?? 0) & opposite) && !seen.has(next)) { seen.add(next); queue.push(next) }
+        }
+      }
+      if (ports.length !== 2 || !first || !last || !seen.has(last)) add('TERMINAL_ROUTE_DISCONNECTED', 'failed', 'Declared connected ports have no complete path through mutually connected visible owned stroke and marker cells.', owner.id, start?.x, start?.y)
     }
     try { document.assertMarkers(visit) } catch (error) {
       if (error === budgetExceeded) throw error

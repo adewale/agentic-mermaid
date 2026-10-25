@@ -23,6 +23,8 @@ export interface TerminalOwner {
   bundle?: string
   from?: string
   to?: string
+  /** Producer promises a complete visible directional connector between its ports. */
+  route?: 'connected'
 }
 
 export interface TerminalBounds { x: number; y: number; width: number; height: number }
@@ -114,6 +116,8 @@ export interface TerminalCell extends TerminalPaint {
 export interface TerminalCellSpan { row: number; start: number; end: number }
 export interface TerminalPort {
   nodeId: string; x: number; y: number; side?: TerminalSide; end: 'start' | 'end'
+  /** Authored item identity stays in nodeId when a container is the physical contact. */
+  boundary?: Readonly<TerminalIdentity>
   /** Model-owned expectation, declared separately from painting. Empty means
    * deliberately unmarked; multiple cells retain ER cardinality semantics. */
   markers?: readonly Readonly<TerminalMarker>[]
@@ -127,6 +131,7 @@ export interface TerminalPort {
 /** Ports retain independent immutable marker definitions across allocation and import. */
 export function snapshotTerminalPort<T extends TerminalPort>(port: T): T {
   const snapshot = { ...port }
+  if (snapshot.boundary) snapshot.boundary = Object.freeze({ ...snapshot.boundary })
   if (snapshot.markers) snapshot.markers = Object.freeze(snapshot.markers.map(marker => Object.freeze({ ...marker })))
   return snapshot
 }
@@ -171,7 +176,7 @@ const canonicalOwnerDefinitions = new WeakSet<TerminalOwner>()
 const canonicalOwnerSets = new WeakSet<readonly TerminalOwner[]>()
 const emptyOwners = Object.freeze([]) as unknown as TerminalOwnerSet
 canonicalOwnerSets.add(emptyOwners)
-const definitionFields = ['sourceLine', 'parent', 'annotationTarget', 'bundle', 'from', 'to', 'members'] as const
+const definitionFields = ['sourceLine', 'parent', 'annotationTarget', 'bundle', 'from', 'to', 'members', 'route'] as const
 
 function snapshotOwner(owner: TerminalOwner): TerminalOwner {
   if (canonicalOwnerDefinitions.has(owner)) return owner
@@ -545,8 +550,11 @@ export class TerminalDocument {
     const visibleTextOwners = neededTextOwners ? new Set<string>() : undefined
     let projectionFeatures: Set<string> | undefined
     const frames = new Map<string, { kind: TerminalOwner['kind']; bounds: TerminalBounds }>()
+    const typedFrames = new Map<string, TerminalBounds>()
     const includeFrame = (owner: TerminalOwner, bounds: TerminalBounds, declared = false) => {
       if (!['node', 'group', 'cluster', 'subgraph'].includes(owner.kind ?? 'node')) return
+      const typedKey = ownerKey(owner), typedPrevious = typedFrames.get(typedKey)
+      typedFrames.set(typedKey, !declared && typedPrevious ? union(typedPrevious, bounds) : bounds)
       const previous = frames.get(owner.id)
       if (previous?.kind === 'node' && owner.kind !== 'node') return
       frames.set(owner.id, { kind: owner.kind, bounds: !declared && previous && previous.kind === owner.kind ? union(previous.bounds, bounds) : bounds })
@@ -591,7 +599,7 @@ export class TerminalDocument {
           continue
         }
         if (port.markers.length && port.surface !== 'lifeline') {
-          const bounds = frames.get(port.nodeId)?.bounds
+          const bounds = port.boundary ? typedFrames.get(ownerKey(port.boundary)) : frames.get(port.nodeId)?.bounds
           if (!bounds) fail()
           const frame = bounds!
           const distance = dx ? dx > 0 ? port.x - (frame.x + frame.width - 1) : frame.x - port.x

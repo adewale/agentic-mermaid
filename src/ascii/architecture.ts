@@ -43,6 +43,7 @@ interface CellBox {
   labelLines: string[]
   icon?: string
   depth: number
+  clearance?: Partial<Record<ArchitectureEndpoint['side'], number>>
 }
 
 interface ArchitectureAsciiOptions extends Pick<RenderOptions, 'graphLayout'> {
@@ -141,15 +142,23 @@ export function renderArchitectureTerminal(
     terminalBudget,
   )
   for (const group of groupBoxes.values()) {
-    group.width = Math.max(group.width, minimum(group.id).width)
+    const topDemand = faceDemand.get(group.id)?.T ?? 0
+    group.width = Math.max(group.width, minimum(group.id).width, topDemand ? visualWidth(group.labelLines[0] ?? '') + 3 + topDemand * 3 + 2 : 0)
     group.height = Math.max(group.height, minimum(group.id).height)
   }
   const allBoxes = [...groupBoxes.values(), ...serviceBoxes.values(), ...junctionBoxes.values()]
+  for (const edge of diagram.edges) for (const [endpoint, arrow] of [[edge.source, edge.hasArrowStart], [edge.target, edge.hasArrowEnd]] as const) {
+    const box = allBoxes.find(box => box.id === endpointId(endpoint))
+    if (box) { box.clearance ??= {}; box.clearance[endpoint.side] = Math.max(box.clearance[endpoint.side] ?? 0, arrow ? 2 : 1) }
+  }
   settleArchitectureBoxes(allBoxes)
   // Crop empty leading geometry before emission so ownership and text coordinates
   // never require reparsing/stripping a serialized result.
   const top = positioned.title ? 0 : Math.min(Infinity, ...allBoxes.map(box => box.y))
   if (Number.isFinite(top) && top > 4) for (const box of allBoxes) box.y -= top - 4
+  const dx = Math.max(0, ...allBoxes.map(box => (box.clearance?.L ?? 0) - box.x))
+  const dy = Math.max(0, ...allBoxes.map(box => (box.clearance?.T ?? 0) - box.y))
+  for (const box of allBoxes) { box.x += dx; box.y += dy }
   const maxRight = Math.max(OUTER_MARGIN + 1, ...titleLines.map(line => visualWidth(line) + OUTER_MARGIN * 2), ...allBoxes.map(right))
   const maxBottom = Math.max(OUTER_MARGIN + titleRows + 1, ...allBoxes.map(bottom))
   const canvas = mkCanvas(maxRight + OUTER_MARGIN + 8, maxBottom + OUTER_MARGIN + 5)
@@ -181,32 +190,62 @@ export function renderArchitectureTerminal(
   const portFor = (box: CellBox, side: ArchitectureEndpoint['side']): GridCoord => {
     const key = `${box.id}:${side}`, index = portCursors.get(key) ?? 0, count = faceDemand.get(box.id)?.[side] ?? 1
     portCursors.set(key, index + 1)
-    return allocateFacePort(box, side, index, count)
+    // Group titles replace top-border ink. Attach beyond their complete
+    // display width, where the physical contact is still an owned frame.
+    const header = box.kind === 'group' && side === 'T' ? visualWidth(box.labelLines[0] ?? '') + 3 : 0
+    return allocateFacePort(header ? { ...box, x: box.x + header, width: box.width - header } : box, side, index, count)
   }
+  // Reserve every occurrence before routing: a later endpoint marker must not
+  // overwrite an earlier shaft that happened to cross its allocated cell.
+  const allocated = diagram.edges.map(edge => {
+    const source = endpointBox(edge.source), target = endpointBox(edge.target)
+    return source && target ? {
+      source, target,
+      start: portFor(source, edge.source.side),
+      end: portFor(target, edge.target.side),
+    } : undefined
+  })
+  const outward = (port: GridCoord, side: ArchitectureEndpoint['side']) => ({ x: port.x + (side === 'R' ? 1 : side === 'L' ? -1 : 0), y: port.y + (side === 'B' ? 1 : side === 'T' ? -1 : 0) })
+  const reservedPorts = allocated.flatMap((ports, index) => {
+    const edge = diagram.edges[index]!
+    return ports ? [ports.start, ...(edge.hasArrowStart ? [outward(ports.start, edge.source.side)] : []), ports.end, ...(edge.hasArrowEnd ? [outward(ports.end, edge.target.side)] : [])] : []
+  })
   const unrouted: Array<{ owner: TerminalOwner; edge: ArchitectureEdge }> = []
 
   for (const [edgeIndex, edge] of diagram.edges.entries()) {
-    const owner = canvas.element({ id: generated(`edge:${edgeIndex}`), kind: 'edge', from: edge.source.id, to: edge.target.id })
+    const owner = canvas.element({ id: generated(`edge:${edgeIndex}`), kind: 'edge', from: edge.source.id, to: edge.target.id, route: 'connected' })
     activeOwner = owner
-    const source = endpointBox(edge.source)
-    const target = endpointBox(edge.target)
-    if (!source || !target) {
+    const ports = allocated[edgeIndex]
+    if (!ports) {
       unrouted.push({ owner, edge })
       canvas.report({ code: 'TERMINAL_FAMILY_PROJECTION', feature: `architecture.${owner.id}.endpoint`, message: 'An Architecture endpoint has no allocated service, junction or group boundary; the complete relationship is retained in an owned endpoint summary.' })
       continue
     }
-    const start = portFor(source, edge.source.side)
-    const end = portFor(target, edge.target.side)
-    canvas.port(owner, { nodeId: source.id, x: start.x, y: start.y, side: edge.source.side, end: 'start' })
-    canvas.port(owner, { nodeId: target.id, x: end.x, y: end.y, side: edge.target.side, end: 'end' })
+    const { source, target, start, end } = ports
+    canvas.port(owner, { nodeId: edge.source.id, ...(edge.source.boundary === 'group' ? { boundary: { id: source.id, kind: 'group' as const } } : {}), x: start.x, y: start.y, side: edge.source.side, end: 'start' })
+    canvas.port(owner, { nodeId: edge.target.id, ...(edge.target.boundary === 'group' ? { boundary: { id: target.id, kind: 'group' as const } } : {}), x: end.x, y: end.y, side: edge.target.side, end: 'end' })
     const inward = { T: 'B', B: 'T', L: 'R', R: 'L' } as const
     canvas.expectMarkers(owner, 'start', edge.hasArrowStart ? [{ shape: 'arrow', direction: inward[edge.source.side], ascii: config.useAscii }] : [])
     canvas.expectMarkers(owner, 'end', edge.hasArrowEnd ? [{ shape: 'arrow', direction: inward[edge.target.side], ascii: config.useAscii }] : [])
     const obstacles = obstacleGrid(edge)
+    const startExit = outward(start, edge.source.side), endExit = outward(end, edge.target.side)
+    const ownContacts = new Set([start, end, ...(edge.hasArrowStart ? [startExit] : []), ...(edge.hasArrowEnd ? [endExit] : [])].map(gridKey))
+    for (const port of reservedPorts) if (!ownContacts.has(gridKey(port))) obstacles.set(gridKey(port), true)
     const separated = new OccupancyMap(obstacles)
     for (const key of connections.keys()) separated.set(key, true)
     separated.delete(gridKey(start)); separated.delete(gridKey(end))
-    const found = getPath(separated, start, end, preferredDirection(edge.source.side)) ?? getPath(obstacles, start, end, preferredDirection(edge.source.side))
+    const same = (a: GridCoord, b: GridCoord) => a.x === b.x && a.y === b.y
+    const endpointStep = (a: GridCoord, b: GridCoord): boolean => (!same(a, start) || !edge.hasArrowStart || same(b, startExit)) && (!same(b, end) || !edge.hasArrowEnd || same(a, endExit))
+    const crossingStep = (a: GridCoord, b: GridCoord): boolean => endpointStep(a, b) && [a, b].every(point => {
+      const dirs = connections.get(gridKey(point))
+      if (!dirs) return true
+      // A foreign run can be crossed perpendicularly; sharing its shaft or
+      // turning on its corner would make unrelated relationships join.
+      return dirs.size === 2 && (a.x === b.x
+        ? dirs.has('E') && dirs.has('W')
+        : dirs.has('N') && dirs.has('S'))
+    })
+    const found = same(start, end) ? null : getPath(separated, start, end, preferredDirection(edge.source.side), endpointStep) ?? getPath(obstacles, start, end, preferredDirection(edge.source.side), crossingStep)
     if (!found) {
       unrouted.push({ owner, edge })
       canvas.projectMarkers(owner, `architecture.${owner.id}.route`)
@@ -239,11 +278,15 @@ export function renderArchitectureTerminal(
   }
 
   const labelBoxes: CellBox[] = []
+  const routeCells: CellBox[] = edgePaths.some(({ edge }) => edge.label) ? [...connections.keys()].map(key => {
+    const [x, y] = key.split(',').map(Number)
+    return { id: '', kind: 'junction', x: x!, y: y!, width: 1, height: 1, labelLines: [], depth: 0 }
+  }) : []
   for (const { edge, points, owner } of edgePaths) {
     activeOwner = owner
     if (!edge.label) continue
     const text = `[${oneRowDisplayText(edge.label)}]`
-    const placement = placeEdgeLabel(text, points, [...allBoxes, ...labelBoxes])
+    const placement = placeEdgeLabel(text, points, [...allBoxes, ...labelBoxes, ...routeCells])
     writeText(placement, text, true)
     labelBoxes.push({
       id: `edge-label-${labelBoxes.length}`,
@@ -449,6 +492,7 @@ function buildGroupBoxes(
 /** Resolve integer-cell growth in the containment tree before any ink is emitted. */
 function settleArchitectureBoxes(boxes: CellBox[]): void {
   const children = (parentId?: string) => boxes.filter(box => box.parentId === parentId)
+  const envelope = (box: CellBox): CellBox => ({ ...box, x: box.x - (box.clearance?.L ?? 0), y: box.y - (box.clearance?.T ?? 0), width: box.width + (box.clearance?.L ?? 0) + (box.clearance?.R ?? 0), height: box.height + (box.clearance?.T ?? 0) + (box.clearance?.B ?? 0) })
   const move = (box: CellBox, dy: number): void => {
     box.y += dy
     if (box.kind === 'group') for (const child of children(box.id)) move(child, dy)
@@ -463,9 +507,9 @@ function settleArchitectureBoxes(boxes: CellBox[]): void {
       // Every header line is occupied geometry, including an empty group header.
       if (parent && box.y < parent.y + parent.labelLines.length + BOX_GAP) move(box, parent.y + parent.labelLines.length + BOX_GAP - box.y)
       for (;;) {
-        const blockers = placed.filter(other => boxesOverlap(box, other))
+        const blockers = placed.filter(other => boxesOverlap(envelope(box), envelope(other)))
         if (!blockers.length) break
-        move(box, Math.max(...blockers.map(other => bottom(other) + BOX_GAP + 1)) - box.y)
+        move(box, Math.max(...blockers.map(other => bottom(other) + Math.max(BOX_GAP, (other.clearance?.B ?? 0) + (box.clearance?.T ?? 0)) + 1)) - box.y)
       }
       placed.push(box)
     }

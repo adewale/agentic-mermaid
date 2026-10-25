@@ -5,6 +5,7 @@ import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { certifyTerminalLayout, TERMINAL_CERTIFICATION_LIMITS } from '../ascii/terminal-certification.ts'
 import * as terminalCertification from '../ascii/terminal-certification.ts'
 import { measuredText, terminalDocumentOf, TerminalDocument, type TerminalOwner } from '../ascii/terminal-document.ts'
+import { paintTerminalFrame } from '../ascii/terminal-geometry.ts'
 import { renderContractDigest } from '../render-contract.ts'
 import { secureTerminalHtmlOutput } from '../terminal-security.ts'
 import type { ColorMode } from '../ascii/types.ts'
@@ -15,11 +16,11 @@ const inspect = (document: TerminalDocument, colorMode: ColorMode = 'none') => {
   return certifyTerminalLayout(document, colorMode === 'html' ? secureTerminalHtmlOutput(encoded) : encoded, colorMode)
 }
 
-function markerDocument() {
+function markerDocument(connected = false) {
   const document = new TerminalDocument(10, 4)
-  const edge: TerminalOwner = { id: 'r', kind: 'edge', from: 'A', to: 'B' }
-  document.region(owner('A'), { x: 0, y: 0, width: 3, height: 3 })
-  document.region(owner('B'), { x: 7, y: 0, width: 3, height: 3 })
+  const edge: TerminalOwner = { id: 'r', kind: 'edge', from: 'A', to: 'B', ...(connected ? { route: 'connected' as const } : {}) }
+  paintTerminalFrame(document, { x: 0, y: 0, width: 3, height: 3 }, owner('A'), false)
+  paintTerminalFrame(document, { x: 7, y: 0, width: 3, height: 3 }, owner('B'), false)
   document.port(edge, { nodeId: 'A', end: 'start', side: 'R', x: 3, y: 1, markers: [] })
   document.port(edge, { nodeId: 'B', end: 'end', side: 'L', x: 6, y: 1, markers: [{ shape: 'arrow', direction: 'R' }] })
   for (let x = 3; x < 6; x++) document.stroke(x, 1, 10, { owner: edge })
@@ -191,6 +192,42 @@ describe('final terminal cell certification', () => {
     const certificate = inspect(document)
     expect(certificate.status).toBe('failed')
     expect(certificate.issues.map(issue => issue.code)).toEqual(expect.arrayContaining(['TERMINAL_MEMBERSHIP_MISMATCH', 'TERMINAL_PORT_ENDPOINT_MISMATCH']))
+  })
+
+  test.each(['gap', 'foreign', 'corner', 'label', 'missing-face'] as const)('rejects a declared connected route with misleading %s ink', damage => {
+    const document = markerDocument(true)
+    expect(inspect(document).status).toBe('passed')
+    if (damage === 'foreign') document.cell(4, 1)!.owners = document.owners([owner('foreign')])
+    else if (damage === 'label') document.textBlock(4, 1, measuredText('x'), { owner: { id: 'r', kind: 'edge' } })
+    else if (damage === 'corner') {
+      document.cell(4, 1)!.stroke = { mask: 3 }
+      document.cell(4, 1)!.glyph = '└'
+    } else document.cell(damage === 'missing-face' ? 2 : 4, 1)!.glyph = ' '
+    const certificate = inspect(document)
+    expect(certificate.issues).toContainEqual(expect.objectContaining({ code: damage === 'missing-face' ? 'TERMINAL_ROUTE_CONTACT_FAILED' : 'TERMINAL_ROUTE_DISCONNECTED', elementId: 'r' }))
+  })
+
+  test.each(['ancestor', 'unrelated', 'wrong-kind', 'wrong-face'] as const)('checks explicit physical container contacts against authored item ancestry: %s', contact => {
+    const document = new TerminalDocument(12, 5)
+    const group: TerminalOwner = { id: 'G', kind: 'group', members: ['A'] }
+    const edge: TerminalOwner = { id: 'r', kind: 'edge', from: 'A', to: 'B' }
+    document.region(group, { x: 0, y: 0, width: 5, height: 5 })
+    document.region({ ...owner('A'), parent: { id: 'G', kind: 'group' } }, { x: 1, y: 1, width: 3, height: 3 })
+    document.region(owner('B'), { x: 9, y: 1, width: 3, height: 3 })
+    document.region({ id: 'other', kind: 'group' }, { x: 0, y: 0, width: 5, height: 5 })
+    // The same string can name a different typed surface; its rectangle is not authority.
+    document.region(owner('G'), { x: 0, y: 0, width: 5, height: 5 })
+    document.port(edge, { nodeId: 'A', boundary: { id: contact === 'unrelated' ? 'other' : 'G', kind: contact === 'wrong-kind' ? 'node' : 'group' }, end: 'start', side: contact === 'wrong-face' ? 'T' : 'R', x: 5, y: 2, markers: [{ shape: 'arrow', direction: contact === 'wrong-face' ? 'B' : 'L' }] })
+    document.port(edge, { nodeId: 'B', end: 'end', side: 'L', x: 8, y: 2, markers: [{ shape: 'arrow', direction: 'R' }] })
+    document.marker(5, 2, { shape: 'arrow', direction: contact === 'wrong-face' ? 'B' : 'L' }, { owner: edge })
+    for (let x = 6; x < 8; x++) document.stroke(x, 2, 10, { owner: edge })
+    document.marker(8, 2, { shape: 'arrow', direction: 'R' }, { owner: edge })
+    if (contact === 'wrong-face') expect(() => inspect(document)).toThrow('Terminal marker contract failed')
+    else {
+      const certificate = inspect(document)
+      if (contact === 'ancestor') expect(certificate.status).toBe('passed')
+      else expect(certificate.issues).toContainEqual(expect.objectContaining({ code: 'TERMINAL_PORT_BOUNDARY_MISMATCH', elementId: 'r' }))
+    }
   })
 
   test('checks owned content against allocated container frames without treating hierarchy as a guessed box', () => {
