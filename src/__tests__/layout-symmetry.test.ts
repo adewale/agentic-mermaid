@@ -6,6 +6,8 @@ import { assessLayout, onShapeOutline } from '../layout-rubric.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { resolveRenderStyle } from '../styles.ts'
+import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
+import { equalizePeerNodeDimensions } from '../layout/passes/peers.ts'
 
 const C_FIVE_WAY_FAN_IN = `flowchart TD
   Web[Web App] --> Gateway
@@ -274,6 +276,81 @@ describe('layout symmetry floor', () => {
     const no = edge(g, 'F', 'H', 'No')
     close(cx(f) - yes.points[0]!.x, no.points[0]!.x - cx(f))
     close(cx(f) - cx(node(g, 'G')), cx(node(g, 'H')) - cx(f))
+  })
+
+  test.each([1, 4])('peer widening preserves the painted label and marker corridor at line width %s', lineWidth => {
+    const source = `flowchart RL
+S0["a longer label goes here"] --> H["hub"]
+U0_0["ok"] --> S0
+U0_1["same word ok"] --> U0_0
+U0_2["a longer label goes here"] -->|a longer label goes here| U0_1
+S1["x"] --> H
+S2["errors"] --> H
+U2_0["a longer label goes here"] -->|ok| S2
+U2_1["x"] -->|same word ok| U2_0
+H --> T["t"]`
+    const options = { styleFace: { edge: { lineWidth } } }
+    const style = resolveRenderStyle(options)
+    expect(style.lineWidth).toBe(lineWidth)
+    const positioned = layoutGraphSync(parseMermaid(source), options)
+    const route = edge(positioned, 'U2_0', 'S2')
+    const text = route.labelBlock!
+    const padding = 8 + Math.max(4, lineWidth * 2)
+    const label = {
+      x0: route.labelPosition!.x - text.width / 2 - padding,
+      x1: route.labelPosition!.x + text.width / 2 + padding,
+      y0: route.labelPosition!.y - text.height / 2 - padding,
+      y1: route.labelPosition!.y + text.height / 2 + padding,
+    }
+    const overlap = (a: typeof label, b: typeof label): boolean =>
+      Math.min(a.x1, b.x1) > Math.max(a.x0, b.x0) && Math.min(a.y1, b.y1) > Math.max(a.y0, b.y0)
+    for (const endpoint of [node(positioned, route.source), node(positioned, route.target)]) {
+      expect(overlap(label, { x0: endpoint.x, x1: endpoint.x + endpoint.width, y0: endpoint.y, y1: endpoint.y + endpoint.height })).toBe(false)
+    }
+    const from = node(positioned, route.source)
+    for (const marker of graphEdgeMarkerPaintRegions(route, style)) {
+      expect(marker.bounds).toBeDefined()
+      expect(overlap(label, marker.bounds!)).toBe(false)
+      expect(overlap(marker.bounds!, { x0: from.x, x1: from.x + from.width, y0: from.y, y1: from.y + from.height })).toBe(false)
+    }
+  })
+
+  test.each([
+    { sourceX: 105, labelX: undefined, accept: false },
+    { sourceX: 110, labelX: 85, accept: false },
+    { sourceX: 150, labelX: 128, accept: true },
+    { sourceX: 150, labelX: undefined, packOnly: true, accept: false },
+  ])('peer resize and packing preserve existing paint or restore the entire proposal: %j', ({ sourceX, labelX, packOnly, accept }) => {
+    const graph = parseMermaid(`flowchart RL\nWide --> Hub\nNarrow --> Hub\nUpstream --> Narrow${packOnly ? '\nPadding\nLeft --> Right' : ''}`)
+    const nodes: PositionedNode[] = [
+      { id: 'Wide', label: 'Wide', shape: 'rectangle', x: 0, y: 0, width: 100, height: 36 },
+      { id: 'Narrow', label: 'Narrow', shape: 'rectangle', x: 0, y: 70, width: 60, height: 36 },
+      { id: 'Hub', label: 'Hub', shape: 'rectangle', x: -100, y: 35, width: 60, height: 36 },
+      { id: 'Upstream', label: 'Upstream', shape: 'rectangle', x: sourceX, y: 70, width: 60, height: 36 },
+    ]
+    const edges: PositionedEdge[] = [
+      { ...graph.edges[0]!, points: [{ x: 0, y: 18 }, { x: -40, y: 18 }] },
+      { ...graph.edges[1]!, points: [{ x: 0, y: 88 }, { x: -40, y: 88 }] },
+      { ...graph.edges[2]!, points: [{ x: sourceX, y: 88 }, { x: 60, y: 88 }], ...(labelX === undefined ? {} : { label: 'ok', labelPosition: { x: labelX, y: 88 } }) },
+    ]
+    if (packOnly) {
+      // The resize alone clears this unrelated label. The subsequent pack
+      // pushes Narrow down over it, so the whole proposal must roll back.
+      nodes.push(
+        { id: 'Padding', label: 'Padding', shape: 'rectangle', x: 0, y: 55, width: 60, height: 36 },
+        { id: 'Left', label: 'Left', shape: 'rectangle', x: 110, y: 122, width: 60, height: 36 },
+        { id: 'Right', label: 'Right', shape: 'rectangle', x: -100, y: 122, width: 60, height: 36 },
+      )
+      edges.push({ ...graph.edges[3]!, points: [{ x: 110, y: 140 }, { x: -40, y: 140 }], label: 'ok', labelPosition: { x: 85, y: 140 } })
+    }
+    const before = structuredClone(nodes)
+    const edgeBefore = structuredClone(edges)
+    equalizePeerNodeDimensions(nodes, edges, [], graph, resolveRenderStyle({}))
+    if (accept) {
+      expect(nodes.find(n => n.id === 'Narrow')!.width).toBe(100)
+      expect(nodes.find(n => n.id === 'Narrow')!.y).toBe(60)
+    } else expect(nodes).toEqual(before)
+    expect(edges).toEqual(edgeBefore)
   })
 
   test('dense parallel labels preserve authored routes without buying outer symmetry with crossings', () => {

@@ -120,16 +120,11 @@ describe('timeline parsing — structured', () => {
           { label: label.trim(), periods: [] },
         ])
         const parsed = parse(source)
-        expect(parsed.body.kind).toBe(label.trim() ? 'timeline' : 'opaque')
+        expect(parsed.body.kind).toBe('timeline')
         expect(renderMermaidSVG(parsed)).toBe(renderMermaidSVG(source))
         expect(renderMermaidASCII(parsed)).toBe(renderMermaidASCII(source))
         const written = serializeMermaid(parsed)
         expect(await upstream.accepts(written)).toBe(true)
-        if (!label.trim()) {
-          expect(written).toBe(source + '\n')
-          expect(mutate(parsed, { kind: 'set_title', title: 'Revised' }).ok).toBe(false)
-          continue
-        }
         expect<unknown>(timeline(written).body).toEqual(parsed.body)
         const edited = mutate(parsed, { kind: 'set_title', title: 'Revised' })
         if (!edited.ok) throw new Error(edited.error.message)
@@ -137,6 +132,41 @@ describe('timeline parsing — structured', () => {
         expect(await upstream.accepts(serializeMermaid(edited.value))).toBe(true)
       }
     } finally { upstream.close() }
+  })
+
+  test.each(['', '2025 : After\n'])('empty section boundaries retain their periods through edits: %s', async tail => {
+    const source = `timeline\n2024 : Before\nsection  \n${tail}`
+    const expected = [
+      { label: undefined, periods: [{ label: '2024', events: ['Before'] }] },
+      { label: '', periods: tail ? [{ label: '2025', events: ['After'] }] : [] },
+    ]
+    const project = (body: TimelineBody) => timelineMeaning(body).sections
+    const reference = startUpstreamMermaid()
+    try {
+      const original = timeline(source)
+      expect(project(original.body)).toEqual(expected)
+      const edited = mutate(original, { kind: 'set_title', title: 'History' })
+      if (!edited.ok) throw new Error(edited.error.message)
+      const written = serializeMermaid(edited.value, { wrapper: 'canonical' })
+      expect(project(timeline(written).body)).toEqual(expected)
+      expect(await reference.publicAccepts(written)).toBe(true)
+      expect(await reference.project(written, diagram => ({
+        sections: diagram.db.getSections().map((section: string) => section.trim()),
+        tasks: diagram.db.getTasks().map((task: { task: string; section: string; events: string[] }) => ({
+          label: task.task.trim(), section: task.section.trim(), events: task.events.map(event => event.trim()),
+        })),
+      }))).toEqual({ ok: true, value: {
+        sections: [''],
+        tasks: [{ label: '2024', section: '', events: ['Before'] }, ...(tail ? [{ label: '2025', section: '', events: ['After'] }] : [])],
+      } })
+      expect(renderMermaidSVG(written)).toBe(renderMermaidSVG(`timeline\ntitle History\n2024 : Before\nsection  \n${tail}`))
+      expect(renderMermaidASCII(written)).toBe(renderMermaidASCII(`timeline\ntitle History\n2024 : Before\nsection  \n${tail}`))
+      const renamed = mutate(edited.value, { kind: 'set_section_label', index: 1, label: 'Next' })
+      if (!renamed.ok) throw new Error(renamed.error.message)
+      const cleared = mutate(renamed.value, { kind: 'set_section_label', index: 1, label: '' })
+      if (!cleared.ok) throw new Error(cleared.error.message)
+      expect(project(timeline(serializeMermaid(cleared.value)).body)).toEqual(expected)
+    } finally { reference.close() }
   })
 
   test('normalizes node-label br tags while preserving raw title text like pinned Mermaid', () => {

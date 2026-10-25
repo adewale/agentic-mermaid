@@ -198,14 +198,14 @@ describe('Mindmap typed operations — discriminating mutation contract', () => 
     const titled = apply({ kind: 'set_accessibility_title', title: '  Product map  ' })
     expect(titled.accessibilityTitle).toBe('Product map')
     expect(apply({ kind: 'set_accessibility_title', title: null }, titled).accessibilityTitle).toBeUndefined()
-    expectError({ kind: 'set_accessibility_title', title: '\n' }, 'INVALID_OP', 'Mindmap accessibility title must be a non-empty single-line string')
-    expectError({ kind: 'set_accessibility_title', title: 'Product%%cut' }, 'INVALID_OP', "Mindmap accessibility title 'Product%%cut' is not serialization-stable")
+    expectError({ kind: 'set_accessibility_title', title: '\n' }, 'INVALID_OP', 'Mindmap accessibility title must be non-empty text')
+    expect(apply({ kind: 'set_accessibility_title', title: 'Product%%cut' }).accessibilityTitle).toBe('Product%%cut')
 
     const described = apply({ kind: 'set_accessibility_description', description: '  Product hierarchy  ' })
     expect(described.accessibilityDescription).toBe('Product hierarchy')
     expect(apply({ kind: 'set_accessibility_description', description: null }, described).accessibilityDescription).toBeUndefined()
-    expectError({ kind: 'set_accessibility_description', description: '' }, 'INVALID_OP', 'Mindmap accessibility description must be a non-empty single-line string')
-    expectError({ kind: 'set_accessibility_description', description: 'Hierarchy%%cut' }, 'INVALID_OP', "Mindmap accessibility description 'Hierarchy%%cut' is not serialization-stable")
+    expectError({ kind: 'set_accessibility_description', description: '' }, 'INVALID_OP', 'Mindmap accessibility description must be non-empty text')
+    expect(apply({ kind: 'set_accessibility_description', description: 'Hierarchy%%cut' }).accessibilityDescription).toBe('Hierarchy%%cut')
   })
 
   test('unknown operations fail prescriptively', () => {

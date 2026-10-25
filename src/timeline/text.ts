@@ -6,7 +6,7 @@ export type TimelineTextRole = 'title' | 'section' | 'period' | 'event' | 'acces
 /** Entity codes are opaque lexical text in Mermaid. Expand their display
  * value only after the statement and its fields have been identified. */
 export function timelineLexicalLines(lines: readonly string[]): string[] {
-  return lines.map(toEntityMarkers)
+  return lines.map(line => toEntityMarkers(line.trimStart()))
 }
 
 export function normalizeTimelineBreaks(value: string): string {
@@ -22,6 +22,9 @@ export function readTimelineText(value: string, role: TimelineTextRole): string 
  * Line breaks in node labels use Timeline's one formatting token; encoded
  * tag-like text is decoded later and cannot introduce that token. */
 export function writeTimelineText(value: string, role: TimelineTextRole): string {
+  // The statement contributes its required separator; this second blank is
+  // the SECTION token's non-colon payload, which the reader trims to empty.
+  if (value === '' && role === 'section') return ' '
   if (!value.length) throw new Error(`Timeline ${role} text must be non-empty`)
   const nodeLabel = role === 'section' || role === 'period' || role === 'event'
   const reserved = '#&' + (nodeLabel ? ':<>' : '') + (role === 'accessibility' ? '{}' : '')

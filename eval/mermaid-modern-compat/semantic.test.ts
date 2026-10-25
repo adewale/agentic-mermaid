@@ -450,11 +450,11 @@ semantic('Sequence spaced actor tokens retain identities through declarations, e
   expect(actors.find(([id]) => id === 'Carol White')?.[1]).toMatchObject({ type: 'actor', description: 'Carol White' })
 })
 
-semantic('Canonical wrappers reject unknown configuration meaning and normalize concrete color whitespace', 'Mermaid public parse; theme-base.js derives palette colors even outside the owning diagram family', async () => {
+semantic('Canonical wrappers diagnose consumed configuration failures and preserve authored color text', 'Mermaid public parse; theme-base.js derives palette colors even outside the owning diagram family', async () => {
   for (const [source, problem] of [
     ['%%{init: definitely-not-an-object}%%\nmindmap\n root', 'init directive payload'],
-    ['---\nconfig:\n  themeVariables: 1\'\n---\nmindmap\n root', 'themeVariables must be'],
-    ['---\nconfig:\n  theme: base\n  themeVariables:\n    git0: "##374151"\n---\nmindmap\n root', 'themeVariables.git0'],
+    ['---\nconfig:\n  themeVariables: 1\'\n---\nmindmap\n root', 'pinned configuration processing rejects this value'],
+    ['---\nconfig:\n  theme: base\n  themeVariables:\n    git0: "##374151"\n---\nmindmap\n root', 'pinned configuration processing rejects this value'],
   ]) {
     if (!oracle) throw new Error('Reference unavailable')
     expect((await oracle.parse(source!)).ok).toBe(false)
@@ -470,7 +470,7 @@ semantic('Canonical wrappers reject unknown configuration meaning and normalize 
   await accepted(written)
   const reload = am.parseRegisteredMermaid(written)
   if (!reload.ok) throw new Error('Expected reload')
-  expect(reload.value.meta.frontmatter?.themeVariables).toEqual({ cScale1: '#00FF00' })
+  expect(reload.value.meta.frontmatter?.themeVariables).toEqual({ cScale1: '\r#00FF00' })
   expect(am.renderMermaidSVG(written)).toBe(am.renderMermaidSVG(source))
   const empty = am.parseRegisteredMermaid('%%{init: {}}%%\nmindmap\n root')
   if (!empty.ok) throw new Error('Expected empty init object')

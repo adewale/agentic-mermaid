@@ -119,6 +119,10 @@ export function certifyTerminalLayout(
         if (!parent) add('TERMINAL_PARENT_UNAVAILABLE', 'unverified', 'A native parent reference has no retained identity declaration.', owner.id)
         else if (parent.members && !parent.members.some(member => { visit(); return member === owner.id })) add('TERMINAL_MEMBERSHIP_MISMATCH', 'failed', 'The declared native parent does not include its child in its explicit membership.', owner.id)
       }
+      if (owner.annotationTarget) {
+        visit()
+        if (!owners.has(keyOf(owner.annotationTarget))) add('TERMINAL_ANNOTATION_TARGET_UNAVAILABLE', 'unverified', 'A native annotation target reference has no retained identity declaration.', owner.id)
+      }
       const members = new Set<string>()
       for (const member of owner.members ?? []) {
         visit()

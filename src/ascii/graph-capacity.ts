@@ -1,4 +1,4 @@
-import type { AsciiGraph, AsciiNode, AsciiSubgraph, AsciiEdge, Direction } from './types.ts'
+import type { AsciiGraph, AsciiNode, AsciiSubgraph, AsciiEdge, Direction, DrawingCoord } from './types.ts'
 import { Up, Down, Left, Right } from './types.ts'
 import { maxLineWidth, lineCount } from './multiline-utils.ts'
 
@@ -11,6 +11,19 @@ export const graphEndpointOf = (edge: AsciiEdge, start: boolean): Endpoint => st
   ? edge.attachFromSubgraph ?? edge.fromSubgraph ?? edge.from
   : edge.attachToSubgraph ?? edge.toSubgraph ?? edge.to
 const membersOf = (endpoint: Endpoint): readonly AsciiNode[] => isGroup(endpoint) ? endpoint.nodes : [endpoint]
+
+/** A relative face allocation projects from the current complete envelope.
+ * Capacity reservation and painting must use the same physical contact. */
+export function allocatedGraphPort(edge: AsciiEdge, start: boolean, bounds: Bounds): DrawingCoord | undefined {
+  const endpoint = graphEndpointOf(edge, start), direction = start ? edge.startDir : edge.endDir
+  const offset = start ? edge.cellAllocation!.startOffset : edge.cellAllocation!.endOffset
+  const horizontal = direction.x !== 1, available = horizontal ? bounds.maxY - bounds.minY : bounds.maxX - bounds.minX
+  const minimum = isGroup(endpoint) && horizontal ? lineCount(endpoint.name) + 1 : 1
+  if (!Number.isSafeInteger(offset) || offset < minimum || offset >= available) return undefined
+  return horizontal ? { x: direction.x === 0 ? bounds.minX : bounds.maxX, y: bounds.minY + offset }
+    : { x: bounds.minX + offset, y: direction.y === 0 ? bounds.minY : bounds.maxY }
+}
+
 const logicalBounds = (endpoint: Endpoint): Bounds => {
   const members = membersOf(endpoint)
   return {
@@ -19,37 +32,55 @@ const logicalBounds = (endpoint: Endpoint): Bounds => {
   }
 }
 
-/** Allocate from semantic endpoint envelopes, including complete container
- * frames. A representative member is only a logical routing anchor; it is
- * never the authority for the container's face, ports or exterior clearance. */
-export function reserveGraphEdgeCapacity(graph: AsciiGraph, measure: () => ReadonlyMap<AsciiNode, Bounds>): void {
-  const directed = new Map<Endpoint, Map<Endpoint, number>>()
-  const contacts = new Map<Endpoint, Map<string, Set<string>>>()
-  let needsPhysicalFaces = false
+/** Keep complete shared routing units when selecting unsafe contacts. */
+export function graphRoutingUnits(graph: AsciiGraph): Map<AsciiEdge, readonly AsciiEdge[]> {
+  const groups = new Map<AsciiEdge | object | string, AsciiEdge[]>()
+  for (const edge of graph.edges) {
+    const key = edge.bundle ?? edge.sharedTrunk ?? edge
+    const members = groups.get(key) ?? []; members.push(edge); groups.set(key, members)
+  }
+  return new Map([...groups.values()].flatMap(members => members.map(edge => [edge, members] as const)))
+}
+
+/** Select witnessed contact conflicts, retaining their relationship identities.
+ * Projection alone is not evidence that every route needs replacing. */
+export function unsafeGraphContacts(graph: AsciiGraph): Set<AsciiEdge> {
+  const directed = new Map<Endpoint, Map<Endpoint, AsciiEdge[]>>()
+  const contacts = new Map<Endpoint, Map<string, Map<string, AsciiEdge[]>>>()
+  const selected = new Set<AsciiEdge>()
   for (const edge of graph.edges) {
     if (edge.style === 'invisible') continue
     const from = graphEndpointOf(edge, true), to = graphEndpointOf(edge, false)
-    const outgoing = directed.get(from) ?? new Map<Endpoint, number>()
-    const parallels = (outgoing.get(to) ?? 0) + 1
-    outgoing.set(to, parallels); directed.set(from, outgoing)
-    const compoundPair = isGroup(from) || isGroup(to)
-    if (parallels >= 2 || compoundPair && (from === to || (directed.get(to)?.get(from) ?? 0) > 0)) needsPhysicalFaces = true
+    // A frame has no node-centre contact, and a self relationship needs two
+    // distinct physical contacts on the same envelope.
+    if (isGroup(from) || isGroup(to) || from === to) selected.add(edge)
+    const outgoing = directed.get(from) ?? new Map<Endpoint, AsciiEdge[]>()
+    const parallels = outgoing.get(to) ?? []
+    parallels.push(edge); outgoing.set(to, parallels); directed.set(from, outgoing)
+    const reverse = directed.get(to)?.get(from) ?? []
+    if (parallels.length >= 2 || (isGroup(from) || isGroup(to)) && (from === to || reverse.length)) {
+      for (const member of [...parallels, ...reverse]) selected.add(member)
+    }
     for (const start of [true, false]) {
       const endpoint = start ? from : to, direction = start ? edge.startDir : edge.endDir
-      const faces = contacts.get(endpoint) ?? new Map<string, Set<string>>(), face = `${direction.x},${direction.y}`
-      const meanings = faces.get(face) ?? new Set<string>()
+      const faces = contacts.get(endpoint) ?? new Map<string, Map<string, AsciiEdge[]>>(), face = `${direction.x},${direction.y}`
+      const meanings = faces.get(face) ?? new Map<string, AsciiEdge[]>()
       const marked = start ? edge.hasArrowStart : edge.hasArrowEnd
-      meanings.add(marked ? (start ? edge.startMarker : edge.endMarker) ?? 'arrow' : 'line')
+      const meaning = marked ? (start ? edge.startMarker : edge.endMarker) ?? 'arrow' : 'line'
+      const members = meanings.get(meaning) ?? []; members.push(edge); meanings.set(meaning, members)
       faces.set(face, meanings); contacts.set(endpoint, faces)
     }
   }
-  for (const faces of contacts.values()) for (const meanings of faces.values()) {
-    // Compatible shared heads/trunks retain their existing ownership. A line
-    // cannot continue through another relationship's endpoint marker, and
-    // different markers cannot express both endpoint meanings in one glyph.
-    if (meanings.size > 1) needsPhysicalFaces = true
+  for (const faces of contacts.values()) for (const meanings of faces.values()) if (meanings.size > 1) {
+    for (const members of meanings.values()) for (const member of members) selected.add(member)
   }
-  if (!needsPhysicalFaces && !graph.compoundRepacked) return
+  return selected
+}
+
+/** Allocate only selected units from semantic endpoint envelopes. Retained
+ * route/contact footprints participate in admission before publication. */
+export function reserveGraphEdgeCapacity(graph: AsciiGraph, measure: () => ReadonlyMap<AsciiNode, Bounds>, selected: ReadonlySet<AsciiEdge>): void {
+  if (!selected.size) return
   const logicalEnvelopes = new Map<Endpoint, Bounds>()
   const logicalOf = (endpoint: Endpoint): Bounds => {
     let bounds = logicalEnvelopes.get(endpoint)
@@ -67,7 +98,7 @@ export function reserveGraphEdgeCapacity(graph: AsciiGraph, measure: () => Reado
     return before.extent + Math.floor(demand / 2)
   }
   for (const edge of graph.edges) {
-    if (edge.style === 'invisible') continue
+    if (edge.style === 'invisible' || !selected.has(edge)) continue
     const from = graphEndpointOf(edge, true), to = graphEndpointOf(edge, false), a = boundsOf(from), b = boundsOf(to)
     const separatedX = a.maxX < b.minX || b.maxX < a.minX, separatedY = a.maxY < b.minY || b.maxY < a.minY
     const dx = Math.abs(a.minX + a.maxX - b.minX - b.maxX), dy = Math.abs(a.minY + a.maxY - b.minY - b.maxY)

@@ -1,6 +1,125 @@
 import { pointOnRoutingBoundary, shapeRoutingProfile, type ShapeRoutingBoundary } from './shape-outline.ts'
 import type { Point, PositionedNode } from './types.ts'
 
+/** Exact-outline contact must carry an outward shaft, not merely a point on
+ * the far side of the node. Envelopes deliberately make no such claim. */
+export function isOutwardShapeApproach(node: PositionedNode, endpoint: Point, adjacent: Point, tolerance = 1e-6): boolean | undefined {
+  const boundary = shapeRoutingProfile(node).boundary
+  if (boundary.kind === 'envelope' || boundary.kind === 'none') return undefined
+  return outwardContact(boundary, endpoint, adjacent, tolerance)
+}
+
+function outwardContact(boundary: ShapeRoutingBoundary, endpoint: Point, adjacent: Point, tolerance: number): boolean {
+  const dx = adjacent.x - endpoint.x, dy = adjacent.y - endpoint.y
+  const length = Math.hypot(dx, dy)
+  if (length <= 1e-9 || Math.abs(dx) > tolerance && Math.abs(dy) > tolerance) return false
+  const side = Math.abs(dx) > Math.abs(dy) ? dx > 0 ? 'E' : 'W' : dy > 0 ? 'S' : 'N'
+  const cross = side === 'E' || side === 'W' ? endpoint.y : endpoint.x
+  const contact = pointOnRoutingBoundary(boundary, side, cross)
+  if (!contact || Math.hypot(contact.x - endpoint.x, contact.y - endpoint.y) > tolerance) return false
+  // A tangent to a curved cap can be its extreme point on both axes without
+  // departing along an outward normal (notably the top of a capsule).
+  let nx = 0, ny = 0
+  if (boundary.kind === 'ellipse') {
+    nx = (endpoint.x - boundary.cx) / boundary.rx / boundary.rx
+    ny = (endpoint.y - boundary.cy) / boundary.ry / boundary.ry
+  } else if (boundary.kind === 'stadium') {
+    const core = boundary.halfWidth - boundary.radius
+    nx = endpoint.x - Math.max(boundary.cx - core, Math.min(boundary.cx + core, endpoint.x))
+    ny = endpoint.y - boundary.cy
+  } else if (boundary.kind === 'cylinder') {
+    const top = boundary.y + boundary.capRadiusY, bottom = boundary.y + boundary.height - boundary.capRadiusY
+    if (endpoint.y >= top && endpoint.y <= bottom) nx = endpoint.x - boundary.cx
+    else {
+      nx = (endpoint.x - boundary.cx) / (boundary.width / 2) / (boundary.width / 2)
+      ny = (endpoint.y - (endpoint.y < top ? top : bottom)) / boundary.capRadiusY / boundary.capRadiusY
+    }
+  } else return true
+  const normal = Math.hypot(nx, ny)
+  return normal > 0 && Number.isFinite(normal) && (nx * (dx / length) + ny * (dy / length)) / normal > 0
+}
+
+function onOrInsideBoundary(boundary: ShapeRoutingBoundary, point: Point): boolean {
+  if (boundary.kind === 'polygon') {
+    let inside = false
+    for (let i = 0, j = boundary.points.length - 1; i < boundary.points.length; j = i++) {
+      const a = boundary.points[i]!, b = boundary.points[j]!
+      const dx = b.x - a.x, dy = b.y - a.y
+      const cross = (point.x - a.x) * dy - (point.y - a.y) * dx
+      if (Math.abs(cross) <= 1e-6 * Math.hypot(dx, dy) &&
+        (point.x - a.x) * (point.x - b.x) + (point.y - a.y) * (point.y - b.y) <= 1e-6) return true
+      if ((a.y > point.y) !== (b.y > point.y) && point.x < (b.x - a.x) * (point.y - a.y) / (b.y - a.y) + a.x) inside = !inside
+    }
+    return inside
+  }
+  const left = pointOnRoutingBoundary(boundary, 'W', point.y), right = pointOnRoutingBoundary(boundary, 'E', point.y)
+  return Boolean(left && right && point.x >= left.x - 1e-6 && point.x <= right.x + 1e-6)
+}
+
+function hasExteriorPrefix(boundary: ShapeRoutingBoundary, a: Point, b: Point): boolean {
+  if (!onOrInsideBoundary(boundary, a) || !onOrInsideBoundary(boundary, b)) return true
+  if (boundary.kind !== 'polygon') return false // the other exact outlines are convex
+  const dx = b.x - a.x, dy = b.y - a.y
+  const vertical = Math.abs(dx) <= 1e-6
+  const length = vertical ? dy : dx
+  if (Math.abs(length) <= 1e-9) return false
+  const cuts = [0, 1]
+  for (let index = 0; index < boundary.points.length; index++) {
+    const p = boundary.points[index]!, q = boundary.points[(index + 1) % boundary.points.length]!
+    const hit = vertical ? intersectVertical(a.x, p, q) : intersectHorizontal(a.y, p, q)
+    if (hit) {
+      const t = (vertical ? hit.y - a.y : hit.x - a.x) / length
+      if (t > 0 && t < 1) cuts.push(t)
+    }
+  }
+  cuts.sort((x, y) => x - y)
+  return cuts.some((cut, index) => {
+    const next = cuts[index + 1]
+    if (next === undefined || next - cut <= 1e-9) return false
+    const t = (cut + next) / 2
+    return !onOrInsideBoundary(boundary, { x: a.x + dx * t, y: a.y + dy * t })
+  })
+}
+
+/** Remove only a hidden/tangent terminal prefix up to its first usable exit.
+ * The retained route is an existing subpath: no corridor is invented. A valid
+ * first exterior shaft returns immediately, so later excursions and self-loop
+ * returns are untouched. If no exact exit exists, leave it for certification
+ * to reject instead of manufacturing a port. */
+export function trimOccludedShapeEndpoint(points: Point[], node: PositionedNode, isStart: boolean): Point[] {
+  if (points.length < 2) return points
+  const boundary = shapeRoutingProfile(node).boundary
+  if (boundary.kind === 'envelope' || boundary.kind === 'none') return points
+  const ordered = isStart ? points : [...points].reverse()
+  const endpoint = ordered[0]!
+  if (!onOrInsideBoundary(boundary, endpoint)) return points // exterior stale endpoints belong to re-anchoring
+  const adjacent = ordered.find(point => Math.hypot(point.x - endpoint.x, point.y - endpoint.y) > 1e-9)
+  if (!adjacent || outwardContact(boundary, endpoint, adjacent, 1e-6)) return points
+  for (let index = 0; index < ordered.length - 1; index++) {
+    const a = ordered[index]!, b = ordered[index + 1]!
+    const dx = b.x - a.x, dy = b.y - a.y, length = Math.hypot(dx, dy)
+    if (length <= 1e-9) continue
+    if (Math.abs(dx) > 1e-6 && Math.abs(dy) > 1e-6) return points // diagonal repair owns this case
+    const side = Math.abs(dx) > Math.abs(dy) ? dx > 0 ? 'E' : 'W' : dy > 0 ? 'S' : 'N'
+    const hit = boundary.kind === 'polygon' ? clipPolygon(a, b, boundary.points)
+      : pointOnRoutingBoundary(boundary, side, side === 'E' || side === 'W' ? a.y : a.x)
+    if (hit) {
+      const t = ((hit.x - a.x) * dx + (hit.y - a.y) * dy) / length ** 2
+      const tail = ordered.slice(index + 1)
+      const next = tail.find(point => Math.hypot(point.x - hit.x, point.y - hit.y) > 1e-9)
+      if (t >= -1e-9 && t <= 1 + 1e-9 && next && outwardContact(boundary, hit, next, 1e-6)) {
+        if (hasExteriorPrefix(boundary, a, hit)) return points
+        const trimmed = Math.hypot(hit.x - b.x, hit.y - b.y) <= 1e-9 ? tail : [hit, ...tail]
+        return isStart ? trimmed : trimmed.reverse()
+      }
+    }
+    // Once a prefix has entered exterior space it is no longer hidden. A
+    // later re-entry cannot authorize erasing that excursion or a loop return.
+    if (hasExteriorPrefix(boundary, a, b)) return points
+  }
+  return points
+}
+
 /** Clip an ELK endpoint to the routing boundary paired with its painted shape. */
 export function clipEdgeToShape(points: Point[], node: PositionedNode, isStart: boolean): Point[] {
   if (points.length < 2) return points
