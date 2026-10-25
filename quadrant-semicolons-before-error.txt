@@ -1,0 +1,1 @@
+Error: Unsupported quadrant point style metadata: "; B: [0.3, 0.4]" — malformed style entry "; B: [0.3" (expected key: value). Expected comma-separated radius/color/stroke-color/stroke-width entries.

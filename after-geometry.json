@@ -1,0 +1,6202 @@
+[
+  {
+    "id": "A",
+    "quality": {
+      "metrics": {
+        "edges": 2,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 2,
+        "maxBendsPerEdge": 2,
+        "portEndpointRate": 1,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 1.1102230246251565e-16
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "Q",
+        "label": "Decide",
+        "x": 40,
+        "y": 40,
+        "width": 107.446,
+        "height": 107.446
+      },
+      {
+        "id": "X",
+        "label": "Side input",
+        "x": 195.446,
+        "y": 132.023,
+        "width": 99.007,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "T",
+        "label": "Target",
+        "x": 342.453,
+        "y": 75.273,
+        "width": 81.964,
+        "height": 36.900000000000006
+      }
+    ],
+    "edges": [
+      {
+        "source": "Q",
+        "target": "T",
+        "label": "go",
+        "points": [
+          {
+            "x": 147.446,
+            "y": 93.723
+          },
+          {
+            "x": 342.453,
+            "y": 93.723
+          }
+        ],
+        "labelPosition": {
+          "x": 244.9495,
+          "y": 93.723
+        }
+      },
+      {
+        "source": "X",
+        "target": "T",
+        "points": [
+          {
+            "x": 294.453,
+            "y": 150.473
+          },
+          {
+            "x": 330.453,
+            "y": 150.473
+          },
+          {
+            "x": 330.453,
+            "y": 93.723
+          },
+          {
+            "x": 342.453,
+            "y": 93.723
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "B",
+    "quality": {
+      "metrics": {
+        "edges": 2,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 2,
+        "maxBendsPerEdge": 2,
+        "portEndpointRate": 1,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 1.1102230246251565e-16
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "Q",
+        "label": "Decide",
+        "x": 316.971,
+        "y": 40,
+        "width": 107.446,
+        "height": 107.446
+      },
+      {
+        "id": "X",
+        "label": "Side input",
+        "x": 169.96400000000008,
+        "y": 132.023,
+        "width": 99.007,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "T",
+        "label": "Target",
+        "x": 40.000000000000085,
+        "y": 75.273,
+        "width": 81.964,
+        "height": 36.900000000000006
+      }
+    ],
+    "edges": [
+      {
+        "source": "Q",
+        "target": "T",
+        "label": "go",
+        "points": [
+          {
+            "x": 316.971,
+            "y": 93.723
+          },
+          {
+            "x": 121.96400000000008,
+            "y": 93.723
+          }
+        ],
+        "labelPosition": {
+          "x": 219.46750000000003,
+          "y": 93.723
+        }
+      },
+      {
+        "source": "X",
+        "target": "T",
+        "points": [
+          {
+            "x": 169.96400000000008,
+            "y": 150.473
+          },
+          {
+            "x": 133.96400000000008,
+            "y": 150.473
+          },
+          {
+            "x": 133.96400000000008,
+            "y": 93.723
+          },
+          {
+            "x": 121.96400000000008,
+            "y": 93.723
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "C",
+    "quality": {
+      "metrics": {
+        "edges": 2,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 2,
+        "maxBendsPerEdge": 2,
+        "portEndpointRate": 1,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 1.1102230246251565e-16
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "Q",
+        "label": "Decide",
+        "x": 40,
+        "y": 40,
+        "width": 107.446,
+        "height": 107.446
+      },
+      {
+        "id": "X",
+        "label": "Side input",
+        "x": 132.253,
+        "y": 195.446,
+        "width": 99.007,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "T",
+        "label": "Target",
+        "x": 52.740999999999985,
+        "y": 280.346,
+        "width": 81.964,
+        "height": 36.900000000000006
+      }
+    ],
+    "edges": [
+      {
+        "source": "Q",
+        "target": "T",
+        "label": "go",
+        "points": [
+          {
+            "x": 93.723,
+            "y": 147.446
+          },
+          {
+            "x": 93.723,
+            "y": 280.346
+          }
+        ],
+        "labelPosition": {
+          "x": 93.723,
+          "y": 213.89600000000002
+        }
+      },
+      {
+        "source": "X",
+        "target": "T",
+        "points": [
+          {
+            "x": 181.7565,
+            "y": 232.346
+          },
+          {
+            "x": 181.7565,
+            "y": 268.346
+          },
+          {
+            "x": 93.72299999999998,
+            "y": 268.346
+          },
+          {
+            "x": 93.72299999999998,
+            "y": 280.346
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "D",
+    "quality": {
+      "metrics": {
+        "edges": 2,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 2,
+        "maxBendsPerEdge": 2,
+        "portEndpointRate": 1,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "Q",
+        "label": "Decide",
+        "x": 40,
+        "y": 209.80000000000004,
+        "width": 107.446,
+        "height": 107.446
+      },
+      {
+        "id": "X",
+        "label": "Side input",
+        "x": 132.253,
+        "y": 124.90000000000003,
+        "width": 99.007,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "T",
+        "label": "Target",
+        "x": 52.740999999999985,
+        "y": 40.00000000000003,
+        "width": 81.964,
+        "height": 36.900000000000006
+      }
+    ],
+    "edges": [
+      {
+        "source": "Q",
+        "target": "T",
+        "label": "go",
+        "points": [
+          {
+            "x": 93.723,
+            "y": 209.8
+          },
+          {
+            "x": 93.723,
+            "y": 76.90000000000003
+          }
+        ],
+        "labelPosition": {
+          "x": 93.723,
+          "y": 143.35000000000002
+        }
+      },
+      {
+        "source": "X",
+        "target": "T",
+        "points": [
+          {
+            "x": 181.7565,
+            "y": 124.90000000000003
+          },
+          {
+            "x": 181.7565,
+            "y": 88.90000000000003
+          },
+          {
+            "x": 93.72299999999998,
+            "y": 88.90000000000003
+          },
+          {
+            "x": 93.72299999999998,
+            "y": 76.90000000000003
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "E",
+    "quality": {
+      "metrics": {
+        "edges": 2,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 0,
+        "maxBendsPerEdge": 0,
+        "portEndpointRate": 1,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "Q",
+        "label": "Decide",
+        "x": 40,
+        "y": 40,
+        "width": 107.446,
+        "height": 107.446
+      },
+      {
+        "id": "P",
+        "label": "One",
+        "x": 300.036,
+        "y": 48.411500000000004,
+        "width": 67.14399999999999,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "R",
+        "label": "Two",
+        "x": 300.036,
+        "y": 102.13449999999999,
+        "width": 67.14399999999999,
+        "height": 36.900000000000006
+      }
+    ],
+    "edges": [
+      {
+        "source": "Q",
+        "target": "P",
+        "label": "a",
+        "points": [
+          {
+            "x": 120.58449999999999,
+            "y": 66.8615
+          },
+          {
+            "x": 300.036,
+            "y": 66.8615
+          }
+        ],
+        "labelPosition": {
+          "x": 210.31025,
+          "y": 66.8615
+        }
+      },
+      {
+        "source": "Q",
+        "target": "R",
+        "label": "b",
+        "points": [
+          {
+            "x": 120.58449999999999,
+            "y": 120.58449999999999
+          },
+          {
+            "x": 300.036,
+            "y": 120.58449999999999
+          }
+        ],
+        "labelPosition": {
+          "x": 210.31025,
+          "y": 120.58449999999999
+        }
+      }
+    ]
+  },
+  {
+    "id": "F",
+    "quality": {
+      "metrics": {
+        "edges": 2,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 0,
+        "maxBendsPerEdge": 0,
+        "portEndpointRate": 1,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0.1907991414981245
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "Q",
+        "label": "Decide",
+        "x": 66.30950000000001,
+        "y": 40,
+        "width": 107.446,
+        "height": 107.446
+      },
+      {
+        "id": "P",
+        "label": "One",
+        "x": 38.88850000000003,
+        "y": 306.746,
+        "width": 67.14399999999999,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "R",
+        "label": "Two",
+        "x": 134.0325,
+        "y": 306.746,
+        "width": 67.14399999999999,
+        "height": 36.900000000000006
+      }
+    ],
+    "edges": [
+      {
+        "source": "Q",
+        "target": "P",
+        "label": "a",
+        "points": [
+          {
+            "x": 93.17100000000002,
+            "y": 120.58449999999999
+          },
+          {
+            "x": 93.17100000000002,
+            "y": 190.446
+          },
+          {
+            "x": 72.46050000000002,
+            "y": 190.446
+          },
+          {
+            "x": 72.46050000000002,
+            "y": 306.746
+          }
+        ],
+        "labelPosition": {
+          "x": 72.46050000000002,
+          "y": 242.781
+        }
+      },
+      {
+        "source": "Q",
+        "target": "R",
+        "label": "b",
+        "points": [
+          {
+            "x": 146.894,
+            "y": 120.58449999999999
+          },
+          {
+            "x": 146.894,
+            "y": 190.446
+          },
+          {
+            "x": 167.6045,
+            "y": 190.446
+          },
+          {
+            "x": 167.6045,
+            "y": 306.746
+          }
+        ],
+        "labelPosition": {
+          "x": 167.6045,
+          "y": 242.781
+        }
+      }
+    ]
+  },
+  {
+    "id": "G",
+    "quality": {
+      "metrics": {
+        "edges": 2,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 0,
+        "maxBendsPerEdge": 0,
+        "portEndpointRate": 1,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "Q",
+        "label": "One",
+        "x": 40,
+        "y": 40.74099999999999,
+        "width": 89.662,
+        "height": 89.662
+      },
+      {
+        "id": "R",
+        "label": "Two",
+        "x": 177.662,
+        "y": 40,
+        "width": 91.14399999999999,
+        "height": 91.14399999999999
+      }
+    ],
+    "edges": [
+      {
+        "source": "Q",
+        "target": "R",
+        "points": [
+          {
+            "x": 107.2465,
+            "y": 63.1565
+          },
+          {
+            "x": 200.07750000000001,
+            "y": 63.1565
+          }
+        ]
+      },
+      {
+        "source": "R",
+        "target": "Q",
+        "points": [
+          {
+            "x": 200.448,
+            "y": 108.358
+          },
+          {
+            "x": 106.876,
+            "y": 108.358
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "H",
+    "quality": {
+      "metrics": {
+        "edges": 2,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 0,
+        "maxBendsPerEdge": 0,
+        "portEndpointRate": 0,
+        "portAnchoredEdgeRate": 0,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "A",
+        "label": "One",
+        "x": 40,
+        "y": 40,
+        "width": 65.662,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "B",
+        "label": "Two",
+        "x": 153.662,
+        "y": 40,
+        "width": 67.14399999999999,
+        "height": 36.900000000000006
+      }
+    ],
+    "edges": [
+      {
+        "source": "A",
+        "target": "B",
+        "points": [
+          {
+            "x": 105.662,
+            "y": 52.45
+          },
+          {
+            "x": 153.662,
+            "y": 52.45
+          }
+        ]
+      },
+      {
+        "source": "B",
+        "target": "A",
+        "points": [
+          {
+            "x": 153.662,
+            "y": 64.45
+          },
+          {
+            "x": 105.662,
+            "y": 64.45
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "I",
+    "quality": {
+      "metrics": {
+        "edges": 2,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 0,
+        "maxBendsPerEdge": 0,
+        "portEndpointRate": 1,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "Q1",
+        "label": "One",
+        "x": 40,
+        "y": 46.669,
+        "width": 89.662,
+        "height": 89.662
+      },
+      {
+        "id": "Q2",
+        "label": "Two",
+        "x": 177.662,
+        "y": 45.928000000000004,
+        "width": 91.14399999999999,
+        "height": 91.14399999999999
+      },
+      {
+        "id": "Q3",
+        "label": "Three",
+        "x": 316.80600000000004,
+        "y": 40,
+        "width": 103,
+        "height": 103
+      }
+    ],
+    "edges": [
+      {
+        "source": "Q1",
+        "target": "Q2",
+        "points": [
+          {
+            "x": 129.662,
+            "y": 91.5
+          },
+          {
+            "x": 177.662,
+            "y": 91.5
+          }
+        ]
+      },
+      {
+        "source": "Q2",
+        "target": "Q3",
+        "points": [
+          {
+            "x": 268.80600000000004,
+            "y": 91.5
+          },
+          {
+            "x": 316.80600000000004,
+            "y": 91.5
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "J",
+    "quality": {
+      "metrics": {
+        "edges": 2,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 0,
+        "maxBendsPerEdge": 0,
+        "portEndpointRate": 1,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "Q1",
+        "label": "One",
+        "x": 46.669,
+        "y": 40,
+        "width": 89.662,
+        "height": 89.662
+      },
+      {
+        "id": "Q2",
+        "label": "Two",
+        "x": 45.928000000000004,
+        "y": 177.662,
+        "width": 91.14399999999999,
+        "height": 91.14399999999999
+      },
+      {
+        "id": "Q3",
+        "label": "Three",
+        "x": 40,
+        "y": 316.80600000000004,
+        "width": 103,
+        "height": 103
+      }
+    ],
+    "edges": [
+      {
+        "source": "Q1",
+        "target": "Q2",
+        "points": [
+          {
+            "x": 91.5,
+            "y": 129.662
+          },
+          {
+            "x": 91.5,
+            "y": 177.662
+          }
+        ]
+      },
+      {
+        "source": "Q2",
+        "target": "Q3",
+        "points": [
+          {
+            "x": 91.5,
+            "y": 268.80600000000004
+          },
+          {
+            "x": 91.5,
+            "y": 316.80600000000004
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "K",
+    "quality": {
+      "metrics": {
+        "edges": 2,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 0,
+        "maxBendsPerEdge": 0,
+        "portEndpointRate": 1,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "Q1",
+        "label": "First",
+        "x": 40,
+        "y": 68.375,
+        "width": 94.108,
+        "height": 94.108
+      },
+      {
+        "id": "X",
+        "label": "Side input",
+        "x": 182.108,
+        "y": 152.925,
+        "width": 99.007,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "Q2",
+        "label": "Second",
+        "x": 329.115,
+        "y": 59.48300000000001,
+        "width": 111.892,
+        "height": 111.892
+      }
+    ],
+    "edges": [
+      {
+        "source": "Q1",
+        "target": "Q2",
+        "label": "go",
+        "points": [
+          {
+            "x": 134.108,
+            "y": 115.429
+          },
+          {
+            "x": 329.115,
+            "y": 115.429
+          }
+        ],
+        "labelPosition": {
+          "x": 231.6115,
+          "y": 115.429
+        }
+      },
+      {
+        "source": "X",
+        "target": "Q2",
+        "points": [
+          {
+            "x": 281.115,
+            "y": 171.375
+          },
+          {
+            "x": 385.06100000000004,
+            "y": 171.375
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "L",
+    "quality": {
+      "metrics": {
+        "edges": 2,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 0,
+        "maxBendsPerEdge": 0,
+        "portEndpointRate": 1,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "A",
+        "label": "One",
+        "x": 41,
+        "y": 40,
+        "width": 84,
+        "height": 84
+      },
+      {
+        "id": "B",
+        "label": "Two",
+        "x": 40,
+        "y": 152,
+        "width": 85,
+        "height": 85
+      },
+      {
+        "id": "T",
+        "label": "Hub",
+        "x": 173,
+        "y": 96.25,
+        "width": 84,
+        "height": 84
+      }
+    ],
+    "edges": [
+      {
+        "source": "A",
+        "target": "T",
+        "points": [
+          {
+            "x": 125,
+            "y": 82
+          },
+          {
+            "x": 149,
+            "y": 82
+          },
+          {
+            "x": 149,
+            "y": 138.25
+          },
+          {
+            "x": 173,
+            "y": 138.25
+          }
+        ]
+      },
+      {
+        "source": "B",
+        "target": "T",
+        "points": [
+          {
+            "x": 125,
+            "y": 194.5
+          },
+          {
+            "x": 149,
+            "y": 194.5
+          },
+          {
+            "x": 149,
+            "y": 138.25
+          },
+          {
+            "x": 173,
+            "y": 138.25
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "M",
+    "quality": {
+      "metrics": {
+        "edges": 2,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 0,
+        "maxBendsPerEdge": 0,
+        "portEndpointRate": 1,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "A",
+        "label": "One",
+        "x": 40.74099999999999,
+        "y": 40,
+        "width": 65.662,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "B",
+        "label": "Two",
+        "x": 40.74099999999999,
+        "y": 104.9,
+        "width": 67.14399999999999,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "T",
+        "label": "Hub",
+        "x": 155.144,
+        "y": 72.45,
+        "width": 65.662,
+        "height": 36.900000000000006
+      }
+    ],
+    "edges": [
+      {
+        "source": "A",
+        "target": "T",
+        "points": [
+          {
+            "x": 106.403,
+            "y": 58.45
+          },
+          {
+            "x": 131.5145,
+            "y": 58.45
+          },
+          {
+            "x": 131.5145,
+            "y": 90.9
+          },
+          {
+            "x": 155.144,
+            "y": 90.9
+          }
+        ]
+      },
+      {
+        "source": "B",
+        "target": "T",
+        "points": [
+          {
+            "x": 107.88499999999999,
+            "y": 123.35000000000001
+          },
+          {
+            "x": 131.5145,
+            "y": 123.35000000000001
+          },
+          {
+            "x": 131.5145,
+            "y": 90.9
+          },
+          {
+            "x": 155.144,
+            "y": 90.9
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "N",
+    "quality": {
+      "metrics": {
+        "edges": 2,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 0,
+        "maxBendsPerEdge": 0,
+        "portEndpointRate": 1,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "A",
+        "label": "One",
+        "x": 40.74099999999999,
+        "y": 40,
+        "width": 85.662,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "B",
+        "label": "Two",
+        "x": 40.74099999999999,
+        "y": 104.9,
+        "width": 87.14399999999999,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "T",
+        "label": "Hub",
+        "x": 175.144,
+        "y": 72.45,
+        "width": 85.662,
+        "height": 36.900000000000006
+      }
+    ],
+    "edges": [
+      {
+        "source": "A",
+        "target": "T",
+        "points": [
+          {
+            "x": 126.40299999999999,
+            "y": 58.45
+          },
+          {
+            "x": 151.5145,
+            "y": 58.45
+          },
+          {
+            "x": 151.5145,
+            "y": 90.9
+          },
+          {
+            "x": 175.144,
+            "y": 90.9
+          }
+        ]
+      },
+      {
+        "source": "B",
+        "target": "T",
+        "points": [
+          {
+            "x": 127.88499999999999,
+            "y": 123.35000000000001
+          },
+          {
+            "x": 151.5145,
+            "y": 123.35000000000001
+          },
+          {
+            "x": 151.5145,
+            "y": 90.9
+          },
+          {
+            "x": 175.144,
+            "y": 90.9
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "O",
+    "quality": {
+      "metrics": {
+        "edges": 2,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 0,
+        "maxBendsPerEdge": 0,
+        "portEndpointRate": 1,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "A",
+        "label": "One",
+        "x": 40.74099999999999,
+        "y": 40,
+        "width": 65.662,
+        "height": 50.900000000000006
+      },
+      {
+        "id": "B",
+        "label": "Two",
+        "x": 40.74099999999999,
+        "y": 118.9,
+        "width": 67.14399999999999,
+        "height": 50.900000000000006
+      },
+      {
+        "id": "T",
+        "label": "Hub",
+        "x": 155.144,
+        "y": 79.45,
+        "width": 65.662,
+        "height": 50.900000000000006
+      }
+    ],
+    "edges": [
+      {
+        "source": "A",
+        "target": "T",
+        "points": [
+          {
+            "x": 106.403,
+            "y": 65.45
+          },
+          {
+            "x": 131.5145,
+            "y": 65.45
+          },
+          {
+            "x": 131.5145,
+            "y": 104.9
+          },
+          {
+            "x": 155.144,
+            "y": 104.9
+          }
+        ]
+      },
+      {
+        "source": "B",
+        "target": "T",
+        "points": [
+          {
+            "x": 107.88499999999999,
+            "y": 144.35000000000002
+          },
+          {
+            "x": 131.5145,
+            "y": 144.35000000000002
+          },
+          {
+            "x": 131.5145,
+            "y": 104.9
+          },
+          {
+            "x": 155.144,
+            "y": 104.9
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "P",
+    "quality": {
+      "metrics": {
+        "edges": 2,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 0,
+        "maxBendsPerEdge": 0,
+        "portEndpointRate": 1,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "A",
+        "label": "One",
+        "x": 40.74099999999999,
+        "y": 40,
+        "width": 67.14399999999999,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "B",
+        "label": "Two",
+        "x": 40.74099999999999,
+        "y": 100.9,
+        "width": 67.14399999999999,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "T",
+        "label": "Hub",
+        "x": 155.144,
+        "y": 46.900000000000006,
+        "width": 84,
+        "height": 84
+      }
+    ],
+    "edges": [
+      {
+        "source": "A",
+        "target": "T",
+        "points": [
+          {
+            "x": 107.88499999999999,
+            "y": 58.45
+          },
+          {
+            "x": 131.5145,
+            "y": 58.45
+          },
+          {
+            "x": 131.5145,
+            "y": 88.9
+          },
+          {
+            "x": 155.144,
+            "y": 88.9
+          }
+        ]
+      },
+      {
+        "source": "B",
+        "target": "T",
+        "points": [
+          {
+            "x": 107.88499999999999,
+            "y": 119.35000000000001
+          },
+          {
+            "x": 131.5145,
+            "y": 119.35000000000001
+          },
+          {
+            "x": 131.5145,
+            "y": 88.9
+          },
+          {
+            "x": 155.144,
+            "y": 88.9
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "Q",
+    "quality": {
+      "metrics": {
+        "edges": 2,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 0,
+        "maxBendsPerEdge": 0,
+        "portEndpointRate": 1,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "Choosing",
+        "label": "Choosing",
+        "x": 42.22299999999999,
+        "y": 40,
+        "width": 98.266,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "Reviewing",
+        "label": "Reviewing",
+        "x": 42.22299999999999,
+        "y": 104.9,
+        "width": 102.71199999999999,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "Done",
+        "label": "Done",
+        "x": 190.712,
+        "y": 72.45,
+        "width": 73.072,
+        "height": 36.900000000000006
+      }
+    ],
+    "edges": [
+      {
+        "source": "Choosing",
+        "target": "Done",
+        "points": [
+          {
+            "x": 140.489,
+            "y": 58.45
+          },
+          {
+            "x": 167.82349999999997,
+            "y": 58.45
+          },
+          {
+            "x": 167.82349999999997,
+            "y": 90.9
+          },
+          {
+            "x": 190.712,
+            "y": 90.9
+          }
+        ]
+      },
+      {
+        "source": "Reviewing",
+        "target": "Done",
+        "points": [
+          {
+            "x": 144.93499999999997,
+            "y": 123.35000000000001
+          },
+          {
+            "x": 167.82349999999997,
+            "y": 123.35000000000001
+          },
+          {
+            "x": 167.82349999999997,
+            "y": 90.9
+          },
+          {
+            "x": 190.712,
+            "y": 90.9
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "R",
+    "quality": {
+      "metrics": {
+        "edges": 3,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 2,
+        "maxBendsPerEdge": 2,
+        "portEndpointRate": 1,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0.17797432037903194
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "A",
+        "label": "Request",
+        "x": 52,
+        "y": 73.05,
+        "width": 90.856,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "B",
+        "label": "Valid?",
+        "x": 190.856,
+        "y": 40,
+        "width": 103,
+        "height": 103
+      },
+      {
+        "id": "C",
+        "label": "Process",
+        "x": 417.326,
+        "y": 73.05,
+        "width": 93.82,
+        "height": 36.900000000000006
+      }
+    ],
+    "edges": [
+      {
+        "source": "A",
+        "target": "B",
+        "points": [
+          {
+            "x": 142.856,
+            "y": 91.5
+          },
+          {
+            "x": 190.856,
+            "y": 91.5
+          }
+        ]
+      },
+      {
+        "source": "B",
+        "target": "A",
+        "label": "no, retry",
+        "points": [
+          {
+            "x": 242.356,
+            "y": 143
+          },
+          {
+            "x": 242.356,
+            "y": 153
+          },
+          {
+            "x": 97.428,
+            "y": 153
+          },
+          {
+            "x": 97.428,
+            "y": 109.95
+          }
+        ],
+        "labelPosition": {
+          "x": 118.13199999999999,
+          "y": 152.15
+        }
+      },
+      {
+        "source": "B",
+        "target": "C",
+        "label": "yes",
+        "points": [
+          {
+            "x": 293.856,
+            "y": 91.5
+          },
+          {
+            "x": 417.326,
+            "y": 91.5
+          }
+        ],
+        "labelPosition": {
+          "x": 355.591,
+          "y": 91.5
+        }
+      }
+    ]
+  },
+  {
+    "id": "S",
+    "quality": {
+      "metrics": {
+        "edges": 2,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 2,
+        "maxBendsPerEdge": 2,
+        "portEndpointRate": 1,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "A",
+        "label": "One",
+        "x": 52,
+        "y": 40.5,
+        "width": 84,
+        "height": 84
+      },
+      {
+        "id": "B",
+        "label": "Two",
+        "x": 184,
+        "y": 40,
+        "width": 85,
+        "height": 85
+      }
+    ],
+    "edges": [
+      {
+        "source": "A",
+        "target": "B",
+        "points": [
+          {
+            "x": 136,
+            "y": 82.5
+          },
+          {
+            "x": 184,
+            "y": 82.5
+          }
+        ]
+      },
+      {
+        "source": "B",
+        "target": "A",
+        "points": [
+          {
+            "x": 226.5,
+            "y": 125
+          },
+          {
+            "x": 226.5,
+            "y": 135
+          },
+          {
+            "x": 94,
+            "y": 135
+          },
+          {
+            "x": 94,
+            "y": 124.5
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "T",
+    "quality": {
+      "metrics": {
+        "edges": 2,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 0,
+        "maxBendsPerEdge": 0,
+        "portEndpointRate": 1,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "A",
+        "label": "One",
+        "x": 40.74099999999999,
+        "y": 40,
+        "width": 85.662,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "B",
+        "label": "Two",
+        "x": 40.74099999999999,
+        "y": 104.9,
+        "width": 87.14399999999999,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "T",
+        "label": "Hub",
+        "x": 175.144,
+        "y": 72.45,
+        "width": 85.662,
+        "height": 36.900000000000006
+      }
+    ],
+    "edges": [
+      {
+        "source": "A",
+        "target": "T",
+        "points": [
+          {
+            "x": 119.97834999999999,
+            "y": 58.45
+          },
+          {
+            "x": 151.5145,
+            "y": 58.45
+          },
+          {
+            "x": 151.5145,
+            "y": 90.9
+          },
+          {
+            "x": 181.56865,
+            "y": 90.9
+          }
+        ]
+      },
+      {
+        "source": "B",
+        "target": "T",
+        "points": [
+          {
+            "x": 121.3492,
+            "y": 123.35000000000001
+          },
+          {
+            "x": 151.5145,
+            "y": 123.35000000000001
+          },
+          {
+            "x": 151.5145,
+            "y": 90.9
+          },
+          {
+            "x": 181.56865,
+            "y": 90.9
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "U",
+    "quality": {
+      "metrics": {
+        "edges": 2,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 0,
+        "maxBendsPerEdge": 0,
+        "portEndpointRate": 1,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "A",
+        "label": "One",
+        "x": 40.74099999999999,
+        "y": 40,
+        "width": 85.662,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "B",
+        "label": "Two",
+        "x": 40.74099999999999,
+        "y": 104.9,
+        "width": 87.14399999999999,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "T",
+        "label": "Hub",
+        "x": 175.144,
+        "y": 72.45,
+        "width": 85.662,
+        "height": 36.900000000000006
+      }
+    ],
+    "edges": [
+      {
+        "source": "A",
+        "target": "T",
+        "points": [
+          {
+            "x": 119.97834999999999,
+            "y": 58.45
+          },
+          {
+            "x": 151.5145,
+            "y": 58.45
+          },
+          {
+            "x": 151.5145,
+            "y": 90.9
+          },
+          {
+            "x": 181.56865,
+            "y": 90.9
+          }
+        ]
+      },
+      {
+        "source": "B",
+        "target": "T",
+        "points": [
+          {
+            "x": 121.3492,
+            "y": 123.35000000000001
+          },
+          {
+            "x": 151.5145,
+            "y": 123.35000000000001
+          },
+          {
+            "x": 151.5145,
+            "y": 90.9
+          },
+          {
+            "x": 181.56865,
+            "y": 90.9
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "V",
+    "quality": {
+      "metrics": {
+        "edges": 2,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 0,
+        "maxBendsPerEdge": 0,
+        "portEndpointRate": 1,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "A",
+        "label": "One",
+        "x": 40.74099999999999,
+        "y": 40,
+        "width": 77.662,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "B",
+        "label": "Two",
+        "x": 40.74099999999999,
+        "y": 104.9,
+        "width": 79.14399999999999,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "T",
+        "label": "Hub",
+        "x": 167.144,
+        "y": 72.45,
+        "width": 77.662,
+        "height": 36.900000000000006
+      }
+    ],
+    "edges": [
+      {
+        "source": "A",
+        "target": "T",
+        "points": [
+          {
+            "x": 118.40299999999999,
+            "y": 58.45
+          },
+          {
+            "x": 143.5145,
+            "y": 58.45
+          },
+          {
+            "x": 143.5145,
+            "y": 90.9
+          },
+          {
+            "x": 167.144,
+            "y": 90.9
+          }
+        ]
+      },
+      {
+        "source": "B",
+        "target": "T",
+        "points": [
+          {
+            "x": 119.88499999999999,
+            "y": 123.35000000000001
+          },
+          {
+            "x": 143.5145,
+            "y": 123.35000000000001
+          },
+          {
+            "x": 143.5145,
+            "y": 90.9
+          },
+          {
+            "x": 167.144,
+            "y": 90.9
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "W",
+    "quality": {
+      "metrics": {
+        "edges": 3,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 0,
+        "maxBendsPerEdge": 0,
+        "portEndpointRate": 1,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0.22673872180451116
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "A",
+        "label": "Capture request",
+        "x": 72.45000000000002,
+        "y": 84,
+        "width": 137.539,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "B",
+        "label": "Ready?",
+        "x": 85.27350000000001,
+        "y": 168.9,
+        "width": 111.892,
+        "height": 111.892
+      },
+      {
+        "id": "C",
+        "label": "Ship",
+        "x": 48.21950000000001,
+        "y": 440.09200000000004,
+        "width": 79,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "D",
+        "label": "Refine",
+        "x": 155.2195,
+        "y": 440.09200000000004,
+        "width": 79,
+        "height": 36.900000000000006
+      }
+    ],
+    "edges": [
+      {
+        "source": "A",
+        "target": "B",
+        "points": [
+          {
+            "x": 141.2195,
+            "y": 120.9
+          },
+          {
+            "x": 141.2195,
+            "y": 168.9
+          }
+        ]
+      },
+      {
+        "source": "B",
+        "target": "C",
+        "label": "yes",
+        "points": [
+          {
+            "x": 113.24650000000001,
+            "y": 252.81900000000002
+          },
+          {
+            "x": 113.24650000000001,
+            "y": 323.79200000000003
+          },
+          {
+            "x": 87.71950000000001,
+            "y": 323.79200000000003
+          },
+          {
+            "x": 87.71950000000001,
+            "y": 440.09200000000004
+          }
+        ],
+        "labelPosition": {
+          "x": 87.71950000000001,
+          "y": 381.942
+        }
+      },
+      {
+        "source": "B",
+        "target": "D",
+        "label": "needs work",
+        "points": [
+          {
+            "x": 169.1925,
+            "y": 252.81900000000002
+          },
+          {
+            "x": 169.1925,
+            "y": 323.79200000000003
+          },
+          {
+            "x": 194.7195,
+            "y": 323.79200000000003
+          },
+          {
+            "x": 194.7195,
+            "y": 440.09200000000004
+          }
+        ],
+        "labelPosition": {
+          "x": 194.7195,
+          "y": 381.942
+        }
+      }
+    ]
+  },
+  {
+    "id": "X",
+    "quality": {
+      "metrics": {
+        "edges": 3,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 0,
+        "maxBendsPerEdge": 0,
+        "portEndpointRate": 1,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 2.842170943040401e-14,
+        "worstLabelOffset": 0.26178949289260134
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "Q",
+        "label": "Decision",
+        "x": 113.88149999999997,
+        "y": 40,
+        "width": 117.82,
+        "height": 117.82
+      },
+      {
+        "id": "L",
+        "label": "Left",
+        "x": 22.957000000000008,
+        "y": 317.12,
+        "width": 81.22299999999998,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "M",
+        "label": "Middle",
+        "x": 132.18,
+        "y": 317.12,
+        "width": 81.22299999999998,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "R",
+        "label": "Right",
+        "x": 241.40300000000002,
+        "y": 317.12,
+        "width": 81.22299999999998,
+        "height": 36.900000000000006
+      }
+    ],
+    "edges": [
+      {
+        "source": "Q",
+        "target": "L",
+        "label": "left",
+        "points": [
+          {
+            "x": 143.3365,
+            "y": 128.365
+          },
+          {
+            "x": 143.3365,
+            "y": 200.82
+          },
+          {
+            "x": 63.5685,
+            "y": 200.82
+          },
+          {
+            "x": 63.5685,
+            "y": 317.12
+          }
+        ],
+        "labelPosition": {
+          "x": 63.5685,
+          "y": 253.155
+        }
+      },
+      {
+        "source": "Q",
+        "target": "M",
+        "label": "middle",
+        "points": [
+          {
+            "x": 172.79149999999998,
+            "y": 157.82
+          },
+          {
+            "x": 172.79149999999998,
+            "y": 317.12
+          }
+        ],
+        "labelPosition": {
+          "x": 172.79149999999998,
+          "y": 253.39999999999998
+        }
+      },
+      {
+        "source": "Q",
+        "target": "R",
+        "label": "right",
+        "points": [
+          {
+            "x": 202.24649999999997,
+            "y": 128.365
+          },
+          {
+            "x": 202.24649999999997,
+            "y": 200.82
+          },
+          {
+            "x": 282.0145,
+            "y": 200.82
+          },
+          {
+            "x": 282.0145,
+            "y": 317.12
+          }
+        ],
+        "labelPosition": {
+          "x": 282.0145,
+          "y": 253.155
+        }
+      }
+    ]
+  },
+  {
+    "id": "Y",
+    "quality": {
+      "metrics": {
+        "edges": 6,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 0,
+        "maxBendsPerEdge": 0,
+        "portEndpointRate": 1,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "Web",
+        "label": "Web App",
+        "x": 40,
+        "y": 52,
+        "width": 110.863,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "Mobile",
+        "label": "Mobile App",
+        "x": 174.863,
+        "y": 52,
+        "width": 110.863,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "CLI",
+        "label": "CLI Tool",
+        "x": 309.726,
+        "y": 52,
+        "width": 110.863,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "Partner",
+        "label": "Partner API",
+        "x": 444.589,
+        "y": 52,
+        "width": 110.863,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "Cron",
+        "label": "Cron Jobs",
+        "x": 579.452,
+        "y": 52,
+        "width": 110.863,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "Gateway",
+        "label": "Gateway",
+        "x": 318.9885,
+        "y": 124.9,
+        "width": 92.338,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "Auth",
+        "label": "Auth Service",
+        "x": 306.02099999999996,
+        "y": 209.8,
+        "width": 118.27299999999998,
+        "height": 36.900000000000006
+      }
+    ],
+    "edges": [
+      {
+        "source": "Web",
+        "target": "Gateway",
+        "points": [
+          {
+            "x": 95.4315,
+            "y": 88.9
+          },
+          {
+            "x": 95.4315,
+            "y": 106.9
+          },
+          {
+            "x": 365.15749999999997,
+            "y": 106.9
+          },
+          {
+            "x": 365.15749999999997,
+            "y": 124.9
+          }
+        ]
+      },
+      {
+        "source": "Mobile",
+        "target": "Gateway",
+        "points": [
+          {
+            "x": 230.2945,
+            "y": 88.9
+          },
+          {
+            "x": 230.2945,
+            "y": 106.9
+          },
+          {
+            "x": 365.15749999999997,
+            "y": 106.9
+          },
+          {
+            "x": 365.15749999999997,
+            "y": 124.9
+          }
+        ]
+      },
+      {
+        "source": "CLI",
+        "target": "Gateway",
+        "points": [
+          {
+            "x": 365.1575,
+            "y": 88.9
+          },
+          {
+            "x": 365.1575,
+            "y": 124.9
+          }
+        ]
+      },
+      {
+        "source": "Partner",
+        "target": "Gateway",
+        "points": [
+          {
+            "x": 500.02049999999997,
+            "y": 88.9
+          },
+          {
+            "x": 500.02049999999997,
+            "y": 106.9
+          },
+          {
+            "x": 365.15749999999997,
+            "y": 106.9
+          },
+          {
+            "x": 365.15749999999997,
+            "y": 124.9
+          }
+        ]
+      },
+      {
+        "source": "Cron",
+        "target": "Gateway",
+        "points": [
+          {
+            "x": 634.8835,
+            "y": 88.9
+          },
+          {
+            "x": 634.8835,
+            "y": 106.9
+          },
+          {
+            "x": 365.15749999999997,
+            "y": 106.9
+          },
+          {
+            "x": 365.15749999999997,
+            "y": 124.9
+          }
+        ]
+      },
+      {
+        "source": "Gateway",
+        "target": "Auth",
+        "points": [
+          {
+            "x": 365.15749999999997,
+            "y": 161.8
+          },
+          {
+            "x": 365.15749999999997,
+            "y": 209.8
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "Z",
+    "quality": {
+      "metrics": {
+        "edges": 4,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 0,
+        "maxBendsPerEdge": 0,
+        "portEndpointRate": 1,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "Dispatcher",
+        "label": "Dispatcher",
+        "x": 312.319,
+        "y": 40,
+        "width": 107.158,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "Email",
+        "label": "Email Worker",
+        "x": 40,
+        "y": 124.9,
+        "width": 144.949,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "SMS",
+        "label": "SMS Worker",
+        "x": 208.949,
+        "y": 124.9,
+        "width": 144.949,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "Push",
+        "label": "Push Worker",
+        "x": 377.898,
+        "y": 124.9,
+        "width": 144.949,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "Webhook",
+        "label": "Webhook Worker",
+        "x": 546.847,
+        "y": 124.9,
+        "width": 144.949,
+        "height": 36.900000000000006
+      }
+    ],
+    "edges": [
+      {
+        "source": "Dispatcher",
+        "target": "Email",
+        "points": [
+          {
+            "x": 365.898,
+            "y": 76.9
+          },
+          {
+            "x": 365.898,
+            "y": 100.9
+          },
+          {
+            "x": 112.4745,
+            "y": 100.9
+          },
+          {
+            "x": 112.4745,
+            "y": 124.9
+          }
+        ]
+      },
+      {
+        "source": "Dispatcher",
+        "target": "SMS",
+        "points": [
+          {
+            "x": 365.898,
+            "y": 76.9
+          },
+          {
+            "x": 365.898,
+            "y": 100.9
+          },
+          {
+            "x": 281.4235,
+            "y": 100.9
+          },
+          {
+            "x": 281.4235,
+            "y": 124.9
+          }
+        ]
+      },
+      {
+        "source": "Dispatcher",
+        "target": "Push",
+        "points": [
+          {
+            "x": 365.898,
+            "y": 76.9
+          },
+          {
+            "x": 365.898,
+            "y": 100.9
+          },
+          {
+            "x": 450.37250000000006,
+            "y": 100.9
+          },
+          {
+            "x": 450.37250000000006,
+            "y": 124.9
+          }
+        ]
+      },
+      {
+        "source": "Dispatcher",
+        "target": "Webhook",
+        "points": [
+          {
+            "x": 365.898,
+            "y": 76.9
+          },
+          {
+            "x": 365.898,
+            "y": 100.9
+          },
+          {
+            "x": 619.3215,
+            "y": 100.9
+          },
+          {
+            "x": 619.3215,
+            "y": 124.9
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "AA",
+    "quality": {
+      "metrics": {
+        "edges": 6,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 0,
+        "maxBendsPerEdge": 0,
+        "portEndpointRate": 0.8333333333333334,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "A",
+        "label": "Ingest A",
+        "x": 52,
+        "y": 40,
+        "width": 88.63300000000001,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "B",
+        "label": "Ingest B",
+        "x": 52,
+        "y": 104.9,
+        "width": 88.63300000000001,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "C",
+        "label": "Ingest C",
+        "x": 52,
+        "y": 169.8,
+        "width": 88.63300000000001,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "Q",
+        "label": "Queue",
+        "x": 176.633,
+        "y": 104.9,
+        "width": 80.482,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "W1",
+        "label": "Worker 1",
+        "x": 293.115,
+        "y": 40,
+        "width": 96.78399999999999,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "W2",
+        "label": "Worker 2",
+        "x": 293.115,
+        "y": 104.9,
+        "width": 96.78399999999999,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "W3",
+        "label": "Worker 3",
+        "x": 293.115,
+        "y": 169.8,
+        "width": 96.78399999999999,
+        "height": 36.900000000000006
+      }
+    ],
+    "edges": [
+      {
+        "source": "A",
+        "target": "Q",
+        "points": [
+          {
+            "x": 140.633,
+            "y": 58.45
+          },
+          {
+            "x": 158.633,
+            "y": 58.45
+          },
+          {
+            "x": 158.633,
+            "y": 123.35000000000001
+          },
+          {
+            "x": 176.633,
+            "y": 123.35000000000001
+          }
+        ]
+      },
+      {
+        "source": "B",
+        "target": "Q",
+        "points": [
+          {
+            "x": 140.633,
+            "y": 123.35000000000001
+          },
+          {
+            "x": 176.633,
+            "y": 123.35000000000001
+          }
+        ]
+      },
+      {
+        "source": "C",
+        "target": "Q",
+        "points": [
+          {
+            "x": 140.633,
+            "y": 188.25
+          },
+          {
+            "x": 158.633,
+            "y": 188.25
+          },
+          {
+            "x": 158.633,
+            "y": 123.35000000000001
+          },
+          {
+            "x": 176.633,
+            "y": 123.35000000000001
+          }
+        ]
+      },
+      {
+        "source": "Q",
+        "target": "W1",
+        "points": [
+          {
+            "x": 257.115,
+            "y": 114.125
+          },
+          {
+            "x": 275.115,
+            "y": 114.125
+          },
+          {
+            "x": 275.115,
+            "y": 58.45
+          },
+          {
+            "x": 293.115,
+            "y": 58.45
+          }
+        ]
+      },
+      {
+        "source": "Q",
+        "target": "W2",
+        "points": [
+          {
+            "x": 257.115,
+            "y": 123.35000000000001
+          },
+          {
+            "x": 293.115,
+            "y": 123.35000000000001
+          }
+        ]
+      },
+      {
+        "source": "Q",
+        "target": "W3",
+        "points": [
+          {
+            "x": 257.115,
+            "y": 132.57500000000002
+          },
+          {
+            "x": 275.115,
+            "y": 132.57500000000002
+          },
+          {
+            "x": 275.115,
+            "y": 188.25
+          },
+          {
+            "x": 293.115,
+            "y": 188.25
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "AB",
+    "quality": {
+      "metrics": {
+        "edges": 3,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 0,
+        "maxBendsPerEdge": 0,
+        "portEndpointRate": 0.6666666666666666,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 2.842170943040401e-14,
+        "worstLabelOffset": 0.2793538083156689
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "Src",
+        "label": "Source",
+        "x": 193.31249999999997,
+        "y": 40,
+        "width": 86.41,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "Left",
+        "label": "Left Target",
+        "x": 22.21600000000003,
+        "y": 236.20000000000002,
+        "width": 124.20099999999998,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "Center",
+        "label": "Center Target",
+        "x": 174.417,
+        "y": 236.20000000000002,
+        "width": 124.20099999999998,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "Right",
+        "label": "Right Target",
+        "x": 326.61799999999994,
+        "y": 236.20000000000002,
+        "width": 124.20099999999998,
+        "height": 36.900000000000006
+      }
+    ],
+    "edges": [
+      {
+        "source": "Src",
+        "target": "Left",
+        "label": "left*",
+        "points": [
+          {
+            "x": 214.91499999999996,
+            "y": 76.9
+          },
+          {
+            "x": 214.91499999999996,
+            "y": 119.90000000000002
+          },
+          {
+            "x": 84.31650000000002,
+            "y": 119.90000000000002
+          },
+          {
+            "x": 84.31650000000002,
+            "y": 236.20000000000002
+          }
+        ],
+        "labelPosition": {
+          "x": 84.31650000000002,
+          "y": 172.235
+        }
+      },
+      {
+        "source": "Src",
+        "target": "Center",
+        "label": "center*",
+        "points": [
+          {
+            "x": 236.51749999999998,
+            "y": 76.9
+          },
+          {
+            "x": 236.51749999999998,
+            "y": 236.20000000000002
+          }
+        ],
+        "labelPosition": {
+          "x": 236.51749999999998,
+          "y": 172.48000000000002
+        }
+      },
+      {
+        "source": "Src",
+        "target": "Right",
+        "label": "right*",
+        "points": [
+          {
+            "x": 258.12,
+            "y": 76.9
+          },
+          {
+            "x": 258.12,
+            "y": 119.90000000000002
+          },
+          {
+            "x": 388.71849999999995,
+            "y": 119.90000000000002
+          },
+          {
+            "x": 388.71849999999995,
+            "y": 236.20000000000002
+          }
+        ],
+        "labelPosition": {
+          "x": 388.71849999999995,
+          "y": 172.235
+        }
+      }
+    ]
+  },
+  {
+    "id": "AC",
+    "quality": {
+      "metrics": {
+        "edges": 3,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 0,
+        "maxBendsPerEdge": 0,
+        "portEndpointRate": 0.6666666666666666,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "A",
+        "label": "A",
+        "x": 128,
+        "y": 40,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "B",
+        "label": "B",
+        "x": 40,
+        "y": 124.9,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "C",
+        "label": "C",
+        "x": 128,
+        "y": 124.9,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "D",
+        "label": "D",
+        "x": 216,
+        "y": 124.9,
+        "width": 60,
+        "height": 36.900000000000006
+      }
+    ],
+    "edges": [
+      {
+        "source": "A",
+        "target": "B",
+        "points": [
+          {
+            "x": 143,
+            "y": 76.9
+          },
+          {
+            "x": 143,
+            "y": 100.9
+          },
+          {
+            "x": 70,
+            "y": 100.9
+          },
+          {
+            "x": 70,
+            "y": 124.9
+          }
+        ]
+      },
+      {
+        "source": "A",
+        "target": "C",
+        "points": [
+          {
+            "x": 158,
+            "y": 76.9
+          },
+          {
+            "x": 158,
+            "y": 124.9
+          }
+        ]
+      },
+      {
+        "source": "A",
+        "target": "D",
+        "points": [
+          {
+            "x": 173,
+            "y": 76.9
+          },
+          {
+            "x": 173,
+            "y": 100.9
+          },
+          {
+            "x": 246,
+            "y": 100.9
+          },
+          {
+            "x": 246,
+            "y": 124.9
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "AD",
+    "quality": {
+      "metrics": {
+        "edges": 2,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 0,
+        "maxBendsPerEdge": 0,
+        "portEndpointRate": 1,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0.1907991414981245
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "Q",
+        "label": "Decide",
+        "x": 66.30950000000001,
+        "y": 40,
+        "width": 107.446,
+        "height": 107.446
+      },
+      {
+        "id": "P",
+        "label": "One",
+        "x": 38.88850000000003,
+        "y": 306.746,
+        "width": 67.14399999999999,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "R",
+        "label": "Two",
+        "x": 134.0325,
+        "y": 306.746,
+        "width": 67.14399999999999,
+        "height": 36.900000000000006
+      }
+    ],
+    "edges": [
+      {
+        "source": "Q",
+        "target": "P",
+        "label": "a",
+        "points": [
+          {
+            "x": 93.17100000000002,
+            "y": 120.58449999999999
+          },
+          {
+            "x": 93.17100000000002,
+            "y": 190.446
+          },
+          {
+            "x": 72.46050000000002,
+            "y": 190.446
+          },
+          {
+            "x": 72.46050000000002,
+            "y": 306.746
+          }
+        ],
+        "labelPosition": {
+          "x": 72.46050000000002,
+          "y": 242.781
+        }
+      },
+      {
+        "source": "Q",
+        "target": "R",
+        "label": "b",
+        "points": [
+          {
+            "x": 146.894,
+            "y": 120.58449999999999
+          },
+          {
+            "x": 146.894,
+            "y": 190.446
+          },
+          {
+            "x": 167.6045,
+            "y": 190.446
+          },
+          {
+            "x": 167.6045,
+            "y": 306.746
+          }
+        ],
+        "labelPosition": {
+          "x": 167.6045,
+          "y": 242.781
+        }
+      }
+    ]
+  },
+  {
+    "id": "AE",
+    "quality": {
+      "metrics": {
+        "edges": 3,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 0,
+        "maxBendsPerEdge": 0,
+        "portEndpointRate": 0.6666666666666666,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 2.842170943040401e-14,
+        "worstLabelOffset": 0.2793538083156689
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "Src",
+        "label": "Source",
+        "x": 193.31249999999997,
+        "y": 40,
+        "width": 86.41,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "Left",
+        "label": "Left Target",
+        "x": 22.21600000000003,
+        "y": 236.20000000000002,
+        "width": 124.20099999999998,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "Center",
+        "label": "Center Target",
+        "x": 174.417,
+        "y": 236.20000000000002,
+        "width": 124.20099999999998,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "Right",
+        "label": "Right Target",
+        "x": 326.61799999999994,
+        "y": 236.20000000000002,
+        "width": 124.20099999999998,
+        "height": 36.900000000000006
+      }
+    ],
+    "edges": [
+      {
+        "source": "Src",
+        "target": "Left",
+        "label": "left*",
+        "points": [
+          {
+            "x": 214.91499999999996,
+            "y": 76.9
+          },
+          {
+            "x": 214.91499999999996,
+            "y": 119.90000000000002
+          },
+          {
+            "x": 84.31650000000002,
+            "y": 119.90000000000002
+          },
+          {
+            "x": 84.31650000000002,
+            "y": 236.20000000000002
+          }
+        ],
+        "labelPosition": {
+          "x": 84.31650000000002,
+          "y": 172.235
+        }
+      },
+      {
+        "source": "Src",
+        "target": "Center",
+        "label": "center*",
+        "points": [
+          {
+            "x": 236.51749999999998,
+            "y": 76.9
+          },
+          {
+            "x": 236.51749999999998,
+            "y": 236.20000000000002
+          }
+        ],
+        "labelPosition": {
+          "x": 236.51749999999998,
+          "y": 172.48000000000002
+        }
+      },
+      {
+        "source": "Src",
+        "target": "Right",
+        "label": "right*",
+        "points": [
+          {
+            "x": 258.12,
+            "y": 76.9
+          },
+          {
+            "x": 258.12,
+            "y": 119.90000000000002
+          },
+          {
+            "x": 388.71849999999995,
+            "y": 119.90000000000002
+          },
+          {
+            "x": 388.71849999999995,
+            "y": 236.20000000000002
+          }
+        ],
+        "labelPosition": {
+          "x": 388.71849999999995,
+          "y": 172.235
+        }
+      }
+    ]
+  },
+  {
+    "id": "AF",
+    "quality": {
+      "metrics": {
+        "edges": 3,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 0,
+        "maxBendsPerEdge": 0,
+        "portEndpointRate": 0.6666666666666666,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0.16465184681885858
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "Src",
+        "label": "Source",
+        "x": 40,
+        "y": 104.9,
+        "width": 86.41,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "Top",
+        "label": "Top Target",
+        "x": 294.44399999999996,
+        "y": 40,
+        "width": 123.46,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "Mid",
+        "label": "Middle Target",
+        "x": 294.44399999999996,
+        "y": 104.9,
+        "width": 123.46,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "Bot",
+        "label": "Bottom Target",
+        "x": 294.44399999999996,
+        "y": 169.8,
+        "width": 123.46,
+        "height": 36.900000000000006
+      }
+    ],
+    "edges": [
+      {
+        "source": "Src",
+        "target": "Top",
+        "label": "top*",
+        "points": [
+          {
+            "x": 126.41,
+            "y": 114.125
+          },
+          {
+            "x": 169.41,
+            "y": 114.125
+          },
+          {
+            "x": 169.41,
+            "y": 58.45
+          },
+          {
+            "x": 294.44399999999996,
+            "y": 58.45
+          }
+        ],
+        "labelPosition": {
+          "x": 219.4236,
+          "y": 58.45
+        }
+      },
+      {
+        "source": "Src",
+        "target": "Mid",
+        "label": "mid*",
+        "points": [
+          {
+            "x": 126.41,
+            "y": 123.35000000000001
+          },
+          {
+            "x": 294.44399999999996,
+            "y": 123.35000000000001
+          }
+        ],
+        "labelPosition": {
+          "x": 218.82869999999997,
+          "y": 123.35000000000001
+        }
+      },
+      {
+        "source": "Src",
+        "target": "Bot",
+        "label": "bot*",
+        "points": [
+          {
+            "x": 126.41,
+            "y": 132.57500000000002
+          },
+          {
+            "x": 169.41,
+            "y": 132.57500000000002
+          },
+          {
+            "x": 169.41,
+            "y": 188.25
+          },
+          {
+            "x": 294.44399999999996,
+            "y": 188.25
+          }
+        ],
+        "labelPosition": {
+          "x": 219.4236,
+          "y": 188.25
+        }
+      }
+    ]
+  },
+  {
+    "id": "AG",
+    "quality": {
+      "metrics": {
+        "edges": 4,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 0,
+        "maxBendsPerEdge": 0,
+        "portEndpointRate": 0.75,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "A",
+        "label": "A",
+        "x": 40,
+        "y": 40,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "B",
+        "label": "B",
+        "x": 40,
+        "y": 104.9,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "C",
+        "label": "C",
+        "x": 148,
+        "y": 72.45,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "D",
+        "label": "D",
+        "x": 256,
+        "y": 40,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "E",
+        "label": "E",
+        "x": 256,
+        "y": 104.9,
+        "width": 60,
+        "height": 36.900000000000006
+      }
+    ],
+    "edges": [
+      {
+        "source": "A",
+        "target": "C",
+        "points": [
+          {
+            "x": 100,
+            "y": 58.45
+          },
+          {
+            "x": 124,
+            "y": 58.45
+          },
+          {
+            "x": 124,
+            "y": 90.9
+          },
+          {
+            "x": 148,
+            "y": 90.9
+          }
+        ]
+      },
+      {
+        "source": "B",
+        "target": "C",
+        "points": [
+          {
+            "x": 100,
+            "y": 123.35000000000001
+          },
+          {
+            "x": 124,
+            "y": 123.35000000000001
+          },
+          {
+            "x": 124,
+            "y": 90.9
+          },
+          {
+            "x": 148,
+            "y": 90.9
+          }
+        ]
+      },
+      {
+        "source": "C",
+        "target": "D",
+        "points": [
+          {
+            "x": 208,
+            "y": 84.75
+          },
+          {
+            "x": 232,
+            "y": 84.75
+          },
+          {
+            "x": 232,
+            "y": 58.45
+          },
+          {
+            "x": 256,
+            "y": 58.45
+          }
+        ]
+      },
+      {
+        "source": "C",
+        "target": "E",
+        "points": [
+          {
+            "x": 208,
+            "y": 97.05000000000001
+          },
+          {
+            "x": 232,
+            "y": 97.05000000000001
+          },
+          {
+            "x": 232,
+            "y": 123.35000000000001
+          },
+          {
+            "x": 256,
+            "y": 123.35000000000001
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "AH",
+    "quality": {
+      "metrics": {
+        "edges": 6,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 0,
+        "maxBendsPerEdge": 0,
+        "portEndpointRate": 1,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "A1",
+        "label": "A1",
+        "x": 40,
+        "y": 40,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "A2",
+        "label": "A2",
+        "x": 128,
+        "y": 40,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "A",
+        "label": "A",
+        "x": 84,
+        "y": 124.9,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "B1",
+        "label": "B1",
+        "x": 216,
+        "y": 40,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "B2",
+        "label": "B2",
+        "x": 304,
+        "y": 40,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "B",
+        "label": "B",
+        "x": 260,
+        "y": 124.9,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "C",
+        "label": "C",
+        "x": 172,
+        "y": 185.8,
+        "width": 60,
+        "height": 36.900000000000006
+      }
+    ],
+    "edges": [
+      {
+        "source": "A1",
+        "target": "A",
+        "points": [
+          {
+            "x": 70,
+            "y": 76.9
+          },
+          {
+            "x": 70,
+            "y": 100.9
+          },
+          {
+            "x": 114,
+            "y": 100.9
+          },
+          {
+            "x": 114,
+            "y": 124.9
+          }
+        ]
+      },
+      {
+        "source": "A2",
+        "target": "A",
+        "points": [
+          {
+            "x": 158,
+            "y": 76.9
+          },
+          {
+            "x": 158,
+            "y": 100.9
+          },
+          {
+            "x": 114,
+            "y": 100.9
+          },
+          {
+            "x": 114,
+            "y": 124.9
+          }
+        ]
+      },
+      {
+        "source": "B1",
+        "target": "B",
+        "points": [
+          {
+            "x": 246,
+            "y": 76.9
+          },
+          {
+            "x": 246,
+            "y": 100.9
+          },
+          {
+            "x": 290,
+            "y": 100.9
+          },
+          {
+            "x": 290,
+            "y": 124.9
+          }
+        ]
+      },
+      {
+        "source": "B2",
+        "target": "B",
+        "points": [
+          {
+            "x": 334,
+            "y": 76.9
+          },
+          {
+            "x": 334,
+            "y": 100.9
+          },
+          {
+            "x": 290,
+            "y": 100.9
+          },
+          {
+            "x": 290,
+            "y": 124.9
+          }
+        ]
+      },
+      {
+        "source": "A",
+        "target": "C",
+        "points": [
+          {
+            "x": 114,
+            "y": 161.8
+          },
+          {
+            "x": 114,
+            "y": 173.8
+          },
+          {
+            "x": 202,
+            "y": 173.8
+          },
+          {
+            "x": 202,
+            "y": 185.8
+          }
+        ]
+      },
+      {
+        "source": "B",
+        "target": "C",
+        "points": [
+          {
+            "x": 290,
+            "y": 161.8
+          },
+          {
+            "x": 290,
+            "y": 173.8
+          },
+          {
+            "x": 202,
+            "y": 173.8
+          },
+          {
+            "x": 202,
+            "y": 185.8
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "AI",
+    "quality": {
+      "metrics": {
+        "edges": 14,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 0,
+        "maxBendsPerEdge": 0,
+        "portEndpointRate": 0.9642857142857143,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0.21290845969654926
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "A1",
+        "label": "1 / 2",
+        "x": 40,
+        "y": 60.45,
+        "width": 104.93499999999999,
+        "height": 53.800000000000004
+      },
+      {
+        "id": "A2",
+        "label": "3 / 4",
+        "x": 168.935,
+        "y": 60.45,
+        "width": 104.93499999999999,
+        "height": 53.800000000000004
+      },
+      {
+        "id": "A3",
+        "label": "5 / 6",
+        "x": 297.87,
+        "y": 60.45,
+        "width": 104.93499999999999,
+        "height": 53.800000000000004
+      },
+      {
+        "id": "A4",
+        "label": "XXX\n(YYY ZZZ)",
+        "x": 426.805,
+        "y": 60.45,
+        "width": 104.93499999999999,
+        "height": 53.800000000000004
+      },
+      {
+        "id": "A",
+        "label": "AAA\n(keita)",
+        "x": 241.924,
+        "y": 141.8,
+        "width": 87.892,
+        "height": 53.800000000000004
+      },
+      {
+        "id": "B1",
+        "label": "77 77\n(7 / 7 / 7)",
+        "x": 555.74,
+        "y": 60.45,
+        "width": 90.11500000000001,
+        "height": 53.800000000000004
+      },
+      {
+        "id": "B2",
+        "label": "88-88\n(99 99)",
+        "x": 669.855,
+        "y": 60.45,
+        "width": 90.11500000000001,
+        "height": 53.800000000000004
+      },
+      {
+        "id": "B3",
+        "label": "111s 222s",
+        "x": 783.97,
+        "y": 60.45,
+        "width": 90.11500000000001,
+        "height": 53.800000000000004
+      },
+      {
+        "id": "B",
+        "label": "BBB\n(yuriko)",
+        "x": 670.9665,
+        "y": 141.8,
+        "width": 87.892,
+        "height": 53.800000000000004
+      },
+      {
+        "id": "C",
+        "label": "CCC",
+        "x": 466.07825,
+        "y": 219.60000000000002,
+        "width": 68.62599999999999,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "D",
+        "label": "DDDD",
+        "x": 424.98875,
+        "y": 304.5,
+        "width": 77.518,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "E",
+        "label": "EEEE",
+        "x": 371.04625000000004,
+        "y": 434.75199999999995,
+        "width": 77.518,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "F",
+        "label": "F?",
+        "x": 476.56425,
+        "y": 389.4,
+        "width": 82.252,
+        "height": 82.252
+      },
+      {
+        "id": "G",
+        "label": "High level\nTr",
+        "x": 404.68324999999993,
+        "y": 630.952,
+        "width": 99.007,
+        "height": 53.800000000000004
+      },
+      {
+        "id": "H",
+        "label": "Dumb Tr\nS",
+        "x": 531.69025,
+        "y": 630.952,
+        "width": 99.007,
+        "height": 53.800000000000004
+      }
+    ],
+    "edges": [
+      {
+        "source": "A",
+        "target": "C",
+        "points": [
+          {
+            "x": 285.87,
+            "y": 195.60000000000002
+          },
+          {
+            "x": 285.87,
+            "y": 207.60000000000002
+          },
+          {
+            "x": 500.39125,
+            "y": 207.60000000000002
+          },
+          {
+            "x": 500.39125,
+            "y": 219.60000000000002
+          }
+        ]
+      },
+      {
+        "source": "B",
+        "target": "C",
+        "points": [
+          {
+            "x": 714.9125,
+            "y": 195.60000000000002
+          },
+          {
+            "x": 714.9125,
+            "y": 207.60000000000002
+          },
+          {
+            "x": 500.39125,
+            "y": 207.60000000000002
+          },
+          {
+            "x": 500.39125,
+            "y": 219.60000000000002
+          }
+        ]
+      },
+      {
+        "source": "C",
+        "target": "D",
+        "points": [
+          {
+            "x": 500.39125,
+            "y": 256.5
+          },
+          {
+            "x": 500.39125,
+            "y": 304.5
+          }
+        ]
+      },
+      {
+        "source": "D",
+        "target": "E",
+        "points": [
+          {
+            "x": 463.74775,
+            "y": 341.4
+          },
+          {
+            "x": 463.74775,
+            "y": 365.4
+          },
+          {
+            "x": 409.80525000000006,
+            "y": 365.4
+          },
+          {
+            "x": 409.80525000000006,
+            "y": 434.75199999999995
+          }
+        ]
+      },
+      {
+        "source": "A1",
+        "target": "A",
+        "points": [
+          {
+            "x": 92.4675,
+            "y": 114.25
+          },
+          {
+            "x": 92.4675,
+            "y": 128.025
+          },
+          {
+            "x": 285.87,
+            "y": 128.025
+          },
+          {
+            "x": 285.87,
+            "y": 141.8
+          }
+        ]
+      },
+      {
+        "source": "A2",
+        "target": "A",
+        "points": [
+          {
+            "x": 221.4025,
+            "y": 114.25
+          },
+          {
+            "x": 221.4025,
+            "y": 128.025
+          },
+          {
+            "x": 285.87,
+            "y": 128.025
+          },
+          {
+            "x": 285.87,
+            "y": 141.8
+          }
+        ]
+      },
+      {
+        "source": "A3",
+        "target": "A",
+        "points": [
+          {
+            "x": 350.3375,
+            "y": 114.25
+          },
+          {
+            "x": 350.3375,
+            "y": 128.025
+          },
+          {
+            "x": 285.87,
+            "y": 128.025
+          },
+          {
+            "x": 285.87,
+            "y": 141.8
+          }
+        ]
+      },
+      {
+        "source": "A4",
+        "target": "A",
+        "points": [
+          {
+            "x": 479.2725,
+            "y": 114.25
+          },
+          {
+            "x": 479.2725,
+            "y": 128.025
+          },
+          {
+            "x": 285.87,
+            "y": 128.025
+          },
+          {
+            "x": 285.87,
+            "y": 141.8
+          }
+        ]
+      },
+      {
+        "source": "B1",
+        "target": "B",
+        "points": [
+          {
+            "x": 600.7975,
+            "y": 114.25
+          },
+          {
+            "x": 600.7975,
+            "y": 128.025
+          },
+          {
+            "x": 714.9125,
+            "y": 128.025
+          },
+          {
+            "x": 714.9125,
+            "y": 141.8
+          }
+        ]
+      },
+      {
+        "source": "B2",
+        "target": "B",
+        "points": [
+          {
+            "x": 714.9125,
+            "y": 114.25
+          },
+          {
+            "x": 714.9125,
+            "y": 141.8
+          }
+        ]
+      },
+      {
+        "source": "B3",
+        "target": "B",
+        "points": [
+          {
+            "x": 829.0275,
+            "y": 114.25
+          },
+          {
+            "x": 829.0275,
+            "y": 128.025
+          },
+          {
+            "x": 714.9125,
+            "y": 128.025
+          },
+          {
+            "x": 714.9125,
+            "y": 141.8
+          }
+        ]
+      },
+      {
+        "source": "D",
+        "target": "F",
+        "points": [
+          {
+            "x": 463.74775,
+            "y": 341.4
+          },
+          {
+            "x": 463.74775,
+            "y": 365.4
+          },
+          {
+            "x": 517.69025,
+            "y": 365.4
+          },
+          {
+            "x": 517.69025,
+            "y": 389.4
+          }
+        ]
+      },
+      {
+        "source": "F",
+        "target": "G",
+        "label": "Yes",
+        "points": [
+          {
+            "x": 497.12725,
+            "y": 451.08899999999994
+          },
+          {
+            "x": 497.12725,
+            "y": 514.652
+          },
+          {
+            "x": 454.18674999999996,
+            "y": 514.652
+          },
+          {
+            "x": 454.18674999999996,
+            "y": 630.952
+          }
+        ],
+        "labelPosition": {
+          "x": 454.18674999999996,
+          "y": 566.9870000000001
+        }
+      },
+      {
+        "source": "F",
+        "target": "H",
+        "label": "No",
+        "points": [
+          {
+            "x": 538.25325,
+            "y": 451.08899999999994
+          },
+          {
+            "x": 538.25325,
+            "y": 514.652
+          },
+          {
+            "x": 581.19375,
+            "y": 514.652
+          },
+          {
+            "x": 581.19375,
+            "y": 630.952
+          }
+        ],
+        "labelPosition": {
+          "x": 581.19375,
+          "y": 566.9870000000001
+        }
+      }
+    ]
+  },
+  {
+    "id": "AJ",
+    "quality": {
+      "metrics": {
+        "edges": 16,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 1,
+        "totalBends": 28,
+        "maxBendsPerEdge": 4,
+        "portEndpointRate": 0.1875,
+        "portAnchoredEdgeRate": 0.25,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0.33333333333333337
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "Z",
+        "label": "Start",
+        "x": 141.46608333333333,
+        "y": 40,
+        "width": 70.108,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "A",
+        "label": "Alpha",
+        "x": 132.16575,
+        "y": 193.2,
+        "width": 76.036,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "B",
+        "label": "Beta",
+        "x": 135.87075,
+        "y": 346.40000000000003,
+        "width": 68.626,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "C",
+        "label": "Gamma",
+        "x": 190.6785,
+        "y": 475.6000000000001,
+        "width": 83.446,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "D",
+        "label": "Delta",
+        "x": 132.53625,
+        "y": 628.8,
+        "width": 71.59,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "E",
+        "label": "End",
+        "x": 135.50025000000002,
+        "y": 781.9999999999999,
+        "width": 65.662,
+        "height": 36.900000000000006
+      }
+    ],
+    "edges": [
+      {
+        "source": "Z",
+        "target": "A",
+        "label": "long 1",
+        "points": [
+          {
+            "x": 164.83541666666667,
+            "y": 76.9
+          },
+          {
+            "x": 164.83541666666667,
+            "y": 193.2
+          }
+        ],
+        "labelPosition": {
+          "x": 164.83541666666667,
+          "y": 96.28333333333333
+        }
+      },
+      {
+        "source": "Z",
+        "target": "A",
+        "label": "long 2",
+        "points": [
+          {
+            "x": 188.20475,
+            "y": 76.9
+          },
+          {
+            "x": 188.20475,
+            "y": 112.9
+          },
+          {
+            "x": 200.27208333333334,
+            "y": 112.9
+          },
+          {
+            "x": 200.27208333333334,
+            "y": 169.2
+          },
+          {
+            "x": 182.85641666666666,
+            "y": 169.2
+          },
+          {
+            "x": 182.85641666666666,
+            "y": 193.2
+          }
+        ],
+        "labelPosition": {
+          "x": 200.05608333333333,
+          "y": 135.05
+        }
+      },
+      {
+        "source": "A",
+        "target": "B",
+        "label": "3",
+        "points": [
+          {
+            "x": 163.32115,
+            "y": 230.1
+          },
+          {
+            "x": 163.32115,
+            "y": 346.40000000000003
+          }
+        ],
+        "labelPosition": {
+          "x": 163.32115,
+          "y": 249.48333333333335
+        }
+      },
+      {
+        "source": "A",
+        "target": "B",
+        "label": "4",
+        "points": [
+          {
+            "x": 182.8564166666667,
+            "y": 230.1
+          },
+          {
+            "x": 182.8564166666667,
+            "y": 346.40000000000003
+          }
+        ],
+        "labelPosition": {
+          "x": 182.8564166666667,
+          "y": 288.25
+        }
+      },
+      {
+        "source": "B",
+        "target": "C",
+        "label": "5",
+        "points": [
+          {
+            "x": 197.587625,
+            "y": 383.30000000000007
+          },
+          {
+            "x": 197.587625,
+            "y": 475.6000000000001
+          }
+        ],
+        "labelPosition": {
+          "x": 197.587625,
+          "y": 429.45000000000005
+        }
+      },
+      {
+        "source": "B",
+        "target": "D",
+        "label": "6",
+        "points": [
+          {
+            "x": 170.18374999999997,
+            "y": 383.3
+          },
+          {
+            "x": 170.18374999999997,
+            "y": 475.90000000000003
+          },
+          {
+            "x": 125.1225,
+            "y": 475.90000000000003
+          },
+          {
+            "x": 125.1225,
+            "y": 616.8
+          },
+          {
+            "x": 156.39958333333334,
+            "y": 616.8
+          },
+          {
+            "x": 156.39958333333334,
+            "y": 628.8
+          }
+        ],
+        "labelPosition": {
+          "x": 124.9175,
+          "y": 570.65
+        }
+      },
+      {
+        "source": "C",
+        "target": "D",
+        "label": "7",
+        "points": [
+          {
+            "x": 197.402375,
+            "y": 512.5000000000001
+          },
+          {
+            "x": 197.402375,
+            "y": 628.8
+          }
+        ],
+        "labelPosition": {
+          "x": 197.402375,
+          "y": 570.6500000000001
+        }
+      },
+      {
+        "source": "D",
+        "target": "E",
+        "label": "8",
+        "points": [
+          {
+            "x": 168.33125,
+            "y": 665.6999999999999
+          },
+          {
+            "x": 168.33125,
+            "y": 781.9999999999999
+          }
+        ],
+        "labelPosition": {
+          "x": 168.33125,
+          "y": 723.8499999999999
+        }
+      },
+      {
+        "source": "B",
+        "target": "A",
+        "label": "9",
+        "points": [
+          {
+            "x": 144.83841666666666,
+            "y": 346.40000000000003
+          },
+          {
+            "x": 144.83841666666666,
+            "y": 230.1
+          }
+        ],
+        "labelPosition": {
+          "x": 144.83841666666666,
+          "y": 288.25
+        }
+      },
+      {
+        "source": "C",
+        "target": "A",
+        "label": "10",
+        "points": [
+          {
+            "x": 253.263,
+            "y": 512.5
+          },
+          {
+            "x": 253.263,
+            "y": 524.5
+          },
+          {
+            "x": 285.34125000000006,
+            "y": 524.5
+          },
+          {
+            "x": 285.34125000000006,
+            "y": 181.2
+          },
+          {
+            "x": 195.52908333333335,
+            "y": 181.2
+          },
+          {
+            "x": 195.52908333333335,
+            "y": 193.2
+          }
+        ],
+        "labelPosition": {
+          "x": 285.32425000000006,
+          "y": 417.45000000000005
+        }
+      },
+      {
+        "source": "D",
+        "target": "A",
+        "label": "11",
+        "points": [
+          {
+            "x": 168.33125,
+            "y": 665.6999999999999
+          },
+          {
+            "x": 168.33125,
+            "y": 689.6999999999999
+          },
+          {
+            "x": 47.5,
+            "y": 689.6999999999999
+          },
+          {
+            "x": 47.5,
+            "y": 211.64999999999998
+          },
+          {
+            "x": 132.16575,
+            "y": 211.64999999999998
+          }
+        ],
+        "labelPosition": {
+          "x": 47.5,
+          "y": 450.67499999999995
+        }
+      },
+      {
+        "source": "B",
+        "target": "B",
+        "label": "12",
+        "points": [
+          {
+            "x": 135.87075,
+            "y": 355.625
+          },
+          {
+            "x": 111.87074999999999,
+            "y": 355.625
+          },
+          {
+            "x": 111.87074999999999,
+            "y": 374.07500000000005
+          },
+          {
+            "x": 135.87075,
+            "y": 374.07500000000005
+          }
+        ],
+        "labelPosition": {
+          "x": 94.88774999999998,
+          "y": 364.85
+        }
+      },
+      {
+        "source": "C",
+        "target": "B",
+        "label": "13",
+        "points": [
+          {
+            "x": 232.4015,
+            "y": 512.5
+          },
+          {
+            "x": 232.4015,
+            "y": 536.5
+          },
+          {
+            "x": 305.34125000000006,
+            "y": 536.5
+          },
+          {
+            "x": 305.34125000000006,
+            "y": 334.40000000000003
+          },
+          {
+            "x": 190.77155,
+            "y": 334.40000000000003
+          },
+          {
+            "x": 190.77155,
+            "y": 346.40000000000003
+          }
+        ],
+        "labelPosition": {
+          "x": 305.32425000000006,
+          "y": 514.35
+        }
+      },
+      {
+        "source": "D",
+        "target": "B",
+        "label": "14",
+        "points": [
+          {
+            "x": 150.43375,
+            "y": 665.6999999999999
+          },
+          {
+            "x": 150.43375,
+            "y": 677.6999999999999
+          },
+          {
+            "x": 67.5,
+            "y": 677.6999999999999
+          },
+          {
+            "x": 67.5,
+            "y": 346.7000000000001
+          },
+          {
+            "x": 135.87075,
+            "y": 346.7000000000001
+          }
+        ],
+        "labelPosition": {
+          "x": 67.5,
+          "y": 512.2
+        }
+      },
+      {
+        "source": "C",
+        "target": "C",
+        "label": "18",
+        "points": [
+          {
+            "x": 190.6785,
+            "y": 484.82500000000005
+          },
+          {
+            "x": 166.6785,
+            "y": 484.82500000000005
+          },
+          {
+            "x": 166.6785,
+            "y": 503.2750000000001
+          },
+          {
+            "x": 190.6785,
+            "y": 503.2750000000001
+          }
+        ],
+        "labelPosition": {
+          "x": 149.6955,
+          "y": 494.05000000000007
+        }
+      },
+      {
+        "source": "D",
+        "target": "D",
+        "label": "21",
+        "points": [
+          {
+            "x": 132.53625,
+            "y": 638.025
+          },
+          {
+            "x": 108.53625,
+            "y": 638.025
+          },
+          {
+            "x": 108.53625,
+            "y": 656.475
+          },
+          {
+            "x": 132.53625,
+            "y": 656.475
+          }
+        ],
+        "labelPosition": {
+          "x": 91.55324999999999,
+          "y": 647.25
+        }
+      }
+    ]
+  },
+  {
+    "id": "AK",
+    "quality": {
+      "metrics": {
+        "edges": 4,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 0,
+        "maxBendsPerEdge": 0,
+        "portEndpointRate": 1,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "A1",
+        "label": "A1",
+        "x": 40,
+        "y": 40,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "A2",
+        "label": "A2",
+        "x": 128,
+        "y": 40,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "A",
+        "label": "A",
+        "x": 84,
+        "y": 124.9,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "B1",
+        "label": "B1",
+        "x": 216,
+        "y": 40,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "B2",
+        "label": "B2",
+        "x": 304,
+        "y": 40,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "B",
+        "label": "B",
+        "x": 260,
+        "y": 124.9,
+        "width": 60,
+        "height": 36.900000000000006
+      }
+    ],
+    "edges": [
+      {
+        "source": "A1",
+        "target": "A",
+        "points": [
+          {
+            "x": 70,
+            "y": 76.9
+          },
+          {
+            "x": 70,
+            "y": 100.9
+          },
+          {
+            "x": 114,
+            "y": 100.9
+          },
+          {
+            "x": 114,
+            "y": 124.9
+          }
+        ]
+      },
+      {
+        "source": "A2",
+        "target": "A",
+        "points": [
+          {
+            "x": 158,
+            "y": 76.9
+          },
+          {
+            "x": 158,
+            "y": 100.9
+          },
+          {
+            "x": 114,
+            "y": 100.9
+          },
+          {
+            "x": 114,
+            "y": 124.9
+          }
+        ]
+      },
+      {
+        "source": "B1",
+        "target": "B",
+        "points": [
+          {
+            "x": 246,
+            "y": 76.9
+          },
+          {
+            "x": 246,
+            "y": 100.9
+          },
+          {
+            "x": 290,
+            "y": 100.9
+          },
+          {
+            "x": 290,
+            "y": 124.9
+          }
+        ]
+      },
+      {
+        "source": "B2",
+        "target": "B",
+        "points": [
+          {
+            "x": 334,
+            "y": 76.9
+          },
+          {
+            "x": 334,
+            "y": 100.9
+          },
+          {
+            "x": 290,
+            "y": 100.9
+          },
+          {
+            "x": 290,
+            "y": 124.9
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "AL",
+    "quality": {
+      "metrics": {
+        "edges": 3,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 0,
+        "maxBendsPerEdge": 0,
+        "portEndpointRate": 0.6666666666666666,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "Source",
+        "label": "Source",
+        "x": 142.62949999999995,
+        "y": 40,
+        "width": 86.41,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "Left",
+        "label": "Left",
+        "x": 35.99999999999996,
+        "y": 124.9,
+        "width": 81.22299999999998,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "Mid",
+        "label": "Middle",
+        "x": 145.22299999999996,
+        "y": 124.9,
+        "width": 81.22299999999998,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "Right",
+        "label": "Right",
+        "x": 254.4459999999999,
+        "y": 124.9,
+        "width": 81.22299999999998,
+        "height": 36.900000000000006
+      }
+    ],
+    "edges": [
+      {
+        "source": "Source",
+        "target": "Left",
+        "points": [
+          {
+            "x": 164.23199999999994,
+            "y": 76.9
+          },
+          {
+            "x": 164.23199999999994,
+            "y": 100.9
+          },
+          {
+            "x": 76.61149999999995,
+            "y": 100.9
+          },
+          {
+            "x": 76.61149999999995,
+            "y": 124.9
+          }
+        ]
+      },
+      {
+        "source": "Source",
+        "target": "Mid",
+        "points": [
+          {
+            "x": 185.83449999999993,
+            "y": 76.9
+          },
+          {
+            "x": 185.83449999999993,
+            "y": 124.9
+          }
+        ]
+      },
+      {
+        "source": "Source",
+        "target": "Right",
+        "points": [
+          {
+            "x": 207.43699999999995,
+            "y": 76.9
+          },
+          {
+            "x": 207.43699999999995,
+            "y": 100.9
+          },
+          {
+            "x": 295.0574999999999,
+            "y": 100.9
+          },
+          {
+            "x": 295.0574999999999,
+            "y": 124.9
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "AM",
+    "quality": {
+      "metrics": {
+        "edges": 4,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 0,
+        "maxBendsPerEdge": 0,
+        "portEndpointRate": 0.75,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "A",
+        "label": "A",
+        "x": 40,
+        "y": 40,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "B",
+        "label": "B",
+        "x": 40,
+        "y": 104.9,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "C",
+        "label": "Hub",
+        "x": 148,
+        "y": 72.45,
+        "width": 65.662,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "D",
+        "label": "D",
+        "x": 261.66200000000003,
+        "y": 40,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "E",
+        "label": "E",
+        "x": 261.66200000000003,
+        "y": 104.9,
+        "width": 60,
+        "height": 36.900000000000006
+      }
+    ],
+    "edges": [
+      {
+        "source": "A",
+        "target": "C",
+        "points": [
+          {
+            "x": 100,
+            "y": 58.45
+          },
+          {
+            "x": 124,
+            "y": 58.45
+          },
+          {
+            "x": 124,
+            "y": 90.9
+          },
+          {
+            "x": 148,
+            "y": 90.9
+          }
+        ]
+      },
+      {
+        "source": "B",
+        "target": "C",
+        "points": [
+          {
+            "x": 100,
+            "y": 123.35000000000001
+          },
+          {
+            "x": 124,
+            "y": 123.35000000000001
+          },
+          {
+            "x": 124,
+            "y": 90.9
+          },
+          {
+            "x": 148,
+            "y": 90.9
+          }
+        ]
+      },
+      {
+        "source": "C",
+        "target": "D",
+        "points": [
+          {
+            "x": 213.662,
+            "y": 84.75
+          },
+          {
+            "x": 237.66200000000003,
+            "y": 84.75
+          },
+          {
+            "x": 237.66200000000003,
+            "y": 58.45
+          },
+          {
+            "x": 261.66200000000003,
+            "y": 58.45
+          }
+        ]
+      },
+      {
+        "source": "C",
+        "target": "E",
+        "points": [
+          {
+            "x": 213.662,
+            "y": 97.05000000000001
+          },
+          {
+            "x": 237.66200000000003,
+            "y": 97.05000000000001
+          },
+          {
+            "x": 237.66200000000003,
+            "y": 123.35000000000001
+          },
+          {
+            "x": 261.66200000000003,
+            "y": 123.35000000000001
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "AN",
+    "quality": {
+      "metrics": {
+        "edges": 10,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 0,
+        "maxBendsPerEdge": 0,
+        "portEndpointRate": 1,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "A1",
+        "label": "A1",
+        "x": 40,
+        "y": 52,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "A2",
+        "label": "A2",
+        "x": 128,
+        "y": 52,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "A",
+        "label": "A",
+        "x": 84,
+        "y": 148.9,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "B1",
+        "label": "B1",
+        "x": 216,
+        "y": 52,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "B2",
+        "label": "B2",
+        "x": 304,
+        "y": 52,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "B",
+        "label": "B",
+        "x": 260,
+        "y": 124.9,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "C1",
+        "label": "C1",
+        "x": 392,
+        "y": 52,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "C2",
+        "label": "C2",
+        "x": 480,
+        "y": 52,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "C",
+        "label": "C",
+        "x": 436,
+        "y": 148.9,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "Merge",
+        "label": "Merge",
+        "x": 249.38850000000002,
+        "y": 209.8,
+        "width": 81.22299999999998,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "Done",
+        "label": "Done",
+        "x": 253.464,
+        "y": 294.70000000000005,
+        "width": 73.072,
+        "height": 36.900000000000006
+      }
+    ],
+    "edges": [
+      {
+        "source": "A1",
+        "target": "A",
+        "points": [
+          {
+            "x": 70,
+            "y": 88.9
+          },
+          {
+            "x": 70,
+            "y": 118.9
+          },
+          {
+            "x": 114,
+            "y": 118.9
+          },
+          {
+            "x": 114,
+            "y": 148.9
+          }
+        ]
+      },
+      {
+        "source": "A2",
+        "target": "A",
+        "points": [
+          {
+            "x": 158,
+            "y": 88.9
+          },
+          {
+            "x": 158,
+            "y": 118.9
+          },
+          {
+            "x": 114,
+            "y": 118.9
+          },
+          {
+            "x": 114,
+            "y": 148.9
+          }
+        ]
+      },
+      {
+        "source": "B1",
+        "target": "B",
+        "points": [
+          {
+            "x": 246,
+            "y": 88.9
+          },
+          {
+            "x": 246,
+            "y": 106.9
+          },
+          {
+            "x": 290,
+            "y": 106.9
+          },
+          {
+            "x": 290,
+            "y": 124.9
+          }
+        ]
+      },
+      {
+        "source": "B2",
+        "target": "B",
+        "points": [
+          {
+            "x": 334,
+            "y": 88.9
+          },
+          {
+            "x": 334,
+            "y": 106.9
+          },
+          {
+            "x": 290,
+            "y": 106.9
+          },
+          {
+            "x": 290,
+            "y": 124.9
+          }
+        ]
+      },
+      {
+        "source": "C1",
+        "target": "C",
+        "points": [
+          {
+            "x": 422,
+            "y": 88.9
+          },
+          {
+            "x": 422,
+            "y": 118.9
+          },
+          {
+            "x": 466,
+            "y": 118.9
+          },
+          {
+            "x": 466,
+            "y": 148.9
+          }
+        ]
+      },
+      {
+        "source": "C2",
+        "target": "C",
+        "points": [
+          {
+            "x": 510,
+            "y": 88.9
+          },
+          {
+            "x": 510,
+            "y": 118.9
+          },
+          {
+            "x": 466,
+            "y": 118.9
+          },
+          {
+            "x": 466,
+            "y": 148.9
+          }
+        ]
+      },
+      {
+        "source": "A",
+        "target": "Merge",
+        "points": [
+          {
+            "x": 114,
+            "y": 185.8
+          },
+          {
+            "x": 114,
+            "y": 197.8
+          },
+          {
+            "x": 290,
+            "y": 197.8
+          },
+          {
+            "x": 290,
+            "y": 209.8
+          }
+        ]
+      },
+      {
+        "source": "B",
+        "target": "Merge",
+        "points": [
+          {
+            "x": 290,
+            "y": 161.8
+          },
+          {
+            "x": 290,
+            "y": 209.8
+          }
+        ]
+      },
+      {
+        "source": "C",
+        "target": "Merge",
+        "points": [
+          {
+            "x": 466,
+            "y": 185.8
+          },
+          {
+            "x": 466,
+            "y": 197.8
+          },
+          {
+            "x": 290,
+            "y": 197.8
+          },
+          {
+            "x": 290,
+            "y": 209.8
+          }
+        ]
+      },
+      {
+        "source": "Merge",
+        "target": "Done",
+        "points": [
+          {
+            "x": 290,
+            "y": 246.70000000000002
+          },
+          {
+            "x": 290,
+            "y": 294.70000000000005
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "AO",
+    "quality": {
+      "metrics": {
+        "edges": 6,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 0,
+        "maxBendsPerEdge": 0,
+        "portEndpointRate": 1,
+        "portAnchoredEdgeRate": 1,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "A",
+        "label": "A",
+        "x": 40,
+        "y": 40,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "B",
+        "label": "B",
+        "x": 128,
+        "y": 40,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "C",
+        "label": "C",
+        "x": 84,
+        "y": 124.9,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "D",
+        "label": "D",
+        "x": 40,
+        "y": 209.8,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "E",
+        "label": "E",
+        "x": 128,
+        "y": 209.8,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "F",
+        "label": "F",
+        "x": 84,
+        "y": 294.70000000000005,
+        "width": 60,
+        "height": 36.900000000000006
+      }
+    ],
+    "edges": [
+      {
+        "source": "A",
+        "target": "C",
+        "points": [
+          {
+            "x": 70,
+            "y": 76.9
+          },
+          {
+            "x": 70,
+            "y": 100.9
+          },
+          {
+            "x": 114,
+            "y": 100.9
+          },
+          {
+            "x": 114,
+            "y": 124.9
+          }
+        ]
+      },
+      {
+        "source": "B",
+        "target": "C",
+        "points": [
+          {
+            "x": 158,
+            "y": 76.9
+          },
+          {
+            "x": 158,
+            "y": 100.9
+          },
+          {
+            "x": 114,
+            "y": 100.9
+          },
+          {
+            "x": 114,
+            "y": 124.9
+          }
+        ]
+      },
+      {
+        "source": "C",
+        "target": "D",
+        "points": [
+          {
+            "x": 114,
+            "y": 161.8
+          },
+          {
+            "x": 114,
+            "y": 185.8
+          },
+          {
+            "x": 70,
+            "y": 185.8
+          },
+          {
+            "x": 70,
+            "y": 209.8
+          }
+        ]
+      },
+      {
+        "source": "C",
+        "target": "E",
+        "points": [
+          {
+            "x": 114,
+            "y": 161.8
+          },
+          {
+            "x": 114,
+            "y": 185.8
+          },
+          {
+            "x": 158,
+            "y": 185.8
+          },
+          {
+            "x": 158,
+            "y": 209.8
+          }
+        ]
+      },
+      {
+        "source": "D",
+        "target": "F",
+        "points": [
+          {
+            "x": 70,
+            "y": 246.70000000000002
+          },
+          {
+            "x": 70,
+            "y": 270.70000000000005
+          },
+          {
+            "x": 114,
+            "y": 270.70000000000005
+          },
+          {
+            "x": 114,
+            "y": 294.70000000000005
+          }
+        ]
+      },
+      {
+        "source": "E",
+        "target": "F",
+        "points": [
+          {
+            "x": 158,
+            "y": 246.70000000000002
+          },
+          {
+            "x": 158,
+            "y": 270.70000000000005
+          },
+          {
+            "x": 114,
+            "y": 270.70000000000005
+          },
+          {
+            "x": 114,
+            "y": 294.70000000000005
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "AP",
+    "quality": {
+      "metrics": {
+        "edges": 3,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 0,
+        "maxBendsPerEdge": 0,
+        "portEndpointRate": 0.3333333333333333,
+        "portAnchoredEdgeRate": 0.6666666666666666,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "A",
+        "label": "a",
+        "x": 40,
+        "y": 52.3,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "B",
+        "label": "b",
+        "x": 40,
+        "y": 117.2,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "C",
+        "label": "c",
+        "x": 148,
+        "y": 84.75,
+        "width": 60,
+        "height": 36.900000000000006
+      }
+    ],
+    "edges": [
+      {
+        "source": "A",
+        "target": "C",
+        "points": [
+          {
+            "x": 100,
+            "y": 64.025
+          },
+          {
+            "x": 129.45,
+            "y": 64.025
+          },
+          {
+            "x": 129.45,
+            "y": 89.75
+          },
+          {
+            "x": 148,
+            "y": 89.75
+          }
+        ]
+      },
+      {
+        "source": "A",
+        "target": "C",
+        "points": [
+          {
+            "x": 100,
+            "y": 77.475
+          },
+          {
+            "x": 116,
+            "y": 77.475
+          },
+          {
+            "x": 116,
+            "y": 103.2
+          },
+          {
+            "x": 148,
+            "y": 103.2
+          }
+        ]
+      },
+      {
+        "source": "B",
+        "target": "C",
+        "points": [
+          {
+            "x": 100,
+            "y": 135.65
+          },
+          {
+            "x": 142.9,
+            "y": 135.65
+          },
+          {
+            "x": 142.9,
+            "y": 116.65
+          },
+          {
+            "x": 148,
+            "y": 116.65
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "AQ",
+    "quality": {
+      "metrics": {
+        "edges": 3,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 0,
+        "maxBendsPerEdge": 0,
+        "portEndpointRate": 0.3333333333333333,
+        "portAnchoredEdgeRate": 0.3333333333333333,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "A",
+        "label": "a",
+        "x": 40,
+        "y": 40,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "B",
+        "label": "b",
+        "x": 148,
+        "y": 40,
+        "width": 60,
+        "height": 36.900000000000006
+      }
+    ],
+    "edges": [
+      {
+        "source": "A",
+        "target": "B",
+        "points": [
+          {
+            "x": 100,
+            "y": 58.45
+          },
+          {
+            "x": 148,
+            "y": 58.45
+          }
+        ]
+      },
+      {
+        "source": "B",
+        "target": "A",
+        "points": [
+          {
+            "x": 148,
+            "y": 51.45
+          },
+          {
+            "x": 100,
+            "y": 51.45
+          }
+        ]
+      },
+      {
+        "source": "B",
+        "target": "A",
+        "points": [
+          {
+            "x": 148,
+            "y": 65.45
+          },
+          {
+            "x": 100,
+            "y": 65.45
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "AR",
+    "quality": {
+      "metrics": {
+        "edges": 5,
+        "offOutlineEndpoints": 0,
+        "endpointApproaches": 0,
+        "diagonalSegments": 0,
+        "unexplainedBends": 0,
+        "hitches": 0,
+        "nodeOverlaps": 0,
+        "labelOffRoute": 0,
+        "edgeThroughNode": 0,
+        "labelConflicts": 0,
+        "edgeCrossings": 0,
+        "totalBends": 2,
+        "maxBendsPerEdge": 2,
+        "portEndpointRate": 0.6,
+        "portAnchoredEdgeRate": 0.8,
+        "peerBarycenterDelta": 0,
+        "worstLabelOffset": 0.013899828568780859
+      },
+      "violations": []
+    },
+    "routes": [],
+    "nodes": [
+      {
+        "id": "N1",
+        "label": "n1",
+        "x": 46.000000000000014,
+        "y": 40,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "N2",
+        "label": "n2",
+        "x": 46.000000000000014,
+        "y": 104.9,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "N4",
+        "label": "n4",
+        "x": 46.000000000000014,
+        "y": 169.8,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "N0",
+        "label": "n0",
+        "x": 229.53,
+        "y": 169.79999999999998,
+        "width": 60,
+        "height": 36.900000000000006
+      },
+      {
+        "id": "N3",
+        "label": "n3",
+        "x": 148.00000000000003,
+        "y": 130.35,
+        "width": 60,
+        "height": 50.900000000000006
+      }
+    ],
+    "edges": [
+      {
+        "source": "N4",
+        "target": "N0",
+        "points": [
+          {
+            "x": 106.00000000000001,
+            "y": 188.25
+          },
+          {
+            "x": 229.53,
+            "y": 188.25
+          }
+        ]
+      },
+      {
+        "source": "N0",
+        "target": "N4",
+        "label": "go",
+        "points": [
+          {
+            "x": 259.53,
+            "y": 206.7
+          },
+          {
+            "x": 259.53,
+            "y": 222.85000000000002
+          },
+          {
+            "x": 76.00000000000001,
+            "y": 222.85000000000002
+          },
+          {
+            "x": 76.00000000000001,
+            "y": 206.70000000000002
+          }
+        ],
+        "labelPosition": {
+          "x": 170.765,
+          "y": 222.00000000000003
+        }
+      },
+      {
+        "source": "N2",
+        "target": "N3",
+        "points": [
+          {
+            "x": 106.00000000000001,
+            "y": 116.35000000000001
+          },
+          {
+            "x": 136,
+            "y": 116.35000000000001
+          },
+          {
+            "x": 136,
+            "y": 141.8
+          },
+          {
+            "x": 148.00000000000003,
+            "y": 141.8
+          }
+        ]
+      },
+      {
+        "source": "N2",
+        "target": "N3",
+        "points": [
+          {
+            "x": 106.00000000000001,
+            "y": 130.35000000000002
+          },
+          {
+            "x": 122.00000000000001,
+            "y": 130.35000000000002
+          },
+          {
+            "x": 122.00000000000001,
+            "y": 155.8
+          },
+          {
+            "x": 148.00000000000003,
+            "y": 155.8
+          }
+        ]
+      },
+      {
+        "source": "N4",
+        "target": "N3",
+        "points": [
+          {
+            "x": 106.00000000000001,
+            "y": 188.25
+          },
+          {
+            "x": 127.00000000000003,
+            "y": 188.25
+          },
+          {
+            "x": 127.00000000000003,
+            "y": 169.8
+          },
+          {
+            "x": 148.00000000000003,
+            "y": 169.8
+          }
+        ]
+      }
+    ]
+  }
+]

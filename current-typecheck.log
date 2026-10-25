@@ -1,0 +1,3 @@
+$ bun run typecheck:core && bun run typecheck:repo
+$ tsc --noEmit -p tsconfig.json
+$ tsc --noEmit -p tsconfig.repo.json

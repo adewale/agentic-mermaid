@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="456" height="456" viewBox="0 0 456 456" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" aria-roledescription="quadrant chart" id="quadrant-e39cym" role="img" class="am-0xvx0hv0vttfvu">
+<style>
+  svg.am-0xvx0hv0vttfvu { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-0xvx0hv0vttfvu {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<rect class="quadrant-region" data-quadrant="2" x="52" y="24" width="190" height="190" fill="#f6f6f6" stroke="none" data-id="plate:2" data-role="plate" />
+<rect class="quadrant-region" data-quadrant="1" x="242" y="24" width="190" height="190" fill="#ededed" stroke="none" data-id="plate:1" data-role="plate" />
+<rect class="quadrant-region" data-quadrant="3" x="52" y="214" width="190" height="190" fill="#ededed" stroke="none" data-id="plate:3" data-role="plate" />
+<rect class="quadrant-region" data-quadrant="4" x="242" y="214" width="190" height="190" fill="#f6f6f6" stroke="none" data-id="plate:4" data-role="plate" />
+<line class="quadrant-divider" x1="242" y1="24" x2="242" y2="404" stroke="#939395" stroke-width="1" />
+<line class="quadrant-divider" x1="52" y1="214" x2="432" y2="214" stroke="#939395" stroke-width="1" />
+<rect class="quadrant-border" x="52" y="24" width="380" height="380" fill="none" stroke="#949495" stroke-width="2" />
+<circle class="quadrant-point" data-label="A" data-x="0.1" data-y="0.2" cx="90" cy="328" r="6" fill="#47474a" stroke="#FFFFFF" stroke-width="1" data-id="point:A" data-role="point" />
+<text x="100" y="328" class="quadrant-point-label" text-anchor="start" dominant-baseline="middle" font-size="12" font-weight="500" fill="#27272A" stroke="#ededed" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="4.2" textLength="10.008" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">A</text>
+<circle class="quadrant-point" data-label="B" data-x="0.3" data-y="0.4" cx="166" cy="252" r="6" fill="#47474a" stroke="#FFFFFF" stroke-width="1" data-id="point:B" data-role="point" />
+<text x="176" y="252" class="quadrant-point-label" text-anchor="start" dominant-baseline="middle" font-size="12" font-weight="500" fill="#27272A" stroke="#ededed" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="4.2" textLength="10.008" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">B</text>
+<text x="56" y="416.45" class="quadrant-axis-label" text-anchor="start" font-size="13" font-weight="500" fill="#69696c" data-prepared-text="true" dy="4.55" textLength="27.144" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Low</text>
+<text x="428" y="416.45" class="quadrant-axis-label" text-anchor="end" font-size="13" font-weight="500" fill="#69696c" data-prepared-text="true" dy="4.55" textLength="28.626" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">High</text>
+<text x="37" y="395.45" class="quadrant-axis-label" text-anchor="start" font-size="13" font-weight="500" fill="#69696c" transform="rotate(-90 37 400)" data-prepared-text="true" dy="4.55" textLength="27.144" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Low</text>
+<text x="37" y="23.45" class="quadrant-axis-label" text-anchor="end" font-size="13" font-weight="500" fill="#69696c" transform="rotate(-90 37 28)" data-prepared-text="true" dy="4.55" textLength="28.626" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">High</text>
+</svg>

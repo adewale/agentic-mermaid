@@ -1,0 +1,1 @@
+MermaidFamilyDetectionError: Mermaid 12.2.0 family "class" is unsupported in Agentic Mermaid

@@ -1,0 +1,58 @@
+{
+  "base": "98f19638d489badb278e3aa694b7f5a0c5234a5f",
+  "head": "b6d033a6c9ee04a7847953dc1852b75d6391b211",
+  "cases": 44,
+  "changedCases": [
+    "AJ"
+  ],
+  "worseMetrics": [],
+  "identitiesAndNodePositions": "identical",
+  "AJ": {
+    "before": {
+      "edges": 16,
+      "offOutlineEndpoints": 0,
+      "endpointApproaches": 0,
+      "diagonalSegments": 0,
+      "unexplainedBends": 0,
+      "hitches": 0,
+      "nodeOverlaps": 0,
+      "labelOffRoute": 0,
+      "edgeThroughNode": 0,
+      "labelConflicts": 1,
+      "edgeCrossings": 1,
+      "totalBends": 28,
+      "maxBendsPerEdge": 4,
+      "portEndpointRate": 0.1875,
+      "portAnchoredEdgeRate": 0.25,
+      "peerBarycenterDelta": 0,
+      "worstLabelOffset": 0.33333333333333337
+    },
+    "after": {
+      "edges": 16,
+      "offOutlineEndpoints": 0,
+      "endpointApproaches": 0,
+      "diagonalSegments": 0,
+      "unexplainedBends": 0,
+      "hitches": 0,
+      "nodeOverlaps": 0,
+      "labelOffRoute": 0,
+      "edgeThroughNode": 0,
+      "labelConflicts": 0,
+      "edgeCrossings": 1,
+      "totalBends": 28,
+      "maxBendsPerEdge": 4,
+      "portEndpointRate": 0.1875,
+      "portAnchoredEdgeRate": 0.25,
+      "peerBarycenterDelta": 0,
+      "worstLabelOffset": 0.33333333333333337
+    },
+    "beforeFindings": [
+      {
+        "code": "ROUTE_LABEL_ON_SHARED_TRUNK",
+        "edge": "D->E",
+        "sharedWith": "D->A"
+      }
+    ],
+    "afterFindings": []
+  }
+}

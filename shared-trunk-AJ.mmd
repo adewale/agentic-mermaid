@@ -1,0 +1,17 @@
+flowchart TD
+  Z[Start] -->|long 1| A[Alpha]
+  Z -->|long 2| A
+  A -->|3| B[Beta]
+  A -->|4| B
+  B -->|5| C[Gamma]
+  B -->|6| D[Delta]
+  C -->|7| D
+  D -->|8| E[End]
+  B -->|9| A
+  C -->|10| A
+  D -->|11| A
+  B -->|12| B
+  C -->|13| B
+  D -->|14| B
+  C -->|18| C
+  D -->|21| D

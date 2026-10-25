@@ -1,0 +1,141 @@
+bun test v1.4.2 (744846f84)
+
+src/__tests__/svg-postpass-characterization.test.ts:
+32 |   })
+33 | 
+34 |   test.each([undefined, 'hand-drawn', 'watercolor'] as const)('%s: public SVG keeps numeric label text while compacting geometry', style => {
+35 |     const svg = renderMermaidSVG('stateDiagram-v2\n[*] --> A\nA: 36.900000000000006\nA --> [*]', { style: [...(style ? [style] : []), { strokeWidth: 1.5 * 1.4 }], seed: 7 })
+36 |     expect(svg).toContain('36.900000000000006</')
+37 |     expect(svg).not.toMatch(/(?:height|stroke-width|dy)="[^"<>]*\.\d{12}/)
+                         ^
+error: expect(received).not.toMatch(expected)
+
+Expected substring or pattern: not /(?:height|stroke-width|dy)="[^"<>]*\.\d{12}/
+Received: "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"250.88399999999996\" height=\"268.9\" viewBox=\"0 0 250.88399999999996 268.9\" style=\"--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF\" class=\"am-1sv55sq00cr7hd\">\n<style>\n  svg.am-1sv55sq00cr7hd { font-family: var(--font, 'Inter'), system-ui, sans-serif; }\n  svg.am-1sv55sq00cr7hd {\n    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */\n    --_text:          #27272A;\n    --_text-sec:      #575759;\n    --_text-muted:    #707072;\n    --_text-faint:    #8a8a8c;\n    --_line:          #939395;\n    --_arrow:         #47474a;\n    --_node-fill:     #f9f9f9;\n    --_node-stroke:   #d4d4d4;\n    --_group-fill:    #FFFFFF;\n    --_group-hdr:     #f4f4f4;\n    --_inner-stroke:  #e5e5e5;\n    --_key-badge:     #e9e9ea;\n  }\n</style>\n<rect width=\"250.88399999999996\" height=\"268.9\" fill=\"#FFFFFF\" data-backdrop=\"page\" />\n<defs>\n  <marker id=\"arrowhead\" markerWidth=\"8\" markerHeight=\"5\" refX=\"8\" refY=\"2.5\" orient=\"auto\">\n    <polygon points=\"0 0, 8 2.5, 0 5\" fill=\"#47474a\" stroke=\"#47474a\" stroke-width=\"0.75\" stroke-linejoin=\"round\" />\n  </marker>\n  <marker id=\"arrowhead-start\" markerWidth=\"8\" markerHeight=\"5\" refX=\"0\" refY=\"2.5\" orient=\"auto\">\n    <polygon points=\"8 0, 0 2.5, 8 5\" fill=\"#47474a\" stroke=\"#47474a\" stroke-width=\"0.75\" stroke-linejoin=\"round\" />\n  </marker>\n</defs>\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"125.44199999999998,66 125.44199999999998,116\" fill=\"none\" stroke=\"#939395\" stroke-width=\"2.0999999999999996\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:_start-&gt;A#0\" data-role=\"edge\" data-from=\"_start\" data-to=\"A\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"_start to A\" />\n<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"125.44199999999998,152.9 125.44199999999998,202.9\" fill=\"none\" stroke=\"#939395\" stroke-width=\"2.0999999999999996\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:A-&gt;_end#0\" data-role=\"edge\" data-from=\"A\" data-to=\"_end\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"A to _end\" />\n<g class=\"node\" data-id=\"_start\" data-label=\"\" data-shape=\"state-start\" data-role=\"node\">\n  <circle cx=\"125.44199999999998\" cy=\"54\" r=\"12\" fill=\"#27272A\" stroke=\"none\" data-id=\"node-shape:_start\" data-role=\"node\" />\n</g>\n<g class=\"node\" data-id=\"A\" data-label=\"36.900000000000006\" data-shape=\"rounded\" data-role=\"node\">\n  <rect x=\"40\" y=\"116\" width=\"170.88399999999996\" height=\"36.900000000000006\" rx=\"6\" ry=\"6\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"2.0999999999999996\" data-id=\"node-shape:A\" data-role=\"node\" />\n  <text x=\"125.44199999999998\" y=\"134.45\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"130.88399999999996\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">36.900000000000006</text>\n</g>\n<g class=\"node\" data-id=\"_end\" data-label=\"\" data-shape=\"state-end\" data-role=\"node\">\n  <circle cx=\"125.44199999999998\" cy=\"214.9\" r=\"12\" fill=\"none\" stroke=\"#27272A\" stroke-width=\"1.5\" data-id=\"node-shape:_end\" data-role=\"node\" />\n  <circle cx=\"125.44199999999998\" cy=\"214.9\" r=\"8\" fill=\"#27272A\" stroke=\"none\" />\n</g>\n</svg>"
+
+      at <anonymous> (/workspace/agentic-review-evidence/four-fixes-base/src/__tests__/svg-postpass-characterization.test.ts:37:21)
+(fail) SVG post-pass interaction contract > %s: public SVG keeps numeric label text while compacting geometry [252.89ms]
+32 |   })
+33 | 
+34 |   test.each([undefined, 'hand-drawn', 'watercolor'] as const)('%s: public SVG keeps numeric label text while compacting geometry', style => {
+35 |     const svg = renderMermaidSVG('stateDiagram-v2\n[*] --> A\nA: 36.900000000000006\nA --> [*]', { style: [...(style ? [style] : []), { strokeWidth: 1.5 * 1.4 }], seed: 7 })
+36 |     expect(svg).toContain('36.900000000000006</')
+37 |     expect(svg).not.toMatch(/(?:height|stroke-width|dy)="[^"<>]*\.\d{12}/)
+                         ^
+error: expect(received).not.toMatch(expected)
+
+Expected substring or pattern: not /(?:height|stroke-width|dy)="[^"<>]*\.\d{12}/
+Received: "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"250.88399999999996\" height=\"268.9\" viewBox=\"0 0 250.88399999999996 268.9\" style=\"--bg:#f7f5ef;--fg:#1a1a1e;--line:#26262b;--accent:#26262b;--border:#26262b;--font:Caveat;background:#f7f5ef\" class=\"am-0j68rnd05wizb2\">\n<style>\n  svg.am-0j68rnd05wizb2 { font-family: var(--font, 'Caveat'), system-ui, sans-serif; }\n  svg.am-0j68rnd05wizb2 {\n    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */\n    --_text:          #1a1a1e;\n    --_text-sec:      #4b4a4c;\n    --_text-muted:    #656465;\n    --_text-faint:    #807f7e;\n    --_line:          #26262b;\n    --_arrow:         #26262b;\n    --_node-fill:     #f0eee9;\n    --_node-stroke:   #26262b;\n    --_group-fill:    #f7f5ef;\n    --_group-hdr:     #eceae5;\n    --_inner-stroke:  #dcdbd6;\n    --_key-badge:     #e1dfda;\n  }\n</style>\n<rect width=\"250.88399999999996\" height=\"268.9\" fill=\"#f7f5ef\" data-backdrop=\"page\" />\n<g data-backdrop=\"paper-ruled\">\n  <line x1=\"0\" y1=\"26\" x2=\"250.88399999999996\" y2=\"26\" stroke=\"#26262b\" stroke-width=\"0.5\" opacity=\"0.14\" />\n  <line x1=\"0\" y1=\"52\" x2=\"250.88399999999996\" y2=\"52\" stroke=\"#26262b\" stroke-width=\"0.5\" opacity=\"0.14\" />\n  <line x1=\"0\" y1=\"78\" x2=\"250.88399999999996\" y2=\"78\" stroke=\"#26262b\" stroke-width=\"0.5\" opacity=\"0.14\" />\n  <line x1=\"0\" y1=\"104\" x2=\"250.88399999999996\" y2=\"104\" stroke=\"#26262b\" stroke-width=\"0.5\" opacity=\"0.14\" />\n  <line x1=\"0\" y1=\"130\" x2=\"250.88399999999996\" y2=\"130\" stroke=\"#26262b\" stroke-width=\"0.5\" opacity=\"0.14\" />\n  <line x1=\"0\" y1=\"156\" x2=\"250.88399999999996\" y2=\"156\" stroke=\"#26262b\" stroke-width=\"0.5\" opacity=\"0.14\" />\n  <line x1=\"0\" y1=\"182\" x2=\"250.88399999999996\" y2=\"182\" stroke=\"#26262b\" stroke-width=\"0.5\" opacity=\"0.14\" />\n  <line x1=\"0\" y1=\"208\" x2=\"250.88399999999996\" y2=\"208\" stroke=\"#26262b\" stroke-width=\"0.5\" opacity=\"0.14\" />\n  <line x1=\"0\" y1=\"234\" x2=\"250.88399999999996\" y2=\"234\" stroke=\"#26262b\" stroke-width=\"0.5\" opacity=\"0.14\" />\n  <line x1=\"0\" y1=\"260\" x2=\"250.88399999999996\" y2=\"260\" stroke=\"#26262b\" stroke-width=\"0.5\" opacity=\"0.14\" />\n</g>\n<defs>\n  <marker id=\"arrowhead\" markerWidth=\"8\" markerHeight=\"5\" refX=\"8\" refY=\"2.5\" orient=\"auto\">\n    <polygon points=\"0 0, 8 2.5, 0 5\" fill=\"#26262b\" stroke=\"#26262b\" stroke-width=\"0.75\" stroke-linejoin=\"round\" />\n  </marker>\n  <marker id=\"arrowhead-start\" markerWidth=\"8\" markerHeight=\"5\" refX=\"0\" refY=\"2.5\" orient=\"auto\">\n    <polygon points=\"8 0, 0 2.5, 8 5\" fill=\"#26262b\" stroke=\"#26262b\" stroke-width=\"0.75\" stroke-linejoin=\"round\" />\n  </marker>\n</defs>\n<polyline stroke-opacity=\"0\" class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"125.44199999999998,66 125.44199999999998,116\" fill=\"none\" stroke=\"#26262b\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:_start-&gt;A#0\" data-role=\"edge\" data-from=\"_start\" data-to=\"A\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"_start to A\" />\n<path d=\"M124.95 67.32 C125.74 85.04, 123.26 102.21, 127.01 114.24 M125.82 66.69 C125.58 80.22, 125.96 94.61, 124.49 115.89\" fill=\"none\" stroke=\"#26262b\" stroke-width=\"2.0999999999999996\" stroke-linecap=\"butt\" stroke-linejoin=\"miter\" stroke-miterlimit=\"4\" />\n<polyline stroke-opacity=\"0\" class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"125.44199999999998,152.9 125.44199999999998,202.9\" fill=\"none\" stroke=\"#26262b\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:A-&gt;_end#0\" data-role=\"edge\" data-from=\"A\" data-to=\"_end\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"A to _end\" />\n<path d=\"M126.05 154.13 C125.97 163.98, 124.24 175.91, 124.13 203.17 M126.21 152.69 C125.96 162.36, 125.46 174.06, 125.17 202.57\" fill=\"none\" stroke=\"#26262b\" stroke-width=\"2.0999999999999996\" stroke-linecap=\"butt\" stroke-linejoin=\"miter\" stroke-miterlimit=\"4\" />\n<g class=\"node\" data-id=\"_start\" data-label=\"\" data-shape=\"state-start\" data-role=\"node\">\n  <circle cx=\"125.44199999999998\" cy=\"54\" r=\"12\" fill=\"#1a1a1e\" stroke=\"none\" data-id=\"node-shape:_start\" data-role=\"node\" />\n</g>\n<g class=\"node\" data-id=\"A\" data-label=\"36.900000000000006\" data-shape=\"rounded\" data-role=\"node\">\n  <path d=\"M45.29 117.74 C89 113.72, 132.56 114.55, 206.83 117.92 M45.84 115.65 C108.96 114.38, 171.56 115.96, 204.56 115.93 M204.88 116 C207.85 114.91, 211.38 118.23, 212.4 120.27 M206.22 117.11 C209.44 114.91, 213.02 116.66, 210.78 121.03 M211.79 121.49 C209.57 128.66, 209.51 136.86, 209.16 148.75 M209.95 121.74 C210.45 130.37, 211.73 136.06, 211.86 146.2 M210.88 146.9 C209.34 149.94, 210.23 152.32, 204.4 154.32 M210.49 145.48 C208.94 152.53, 206.67 153.14, 202.81 151.63 M204.49 153.36 C161.79 150.87, 121.7 152.66, 44.52 152.76 M204.44 153 C151.24 152.38, 98.22 153.09, 46.27 151.9 M46 152.9 C41.52 153.69, 40.99 151.61, 40.41 147.7 M45.18 151.86 C43.55 150.97, 38.12 152.55, 40.39 146.82 M38.04 145.78 C37.86 136.95, 38.24 126.35, 38.25 123.57 M40.32 147.1 C39.15 137.7, 39.92 129.51, 39.49 121.47 M40 122 C41.42 118.09, 40.66 117.32, 47 117.55 M40.74 121.27 C41.93 120.15, 42.91 118.21, 48.28 117.83 M46 116 C46 116, 46 116, 46 116 M46 116 C46 116, 46 116, 46 116\" fill=\"none\" stroke=\"#26262b\" stroke-width=\"1.5749999999999997\" stroke-linecap=\"round\" stroke-linejoin=\"round\" data-id=\"node-shape:A\" data-role=\"node\" />\n  <text paint-order=\"stroke\" stroke=\"#f7f5ef\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\" x=\"125.44199999999998\" y=\"134.45\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#1a1a1e\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"130.88399999999996\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">36.900000000000006</text>\n</g>\n<g class=\"node\" data-id=\"_end\" data-label=\"\" data-shape=\"state-end\" data-role=\"node\">\n  <path d=\"M130.51 204.84 C132.88 205.56, 135.24 206.84, 136.31 208.96 C137.38 211.08, 137.65 215.1, 136.93 217.55 C136.22 220, 134.18 221.96, 132.02 223.67 C129.85 225.38, 126.36 227.81, 123.93 227.82 C121.49 227.83, 119.32 225.85, 117.42 223.75 C115.52 221.66, 112.85 217.93, 112.54 215.27 C112.23 212.61, 113.83 209.82, 115.57 207.79 C117.31 205.75, 120.42 203.71, 122.97 203.06 C125.52 202.4, 129.38 203.5, 130.87 203.88 C132.35 204.26, 132.08 204.97, 131.87 205.35 M120.61 202.29 C123.01 201.23, 127.02 203.32, 129.49 204.46 C131.96 205.6, 134.02 207.07, 135.43 209.14 C136.84 211.21, 138.14 214.49, 137.95 216.89 C137.75 219.29, 136.25 222.01, 134.25 223.55 C132.26 225.09, 128.57 225.84, 125.99 226.13 C123.41 226.42, 121.12 226.64, 118.76 225.3 C116.39 223.96, 112.47 220.6, 111.8 218.07 C111.13 215.54, 113.35 212.58, 114.75 210.13 C116.16 207.68, 119.32 204.36, 120.22 203.35 C121.12 202.35, 120.12 204.11, 120.14 204.12\" fill=\"none\" stroke=\"#1a1a1e\" stroke-width=\"3.1499999999999995\" stroke-linecap=\"round\" stroke-linejoin=\"round\" data-id=\"node-shape:_end\" data-role=\"node\" />\n  <circle cx=\"125.44199999999998\" cy=\"214.9\" r=\"8\" fill=\"#1a1a1e\" stroke=\"none\" />\n</g>\n</svg>"
+
+      at <anonymous> (/workspace/agentic-review-evidence/four-fixes-base/src/__tests__/svg-postpass-characterization.test.ts:37:21)
+(fail) SVG post-pass interaction contract > hand-drawn: public SVG keeps numeric label text while compacting geometry [54.93ms]
+32 |   })
+33 | 
+34 |   test.each([undefined, 'hand-drawn', 'watercolor'] as const)('%s: public SVG keeps numeric label text while compacting geometry', style => {
+35 |     const svg = renderMermaidSVG('stateDiagram-v2\n[*] --> A\nA: 36.900000000000006\nA --> [*]', { style: [...(style ? [style] : []), { strokeWidth: 1.5 * 1.4 }], seed: 7 })
+36 |     expect(svg).toContain('36.900000000000006</')
+37 |     expect(svg).not.toMatch(/(?:height|stroke-width|dy)="[^"<>]*\.\d{12}/)
+                         ^
+error: expect(received).not.toMatch(expected)
+
+Expected substring or pattern: not /(?:height|stroke-width|dy)="[^"<>]*\.\d{12}/
+Received: "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"250.88399999999996\" height=\"268.9\" viewBox=\"0 0 250.88399999999996 268.9\" style=\"--bg:#fdfbf6;--fg:#31302c;--line:#4d4a44;--accent:#7a6a52;--surface:#ead9b9;--border:#5a564e;--font:Caveat;background:#fdfbf6\" class=\"am-17c1wyf0wbgfg9\">\n<style>\n  svg.am-17c1wyf0wbgfg9 { font-family: var(--font, 'Caveat'), system-ui, sans-serif; }\n  svg.am-17c1wyf0wbgfg9 {\n    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */\n    --_text:          #31302c;\n    --_text-sec:      #5e5d58;\n    --_text-muted:    #767571;\n    --_text-faint:    #8f8d89;\n    --_line:          #4d4a44;\n    --_arrow:         #7a6a52;\n    --_node-fill:     #ead9b9;\n    --_node-stroke:   #5a564e;\n    --_group-fill:    #fdfbf6;\n    --_group-hdr:     #f3f1ec;\n    --_inner-stroke:  #e5e3de;\n    --_key-badge:     #e9e7e2;\n  }\n</style>\n<rect width=\"250.88399999999996\" height=\"268.9\" fill=\"#fdfbf6\" data-backdrop=\"page\" />\n<defs>\n  <marker id=\"arrowhead\" markerWidth=\"8\" markerHeight=\"5\" refX=\"8\" refY=\"2.5\" orient=\"auto\">\n    <polygon points=\"0 0, 8 2.5, 0 5\" fill=\"#7a6a52\" stroke=\"#7a6a52\" stroke-width=\"0.75\" stroke-linejoin=\"round\" />\n  </marker>\n  <marker id=\"arrowhead-start\" markerWidth=\"8\" markerHeight=\"5\" refX=\"0\" refY=\"2.5\" orient=\"auto\">\n    <polygon points=\"8 0, 0 2.5, 8 5\" fill=\"#7a6a52\" stroke=\"#7a6a52\" stroke-width=\"0.75\" stroke-linejoin=\"round\" />\n  </marker>\n</defs>\n<polyline stroke-opacity=\"0\" class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"125.44199999999998,66 125.44199999999998,116\" fill=\"none\" stroke=\"#4d4a44\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:_start-&gt;A#0\" data-role=\"edge\" data-from=\"_start\" data-to=\"A\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"_start to A\" />\n<path d=\"M125 67.19 C125.75 84.91, 123.52 102.13, 126.85 114.42\" fill=\"none\" stroke=\"#4d4a44\" stroke-width=\"2.0999999999999996\" stroke-linecap=\"butt\" stroke-linejoin=\"miter\" stroke-miterlimit=\"4\" />\n<polyline stroke-opacity=\"0\" class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" points=\"125.44199999999998,152.9 125.44199999999998,202.9\" fill=\"none\" stroke=\"#4d4a44\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:A-&gt;_end#0\" data-role=\"edge\" data-from=\"A\" data-to=\"_end\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"A to _end\" />\n<path d=\"M125.99 154.01 C125.96 164.08, 124.4 176.04, 124.26 203.14\" fill=\"none\" stroke=\"#4d4a44\" stroke-width=\"2.0999999999999996\" stroke-linecap=\"butt\" stroke-linejoin=\"miter\" stroke-miterlimit=\"4\" />\n<g class=\"node\" data-id=\"_start\" data-label=\"\" data-shape=\"state-start\" data-role=\"node\">\n  <path d=\"M138.809,54.172 L137.511,58.189 L136.057,58.513 L134.154,61.097 L131.654,64.84 L129.608,66.34 L125.342,66.096 L120.892,65.946 L118.237,65.227 L117.247,62.962 L116.107,59.706 L114.783,57.561 L112.462,53.211 L114.571,51.859 L114.906,48.669 L115.739,45.654 L118.411,44.447 L122.132,43.145 L124.527,42.941 L127.147,43.238 L132.719,44.54 L132.639,45.585 L135.592,47.448 L136.192,50.992 Z\" fill=\"#31302c\" fill-opacity=\"0.3\" stroke=\"none\" data-id=\"node-shape:_start\" data-role=\"node\" />\n  <path d=\"M138.809,54.172 L137.511,58.189 L136.057,58.513 L134.154,61.097 L131.654,64.84 L129.608,66.34 L125.342,66.096 L120.892,65.946 L118.237,65.227 L117.247,62.962 L116.107,59.706 L114.783,57.561 L112.462,53.211 L114.571,51.859 L114.906,48.669 L115.739,45.654 L118.411,44.447 L122.132,43.145 L124.527,42.941 L127.147,43.238 L132.719,44.54 L132.639,45.585 L135.592,47.448 L136.192,50.992 Z\" fill=\"none\" stroke=\"#31302c\" stroke-width=\"1.4\" stroke-opacity=\"0.34\" />\n</g>\n<g class=\"node\" data-id=\"A\" data-label=\"36.900000000000006\" data-shape=\"rounded\" data-role=\"node\">\n  <path d=\"M41.48,116.797 L211.343,115.396 L210.449,152.356 L38.601,154.269 Z\" fill=\"#ead9b9\" fill-opacity=\"0.3\" stroke=\"none\" data-id=\"node-shape:A\" data-role=\"node\" />\n  <path d=\"M41.48,116.797 L211.343,115.396 L210.449,152.356 L38.601,154.269 Z\" fill=\"none\" stroke=\"#ead9b9\" stroke-width=\"1.4\" stroke-opacity=\"0.34\" />\n  <path d=\"M45.36 117.57 C88.99 114.13, 132.48 114.87, 206.64 117.72 M204.88 116 C209.68 115.72, 210.25 118.1, 212.61 122.47 M210.3 121.87 C212.2 125.62, 209.91 131.38, 211.33 147.11 M210.88 146.9 C210.8 150.14, 209.32 152.05, 206.09 153.9 M203.28 153.9 C143.26 152.49, 79.02 152.12, 44.96 152.63 M46 152.9 C41.98 154.13, 40.28 149.23, 38.45 148.56 M41.21 145.4 C41.86 138.82, 39.67 134.55, 38.61 121.14 M40 122 C39.64 116.72, 40.37 115, 47.21 115.48 M46 116 C46 116, 46 116, 46 116\" fill=\"none\" stroke=\"#5a564e\" stroke-width=\"1.5749999999999997\" stroke-linecap=\"round\" stroke-linejoin=\"round\" />\n  <text paint-order=\"stroke\" stroke=\"#fdfbf6\" stroke-width=\"3\" stroke-linejoin=\"round\" stroke-linecap=\"round\" x=\"125.44199999999998\" y=\"134.45\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#31302c\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"130.88399999999996\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">36.900000000000006</text>\n</g>\n<g class=\"node\" data-id=\"_end\" data-label=\"\" data-shape=\"state-end\" data-role=\"node\">\n  <path d=\"M130.01 204.56 C132.41 205.19, 134.89 206.49, 136.07 208.58 C137.24 210.67, 137.66 214.61, 137.07 217.09 C136.47 219.57, 134.57 221.68, 132.48 223.46 C130.39 225.24, 126.96 227.65, 124.51 227.75 C122.06 227.85, 119.74 226.06, 117.77 224.07 C115.8 222.09, 113.11 218.49, 112.7 215.86 C112.28 213.22, 113.66 210.35, 115.28 208.25 C116.9 206.15, 119.88 204, 122.39 203.23 C124.9 202.47, 128.86 203.38, 130.34 203.67 C131.82 203.97, 131.44 204.64, 131.25 205\" fill=\"none\" stroke=\"#31302c\" stroke-width=\"3.1499999999999995\" stroke-linecap=\"round\" stroke-linejoin=\"round\" data-id=\"node-shape:_end\" data-role=\"node\" />\n  <path d=\"M133.916,216.153 L131.687,217.489 L132.258,219.019 L131.981,220.424 L130.489,222.128 L127.064,222.541 L124.858,223.593 L124.49,221.623 L122.397,220.825 L118.737,219.896 L119.517,218.393 L118.819,215.639 L116.352,214.041 L117.272,213.454 L117.403,209.71 L118.472,208.866 L122.056,207.174 L123.682,206.119 L126.776,207.719 L127.251,208.442 L130.257,207.278 L130.404,209.355 L132.516,211.803 L134.423,212.56 Z\" fill=\"#31302c\" fill-opacity=\"0.3\" stroke=\"none\" />\n  <path d=\"M133.916,216.153 L131.687,217.489 L132.258,219.019 L131.981,220.424 L130.489,222.128 L127.064,222.541 L124.858,223.593 L124.49,221.623 L122.397,220.825 L118.737,219.896 L119.517,218.393 L118.819,215.639 L116.352,214.041 L117.272,213.454 L117.403,209.71 L118.472,208.866 L122.056,207.174 L123.682,206.119 L126.776,207.719 L127.251,208.442 L130.257,207.278 L130.404,209.355 L132.516,211.803 L134.423,212.56 Z\" fill=\"none\" stroke=\"#31302c\" stroke-width=\"1.4\" stroke-opacity=\"0.34\" />\n</g>\n</svg>"
+
+      at <anonymous> (/workspace/agentic-review-evidence/four-fixes-base/src/__tests__/svg-postpass-characterization.test.ts:37:21)
+(fail) SVG post-pass interaction contract > watercolor: public SVG keeps numeric label text while compacting geometry [33.61ms]
+
+src/__tests__/agent-class.test.ts:
+26 |   test('classDiagram-v2 uses the native Class reader, editing and output paths', async () => {
+27 |     const body = '\nclass Account {\n+int balance\n}\nAccount --> Ledger : records\n'
+28 |     const ordinary = parse('classDiagram' + body)
+29 |     const source = 'classDiagram-v2' + body
+30 |     const alias = parse(source)
+31 |     expect(alias.kind).toBe('class')
+                            ^
+error: expect(received).toBe(expected)
+
+Expected: "class"
+Received: "family:upstream/class"
+
+      at <anonymous> (/workspace/agentic-review-evidence/four-fixes-base/src/__tests__/agent-class.test.ts:31:24)
+(fail) class — parse > classDiagram-v2 uses the native Class reader, editing and output paths [9.21ms]
+
+src/__tests__/property-route-contracts-fuzz.test.ts:
+150 |       .replace('flowchart TD', `flowchart ${direction}`)
+151 |     const graph = parseMermaid(source)
+152 |     const positioned = layoutGraphSync(graph)
+153 |     expect(positioned.edges.map(edge => ({ source: edge.source, target: edge.target, label: edge.label })))
+154 |       .toEqual(graph.edges.map(edge => ({ source: edge.source, target: edge.target, label: edge.label })))
+155 |     expect(auditRouteContracts(positioned, graph)).toEqual([])
+                                                         ^
+error: expect(received).toEqual(expected)
+
+- []
++ [
++   {
++     "code": "ROUTE_LABEL_ON_SHARED_TRUNK",
++     "edge": "D->E",
++     "sharedWith": "D->A",
++   },
++ ]
+
+- Expected  - 1
++ Received  + 7
+
+      at <anonymous> (/workspace/agentic-review-evidence/four-fixes-base/src/__tests__/property-route-contracts-fuzz.test.ts:155:52)
+(fail) regression: ROUTE_LABEL_ON_SHARED_TRUNK is repaired > feedback exits leave a private label segment in TD [154.97ms]
+150 |       .replace('flowchart TD', `flowchart ${direction}`)
+151 |     const graph = parseMermaid(source)
+152 |     const positioned = layoutGraphSync(graph)
+153 |     expect(positioned.edges.map(edge => ({ source: edge.source, target: edge.target, label: edge.label })))
+154 |       .toEqual(graph.edges.map(edge => ({ source: edge.source, target: edge.target, label: edge.label })))
+155 |     expect(auditRouteContracts(positioned, graph)).toEqual([])
+                                                         ^
+error: expect(received).toEqual(expected)
+
+- []
++ [
++   {
++     "code": "ROUTE_LABEL_ON_SHARED_TRUNK",
++     "edge": "D->E",
++     "sharedWith": "D->A",
++   },
++ ]
+
+- Expected  - 1
++ Received  + 7
+
+      at <anonymous> (/workspace/agentic-review-evidence/four-fixes-base/src/__tests__/property-route-contracts-fuzz.test.ts:155:52)
+(fail) regression: ROUTE_LABEL_ON_SHARED_TRUNK is repaired > feedback exits leave a private label segment in BT [88.67ms]
+(pass) regression: ROUTE_LABEL_ON_SHARED_TRUNK is repaired > feedback exits leave a private label segment in LR [71.85ms]
+(pass) regression: ROUTE_LABEL_ON_SHARED_TRUNK is repaired > feedback exits leave a private label segment in RL [51.80ms]
+
+src/__tests__/agent-quadrant.test.ts:
+140 |     throw new Error('Quadrant chart is empty')
+141 |   }
+142 | 
+143 |   const header = stripTrailingComment(lines[0]!.trim())
+144 |   if (!/^quadrant(?:Chart)?\b\s*$/i.test(header)) {
+145 |     throw new Error(`Quadrant chart must start with "quadrant" or "quadrantChart", got: "${header}"`)
+                    ^
+error: Quadrant chart must start with "quadrant" or "quadrantChart", got: "quadrantChart; A: [0.1, 0.2];; B: [0.3, 0.4];"
+      at parseQuadrantChart (/workspace/agentic-review-evidence/four-fixes-base/src/quadrant/parser.ts:145:15)
+      at <anonymous> (/workspace/agentic-review-evidence/four-fixes-base/src/__tests__/agent-quadrant.test.ts:54:10)
+(fail) Quadrant header separators share the direct reader and public routing boundary [1.06ms]
+36 | 
+37 | function quadrant(src: string = SRC): QuadrantValidDiagram {
+38 |   const r = parseMermaid(src)
+39 |   if (!r.ok) throw new Error('parse: ' + JSON.stringify(r.error))
+40 |   const q = asQuadrant(r.value)
+41 |   if (!q) throw new Error('not a structured quadrant: ' + r.value.body.kind)
+                         ^
+error: not a structured quadrant: opaque
+      at quadrant (/workspace/agentic-review-evidence/four-fixes-base/src/__tests__/agent-quadrant.test.ts:41:21)
+      at <anonymous> (/workspace/agentic-review-evidence/four-fixes-base/src/__tests__/agent-quadrant.test.ts:68:19)
+(fail) semicolon-separated Quadrant statements retain quoted text, styles and editable points [2.80ms]
+
+ 2 pass
+ 208 filtered out
+ 8 fail
+ 15 expect() calls
+Ran 10 tests across 4 files. [982.00ms]

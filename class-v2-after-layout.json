@@ -1,0 +1,189 @@
+{
+  "version": 1,
+  "kind": "class",
+  "nodes": [
+    {
+      "id": "Account",
+      "x": 40,
+      "y": 40,
+      "w": 120,
+      "h": 69,
+      "shape": "rectangle",
+      "label": "Account",
+      "labelBounds": {
+        "x": 73.285,
+        "y": 48,
+        "w": 53.43000000000001,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 40,
+        "y": 40,
+        "w": 120,
+        "h": 32.900000000000006
+      }
+    },
+    {
+      "id": "Ledger",
+      "x": 40,
+      "y": 249,
+      "w": 120,
+      "h": 49,
+      "shape": "rectangle",
+      "label": "Ledger",
+      "labelBounds": {
+        "x": 75.625,
+        "y": 257.20000000000005,
+        "w": 48.75,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 40,
+        "y": 249.20000000000002,
+        "w": 120,
+        "h": 32.900000000000006
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "rel#0:Account->Ledger",
+      "from": "Account",
+      "to": "Ledger",
+      "path": [
+        [
+          100,
+          109
+        ],
+        [
+          100,
+          249
+        ]
+      ],
+      "label": {
+        "x": 74,
+        "y": 171,
+        "text": "records",
+        "bounds": {
+          "x": 53.14600000000001,
+          "y": 163.9,
+          "w": 40.854,
+          "h": 14.3
+        }
+      },
+      "route": {
+        "family": "class",
+        "edgeIndex": 0,
+        "routeClass": "family-layout",
+        "invariant": "orthogonal-box",
+        "bendCount": 0,
+        "orthogonal": true,
+        "sourceBoundary": true,
+        "targetBoundary": true
+      }
+    }
+  ],
+  "groups": [],
+  "bounds": {
+    "w": 200,
+    "h": 338
+  },
+  "paintCertification": {
+    "version": 1,
+    "unit": "px",
+    "scope": "native-scene",
+    "status": "passed",
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "width": 200,
+      "height": 338.1
+    },
+    "attempts": 1,
+    "repairs": [],
+    "coverage": {
+      "measured": 14,
+      "unmeasured": 0,
+      "preparedText": 4,
+      "fallbackText": 0,
+      "conditional": 0
+    },
+    "checks": {
+      "primitives": 17,
+      "labels": 2,
+      "occlusionPairs": 24,
+      "maxOcclusionPairs": 100000,
+      "operations": 76,
+      "maxOperations": 400000,
+      "markers": 1
+    },
+    "issues": [],
+    "limitations": [
+      "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+      "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+    ]
+  },
+  "regions": [
+    {
+      "id": "canvas",
+      "kind": "canvas",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "w": 200,
+        "h": 338
+      }
+    },
+    {
+      "id": "node:Account",
+      "kind": "node",
+      "elementId": "Account",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 40,
+        "y": 40,
+        "w": 120,
+        "h": 69
+      },
+      "sourceLine": 2
+    },
+    {
+      "id": "node:Ledger",
+      "kind": "node",
+      "elementId": "Ledger",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 40,
+        "y": 249,
+        "w": 120,
+        "h": 49
+      },
+      "sourceLine": 5
+    },
+    {
+      "id": "edge:rel#0:Account->Ledger",
+      "kind": "edge",
+      "elementId": "rel#0:Account->Ledger",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 100,
+        "y": 109,
+        "w": 1,
+        "h": 140
+      }
+    },
+    {
+      "id": "label:rel#0:Account->Ledger",
+      "kind": "label",
+      "elementId": "rel#0:Account->Ledger",
+      "parentId": "edge:rel#0:Account->Ledger",
+      "bounds": {
+        "x": 49.5,
+        "y": 164,
+        "w": 49,
+        "h": 14
+      }
+    }
+  ],
+  "actions": []
+}

@@ -1,0 +1,350 @@
+[
+  {
+    "path": "src/__tests__/testdata/svg/xychart-accessible-mixed.svg",
+    "before": [
+      700,
+      500
+    ],
+    "after": [
+      700,
+      500
+    ],
+    "differentChannels": 0
+  },
+  {
+    "path": "src/__tests__/testdata/svg/journey-representative.svg",
+    "before": [
+      682,
+      499
+    ],
+    "after": [
+      682,
+      499
+    ],
+    "differentChannels": 0
+  },
+  {
+    "path": "src/__tests__/testdata/svg/journey-mermaid-docs-example.svg",
+    "before": [
+      982,
+      482
+    ],
+    "after": [
+      982,
+      482
+    ],
+    "differentChannels": 0
+  },
+  {
+    "path": "src/__tests__/testdata/svg/gantt-representative.svg",
+    "before": [
+      735,
+      312
+    ],
+    "after": [
+      735,
+      312
+    ],
+    "differentChannels": 0
+  },
+  {
+    "path": "src/__tests__/testdata/svg/architecture-themed-config.svg",
+    "before": [
+      740,
+      251
+    ],
+    "after": [
+      740,
+      251
+    ],
+    "differentChannels": 0
+  },
+  {
+    "path": "src/__tests__/testdata/svg/architecture-representative.svg",
+    "before": [
+      666,
+      280
+    ],
+    "after": [
+      666,
+      280
+    ],
+    "differentChannels": 0
+  },
+  {
+    "path": "src/__tests__/testdata/styled/pie-basic.status-dashboard.svg",
+    "before": [
+      462,
+      275
+    ],
+    "after": [
+      462,
+      275
+    ],
+    "differentChannels": 0
+  },
+  {
+    "path": "src/__tests__/testdata/styled/timeline-basic.freehand.svg",
+    "before": [
+      731,
+      336
+    ],
+    "after": [
+      731,
+      336
+    ],
+    "differentChannels": 0
+  },
+  {
+    "path": "src/__tests__/testdata/styled/sequence-basic.pen-and-ink.svg",
+    "before": [
+      280,
+      286
+    ],
+    "after": [
+      280,
+      286
+    ],
+    "differentChannels": 0
+  },
+  {
+    "path": "src/__tests__/testdata/styled/gitgraph-basic.architectural-plan.svg",
+    "before": [
+      549,
+      348
+    ],
+    "after": [
+      549,
+      348
+    ],
+    "differentChannels": 0
+  },
+  {
+    "path": "src/__tests__/testdata/styled/quadrant-basic.ops-schematic.svg",
+    "before": [
+      453,
+      489
+    ],
+    "after": [
+      453,
+      489
+    ],
+    "differentChannels": 0
+  },
+  {
+    "path": "src/__tests__/testdata/styled/xychart-basic.patent-drawing.svg",
+    "before": [
+      700,
+      500
+    ],
+    "after": [
+      700,
+      500
+    ],
+    "differentChannels": 0
+  },
+  {
+    "path": "src/__tests__/testdata/styled/state-basic.excalidraw.svg",
+    "before": [
+      187,
+      439
+    ],
+    "after": [
+      187,
+      439
+    ],
+    "differentChannels": 0
+  },
+  {
+    "path": "src/__tests__/testdata/styled/flowchart-basic.hand-drawn.svg",
+    "before": [
+      216,
+      372
+    ],
+    "after": [
+      216,
+      372
+    ],
+    "differentChannels": 0
+  },
+  {
+    "path": "src/__tests__/testdata/styled/requirement-basic.watercolor.svg",
+    "before": [
+      246,
+      509
+    ],
+    "after": [
+      246,
+      509
+    ],
+    "differentChannels": 0
+  },
+  {
+    "path": "src/__tests__/testdata/styled/journey-basic.look-tufte.svg",
+    "before": [
+      982,
+      482
+    ],
+    "after": [
+      982,
+      482
+    ],
+    "differentChannels": 0
+  },
+  {
+    "path": "src/__tests__/testdata/styled/radar-basic.publication-figure.svg",
+    "before": [
+      460,
+      367
+    ],
+    "after": [
+      460,
+      367
+    ],
+    "differentChannels": 0
+  },
+  {
+    "path": "src/__tests__/testdata/styled/c4-basic.excalidraw.svg",
+    "before": [
+      1932,
+      626
+    ],
+    "after": [
+      1932,
+      626
+    ],
+    "differentChannels": 0
+  },
+  {
+    "path": "src/__tests__/testdata/styled/class-basic.watercolor.svg",
+    "before": [
+      360,
+      318
+    ],
+    "after": [
+      360,
+      318
+    ],
+    "differentChannels": 0
+  },
+  {
+    "path": "src/__tests__/testdata/styled/block-basic.accessible-high-contrast.svg",
+    "before": [
+      356,
+      118
+    ],
+    "after": [
+      356,
+      118
+    ],
+    "differentChannels": 0
+  },
+  {
+    "path": "src/__tests__/testdata/styled/sankey-basic.hand-drawn.svg",
+    "before": [
+      648,
+      448
+    ],
+    "after": [
+      648,
+      448
+    ],
+    "differentChannels": 0
+  },
+  {
+    "path": "src/__tests__/testdata/styled/er-basic.blueprint.svg",
+    "before": [
+      952,
+      158
+    ],
+    "after": [
+      952,
+      158
+    ],
+    "differentChannels": 0
+  },
+  {
+    "path": "src/__tests__/testdata/styled/architecture-basic.accessible-high-contrast.svg",
+    "before": [
+      680,
+      402
+    ],
+    "after": [
+      680,
+      402
+    ],
+    "differentChannels": 0
+  },
+  {
+    "path": "src/__tests__/testdata/styled/treemap-basic.blueprint.svg",
+    "before": [
+      960,
+      532
+    ],
+    "after": [
+      960,
+      532
+    ],
+    "differentChannels": 0
+  },
+  {
+    "path": "src/__tests__/testdata/styled/kanban-basic.freehand.svg",
+    "before": [
+      544,
+      154
+    ],
+    "after": [
+      544,
+      154
+    ],
+    "differentChannels": 0
+  },
+  {
+    "path": "src/__tests__/testdata/styled/ishikawa-basic.look-tufte.svg",
+    "before": [
+      365,
+      242
+    ],
+    "after": [
+      365,
+      242
+    ],
+    "differentChannels": 0
+  },
+  {
+    "path": "src/__tests__/testdata/styled/packet-basic.pen-and-ink.svg",
+    "before": [
+      1072,
+      106
+    ],
+    "after": [
+      1072,
+      106
+    ],
+    "differentChannels": 0
+  },
+  {
+    "path": "src/__tests__/testdata/styled/gantt-basic.chalkboard.svg",
+    "before": [
+      706,
+      218
+    ],
+    "after": [
+      706,
+      218
+    ],
+    "differentChannels": 0
+  },
+  {
+    "path": "src/__tests__/testdata/styled/mindmap-basic.risograph.svg",
+    "before": [
+      574,
+      176
+    ],
+    "after": [
+      574,
+      176
+    ],
+    "differentChannels": 0
+  }
+]

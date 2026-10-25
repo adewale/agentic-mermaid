@@ -1,0 +1,32 @@
+Golden review at b6d033a against 98f1963
+
+- `src/__tests__/testdata/contact-sheet-geometry.json`: AJ feedback stubs and labels; identities and nodes unchanged.
+- `src/__tests__/testdata/styled/architecture-basic.accessible-high-contrast.svg`: Numeric spellings and generated CSS scope; independent raster comparison has zero changed pixel channels.
+- `src/__tests__/testdata/styled/block-basic.accessible-high-contrast.svg`: Numeric spellings and generated CSS scope; independent raster comparison has zero changed pixel channels.
+- `src/__tests__/testdata/styled/c4-basic.excalidraw.svg`: Numeric spellings and generated CSS scope; independent raster comparison has zero changed pixel channels.
+- `src/__tests__/testdata/styled/class-basic.watercolor.svg`: Numeric spellings and generated CSS scope; independent raster comparison has zero changed pixel channels.
+- `src/__tests__/testdata/styled/er-basic.blueprint.svg`: Numeric spellings and generated CSS scope; independent raster comparison has zero changed pixel channels.
+- `src/__tests__/testdata/styled/flowchart-basic.hand-drawn.svg`: Numeric spellings and generated CSS scope; independent raster comparison has zero changed pixel channels.
+- `src/__tests__/testdata/styled/gantt-basic.chalkboard.svg`: Numeric spellings and generated CSS scope; independent raster comparison has zero changed pixel channels.
+- `src/__tests__/testdata/styled/gitgraph-basic.architectural-plan.svg`: Numeric spellings and generated CSS scope; independent raster comparison has zero changed pixel channels.
+- `src/__tests__/testdata/styled/ishikawa-basic.look-tufte.svg`: Numeric spellings and generated CSS scope; independent raster comparison has zero changed pixel channels.
+- `src/__tests__/testdata/styled/journey-basic.look-tufte.svg`: Numeric spellings and generated CSS scope; independent raster comparison has zero changed pixel channels.
+- `src/__tests__/testdata/styled/kanban-basic.freehand.svg`: Numeric spellings and generated CSS scope; independent raster comparison has zero changed pixel channels.
+- `src/__tests__/testdata/styled/mindmap-basic.risograph.svg`: Numeric spellings and generated CSS scope; independent raster comparison has zero changed pixel channels.
+- `src/__tests__/testdata/styled/packet-basic.pen-and-ink.svg`: Numeric spellings and generated CSS scope; independent raster comparison has zero changed pixel channels.
+- `src/__tests__/testdata/styled/pie-basic.status-dashboard.svg`: Numeric spellings and generated CSS scope; independent raster comparison has zero changed pixel channels.
+- `src/__tests__/testdata/styled/quadrant-basic.ops-schematic.svg`: Numeric spellings and generated CSS scope; independent raster comparison has zero changed pixel channels.
+- `src/__tests__/testdata/styled/radar-basic.publication-figure.svg`: Numeric spellings and generated CSS scope; independent raster comparison has zero changed pixel channels.
+- `src/__tests__/testdata/styled/requirement-basic.watercolor.svg`: Numeric spellings and generated CSS scope; independent raster comparison has zero changed pixel channels.
+- `src/__tests__/testdata/styled/sankey-basic.hand-drawn.svg`: Numeric spellings and generated CSS scope; independent raster comparison has zero changed pixel channels.
+- `src/__tests__/testdata/styled/sequence-basic.pen-and-ink.svg`: Numeric spellings and generated CSS scope; independent raster comparison has zero changed pixel channels.
+- `src/__tests__/testdata/styled/state-basic.excalidraw.svg`: Numeric spellings and generated CSS scope; independent raster comparison has zero changed pixel channels.
+- `src/__tests__/testdata/styled/timeline-basic.freehand.svg`: Numeric spellings and generated CSS scope; independent raster comparison has zero changed pixel channels.
+- `src/__tests__/testdata/styled/treemap-basic.blueprint.svg`: Numeric spellings and generated CSS scope; independent raster comparison has zero changed pixel channels.
+- `src/__tests__/testdata/styled/xychart-basic.patent-drawing.svg`: Numeric spellings and generated CSS scope; independent raster comparison has zero changed pixel channels.
+- `src/__tests__/testdata/svg/architecture-representative.svg`: Numeric spellings and generated CSS scope; independent raster comparison has zero changed pixel channels.
+- `src/__tests__/testdata/svg/architecture-themed-config.svg`: Numeric spellings and generated CSS scope; independent raster comparison has zero changed pixel channels.
+- `src/__tests__/testdata/svg/gantt-representative.svg`: Numeric spellings and generated CSS scope; independent raster comparison has zero changed pixel channels.
+- `src/__tests__/testdata/svg/journey-mermaid-docs-example.svg`: Numeric spellings and generated CSS scope; independent raster comparison has zero changed pixel channels.
+- `src/__tests__/testdata/svg/journey-representative.svg`: Numeric spellings and generated CSS scope; independent raster comparison has zero changed pixel channels.
+- `src/__tests__/testdata/svg/xychart-accessible-mixed.svg`: Numeric spellings and generated CSS scope; independent raster comparison has zero changed pixel channels.

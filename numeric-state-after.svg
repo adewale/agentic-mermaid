@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="140" height="268.9" viewBox="0 0 140 268.9" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-0n7x9fj1b187ha">
+<style>
+  svg.am-0n7x9fj1b187ha { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-0n7x9fj1b187ha {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="0" refY="2.5" orient="auto">
+    <polygon points="8 0, 0 2.5, 8 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="70,66 70,116" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:_start-&gt;A#0" data-role="edge" data-from="_start" data-to="A" role="graphics-symbol" aria-roledescription="relation" aria-label="_start to A" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="70,152.9 70,202.9" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:A-&gt;_end#0" data-role="edge" data-from="A" data-to="_end" role="graphics-symbol" aria-roledescription="relation" aria-label="A to _end" />
+<g class="node" data-id="_start" data-label="" data-shape="state-start" data-role="node">
+  <circle cx="70" cy="54" r="12" fill="#27272A" stroke="none" data-id="node-shape:_start" data-role="node" />
+</g>
+<g class="node" data-id="A" data-label="A" data-shape="rounded" data-role="node">
+  <rect x="40" y="116" width="60" height="36.9" rx="6" ry="6" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:A" data-role="node" />
+  <text x="70" y="134.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="10.842" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">A</text>
+</g>
+<g class="node" data-id="_end" data-label="" data-shape="state-end" data-role="node">
+  <circle cx="70" cy="214.9" r="12" fill="none" stroke="#27272A" stroke-width="1.5" data-id="node-shape:_end" data-role="node" />
+  <circle cx="70" cy="214.9" r="8" fill="#27272A" stroke="none" />
+</g>
+</svg>

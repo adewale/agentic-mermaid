@@ -1,0 +1,53 @@
+{
+  "base": "98f19638d489badb278e3aa694b7f5a0c5234a5f",
+  "head": "b6d033a6c9ee04a7847953dc1852b75d6391b211",
+  "generator": "generate.ts (production agent SVG/PNG/layout APIs; validates checkout revisions)",
+  "inputs": [
+    "shared-trunk-AJ.mmd",
+    "class-v2.mmd",
+    "quadrant-semicolons.mmd",
+    "numeric-state.mmd"
+  ],
+  "options": {
+    "svg": {
+      "embedFontImport": false
+    },
+    "png": {
+      "scale": 1
+    },
+    "layout": {
+      "debug": true
+    }
+  },
+  "runtime": {
+    "bun": "1.4.2",
+    "platform": "linux",
+    "arch": "x64"
+  },
+  "outputSha256": {
+    "numeric-state-after.svg": "e0d1d394e3ed42b0534d47eb1a5bcf24f990ae68dfa922af6a68446d65e23d3c",
+    "numeric-state-after.png": "e59070869e90d1dabba94cccad5e1aee86ef8c6a0f5724d2891a41f660d03ae1",
+    "shared-trunk-AJ-before.svg": "71cd96855aa0927ea7593d36561d4506d360e23047edf450d790893846e6e83c",
+    "quadrant-semicolons-after.png": "50d4ac7dcd1799242b9a7690d8f95e2fd3e6cb71dd365c33c655671cbafb9f5a",
+    "quadrant-semicolons-after.svg": "3eedeb8ec14417c55a7f409d2cd46fe26e76edd364baeb51cd66104045ddf157",
+    "shared-trunk-AJ-after.png": "3cfff55038d7a1ddaadeefe932ab49e3cd1d75f0f59300dfe77b8b3e82d51137",
+    "shared-trunk-AJ-after.svg": "9392dbd4ddad106192a7f4716786ff4f24df663c5085f77d70bfd36ae5261dcc",
+    "shared-trunk-AJ-before.png": "f8f2de52afd10eb50257f35654279fcdda490720eb96064e648f07bde6a7d757",
+    "class-v2-after.png": "f445f65e1404d9999fb4f0d35c757e0d7ffe80f54b4e6e7d409ebd7eb3f9b8b7",
+    "class-v2-after.svg": "7be1dd3ad5a28f6fa14c3c8773057bcabf541a16ca83b2ef2b7630aab73a61b8",
+    "numeric-state-before.png": "e59070869e90d1dabba94cccad5e1aee86ef8c6a0f5724d2891a41f660d03ae1",
+    "numeric-state-before.svg": "696e0dee3e81b88292405d52426bb4e247115a64a82f7f6aa8c521a9eb335f5a"
+  },
+  "checks": {
+    "geometry": "44 cases; only AJ changes; no defect metric worsens; identities/node positions identical",
+    "svgGoldens": "29/29 have zero changed raster channels; bundled fonts; no system fonts",
+    "ownerTests": "339 pass across 12 files; 94 pass across 2 golden/contact files; 1 focused editor budget pass",
+    "redGreen": "8 fail on base production; 2 controls pass"
+  },
+  "performance": "Current paired comparison and identical-build control retain adverse State80 and hand-drawn observations; no general parity claim. Numeric formatting cost remains under investigation. Prior-12d results retain their original revisions.",
+  "limitations": [
+    "Finite cohort and bundled font environment; no arbitrary graph or continuity completeness claim.",
+    "No before image exists for Class/Quadrant because baseline APIs reject these inputs.",
+    "Pixel equality does not prove semantic identity; separate geometry/grammar tests provide that evidence."
+  ]
+}

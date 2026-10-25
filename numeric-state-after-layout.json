@@ -1,0 +1,259 @@
+{
+  "version": 1,
+  "kind": "state",
+  "nodes": [
+    {
+      "id": "_start",
+      "x": 56,
+      "y": 40,
+      "w": 28,
+      "h": 28,
+      "shape": "state-start",
+      "label": "",
+      "labelBounds": {
+        "x": 70,
+        "y": 45.55,
+        "w": 0,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 56,
+        "y": 40,
+        "w": 28,
+        "h": 28
+      }
+    },
+    {
+      "id": "A",
+      "x": 40,
+      "y": 116,
+      "w": 60,
+      "h": 36.900000000000006,
+      "shape": "rounded",
+      "label": "A",
+      "labelBounds": {
+        "x": 64.57900000000001,
+        "y": 125.99999999999999,
+        "w": 10.841999999999999,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 40,
+        "y": 116,
+        "w": 60,
+        "h": 36.900000000000006
+      }
+    },
+    {
+      "id": "_end",
+      "x": 56,
+      "y": 200.9,
+      "w": 28,
+      "h": 28,
+      "shape": "state-end",
+      "label": "",
+      "labelBounds": {
+        "x": 70,
+        "y": 206.45000000000002,
+        "w": 0,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 56,
+        "y": 200.9,
+        "w": 28,
+        "h": 28
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "_start->A",
+      "from": "_start",
+      "to": "A",
+      "path": [
+        [
+          70,
+          66
+        ],
+        [
+          70,
+          116
+        ]
+      ],
+      "route": {
+        "edgeIndex": 0,
+        "routeClass": "primary-forward",
+        "bendCount": 0,
+        "sourcePort": "S",
+        "targetPort": "N",
+        "sourcePortAssignment": {
+          "side": "S",
+          "slotIndex": 0,
+          "slotCount": 1,
+          "role": "flow-source",
+          "port": "S"
+        },
+        "targetPortAssignment": {
+          "side": "N",
+          "slotIndex": 0,
+          "slotCount": 1,
+          "role": "flow-target",
+          "port": "N"
+        },
+        "invariant": "straight"
+      }
+    },
+    {
+      "id": "A->_end",
+      "from": "A",
+      "to": "_end",
+      "path": [
+        [
+          70,
+          152.9
+        ],
+        [
+          70,
+          202.9
+        ]
+      ],
+      "route": {
+        "edgeIndex": 1,
+        "routeClass": "primary-forward",
+        "bendCount": 0,
+        "sourcePort": "S",
+        "targetPort": "N",
+        "sourcePortAssignment": {
+          "side": "S",
+          "slotIndex": 0,
+          "slotCount": 1,
+          "role": "flow-source",
+          "port": "S"
+        },
+        "targetPortAssignment": {
+          "side": "N",
+          "slotIndex": 0,
+          "slotCount": 1,
+          "role": "flow-target",
+          "port": "N"
+        },
+        "invariant": "straight"
+      }
+    }
+  ],
+  "groups": [],
+  "bounds": {
+    "w": 140,
+    "h": 268.9
+  },
+  "paintCertification": {
+    "version": 1,
+    "unit": "px",
+    "scope": "native-scene",
+    "status": "passed",
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "width": 140,
+      "height": 268.9
+    },
+    "attempts": 1,
+    "repairs": [],
+    "coverage": {
+      "measured": 6,
+      "unmeasured": 0,
+      "preparedText": 1,
+      "fallbackText": 0,
+      "conditional": 0
+    },
+    "checks": {
+      "primitives": 9,
+      "labels": 1,
+      "occlusionPairs": 15,
+      "maxOcclusionPairs": 100000,
+      "operations": 67,
+      "maxOperations": 400000,
+      "markers": 2
+    },
+    "issues": [],
+    "limitations": [
+      "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+      "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+    ]
+  },
+  "regions": [
+    {
+      "id": "canvas",
+      "kind": "canvas",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "w": 140,
+        "h": 268.9
+      }
+    },
+    {
+      "id": "node:_start",
+      "kind": "node",
+      "elementId": "_start",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 56,
+        "y": 40,
+        "w": 28,
+        "h": 28
+      }
+    },
+    {
+      "id": "node:A",
+      "kind": "node",
+      "elementId": "A",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 40,
+        "y": 116,
+        "w": 60,
+        "h": 36.900000000000006
+      },
+      "sourceLine": 2
+    },
+    {
+      "id": "node:_end",
+      "kind": "node",
+      "elementId": "_end",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 56,
+        "y": 200.9,
+        "w": 28,
+        "h": 28
+      }
+    },
+    {
+      "id": "edge:_start->A",
+      "kind": "edge",
+      "elementId": "_start->A",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 70,
+        "y": 66,
+        "w": 1,
+        "h": 50
+      }
+    },
+    {
+      "id": "edge:A->_end",
+      "kind": "edge",
+      "elementId": "A->_end",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 70,
+        "y": 152.9,
+        "w": 1,
+        "h": 50
+      }
+    }
+  ],
+  "actions": []
+}

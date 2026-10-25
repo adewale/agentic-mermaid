@@ -1,0 +1,2 @@
+$ bun run scripts/site/hero.ts --check
+hero --check: assets/hero.png is up to date with the renderer.

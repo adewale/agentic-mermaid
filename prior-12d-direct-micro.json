@@ -1,0 +1,1073 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-10-25T19:52:51.686Z",
+  "runtime": "bun",
+  "comparisonMode": "revision",
+  "harness": {
+    "root": "/workspace/agentic-mermaid-fixes",
+    "revision": "2e9ec5186a8620eb54418567cc3e4e88dd1bc25b+dirty-src",
+    "script": "eval/benchmark/micro-bench.ts"
+  },
+  "environment": {
+    "runtimeVersion": "bun 1.4.2",
+    "platform": "linux",
+    "arch": "x64",
+    "osRelease": "6.18.55",
+    "cpu": "AMD EPYC 9V74 80-Core Processor",
+    "logicalCpus": 5
+  },
+  "sides": [
+    {
+      "label": "candidate",
+      "revision": "2e9ec5186a8620eb54418567cc3e4e88dd1bc25b+dirty-src",
+      "runnerProvenance": {
+        "workingDirectory": "/workspace/agentic-mermaid-fixes",
+        "argv": [
+          "bun",
+          "/workspace/agentic-mermaid-fixes/eval/benchmark/micro-bench.ts"
+        ],
+        "reusesCandidate": false
+      }
+    },
+    {
+      "label": "baseline",
+      "revision": "12d293836b25ae44f09a178c84c0a6eb9ceff80d",
+      "runnerProvenance": {
+        "workingDirectory": "/tmp/agentic-mermaid-micro-HytRU7/baseline",
+        "argv": [
+          "bun",
+          "/tmp/agentic-mermaid-micro-HytRU7/baseline/eval/benchmark/micro-bench.ts"
+        ],
+        "reusesCandidate": false
+      }
+    }
+  ],
+  "config": {
+    "filter": "^render:svg-(flow5|flow5-hand-drawn|flow5-watercolor|seq20|class80|state80)$",
+    "samples": 15,
+    "minSampleMs": 25,
+    "maxCaseMs": 5000,
+    "warmupMs": 500,
+    "rounds": 3,
+    "elkCache": "on",
+    "flags": {
+      "AGENTIC_MERMAID_ELK_CACHE": "1",
+      "AGENTIC_MERMAID_SCENE_ASSERTIONS": "0"
+    }
+  },
+  "rawRounds": [
+    {
+      "round": 1,
+      "candidate": {
+        "render:svg-flow5": {
+          "id": "render:svg-flow5",
+          "iterations": 9,
+          "samplesMs": [
+            2.0188564444444332,
+            2.171583333333337,
+            3.1147999999999834,
+            1.93028522222221,
+            1.9906817777777834,
+            1.8658546666666653,
+            2.0222425555555725,
+            1.8758119999999963,
+            1.8267412222222295,
+            1.7649135555555706,
+            2.2460176666666536,
+            1.8079040000000077,
+            1.7335352222222202,
+            1.8602239999999912,
+            1.8320447777777593
+          ],
+          "medianMs": 1.8758119999999963,
+          "madMs": 0.11089844444442565,
+          "input": "flowchart TD\n  A[Start] --> B{Check}\n  B -->|yes| C[Do it]\n  B -->|no| D[Skip]\n  C --> E[End]\n  D --> E"
+        },
+        "render:svg-seq20": {
+          "id": "render:svg-seq20",
+          "iterations": 5,
+          "samplesMs": [
+            4.192556599999989,
+            4.4544072000000146,
+            4.540777200000003,
+            5.113455599999997,
+            4.640378999999984,
+            4.7716088000000125,
+            4.559806000000026,
+            4.504186200000004,
+            4.567162999999982,
+            4.317775399999983,
+            5.859723600000007,
+            4.387540400000034,
+            4.639231400000062,
+            4.35915559999994,
+            4.397877999999946
+          ],
+          "medianMs": 4.540777200000003,
+          "madMs": 0.1428992000000564,
+          "input": "sequenceDiagram\n  P0->>P1: message 0\n  P1->>P4: message 1\n  P2->>P2: message 2\n  P3->>P0: message 3\n  P4->>P3: message 4\n  P0->>P1: message 5\n  P1->>P4: message 6\n  P2->>P2: message 7\n  P3->>P0: message 8\n  P4->>P3: message 9\n  P0->>P1: message 10\n  P1->>P4: message 11\n  P2->>P2: message 12\n  P3->>P0: message 13\n  P4->>P3: message 14\n  P0->>P1: message 15\n  P1->>P4: message 16\n  P2->>P2: message 17\n  P3->>P0: message 18\n  P4->>P3: message 19"
+        },
+        "render:svg-class80": {
+          "id": "render:svg-class80",
+          "iterations": 1,
+          "samplesMs": [
+            36.66365199999973,
+            43.41672299999982,
+            37.941527000000406,
+            41.66689799999995,
+            38.00777599999992,
+            41.88667899999973,
+            30.373387999999977,
+            30.130341999999928,
+            36.27577800000017,
+            39.908048000000235,
+            29.39102899999989,
+            30.614951999999903,
+            28.800428999999895,
+            34.78040600000031,
+            28.250220000000354
+          ],
+          "medianMs": 36.27577800000017,
+          "madMs": 5.610900999999558,
+          "input": "classDiagram\n  class C0 {\n    +int field0\n    +method0()\n  }\n  class C1 {\n    +int field1\n    +method1()\n  }\n  C0 <|-- C1\n  class C2 {\n    +int field2\n    +method2()\n  }\n  C0 <|-- C2\n  class C3 {\n    +int field3\n    +method3()\n  }\n  C1 <|-- C3\n  class C4 {\n    +int field4\n    +method4()\n  }\n  C1 <|-- C4\n  class C5 {\n    +int field5\n    +method5()\n  }\n  C2 <|-- C5\n  class C6 {\n    +int field6\n    +method6()\n  }\n  C2 <|-- C6\n  class C7 {\n    +int field7\n    +method7()\n  }\n  C3 <|-- C7\n  class C8 {\n    +int field8\n    +method8()\n  }\n  C3 <|-- C8\n  class C9 {\n    +int field9\n    +method9()\n  }\n  C4 <|-- C9\n  class C10 {\n    +int field10\n    +method10()\n  }\n  C4 <|-- C10\n  class C11 {\n    +int field11\n    +method11()\n  }\n  C5 <|-- C11\n  class C12 {\n    +int field12\n    +method12()\n  }\n  C5 <|-- C12\n  class C13 {\n    +int field13\n    +method13()\n  }\n  C6 <|-- C13\n  class C14 {\n    +int field14\n    +method14()\n  }\n  C6 <|-- C14\n  class C15 {\n    +int field15\n    +method15()\n  }\n  C7 <|-- C15\n  class C16 {\n    +int field16\n    +method16()\n  }\n  C7 <|-- C16\n  class C17 {\n    +int field17\n    +method17()\n  }\n  C8 <|-- C17\n  class C18 {\n    +int field18\n    +method18()\n  }\n  C8 <|-- C18\n  class C19 {\n    +int field19\n    +method19()\n  }\n  C9 <|-- C19\n  class C20 {\n    +int field20\n    +method20()\n  }\n  C9 <|-- C20\n  class C21 {\n    +int field21\n    +method21()\n  }\n  C10 <|-- C21\n  class C22 {\n    +int field22\n    +method22()\n  }\n  C10 <|-- C22\n  class C23 {\n    +int field23\n    +method23()\n  }\n  C11 <|-- C23\n  class C24 {\n    +int field24\n    +method24()\n  }\n  C11 <|-- C24\n  class C25 {\n    +int field25\n    +method25()\n  }\n  C12 <|-- C25\n  class C26 {\n    +int field26\n    +method26()\n  }\n  C12 <|-- C26\n  class C27 {\n    +int field27\n    +method27()\n  }\n  C13 <|-- C27\n  class C28 {\n    +int field28\n    +method28()\n  }\n  C13 <|-- C28\n  class C29 {\n    +int field29\n    +method29()\n  }\n  C14 <|-- C29\n  class C30 {\n    +int field30\n    +method30()\n  }\n  C14 <|-- C30\n  class C31 {\n    +int field31\n    +method31()\n  }\n  C15 <|-- C31\n  class C32 {\n    +int field32\n    +method32()\n  }\n  C15 <|-- C32\n  class C33 {\n    +int field33\n    +method33()\n  }\n  C16 <|-- C33\n  class C34 {\n    +int field34\n    +method34()\n  }\n  C16 <|-- C34\n  class C35 {\n    +int field35\n    +method35()\n  }\n  C17 <|-- C35\n  class C36 {\n    +int field36\n    +method36()\n  }\n  C17 <|-- C36\n  class C37 {\n    +int field37\n    +method37()\n  }\n  C18 <|-- C37\n  class C38 {\n    +int field38\n    +method38()\n  }\n  C18 <|-- C38\n  class C39 {\n    +int field39\n    +method39()\n  }\n  C19 <|-- C39\n  class C40 {\n    +int field40\n    +method40()\n  }\n  C19 <|-- C40\n  class C41 {\n    +int field41\n    +method41()\n  }\n  C20 <|-- C41\n  class C42 {\n    +int field42\n    +method42()\n  }\n  C20 <|-- C42\n  class C43 {\n    +int field43\n    +method43()\n  }\n  C21 <|-- C43\n  class C44 {\n    +int field44\n    +method44()\n  }\n  C21 <|-- C44\n  class C45 {\n    +int field45\n    +method45()\n  }\n  C22 <|-- C45\n  class C46 {\n    +int field46\n    +method46()\n  }\n  C22 <|-- C46\n  class C47 {\n    +int field47\n    +method47()\n  }\n  C23 <|-- C47\n  class C48 {\n    +int field48\n    +method48()\n  }\n  C23 <|-- C48\n  class C49 {\n    +int field49\n    +method49()\n  }\n  C24 <|-- C49\n  class C50 {\n    +int field50\n    +method50()\n  }\n  C24 <|-- C50\n  class C51 {\n    +int field51\n    +method51()\n  }\n  C25 <|-- C51\n  class C52 {\n    +int field52\n    +method52()\n  }\n  C25 <|-- C52\n  class C53 {\n    +int field53\n    +method53()\n  }\n  C26 <|-- C53\n  class C54 {\n    +int field54\n    +method54()\n  }\n  C26 <|-- C54\n  class C55 {\n    +int field55\n    +method55()\n  }\n  C27 <|-- C55\n  class C56 {\n    +int field56\n    +method56()\n  }\n  C27 <|-- C56\n  class C57 {\n    +int field57\n    +method57()\n  }\n  C28 <|-- C57\n  class C58 {\n    +int field58\n    +method58()\n  }\n  C28 <|-- C58\n  class C59 {\n    +int field59\n    +method59()\n  }\n  C29 <|-- C59\n  class C60 {\n    +int field60\n    +method60()\n  }\n  C29 <|-- C60\n  class C61 {\n    +int field61\n    +method61()\n  }\n  C30 <|-- C61\n  class C62 {\n    +int field62\n    +method62()\n  }\n  C30 <|-- C62\n  class C63 {\n    +int field63\n    +method63()\n  }\n  C31 <|-- C63\n  class C64 {\n    +int field64\n    +method64()\n  }\n  C31 <|-- C64\n  class C65 {\n    +int field65\n    +method65()\n  }\n  C32 <|-- C65\n  class C66 {\n    +int field66\n    +method66()\n  }\n  C32 <|-- C66\n  class C67 {\n    +int field67\n    +method67()\n  }\n  C33 <|-- C67\n  class C68 {\n    +int field68\n    +method68()\n  }\n  C33 <|-- C68\n  class C69 {\n    +int field69\n    +method69()\n  }\n  C34 <|-- C69\n  class C70 {\n    +int field70\n    +method70()\n  }\n  C34 <|-- C70\n  class C71 {\n    +int field71\n    +method71()\n  }\n  C35 <|-- C71\n  class C72 {\n    +int field72\n    +method72()\n  }\n  C35 <|-- C72\n  class C73 {\n    +int field73\n    +method73()\n  }\n  C36 <|-- C73\n  class C74 {\n    +int field74\n    +method74()\n  }\n  C36 <|-- C74\n  class C75 {\n    +int field75\n    +method75()\n  }\n  C37 <|-- C75\n  class C76 {\n    +int field76\n    +method76()\n  }\n  C37 <|-- C76\n  class C77 {\n    +int field77\n    +method77()\n  }\n  C38 <|-- C77\n  class C78 {\n    +int field78\n    +method78()\n  }\n  C38 <|-- C78\n  class C79 {\n    +int field79\n    +method79()\n  }\n  C39 <|-- C79"
+        },
+        "render:svg-state80": {
+          "id": "render:svg-state80",
+          "iterations": 1,
+          "samplesMs": [
+            27.451966999999968,
+            26.84303,
+            35.2961320000004,
+            26.383528000000297,
+            33.50026700000035,
+            30.081438000000162,
+            31.530000000000655,
+            27.47417100000075,
+            40.83403300000009,
+            24.754895999999462,
+            29.965001999999913,
+            33.421519000000444,
+            37.434283000000505,
+            29.535805999999866,
+            44.40291900000011
+          ],
+          "medianMs": 30.081438000000162,
+          "madMs": 3.340081000000282,
+          "input": "stateDiagram-v2\n  S0 --> S1: e0\n  S1 --> S0\n  S1 --> S2: e1\n  S2 --> S3: e2\n  S3 --> S4: e3\n  S4 --> S5: e4\n  S5 --> S6: e5\n  S6 --> S2\n  S6 --> S7: e6\n  S7 --> S8: e7\n  S8 --> S9: e8\n  S9 --> S10: e9\n  S10 --> S11: e10\n  S11 --> S7\n  S11 --> S12: e11\n  S12 --> S13: e12\n  S13 --> S14: e13\n  S14 --> S15: e14\n  S15 --> S16: e15\n  S16 --> S12\n  S16 --> S17: e16\n  S17 --> S18: e17\n  S18 --> S19: e18\n  S19 --> S20: e19\n  S20 --> S21: e20\n  S21 --> S17\n  S21 --> S22: e21\n  S22 --> S23: e22\n  S23 --> S24: e23\n  S24 --> S25: e24\n  S25 --> S26: e25\n  S26 --> S22\n  S26 --> S27: e26\n  S27 --> S28: e27\n  S28 --> S29: e28\n  S29 --> S30: e29\n  S30 --> S31: e30\n  S31 --> S27\n  S31 --> S32: e31\n  S32 --> S33: e32\n  S33 --> S34: e33\n  S34 --> S35: e34\n  S35 --> S36: e35\n  S36 --> S32\n  S36 --> S37: e36\n  S37 --> S38: e37\n  S38 --> S39: e38\n  S39 --> S40: e39\n  S40 --> S41: e40\n  S41 --> S37\n  S41 --> S42: e41\n  S42 --> S43: e42\n  S43 --> S44: e43\n  S44 --> S45: e44\n  S45 --> S46: e45\n  S46 --> S42\n  S46 --> S47: e46\n  S47 --> S48: e47\n  S48 --> S49: e48\n  S49 --> S50: e49\n  S50 --> S51: e50\n  S51 --> S47\n  S51 --> S52: e51\n  S52 --> S53: e52\n  S53 --> S54: e53\n  S54 --> S55: e54\n  S55 --> S56: e55\n  S56 --> S52\n  S56 --> S57: e56\n  S57 --> S58: e57\n  S58 --> S59: e58\n  S59 --> S60: e59\n  S60 --> S61: e60\n  S61 --> S57\n  S61 --> S62: e61\n  S62 --> S63: e62\n  S63 --> S64: e63\n  S64 --> S65: e64\n  S65 --> S66: e65\n  S66 --> S62\n  S66 --> S67: e66\n  S67 --> S68: e67\n  S68 --> S69: e68\n  S69 --> S70: e69\n  S70 --> S71: e70\n  S71 --> S67\n  S71 --> S72: e71\n  S72 --> S73: e72\n  S73 --> S74: e73\n  S74 --> S75: e74\n  S75 --> S76: e75\n  S76 --> S72\n  S76 --> S77: e76\n  S77 --> S78: e77\n  S78 --> S79: e78\n  S79 --> S80: e79"
+        },
+        "render:svg-flow5-hand-drawn": {
+          "id": "render:svg-flow5-hand-drawn",
+          "iterations": 4,
+          "samplesMs": [
+            5.306163000000197,
+            5.736376249999921,
+            16.605825249999953,
+            5.406881999999996,
+            5.658689500000037,
+            5.824088750000101,
+            4.879502499999944,
+            4.375820500000145,
+            4.642820499999971,
+            4.768134500000087,
+            6.7410207499999615,
+            4.542804749999959,
+            4.605864999999994,
+            4.457821749999994,
+            4.490894499999968
+          ],
+          "medianMs": 4.879502499999944,
+          "madMs": 0.4266605000002528
+        },
+        "render:svg-flow5-watercolor": {
+          "id": "render:svg-flow5-watercolor",
+          "iterations": 5,
+          "samplesMs": [
+            4.171143200000006,
+            4.01536840000008,
+            4.419268999999986,
+            5.767893999999979,
+            4.388568999999916,
+            3.991015800000059,
+            4.1175444000000425,
+            4.328488399999879,
+            4.052642599999854,
+            5.307864599999993,
+            4.1022093999999925,
+            4.5255034000001615,
+            4.5492852000001225,
+            3.9618835999999646,
+            3.874039399999856
+          ],
+          "medianMs": 4.171143200000006,
+          "madMs": 0.20925960000004107
+        }
+      },
+      "baseline": {
+        "render:svg-flow5": {
+          "id": "render:svg-flow5",
+          "iterations": 9,
+          "samplesMs": [
+            2.2346371111111063,
+            2.3436848888888893,
+            1.8500719999999926,
+            2.702435666666664,
+            2.2800734444444464,
+            2.2924498888888944,
+            1.9129066666666605,
+            2.78435566666667,
+            1.9922095555555441,
+            1.9674755555555394,
+            2.4184453333333398,
+            2.2677427777777868,
+            1.7668208888888886,
+            1.7520932222222048,
+            1.7253995555555675
+          ],
+          "medianMs": 2.2346371111111063,
+          "madMs": 0.26716155555556687,
+          "input": "flowchart TD\n  A[Start] --> B{Check}\n  B -->|yes| C[Do it]\n  B -->|no| D[Skip]\n  C --> E[End]\n  D --> E"
+        },
+        "render:svg-seq20": {
+          "id": "render:svg-seq20",
+          "iterations": 6,
+          "samplesMs": [
+            4.337321000000013,
+            3.9041981666666743,
+            3.9111118333333175,
+            3.9234323333333427,
+            3.6851463333333263,
+            4.257024999999999,
+            3.778016333333312,
+            3.6387931666666495,
+            3.599235333333354,
+            3.6466248333333624,
+            3.772980499999979,
+            4.195497333333378,
+            3.6310496666666645,
+            3.6110596666666575,
+            3.629547499999944
+          ],
+          "medianMs": 3.772980499999979,
+          "madMs": 0.1419308333333147,
+          "input": "sequenceDiagram\n  P0->>P1: message 0\n  P1->>P4: message 1\n  P2->>P2: message 2\n  P3->>P0: message 3\n  P4->>P3: message 4\n  P0->>P1: message 5\n  P1->>P4: message 6\n  P2->>P2: message 7\n  P3->>P0: message 8\n  P4->>P3: message 9\n  P0->>P1: message 10\n  P1->>P4: message 11\n  P2->>P2: message 12\n  P3->>P0: message 13\n  P4->>P3: message 14\n  P0->>P1: message 15\n  P1->>P4: message 16\n  P2->>P2: message 17\n  P3->>P0: message 18\n  P4->>P3: message 19"
+        },
+        "render:svg-class80": {
+          "id": "render:svg-class80",
+          "iterations": 1,
+          "samplesMs": [
+            40.58443299999999,
+            31.571333000000322,
+            47.34081700000024,
+            33.417911000000004,
+            35.20110900000009,
+            31.105164999999943,
+            27.91848200000004,
+            32.466531999999916,
+            33.19869100000005,
+            26.712263999999777,
+            31.583886999999777,
+            28.297923000000083,
+            35.50632899999982,
+            29.326461999999992,
+            28.634259999999813
+          ],
+          "medianMs": 31.583886999999777,
+          "madMs": 2.949626999999964,
+          "input": "classDiagram\n  class C0 {\n    +int field0\n    +method0()\n  }\n  class C1 {\n    +int field1\n    +method1()\n  }\n  C0 <|-- C1\n  class C2 {\n    +int field2\n    +method2()\n  }\n  C0 <|-- C2\n  class C3 {\n    +int field3\n    +method3()\n  }\n  C1 <|-- C3\n  class C4 {\n    +int field4\n    +method4()\n  }\n  C1 <|-- C4\n  class C5 {\n    +int field5\n    +method5()\n  }\n  C2 <|-- C5\n  class C6 {\n    +int field6\n    +method6()\n  }\n  C2 <|-- C6\n  class C7 {\n    +int field7\n    +method7()\n  }\n  C3 <|-- C7\n  class C8 {\n    +int field8\n    +method8()\n  }\n  C3 <|-- C8\n  class C9 {\n    +int field9\n    +method9()\n  }\n  C4 <|-- C9\n  class C10 {\n    +int field10\n    +method10()\n  }\n  C4 <|-- C10\n  class C11 {\n    +int field11\n    +method11()\n  }\n  C5 <|-- C11\n  class C12 {\n    +int field12\n    +method12()\n  }\n  C5 <|-- C12\n  class C13 {\n    +int field13\n    +method13()\n  }\n  C6 <|-- C13\n  class C14 {\n    +int field14\n    +method14()\n  }\n  C6 <|-- C14\n  class C15 {\n    +int field15\n    +method15()\n  }\n  C7 <|-- C15\n  class C16 {\n    +int field16\n    +method16()\n  }\n  C7 <|-- C16\n  class C17 {\n    +int field17\n    +method17()\n  }\n  C8 <|-- C17\n  class C18 {\n    +int field18\n    +method18()\n  }\n  C8 <|-- C18\n  class C19 {\n    +int field19\n    +method19()\n  }\n  C9 <|-- C19\n  class C20 {\n    +int field20\n    +method20()\n  }\n  C9 <|-- C20\n  class C21 {\n    +int field21\n    +method21()\n  }\n  C10 <|-- C21\n  class C22 {\n    +int field22\n    +method22()\n  }\n  C10 <|-- C22\n  class C23 {\n    +int field23\n    +method23()\n  }\n  C11 <|-- C23\n  class C24 {\n    +int field24\n    +method24()\n  }\n  C11 <|-- C24\n  class C25 {\n    +int field25\n    +method25()\n  }\n  C12 <|-- C25\n  class C26 {\n    +int field26\n    +method26()\n  }\n  C12 <|-- C26\n  class C27 {\n    +int field27\n    +method27()\n  }\n  C13 <|-- C27\n  class C28 {\n    +int field28\n    +method28()\n  }\n  C13 <|-- C28\n  class C29 {\n    +int field29\n    +method29()\n  }\n  C14 <|-- C29\n  class C30 {\n    +int field30\n    +method30()\n  }\n  C14 <|-- C30\n  class C31 {\n    +int field31\n    +method31()\n  }\n  C15 <|-- C31\n  class C32 {\n    +int field32\n    +method32()\n  }\n  C15 <|-- C32\n  class C33 {\n    +int field33\n    +method33()\n  }\n  C16 <|-- C33\n  class C34 {\n    +int field34\n    +method34()\n  }\n  C16 <|-- C34\n  class C35 {\n    +int field35\n    +method35()\n  }\n  C17 <|-- C35\n  class C36 {\n    +int field36\n    +method36()\n  }\n  C17 <|-- C36\n  class C37 {\n    +int field37\n    +method37()\n  }\n  C18 <|-- C37\n  class C38 {\n    +int field38\n    +method38()\n  }\n  C18 <|-- C38\n  class C39 {\n    +int field39\n    +method39()\n  }\n  C19 <|-- C39\n  class C40 {\n    +int field40\n    +method40()\n  }\n  C19 <|-- C40\n  class C41 {\n    +int field41\n    +method41()\n  }\n  C20 <|-- C41\n  class C42 {\n    +int field42\n    +method42()\n  }\n  C20 <|-- C42\n  class C43 {\n    +int field43\n    +method43()\n  }\n  C21 <|-- C43\n  class C44 {\n    +int field44\n    +method44()\n  }\n  C21 <|-- C44\n  class C45 {\n    +int field45\n    +method45()\n  }\n  C22 <|-- C45\n  class C46 {\n    +int field46\n    +method46()\n  }\n  C22 <|-- C46\n  class C47 {\n    +int field47\n    +method47()\n  }\n  C23 <|-- C47\n  class C48 {\n    +int field48\n    +method48()\n  }\n  C23 <|-- C48\n  class C49 {\n    +int field49\n    +method49()\n  }\n  C24 <|-- C49\n  class C50 {\n    +int field50\n    +method50()\n  }\n  C24 <|-- C50\n  class C51 {\n    +int field51\n    +method51()\n  }\n  C25 <|-- C51\n  class C52 {\n    +int field52\n    +method52()\n  }\n  C25 <|-- C52\n  class C53 {\n    +int field53\n    +method53()\n  }\n  C26 <|-- C53\n  class C54 {\n    +int field54\n    +method54()\n  }\n  C26 <|-- C54\n  class C55 {\n    +int field55\n    +method55()\n  }\n  C27 <|-- C55\n  class C56 {\n    +int field56\n    +method56()\n  }\n  C27 <|-- C56\n  class C57 {\n    +int field57\n    +method57()\n  }\n  C28 <|-- C57\n  class C58 {\n    +int field58\n    +method58()\n  }\n  C28 <|-- C58\n  class C59 {\n    +int field59\n    +method59()\n  }\n  C29 <|-- C59\n  class C60 {\n    +int field60\n    +method60()\n  }\n  C29 <|-- C60\n  class C61 {\n    +int field61\n    +method61()\n  }\n  C30 <|-- C61\n  class C62 {\n    +int field62\n    +method62()\n  }\n  C30 <|-- C62\n  class C63 {\n    +int field63\n    +method63()\n  }\n  C31 <|-- C63\n  class C64 {\n    +int field64\n    +method64()\n  }\n  C31 <|-- C64\n  class C65 {\n    +int field65\n    +method65()\n  }\n  C32 <|-- C65\n  class C66 {\n    +int field66\n    +method66()\n  }\n  C32 <|-- C66\n  class C67 {\n    +int field67\n    +method67()\n  }\n  C33 <|-- C67\n  class C68 {\n    +int field68\n    +method68()\n  }\n  C33 <|-- C68\n  class C69 {\n    +int field69\n    +method69()\n  }\n  C34 <|-- C69\n  class C70 {\n    +int field70\n    +method70()\n  }\n  C34 <|-- C70\n  class C71 {\n    +int field71\n    +method71()\n  }\n  C35 <|-- C71\n  class C72 {\n    +int field72\n    +method72()\n  }\n  C35 <|-- C72\n  class C73 {\n    +int field73\n    +method73()\n  }\n  C36 <|-- C73\n  class C74 {\n    +int field74\n    +method74()\n  }\n  C36 <|-- C74\n  class C75 {\n    +int field75\n    +method75()\n  }\n  C37 <|-- C75\n  class C76 {\n    +int field76\n    +method76()\n  }\n  C37 <|-- C76\n  class C77 {\n    +int field77\n    +method77()\n  }\n  C38 <|-- C77\n  class C78 {\n    +int field78\n    +method78()\n  }\n  C38 <|-- C78\n  class C79 {\n    +int field79\n    +method79()\n  }\n  C39 <|-- C79"
+        },
+        "render:svg-state80": {
+          "id": "render:svg-state80",
+          "iterations": 2,
+          "samplesMs": [
+            23.73821050000015,
+            23.776132499999676,
+            24.029783999999836,
+            20.335351000000173,
+            21.23027200000024,
+            23.357667499999934,
+            19.30743399999983,
+            20.174648499999876,
+            22.429741999999806,
+            20.851717500000177,
+            20.81755099999964,
+            30.49921749999976,
+            20.87008999999989,
+            20.214238000000023,
+            23.166144499999973
+          ],
+          "medianMs": 21.23027200000024,
+          "madMs": 1.1994699999995646,
+          "input": "stateDiagram-v2\n  S0 --> S1: e0\n  S1 --> S0\n  S1 --> S2: e1\n  S2 --> S3: e2\n  S3 --> S4: e3\n  S4 --> S5: e4\n  S5 --> S6: e5\n  S6 --> S2\n  S6 --> S7: e6\n  S7 --> S8: e7\n  S8 --> S9: e8\n  S9 --> S10: e9\n  S10 --> S11: e10\n  S11 --> S7\n  S11 --> S12: e11\n  S12 --> S13: e12\n  S13 --> S14: e13\n  S14 --> S15: e14\n  S15 --> S16: e15\n  S16 --> S12\n  S16 --> S17: e16\n  S17 --> S18: e17\n  S18 --> S19: e18\n  S19 --> S20: e19\n  S20 --> S21: e20\n  S21 --> S17\n  S21 --> S22: e21\n  S22 --> S23: e22\n  S23 --> S24: e23\n  S24 --> S25: e24\n  S25 --> S26: e25\n  S26 --> S22\n  S26 --> S27: e26\n  S27 --> S28: e27\n  S28 --> S29: e28\n  S29 --> S30: e29\n  S30 --> S31: e30\n  S31 --> S27\n  S31 --> S32: e31\n  S32 --> S33: e32\n  S33 --> S34: e33\n  S34 --> S35: e34\n  S35 --> S36: e35\n  S36 --> S32\n  S36 --> S37: e36\n  S37 --> S38: e37\n  S38 --> S39: e38\n  S39 --> S40: e39\n  S40 --> S41: e40\n  S41 --> S37\n  S41 --> S42: e41\n  S42 --> S43: e42\n  S43 --> S44: e43\n  S44 --> S45: e44\n  S45 --> S46: e45\n  S46 --> S42\n  S46 --> S47: e46\n  S47 --> S48: e47\n  S48 --> S49: e48\n  S49 --> S50: e49\n  S50 --> S51: e50\n  S51 --> S47\n  S51 --> S52: e51\n  S52 --> S53: e52\n  S53 --> S54: e53\n  S54 --> S55: e54\n  S55 --> S56: e55\n  S56 --> S52\n  S56 --> S57: e56\n  S57 --> S58: e57\n  S58 --> S59: e58\n  S59 --> S60: e59\n  S60 --> S61: e60\n  S61 --> S57\n  S61 --> S62: e61\n  S62 --> S63: e62\n  S63 --> S64: e63\n  S64 --> S65: e64\n  S65 --> S66: e65\n  S66 --> S62\n  S66 --> S67: e66\n  S67 --> S68: e67\n  S68 --> S69: e68\n  S69 --> S70: e69\n  S70 --> S71: e70\n  S71 --> S67\n  S71 --> S72: e71\n  S72 --> S73: e72\n  S73 --> S74: e73\n  S74 --> S75: e74\n  S75 --> S76: e75\n  S76 --> S72\n  S76 --> S77: e76\n  S77 --> S78: e77\n  S78 --> S79: e78\n  S79 --> S80: e79"
+        },
+        "render:svg-flow5-hand-drawn": {
+          "id": "render:svg-flow5-hand-drawn",
+          "iterations": 5,
+          "samplesMs": [
+            4.659796800000004,
+            4.303055999999924,
+            4.413538599999993,
+            4.311707200000091,
+            4.302393200000006,
+            5.607126200000129,
+            4.339613199999985,
+            4.447329199999876,
+            4.433586600000126,
+            4.363048600000002,
+            4.400240400000075,
+            4.456413000000066,
+            5.58411959999994,
+            4.197815799999989,
+            4.28920960000014
+          ],
+          "medianMs": 4.400240400000075,
+          "madMs": 0.08853319999998366
+        },
+        "render:svg-flow5-watercolor": {
+          "id": "render:svg-flow5-watercolor",
+          "iterations": 5,
+          "samplesMs": [
+            4.371148600000015,
+            4.267664999999942,
+            4.790740000000005,
+            6.488544399999955,
+            5.082000200000039,
+            4.661605400000008,
+            4.750345200000083,
+            4.402589999999873,
+            4.383184600000095,
+            4.90158080000001,
+            6.40446179999999,
+            4.019595599999957,
+            4.540485399999852,
+            4.289319400000022,
+            4.24587819999997
+          ],
+          "medianMs": 4.540485399999852,
+          "madMs": 0.2511659999998299
+        }
+      }
+    },
+    {
+      "round": 2,
+      "baseline": {
+        "render:svg-flow5": {
+          "id": "render:svg-flow5",
+          "iterations": 8,
+          "samplesMs": [
+            2.086946124999997,
+            2.5396272499999952,
+            1.9899177499999894,
+            1.947858124999982,
+            2.099952000000002,
+            2.747376124999988,
+            2.0310307500000135,
+            2.060160875000008,
+            2.3455664999999897,
+            2.332933749999995,
+            1.8461677500000064,
+            1.7894748749999962,
+            1.7490802499999916,
+            1.8175433750000138,
+            2.4607373749999795
+          ],
+          "medianMs": 2.060160875000008,
+          "madMs": 0.24261749999999438,
+          "input": "flowchart TD\n  A[Start] --> B{Check}\n  B -->|yes| C[Do it]\n  B -->|no| D[Skip]\n  C --> E[End]\n  D --> E"
+        },
+        "render:svg-seq20": {
+          "id": "render:svg-seq20",
+          "iterations": 5,
+          "samplesMs": [
+            5.33059659999999,
+            4.546111999999994,
+            4.7477460000000065,
+            4.432957600000009,
+            4.7819214000000105,
+            5.464924999999994,
+            5.461878399999978,
+            5.157463600000028,
+            4.943841599999996,
+            4.46756379999997,
+            5.551793799999996,
+            4.963415199999963,
+            4.771696000000065,
+            4.676775199999975,
+            4.131192800000008
+          ],
+          "medianMs": 4.7819214000000105,
+          "madMs": 0.3143576000000401,
+          "input": "sequenceDiagram\n  P0->>P1: message 0\n  P1->>P4: message 1\n  P2->>P2: message 2\n  P3->>P0: message 3\n  P4->>P3: message 4\n  P0->>P1: message 5\n  P1->>P4: message 6\n  P2->>P2: message 7\n  P3->>P0: message 8\n  P4->>P3: message 9\n  P0->>P1: message 10\n  P1->>P4: message 11\n  P2->>P2: message 12\n  P3->>P0: message 13\n  P4->>P3: message 14\n  P0->>P1: message 15\n  P1->>P4: message 16\n  P2->>P2: message 17\n  P3->>P0: message 18\n  P4->>P3: message 19"
+        },
+        "render:svg-class80": {
+          "id": "render:svg-class80",
+          "iterations": 1,
+          "samplesMs": [
+            37.22939399999996,
+            35.152477999999974,
+            40.792875000000095,
+            29.428485999999793,
+            29.382808000000296,
+            29.023074999999608,
+            33.33534499999996,
+            29.39826099999982,
+            29.022142999999687,
+            27.40952299999981,
+            33.923951999999645,
+            28.603161999999884,
+            27.95392300000003,
+            27.552447999999913,
+            29.50282900000002
+          ],
+          "medianMs": 29.39826099999982,
+          "madMs": 1.4443379999997887,
+          "input": "classDiagram\n  class C0 {\n    +int field0\n    +method0()\n  }\n  class C1 {\n    +int field1\n    +method1()\n  }\n  C0 <|-- C1\n  class C2 {\n    +int field2\n    +method2()\n  }\n  C0 <|-- C2\n  class C3 {\n    +int field3\n    +method3()\n  }\n  C1 <|-- C3\n  class C4 {\n    +int field4\n    +method4()\n  }\n  C1 <|-- C4\n  class C5 {\n    +int field5\n    +method5()\n  }\n  C2 <|-- C5\n  class C6 {\n    +int field6\n    +method6()\n  }\n  C2 <|-- C6\n  class C7 {\n    +int field7\n    +method7()\n  }\n  C3 <|-- C7\n  class C8 {\n    +int field8\n    +method8()\n  }\n  C3 <|-- C8\n  class C9 {\n    +int field9\n    +method9()\n  }\n  C4 <|-- C9\n  class C10 {\n    +int field10\n    +method10()\n  }\n  C4 <|-- C10\n  class C11 {\n    +int field11\n    +method11()\n  }\n  C5 <|-- C11\n  class C12 {\n    +int field12\n    +method12()\n  }\n  C5 <|-- C12\n  class C13 {\n    +int field13\n    +method13()\n  }\n  C6 <|-- C13\n  class C14 {\n    +int field14\n    +method14()\n  }\n  C6 <|-- C14\n  class C15 {\n    +int field15\n    +method15()\n  }\n  C7 <|-- C15\n  class C16 {\n    +int field16\n    +method16()\n  }\n  C7 <|-- C16\n  class C17 {\n    +int field17\n    +method17()\n  }\n  C8 <|-- C17\n  class C18 {\n    +int field18\n    +method18()\n  }\n  C8 <|-- C18\n  class C19 {\n    +int field19\n    +method19()\n  }\n  C9 <|-- C19\n  class C20 {\n    +int field20\n    +method20()\n  }\n  C9 <|-- C20\n  class C21 {\n    +int field21\n    +method21()\n  }\n  C10 <|-- C21\n  class C22 {\n    +int field22\n    +method22()\n  }\n  C10 <|-- C22\n  class C23 {\n    +int field23\n    +method23()\n  }\n  C11 <|-- C23\n  class C24 {\n    +int field24\n    +method24()\n  }\n  C11 <|-- C24\n  class C25 {\n    +int field25\n    +method25()\n  }\n  C12 <|-- C25\n  class C26 {\n    +int field26\n    +method26()\n  }\n  C12 <|-- C26\n  class C27 {\n    +int field27\n    +method27()\n  }\n  C13 <|-- C27\n  class C28 {\n    +int field28\n    +method28()\n  }\n  C13 <|-- C28\n  class C29 {\n    +int field29\n    +method29()\n  }\n  C14 <|-- C29\n  class C30 {\n    +int field30\n    +method30()\n  }\n  C14 <|-- C30\n  class C31 {\n    +int field31\n    +method31()\n  }\n  C15 <|-- C31\n  class C32 {\n    +int field32\n    +method32()\n  }\n  C15 <|-- C32\n  class C33 {\n    +int field33\n    +method33()\n  }\n  C16 <|-- C33\n  class C34 {\n    +int field34\n    +method34()\n  }\n  C16 <|-- C34\n  class C35 {\n    +int field35\n    +method35()\n  }\n  C17 <|-- C35\n  class C36 {\n    +int field36\n    +method36()\n  }\n  C17 <|-- C36\n  class C37 {\n    +int field37\n    +method37()\n  }\n  C18 <|-- C37\n  class C38 {\n    +int field38\n    +method38()\n  }\n  C18 <|-- C38\n  class C39 {\n    +int field39\n    +method39()\n  }\n  C19 <|-- C39\n  class C40 {\n    +int field40\n    +method40()\n  }\n  C19 <|-- C40\n  class C41 {\n    +int field41\n    +method41()\n  }\n  C20 <|-- C41\n  class C42 {\n    +int field42\n    +method42()\n  }\n  C20 <|-- C42\n  class C43 {\n    +int field43\n    +method43()\n  }\n  C21 <|-- C43\n  class C44 {\n    +int field44\n    +method44()\n  }\n  C21 <|-- C44\n  class C45 {\n    +int field45\n    +method45()\n  }\n  C22 <|-- C45\n  class C46 {\n    +int field46\n    +method46()\n  }\n  C22 <|-- C46\n  class C47 {\n    +int field47\n    +method47()\n  }\n  C23 <|-- C47\n  class C48 {\n    +int field48\n    +method48()\n  }\n  C23 <|-- C48\n  class C49 {\n    +int field49\n    +method49()\n  }\n  C24 <|-- C49\n  class C50 {\n    +int field50\n    +method50()\n  }\n  C24 <|-- C50\n  class C51 {\n    +int field51\n    +method51()\n  }\n  C25 <|-- C51\n  class C52 {\n    +int field52\n    +method52()\n  }\n  C25 <|-- C52\n  class C53 {\n    +int field53\n    +method53()\n  }\n  C26 <|-- C53\n  class C54 {\n    +int field54\n    +method54()\n  }\n  C26 <|-- C54\n  class C55 {\n    +int field55\n    +method55()\n  }\n  C27 <|-- C55\n  class C56 {\n    +int field56\n    +method56()\n  }\n  C27 <|-- C56\n  class C57 {\n    +int field57\n    +method57()\n  }\n  C28 <|-- C57\n  class C58 {\n    +int field58\n    +method58()\n  }\n  C28 <|-- C58\n  class C59 {\n    +int field59\n    +method59()\n  }\n  C29 <|-- C59\n  class C60 {\n    +int field60\n    +method60()\n  }\n  C29 <|-- C60\n  class C61 {\n    +int field61\n    +method61()\n  }\n  C30 <|-- C61\n  class C62 {\n    +int field62\n    +method62()\n  }\n  C30 <|-- C62\n  class C63 {\n    +int field63\n    +method63()\n  }\n  C31 <|-- C63\n  class C64 {\n    +int field64\n    +method64()\n  }\n  C31 <|-- C64\n  class C65 {\n    +int field65\n    +method65()\n  }\n  C32 <|-- C65\n  class C66 {\n    +int field66\n    +method66()\n  }\n  C32 <|-- C66\n  class C67 {\n    +int field67\n    +method67()\n  }\n  C33 <|-- C67\n  class C68 {\n    +int field68\n    +method68()\n  }\n  C33 <|-- C68\n  class C69 {\n    +int field69\n    +method69()\n  }\n  C34 <|-- C69\n  class C70 {\n    +int field70\n    +method70()\n  }\n  C34 <|-- C70\n  class C71 {\n    +int field71\n    +method71()\n  }\n  C35 <|-- C71\n  class C72 {\n    +int field72\n    +method72()\n  }\n  C35 <|-- C72\n  class C73 {\n    +int field73\n    +method73()\n  }\n  C36 <|-- C73\n  class C74 {\n    +int field74\n    +method74()\n  }\n  C36 <|-- C74\n  class C75 {\n    +int field75\n    +method75()\n  }\n  C37 <|-- C75\n  class C76 {\n    +int field76\n    +method76()\n  }\n  C37 <|-- C76\n  class C77 {\n    +int field77\n    +method77()\n  }\n  C38 <|-- C77\n  class C78 {\n    +int field78\n    +method78()\n  }\n  C38 <|-- C78\n  class C79 {\n    +int field79\n    +method79()\n  }\n  C39 <|-- C79"
+        },
+        "render:svg-state80": {
+          "id": "render:svg-state80",
+          "iterations": 2,
+          "samplesMs": [
+            25.027788500000042,
+            27.185730499999863,
+            20.355074999999943,
+            20.379892500000096,
+            22.900762500000383,
+            21.125433500000327,
+            21.23584800000026,
+            22.950697499999933,
+            20.23025699999971,
+            20.45751449999989,
+            23.488373000000138,
+            21.885522000000037,
+            23.142626500000006,
+            23.365044500000295,
+            20.265561499999876
+          ],
+          "medianMs": 21.885522000000037,
+          "madMs": 1.4795225000002574,
+          "input": "stateDiagram-v2\n  S0 --> S1: e0\n  S1 --> S0\n  S1 --> S2: e1\n  S2 --> S3: e2\n  S3 --> S4: e3\n  S4 --> S5: e4\n  S5 --> S6: e5\n  S6 --> S2\n  S6 --> S7: e6\n  S7 --> S8: e7\n  S8 --> S9: e8\n  S9 --> S10: e9\n  S10 --> S11: e10\n  S11 --> S7\n  S11 --> S12: e11\n  S12 --> S13: e12\n  S13 --> S14: e13\n  S14 --> S15: e14\n  S15 --> S16: e15\n  S16 --> S12\n  S16 --> S17: e16\n  S17 --> S18: e17\n  S18 --> S19: e18\n  S19 --> S20: e19\n  S20 --> S21: e20\n  S21 --> S17\n  S21 --> S22: e21\n  S22 --> S23: e22\n  S23 --> S24: e23\n  S24 --> S25: e24\n  S25 --> S26: e25\n  S26 --> S22\n  S26 --> S27: e26\n  S27 --> S28: e27\n  S28 --> S29: e28\n  S29 --> S30: e29\n  S30 --> S31: e30\n  S31 --> S27\n  S31 --> S32: e31\n  S32 --> S33: e32\n  S33 --> S34: e33\n  S34 --> S35: e34\n  S35 --> S36: e35\n  S36 --> S32\n  S36 --> S37: e36\n  S37 --> S38: e37\n  S38 --> S39: e38\n  S39 --> S40: e39\n  S40 --> S41: e40\n  S41 --> S37\n  S41 --> S42: e41\n  S42 --> S43: e42\n  S43 --> S44: e43\n  S44 --> S45: e44\n  S45 --> S46: e45\n  S46 --> S42\n  S46 --> S47: e46\n  S47 --> S48: e47\n  S48 --> S49: e48\n  S49 --> S50: e49\n  S50 --> S51: e50\n  S51 --> S47\n  S51 --> S52: e51\n  S52 --> S53: e52\n  S53 --> S54: e53\n  S54 --> S55: e54\n  S55 --> S56: e55\n  S56 --> S52\n  S56 --> S57: e56\n  S57 --> S58: e57\n  S58 --> S59: e58\n  S59 --> S60: e59\n  S60 --> S61: e60\n  S61 --> S57\n  S61 --> S62: e61\n  S62 --> S63: e62\n  S63 --> S64: e63\n  S64 --> S65: e64\n  S65 --> S66: e65\n  S66 --> S62\n  S66 --> S67: e66\n  S67 --> S68: e67\n  S68 --> S69: e68\n  S69 --> S70: e69\n  S70 --> S71: e70\n  S71 --> S67\n  S71 --> S72: e71\n  S72 --> S73: e72\n  S73 --> S74: e73\n  S74 --> S75: e74\n  S75 --> S76: e75\n  S76 --> S72\n  S76 --> S77: e76\n  S77 --> S78: e77\n  S78 --> S79: e78\n  S79 --> S80: e79"
+        },
+        "render:svg-flow5-hand-drawn": {
+          "id": "render:svg-flow5-hand-drawn",
+          "iterations": 5,
+          "samplesMs": [
+            4.631769399999939,
+            4.749156000000039,
+            6.327355399999942,
+            4.406945000000087,
+            4.249065199999859,
+            4.412860200000068,
+            4.2951046000000135,
+            4.416032799999994,
+            4.3924692000000505,
+            6.000473600000078,
+            4.568073600000025,
+            4.704458799999884,
+            4.338053200000104,
+            4.380903799999942,
+            4.496952599999895
+          ],
+          "medianMs": 4.416032799999994,
+          "madMs": 0.12092819999998028
+        },
+        "render:svg-flow5-watercolor": {
+          "id": "render:svg-flow5-watercolor",
+          "iterations": 6,
+          "samplesMs": [
+            4.736593500000102,
+            4.343155333333319,
+            4.276431500000096,
+            4.612824666666559,
+            5.972337500000019,
+            4.309275999999954,
+            4.534343166666683,
+            4.380912333333375,
+            4.345545666666567,
+            4.265047833333331,
+            6.263684333333306,
+            4.405995000000075,
+            4.159230166666778,
+            4.258339333333272,
+            3.838639333333352
+          ],
+          "medianMs": 4.345545666666567,
+          "madMs": 0.08720633333329442
+        }
+      },
+      "candidate": {
+        "render:svg-flow5": {
+          "id": "render:svg-flow5",
+          "iterations": 9,
+          "samplesMs": [
+            1.8653520000000046,
+            2.0193448888888827,
+            2.6585169999999985,
+            2.0058679999999893,
+            1.8318004444444493,
+            1.7617516666666688,
+            1.7855575555555434,
+            1.7523118888889004,
+            1.8327797777777606,
+            1.7397452222222052,
+            2.253916888888878,
+            1.875288111111129,
+            1.9353785555555685,
+            2.3051628888888698,
+            1.838404888888893
+          ],
+          "medianMs": 1.8653520000000046,
+          "madMs": 0.10360033333333574,
+          "input": "flowchart TD\n  A[Start] --> B{Check}\n  B -->|yes| C[Do it]\n  B -->|no| D[Skip]\n  C --> E[End]\n  D --> E"
+        },
+        "render:svg-seq20": {
+          "id": "render:svg-seq20",
+          "iterations": 6,
+          "samplesMs": [
+            4.050618500000003,
+            3.809864333333318,
+            3.901594166666655,
+            3.7990279999999834,
+            3.702948666666695,
+            4.50163733333333,
+            3.906481500000003,
+            3.762120833333332,
+            4.015071500000015,
+            3.7845113333333225,
+            4.4454911666667085,
+            3.7323143333333064,
+            3.5895426666666785,
+            3.6727180000000317,
+            3.6836428333333515
+          ],
+          "medianMs": 3.7990279999999834,
+          "madMs": 0.10745350000001963,
+          "input": "sequenceDiagram\n  P0->>P1: message 0\n  P1->>P4: message 1\n  P2->>P2: message 2\n  P3->>P0: message 3\n  P4->>P3: message 4\n  P0->>P1: message 5\n  P1->>P4: message 6\n  P2->>P2: message 7\n  P3->>P0: message 8\n  P4->>P3: message 9\n  P0->>P1: message 10\n  P1->>P4: message 11\n  P2->>P2: message 12\n  P3->>P0: message 13\n  P4->>P3: message 14\n  P0->>P1: message 15\n  P1->>P4: message 16\n  P2->>P2: message 17\n  P3->>P0: message 18\n  P4->>P3: message 19"
+        },
+        "render:svg-class80": {
+          "id": "render:svg-class80",
+          "iterations": 1,
+          "samplesMs": [
+            26.84085899999991,
+            27.722405999999864,
+            29.33137799999986,
+            34.33265600000004,
+            27.346260000000257,
+            31.087770999999975,
+            25.905191000000286,
+            31.889087000000018,
+            26.60907999999972,
+            31.252264000000196,
+            30.67127500000015,
+            38.82076099999995,
+            29.560791999999765,
+            29.02507199999991,
+            30.64640499999996
+          ],
+          "medianMs": 29.560791999999765,
+          "madMs": 1.8383859999999004,
+          "input": "classDiagram\n  class C0 {\n    +int field0\n    +method0()\n  }\n  class C1 {\n    +int field1\n    +method1()\n  }\n  C0 <|-- C1\n  class C2 {\n    +int field2\n    +method2()\n  }\n  C0 <|-- C2\n  class C3 {\n    +int field3\n    +method3()\n  }\n  C1 <|-- C3\n  class C4 {\n    +int field4\n    +method4()\n  }\n  C1 <|-- C4\n  class C5 {\n    +int field5\n    +method5()\n  }\n  C2 <|-- C5\n  class C6 {\n    +int field6\n    +method6()\n  }\n  C2 <|-- C6\n  class C7 {\n    +int field7\n    +method7()\n  }\n  C3 <|-- C7\n  class C8 {\n    +int field8\n    +method8()\n  }\n  C3 <|-- C8\n  class C9 {\n    +int field9\n    +method9()\n  }\n  C4 <|-- C9\n  class C10 {\n    +int field10\n    +method10()\n  }\n  C4 <|-- C10\n  class C11 {\n    +int field11\n    +method11()\n  }\n  C5 <|-- C11\n  class C12 {\n    +int field12\n    +method12()\n  }\n  C5 <|-- C12\n  class C13 {\n    +int field13\n    +method13()\n  }\n  C6 <|-- C13\n  class C14 {\n    +int field14\n    +method14()\n  }\n  C6 <|-- C14\n  class C15 {\n    +int field15\n    +method15()\n  }\n  C7 <|-- C15\n  class C16 {\n    +int field16\n    +method16()\n  }\n  C7 <|-- C16\n  class C17 {\n    +int field17\n    +method17()\n  }\n  C8 <|-- C17\n  class C18 {\n    +int field18\n    +method18()\n  }\n  C8 <|-- C18\n  class C19 {\n    +int field19\n    +method19()\n  }\n  C9 <|-- C19\n  class C20 {\n    +int field20\n    +method20()\n  }\n  C9 <|-- C20\n  class C21 {\n    +int field21\n    +method21()\n  }\n  C10 <|-- C21\n  class C22 {\n    +int field22\n    +method22()\n  }\n  C10 <|-- C22\n  class C23 {\n    +int field23\n    +method23()\n  }\n  C11 <|-- C23\n  class C24 {\n    +int field24\n    +method24()\n  }\n  C11 <|-- C24\n  class C25 {\n    +int field25\n    +method25()\n  }\n  C12 <|-- C25\n  class C26 {\n    +int field26\n    +method26()\n  }\n  C12 <|-- C26\n  class C27 {\n    +int field27\n    +method27()\n  }\n  C13 <|-- C27\n  class C28 {\n    +int field28\n    +method28()\n  }\n  C13 <|-- C28\n  class C29 {\n    +int field29\n    +method29()\n  }\n  C14 <|-- C29\n  class C30 {\n    +int field30\n    +method30()\n  }\n  C14 <|-- C30\n  class C31 {\n    +int field31\n    +method31()\n  }\n  C15 <|-- C31\n  class C32 {\n    +int field32\n    +method32()\n  }\n  C15 <|-- C32\n  class C33 {\n    +int field33\n    +method33()\n  }\n  C16 <|-- C33\n  class C34 {\n    +int field34\n    +method34()\n  }\n  C16 <|-- C34\n  class C35 {\n    +int field35\n    +method35()\n  }\n  C17 <|-- C35\n  class C36 {\n    +int field36\n    +method36()\n  }\n  C17 <|-- C36\n  class C37 {\n    +int field37\n    +method37()\n  }\n  C18 <|-- C37\n  class C38 {\n    +int field38\n    +method38()\n  }\n  C18 <|-- C38\n  class C39 {\n    +int field39\n    +method39()\n  }\n  C19 <|-- C39\n  class C40 {\n    +int field40\n    +method40()\n  }\n  C19 <|-- C40\n  class C41 {\n    +int field41\n    +method41()\n  }\n  C20 <|-- C41\n  class C42 {\n    +int field42\n    +method42()\n  }\n  C20 <|-- C42\n  class C43 {\n    +int field43\n    +method43()\n  }\n  C21 <|-- C43\n  class C44 {\n    +int field44\n    +method44()\n  }\n  C21 <|-- C44\n  class C45 {\n    +int field45\n    +method45()\n  }\n  C22 <|-- C45\n  class C46 {\n    +int field46\n    +method46()\n  }\n  C22 <|-- C46\n  class C47 {\n    +int field47\n    +method47()\n  }\n  C23 <|-- C47\n  class C48 {\n    +int field48\n    +method48()\n  }\n  C23 <|-- C48\n  class C49 {\n    +int field49\n    +method49()\n  }\n  C24 <|-- C49\n  class C50 {\n    +int field50\n    +method50()\n  }\n  C24 <|-- C50\n  class C51 {\n    +int field51\n    +method51()\n  }\n  C25 <|-- C51\n  class C52 {\n    +int field52\n    +method52()\n  }\n  C25 <|-- C52\n  class C53 {\n    +int field53\n    +method53()\n  }\n  C26 <|-- C53\n  class C54 {\n    +int field54\n    +method54()\n  }\n  C26 <|-- C54\n  class C55 {\n    +int field55\n    +method55()\n  }\n  C27 <|-- C55\n  class C56 {\n    +int field56\n    +method56()\n  }\n  C27 <|-- C56\n  class C57 {\n    +int field57\n    +method57()\n  }\n  C28 <|-- C57\n  class C58 {\n    +int field58\n    +method58()\n  }\n  C28 <|-- C58\n  class C59 {\n    +int field59\n    +method59()\n  }\n  C29 <|-- C59\n  class C60 {\n    +int field60\n    +method60()\n  }\n  C29 <|-- C60\n  class C61 {\n    +int field61\n    +method61()\n  }\n  C30 <|-- C61\n  class C62 {\n    +int field62\n    +method62()\n  }\n  C30 <|-- C62\n  class C63 {\n    +int field63\n    +method63()\n  }\n  C31 <|-- C63\n  class C64 {\n    +int field64\n    +method64()\n  }\n  C31 <|-- C64\n  class C65 {\n    +int field65\n    +method65()\n  }\n  C32 <|-- C65\n  class C66 {\n    +int field66\n    +method66()\n  }\n  C32 <|-- C66\n  class C67 {\n    +int field67\n    +method67()\n  }\n  C33 <|-- C67\n  class C68 {\n    +int field68\n    +method68()\n  }\n  C33 <|-- C68\n  class C69 {\n    +int field69\n    +method69()\n  }\n  C34 <|-- C69\n  class C70 {\n    +int field70\n    +method70()\n  }\n  C34 <|-- C70\n  class C71 {\n    +int field71\n    +method71()\n  }\n  C35 <|-- C71\n  class C72 {\n    +int field72\n    +method72()\n  }\n  C35 <|-- C72\n  class C73 {\n    +int field73\n    +method73()\n  }\n  C36 <|-- C73\n  class C74 {\n    +int field74\n    +method74()\n  }\n  C36 <|-- C74\n  class C75 {\n    +int field75\n    +method75()\n  }\n  C37 <|-- C75\n  class C76 {\n    +int field76\n    +method76()\n  }\n  C37 <|-- C76\n  class C77 {\n    +int field77\n    +method77()\n  }\n  C38 <|-- C77\n  class C78 {\n    +int field78\n    +method78()\n  }\n  C38 <|-- C78\n  class C79 {\n    +int field79\n    +method79()\n  }\n  C39 <|-- C79"
+        },
+        "render:svg-state80": {
+          "id": "render:svg-state80",
+          "iterations": 1,
+          "samplesMs": [
+            29.526331000000027,
+            33.490921999999955,
+            25.413218000000597,
+            25.51398000000063,
+            26.623481999999967,
+            27.45748999999978,
+            21.25739599999997,
+            28.118195000000014,
+            22.221788000000743,
+            22.219284999999218,
+            20.424269000000095,
+            22.157893000000513,
+            21.26169200000004,
+            27.893330999999307,
+            20.795368999999482
+          ],
+          "medianMs": 25.413218000000597,
+          "madMs": 3.1939330000013797,
+          "input": "stateDiagram-v2\n  S0 --> S1: e0\n  S1 --> S0\n  S1 --> S2: e1\n  S2 --> S3: e2\n  S3 --> S4: e3\n  S4 --> S5: e4\n  S5 --> S6: e5\n  S6 --> S2\n  S6 --> S7: e6\n  S7 --> S8: e7\n  S8 --> S9: e8\n  S9 --> S10: e9\n  S10 --> S11: e10\n  S11 --> S7\n  S11 --> S12: e11\n  S12 --> S13: e12\n  S13 --> S14: e13\n  S14 --> S15: e14\n  S15 --> S16: e15\n  S16 --> S12\n  S16 --> S17: e16\n  S17 --> S18: e17\n  S18 --> S19: e18\n  S19 --> S20: e19\n  S20 --> S21: e20\n  S21 --> S17\n  S21 --> S22: e21\n  S22 --> S23: e22\n  S23 --> S24: e23\n  S24 --> S25: e24\n  S25 --> S26: e25\n  S26 --> S22\n  S26 --> S27: e26\n  S27 --> S28: e27\n  S28 --> S29: e28\n  S29 --> S30: e29\n  S30 --> S31: e30\n  S31 --> S27\n  S31 --> S32: e31\n  S32 --> S33: e32\n  S33 --> S34: e33\n  S34 --> S35: e34\n  S35 --> S36: e35\n  S36 --> S32\n  S36 --> S37: e36\n  S37 --> S38: e37\n  S38 --> S39: e38\n  S39 --> S40: e39\n  S40 --> S41: e40\n  S41 --> S37\n  S41 --> S42: e41\n  S42 --> S43: e42\n  S43 --> S44: e43\n  S44 --> S45: e44\n  S45 --> S46: e45\n  S46 --> S42\n  S46 --> S47: e46\n  S47 --> S48: e47\n  S48 --> S49: e48\n  S49 --> S50: e49\n  S50 --> S51: e50\n  S51 --> S47\n  S51 --> S52: e51\n  S52 --> S53: e52\n  S53 --> S54: e53\n  S54 --> S55: e54\n  S55 --> S56: e55\n  S56 --> S52\n  S56 --> S57: e56\n  S57 --> S58: e57\n  S58 --> S59: e58\n  S59 --> S60: e59\n  S60 --> S61: e60\n  S61 --> S57\n  S61 --> S62: e61\n  S62 --> S63: e62\n  S63 --> S64: e63\n  S64 --> S65: e64\n  S65 --> S66: e65\n  S66 --> S62\n  S66 --> S67: e66\n  S67 --> S68: e67\n  S68 --> S69: e68\n  S69 --> S70: e69\n  S70 --> S71: e70\n  S71 --> S67\n  S71 --> S72: e71\n  S72 --> S73: e72\n  S73 --> S74: e73\n  S74 --> S75: e74\n  S75 --> S76: e75\n  S76 --> S72\n  S76 --> S77: e76\n  S77 --> S78: e77\n  S78 --> S79: e78\n  S79 --> S80: e79"
+        },
+        "render:svg-flow5-hand-drawn": {
+          "id": "render:svg-flow5-hand-drawn",
+          "iterations": 5,
+          "samplesMs": [
+            5.073483800000031,
+            5.153650599999855,
+            5.123126599999887,
+            4.843563399999948,
+            4.918915000000015,
+            6.487975600000027,
+            4.492348200000015,
+            5.540601799999967,
+            6.118975399999909,
+            4.853240000000005,
+            4.335684000000038,
+            5.140252599999985,
+            6.122100200000022,
+            4.95408380000008,
+            4.899655800000073
+          ],
+          "medianMs": 5.073483800000031,
+          "madMs": 0.2202438000000262
+        },
+        "render:svg-flow5-watercolor": {
+          "id": "render:svg-flow5-watercolor",
+          "iterations": 5,
+          "samplesMs": [
+            4.278445800000009,
+            4.6765918000000966,
+            4.595423400000072,
+            4.373787400000038,
+            6.221896600000036,
+            4.250231799999892,
+            4.360563000000002,
+            4.363505399999849,
+            4.376166400000147,
+            4.67267639999991,
+            4.505346800000007,
+            6.063270200000079,
+            4.430199600000014,
+            4.621211999999832,
+            4.311092400000052
+          ],
+          "medianMs": 4.430199600000014,
+          "madMs": 0.15175380000000516
+        }
+      }
+    },
+    {
+      "round": 3,
+      "candidate": {
+        "render:svg-flow5": {
+          "id": "render:svg-flow5",
+          "iterations": 9,
+          "samplesMs": [
+            1.960575666666677,
+            2.0445176666666813,
+            1.8685549999999895,
+            1.9301511111110965,
+            2.693282222222226,
+            2.102060777777802,
+            2.003611444444434,
+            1.9823931111111253,
+            1.8477371111110996,
+            1.896294666666664,
+            1.955763999999994,
+            2.0642172222222195,
+            2.639425666666663,
+            2.064177111111096,
+            2.002852555555541
+          ],
+          "medianMs": 2.002852555555541,
+          "madMs": 0.0613646666666785,
+          "input": "flowchart TD\n  A[Start] --> B{Check}\n  B -->|yes| C[Do it]\n  B -->|no| D[Skip]\n  C --> E[End]\n  D --> E"
+        },
+        "render:svg-seq20": {
+          "id": "render:svg-seq20",
+          "iterations": 5,
+          "samplesMs": [
+            4.024156999999969,
+            4.379339200000004,
+            4.1527042000000165,
+            3.7760097999999744,
+            4.929104400000005,
+            3.9499212000000172,
+            4.1478991999999835,
+            3.9450198,
+            3.8023073999999726,
+            3.825480199999993,
+            4.5252830000000355,
+            4.330776200000036,
+            4.091746599999988,
+            3.7569811999999727,
+            3.725073199999952
+          ],
+          "medianMs": 4.024156999999969,
+          "madMs": 0.2218495999999961,
+          "input": "sequenceDiagram\n  P0->>P1: message 0\n  P1->>P4: message 1\n  P2->>P2: message 2\n  P3->>P0: message 3\n  P4->>P3: message 4\n  P0->>P1: message 5\n  P1->>P4: message 6\n  P2->>P2: message 7\n  P3->>P0: message 8\n  P4->>P3: message 9\n  P0->>P1: message 10\n  P1->>P4: message 11\n  P2->>P2: message 12\n  P3->>P0: message 13\n  P4->>P3: message 14\n  P0->>P1: message 15\n  P1->>P4: message 16\n  P2->>P2: message 17\n  P3->>P0: message 18\n  P4->>P3: message 19"
+        },
+        "render:svg-class80": {
+          "id": "render:svg-class80",
+          "iterations": 1,
+          "samplesMs": [
+            42.63105399999995,
+            28.77015500000016,
+            30.643033000000287,
+            27.10237700000016,
+            33.12059799999997,
+            28.333528000000115,
+            27.321546000000126,
+            28.215461000000232,
+            32.848871000000145,
+            27.388646999999764,
+            29.154763999999886,
+            28.459558000000015,
+            33.34069999999974,
+            28.99499300000025,
+            29.131159000000025
+          ],
+          "medianMs": 28.99499300000025,
+          "madMs": 1.6063460000004852,
+          "input": "classDiagram\n  class C0 {\n    +int field0\n    +method0()\n  }\n  class C1 {\n    +int field1\n    +method1()\n  }\n  C0 <|-- C1\n  class C2 {\n    +int field2\n    +method2()\n  }\n  C0 <|-- C2\n  class C3 {\n    +int field3\n    +method3()\n  }\n  C1 <|-- C3\n  class C4 {\n    +int field4\n    +method4()\n  }\n  C1 <|-- C4\n  class C5 {\n    +int field5\n    +method5()\n  }\n  C2 <|-- C5\n  class C6 {\n    +int field6\n    +method6()\n  }\n  C2 <|-- C6\n  class C7 {\n    +int field7\n    +method7()\n  }\n  C3 <|-- C7\n  class C8 {\n    +int field8\n    +method8()\n  }\n  C3 <|-- C8\n  class C9 {\n    +int field9\n    +method9()\n  }\n  C4 <|-- C9\n  class C10 {\n    +int field10\n    +method10()\n  }\n  C4 <|-- C10\n  class C11 {\n    +int field11\n    +method11()\n  }\n  C5 <|-- C11\n  class C12 {\n    +int field12\n    +method12()\n  }\n  C5 <|-- C12\n  class C13 {\n    +int field13\n    +method13()\n  }\n  C6 <|-- C13\n  class C14 {\n    +int field14\n    +method14()\n  }\n  C6 <|-- C14\n  class C15 {\n    +int field15\n    +method15()\n  }\n  C7 <|-- C15\n  class C16 {\n    +int field16\n    +method16()\n  }\n  C7 <|-- C16\n  class C17 {\n    +int field17\n    +method17()\n  }\n  C8 <|-- C17\n  class C18 {\n    +int field18\n    +method18()\n  }\n  C8 <|-- C18\n  class C19 {\n    +int field19\n    +method19()\n  }\n  C9 <|-- C19\n  class C20 {\n    +int field20\n    +method20()\n  }\n  C9 <|-- C20\n  class C21 {\n    +int field21\n    +method21()\n  }\n  C10 <|-- C21\n  class C22 {\n    +int field22\n    +method22()\n  }\n  C10 <|-- C22\n  class C23 {\n    +int field23\n    +method23()\n  }\n  C11 <|-- C23\n  class C24 {\n    +int field24\n    +method24()\n  }\n  C11 <|-- C24\n  class C25 {\n    +int field25\n    +method25()\n  }\n  C12 <|-- C25\n  class C26 {\n    +int field26\n    +method26()\n  }\n  C12 <|-- C26\n  class C27 {\n    +int field27\n    +method27()\n  }\n  C13 <|-- C27\n  class C28 {\n    +int field28\n    +method28()\n  }\n  C13 <|-- C28\n  class C29 {\n    +int field29\n    +method29()\n  }\n  C14 <|-- C29\n  class C30 {\n    +int field30\n    +method30()\n  }\n  C14 <|-- C30\n  class C31 {\n    +int field31\n    +method31()\n  }\n  C15 <|-- C31\n  class C32 {\n    +int field32\n    +method32()\n  }\n  C15 <|-- C32\n  class C33 {\n    +int field33\n    +method33()\n  }\n  C16 <|-- C33\n  class C34 {\n    +int field34\n    +method34()\n  }\n  C16 <|-- C34\n  class C35 {\n    +int field35\n    +method35()\n  }\n  C17 <|-- C35\n  class C36 {\n    +int field36\n    +method36()\n  }\n  C17 <|-- C36\n  class C37 {\n    +int field37\n    +method37()\n  }\n  C18 <|-- C37\n  class C38 {\n    +int field38\n    +method38()\n  }\n  C18 <|-- C38\n  class C39 {\n    +int field39\n    +method39()\n  }\n  C19 <|-- C39\n  class C40 {\n    +int field40\n    +method40()\n  }\n  C19 <|-- C40\n  class C41 {\n    +int field41\n    +method41()\n  }\n  C20 <|-- C41\n  class C42 {\n    +int field42\n    +method42()\n  }\n  C20 <|-- C42\n  class C43 {\n    +int field43\n    +method43()\n  }\n  C21 <|-- C43\n  class C44 {\n    +int field44\n    +method44()\n  }\n  C21 <|-- C44\n  class C45 {\n    +int field45\n    +method45()\n  }\n  C22 <|-- C45\n  class C46 {\n    +int field46\n    +method46()\n  }\n  C22 <|-- C46\n  class C47 {\n    +int field47\n    +method47()\n  }\n  C23 <|-- C47\n  class C48 {\n    +int field48\n    +method48()\n  }\n  C23 <|-- C48\n  class C49 {\n    +int field49\n    +method49()\n  }\n  C24 <|-- C49\n  class C50 {\n    +int field50\n    +method50()\n  }\n  C24 <|-- C50\n  class C51 {\n    +int field51\n    +method51()\n  }\n  C25 <|-- C51\n  class C52 {\n    +int field52\n    +method52()\n  }\n  C25 <|-- C52\n  class C53 {\n    +int field53\n    +method53()\n  }\n  C26 <|-- C53\n  class C54 {\n    +int field54\n    +method54()\n  }\n  C26 <|-- C54\n  class C55 {\n    +int field55\n    +method55()\n  }\n  C27 <|-- C55\n  class C56 {\n    +int field56\n    +method56()\n  }\n  C27 <|-- C56\n  class C57 {\n    +int field57\n    +method57()\n  }\n  C28 <|-- C57\n  class C58 {\n    +int field58\n    +method58()\n  }\n  C28 <|-- C58\n  class C59 {\n    +int field59\n    +method59()\n  }\n  C29 <|-- C59\n  class C60 {\n    +int field60\n    +method60()\n  }\n  C29 <|-- C60\n  class C61 {\n    +int field61\n    +method61()\n  }\n  C30 <|-- C61\n  class C62 {\n    +int field62\n    +method62()\n  }\n  C30 <|-- C62\n  class C63 {\n    +int field63\n    +method63()\n  }\n  C31 <|-- C63\n  class C64 {\n    +int field64\n    +method64()\n  }\n  C31 <|-- C64\n  class C65 {\n    +int field65\n    +method65()\n  }\n  C32 <|-- C65\n  class C66 {\n    +int field66\n    +method66()\n  }\n  C32 <|-- C66\n  class C67 {\n    +int field67\n    +method67()\n  }\n  C33 <|-- C67\n  class C68 {\n    +int field68\n    +method68()\n  }\n  C33 <|-- C68\n  class C69 {\n    +int field69\n    +method69()\n  }\n  C34 <|-- C69\n  class C70 {\n    +int field70\n    +method70()\n  }\n  C34 <|-- C70\n  class C71 {\n    +int field71\n    +method71()\n  }\n  C35 <|-- C71\n  class C72 {\n    +int field72\n    +method72()\n  }\n  C35 <|-- C72\n  class C73 {\n    +int field73\n    +method73()\n  }\n  C36 <|-- C73\n  class C74 {\n    +int field74\n    +method74()\n  }\n  C36 <|-- C74\n  class C75 {\n    +int field75\n    +method75()\n  }\n  C37 <|-- C75\n  class C76 {\n    +int field76\n    +method76()\n  }\n  C37 <|-- C76\n  class C77 {\n    +int field77\n    +method77()\n  }\n  C38 <|-- C77\n  class C78 {\n    +int field78\n    +method78()\n  }\n  C38 <|-- C78\n  class C79 {\n    +int field79\n    +method79()\n  }\n  C39 <|-- C79"
+        },
+        "render:svg-state80": {
+          "id": "render:svg-state80",
+          "iterations": 1,
+          "samplesMs": [
+            34.60663499999964,
+            26.98388799999975,
+            28.694471999999223,
+            31.320732000000135,
+            29.854315999999926,
+            28.036411999999473,
+            31.608885000000555,
+            20.519084000000475,
+            19.903457999999773,
+            19.486269999999422,
+            20.83599199999935,
+            21.277233999999225,
+            28.562213000000156,
+            20.26391000000058,
+            21.076422000000093
+          ],
+          "medianMs": 26.98388799999975,
+          "madMs": 5.706654000000526,
+          "input": "stateDiagram-v2\n  S0 --> S1: e0\n  S1 --> S0\n  S1 --> S2: e1\n  S2 --> S3: e2\n  S3 --> S4: e3\n  S4 --> S5: e4\n  S5 --> S6: e5\n  S6 --> S2\n  S6 --> S7: e6\n  S7 --> S8: e7\n  S8 --> S9: e8\n  S9 --> S10: e9\n  S10 --> S11: e10\n  S11 --> S7\n  S11 --> S12: e11\n  S12 --> S13: e12\n  S13 --> S14: e13\n  S14 --> S15: e14\n  S15 --> S16: e15\n  S16 --> S12\n  S16 --> S17: e16\n  S17 --> S18: e17\n  S18 --> S19: e18\n  S19 --> S20: e19\n  S20 --> S21: e20\n  S21 --> S17\n  S21 --> S22: e21\n  S22 --> S23: e22\n  S23 --> S24: e23\n  S24 --> S25: e24\n  S25 --> S26: e25\n  S26 --> S22\n  S26 --> S27: e26\n  S27 --> S28: e27\n  S28 --> S29: e28\n  S29 --> S30: e29\n  S30 --> S31: e30\n  S31 --> S27\n  S31 --> S32: e31\n  S32 --> S33: e32\n  S33 --> S34: e33\n  S34 --> S35: e34\n  S35 --> S36: e35\n  S36 --> S32\n  S36 --> S37: e36\n  S37 --> S38: e37\n  S38 --> S39: e38\n  S39 --> S40: e39\n  S40 --> S41: e40\n  S41 --> S37\n  S41 --> S42: e41\n  S42 --> S43: e42\n  S43 --> S44: e43\n  S44 --> S45: e44\n  S45 --> S46: e45\n  S46 --> S42\n  S46 --> S47: e46\n  S47 --> S48: e47\n  S48 --> S49: e48\n  S49 --> S50: e49\n  S50 --> S51: e50\n  S51 --> S47\n  S51 --> S52: e51\n  S52 --> S53: e52\n  S53 --> S54: e53\n  S54 --> S55: e54\n  S55 --> S56: e55\n  S56 --> S52\n  S56 --> S57: e56\n  S57 --> S58: e57\n  S58 --> S59: e58\n  S59 --> S60: e59\n  S60 --> S61: e60\n  S61 --> S57\n  S61 --> S62: e61\n  S62 --> S63: e62\n  S63 --> S64: e63\n  S64 --> S65: e64\n  S65 --> S66: e65\n  S66 --> S62\n  S66 --> S67: e66\n  S67 --> S68: e67\n  S68 --> S69: e68\n  S69 --> S70: e69\n  S70 --> S71: e70\n  S71 --> S67\n  S71 --> S72: e71\n  S72 --> S73: e72\n  S73 --> S74: e73\n  S74 --> S75: e74\n  S75 --> S76: e75\n  S76 --> S72\n  S76 --> S77: e76\n  S77 --> S78: e77\n  S78 --> S79: e78\n  S79 --> S80: e79"
+        },
+        "render:svg-flow5-hand-drawn": {
+          "id": "render:svg-flow5-hand-drawn",
+          "iterations": 5,
+          "samplesMs": [
+            4.64666019999986,
+            4.684138800000073,
+            4.964455199999975,
+            4.579310799999985,
+            6.306106399999953,
+            4.757815599999958,
+            4.700816200000008,
+            4.874812199999906,
+            4.795310399999835,
+            4.35366099999992,
+            4.444191399999909,
+            5.757782399999996,
+            4.3134624000000255,
+            4.318900399999984,
+            4.532309999999962
+          ],
+          "medianMs": 4.684138800000073,
+          "madMs": 0.19067339999983268
+        },
+        "render:svg-flow5-watercolor": {
+          "id": "render:svg-flow5-watercolor",
+          "iterations": 6,
+          "samplesMs": [
+            5.448945833333407,
+            3.99637566666676,
+            4.285833333333358,
+            4.110111999999996,
+            4.201897000000069,
+            4.984968333333351,
+            4.382789333333221,
+            4.0277113333333245,
+            4.261673666666714,
+            3.9385068333332733,
+            4.385458500000065,
+            5.658793499999926,
+            4.348649833333336,
+            4.190035833333241,
+            4.166453666666712
+          ],
+          "medianMs": 4.261673666666714,
+          "madMs": 0.12378483333335133
+        }
+      },
+      "baseline": {
+        "render:svg-flow5": {
+          "id": "render:svg-flow5",
+          "iterations": 9,
+          "samplesMs": [
+            1.951454333333345,
+            2.2713017777777824,
+            1.8204526666666727,
+            2.81975244444445,
+            1.866428555555558,
+            1.7984204444444458,
+            3.0758472222222384,
+            2.445962777777797,
+            2.048757555555565,
+            1.788854999999987,
+            2.344063555555547,
+            1.9455521111111063,
+            1.8041713333333165,
+            1.6859443333333326,
+            1.959576555555562
+          ],
+          "medianMs": 1.951454333333345,
+          "madMs": 0.15303388888889913,
+          "input": "flowchart TD\n  A[Start] --> B{Check}\n  B -->|yes| C[Do it]\n  B -->|no| D[Skip]\n  C --> E[End]\n  D --> E"
+        },
+        "render:svg-seq20": {
+          "id": "render:svg-seq20",
+          "iterations": 6,
+          "samplesMs": [
+            4.378559499999976,
+            4.587476666666665,
+            5.159597833333312,
+            4.776297,
+            6.295468999999987,
+            5.2686753333333245,
+            5.09519583333334,
+            4.323977333333308,
+            4.307365499999984,
+            4.16437183333331,
+            3.8832350000000133,
+            4.152345333333339,
+            4.874206000000034,
+            4.529263166666624,
+            4.0479629999999815
+          ],
+          "medianMs": 4.529263166666624,
+          "madMs": 0.3648913333333139,
+          "input": "sequenceDiagram\n  P0->>P1: message 0\n  P1->>P4: message 1\n  P2->>P2: message 2\n  P3->>P0: message 3\n  P4->>P3: message 4\n  P0->>P1: message 5\n  P1->>P4: message 6\n  P2->>P2: message 7\n  P3->>P0: message 8\n  P4->>P3: message 9\n  P0->>P1: message 10\n  P1->>P4: message 11\n  P2->>P2: message 12\n  P3->>P0: message 13\n  P4->>P3: message 14\n  P0->>P1: message 15\n  P1->>P4: message 16\n  P2->>P2: message 17\n  P3->>P0: message 18\n  P4->>P3: message 19"
+        },
+        "render:svg-class80": {
+          "id": "render:svg-class80",
+          "iterations": 1,
+          "samplesMs": [
+            39.4200350000001,
+            29.806872999999996,
+            30.62885099999994,
+            27.9140010000001,
+            33.51168400000006,
+            28.645138000000316,
+            27.36205000000018,
+            26.788116000000173,
+            35.823591999999735,
+            31.600385000000188,
+            29.948315000000093,
+            29.70102399999996,
+            41.37970700000005,
+            32.428953999999976,
+            30.734278999999788
+          ],
+          "medianMs": 30.62885099999994,
+          "madMs": 1.983712999999625,
+          "input": "classDiagram\n  class C0 {\n    +int field0\n    +method0()\n  }\n  class C1 {\n    +int field1\n    +method1()\n  }\n  C0 <|-- C1\n  class C2 {\n    +int field2\n    +method2()\n  }\n  C0 <|-- C2\n  class C3 {\n    +int field3\n    +method3()\n  }\n  C1 <|-- C3\n  class C4 {\n    +int field4\n    +method4()\n  }\n  C1 <|-- C4\n  class C5 {\n    +int field5\n    +method5()\n  }\n  C2 <|-- C5\n  class C6 {\n    +int field6\n    +method6()\n  }\n  C2 <|-- C6\n  class C7 {\n    +int field7\n    +method7()\n  }\n  C3 <|-- C7\n  class C8 {\n    +int field8\n    +method8()\n  }\n  C3 <|-- C8\n  class C9 {\n    +int field9\n    +method9()\n  }\n  C4 <|-- C9\n  class C10 {\n    +int field10\n    +method10()\n  }\n  C4 <|-- C10\n  class C11 {\n    +int field11\n    +method11()\n  }\n  C5 <|-- C11\n  class C12 {\n    +int field12\n    +method12()\n  }\n  C5 <|-- C12\n  class C13 {\n    +int field13\n    +method13()\n  }\n  C6 <|-- C13\n  class C14 {\n    +int field14\n    +method14()\n  }\n  C6 <|-- C14\n  class C15 {\n    +int field15\n    +method15()\n  }\n  C7 <|-- C15\n  class C16 {\n    +int field16\n    +method16()\n  }\n  C7 <|-- C16\n  class C17 {\n    +int field17\n    +method17()\n  }\n  C8 <|-- C17\n  class C18 {\n    +int field18\n    +method18()\n  }\n  C8 <|-- C18\n  class C19 {\n    +int field19\n    +method19()\n  }\n  C9 <|-- C19\n  class C20 {\n    +int field20\n    +method20()\n  }\n  C9 <|-- C20\n  class C21 {\n    +int field21\n    +method21()\n  }\n  C10 <|-- C21\n  class C22 {\n    +int field22\n    +method22()\n  }\n  C10 <|-- C22\n  class C23 {\n    +int field23\n    +method23()\n  }\n  C11 <|-- C23\n  class C24 {\n    +int field24\n    +method24()\n  }\n  C11 <|-- C24\n  class C25 {\n    +int field25\n    +method25()\n  }\n  C12 <|-- C25\n  class C26 {\n    +int field26\n    +method26()\n  }\n  C12 <|-- C26\n  class C27 {\n    +int field27\n    +method27()\n  }\n  C13 <|-- C27\n  class C28 {\n    +int field28\n    +method28()\n  }\n  C13 <|-- C28\n  class C29 {\n    +int field29\n    +method29()\n  }\n  C14 <|-- C29\n  class C30 {\n    +int field30\n    +method30()\n  }\n  C14 <|-- C30\n  class C31 {\n    +int field31\n    +method31()\n  }\n  C15 <|-- C31\n  class C32 {\n    +int field32\n    +method32()\n  }\n  C15 <|-- C32\n  class C33 {\n    +int field33\n    +method33()\n  }\n  C16 <|-- C33\n  class C34 {\n    +int field34\n    +method34()\n  }\n  C16 <|-- C34\n  class C35 {\n    +int field35\n    +method35()\n  }\n  C17 <|-- C35\n  class C36 {\n    +int field36\n    +method36()\n  }\n  C17 <|-- C36\n  class C37 {\n    +int field37\n    +method37()\n  }\n  C18 <|-- C37\n  class C38 {\n    +int field38\n    +method38()\n  }\n  C18 <|-- C38\n  class C39 {\n    +int field39\n    +method39()\n  }\n  C19 <|-- C39\n  class C40 {\n    +int field40\n    +method40()\n  }\n  C19 <|-- C40\n  class C41 {\n    +int field41\n    +method41()\n  }\n  C20 <|-- C41\n  class C42 {\n    +int field42\n    +method42()\n  }\n  C20 <|-- C42\n  class C43 {\n    +int field43\n    +method43()\n  }\n  C21 <|-- C43\n  class C44 {\n    +int field44\n    +method44()\n  }\n  C21 <|-- C44\n  class C45 {\n    +int field45\n    +method45()\n  }\n  C22 <|-- C45\n  class C46 {\n    +int field46\n    +method46()\n  }\n  C22 <|-- C46\n  class C47 {\n    +int field47\n    +method47()\n  }\n  C23 <|-- C47\n  class C48 {\n    +int field48\n    +method48()\n  }\n  C23 <|-- C48\n  class C49 {\n    +int field49\n    +method49()\n  }\n  C24 <|-- C49\n  class C50 {\n    +int field50\n    +method50()\n  }\n  C24 <|-- C50\n  class C51 {\n    +int field51\n    +method51()\n  }\n  C25 <|-- C51\n  class C52 {\n    +int field52\n    +method52()\n  }\n  C25 <|-- C52\n  class C53 {\n    +int field53\n    +method53()\n  }\n  C26 <|-- C53\n  class C54 {\n    +int field54\n    +method54()\n  }\n  C26 <|-- C54\n  class C55 {\n    +int field55\n    +method55()\n  }\n  C27 <|-- C55\n  class C56 {\n    +int field56\n    +method56()\n  }\n  C27 <|-- C56\n  class C57 {\n    +int field57\n    +method57()\n  }\n  C28 <|-- C57\n  class C58 {\n    +int field58\n    +method58()\n  }\n  C28 <|-- C58\n  class C59 {\n    +int field59\n    +method59()\n  }\n  C29 <|-- C59\n  class C60 {\n    +int field60\n    +method60()\n  }\n  C29 <|-- C60\n  class C61 {\n    +int field61\n    +method61()\n  }\n  C30 <|-- C61\n  class C62 {\n    +int field62\n    +method62()\n  }\n  C30 <|-- C62\n  class C63 {\n    +int field63\n    +method63()\n  }\n  C31 <|-- C63\n  class C64 {\n    +int field64\n    +method64()\n  }\n  C31 <|-- C64\n  class C65 {\n    +int field65\n    +method65()\n  }\n  C32 <|-- C65\n  class C66 {\n    +int field66\n    +method66()\n  }\n  C32 <|-- C66\n  class C67 {\n    +int field67\n    +method67()\n  }\n  C33 <|-- C67\n  class C68 {\n    +int field68\n    +method68()\n  }\n  C33 <|-- C68\n  class C69 {\n    +int field69\n    +method69()\n  }\n  C34 <|-- C69\n  class C70 {\n    +int field70\n    +method70()\n  }\n  C34 <|-- C70\n  class C71 {\n    +int field71\n    +method71()\n  }\n  C35 <|-- C71\n  class C72 {\n    +int field72\n    +method72()\n  }\n  C35 <|-- C72\n  class C73 {\n    +int field73\n    +method73()\n  }\n  C36 <|-- C73\n  class C74 {\n    +int field74\n    +method74()\n  }\n  C36 <|-- C74\n  class C75 {\n    +int field75\n    +method75()\n  }\n  C37 <|-- C75\n  class C76 {\n    +int field76\n    +method76()\n  }\n  C37 <|-- C76\n  class C77 {\n    +int field77\n    +method77()\n  }\n  C38 <|-- C77\n  class C78 {\n    +int field78\n    +method78()\n  }\n  C38 <|-- C78\n  class C79 {\n    +int field79\n    +method79()\n  }\n  C39 <|-- C79"
+        },
+        "render:svg-state80": {
+          "id": "render:svg-state80",
+          "iterations": 1,
+          "samplesMs": [
+            21.053777000000082,
+            21.895634999999857,
+            21.204563000000235,
+            19.45975499999986,
+            20.319590000000062,
+            28.382337000000007,
+            21.463192999999592,
+            21.088088000000425,
+            23.287642000000233,
+            20.00876199999948,
+            19.97885799999949,
+            26.114510000000337,
+            19.492725000000064,
+            20.849137999999584,
+            20.75159099999928
+          ],
+          "medianMs": 21.053777000000082,
+          "madMs": 0.8418579999997746,
+          "input": "stateDiagram-v2\n  S0 --> S1: e0\n  S1 --> S0\n  S1 --> S2: e1\n  S2 --> S3: e2\n  S3 --> S4: e3\n  S4 --> S5: e4\n  S5 --> S6: e5\n  S6 --> S2\n  S6 --> S7: e6\n  S7 --> S8: e7\n  S8 --> S9: e8\n  S9 --> S10: e9\n  S10 --> S11: e10\n  S11 --> S7\n  S11 --> S12: e11\n  S12 --> S13: e12\n  S13 --> S14: e13\n  S14 --> S15: e14\n  S15 --> S16: e15\n  S16 --> S12\n  S16 --> S17: e16\n  S17 --> S18: e17\n  S18 --> S19: e18\n  S19 --> S20: e19\n  S20 --> S21: e20\n  S21 --> S17\n  S21 --> S22: e21\n  S22 --> S23: e22\n  S23 --> S24: e23\n  S24 --> S25: e24\n  S25 --> S26: e25\n  S26 --> S22\n  S26 --> S27: e26\n  S27 --> S28: e27\n  S28 --> S29: e28\n  S29 --> S30: e29\n  S30 --> S31: e30\n  S31 --> S27\n  S31 --> S32: e31\n  S32 --> S33: e32\n  S33 --> S34: e33\n  S34 --> S35: e34\n  S35 --> S36: e35\n  S36 --> S32\n  S36 --> S37: e36\n  S37 --> S38: e37\n  S38 --> S39: e38\n  S39 --> S40: e39\n  S40 --> S41: e40\n  S41 --> S37\n  S41 --> S42: e41\n  S42 --> S43: e42\n  S43 --> S44: e43\n  S44 --> S45: e44\n  S45 --> S46: e45\n  S46 --> S42\n  S46 --> S47: e46\n  S47 --> S48: e47\n  S48 --> S49: e48\n  S49 --> S50: e49\n  S50 --> S51: e50\n  S51 --> S47\n  S51 --> S52: e51\n  S52 --> S53: e52\n  S53 --> S54: e53\n  S54 --> S55: e54\n  S55 --> S56: e55\n  S56 --> S52\n  S56 --> S57: e56\n  S57 --> S58: e57\n  S58 --> S59: e58\n  S59 --> S60: e59\n  S60 --> S61: e60\n  S61 --> S57\n  S61 --> S62: e61\n  S62 --> S63: e62\n  S63 --> S64: e63\n  S64 --> S65: e64\n  S65 --> S66: e65\n  S66 --> S62\n  S66 --> S67: e66\n  S67 --> S68: e67\n  S68 --> S69: e68\n  S69 --> S70: e69\n  S70 --> S71: e70\n  S71 --> S67\n  S71 --> S72: e71\n  S72 --> S73: e72\n  S73 --> S74: e73\n  S74 --> S75: e74\n  S75 --> S76: e75\n  S76 --> S72\n  S76 --> S77: e76\n  S77 --> S78: e77\n  S78 --> S79: e78\n  S79 --> S80: e79"
+        },
+        "render:svg-flow5-hand-drawn": {
+          "id": "render:svg-flow5-hand-drawn",
+          "iterations": 5,
+          "samplesMs": [
+            5.3824785999999225,
+            5.475456599999961,
+            4.716585399999895,
+            4.923759599999903,
+            6.382362799999828,
+            4.706916799999999,
+            4.856005399999958,
+            4.946766199999911,
+            5.239122599999973,
+            5.493978600000082,
+            4.520908600000075,
+            7.082339400000092,
+            4.967699600000015,
+            5.057687199999964,
+            4.71267540000008
+          ],
+          "medianMs": 4.967699600000015,
+          "madMs": 0.2607828000000154
+        },
+        "render:svg-flow5-watercolor": {
+          "id": "render:svg-flow5-watercolor",
+          "iterations": 6,
+          "samplesMs": [
+            4.155910666666689,
+            6.510108833333409,
+            5.148560999999972,
+            6.3100858333333845,
+            3.9232066666666774,
+            5.494924499999949,
+            5.41089150000001,
+            5.414385000000038,
+            4.058453833333412,
+            5.129780999999942,
+            4.020403333333282,
+            4.037874666666691,
+            4.542073999999957,
+            5.793379166666607,
+            4.233976833333297
+          ],
+          "medianMs": 5.129780999999942,
+          "madMs": 0.895804166666645
+        }
+      }
+    }
+  ],
+  "results": [
+    {
+      "id": "render:svg-flow5",
+      "candidate": {
+        "medianMs": 1.8758119999999963,
+        "noise": 0.05553929410284787,
+        "rounds": [
+          1.8758119999999963,
+          1.8653520000000046,
+          2.002852555555541
+        ]
+      },
+      "baseline": {
+        "medianMs": 2.060160875000008,
+        "noise": 0.11776628851860582,
+        "rounds": [
+          2.2346371111111063,
+          2.060160875000008,
+          1.951454333333345
+        ]
+      },
+      "inputsDiffer": false,
+      "ratio": 0.9054399695848981
+    },
+    {
+      "id": "render:svg-seq20",
+      "candidate": {
+        "medianMs": 4.024156999999969,
+        "noise": 0.031470207346895665,
+        "rounds": [
+          4.540777200000003,
+          3.7990279999999834,
+          4.024156999999969
+        ]
+      },
+      "baseline": {
+        "medianMs": 4.529263166666624,
+        "noise": 0.06573876350205994,
+        "rounds": [
+          3.772980499999979,
+          4.7819214000000105,
+          4.529263166666624
+        ]
+      },
+      "inputsDiffer": false,
+      "ratio": 0.8884793954160108
+    },
+    {
+      "id": "render:svg-class80",
+      "candidate": {
+        "medianMs": 29.560791999999765,
+        "noise": 0.06219001168845256,
+        "rounds": [
+          36.27577800000017,
+          29.560791999999765,
+          28.99499300000025
+        ]
+      },
+      "baseline": {
+        "medianMs": 30.62885099999994,
+        "noise": 0.0647661578947127,
+        "rounds": [
+          31.583886999999777,
+          29.39826099999982,
+          30.62885099999994
+        ]
+      },
+      "inputsDiffer": false,
+      "ratio": 1.005528592320476
+    },
+    {
+      "id": "render:svg-state80",
+      "candidate": {
+        "medianMs": 26.98388799999975,
+        "noise": 0.12567999062540228,
+        "rounds": [
+          30.081438000000162,
+          25.413218000000597,
+          26.98388799999975
+        ]
+      },
+      "baseline": {
+        "medianMs": 21.23027200000024,
+        "noise": 0.05649809856414233,
+        "rounds": [
+          21.23027200000024,
+          21.885522000000037,
+          21.053777000000082
+        ]
+      },
+      "inputsDiffer": false,
+      "ratio": 1.281664947814335
+    },
+    {
+      "id": "render:svg-flow5-hand-drawn",
+      "candidate": {
+        "medianMs": 4.879502499999944,
+        "noise": 0.04341076244296372,
+        "rounds": [
+          4.879502499999944,
+          5.073483800000031,
+          4.684138800000073
+        ]
+      },
+      "baseline": {
+        "medianMs": 4.416032799999994,
+        "noise": 0.027383899865956712,
+        "rounds": [
+          4.400240400000075,
+          4.416032799999994,
+          4.967699600000015
+        ]
+      },
+      "inputsDiffer": false,
+      "ratio": 1.1089172537027434
+    },
+    {
+      "id": "render:svg-flow5-watercolor",
+      "candidate": {
+        "medianMs": 4.261673666666714,
+        "noise": 0.03425439341378765,
+        "rounds": [
+          4.171143200000006,
+          4.430199600000014,
+          4.261673666666714
+        ]
+      },
+      "baseline": {
+        "medianMs": 4.540485399999852,
+        "noise": 0.05531699320073534,
+        "rounds": [
+          4.540485399999852,
+          4.345545666666567,
+          5.129780999999942
+        ]
+      },
+      "inputsDiffer": false,
+      "ratio": 0.9186557895330181
+    }
+  ]
+}

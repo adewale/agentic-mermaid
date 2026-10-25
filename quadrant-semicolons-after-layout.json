@@ -1,0 +1,264 @@
+{
+  "version": 1,
+  "kind": "quadrant",
+  "nodes": [
+    {
+      "id": "point#0:A",
+      "x": 84,
+      "y": 322,
+      "w": 12,
+      "h": 12,
+      "shape": "circle",
+      "label": "A",
+      "role": "labelled-mark",
+      "labelVisibility": "visible",
+      "labelBounds": {
+        "x": 100,
+        "y": 320.2,
+        "w": 10.010000000000005,
+        "h": 15.600000000000023
+      },
+      "labelContainer": {
+        "x": 0,
+        "y": 0,
+        "w": 456,
+        "h": 456
+      },
+      "dataPosition": {
+        "x": 0.1,
+        "y": 0.2
+      }
+    },
+    {
+      "id": "point#1:B",
+      "x": 160,
+      "y": 246,
+      "w": 12,
+      "h": 12,
+      "shape": "circle",
+      "label": "B",
+      "role": "labelled-mark",
+      "labelVisibility": "visible",
+      "labelBounds": {
+        "x": 176,
+        "y": 244.2,
+        "w": 10.009999999999991,
+        "h": 15.600000000000023
+      },
+      "labelContainer": {
+        "x": 0,
+        "y": 0,
+        "w": 456,
+        "h": 456
+      },
+      "dataPosition": {
+        "x": 0.3,
+        "y": 0.4
+      }
+    }
+  ],
+  "edges": [],
+  "groups": [
+    {
+      "id": "quadrant#2",
+      "x": 52,
+      "y": 24,
+      "w": 190,
+      "h": 190,
+      "members": []
+    },
+    {
+      "id": "quadrant#1",
+      "x": 242,
+      "y": 24,
+      "w": 190,
+      "h": 190,
+      "members": []
+    },
+    {
+      "id": "quadrant#3",
+      "x": 52,
+      "y": 214,
+      "w": 190,
+      "h": 190,
+      "members": [
+        "point#0:A",
+        "point#1:B"
+      ]
+    },
+    {
+      "id": "quadrant#4",
+      "x": 242,
+      "y": 214,
+      "w": 190,
+      "h": 190,
+      "members": []
+    }
+  ],
+  "bounds": {
+    "w": 456,
+    "h": 456
+  },
+  "certificates": [
+    {
+      "family": "quadrant",
+      "elementId": "point#0:A",
+      "routeClass": "family-layout",
+      "invariant": "plot-contained",
+      "bounds": {
+        "x": 84,
+        "y": 322,
+        "w": 12,
+        "h": 12
+      },
+      "center": {
+        "x": 90,
+        "y": 328
+      },
+      "containment": "bounds",
+      "withinBounds": true,
+      "groupId": "quadrant#3",
+      "withinGroup": true
+    },
+    {
+      "family": "quadrant",
+      "elementId": "point#1:B",
+      "routeClass": "family-layout",
+      "invariant": "plot-contained",
+      "bounds": {
+        "x": 160,
+        "y": 246,
+        "w": 12,
+        "h": 12
+      },
+      "center": {
+        "x": 166,
+        "y": 252
+      },
+      "containment": "bounds",
+      "withinBounds": true,
+      "groupId": "quadrant#3",
+      "withinGroup": true
+    }
+  ],
+  "paintCertification": {
+    "version": 1,
+    "unit": "px",
+    "scope": "native-scene",
+    "status": "passed",
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "width": 456,
+      "height": 456
+    },
+    "attempts": 1,
+    "repairs": [],
+    "coverage": {
+      "measured": 15,
+      "unmeasured": 0,
+      "preparedText": 6,
+      "fallbackText": 0,
+      "conditional": 0
+    },
+    "checks": {
+      "primitives": 17,
+      "labels": 2,
+      "occlusionPairs": 12,
+      "maxOcclusionPairs": 100000,
+      "operations": 52,
+      "maxOperations": 400000,
+      "markers": 0
+    },
+    "issues": [],
+    "limitations": [
+      "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+      "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+    ]
+  },
+  "regions": [
+    {
+      "id": "canvas",
+      "kind": "canvas",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "w": 456,
+        "h": 456
+      }
+    },
+    {
+      "id": "group:quadrant#2",
+      "kind": "compartment",
+      "elementId": "quadrant#2",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 52,
+        "y": 24,
+        "w": 190,
+        "h": 190
+      }
+    },
+    {
+      "id": "group:quadrant#1",
+      "kind": "compartment",
+      "elementId": "quadrant#1",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 242,
+        "y": 24,
+        "w": 190,
+        "h": 190
+      }
+    },
+    {
+      "id": "group:quadrant#3",
+      "kind": "compartment",
+      "elementId": "quadrant#3",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 52,
+        "y": 214,
+        "w": 190,
+        "h": 190
+      }
+    },
+    {
+      "id": "group:quadrant#4",
+      "kind": "compartment",
+      "elementId": "quadrant#4",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 242,
+        "y": 214,
+        "w": 190,
+        "h": 190
+      }
+    },
+    {
+      "id": "node:point#0:A",
+      "kind": "node",
+      "elementId": "point#0:A",
+      "parentId": "group:quadrant#3",
+      "bounds": {
+        "x": 84,
+        "y": 322,
+        "w": 12,
+        "h": 12
+      }
+    },
+    {
+      "id": "node:point#1:B",
+      "kind": "node",
+      "elementId": "point#1:B",
+      "parentId": "group:quadrant#3",
+      "bounds": {
+        "x": 160,
+        "y": 246,
+        "w": 12,
+        "h": 12
+      }
+    }
+  ],
+  "actions": []
+}

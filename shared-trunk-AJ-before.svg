@@ -1,0 +1,148 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="405.32425000000006" height="858.8999999999999" viewBox="0 0 405.32425000000006 858.8999999999999" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-1k3c9vw154ixqd">
+<style>
+  svg.am-1k3c9vw154ixqd { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-1k3c9vw154ixqd {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="0" refY="2.5" orient="auto">
+    <polygon points="8 0, 0 2.5, 8 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="long 1" points="164.83541666666667,76.9 164.83541666666667,193.2" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:Z-&gt;A#0" data-role="edge" data-from="Z" data-to="A" role="graphics-symbol" aria-roledescription="relation" aria-label="Z to A: long 1" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="long 2" points="188.20475,76.9 188.20475,112.9 200.27208333333334,112.9 200.27208333333334,169.2 182.85641666666666,169.2 182.85641666666666,193.2" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:Z-&gt;A#1" data-role="edge" data-from="Z" data-to="A" role="graphics-symbol" aria-roledescription="relation" aria-label="Z to A: long 2" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="3" points="163.32115,230.1 163.32115,346.40000000000003" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:A-&gt;B#0" data-role="edge" data-from="A" data-to="B" role="graphics-symbol" aria-roledescription="relation" aria-label="A to B: 3" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="4" points="182.8564166666667,230.1 182.8564166666667,346.40000000000003" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:A-&gt;B#1" data-role="edge" data-from="A" data-to="B" role="graphics-symbol" aria-roledescription="relation" aria-label="A to B: 4" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="5" points="197.587625,383.30000000000007 197.587625,475.6000000000001" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:B-&gt;C#0" data-role="edge" data-from="B" data-to="C" role="graphics-symbol" aria-roledescription="relation" aria-label="B to C: 5" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="6" points="170.18374999999997,383.3 170.18374999999997,475.90000000000003 125.1225,475.90000000000003 125.1225,616.8 156.39958333333334,616.8 156.39958333333334,628.8" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:B-&gt;D#0" data-role="edge" data-from="B" data-to="D" role="graphics-symbol" aria-roledescription="relation" aria-label="B to D: 6" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="7" points="197.402375,512.5000000000001 197.402375,628.8" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:C-&gt;D#0" data-role="edge" data-from="C" data-to="D" role="graphics-symbol" aria-roledescription="relation" aria-label="C to D: 7" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="8" points="168.33125,665.6999999999999 168.33125,781.9999999999999" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:D-&gt;E#0" data-role="edge" data-from="D" data-to="E" role="graphics-symbol" aria-roledescription="relation" aria-label="D to E: 8" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="9" points="144.83841666666666,346.40000000000003 144.83841666666666,230.1" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:B-&gt;A#0" data-role="edge" data-from="B" data-to="A" role="graphics-symbol" aria-roledescription="relation" aria-label="B to A: 9" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="10" points="253.263,512.5 253.263,524.5 285.34125000000006,524.5 285.34125000000006,181.2 195.52908333333335,181.2 195.52908333333335,193.2" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:C-&gt;A#0" data-role="edge" data-from="C" data-to="A" role="graphics-symbol" aria-roledescription="relation" aria-label="C to A: 10" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="11" points="168.33125,665.6999999999999 168.33125,769.9999999999999 47.5,769.9999999999999 47.5,211.64999999999998 132.16575,211.64999999999998" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:D-&gt;A#0" data-role="edge" data-from="D" data-to="A" role="graphics-symbol" aria-roledescription="relation" aria-label="D to A: 11" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="12" points="135.87075,355.625 111.87074999999999,355.625 111.87074999999999,374.07500000000005 135.87075,374.07500000000005" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="self" data-id="edge:B-&gt;B#0" data-role="edge" data-from="B" data-to="B" role="graphics-symbol" aria-roledescription="relation" aria-label="B to B: 12" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="13" points="232.4015,512.5 232.4015,536.5 305.34125000000006,536.5 305.34125000000006,334.40000000000003 190.77155,334.40000000000003 190.77155,346.40000000000003" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:C-&gt;B#0" data-role="edge" data-from="C" data-to="B" role="graphics-symbol" aria-roledescription="relation" aria-label="C to B: 13" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="14" points="150.43375,665.6999999999999 150.43375,757.9999999999999 67.5,757.9999999999999 67.5,346.7000000000001 135.87075,346.7000000000001" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:D-&gt;B#0" data-role="edge" data-from="D" data-to="B" role="graphics-symbol" aria-roledescription="relation" aria-label="D to B: 14" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="18" points="190.6785,484.82500000000005 166.6785,484.82500000000005 166.6785,503.2750000000001 190.6785,503.2750000000001" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="self" data-id="edge:C-&gt;C#0" data-role="edge" data-from="C" data-to="C" role="graphics-symbol" aria-roledescription="relation" aria-label="C to C: 18" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="21" points="132.53625,638.025 108.53625,638.025 108.53625,656.475 132.53625,656.475" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="self" data-id="edge:D-&gt;D#0" data-role="edge" data-from="D" data-to="D" role="graphics-symbol" aria-roledescription="relation" aria-label="D to D: 21" />
+<g class="edge-label" data-from="Z" data-to="A" data-label="long 1">
+  <rect class="edge-label-halo" x="139.83341666666666" y="77.13333333333333" width="50.004" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="143.83341666666666" y="81.13333333333333" width="42.004" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="164.83541666666667" y="96.28333333333333" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.8499999999999996" textLength="26.003999999999998" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">long 1</text>
+</g>
+<g class="edge-label" data-from="Z" data-to="A" data-label="long 2">
+  <rect class="edge-label-halo" x="173.27208333333334" y="115.9" width="53.568" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="177.27208333333334" y="119.9" width="45.568" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="200.05608333333333" y="135.05" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.8499999999999996" textLength="29.567999999999994" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">long 2</text>
+</g>
+<g class="edge-label" data-from="A" data-to="B" data-label="3">
+  <rect class="edge-label-halo" x="147.52615" y="230.33333333333334" width="31.59" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="151.52615" y="234.33333333333334" width="23.59" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="163.32115" y="249.48333333333335" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.8499999999999996" textLength="7.59" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">3</text>
+</g>
+<g class="edge-label" data-from="A" data-to="B" data-label="4">
+  <rect class="edge-label-halo" x="167.0614166666667" y="269.1" width="31.59" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="171.0614166666667" y="273.1" width="23.59" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="182.8564166666667" y="288.25" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.8499999999999996" textLength="7.59" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">4</text>
+</g>
+<g class="edge-label" data-from="B" data-to="C" data-label="5">
+  <rect class="edge-label-halo" x="181.79262500000002" y="410.30000000000007" width="31.59" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="185.79262500000002" y="414.30000000000007" width="23.59" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="197.587625" y="429.45000000000005" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.8499999999999996" textLength="7.59" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">5</text>
+</g>
+<g class="edge-label" data-from="B" data-to="D" data-label="6">
+  <rect class="edge-label-halo" x="109.1225" y="551.5" width="31.59" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="113.1225" y="555.5" width="23.59" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="124.9175" y="570.65" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.8499999999999996" textLength="7.59" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">6</text>
+</g>
+<g class="edge-label" data-from="C" data-to="D" data-label="7">
+  <rect class="edge-label-halo" x="181.60737500000002" y="551.5000000000001" width="31.59" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="185.60737500000002" y="555.5000000000001" width="23.59" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="197.402375" y="570.6500000000001" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.8499999999999996" textLength="7.59" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">7</text>
+</g>
+<g class="edge-label" data-from="D" data-to="E" data-label="8">
+  <rect class="edge-label-halo" x="152.53625000000002" y="704.6999999999999" width="31.59" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="156.53625000000002" y="708.6999999999999" width="23.59" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="168.33125" y="723.8499999999999" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.8499999999999996" textLength="7.59" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">8</text>
+</g>
+<g class="edge-label" data-from="B" data-to="A" data-label="9">
+  <rect class="edge-label-halo" x="129.04341666666667" y="269.1" width="31.59" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="133.04341666666667" y="273.1" width="23.59" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="144.83841666666666" y="288.25" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.8499999999999996" textLength="7.59" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">9</text>
+</g>
+<g class="edge-label" data-from="C" data-to="A" data-label="10">
+  <rect class="edge-label-halo" x="268.34125000000006" y="398.30000000000007" width="33.966" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="272.34125000000006" y="402.30000000000007" width="25.966" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="285.32425000000006" y="417.45000000000005" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.8499999999999996" textLength="9.966" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">10</text>
+</g>
+<g class="edge-label" data-from="D" data-to="A" data-label="11">
+  <rect class="edge-label-halo" x="32" y="684.4" width="30.402" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="36" y="688.4" width="22.402" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="47.201" y="703.55" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.8499999999999996" textLength="6.402000000000001" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">11</text>
+</g>
+<g class="edge-label" data-from="B" data-to="B" data-label="12">
+  <rect class="edge-label-halo" x="77.90474999999998" y="345.70000000000005" width="33.966" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="81.90474999999998" y="349.70000000000005" width="25.966" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="94.88774999999998" y="364.85" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.8499999999999996" textLength="9.966" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">12</text>
+</g>
+<g class="edge-label" data-from="C" data-to="B" data-label="13">
+  <rect class="edge-label-halo" x="288.34125000000006" y="495.20000000000005" width="33.966" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="292.34125000000006" y="499.20000000000005" width="25.966" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="305.32425000000006" y="514.35" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.8499999999999996" textLength="9.966" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">13</text>
+</g>
+<g class="edge-label" data-from="D" data-to="B" data-label="14">
+  <rect class="edge-label-halo" x="50.516999999999996" y="533.2" width="33.966" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="54.516999999999996" y="537.2" width="25.966" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="67.5" y="552.35" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.8499999999999996" textLength="9.966" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">14</text>
+</g>
+<g class="edge-label" data-from="C" data-to="C" data-label="18">
+  <rect class="edge-label-halo" x="132.7125" y="474.9000000000001" width="33.966" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="136.7125" y="478.9000000000001" width="25.966" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="149.6955" y="494.05000000000007" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.8499999999999996" textLength="9.966" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">18</text>
+</g>
+<g class="edge-label" data-from="D" data-to="D" data-label="21">
+  <rect class="edge-label-halo" x="74.57024999999999" y="628.1" width="33.966" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="78.57024999999999" y="632.1" width="25.966" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="91.55324999999999" y="647.25" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.8499999999999996" textLength="9.966" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">21</text>
+</g>
+<g class="node" data-id="Z" data-label="Start" data-shape="rectangle" data-role="node">
+  <rect x="141.46608333333333" y="40" width="70.108" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:Z" data-role="node" />
+  <text x="176.52008333333333" y="58.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="30.108" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Start</text>
+</g>
+<g class="node" data-id="A" data-label="Alpha" data-shape="rectangle" data-role="node">
+  <rect x="132.16575" y="193.2" width="76.036" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:A" data-role="node" />
+  <text x="170.18375" y="211.64999999999998" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="36.036" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Alpha</text>
+</g>
+<g class="node" data-id="B" data-label="Beta" data-shape="rectangle" data-role="node">
+  <rect x="135.87075" y="346.40000000000003" width="68.626" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:B" data-role="node" />
+  <text x="170.18374999999997" y="364.85" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="28.625999999999998" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Beta</text>
+</g>
+<g class="node" data-id="C" data-label="Gamma" data-shape="rectangle" data-role="node">
+  <rect x="190.6785" y="475.6000000000001" width="83.446" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:C" data-role="node" />
+  <text x="232.4015" y="494.05000000000007" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="43.446000000000005" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Gamma</text>
+</g>
+<g class="node" data-id="D" data-label="Delta" data-shape="rectangle" data-role="node">
+  <rect x="132.53625" y="628.8" width="71.59" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:D" data-role="node" />
+  <text x="168.33125" y="647.25" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="31.589999999999996" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Delta</text>
+</g>
+<g class="node" data-id="E" data-label="End" data-shape="rectangle" data-role="node">
+  <rect x="135.50025000000002" y="781.9999999999999" width="65.662" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:E" data-role="node" />
+  <text x="168.33125" y="800.4499999999999" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="25.662" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">End</text>
+</g>
+</svg>
