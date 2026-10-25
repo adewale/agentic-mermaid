@@ -105,6 +105,9 @@ describe('maintained consumed peer protocol', () => {
       expect(inspect(rendered.replace('<path d="M0 0L10 10"/>', shaft)).ok).toBe(false)
     }
     expect(inspect(rendered.replace(edge(fixture.edges[0]!), `<text>${edge(fixture.edges[0]!)}</text>`)).ok).toBe(false)
+    const variableStroke = rendered.replace('<svg>', '<svg style="--_l:var(--pele-line,#1f1f1f)">').replace('stroke="#111"', 'stroke="var(--_l)"')
+    expect(inspect(variableStroke).ok).toBe(true)
+    expect(inspect(variableStroke.replace('style="--_l:var(--pele-line,#1f1f1f)"', 'style="--_l:var(--pele-line,#1f1f1f);--_l:#0000"')).ok).toBe(false)
     expect(inspect(rendered.replace(`data-id="${fixture.nodes[0]}"`, `data-id="${fixture.nodes[1]}"`)).ok).toBe(false)
     // Keep every label and identity string: change an actual wrapper endpoint.
     const wrong = fixture.id === 'flow5' ? 'L_A_X_A_X_0' : fixture.id === 'class80' ? 'id_C_0_C_0_1' : 'id_entity-E_0-0_entity-E_0-0_0'

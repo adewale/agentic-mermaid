@@ -59,10 +59,11 @@ function renderedWrappers(svg: string) {
     const classes = attr(tag, 'class').split(/\s+/)
     const context = (!parent || parent.context) && (kind === 'svg' || kind === 'g')
     const style = attr(tag, 'style')
-    const declaredLine = style.match(/(?:^|;)\s*--_l\s*:([^;]+)/)?.[1]?.trim()
+    const lineDeclarations = [...style.matchAll(/(?:^|;)\s*--_l\s*:([^;]+)/g)]
+    const declaredLine = lineDeclarations[0]?.[1]?.trim()
     // Default Node render options emit this fallback; external CSS is outside
     // this standalone benchmark. Do not guess at other variable programs.
-    const lineColor = declaredLine === undefined ? parent?.lineColor : kind === 'svg' && !parent && declaredLine === 'var(--pele-line,#1f1f1f)' ? '#1f1f1f' : undefined
+    const lineColor = declaredLine === undefined ? parent?.lineColor : lineDeclarations.length === 1 && kind === 'svg' && !parent && declaredLine === 'var(--pele-line,#1f1f1f)' ? '#1f1f1f' : undefined
     const blocked = !!parent?.blocked || /^(?:defs|clipPath|mask|symbol|marker|pattern|metadata|title|desc|style)$/.test(kind)
       || /\s(?:visibility|display|opacity|stroke-opacity|stroke-dasharray|stroke-dashoffset|clip-path|mask|filter)=/.test(tag)
       || /(?:^|;)\s*(?:display|visibility|opacity|stroke|stroke-width|stroke-opacity|stroke-dasharray|stroke-dashoffset|transform|clip-path|mask|filter|--pele-line)\s*:/.test(style)
