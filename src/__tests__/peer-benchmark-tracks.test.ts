@@ -96,6 +96,12 @@ describe('maintained consumed peer protocol', () => {
     expect(consumed.checksum).toBeGreaterThan(0)
     expect(() => consumePeerOutput({ svg }, 'receipt-json-utf8')).toThrow('receipt')
   })
+  test('preserves the frozen UTF8 byte count and unsigned rolling checksum', () => {
+    const document = '<svg>é 👩‍💻 &amp; \ud800</svg>'
+    expect(consumePeerOutput(document, 'svg-utf8')).toMatchObject({ bytes: 35, checksum: 1427285939 })
+    const complete = { svg: document, receipt: { notes: ['naïve', null, 17], nested: { accepted: true } } }
+    expect(consumePeerOutput(complete, 'receipt-json-utf8')).toMatchObject({ bytes: 114, checksum: 1212775879 })
+  })
   test('keeps per-call tails, repeated allocation and observer only during replay', async () => {
     const observerKey = Symbol.for('agentic-mermaid.performance-observer.v1')
     const global = globalThis as unknown as Record<symbol, ((event: object) => void) | undefined>
