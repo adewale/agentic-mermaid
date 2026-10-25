@@ -196,7 +196,8 @@ function renderC4Unchecked(body: C4Body, portable = false): string {
         : statement.kind === 'boundary-open' ? renderC4Boundary(record as C4Boundary)
           : statement.kind === 'relationship' ? renderC4Relationship(record as C4Relationship) : renderDirective(record as C4Directive)
     }
-    let text = current === undefined || (statement.raw && (signature === statement.signature || statement.kind === 'boundary-close')) && !canonical.has(statement.id) && !rewriteArguments ? statement.raw : current
+    const rewriteTitle = respell && statement.kind === 'title'
+    let text = current === undefined || (statement.raw && (signature === statement.signature || statement.kind === 'boundary-close')) && !canonical.has(statement.id) && !rewriteArguments && !rewriteTitle ? statement.raw : current
     if (portable) {
       if (statement.kind === 'boundary-close') {
         if (boundaryContents.pop() === false) text = `\n  UpdateLayoutConfig("")\n${text}`

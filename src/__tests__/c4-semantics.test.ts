@@ -19,6 +19,26 @@ function edit(body: C4Body, op: C4MutationOp): C4Body {
 }
 
 describe('C4 authored semantics', () => {
+  test('unchanged reader extensions use portable argument and title tokens', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const source of [
+        'C4Context\ntitle #\nPerson(A, "")',
+        'C4Dynamic\ntitle ;\nContainer(A, "")',
+        'C4Context\nPerson(A",", $tags="a")',
+        'C4Context\nPerson_Ext(s"", ""\u2028)',
+        'C4Context\nPerson(A, $tags=\u00a0"1")',
+      ]) {
+        const body = readC4Source(source)
+        const written = renderC4(body)
+        expect(await upstream.publicAccepts(written), written).toBe(true)
+        const reloaded = readC4Source(written)
+        expect(reloaded.title).toBe(body.title)
+        expect(reloaded.elements.map(({ id, label, tags }) => ({ id, label, tags }))).toEqual(body.elements.map(({ id, label, tags }) => ({ id, label, tags })))
+      }
+    } finally { upstream.close() }
+  })
+
   test('complete C4 productions protect style prepasses across aliases, values and titles', async () => {
     const upstream = startUpstreamMermaid()
     try {
