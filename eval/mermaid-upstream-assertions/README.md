@@ -32,7 +32,10 @@ implementation (control run), or views of Agentic's real native parser models.
 The native entry uses the public renderer's request normalization and actual
 family parser. Views convert model schemas; they do not parse an alternative
 Mermaid implementation or return fixture expectations. Source spelling is
-restored only when it denotes the actual native value.
+restored only when it denotes the actual native value. Sequence inline activation
+and central-connection fields expand into the pinned database event protocol,
+and lifecycle indexes follow that expanded event list. Actor properties without
+a native semantic model and renderer bookkeeping remain explicit adapter gaps.
 
 Each case records its original name, file, actual input strings, admission result
 and any unavailable API. An unavailable operation cannot pass accidentally when

@@ -15,6 +15,7 @@ const SEQUENCE_LINES = { SOLID: 0, DOTTED: 1, NOTE: 2, SOLID_CROSS: 3, DOTTED_CR
 const OPEN: Record<string, number> = { loop: 10, alt: 12, opt: 15, par: 19, rect: 22, critical: 27, break: 30, par_over: 32 }
 const CLOSE: Record<string, number> = { loop: 11, alt: 14, opt: 16, par: 21, rect: 23, critical: 29, break: 31, par_over: 21 }
 const sequenceViews = new WeakMap<object, any[]>()
+const sequenceMessageOffsets = new WeakMap<object, number[]>()
 
 /** Restore a source spelling only when it expresses the actual native value.
  * This bridges `<br/>` versus a decoded newline without hiding text loss. */
@@ -35,30 +36,44 @@ export function nativeSequenceMessages(db: NativeDb): any[] {
   const messages = syntax.flatMap(entry => entry.syntax?.kind === 'message' ? [entry.syntax.message] : [])
   const notes = syntax.flatMap(entry => entry.syntax?.kind === 'note' ? [entry.syntax.note] : [])
   const out: any[] = []
+  const offsets: number[] = []
   const blockTypes = new Map<number, string>()
-  let messageIndex = 0, noteIndex = 0
+  const openers = syntax.flatMap(entry => entry.syntax?.kind === 'block' ? [entry.syntax.opener] : [])
+  const dividers = syntax.flatMap(entry => entry.syntax?.kind === 'continuation' ? [entry.syntax.continuation] : [])
+  let messageIndex = 0, noteIndex = 0, blockIndex = 0, dividerIndex = 0
+  // sequenceDb.addSignal's protocol defaults. Every semantic field below
+  // comes from native mutation events; no upstream test expectation is read.
+  const signal = (fields: any) => out.push({ id: String(out.length), from: undefined, to: undefined, message: '', wrap: false, activate: false, centralConnection: 0, ...fields })
   for (const event of db.events) {
     if (event.unit !== 'mutation') continue
     const value = event.value as any
     if (event.kind === 'add-message') {
-      const type = Object.entries(REFERENCE_SEQUENCE_SIGNALS).find(([, signal]) => signal[0] === value.lineStyle && signal[1] === value.startHead && signal[2] === value.endHead)?.[0]
-      out.push({ from: value.from, to: value.to, message: sequenceText(value.label, messages[messageIndex++]?.label), wrap: value.wrap ?? false, type: Number(type), ...(value.number === undefined ? {} : { number: value.number }),
-        ...(value.centralStart || value.centralEnd ? { centralConnection: value.centralStart && value.centralEnd ? 61 : value.centralStart ? 60 : 59 } : {}) })
+      const type = Object.entries(REFERENCE_SEQUENCE_SIGNALS).find(([, meaning]) => meaning[0] === value.lineStyle && meaning[1] === value.startHead && meaning[2] === value.endHead)?.[0]
+      if (type === undefined) return unavailable('Sequence arrow has no pinned signal protocol equivalent')
+      offsets.push(out.length)
+      signal({ from: value.from, to: value.to, message: sequenceText(value.label, messages[messageIndex++]?.label), wrap: value.wrap ?? false, type: Number(type),
+        activate: Boolean(value.activate || value.centralEnd), centralConnection: value.centralStart && value.centralEnd ? 61 : value.centralStart ? 60 : value.centralEnd ? 59 : 0 })
+      if (value.activate) signal({ from: value.to, type: 17 })
+      if (value.deactivate) signal({ from: value.from, type: 18 })
+      if (value.centralEnd) signal({ from: value.to, type: 59 })
+      if (value.centralStart) signal({ from: value.from, type: 60 })
     } else if (event.kind === 'add-note') {
       const note = value.note
-      out.push({ from: note.actorIds[0], to: note.actorIds.at(-1), message: sequenceText(note.text, notes[noteIndex++]?.text), wrap: note.wrap ?? false, type: 2, placement: ({ left: 0, right: 1, over: 2 } as any)[note.position] })
+      out.push({ id: String(out.length), from: note.actorIds[0], to: note.actorIds.at(-1), message: sequenceText(note.text, notes[noteIndex++]?.text), wrap: note.wrap ?? false, type: 2, placement: ({ left: 0, right: 1, over: 2 } as any)[note.position] })
     } else if (event.kind === 'open-block') {
       blockTypes.set(value.id, value.block.type)
-      out.push({ message: value.block.label, wrap: value.block.wrap ?? false, type: OPEN[value.block.type] })
+      const authored = openers[blockIndex++]?.label
+      signal({ message: value.block.type === 'rect' ? value.block.color ?? '' : sequenceText(value.block.label, authored), wrap: value.block.wrap ?? false, type: OPEN[value.block.type] })
     } else if (event.kind === 'divide-block') {
-      out.push({ message: value.divider.label, wrap: value.divider.wrap ?? false, type: ({ alt: 13, par: 20, par_over: 20, critical: 28 } as any)[blockTypes.get(value.parent)!] })
+      signal({ message: sequenceText(value.divider.label, dividers[dividerIndex++]?.label), wrap: value.divider.wrap ?? false, type: ({ alt: 13, par: 20, par_over: 20, critical: 28 } as any)[blockTypes.get(value.parent)!] })
     } else if (event.kind === 'close-block') {
       const type = blockTypes.get(value.id)
-      if (type) out.push({ message: '', wrap: false, type: CLOSE[type] })
+      if (type) signal({ type: CLOSE[type] })
     } else if (event.kind === 'activation') {
-      out.push({ from: value.actorId, to: value.actorId, type: value.kind === 'activate' ? 17 : 18, message: undefined })
+      signal({ from: value.actorId, type: value.kind === 'activate' ? 17 : 18 })
     }
   }
+  sequenceMessageOffsets.set(model, offsets)
   sequenceViews.set(model, out)
   return out
 }
@@ -95,13 +110,30 @@ export function nativeGetters(db: NativeDb, key: string): any {
     if (key === 'getClasses') return () => new Map([...(model?.classDefs ?? [])].map(([id, style]: any) => [id, { id, styles: Object.entries(style).map(([k, v]) => `${k}:${v}`), textStyles: [] }]))
   }
   if (family === 'sequence') {
-    const actors = () => new Map((model?.actors ?? []).map((actor: any) => [actor.id, { name: actor.id, description: actor.label, type: actor.type, wrap: actor.wrap ?? false, links: actor.links ?? {}, properties: {}, prevActor: undefined, nextActor: undefined }]))
+    const actors = () => {
+      const labels = new Map<string, string>()
+      for (const event of db.events) {
+        if (event.unit === 'mutation' && event.kind === 'participant.apply') {
+          const value = event.value as any
+          if (value.kind === 'declare' && value.label !== undefined) labels.set(value.id, value.label)
+        }
+      }
+      return new Map((model?.actors ?? []).map((actor: any, index: number) => [actor.id, {
+        name: actor.id, description: sequenceText(actor.label, labels.get(actor.id)), type: actor.type, wrap: actor.wrap ?? false, links: actor.links ?? {},
+        get properties() { return unavailable('sequence.actor.properties: preserved source has no native semantic properties model') },
+        prevActor: model.actors[index - 1]?.id, nextActor: model.actors[index + 1]?.id,
+      }]))
+    }
     if (key === 'getActors') return actors
     if (key === 'getActor') return (id: string) => actors().get(id)
     if (key === 'getActorKeys') return () => (model?.actors ?? []).map((actor: any) => actor.id)
     if (key === 'getMessages') return () => nativeSequenceMessages(db)
     if (key === 'getBoxes') return () => (model?.boxes ?? []).map((box: any) => ({ name: box.label, fill: box.color ?? 'transparent', wrap: box.wrap ?? false, actorKeys: box.actorIds }))
-    if (key === 'getCreatedActors' || key === 'getDestroyedActors') return () => new Map((model?.actors ?? []).filter((actor: any) => actor[key === 'getCreatedActors' ? 'createMessageIndex' : 'destroyMessageIndex'] !== undefined).map((actor: any) => [actor.id, actor[key === 'getCreatedActors' ? 'createMessageIndex' : 'destroyMessageIndex']]))
+    if (key === 'getCreatedActors' || key === 'getDestroyedActors') return () => {
+      nativeSequenceMessages(db)
+      const field = key === 'getCreatedActors' ? 'createMessageIndex' : 'destroyMessageIndex'
+      return new Map((model?.actors ?? []).filter((actor: any) => actor[field] !== undefined).map((actor: any) => [actor.id, sequenceMessageOffsets.get(model)?.[actor[field]]]))
+    }
     if (key === 'showSequenceNumbers') return () => (model?.messages ?? []).some((message: any) => message.number !== undefined)
   }
   if (family === 'pie') {

@@ -2,11 +2,11 @@ import { appendFileSync, readFileSync, existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { resolve, dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { knownBuiltinFamilies, getFamily, renderMermaidSVG } from '../../src/agent/core.ts'
+import { knownBuiltinFamilies, getFamily } from '../../src/agent/core.ts'
 import { normalizeMermaidSource } from '../../src/mermaid-source.ts'
 import { parseNativeModel } from '../mermaid-modern-compat/grammar-agentic.ts'
 import { withParserObservation, type ParserObservation } from '../../src/shared/parser-observation.ts'
-import { nativeGetters, nativeAst, nativeSequenceMessages } from './views.ts'
+import { nativeGetters, nativeAst } from './views.ts'
 
 export const referenceMode = process.env.AM_ASSERT_MODE === 'reference'
 const contexts = new Map<string, AdapterContext>()
@@ -193,8 +193,7 @@ class AdapterContext {
       const db = new NativeDatabase(context)
       db.parse(source)
       const renderer = { draw() {
-        renderMermaidSVG(context.configured(source))
-        nativeSequenceMessages(db).forEach((message: any) => { message.msgModel = message.number === undefined ? {} : { sequenceIndex: message.number, sequenceVisible: true } })
+        return unavailable('Mermaid renderer.draw: pixel geometry and renderer bookkeeping are outside the native model adapter')
       }, bounds: deferred('Mermaid renderer.bounds pixel bookkeeping') }
       return { db: db.proxy(), renderer, type: context.family }
     } }
