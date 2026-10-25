@@ -1,0 +1,51 @@
+{
+  "status": "root-reviewed-awaiting-single-hosted-dispatch",
+  "dispatchApproved": false,
+  "sourceRevision": "cc6fc54a322187c0b0e41408ca1bfe2e0724169b",
+  "artifactRunId": "40235414753",
+  "artifactId": "12614488791",
+  "artifactName": "bounded-runtime-packages-40235414753",
+  "archiveMember": "baseline/package/package.tgz",
+  "archiveSha256": "234fad0aea603fdda43e04c39bdeb5aa2e2b7c6a81940c4f86b15c689a3874f3",
+  "archiveIntegrity": "sha512-K2kuQVxbLaWTx+w4RArvIF2eePDvVR0h2BWgzBo39zipbqhM1qqlZTlLlm85j8QcKet/ZB52u8fACCxE6Y5gyw==",
+  "artifactZipSha256": "2b9271485ff309cedc73e5c5337e0862fd7393c7219fb1255e6926882ea828e9",
+  "buildHarnessRevision": "3217d187829f0dd337e33c6a846f03c8bdb8961b",
+  "buildWorkflowRevision": "3217d187829f0dd337e33c6a846f03c8bdb8961b",
+  "node": "24.19.0",
+  "bun": "1.4.2",
+  "npm": "11.18.0",
+  "workers": [
+    {
+      "mode": "cpu",
+      "consumer": "svg-utf8",
+      "warm": 51,
+      "profiled": 51,
+      "diagnostic": 2
+    },
+    {
+      "mode": "cpu",
+      "consumer": "receipt-json-utf8",
+      "warm": 51,
+      "profiled": 51,
+      "diagnostic": 2
+    },
+    {
+      "mode": "allocation",
+      "consumer": "svg-utf8",
+      "warm": 51,
+      "profiled": 16,
+      "diagnostic": 2
+    },
+    {
+      "mode": "allocation",
+      "consumer": "receipt-json-utf8",
+      "warm": 51,
+      "profiled": 16,
+      "diagnostic": 2
+    }
+  ],
+  "attempts": 346,
+  "comparative": false,
+  "localRuntimeExecuted": false,
+  "profileHarnessParent": "075b79edf14c3645f1eac3f9b81cb6d3efa7ccba"
+}
