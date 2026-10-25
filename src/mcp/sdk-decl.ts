@@ -765,7 +765,7 @@ type GanttStatement =
   | { kind: 'section'; ref: number }
   | { kind: 'task'; section: number; ref: number }
   | { kind: 'opaque-block'; lines: string[] }
-interface GanttBody { kind: 'gantt'; title?: string; sections: GanttSection[]; statements?: GanttStatement[] }
+interface GanttBody { kind: 'gantt'; title?: string; axisFormat?: string; sections: GanttSection[]; statements?: GanttStatement[] }
 
 type MindmapShape = 'default' | 'rect' | 'rounded' | 'circle' | 'cloud' | 'bang' | 'hexagon'
 interface MindmapNode { id: string; label: string; shape: MindmapShape; markdown?: true; icon?: string; className?: string; children: MindmapNode[] }

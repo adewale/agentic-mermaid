@@ -239,13 +239,14 @@ describe('wrapper fidelity (1C): canonical synthesis on demand', () => {
     expect(out).not.toContain('%%{init')  // folded, not duplicated
   })
 
-  test('a directive whose payload cannot be parsed is preserved raw in canonical mode', () => {
+  test('an unparsed directive remains repairable source and cannot masquerade as canonical output', () => {
     // A scalar is not a config map, so it cannot be folded into frontmatter.
     const src = '%%{init: definitely-not-an-object}%%\nflowchart TD\n  A --> B'
     const p = parseMermaid(src)
     if (!p.ok) throw new Error('parse failed')
-    const out = serializeMermaid(p.value, { wrapper: 'canonical' })
-    expect(out).toContain('%%{init: definitely-not-an-object}%%')
+    expect(serializeMermaid(p.value)).toContain('%%{init: definitely-not-an-object}%%')
+    expect(() => serializeMermaid(p.value, { wrapper: 'canonical' })).toThrow('init directive payload must be a configuration object')
+    expect(verifyMermaid(p.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'mermaid_wrapper_config' }))
   })
 
   test('canonical mode folds post-header config out of an opaque body exactly once', () => {
@@ -284,14 +285,6 @@ describe('wrapper fidelity (1C): canonical synthesis on demand', () => {
       name: 'an object replaced by null',
       source: '%%{init: {"flowchart":{"curve":"basis"}}}%%\n%%{init: {"flowchart":null}}%%\nflowchart TD\n  A --> B',
     },
-    {
-      name: 'an object replaced by a scalar',
-      source: '%%{init: {"themeVariables":{"primaryColor":"red"}}}%%\n%%{init: {"themeVariables":"reset"}}%%\nflowchart TD\n  A --> B',
-    },
-    {
-      name: 'an object replaced by an array',
-      source: '%%{init: {"themeVariables":{"primaryColor":"red"}}}%%\n%%{init: {"themeVariables":[]}}%%\nflowchart TD\n  A --> B',
-    },
   ])('canonical mode preserves effective config for $name', ({ source }) => {
     // Parsed frontmatter already represents the final directive merge. Folding
     // parseable directives again in authored order must retain that exact
@@ -308,6 +301,99 @@ describe('wrapper fidelity (1C): canonical synthesis on demand', () => {
     expect(serializeMermaid(reparsed.value, { wrapper: 'canonical' })).toBe(canonical)
   })
 
+  test.each([{ value: 'reset' }, { value: [] }])('canonical themeVariables must be an object, preserving $value for repair', ({ value }) => {
+    const source = `%%{init: {"themeVariables":{"primaryColor":"red"}}}%%\n%%{init: ${JSON.stringify({ themeVariables: value })}}%%\nflowchart TD\n  A --> B`
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error('parse failed')
+    expect(serializeMermaid(parsed.value)).toBe(source + '\n')
+    expect(() => serializeMermaid(parsed.value, { wrapper: 'canonical' })).toThrow('themeVariables must be a configuration object')
+    expect<unknown>(parsed.value.meta.frontmatter?.themeVariables).toEqual(value)
+  })
+
+  test('canonical wrapper color admission respects exact keys, sanitization and actual derivation', async () => {
+    const upstream = startUpstreamMermaid()
+    const controls = [
+      { theme: 'base', themeVariables: { PrimaryColor: 'var(--brand)', PRIMARYCOLOR: 'none' } },
+      { theme: 'base', themeVariables: { cScale0: 'var(--brand)', git0: 'red!important' } },
+      { theme: 'base', themeVariables: { cScale0: '', git0: null } },
+      { theme: 'base', themeVariables: { THEME_COLOR_LIMIT: 0, cScale0: 'currentColor' } },
+      { theme: 'default', themeVariables: { background: 'currentColor' } },
+      { theme: 'dark', themeVariables: { git0: 'currentColor', noteBkgColor: 'var(--brand)' } },
+      { theme: 'base', themeVariables: { background: 'currentColor', lineColor: 'red', arrowheadColor: 'blue', noteBkgColor: 'currentColor', noteBorderColor: 'red' } },
+    ]
+    try {
+      for (const config of controls) {
+        const source = `%%{init: ${JSON.stringify(config)}}%%\nflowchart LR\nA --> B`
+        expect(await upstream.accepts(source)).toBe(true)
+        const parsed = parseMermaid(source)
+        if (!parsed.ok) throw new Error('parse failed')
+        const canonical = serializeMermaid(parsed.value, { wrapper: 'canonical' })
+        expect(await upstream.accepts(canonical)).toBe(true)
+        const reloaded = parseMermaid(canonical)
+        if (!reloaded.ok) throw new Error('parse failed')
+        // Canonical output retains authored values. The pinned runtime owns
+        // dropping unknown keys and neutralizing disallowed directive values.
+        expect(reloaded.value.meta.frontmatter).toEqual(config)
+        expect(serializeMermaid(parsed.value)).toContain(JSON.stringify(config))
+      }
+      for (const themeVariables of [{ git0: '##374151' }, { cScale1: '#12345' }, { primaryColor: 'var(--brand)' }]) {
+        const source = `%%{init: ${JSON.stringify({ theme: 'base', themeVariables })}}%%\nflowchart LR\nA --> B`
+        expect(await upstream.accepts(source)).toBe(false)
+        expect(await upstream.accepts('flowchart LR\nControl --> Next')).toBe(true)
+        const parsed = parseMermaid(source)
+        if (!parsed.ok) throw new Error('parse failed')
+        expect(() => serializeMermaid(parsed.value, { wrapper: 'canonical' })).toThrow('must be a concrete CSS color')
+        expect(serializeMermaid(parsed.value)).toContain(JSON.stringify(themeVariables).slice(1, -1))
+      }
+    } finally { upstream.close() }
+  })
+
+  test('canonical palette admission follows implicit, scoped and global theme derivations', async () => {
+    const upstream = startUpstreamMermaid()
+    const controls = [
+      { diagram: 'pie\n"a": 1', config: { themeVariables: { git0: 'notacolor' } } },
+      { config: { flowchart: { theme: 'default' }, themeVariables: { git0: 'notacolor' } } },
+      { config: { flowchart: { theme: 'dark' }, themeVariables: { git0: 'notacolor' } } },
+      { config: { themeVariables: { background: 'currentColor', lineColor: 'red', arrowheadColor: 'blue', rectBkgColor: 'green' } } },
+      { config: { themeVariables: { cScale2: 'currentColor', cScaleInv2: 'red', cScalePeer2: 'blue' } } },
+      { config: { themeVariables: { primaryColor: 'currentColor', secondaryColor: 'red' } } },
+      { config: { themeVariables: { noteBkgColor: 'currentColor' } } },
+      { config: { themeVariables: { cScale2: 'var(--brand)' } } },
+      { config: { theme: 'null', themeVariables: { primaryColor: 'currentColor' } } },
+    ]
+    const rejected = [
+      { config: { themeVariables: { git0: 'notacolor' } } },
+      { config: { themeVariables: { cScale2: 'notacolor' } } },
+      { config: { themeVariables: { primaryColor: 'notacolor' } } },
+      { config: { themeVariables: { background: 'notacolor' } } },
+      { diagram: 'sequenceDiagram\nA->>B: hello', config: { themeVariables: { git0: 'notacolor' } } },
+      // The scoped theme wins during parsing, but the global theme is derived
+      // when public parse clears the diagram scope in its finally block.
+      { config: { theme: 'base', flowchart: { theme: 'default' }, themeVariables: { background: 'currentColor' } } },
+    ]
+    try {
+      for (const { config, diagram = 'flowchart TD\nA --> B' } of controls) {
+        const source = `%%{init: ${JSON.stringify(config)}}%%\n${diagram}`
+        expect(await upstream.publicAccepts(source), source).toBe(true)
+        const parsed = parseMermaid(source)
+        if (!parsed.ok) throw new Error('Expected preserved wrapper')
+        const written = serializeMermaid(parsed.value, { wrapper: 'canonical' })
+        expect(await upstream.publicAccepts(written), written).toBe(true)
+        const reloaded = parseMermaid(written)
+        if (!reloaded.ok) throw new Error('Expected canonical wrapper reload')
+        expect(reloaded.value.meta.frontmatter).toEqual(config)
+      }
+      for (const { config, diagram = 'flowchart TD\nA --> B' } of rejected) {
+        const source = `%%{init: ${JSON.stringify(config)}}%%\n${diagram}`
+        expect(await upstream.publicAccepts(source), source).toBe(false)
+        expect(await upstream.publicAccepts('flowchart LR\nControl --> Next')).toBe(true)
+        const parsed = parseMermaid(source)
+        if (!parsed.ok) throw new Error('Expected repairable wrapper source')
+        expect(serializeMermaid(parsed.value)).toStartWith(source.slice(0, source.indexOf('\n') + 1))
+        expect(() => serializeMermaid(parsed.value, { wrapper: 'canonical' })).toThrow('must be a concrete CSS color')
+      }
+    } finally { upstream.close() }
+  })
   test('canonical mode keeps a directive no later directive shadows', () => {
     const parsed = parseMermaid(
       '%%{init: {"logLevel":"debug"}}%%\nflowchart TD\n%%{init: {"theme":"dark"}}%%\n  A --> B',

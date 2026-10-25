@@ -10,6 +10,7 @@
 // ============================================================================
 
 import { scanStateComments } from './state/comment.ts'
+import { readGrammarAccessibility } from './shared/grammar-text.ts'
 import { DeferredDependencyError } from './layout/certification-error.ts'
 import { detectInstalledFamilyFromFirstLine, installedFamilyStatementEnds } from './agent/family-router.ts'
 import type { FamilyId } from './agent/types.ts'
@@ -443,6 +444,8 @@ export interface NormalizedMermaidSource {
   cleanup?: MermaidCleanup
   /** Authored grammar view retained when transport decoding changes source. */
   authoredFamilyLines?: string[]
+  /** Indentation-preserving grammar view for field-owned XML interpretation. */
+  authoredFamilyBody?: string
   authoredHeader?: string
   authoredWrapperLength?: number
   text: string
@@ -513,6 +516,12 @@ export function mermaidInitDirectives(text: string): MermaidSourceInitDirective[
   return directives
 }
 
+/** Distinguish a valid empty object from an unparsed directive payload. */
+export function mermaidInitDirectiveConfig(raw: string): MermaidFrontmatterMap | undefined {
+  const match = new RegExp(INIT_DIRECTIVE_REGEX.source, 'm').exec(raw)
+  return match ? directiveConfig(match[1] ?? match[2]) : undefined
+}
+
 /**
  * Whitespace- and formatting-insensitive identity for one init directive.
  * A parseable payload is identified by its canonical config so re-indented or
@@ -570,7 +579,7 @@ function normalizeSource(
     accessibilityLines,
     installedFamilyStatementEnds(processed.lines[0] ?? '', accessibilityLines),
   )
-  const envelope = sourceEnvelopeMetadata(semanticText, accessibilityScan.accessibility)
+  const envelope = sourceEnvelopeMetadata(semanticText, view === 'render' ? readGrammarAccessibility(accessibilityScan.accessibility) : accessibilityScan.accessibility)
   const sharesAuthoredGrammar = semanticText === cleanup.lineText
   if (sharesAuthoredGrammar && semanticText !== text) {
     if (envelope.wrapperSource !== undefined) {
@@ -596,6 +605,7 @@ function normalizeSource(
     cleanup,
     ...(authored ? {
       authoredFamilyLines: authored.familyLines,
+      authoredFamilyBody: authored.familyBody,
       authoredHeader: authored.lines[0] ?? '',
       authoredWrapperLength: authored.wrapperSource?.length ?? 0,
     } : {}),
@@ -983,7 +993,7 @@ function extractInitDirectives(text: string): { body: string; frontmatter: Merma
 /** The configuration an init directive's payload sets, or a wrap
  *  directive's (which has none): `wrap: true`, as Mermaid applies it. */
 function directiveConfig(payload: string | undefined): MermaidFrontmatterMap | undefined {
-  return payload === undefined ? { wrap: true } : parseDirectiveMap(payload.trim())
+  return payload === undefined ? { wrap: true } : payload.trim() === '' ? {} : parseDirectiveMap(payload.trim())
 }
 
 function parseDirectiveMap(text: string): MermaidFrontmatterMap | undefined {

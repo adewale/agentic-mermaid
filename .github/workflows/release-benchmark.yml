@@ -324,6 +324,7 @@ jobs:
     timeout-minutes: 300
     strategy:
       fail-fast: false
+      max-parallel: 8
       matrix:
         cache: ['off', 'on']
         phase: ['first-use', 'warm-new-source', 'exact-repeat', 'label-edit']

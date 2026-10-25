@@ -9,7 +9,7 @@
 // (ER_READ_GENEROUSLY).
 
 import { afterAll, describe, expect, test } from 'bun:test'
-import { asEr, mutate, parseRegisteredMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid, describeMermaidFacts } from '../agent/index.ts'
+import { asEr, mutate, parseRegisteredMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid, describeMermaidFacts, synthesizeFromGraph } from '../agent/index.ts'
 import { parseErDiagram } from '../er/parser.ts'
 import { erAttributeBlocks } from '../er/layout.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
@@ -251,33 +251,85 @@ describe('typed ER text is written as Mermaid reads it', () => {
   })
 })
 
-// Mermaid's ER style lexer reads letters, digits and -*#:,; alone. The writer
-// spells any other character, and a comma inside a value, as a two-digit
-// entity code, ending the line with `;` so Mermaid's prepass keeps the code;
-// the SVG Mermaid writes resolves it.
+// Mermaid's ER style lexer skips whitespace. The writer must protect spaces
+// as well as punctuation, ending the line with `;` so the prepass keeps its
+// final entity. Inspect actual DB fields after the SVG entity-resolution step.
 describe('typed ER style text is written as Mermaid reads it', () => {
-  test.each([
-    ['erDiagram\n  A\n  style A stroke-width:0.5px', ['stroke-width:0.5px']],
-    ['erDiagram\n  A:::c\n  classDef c fill:rgb(1,2,3),stroke:#333', ['fill:rgb(1,2,3)', 'stroke:#333']],
-    ['erDiagram\n  A\n  style A font-family:"Arial",opacity:50%', ['font-family:"Arial"', 'opacity:50%']],
-  ])('%j', async (source, styles) => {
-    const parsed = parseRegisteredMermaid(source)
-    if (!parsed.ok) throw new Error('fixture rejected')
-    const written = serializeMermaid(parsed.value)
-    const mermaid = await upstream.project(written, diagram => [...diagram.db.getEntities().values(), ...(diagram.db.getClasses?.().values() ?? [])]
-      .flatMap((holder: { cssStyles?: string[]; styles?: string[] }) => holder.cssStyles ?? holder.styles ?? []))
-    // Mermaid's SVG turns its entity markers into character references.
-    const resolved = mermaid.ok ? mermaid.value.map((style: string) => style.replace(/ﬂ°°(\d+)¶ß/g, (_, code: string) => String.fromCharCode(Number(code)))) : mermaid
-    const reparsed = parseRegisteredMermaid(written)
-    expect({ written, resolved, body: reparsed.ok && reparsed.value.body, reported: verifyMermaid(written).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX') })
-      .toEqual({ written, resolved: styles, body: parsed.value.body, reported: [] })
+  test.each<[string, Record<string, string>]>([
+    ['stroke-width:0.5px', { 'stroke-width': '0.5px' }],
+    ['fill:rgb(1,2,3),stroke:#333', { fill: 'rgb(1,2,3)', stroke: '#333' }],
+    ['font-family:"Arial",opacity:50%', { 'font-family': '"Arial"', opacity: '50%' }],
+    ['fill:hsl(210.125 10.5% 20.25% / 0.123456789),stroke:rgb(1 2 3 / 0.987654321)', { fill: 'hsl(210.125 10.5% 20.25% / 0.123456789)', stroke: 'rgb(1 2 3 / 0.987654321)' }],
+    ['font-family:"Noto Sans",stroke-dasharray:5  3,stroke:#1234', { 'font-family': '"Noto Sans"', 'stroke-dasharray': '5  3', stroke: '#1234' }],
+    ['fill:var(--brand),font-family:Noto\tSans\u00a0Mono\u2028Aux\u3000JP\ufeffSerif', { fill: 'var(--brand)', 'font-family': 'Noto\tSans\u00a0Mono\u2028Aux\u3000JP\ufeffSerif' }],
+    ['|:s,content:{|}~,font-family:ER_STYLE_ENTITY_0_', { '|': 's', content: '{|}~', 'font-family': 'ER_STYLE_ENTITY_0_' }],
+  ])('%j', async (style, props) => {
+    for (const placement of ['inline', 'class'] as const) {
+      const source = placement === 'inline' ? `erDiagram\n  A\n  style A ${style}` : `erDiagram\n  A:::c\n  classDef c ${style}`
+      const parsed = parseRegisteredMermaid(source), base = parseRegisteredMermaid('erDiagram\nA')
+      if (!parsed.ok || !base.ok) throw new Error('fixture rejected')
+      let edited = mutate(base.value, placement === 'inline' ? { kind: 'set_entity_style', entity: 'A', style } : { kind: 'define_class', name: 'c', style })
+      expect(edited.ok).toBe(true)
+      if (!edited.ok) throw new Error(edited.error.message)
+      if (placement === 'class') edited = mutate(edited.value, { kind: 'set_entity_class', entity: 'A', className: 'c' })
+      if (!edited.ok) throw new Error(edited.error.message)
+      const written = serializeMermaid(edited.value)
+      const mermaid = await upstream.project(written, diagram => ({
+        styles: [...diagram.db.getEntities().values(), ...diagram.db.getClasses().values()]
+          .flatMap((holder: { cssStyles?: string[]; styles?: string[] }) => holder.cssStyles ?? holder.styles ?? [])
+          .map((value: string) => {
+            const text = document.createElement('textarea')
+            text.innerHTML = value.replace(/ﬂ°°/g, '&#').replace(/ﬂ°/g, '&').replace(/¶ß/g, ';')
+            return text.value
+          }),
+        entities: [...diagram.db.getEntities().values()].map((entity: { label: string; cssClasses: string }) => ({ id: entity.label, classes: entity.cssClasses })),
+      }))
+      expect(mermaid).toEqual({ ok: true, value: { styles: Object.entries(props).map(([key, value]) => `${key}:${value}`), entities: [{ id: 'A', classes: placement === 'inline' ? 'default' : 'default c' }] } })
+      const reparsed = parseRegisteredMermaid(written)
+      expect(reparsed.ok && reparsed.value.body).toEqual(edited.value.body)
+      expect(reparsed.ok && reparsed.value.body).toEqual(parsed.value.body)
+      const native = parseErDiagram(normalizeMermaidSource(written).familyLines)
+      expect(placement === 'inline' ? native.entities[0]!.inlineStyle : native.classDefs.get('c')).toEqual(props)
+      expect(renderMermaidSVG(written)).toBe(renderMermaidSVG(source))
+      expect(verifyMermaid(written).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+    }
   })
 
-  test('an edit holding a character no entity code spells there is refused', () => {
+  test('style fields survive both global prepass rules without turning escaped text into grammar', async () => {
+    const base = parseRegisteredMermaid('erDiagram\nAclassDef')
+    if (!base.ok || base.value.body.kind !== 'er') throw new Error('fixture rejected')
+    const props = { '|': 's', content: 'style classDef: {|}~ #35; ﬂ°°32¶ß 🛰️', 'font-family': 'Noto; Sans, Aux', stroke: '#333' }
+    const created = synthesizeFromGraph({ kind: 'er', body: { ...base.value.body, entities: [{ ...base.value.body.entities[0]!, style: props, className: 'mystyle' }], classDefs: { mystyle: props } } })
+    expect(created.ok).toBe(true)
+    if (!created.ok) throw new Error(JSON.stringify(created.error))
+    const written = serializeMermaid(created.value)
+    const projected = await upstream.project(written, diagram => {
+      const read = (styles: string[]) => styles.map(value => {
+        const text = document.createElement('textarea')
+        text.innerHTML = value.replace(/ﬂ°°/g, '&#').replace(/ﬂ°/g, '&').replace(/¶ß/g, ';')
+        return text.value
+      })
+      const entity = [...diagram.db.getEntities().values()][0] as { label: string; cssClasses: string; cssStyles: string[] }
+      return { id: entity.label, classes: entity.cssClasses, inline: read(entity.cssStyles), shared: read(diagram.db.getClasses().get('mystyle').styles) }
+    })
+    const styles = Object.entries(props).map(([key, value]) => `${key}:${value}`)
+    expect(projected).toEqual({ ok: true, value: { id: 'AclassDef', classes: 'default mystyle', inline: styles, shared: styles } })
+    const again = parseRegisteredMermaid(written)
+    expect(again.ok && again.value.body).toEqual(created.value.body)
+    const native = parseErDiagram(normalizeMermaidSource(written).familyLines)
+    expect(native.entities[0]!.inlineStyle).toEqual(props)
+    expect(native.classDefs.get('mystyle')).toEqual(props)
+  })
+
+  test('an edit holding an XML control or lone surrogate is refused atomically', () => {
     const parsed = parseRegisteredMermaid('erDiagram\n  A')
     if (!parsed.ok) throw new Error('fixture rejected')
-    const styled = mutate(parsed.value, { kind: 'set_entity_style', entity: 'A', style: 'content:{x}' })
-    expect(styled.ok ? 'accepted' : styled.error.code).toBe('INVALID_OP')
+    const before = serializeMermaid(parsed.value)
+    for (const value of ['\u0000', '\u000b', '\u000c', '\u0080', '\ud800']) {
+      const styled = mutate(parsed.value, { kind: 'set_entity_style', entity: 'A', style: `content:A${value}B` })
+      expect(styled.ok ? 'accepted' : styled.error.code).toBe('INVALID_OP')
+      expect(serializeMermaid(parsed.value)).toBe(before)
+    }
     expect(mutate(parsed.value, { kind: 'set_entity_style', entity: 'A', style: 'opacity:0.5' }).ok).toBe(true)
   })
 })

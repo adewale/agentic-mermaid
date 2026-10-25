@@ -5,10 +5,17 @@ import type { Accessibility, LayoutWarning, MutationError, Result, VerifyOptions
 import { err, ok } from './types.ts'
 import { labelOverflowCollector } from './body-utils.ts'
 import { parseMutableStyleProps, serializeStyleProps } from '../shared/style-props.ts'
+import { normalizeMermaidSource } from '../mermaid-source.ts'
+import { writeBlockText } from '../block/text-codec.ts'
 
 export function parseBlockBody(lines: string[], accessibility: Accessibility = {}): BlockBody | null {
+  // Pinned Block tokenizes accessibility directives but has no grammar rule
+  // for them. Preserve that readable extension instead of regenerating it.
+  if (accessibility.title !== undefined || accessibility.descr !== undefined) return null
   try {
     const body = parseBlockDiagram(['block', ...lines])
+    // Validate structural syntax before comment retention invokes the writer.
+    renderBlock(body)
     body.accessibilityTitle = accessibility.title
     body.accessibilityDescription = accessibility.descr
     return body
@@ -25,6 +32,9 @@ export function blockEntries(body: BlockBody): { node: Block; parent: Block; par
     for (let i = (entry.node.children?.length ?? 0) - 1; i >= 0; i--) stack.push({ node: entry.node.children![i]!, parent: entry.node, parentId: entry.node.id })
   }
   return out
+}
+function hasDirectiveLabel(body: BlockBody): boolean {
+  return blockEntries(body).some(({ node }) => node.label?.includes('%%{')) || body.edges.some(edge => edge.label?.includes('%%{'))
 }
 const DELIMITERS: Record<string, [string, string]> = {
   na: ['[', ']'],
@@ -44,12 +54,14 @@ const DELIMITERS: Record<string, [string, string]> = {
   inv_trapezoid: ['[\\', '/]'],
 }
 function id(value: string): string {
-  if (!value || /[\s()[\]{}<>:=\-]/.test(value) || value === 'end' || value === 'block' || value === 'space' || value === 'columns') throw new Error(`Invalid block id ${value}`)
+  // A closing square bracket is ordinary ID text outside a node's label.
+  // `space` followed by punctuation instead starts a spacer token.
+  if (!value || /[\s()[{}<>:=\-]/.test(value) || value === 'end' || value === 'block' || /^space\b/.test(value) || value === 'columns') throw new Error(`Invalid block id ${value}`)
   return value
 }
 function quote(value: string): string {
-  if (typeof value !== 'string' || value.includes('"') || value.includes('\u0000')) throw new Error('Block labels cannot contain a literal quote or NUL')
-  return `"${value}"`
+  if (typeof value !== 'string' || value.includes('\u0000')) throw new Error('Block labels must be text without NUL')
+  return `"${writeBlockText(value)}"`
 }
 function declaration(node: Block): string {
   const name = id(node.id),
@@ -243,6 +255,16 @@ export function verifyBlock(body: BlockBody, opts: VerifyOptions): LayoutWarning
   if (!entries.length) warnings.push({ code: 'EMPTY_DIAGRAM' })
   for (const { node } of entries) if (node.type !== 'space' && node.label) overflow(node.id, node.label)
   for (const edge of body.edges) if (!ids.has(edge.start!) || !ids.has(edge.end!)) warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax: 'undeclared endpoint', message: `Block edge ${edge.id} references an undeclared endpoint` })
+  return warnings
+}
+export function blockUnsupportedSyntaxWarnings(source: string): LayoutWarning[] {
+  if (!/acc(?:Title|Descr)|%%\{/i.test(source)) return []
+  const normalized = normalizeMermaidSource(source)
+  const warnings: LayoutWarning[] = []
+  if (normalized.accessibility.title !== undefined || normalized.accessibility.descr !== undefined) warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax: 'block_accessibility', message: 'Block accessibility metadata is rendered and preserved as authored. Pinned Mermaid has no Block accessibility statement, so this source cannot accept typed edits.' })
+  try {
+    if (source.includes('%%{') && hasDirectiveLabel(parseBlockDiagram(normalized.familyLines))) warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax: 'block_directive_text', message: 'Block labels containing a directive opener are read literally. The writer protects their quoted payloads with entity codes for pinned Mermaid.' })
+  } catch { /* Native syntax failures are diagnosed by the render path. */ }
   return warnings
 }
 const str = (required = true) => ({ type: 'string' as const, required }),

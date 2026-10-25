@@ -284,7 +284,9 @@ function unquote(value: string): string {
 }
 
 function quoteToken(value: string): string {
-  return /^[A-Za-z0-9_./-]+$/.test(value) && !/^(commit|branch|checkout|switch|merge|cherry-pick)$/i.test(value) ? value : `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
+  // INT and title tokens precede branch references in the pinned lexer.
+  // Quote their prefixes, keywords, and names outside the reference alphabet.
+  return /^[A-Za-z_](?:[-./\w]*[-\w])?$/.test(value) && !/^(?:title|(?:gitGraph|commit|branch|checkout|switch|merge|cherry-pick|LR|TB|BT|NORMAL|REVERSE|HIGHLIGHT)$)/i.test(value) ? value : `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
 }
 
 function finiteOrder(value: number | undefined, fallback: number): number {

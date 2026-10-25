@@ -5,6 +5,9 @@ import { tokenize as tokenizeRequirement } from '../requirement/lexer.ts'
 import { T as RequirementToken, TOKEN_NAMES as requirementTokenNames } from '../requirement/tokens.ts'
 import { normalizeMermaidSource, preservedMermaidFamilyText, type NormalizedMermaidSource } from '../mermaid-source.ts'
 import { cleanupMermaidSource } from '../shared/mermaid-cleanup.ts'
+import { readAuthoredGrammarAccessibility } from '../shared/grammar-text.ts'
+import { AccessibilityTextError, normalizeBodyAccessibility } from './accessibility-envelope.ts'
+import { accessibilityFields } from '../shared/accessibility-directives.ts'
 import { maskAccessibilityDirectivesForSourceMap } from '../family-detection.ts'
 import { type ParserObservation, withParserObservation } from '../shared/parser-observation.ts'
 import { blockEntries, mutateBlock, parseBlockBody, renderBlock, verifyBlock } from './block-body.ts'
@@ -383,11 +386,12 @@ function sourceMap(body: StableBody, source: string, origin?: FamilySourceMapCon
 
 function hooks<K extends StableBody['kind']>(
   kind: K,
-  parse: (lines: string[]) => Extract<StableBody, { kind: K }> | null,
+  parse: (lines: string[], accessibility?: Accessibility) => Extract<StableBody, { kind: K }> | null,
   serialize: (body: Extract<StableBody, { kind: K }>) => string,
   mutate: (body: Extract<StableBody, { kind: K }>, op: never) => Result<Extract<StableBody, { kind: K }>, MutationError>,
   verify: (body: Extract<StableBody, { kind: K }>, opts: VerifyOptions) => LayoutWarning[],
   parseSource?: (source: string, normalized?: NormalizedMermaidSource, accessibility?: Accessibility) => Extract<StableBody, { kind: K }> | null,
+  ownsAccessibility = false,
 ): FamilyOperations {
   // familyBody retains indentation and can retain wrapper comments after
   // frontmatter removal. Header-relative readers must start at the header,
@@ -399,7 +403,15 @@ function hooks<K extends StableBody['kind']>(
   }
   const readSource = (source: string) => parseSource ? parseSource(source) : parse(headerLines(source))
   return {
-    parse: ctx => ok((parseSource ? parseSource(ctx.source.familyBody, ctx.source, ctx.meta.accessibility) : parse(headerLines(ctx.source.familyBody))) ?? { kind: 'opaque', family: kind, source: ctx.opaqueSource }),
+    parse: ctx => {
+      const body = parseSource ? parseSource(ctx.source.familyBody, ctx.source, ctx.meta.accessibility) : parse(headerLines(ctx.source.familyBody), ctx.meta.accessibility)
+      if (body && ownsAccessibility) {
+        const logical = readAuthoredGrammarAccessibility(ctx.meta.accessibility)
+        ctx.meta.accessibility = logical
+        Object.assign(body, accessibilityFields(logical))
+      }
+      return ok(body ?? { kind: 'opaque', family: kind, source: ctx.opaqueSource })
+    },
     serialize: body => {
       if (body.kind !== kind) throw new Error(`Expected ${kind} body`)
       return serialize(body as Extract<StableBody, { kind: K }>)
@@ -408,9 +420,18 @@ function hooks<K extends StableBody['kind']>(
       if (body.kind !== kind) return err({ code: 'UNSUPPORTED_FAMILY', message: `${kind} contains unmodeled syntax and remains preserved verbatim` })
       const changed = mutate(body as Extract<StableBody, { kind: K }>, op as never)
       if (!changed.ok) return changed
+      try { changed.value = normalizeBodyAccessibility(changed.value) }
+      catch (error) {
+        if (!(error instanceof AccessibilityTextError)) throw error
+        return err({ code: 'INVALID_OP', message: error.message })
+      }
       // Generated occurrence IDs belong to the resulting source artifact.
       // Publish the same identities/order that its renderer and source map see.
       const normalized = readSource(serialize(changed.value))
+      if (normalized && (changed.value.accessibilityTitle !== normalized.accessibilityTitle
+        || changed.value.accessibilityDescription !== normalized.accessibilityDescription)) {
+        return err({ code: 'INVALID_OP', message: `${kind} accessibility text cannot be serialized without changing its value` })
+      }
       return normalized ? ok(normalized) : err({ code: 'INVALID_OP', message: `${kind} edit could not preserve its structured representation` })
     },
     verify: (body, opts) => (body.kind === kind ? verify(body as Extract<StableBody, { kind: K }>, opts) : []),
@@ -425,15 +446,24 @@ function hooks<K extends StableBody['kind']>(
 
 export const PACKET_AGENT_HOOKS = /* @__PURE__ */ hooks('packet', parsePacketBody, renderPacket, mutatePacket, verifyPacket)
 
-export const KANBAN_AGENT_HOOKS = /* @__PURE__ */ hooks('kanban', parseKanbanBody, renderKanban, mutateKanban, verifyKanban, (text, source) => parseKanbanBody(text, source ?? normalizeMermaidSource(text)))
+export const KANBAN_AGENT_HOOKS = /* @__PURE__ */ hooks('kanban', lines => parseKanbanBody(lines), renderKanban, mutateKanban, verifyKanban, (text, source) => parseKanbanBody(text, source ?? normalizeMermaidSource(text)))
 
 export const REQUIREMENT_AGENT_HOOKS = /* @__PURE__ */ hooks('requirement', lines => parseRequirementBody(lines.slice(1)), renderRequirement, mutateRequirement, verifyRequirement, (text, source, accessibility) => parseRequirementBody(source ? preservedMermaidFamilyText(source, 'authored') : cleanupMermaidSource(text).authoredPayloadText, accessibility))
 
-export const BLOCK_AGENT_HOOKS = /* @__PURE__ */ hooks('block', lines => parseBlockBody(lines.slice(1)), renderBlock, mutateBlock, verifyBlock)
+export const BLOCK_AGENT_HOOKS = /* @__PURE__ */ hooks('block', (lines, accessibility) => parseBlockBody(lines.slice(1), accessibility), renderBlock, mutateBlock, verifyBlock)
 
-export const TREEMAP_AGENT_HOOKS = /* @__PURE__ */ hooks('treemap', lines => parseTreemapBody(lines.slice(1)), renderTreemap, mutateTreemap, verifyTreemap)
+export const TREEMAP_AGENT_HOOKS: FamilyOperations = {
+  .../* @__PURE__ */ hooks('treemap', lines => parseTreemapBody(lines.slice(1)), renderTreemap, mutateTreemap, verifyTreemap, undefined, true),
+  // Source-only labels still need authored indentation to retain their parents.
+  renderSource: () => 'serialized',
+}
 
-export const ISHIKAWA_AGENT_HOOKS = /* @__PURE__ */ hooks('ishikawa', lines => parseIshikawaBody(lines.slice(1)), renderIshikawa, mutateIshikawa, verifyIshikawa)
+export const ISHIKAWA_AGENT_HOOKS: FamilyOperations = {
+  .../* @__PURE__ */ hooks('ishikawa', lines => parseIshikawaBody(lines.slice(1)), renderIshikawa, mutateIshikawa, verifyIshikawa, undefined, true),
+  // Canonical line trimming loses cause nesting; opaque bodies own the
+  // indentation in their preserved source just as typed bodies own the tree.
+  renderSource: () => 'serialized',
+}
 
 export const STABLE_FAMILY_AGENT_HOOKS = {
   packet: PACKET_AGENT_HOOKS,

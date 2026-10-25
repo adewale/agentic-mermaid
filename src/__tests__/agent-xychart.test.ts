@@ -525,3 +525,42 @@ describe('xychart round-trip property', () => {
     expect(serializeMermaid(reparsed)).toBe(out)
   })
 })
+
+
+test('XYChart writer quotes keyword prefixes and shields comment openers without changing stored text', async () => {
+  const { startUpstreamMermaid } = await import('./helpers/upstream-mermaid.ts')
+  const upstream = startUpstreamMermaid()
+  try {
+    for (const label of ['verticala', 'horizontal2', 'titleRevenue', 'barGraph', 'lineItem', '60% on MMLU', '%%', 'Revenue %%{text', '#37; literal']) {
+      const sourceLabel = label === '#37; literal' ? '#35;37; literal' : label
+      const source = `xychart
+  title "${sourceLabel}"
+  x-axis "${sourceLabel}" ["${sourceLabel}"]
+  y-axis "${sourceLabel}" 0 --> 10
+  line "${sourceLabel}" [1 "${sourceLabel}"]`
+      const diagram = xychart(source)
+      const written = serializeMermaid(diagram)
+      if (label === '60% on MMLU') expect(written).toContain('title "60% on MMLU"')
+      expect(await upstream.publicAccepts(written)).toBe(true)
+      expect(xychart(written).body).toEqual(diagram.body)
+      expect(diagram.body.title).toBe(label)
+      expect(diagram.body.xAxis).toEqual({ name: label, categories: [label] })
+      expect(diagram.body.series[0]).toMatchObject({ name: label, pointLabels: [label] })
+      if (label.includes(';')) {
+        expect(mutate(xychart(), { kind: 'set_title', title: label }).ok).toBe(false)
+      } else {
+        const edited = apply(xychart(), { kind: 'set_title', title: label })
+        expect(await upstream.publicAccepts(serializeMermaid(edited))).toBe(true)
+        expect(xychart(serializeMermaid(edited)).body.title).toBe(label)
+      }
+    }
+    for (const statement of ['title ""', 'x-axis ""', 'x-axis [""]', 'line "" [1]', 'line [1 ""]']) {
+      const source = `xychart\n${statement}`
+      const parsed = parseMermaid(source)
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok) throw Error(JSON.stringify(parsed.error))
+      expect(parsed.value.body.kind).toBe('opaque')
+      expect(serializeMermaid(parsed.value).trim()).toBe(source)
+    }
+  } finally { upstream.close() }
+})

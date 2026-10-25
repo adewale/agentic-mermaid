@@ -1,7 +1,7 @@
-import { encodeMermaidEntities, TERMINAL_CONTROL_RE } from '../shared/mermaid-entities.ts'
+import { encodeMermaidEntities, protectMermaidEntityPrepass, TERMINAL_CONTROL_RE } from '../shared/mermaid-entities.ts'
 import { generatedIds } from '../shared/generated-identity.ts'
 import {
-  C4_VARIANTS, C4AmbiguousArgumentError, c4ArgumentFields, c4BoundaryFields, c4DiagnosticMessage, c4DirectiveCategory, c4ElementFields,
+  C4_VARIANTS, C4AmbiguousArgumentError, c4ArgumentFields, c4ArgumentsArePortable, c4BoundaryFields, c4DiagnosticMessage, c4DirectiveArgumentsArePortable, c4DirectiveCategory, c4DirectiveFields, c4ElementFields,
   c4RecordSignature, c4RelationshipFields, emptyC4Body, readC4Source, resolveC4Directives,
 } from '../c4/parser.ts'
 import type {
@@ -27,10 +27,11 @@ export function parseC4Body(lines: string[] | string, accessibility: Accessibili
   }
 }
 
-function quote(value: string): string {
+function quote(value: string, reserved = ''): string {
   // C4's official lexer has no backslash escape. Entity encoding also protects
-  // literal entity spellings and does not reinterpret punctuation as syntax.
-  return `"${edgeWhitespace(encodeMermaidEntities(value, '"\\'))}"`
+  // literal entity spellings. Shield directive openers after encoding: the
+  // public Mermaid prepass reads them even inside a quoted argument.
+  return `"${edgeWhitespace(encodeMermaidEntities(value, '"\\' + reserved).replace(/%%\{/g, '%#37;{'))}"`
 }
 
 /** Mermaid's C4 grammar, and ours, trim each argument, so whitespace at
@@ -40,22 +41,24 @@ function edgeWhitespace(text: string): string {
   return text.replace(/^\s+|\s+$/g, run => [...run].map(character => TERMINAL_CONTROL_RE.test(character) ? character : `#${character.codePointAt(0)};`).join(''))
 }
 
-function alias(value: string): string {
-  return /^[A-Za-z_][A-Za-z_0-9]*$/.test(value) ? value : quote(value)
+function alias(value: string, reserved = ''): string {
+  return /^[A-Za-z_][A-Za-z_0-9]*$/.test(value) ? value : quote(value, reserved)
 }
-function displayQuote(value: string): string { return `"${edgeWhitespace(encodeMermaidEntities(value, '"\\<>').replace(/\r\n?|\n/g, '<br/>'))}"` }
+function displayQuote(value: string, reserved = ''): string { return `"${edgeWhitespace(encodeMermaidEntities(value, '"\\<>' + reserved).replace(/%%\{/g, '%#37;{').replace(/\r\n?|\n/g, '<br/>'))}"` }
 
 function call(name: string, fields: Record<string, string | undefined>, slots: readonly string[], required: number): string {
-  const args: string[] = []
-  for (let index = 0; index < required; index++) {
-    const key = slots[index]!, value = fields[key] ?? ''
-    args.push(key === 'alias' || key === 'from' || key === 'to' || key === 'index' ? alias(value) : displayQuote(value))
-  }
-  for (let index = required; index < slots.length; index++) {
-    const key = slots[index]!, value = fields[key]
-    if (value !== undefined && value !== '') args.push(`$${key}=${['techn', 'descr', 'type'].includes(key) ? displayQuote(value) : quote(value)}`)
-  }
-  return `${name}(${args.join(', ')})`
+  return protectMermaidEntityPrepass(reserved => {
+    const args: string[] = []
+    for (let index = 0; index < required; index++) {
+      const key = slots[index]!, value = fields[key] ?? ''
+      args.push(key === 'alias' || key === 'from' || key === 'to' || key === 'index' ? alias(value, reserved) : displayQuote(value, reserved))
+    }
+    for (let index = required; index < slots.length; index++) {
+      const key = slots[index]!, value = fields[key]
+      if (value !== undefined && value !== '') args.push(`$${key}=${['techn', 'descr', 'type'].includes(key) ? displayQuote(value, reserved) : quote(value, reserved)}`)
+    }
+    return `${name}(${args.join(', ')})`
+  })
 }
 
 export function renderC4Element(record: C4Element): string {
@@ -78,7 +81,25 @@ export function renderC4Relationship(record: C4Relationship): string {
 }
 function renderDirective(record: C4Directive): string {
   if (record.name === 'direction') return `direction ${record.args[0]?.value ?? 'TB'}`
-  return `${record.name}(${record.args.map(arg => `${arg.name ? `$${arg.name}=` : ''}${quote(arg.value)}`).join(', ')})`
+  return protectMermaidEntityPrepass(reserved => {
+    const slots = c4DirectiveFields(record.name)
+    if (slots) {
+      const fields = c4ArgumentFields(record.args, slots)
+      if (record.name === 'UpdateLayoutConfig') {
+        // The DB ignores names here. An empty positional value leaves the
+        // current setting untouched; the grammar still requires one attribute.
+        const last = fields.c4BoundaryInRow !== undefined ? 2 : 1
+        return `${record.name}(${slots.slice(0, last).map(key => quote(fields[key] ?? '', reserved)).join(', ')})`
+      }
+      const required = record.name === 'UpdateElementStyle' ? 1 : 2
+      const args = slots.slice(0, required).map(key => quote(fields[key] ?? '', reserved))
+      for (const key of slots.slice(required)) {
+        if (fields[key] !== undefined && fields[key] !== '') args.push(`$${key}=${quote(fields[key]!, reserved)}`)
+      }
+      return `${record.name}(${args.join(', ')})`
+    }
+    return `${record.name}(${record.args.map(arg => `${arg.name ? `$${arg.name}=` : ''}${quote(arg.value, reserved)}`).join(', ')})`
+  })
 }
 
 function newStatement(body: C4Body, kind: C4Statement['kind'], entityId?: string, raw = ''): C4Statement {
@@ -121,7 +142,7 @@ function canonicalStatements(body: C4Body): C4Statement[] {
 const RESPELLED_C4_EXTENSIONS = new Set([
   'c4_multiline_arguments', 'c4_empty_named_argument', 'c4_space_before_arguments',
   'c4_quoted_string_extension', 'c4_relindex_positional_metadata',
-  'c4_unquoted_argument',
+  'c4_empty_layout_arguments', 'c4_unquoted_argument', 'c4_entity_prepass',
 ])
 
 /** Unchanged statements retain exact raw bytes. A typed edit rewrites only its
@@ -144,12 +165,15 @@ function renderC4Unchecked(body: C4Body, portable = false): string {
   const relationships = new Map(body.relationships.map(record => [record.id, record]))
   const directives = new Map(body.directives.map(record => [record.id, record]))
   const sourceStatements = body.statements.length ? body.statements : canonicalStatements(body)
+  const boundaryContents: boolean[] = []
   for (const statement of sourceStatements) {
     let current: string | undefined, signature: string | undefined
+    let rewriteArguments = false
     if (statement.kind === 'header') { current = body.variant; signature = body.variant }
+    else if (statement.kind === 'trivia' && canonical.has(statement.id)) current = 'UpdateLayoutConfig("")'
     else if (statement.kind === 'title') {
       if (body.title === undefined) continue
-      current = `title ${encodeMermaidEntities(body.title, '#;<>').replace(/\r\n?|\n/g, '<br/>')}`; signature = body.title
+      current = protectMermaidEntityPrepass(reserved => `title ${encodeMermaidEntities(body.title!, '#;<>' + reserved).replace(/%%\{/g, '%#37;{').replace(/\r\n?|\n/g, '<br/>')}`); signature = body.title
     } else if (statement.kind === 'accessibility') {
       const value = statement.entityId === 'title' ? body.accessibilityTitle : body.accessibilityDescription
       if (value === undefined) continue
@@ -163,12 +187,25 @@ function renderC4Unchecked(body: C4Body, portable = false): string {
         : statement.kind === 'boundary-open' ? boundaries.get(statement.entityId!)
           : statement.kind === 'relationship' ? relationships.get(statement.entityId!) : directives.get(statement.entityId!)
       if (!record) continue
+      const positional = statement.kind === 'element' ? c4ElementFields((record as C4Element).macro).slice(0, 2)
+        : statement.kind === 'boundary-open' ? c4BoundaryFields((record as C4Boundary).macro).slice(0, 2)
+          : statement.kind === 'relationship' ? c4RelationshipFields((record as C4Relationship).macro).slice(0, (record as C4Relationship).macro === 'RelIndex' ? 4 : 3) : []
+      rewriteArguments = respell && ('name' in record ? !c4DirectiveArgumentsArePortable(record) : !c4ArgumentsArePortable(record.args, positional))
       signature = c4RecordSignature(record)
       current = statement.kind === 'element' ? renderC4Element(record as C4Element)
         : statement.kind === 'boundary-open' ? renderC4Boundary(record as C4Boundary)
           : statement.kind === 'relationship' ? renderC4Relationship(record as C4Relationship) : renderDirective(record as C4Directive)
     }
-    let text = current === undefined || (statement.raw && (signature === statement.signature || statement.kind === 'boundary-close')) && !canonical.has(statement.id) ? statement.raw : current
+    let text = current === undefined || (statement.raw && (signature === statement.signature || statement.kind === 'boundary-close')) && !canonical.has(statement.id) && !rewriteArguments ? statement.raw : current
+    if (portable) {
+      if (statement.kind === 'boundary-close') {
+        if (boundaryContents.pop() === false) text = `\n  UpdateLayoutConfig("")\n${text}`
+      } else if (statement.kind === 'element' || statement.kind === 'relationship' || statement.kind === 'directive' || statement.kind === 'boundary-open'
+        || statement.kind === 'trivia' && /^\s*UpdateLayoutConfig\(\s*""\s*\)\s*$/.test(text)) {
+        if (boundaryContents.length) boundaryContents[boundaryContents.length - 1] = true
+        if (statement.kind === 'boundary-open') boundaryContents.push(false)
+      }
+    }
     if (semicolons.has(statement.id)) text = text.replace(/;/g, '')
     if (breaks.has(statement.id)) lineBreakBefore(parts)
     parts.push({ kind: statement.kind, text })
@@ -552,7 +589,7 @@ export function mutateC4(body: C4Body, op: C4MutationOp): Result<C4Body, Mutatio
     resolveC4Directives(next)
     const problem = c4BodyProblemCore(next)
     if (problem) throw new Error(problem)
-    const parsed = readC4Source(renderC4Unchecked(next))
+    const parsed = readC4Source(renderC4Unchecked(next, true))
     if (parsed.diagnostics.some(item => item.severity === 'error')) throw new Error(parsed.diagnostics.find(item => item.severity === 'error')!.message)
     return ok(parsed)
   } catch (error) { return err({ code: 'INVALID_OP', message: error instanceof Error ? error.message : String(error) }) }

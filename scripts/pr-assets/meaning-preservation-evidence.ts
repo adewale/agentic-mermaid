@@ -890,6 +890,16 @@ const fixtures: Fixture[] = [
 ]
 const terminalFixtures = [
   {
+    id: 'terminal-block-protected-approaches',
+    source: 'block\ncolumns 2\nblock:G\nA B\nend\nC\nA --> B\nB --> A\nA --> B\nA --> C\nC --> A',
+    cue: 'The baseline refuses this nested parallel/reciprocal grid because its fixed gutter cannot hold the protected marker approaches. After, inspect all five connected routes and both composite and leaf frames. Cell spacing grows from the routing constraints; the unchanged authored columns and endpoints remain controls. The owning test checks emitted ink, rather than accepting port metadata as proof of connectivity.',
+  },
+  {
+    id: 'terminal-state-distinct-contacts',
+    source: 'stateDiagram-v2\nN1 --> N2\nstate Group {\nA\nnote "Inner #lt;b#gt;" as N1\nA --> N1\n}\nnote "Outer<br/>next" as N2\nN2 --> Group',
+    cue: 'Inspect the transition leaving Group and the incoming marker beside it. Before, a shared contact lets one marker erase another edge’s first owned stroke. After, incompatible marker meanings reserve separate contacts. Notes retain independent aliases and scope at both revisions; this PR does not add their support. The owning test follows actual edge-owned ink between physical ports. Mixed graphs may unbundle otherwise compatible routes when contact reservation is required.',
+  },
+  {
     id: 'terminal-sequence-literal-runs',
     source: sequenceEntitySource,
     cue: 'Current text-change witness: visible alias and message cells retain <b>code</b>, <i>literal</i> and *stars*, with entity codes decoded once. Terminal output shows the plain visible words for genuine emphasis. Inspect complete text and both message directions; the separate owning test establishes connector receipt correspondence. All following terminal panels are retained historical controls.',

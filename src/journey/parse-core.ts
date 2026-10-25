@@ -139,6 +139,10 @@ export interface JourneyWalkEvents {
  */
 export function walkJourneyLines(lines: string[], startIndex: number, events: JourneyWalkEvents): void {
   for (let i = startIndex; i < lines.length; i++) {
+    const authored = lines[i]!.trim()
+    // Mermaid protects entity tokens before recognizing comments. A writer's
+    // leading #106; or #lt; belongs to task text, not to a hash comment.
+    if (isJourneyComment(authored) && !/^#\w+;/.test(authored)) continue
     const line = journeyEntityMarkers(journeyGrammarText(lines[i]!.trim()))
     if (!line) continue
     if (isJourneyComment(line)) continue
@@ -214,7 +218,7 @@ function classifyStatement(statement: string, lineIndex: number, events: Journey
   const sectionMatch = statement.match(JOURNEY_SECTION_RE)
   if (sectionMatch) {
     const label = journeyText(sectionMatch[1]!)
-    if (!label.value || sectionMatch[1]!.includes(':')) {
+    if (!label.value) {
       return issue('section_colon', `Journey section labels must not contain ':': "${statement}"`)
     }
     events.section?.(label.value, lineIndex, label.content)

@@ -23,11 +23,12 @@ import type {
 } from './types.ts'
 import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
 import { indexedIdAllocator, labelOverflowCollector, resolveInsertIndex, setOptionalField } from './body-utils.ts'
-import { encodeMermaidEntities } from '../shared/mermaid-entities.ts'
+import { encodeMermaidEntities, toEntityMarkers } from '../shared/mermaid-entities.ts'
+import { readAuthoredGrammarAccessibility, writeGrammarText } from '../shared/grammar-text.ts'
 import { prepareDisplayText, resolveLabelContent, writeDisplayText, type LabelContent } from '../shared/display-text.ts'
 import {
   walkJourneyLines, normalizeJourneyText, normalizeJourneyActor,
-  isValidJourneyScore, hasJourneyStatementDelimiter, journeyActorKey, JOURNEY_ACTOR_COLOR_LIMIT, type JourneyParseIssue,
+  isValidJourneyScore, journeyActorKey, JOURNEY_ACTOR_COLOR_LIMIT, type JourneyParseIssue,
 } from '../journey/parse-core.ts'
 
 // ---- Parser -----------------------------------------------------------------
@@ -37,7 +38,7 @@ export type JourneyBodyParse =
   | { ok: false; issue: JourneyParseIssue }
 
 function formatJourneyInline(value: string): string {
-  return value.split(/\r?\n/).map(part => part.trim()).join('<br>')
+  return writeGrammarText(value.split(/\r?\n/).map(part => part.trim()).join('<br>'), ':;,%{}\\')
 }
 
 function serializeJourneyLabel(value: string, content?: LabelContent): string {
@@ -45,7 +46,7 @@ function serializeJourneyLabel(value: string, content?: LabelContent): string {
   const source = writeDisplayText(prepared, text => encodeMermaidEntities(text, ';&#:,%<*~').replace(/\\(?=n)/g, '#92;')
     .replace(/^\s+|\s+$/g, spaces => encodeMermaidEntities(spaces, spaces)))
   // A task label can otherwise be read as a title/section/accessibility line.
-  return /^(?:title|section|accTitle|accDescr)\b/i.test(source)
+  return /^(?:journey|title|section|accTitle|accDescr)\b/i.test(source)
     ? `#${source.codePointAt(0)!};${source.slice(1)}` : source
 }
 
@@ -56,6 +57,7 @@ function serializeJourneyLabel(value: string, content?: LabelContent): string {
  * opaque fallback can carry its reason.
  */
 export function parseJourneyBody(lines: string[], accessibility: import('./types.ts').Accessibility = {}): JourneyBodyParse {
+  accessibility = readAuthoredGrammarAccessibility(accessibility)
   const body: JourneyBody = {
     kind: 'journey',
     sections: [],
@@ -110,7 +112,7 @@ export function renderJourney(body: JourneyBody): string {
     if (body.accessibilityDescription.includes('\n')) {
       lines.push('  accDescr {')
       for (const line of body.accessibilityDescription.split(/\r?\n/)) {
-        lines.push(`    ${line.trim()}`)
+        lines.push(`    ${formatJourneyInline(line.trim())}`)
       }
       lines.push('  }')
     } else {
@@ -158,9 +160,8 @@ function normalizeOpText(value: string, field: string, previous?: string): Resul
   return ok(normalized)
 }
 
-/** Accessibility text is line-oriented free text, but `;` terminates a
- * journey statement and `{`/`}` delimit the accDescr block form — text
- * carrying them would not survive serialize → re-parse. null clears. */
+/** Accessibility values are logical text. Their writer owns statement and
+ * block delimiters; callers do not pre-escape punctuation. null clears. */
 function normalizeAccessibilityOpText(
   value: string | null,
   field: string,
@@ -168,9 +169,7 @@ function normalizeAccessibilityOpText(
   if (value === null) return ok(undefined)
   if (typeof value !== 'string') return err({ code: 'INVALID_OP', message: `Journey ${field} must be a string or null` })
   const normalized = normalizeJourneyText(value)
-  if (!normalized || /[{}]/.test(normalized) || hasJourneyStatementDelimiter(normalized)) {
-    return err({ code: 'INVALID_OP', message: `Journey ${field} must be non-empty and must not contain statement-delimiter semicolons, {, or }` })
-  }
+  if (!normalized) return err({ code: 'INVALID_OP', message: `Journey ${field} must be non-empty` })
   return ok(normalized)
 }
 
@@ -378,17 +377,21 @@ export function mutateJourney(body: JourneyBody, op: JourneyMutationOp): Result<
     return err({ code: 'INVALID_OP', message: 'Journey edit cannot be represented losslessly by Mermaid syntax' })
   }
 
-  return ok(next)
+  return ok(reparsed.body)
 }
 
 function journeySemantics(body: JourneyBody): unknown {
+  const label = (value: string | undefined, content?: LabelContent): unknown => value === undefined ? undefined : {
+    value,
+    runs: prepareDisplayText(resolveLabelContent(value, content)).lines.map(line => line.map(({ text, bold, italic, underline, strikethrough }) => ({ text, bold, italic, underline, strikethrough }))),
+  }
   return {
-    title: body.title,
+    title: label(body.title, body.titleContent),
     accessibilityTitle: body.accessibilityTitle,
     accessibilityDescription: body.accessibilityDescription,
     sections: body.sections.map(section => ({
-      label: section.label,
-      tasks: section.tasks.map(task => ({ text: task.text, score: task.score, actors: task.actors })),
+      label: label(section.label, section.labelContent),
+      tasks: section.tasks.map(task => ({ text: label(task.text, task.textContent), score: task.score, actors: task.actors.map((actor, index) => label(actor, task.actorContents?.[index])) })),
     })),
   }
 }
@@ -408,7 +411,18 @@ export function journeyUnsupportedSyntaxWarnings(canonicalSource: string): Layou
   const warnings = (indices: Set<number>, syntax: string, message: string): LayoutWarning[] => [...indices].map(line => ({
     code: 'UNSUPPORTED_SYNTAX', syntax, line, message,
   }))
+  const fieldWarnings: LayoutWarning[] = []
+  walkJourneyLines(lines, header + 1, {
+    task: (_text, _score, _actors, index) => {
+      const token = toEntityMarkers(lines[index] ?? '').split(':', 1)[0]!.trim()
+      if (token.includes('#') || /^journey\b/i.test(token)) fieldWarnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax: 'journey_nonportable_text', line: index + 1, message: 'Journey task text requires grammar escapes to preserve its literal hash or keyword prefix in pinned Mermaid.' })
+    },
+    section: (label, index) => {
+      if (/^\s*section\s+[^\n]*:/i.test(toEntityMarkers(lines[index] ?? ''))) fieldWarnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax: 'journey_section_colon', line: index + 1, message: `Journey section ${JSON.stringify(label)} contains a colon read as label text; the writer protects it for pinned Mermaid.` })
+    },
+  })
   return [
+    ...fieldWarnings,
     ...warnings(statementLines, 'journey_semicolon_statement_extension', 'Semicolon-separated Journey statements are an Agentic Mermaid extension; pinned Mermaid rejects this source. Put each statement on its own line for upstream portability.'),
     ...warnings(affectedLines, 'journey_entity_semicolon', 'Pinned Mermaid does not read these as HTML references in Journey labels or actors: it rejects named-reference semicolons and reads numeric references differently. The writer preserves their text with Mermaid entity escapes.'),
   ]

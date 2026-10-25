@@ -44,7 +44,8 @@ function isPositiveFinite(n: unknown): n is number {
 /** Re-encode a label for emission inside `"..."`. Pie shows `<br/>` as
  * text, so a line break stays one: the string runs across it. */
 function encodeLabel(label: string): string {
-  return label.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+  // STRING consumes an escaped percent as literal text, before display.
+  return label.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/%%(?=\{)/g, '%\\%')
 }
 
 /** Mermaid represents semantic line breaks inside one statement as `<br/>`. */

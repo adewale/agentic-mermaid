@@ -97,6 +97,9 @@ const manifest = JSON.parse(readFileSync(join(ROOT, 'eval/mermaid-upstream-suite
 const cases = JSON.parse(readFileSync(join(ROOT, 'eval/mermaid-upstream-suite-bench/cases.json'), 'utf8')) as BenchCase[]
 // Keep the historical harvest intact while asserting the repaired public reading.
 for (const entry of cases) {
+  // The harvested recovery case uses fill, which pinned Quadrant rejects.
+  // Keep its native reading and source, without admitting a typed style.
+  if (entry.id === 'quadrant-upstream-should-be-able-to-handle-constructor-as-a-classname') entry.assertions.expectStructured = false
   if (entry.id === 'flowchart-upstream-should-handle-text-in-ellipse-vertices') entry.assertions.labelsContain = ['this is an ellipse', 'B']
   if (entry.id === 'sequence-upstream-it-should-handle-par-over-statements') {
     entry.assertions.expectStructured = true
@@ -353,6 +356,7 @@ describe('BUILD-20 Mermaid upstream parser/DB bench', () => {
       for (const label of c.assertions.labelsContain ?? []) expect(labels).toContain(label)
 
       const serialized = serializeMermaid(parsed.value)
+      if (c.assertions.expectStructured === false) expect(serialized).toBe(c.source.endsWith('\n') ? c.source : c.source + '\n')
       const reparsed = parseMermaid(serialized)
       expect(reparsed.ok, reparsed.ok ? '' : reparsed.error.map(e => e.message).join('; ')).toBe(true)
       if (reparsed.ok) {
@@ -362,10 +366,12 @@ describe('BUILD-20 Mermaid upstream parser/DB bench', () => {
         // this proves no node/edge/group was silently dropped on the way.
         const before = countStructuralElements(parsed.value)
         const after = countStructuralElements(reparsed.value)
-        // Route through the shared verdict (Move 3). Keep this gate's original
-        // lenient policy: a structured body that re-parses to OPAQUE (after=null)
-        // is owned by the byte round-trip check above, not flagged here.
-        if (before && after) expect({ id: c.id, drop: isDrop(before, after), before, after }).toEqual({ id: c.id, drop: false, before, after })
+        // A stable string is insufficient if writing silently removes typed
+        // editability. Source-only input is checked against authored bytes above.
+        if (before) {
+          expect(after, `${c.id} lost its structured representation on reload`).not.toBeNull()
+          if (after) expect({ id: c.id, drop: isDrop(before, after), before, after }).toEqual({ id: c.id, drop: false, before, after })
+        }
       }
     })
   }

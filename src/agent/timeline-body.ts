@@ -7,23 +7,21 @@
 
 import { unknownOpMessage } from './mutation-ops.ts'
 import type {
-  TimelineBody, TimelineSection, TimelinePeriod, TimelineEvent,
+  TimelineBody, TimelineSection, TimelinePeriod,
   TimelineMutationOp, MutationError, Result, Accessibility, LayoutWarning,
 } from './types.ts'
 import { ok, err } from './types.ts'
 import {
-  TIMELINE_CONTINUATION_RE,
   TIMELINE_PERIOD_RE,
-  TIMELINE_SECTION_RE,
   TIMELINE_TITLE_RE,
   isTimelineCommentLine,
   normalizeTimelineBreaks,
   parseTimelineHeader,
-  splitTimelineEvents,
-  assertUnambiguousTimelineSections,
 } from '../timeline/parse-core.ts'
+import { parseTimelineDiagram } from '../timeline/parser.ts'
+import { writeTimelineText } from '../timeline/text.ts'
 import { indexedIdAllocator, resolveInsertIndex, setOptionalField } from './body-utils.ts'
-import { parseAccessibilityDirective, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
+import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 
 // ---- Parser -----------------------------------------------------------------
 
@@ -42,121 +40,18 @@ function normalizeTimelineText(value: string): string {
   return normalizeTimelineBreaks(value.trim().replace(/\r\n?/g, '\n'))
 }
 
-function serializeTimelineText(value: string): string {
-  return value.replace(/\n/g, '<br>')
-}
-
-function periodWritesSection(value: string): boolean {
-  return /^section\s/i.test(serializeTimelineText(value).trim())
-}
-
-function validTimelineText(value: string, opts: { allowColon: boolean }): boolean {
-  return value.length > 0 && (opts.allowColon || !value.includes(':'))
-}
-
-function parseTimelineEventSegments(raw: string): string[] | null {
+/** Both projections use the same reader; field writers protect delimiters
+ * and keyword contexts without removing the author's typed structure. */
+export function parseTimelineBody(lines: string[], accessibility: Accessibility = {}): TimelineBody | null {
   try {
-    return splitTimelineEvents(raw)
-      .map(normalizeTimelineText)
-      .filter(segment => validTimelineText(segment, { allowColon: true }))
+    const diagram = parseTimelineDiagram(['timeline', ...lines], accessibility)
+    // An explicit empty section is distinct from an implicit unnamed section.
+    // The current writer cannot spell it without source-order/trivia support.
+    if (diagram.sections.some(section => section.label === '')) return null
+    return { kind: 'timeline', ...diagram }
   } catch {
     return null
   }
-}
-
-export function parseTimelineBody(lines: string[], accessibility: Accessibility = {}): TimelineBody | null {
-  try { assertUnambiguousTimelineSections(lines) } catch { return null }
-  const scanned = scanAccessibilityDirectives(lines)
-  if (scanned.unclosedIndex !== undefined) return null
-  lines = scanned.familyLines
-  const accessibilityTitle = scanned.accessibility.title ?? accessibility.title
-  const accessibilityDescription = scanned.accessibility.descr ?? accessibility.descr
-  const body: TimelineBody = {
-    kind: 'timeline',
-    sections: [],
-    ...(accessibilityTitle !== undefined ? { accessibilityTitle } : {}),
-    ...(accessibilityDescription !== undefined ? { accessibilityDescription } : {}),
-  }
-  let currentSection: TimelineSection | undefined
-  let currentPeriod: TimelinePeriod | undefined
-  let sIdx = 0, pIdx = 0, eIdx = 0
-
-  const implicitSection = (): TimelineSection => {
-    if (!currentSection) {
-      currentSection = { id: `section-${sIdx++}`, periods: [] }
-      body.sections.push(currentSection)
-    }
-    return currentSection
-  }
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]!.trim()
-    if (!line) continue
-    if (isTimelineCommentLine(line)) continue
-
-    const tm = line.match(TIMELINE_TITLE_RE)
-    if (tm) {
-      // Unlike section/period/event labels, pinned Mermaid draws titles raw.
-      const title = tm[1]!.trim()
-      if (!validTimelineText(title, { allowColon: true })) return null
-      body.title = title
-      continue
-    }
-
-    const sm = line.match(TIMELINE_SECTION_RE)
-    if (sm) {
-      const label = normalizeTimelineText(sm[1]!)
-      if (!validTimelineText(label, { allowColon: true })) return null
-      currentSection = { id: `section-${sIdx++}`, label, periods: [] }
-      body.sections.push(currentSection)
-      // A continuation after it still extends the latest period (native parser).
-      continue
-    }
-
-    // `: <continuation>` — extra event on the previous period.
-    const cont = line.match(TIMELINE_CONTINUATION_RE)
-    if (cont) {
-      if (!currentPeriod) return null
-      const eventTexts = parseTimelineEventSegments(line)
-      if (!eventTexts || eventTexts.length === 0) return null
-      for (const text of eventTexts) {
-        currentPeriod.events.push({ id: `event-${eIdx++}`, text })
-      }
-      continue
-    }
-
-    // `<label> : <event> [ : <event2> : <event3> …]`
-    const pm = line.match(TIMELINE_PERIOD_RE)
-    if (pm) {
-      const label = normalizeTimelineText(pm[1]!)
-      if (!validTimelineText(label, { allowColon: false })) return null
-      // Multi-event lines allow `: extra` segments to add more events to the same period.
-      const eventTexts = parseTimelineEventSegments(pm[2]!)
-      if (!eventTexts || eventTexts.length === 0) return null
-      const events: TimelineEvent[] = eventTexts.map(text => ({
-        id: `event-${eIdx++}`, text,
-      }))
-      const period: TimelinePeriod = { id: `period-${pIdx++}`, label, events }
-      implicitSection().periods.push(period)
-      currentPeriod = period
-      continue
-    }
-
-    // Upstream parity: a bare colon-free line is a period with no events.
-    if (!line.includes(':')) {
-      const label = normalizeTimelineText(line)
-      if (!validTimelineText(label, { allowColon: false })) return null
-      const period: TimelinePeriod = { id: `period-${pIdx++}`, label, events: [] }
-      implicitSection().periods.push(period)
-      currentPeriod = period
-      continue
-    }
-
-    // Unmodeled line → opaque fallback.
-    return null
-  }
-
-  return body
 }
 
 // ---- Verifier ---------------------------------------------------------------
@@ -186,54 +81,54 @@ export function timelineUnsupportedSyntaxWarnings(canonicalSource: string): Layo
       message: `Pinned Mermaid reads "timeline" starting a line as the diagram header, and rejects it after the header. Ours reads this line as the period ${JSON.stringify(label)}; remove a repeated header, or start the period with another word.`,
     })
   }
+  for (const [index, line] of lines.entries()) {
+    if (index > header && line.includes('%%{') && !isTimelineCommentLine(line)) warnings.push({
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'timeline_text_directive', line: index + 1,
+      message: 'Directive-looking text is retained as text. Pinned Mermaid preprocesses this opener; the writer protects its percent signs with entity codes.',
+    })
+    if (index > header && /^(?:title|section)$/i.test(line.trim()) && lines.slice(index + 1).some(next => next.trim())) warnings.push({
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'timeline_cross_line_keyword', line: index + 1,
+      message: 'This bare period keyword remains a period. Pinned Mermaid can consume the following line as its argument; the writer protects the keyword with an entity code.',
+    })
+  }
   return warnings
 }
 
 // ---- Serializer -------------------------------------------------------------
 
-export function renderTimeline(body: TimelineBody): string {
+function renderTimelineUnchecked(body: TimelineBody): string {
   const lines: string[] = [body.direction ? `timeline ${body.direction}` : 'timeline']
-  if (body.title) lines.push(`  title ${body.title}`)
-  if (body.accessibilityTitle) lines.push(`  accTitle: ${body.accessibilityTitle}`)
+  if (body.title) lines.push(`  title ${writeTimelineText(body.title, 'title')}`)
+  if (body.accessibilityTitle) lines.push(`  accTitle: ${writeTimelineText(body.accessibilityTitle, 'accessibility')}`)
   if (body.accessibilityDescription) {
     if (body.accessibilityDescription.includes('\n')) {
       lines.push('  accDescr {')
       for (const line of body.accessibilityDescription.split(/\r?\n/)) {
-        lines.push(`    ${line.trim()}`)
+        lines.push(`    ${writeTimelineText(line.trim(), 'accessibility')}`)
       }
       lines.push('  }')
     } else {
-      lines.push(`  accDescr: ${body.accessibilityDescription}`)
+      lines.push(`  accDescr: ${writeTimelineText(body.accessibilityDescription, 'accessibility')}`)
     }
   }
   for (const section of body.sections) {
-    if (section.label?.includes(':')) throw new Error('Timeline section labels must not contain :; put the period and events on a separate line')
-    if (section.label !== undefined) lines.push(`  section ${serializeTimelineText(section.label)}`)
+    if (section.label !== undefined) lines.push(`  section ${writeTimelineText(section.label, 'section')}`)
     for (const period of section.periods) {
-      if (periodWritesSection(period.label)) throw new Error('Timeline period labels must not start with "section ", which begins a section declaration')
       // First event on the same line as the period label; extra events on
       // continuation lines (`: text`). Matches Mermaid timeline syntax.
       if (period.events.length === 0) {
-        lines.push(`  ${serializeTimelineText(period.label)}`)
+        lines.push(`  ${writeTimelineText(period.label, 'period')}`)
         continue
       }
-      let line = `  ${serializeTimelineText(period.label)} : ${serializeTimelineText(period.events[0]!.text)}`
-      for (let i = 1; i < period.events.length; i++) {
-        const text = serializeTimelineText(period.events[i]!.text)
-        if (period.events[i - 1]!.text.endsWith(':')) {
-          // A trailing colon remains authored event text only when the next
-          // separator follows on this line (`A:: B`). A newline before that
-          // separator would make pinned Mermaid reject or misparse the period.
-          line += `: ${text}`
-        } else {
-          lines.push(line)
-          line = `       : ${text}`
-        }
-      }
-      lines.push(line)
+      lines.push(`  ${writeTimelineText(period.label, 'period')} : ${writeTimelineText(period.events[0]!.text, 'event')}`)
+      for (const event of period.events.slice(1)) lines.push(`       : ${writeTimelineText(event.text, 'event')}`)
     }
   }
   return lines.join('\n') + '\n'
+}
+
+export function renderTimeline(body: TimelineBody): string {
+  return renderTimelineUnchecked(body)
 }
 
 // ---- Mutator ----------------------------------------------------------------
@@ -265,14 +160,11 @@ function makeTimelineIdAllocator(body: TimelineBody): (prefix: 'section' | 'peri
   return prefix => allocators[prefix]()
 }
 
-function normalizeTimelineOpText(value: string, opts: { field: string; allowColon?: boolean }): Result<string, MutationError> {
+function normalizeTimelineOpText(value: string, opts: { field: string }): Result<string, MutationError> {
   if (typeof value !== 'string') return err({ code: 'INVALID_OP', message: `Timeline ${opts.field} must be a string` })
   const normalized = normalizeTimelineText(value)
-  if (!validTimelineText(normalized, { allowColon: opts.allowColon ?? true })) {
-    return err({ code: 'INVALID_OP', message: `Timeline ${opts.field} must be non-empty${opts.allowColon === false ? ' and must not contain :' : ''}` })
-  }
-  if (opts.field === 'period label' && periodWritesSection(normalized)) {
-    return err({ code: 'INVALID_OP', message: 'Timeline period labels must not start with "section ", which begins a section declaration' })
+  if (!normalized.length) {
+    return err({ code: 'INVALID_OP', message: `Timeline ${opts.field} must be non-empty` })
   }
   return ok(normalized)
 }
@@ -289,28 +181,13 @@ function normalizeTimelineTitleOpText(value: string): Result<string, MutationErr
   return ok(title)
 }
 
-/** Use the same separator grammar as the render/agent parsers. Colons in
- * clock times and URLs are text; a colon followed by whitespace starts a new
- * event and would change the structure after serialization. */
+/** Typed values are text. The event writer owns all separators. */
 function normalizeTimelineEventOpText(value: string): Result<string, MutationError> {
-  const normalized = normalizeTimelineOpText(value, { field: 'event text' })
-  if (!normalized.ok) return normalized
-  // renderTimeline always appends a newline. Pinned Mermaid treats a trailing
-  // colon before that newline as a separator, rejecting or swallowing the next
-  // period even though the local splitter sees it as ordinary text.
-  if (normalized.value.endsWith(':')) {
-    return err({ code: 'INVALID_OP', message: 'Timeline event text must not end with : (upstream event separator)' })
-  }
-  try {
-    if (splitTimelineEvents(`: ${normalized.value}`).length === 1) return normalized
-  } catch { /* malformed event separator is an invalid mutation */ }
-  return err({ code: 'INVALID_OP', message: 'Timeline event text must not contain a colon followed by whitespace (event separator)' })
+  return normalizeTimelineOpText(value, { field: 'event text' })
 }
 
-/** Accessibility text is line-oriented free text, but `{`/`}` delimit the
- *  accDescr block form and `;` is a statement separator in wrapper contexts —
- *  text carrying them would not survive serialize → re-parse. null clears.
- *  (Journey normalizeAccessibilityOpText convention.) */
+/** Accessibility values keep their line-oriented normalization; the writer
+ * protects block delimiters in their text. null clears the field. */
 function normalizeTimelineAccessibilityText(
   value: string | null,
   field: string,
@@ -318,8 +195,8 @@ function normalizeTimelineAccessibilityText(
   if (value === null) return ok(undefined)
   if (typeof value !== 'string') return err({ code: 'INVALID_OP', message: `Timeline ${field} must be a string or null` })
   const normalized = value.split(/\r?\n/).map(part => part.trim()).filter(Boolean).join('\n')
-  if (!normalized || /[;{}]/.test(normalized)) {
-    return err({ code: 'INVALID_OP', message: `Timeline ${field} must be non-empty and must not contain ;, {, or }` })
+  if (!normalized) {
+    return err({ code: 'INVALID_OP', message: `Timeline ${field} must be non-empty` })
   }
   return ok(normalized)
 }
@@ -370,7 +247,7 @@ export function mutateTimeline(input: TimelineBody, op: TimelineMutationOp): Res
       break
     }
     case 'add_section': {
-      const label = normalizeTimelineOpText(op.label, { field: 'section label', allowColon: false })
+      const label = normalizeTimelineOpText(op.label, { field: 'section label' })
       if (!label.ok) return label
       const index = resolveInsertIndex(op.index, body.sections.length, 'Timeline')
       if (!index.ok) return index
@@ -385,7 +262,7 @@ export function mutateTimeline(input: TimelineBody, op: TimelineMutationOp): Res
     case 'set_section_label': {
       const s = getSection(op.index)
       if (!s) return sectionNotFound(op.index)
-      const label = normalizeTimelineOpText(op.label, { field: 'section label', allowColon: false })
+      const label = normalizeTimelineOpText(op.label, { field: 'section label' })
       if (!label.ok) return label
       s.label = label.value
       break
@@ -393,7 +270,7 @@ export function mutateTimeline(input: TimelineBody, op: TimelineMutationOp): Res
     case 'add_period': {
       const s = getSection(op.sectionIndex)
       if (!s) return sectionNotFound(op.sectionIndex)
-      const label = normalizeTimelineOpText(op.label, { field: 'period label', allowColon: false })
+      const label = normalizeTimelineOpText(op.label, { field: 'period label' })
       if (!label.ok) return label
       const events: TimelinePeriod['events'] = []
       for (const raw of op.events ?? []) {
@@ -422,7 +299,7 @@ export function mutateTimeline(input: TimelineBody, op: TimelineMutationOp): Res
     case 'set_period_label': {
       const p = getPeriod(op.sectionIndex, op.periodIndex)
       if (!p) return periodNotFound(op.sectionIndex, op.periodIndex)
-      const label = normalizeTimelineOpText(op.label, { field: 'period label', allowColon: false })
+      const label = normalizeTimelineOpText(op.label, { field: 'period label' })
       if (!label.ok) return label
       p.label = label.value
       break

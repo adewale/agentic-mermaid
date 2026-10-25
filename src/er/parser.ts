@@ -6,6 +6,7 @@ import { normalizeBrTags } from '../multiline-utils.ts'
 import { requireClosedAccessibility, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { parseDirectionStatement } from '../shared/direction-statement.ts'
 import { parseStyleProps } from '../shared/style-props.ts'
+import { mermaidEntityPrepass } from '../shared/mermaid-entities.ts'
 import { stripTrailingComment, trailingCommentStart } from '../shared/trailing-comment.ts'
 import { createErCreationFold, type ErPlacement } from './creation.ts'
 import { decodeErText, erTextLabel, erTextContent, type ErQuotedTextReport, readErQuotedName, readErRelationLabel } from './text.ts'
@@ -158,41 +159,76 @@ export function parseErGroupHeader(line: string, report?: ErQuotedTextReport): {
 // script, digits, `_`, `-`, `*`, `#`, `:`, `,`, `;` and blanks.
 const ER_STYLE_UNREAD_RE = /[^\x80-\uFFFF\w\s*#:,;-]/
 
-// A two-digit decimal entity code in ER style text (`#46;` for `.`). Mermaid's
+// A decimal entity code in ER style text (`#46;` for `.`). Mermaid's
 // entity prepass keeps it as a code when a later `;` ends the line, and the
 // SVG it writes resolves it, so it spells what the ER style lexer cannot read.
-// Two digits are never a hex colour: `fill:#333;` keeps its colour.
-const ER_STYLE_ENTITY_RE = /#(\d{2});/g
+// Two, five and seven digits are never CSS hex colours. Padding preserves that
+// distinction through the complete Unicode codepoint range.
+const ER_STYLE_ENTITY_RE = /#(\d{2}|\d{5}|\d{7});/g
 
 function erStyleEntity(char: string): string | undefined {
-  const code = char.charCodeAt(0)
-  return code >= 10 && code <= 99 ? `#${code};` : undefined
+  const code = char.codePointAt(0)!
+  // XML cannot retain these C0 characters/noncharacters or lone surrogates;
+  // HTML numeric references also reinterpret C1 controls. TAB/CR/LF survive.
+  if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\ud800-\udfff\ufffe\uffff]/u.test(char)) return undefined
+  return `#${String(code).padStart(code <= 99 ? 2 : code <= 99999 ? 5 : 7, '0')};`
 }
 
 /** ER `style`/`classDef` properties, their entity codes read as characters. */
-function readErStyleText(text: string): Record<string, string> {
-  return parseStyleProps(text.replace(ER_STYLE_ENTITY_RE, (_, code: string) => String.fromCharCode(Number(code))))
+function readErStyleText(authored: string): Record<string, string> {
+  // Classify delimiters before decoding: an escaped comma, semicolon or colon
+  // belongs to its field, never to the property-list grammar. The absent
+  // prefix makes these opaque tokens collision-free, even for authored text
+  // resembling the token spelling; replacements expand exactly once.
+  let tokenPrefix = 'ER_STYLE_ENTITY_'
+  while (authored.includes(tokenPrefix)) tokenPrefix += '_'
+  const values: string[] = []
+  const protectedText = authored.replace(ER_STYLE_ENTITY_RE, (_, code: string) => {
+    const point = Number(code)
+    values.push(point <= 0x10ffff ? String.fromCodePoint(point) : '\ufffd')
+    return `${tokenPrefix}${values.length - 1}_`
+  })
+  const token = new RegExp(`${tokenPrefix}(\\d+)_`, 'g')
+  const read = (value: string) => value.replace(token, (_, index: string) => values[Number(index)]!)
+  return Object.fromEntries(Object.entries(parseStyleProps(protectedText)).map(([key, value]) => [read(key), read(value)]))
 }
 
 /** ER style properties as Mermaid's ER style lexer reads them: a character it
- * cannot read, and a comma inside a value, as an entity code, the text then
- * ending in `;` so Mermaid's prepass keeps the last code. Undefined when such
- * a character has no two-digit code (`{|}~`). */
+ * cannot read, whitespace it would skip, and field punctuation as entity
+ * codes. Undefined only for characters with no lossless SVG spelling. */
 export function writeErStyleText(style: Readonly<Record<string, string>>): string | undefined {
-  let encoded = false
   const pairs: string[] = []
-  for (const [key, value] of Object.entries(style)) {
+  const part = (value: string): string | undefined => {
     let written = ''
     for (const char of value) {
-      if (!ER_STYLE_UNREAD_RE.test(char) && char !== ',') { written += char; continue }
       const entity = erStyleEntity(char)
       if (!entity) return undefined
+      if (!ER_STYLE_UNREAD_RE.test(char) && !',:;ﬂ¶'.includes(char) && !/\s/.test(char)) {
+        written += char; continue
+      }
       written += entity
-      encoded = true
     }
-    pairs.push(`${key}:${written}`)
+    return written
   }
-  return pairs.join(',') + (encoded ? ';' : '')
+  for (const [key, value] of Object.entries(style)) {
+    const writtenKey = part(key), writtenValue = part(value)
+    if (writtenKey === undefined || writtenValue === undefined) return undefined
+    pairs.push(`${writtenKey}:${writtenValue}`)
+  }
+  return pairs.join(',')
+}
+
+/** The global prepass can remove a semicolon twice, starting in the target
+ * or class name and reaching an entity in a later field. Derive the padding
+ * from the complete production; it must leave every field byte untouched. */
+export function writeErStyleStatement(prefix: string, style: Readonly<Record<string, string>>): string | undefined {
+  const text = writeErStyleText(style)
+  if (text === undefined) return undefined
+  const line = `${prefix} ${text}`, probe = `${line};;`
+  const padding = probe.length - mermaidEntityPrepass(probe).length
+  const written = line + ';'.repeat(padding)
+  if (mermaidEntityPrepass(written) !== line) throw new Error('ER style statement did not preserve its fields through the entity prepass')
+  return written
 }
 
 /** A `direction` statement. Upstream's lexer reads it to the end of its
@@ -242,14 +278,14 @@ export function readErStatement(line: string, inGroup: boolean, report?: ErQuote
   if (line === 'end' && inGroup) return { kind: 'end' }
 
   // --- Entity paint directives (upstream ER grammar) ---
-  const classDef = line.match(/^classDef\s+([\w,-]+)\s+(.+)$/i)
+  const classDef = line.match(/^classDef\s+([\w,-]+)\s+(.+)$/is)
   if (classDef) {
     return { kind: 'class-def', names: classDef[1]!.split(',').map(value => value.trim()).filter(Boolean), props: readErStyleText(classDef[2]!) }
   }
   const classAssignment = parseErClassAssignment(line, report)
   if (classAssignment) return { kind: 'class', ...classAssignment }
   if (/^class(?:[ \t]|$)/i.test(line)) throw new Error(`Invalid ER class assignment: ${line}`)
-  const inlineStyle = line.match(/^style\s+(.+?)\s+(.+)$/i)
+  const inlineStyle = line.match(/^style\s+(.+?)\s+(.+)$/is)
   if (inlineStyle) {
     const references = inlineStyle[1]!.split(',').map(value => parseErEntityReference(value.trim(), report))
     if (references.some(reference => reference === null)) throw new Error(`Invalid ER style assignment: ${line}`)

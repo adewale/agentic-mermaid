@@ -3,6 +3,8 @@ import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { parseMermaid as parseGraph } from '../parser.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+import { projectEntityMarkers } from '../shared/mermaid-entity-display.ts'
 import {
   asFlowchart,
   layoutMermaid,
@@ -52,6 +54,27 @@ function parseAgent(source: string) {
 }
 
 describe('flowchart @{...} node metadata preservation (issue #29)', () => {
+  test('directive-like metadata labels keep literal text in portable output and typed edits', async () => {
+    const source = 'flowchart TD\nA@{ shape: rounded, label: "%%{t" }'
+    const diagram = asFlowchart(parseAgent(source))!
+    expect(diagram.body.graph.nodes.get('A')?.label).toBe('%%{t')
+    const edited = mutate(diagram, { kind: 'set_label', target: 'A', label: 'Keep %%{value} text' })
+    expect(edited.ok).toBe(true)
+    if (!edited.ok) throw new Error(edited.error.message)
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const [candidate, label] of [[diagram, '%%{t'], [edited.value, 'Keep %%{value} text']] as const) {
+        const written = serializeMermaid(candidate)
+        const projected = await upstream.project(written, mermaid => mermaid.db.getVertices().get('A').text)
+        expect(projected.ok).toBe(true)
+        if (!projected.ok) throw new Error(projected.error)
+        expect(projectEntityMarkers(projected.value)).toBe(label)
+        expect(parseGraph(written).nodes.get('A')?.label).toBe(label)
+        expect(renderMermaidSVG(written)).toBe(renderMermaidSVG(candidate))
+      }
+    } finally { upstream.close() }
+  })
+
   test.each([
     ['|', 'First line\nSecond line'],
     ['>-', 'First line Second line'],

@@ -3,7 +3,7 @@
 // narrow / mutate / verify / serialize, the structured-or-opaque fallback, and
 // round-trip identity.
 
-import { describe, test, expect } from 'bun:test'
+import { afterAll, describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
@@ -16,6 +16,10 @@ import type { ArchitectureValidDiagram, ArchitectureMutationOp } from '../agent/
 import { parseArchitectureDiagram } from '../architecture/parser.ts'
 import { layoutArchitectureDiagram } from '../architecture/layout.ts'
 import { renderMermaidASCII } from '../agent/index.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+
+const upstream = startUpstreamMermaid()
+afterAll(() => upstream.close())
 
 test('literal service icons preserve text, reserve their full footprint and support typed edits', () => {
   const source = 'architecture-beta\ngroup g(cloud)[Group]\nservice a "<b>日本 API</b>\\nSecond line" [Backend] in g\nservice b(database)[Storage]\na:R-->L:b'
@@ -180,6 +184,41 @@ describe('architecture structured parse', () => {
 
 describe('architecture structured-or-opaque fallback', () => {
   test.each([
+    ['a port token as a service id', 'service L(server)[Load balancer]\n  service db(database)[Database]\n  L:R --> L:db', 'architecture_id'],
+    ['a keyword as a group id', 'group group(cloud)[Application]\n  service api(server)[API] in group', 'architecture_id'],
+    ['a port token prefix as a junction id', 'junction Right', 'architecture_id'],
+    ['a title token prefix as an id', 'service titleWorker(server)[Worker]', 'architecture_id'],
+    ['a trailing dash in an id', 'service api-(server)[API]', 'architecture_id'],
+    ['a dotted service icon', 'service api(custom.server)[API]', 'architecture_icon'],
+    ['a dotted group icon', 'group app(custom.cloud)[Application]', 'architecture_icon'],
+  ])('%s stays renderable and source-preserved instead of generating rejected source', async (_name, statement, syntax) => {
+    const source = `%% preserved comment\narchitecture-beta\n  ${statement}\n`
+    expect(await upstream.accepts(source)).toBe(false)
+    const parsed = parseMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(parsed.value.body.kind).toBe('opaque')
+    expect(serializeMermaid(parsed.value)).toBe(source)
+    expect(renderMermaidSVG(parsed.value)).toBe(renderMermaidSVG(source))
+    expect(renderMermaidASCII(parsed.value)).toBe(renderMermaidASCII(source))
+    expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({
+      code: 'UNSUPPORTED_SYNTAX', syntax, line: 3,
+    }))
+    const edited = mutate(parsed.value, { kind: 'set_title', title: 'Changed' })
+    expect(edited.ok).toBe(false)
+    if (!edited.ok) expect(edited.error.code).toBe('INVALID_OP')
+  })
+
+  test('portable neighbours keep typed editing, including keyword prefixes and normalized icons', async () => {
+    const diagram = architecture('architecture-beta\n  group group1( cloud )[Application]\n  service rowspan( server )[Rowspan] in group1\n  service columnar( )[Columnar]\n  junction l1\n  rowspan:R --> L:columnar')
+    expect(diagram.body.groups[0]?.icon).toBe('cloud')
+    expect(diagram.body.services.map(service => service.icon)).toEqual(['server', undefined])
+    expect(apply(diagram, { kind: 'set_title', title: 'Portable' }).body.title).toBe('Portable')
+    expect(verifyMermaid(diagram).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+    expect(await upstream.accepts(serializeMermaid(diagram))).toBe(true)
+  })
+
+  test.each([
     ['parent declared later', 'architecture-beta\n  service api(server)[API] in g\n  group g(cloud)[G]\n'],
     ['edge endpoint declared later', 'architecture-beta\n  service api(server)[API]\n  api:R --> L:db\n  service db(database)[DB]\n'],
   ])('%s cannot be silently repaired by typed serialization', (_name, source) => {
@@ -208,6 +247,17 @@ describe('architecture structured-or-opaque fallback', () => {
 })
 
 describe('architecture mutation ops', () => {
+  test.each([
+    { kind: 'add_service', id: 'L', label: 'Load balancer' },
+    { kind: 'add_group', id: 'group', label: 'Application' },
+    { kind: 'add_junction', id: 'Right' },
+    { kind: 'rename_service', from: 'web', to: 'titleWorker' },
+  ] satisfies ArchitectureMutationOp[])('refuses a nonportable id in $kind', op => {
+    const result = mutate(architecture(), op)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error.code).toBe('INVALID_OP')
+  })
+
   test('set_title adds, updates, and removes the visible title', () => {
     let d = apply(architecture(), { kind: 'set_title', title: 'System Map' })
     expect(d.body.title).toBe('System Map')

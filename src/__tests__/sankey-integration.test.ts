@@ -62,12 +62,12 @@ describe('sankey integration · parse → verify → layout → render seam', ()
     expect(() => renderMermaidSVG('sankey-beta:\n  A,B,1')).toThrow()
   })
 
-  test('accessibility directives stay structured and project into the SVG ARIA slots', () => {
+  test('accessibility directives stay source-preserved and project into the SVG ARIA slots', () => {
     const source = `sankey-beta\naccTitle: Energy flows\naccDescr: Where the energy goes\nA,B,10`
     const parsed = parseMermaid(source)
     expect(parsed.ok).toBe(true)
     if (parsed.ok) {
-      expect(parsed.value.body.kind).toBe('sankey')
+      expect(parsed.value.body.kind).toBe('opaque')
       expect(parsed.value.meta.accessibility).toEqual({ title: 'Energy flows', descr: 'Where the energy goes' })
     }
     const svg = renderMermaidSVG(source)

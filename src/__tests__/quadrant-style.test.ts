@@ -101,10 +101,8 @@ describe('quadrant parser models point styles and classDefs', () => {
   })
 
   it('keeps the loud-error contract for malformed style metadata', () => {
-    // Known keys validate their values; any value with style=""-unsafe
-    // characters errors. Unknown keys with SAFE values are upstream-legal
-    // and preserved (see the bench-parity suite below), so they no longer
-    // throw here.
+    // Known keys validate their values; unsafe values error. Safe unknown
+    // properties remain a readable native extension and stay source-only.
     expect(() => parse('quadrantChart\n  A: [0.5, 0.5] radius: big')).toThrow(/radius/i)
     expect(() => parse('quadrantChart\n  A: [0.5, 0.5] banana: "spl;it"')).toThrow(/style/i)
     expect(() => parse('quadrantChart\n  A: [0.5, 0.5] color: "x;{}"')).toThrow(/color|style/i)
@@ -348,22 +346,17 @@ describe('quadrant agent body models styles structurally', () => {
   })
 })
 
-// Upstream's jison grammar accepts ANY `key: value` style entry and applies
-// only the four point properties — its own parser suite pins `classDef
-// constructor fill:#ff0000` as valid input. Unknown-but-safe entries are
-// therefore preserved verbatim (lossless round-trip), inert in render
-// (upstream behavior), and named by a Tier-3 diagnostic (P4: documented
-// limitation ⇒ runtime warning). `constructor`/`__proto__` are legal class
-// names per CLASS_NAME_RE, so the classDef table must not leak or pollute
-// Object.prototype.
-describe('unknown style properties and hostile class names (upstream bench parity)', () => {
+// Safe unknown entries are native source-only extensions: retained verbatim,
+// inert in rendering, and diagnosed because pinned Mermaid rejects them.
+// Native class tables must not leak or pollute Object.prototype.
+describe('unknown style properties and hostile class names', () => {
   const UPSTREAM = 'quadrantChart\n    classDef constructor fill:#ff0000\n    Microsoft:::constructor: [0.75, 0.75]'
 
-  it('upstream constructor-classname source parses structured and verifies ok', () => {
+  it('constructor-classname source stays readable and warns about its unsupported property', () => {
     const p = parseMermaid(UPSTREAM)
     expect(p.ok).toBe(true)
     if (!p.ok) return
-    expect(p.value.body.kind).toBe('quadrant')
+    expect(p.value.body.kind).toBe('opaque')
     const v = verifyMermaid(p.value)
     expect(v.ok).toBe(true)
     const inert = v.warnings.filter(w => w.code === 'UNSUPPORTED_SYNTAX' && w.syntax === 'quadrant_style_property')
@@ -376,11 +369,11 @@ describe('unknown style properties and hostile class names (upstream bench parit
     expect(p.ok).toBe(true)
     if (!p.ok) return
     const s = serializeMermaid(p.value)
-    expect(s).toContain('fill: #ff0000')
+    expect(s.trimEnd()).toBe(UPSTREAM)
     const rp = parseMermaid(s)
     expect(rp.ok).toBe(true)
     if (!rp.ok) return
-    expect(rp.value.body.kind).toBe('quadrant')
+    expect(rp.value.body.kind).toBe('opaque')
     expect(serializeMermaid(rp.value)).toBe(s)
   })
 
@@ -403,11 +396,11 @@ describe('unknown style properties and hostile class names (upstream bench parit
     expect(visual).toEqual({ radius: 5 })
   })
 
-  it('well-formed unknown entries on a point stay structured with the style preserved', () => {
+  it('well-formed unknown entries on a point stay source-only with the style preserved', () => {
     const p = parseMermaid('quadrantChart\n  A: [0.2, 0.2] banana: split')
     expect(p.ok).toBe(true)
     if (!p.ok) return
-    expect(p.value.body.kind).toBe('quadrant')
+    expect(p.value.body.kind).toBe('opaque')
     expect(serializeMermaid(p.value)).toContain('banana: split')
   })
 })

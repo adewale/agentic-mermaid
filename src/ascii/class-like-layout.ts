@@ -9,6 +9,9 @@ import { measuredText, type MeasuredTerminalText, type TerminalBounds, type Term
 import { allocateTerminalRoute, paintTerminalRoute, type TerminalRoute } from './terminal-route.ts'
 
 export type BoxSide = 'T' | 'B' | 'L' | 'R'
+/** Distance from the exterior port to the first freely routed cell. The
+ * protected approach includes both ends, so it occupies distance + 1 cells. */
+export const BOX_ROUTE_APPROACH_DISTANCE = 2
 export interface TerminalBox extends TerminalBounds { id: string; container?: boolean; headerHeight?: number }
 export interface BoxRelation {
   id: string
@@ -135,7 +138,7 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
   for (const key of occupied.keys()) cardCells.add(key)
   for (const plan of plans) for (const point of [plan.source, plan.target]) {
     const d = delta[point.side]
-    for (let step = 0; step <= 2; step++) markerCells.add(`${point.x + d.x * step},${point.y + d.y * step}`)
+    for (let step = 0; step <= BOX_ROUTE_APPROACH_DISTANCE; step++) markerCells.add(`${point.x + d.x * step},${point.y + d.y * step}`)
   }
   const text = (lines: readonly string[] | undefined, anchors: readonly GridCoord[]): BoxText | undefined => {
     if (!lines?.some(line => line.length > 0)) return undefined
@@ -177,8 +180,8 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
   for (const plan of plans) {
     const { relation, source, target } = plan
     const fromLabel = text(relation.fromLines, [source]), toLabel = text(relation.toLines, [target])
-    const sourceExit = { x: source.x + delta[source.side].x * 2, y: source.y + delta[source.side].y * 2 }
-    const targetExit = { x: target.x + delta[target.side].x * 2, y: target.y + delta[target.side].y * 2 }
+    const sourceExit = { x: source.x + delta[source.side].x * BOX_ROUTE_APPROACH_DISTANCE, y: source.y + delta[source.side].y * BOX_ROUTE_APPROACH_DISTANCE }
+    const targetExit = { x: target.x + delta[target.side].x * BOX_ROUTE_APPROACH_DISTANCE, y: target.y + delta[target.side].y * BOX_ROUTE_APPROACH_DISTANCE }
     // Previously used routes are obstacles on the first attempt. The bounded
     // shared search may fall back to an ordinary crossing when necessary.
     const removed: Array<[string, true]> = []
@@ -191,7 +194,7 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
     }
     const clearExit = (point: BoxPort): boolean => {
       const d = delta[point.side]
-      return [0, 1, 2].every(step => !cardCells.has(`${point.x + d.x * step},${point.y + d.y * step}`))
+      return Array.from({ length: BOX_ROUTE_APPROACH_DISTANCE + 1 }, (_, step) => step).every(step => !cardCells.has(`${point.x + d.x * step},${point.y + d.y * step}`))
     }
     const exitsClear = sourceExit.x >= 0 && sourceExit.y >= 0 && targetExit.x >= 0 && targetExit.y >= 0 && clearExit(source) && clearExit(target)
     const path = () => getClearAxisPath(occupied, sourceExit, targetExit)
@@ -207,7 +210,8 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
     }
     for (const [key, previous] of removed) occupied.set(key, previous)
     if (!middle) throw new Error(`No feasible terminal route for ${relation.id}; move the related cards or reduce their label footprint`)
-    const points = [source, { x: source.x + delta[source.side].x, y: source.y + delta[source.side].y }, ...middle, { x: target.x + delta[target.side].x, y: target.y + delta[target.side].y }, target]
+    const approach = (port: BoxPort) => Array.from({ length: BOX_ROUTE_APPROACH_DISTANCE }, (_, step) => step === 0 ? port : ({ x: port.x + delta[port.side].x * step, y: port.y + delta[port.side].y * step }))
+    const points = [...approach(source), ...middle, ...approach(target).reverse()]
     for (const point of points) { const key = gridKey(point); routeCells.add(key); occupied.set(key, blocker) }
     const label = text(relation.lines, [points[Math.floor(points.length / 2)]!, source, target])
     routes.push(sealRoute({ ...plan, points, ...(label ? { label } : {}), ...(fromLabel ? { fromLabel } : {}), ...(toLabel ? { toLabel } : {}) }))

@@ -43,10 +43,24 @@ describe('parseTimelineDiagram', () => {
   it.each([
     'timeline\nsection a: v',
     'timeline\nsection  : v',
-    'timeline\n2020 : A\nsection \t: v',
     'timeline\n      title ;my;title;\n      section ;a;bc-123;\n     section abc-456 ;ta;sk1;: ;ev;ent1; : ;ev;ent2; : ;ev;e3;',
-  ])('rejects ambiguous section/event boundaries without inventing a period: %s', source => {
-    expect(() => parse(source)).toThrow('Ambiguous timeline section')
+  ])('rejects section events before any period without inventing a period: %s', source => {
+    expect(() => parse(source)).toThrow('Timeline continuation found before any period was declared')
+  })
+
+  it.each(['Phase', ' \t'])('section %s changes future ownership without taking the latest period', label => {
+    const diagram = parse(`timeline\nsection Plan\n2024 : Before\nsection ${label} : Launch : Extra\n: Follow up`)
+    expect(diagram.sections.map(section => ({
+      label: section.label,
+      periods: section.periods.map(period => [period.label, period.events.map(event => event.text)]),
+    }))).toEqual([
+      { label: 'Plan', periods: [['2024', ['Before', 'Launch', 'Extra', 'Follow up']]] },
+      { label: label.trim(), periods: [] },
+    ])
+  })
+
+  it('rejects a section colon that cannot start an event token', () => {
+    expect(() => parse('timeline\n2024 : Before\nsection Phase:Launch')).toThrow('separators')
   })
 
   it.each(['section:', 'section :', 'section\t:', 'SECTION :'])('keeps %s as a period instead of a section declaration', prefix => {

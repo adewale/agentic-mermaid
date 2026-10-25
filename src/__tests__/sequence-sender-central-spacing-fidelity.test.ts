@@ -119,7 +119,7 @@ const centralMessages = (senders: readonly string[]) => upstream.projectAll(send
 test('ambiguous punctuation senders do not gain a false central-connection claim', async () => {
   const senders = ['A-B', 'A/B', 'A(B)']
   expect(await centralMessages(senders)).toEqual(senders.map(from => ({ from: `${from} ()`, central: false })))
-  for (const sender of senders) expect(parseSequenceMessageLine(`${sender} ()->> Bob: x`)).toBeNull()
+  for (const sender of senders) expect(parseSequenceMessageLine(`${sender} ()->> Bob: x`)).toMatchObject({ from: `${sender} ()`, centralStart: false })
 })
 
 test('non-numeric punctuation and alphanumeric senders retain upstream central meaning', async () => {

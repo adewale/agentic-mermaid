@@ -46,7 +46,7 @@ import { wrapperPrefix } from './serialize.ts'
 import { logToolInvocation } from './trace-log.ts'
 import { getFamily } from './families.ts'
 import { admitOpRecord, validateOp, hasOpSchema } from './op-schema.ts'
-import { accessibilityFromBody, ensureAccessibilityLines } from './accessibility-envelope.ts'
+import { AccessibilityTextError, accessibilityFromBody, ensureAccessibilityLines, normalizeBodyAccessibility } from './accessibility-envelope.ts'
 import { parseRegisteredMermaid as parseMermaid } from './parse.ts'
 
 export function mutate(d: FlowchartValidDiagram, op: FlowchartMutationOp): Result<FlowchartValidDiagram, MutationError>
@@ -119,6 +119,11 @@ function applyOneMutation(d: ParsedDiagram, op: AnyMutationOp, deferSerializatio
     const before = draft?.apply ? snapshotBodyCommentAnchors(d) : d
     const r = draft?.apply ? draft.apply(op) : plugin.mutate(d.body, op)
     if (!r.ok) return r
+    try { r.value = normalizeBodyAccessibility(r.value) }
+    catch (error) {
+      if (!(error instanceof AccessibilityTextError)) throw error
+      return err({ code: 'INVALID_OP', message: error.message })
+    }
     if (draft) draft.body = r.value
     d = rebaseBodyComments(before, r.value, op)
     return deferSerialization ? ok({ ...d, body: r.value } as ParsedDiagram) : commitMutation(d, r.value)
@@ -136,7 +141,7 @@ function commitMutation(d: ParsedDiagram, body: ParsedDiagram['body']): Result<P
   const bodyAccessibility = accessibilityFromBody(body)
   const meta = bodyAccessibility === undefined ? d.meta : { ...d.meta, accessibility: bodyAccessibility }
   const bodySource = restoreBodyComments(ensureAccessibilityLines(plugin.serialize!(body), meta.accessibility), d.kind, body, meta)
-  const canonicalSource = wrapperPrefix(meta, 'verbatim', bodySource) + bodySource
+  const canonicalSource = wrapperPrefix(meta, 'verbatim', bodySource, d.kind) + bodySource
   // Source locations, exact authored spans, and wrapper ownership describe a
   // particular source artifact. Rebuild all three from the mutated
   // serialization; retaining pre-mutation metadata can make wrapperSource
@@ -161,6 +166,13 @@ function commitMutation(d: ParsedDiagram, body: ParsedDiagram['body']): Result<P
     return err({
       code: 'INVALID_OP',
       message: `Mutation changed semantic family while reparsing: expected ${d.kind}/${body.kind}, got ${reparsed.value.kind}/${reparsed.value.body.kind}`,
+    })
+  }
+  if (bodyAccessibility && (bodyAccessibility.title !== reparsed.value.meta.accessibility.title
+    || bodyAccessibility.descr !== reparsed.value.meta.accessibility.descr)) {
+    return err({
+      code: 'INVALID_OP',
+      message: 'Accessibility text cannot be serialized by this family without changing its value; remove directive openers or description block delimiters',
     })
   }
   return ok({

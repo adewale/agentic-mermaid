@@ -224,8 +224,8 @@ export function parseStateBody(lines: string[]): StateBody | null {
     // --- paint directives (shared renderer grammar) ---
     const classDef = line.match(STATE_CLASS_DEF_RE)
     if (classDef) {
-      const props = parseStyleProps(classDef[2]!)
-      if (Object.keys(props).length === 0) return null
+      const props = portableClassLikeStyleProps(parseStyleProps(classDef[2]!))
+      if (!props || Object.keys(props).length === 0) return null
       for (const name of classDef[1]!.split(',').map(value => value.trim()).filter(Boolean)) setOwn(classDefs, name, { ...props })
       continue
     }
@@ -238,9 +238,10 @@ export function parseStateBody(lines: string[]): StateBody | null {
     }
     const styleLine = line.match(STATE_STYLE_RE)
     if (styleLine) {
-      const props = parseStyleProps(styleLine[2]!)
-      if (Object.keys(props).length === 0) return null
+      const props = portableClassLikeStyleProps(parseStyleProps(styleLine[2]!))
+      if (!props || Object.keys(props).length === 0) return null
       for (const id of styleLine[1]!.split(',').map(value => value.trim()).filter(Boolean)) {
+        if (!portableStyleTarget(id)) return null
         inlineStyles.push({ id, props: { ...props }, scope })
       }
       continue
@@ -481,6 +482,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
     ...(unresolvedClasses.length > 0 ? { unresolvedClasses } : {}),
     ...(unresolvedStyles.length > 0 ? { unresolvedStyles } : {}),
   }
+  if (stateWriteProblem(body)) return null
   preserveOrphanedImplicitStates(body)
   try { renderState(body) } catch (error) {
     if (error instanceof StateOwnershipError) return null
@@ -523,7 +525,7 @@ function hasBareSpelling(id: string): boolean {
 /** Whether `id` is a keyword Mermaid's lexer reads as one only before a blank
  *  or a line break, so it names a state with no blank after it (`note-->`). */
 function namesStateGlued(id: string): boolean {
-  return /^(?:state|note|scale|classDef|class|style|stateDiagram)$/i.test(id)
+  return /^(?:state|note|scale|classDef|class|style|stateDiagram|accTitle|accDescr)$/i.test(id)
 }
 
 /** Whether a label is written as `X: label` beside the declaration, as one
@@ -541,7 +543,10 @@ function describe(line: string, label: string, content?: LabelContent): string {
 /** A label as written in source, in `state "…" as X`: its line breaks as
  *  `<br/>`, kept from the prepass (nothing before it on its line holds a colon). */
 function serializeStateLabel(label: string, content?: LabelContent, reserved = ''): string {
-  return keepStateTextFromPrepass(writeStateText(label, content, reserved).replace(/\r\n?|\n/g, '<br/>'))
+  const written = writeStateText(label, content, reserved).replace(/\r\n?|\n/g, '<br/>')
+  // The STATE lexer recognizes pseudostates before it enters the quoted
+  // string. Encode only marker delimiters, leaving display markup intact.
+  return keepStateTextFromPrepass(written.replace(/<<(?:fork|join|choice)>>|\[\[(?:fork|join|choice)\]\]/gi, marker => marker.replace(/[<>\[\]]/g, char => `#${char.charCodeAt(0)};`)))
 }
 
 /** Whether a state has a line of its own; an implicit transition endpoint
@@ -659,7 +664,7 @@ function renderScope(states: StateNode[], transitions: StateTransition[], direct
         ? `${indent}state "${serializeStateLabel(s.label, s.labelContent, '"')}" as ${s.id}`
         : describe(`${indent}${s.id}: `, s.label, s.labelContent))
     } else if (s.declaredBare) {
-      out.push(`${indent}${hasBareSpelling(s.id) ? s.id : `state "${s.id}" as ${s.id}`}`)
+      out.push(`${indent}${hasBareSpelling(s.id) ? s.id + (/^as$/i.test(s.id) ? '%%' : '') : `state "${s.id}" as ${s.id}`}`)
     }
   }
   for (const note of notes.get(stateScopeKey(scope)) ?? []) {
@@ -672,6 +677,8 @@ function stateScopeKey(scope: StateScope | undefined): string {
 }
 
 export function renderState(body: StateBody): string {
+  const problem = stateWriteProblem(body)
+  if (problem) throw new Error(problem)
   const noteIds = new Set<string>()
   const notesByScope = new Map<string, StateFloatingNote[]>()
   for (const note of body.floatingNotes ?? []) {
@@ -703,13 +710,17 @@ export function renderState(body: StateBody): string {
       // Mermaid reads a block whose text starts with a colon, after any
       // blank lines, as a one-line note, and then rejects its `end note`;
       // `#58;` reads as the colon.
-      for (const line of text.replace(/^(\s*):/, '$1#58;').split('\n')) out.push(`    ${keepStateTextFromPrepass(line)}`)
+      for (const line of text.replace(/^(\s*):/, '$1#58;').split('\n')) {
+        // The pinned lexer ends a note at this prefix, even with more text.
+        const escaped = line.replace(/^(\s*)(e)(?=nd note)/i, (_match, space: string, letter: string) => `${space}#${letter.charCodeAt(0)};`)
+        out.push(`    ${keepStateTextFromPrepass(escaped)}`)
+      }
       out.push('  end note')
     } else {
       out.push(`  note ${n.side} of ${n.target} : ${text}`)
     }
   }
-  const styleText = (style: Record<string, string>): string => Object.entries(style).map(([key, value]) => `${key}:${value}`).join(',')
+  const styleText = (style: Record<string, string>): string => serializeStyleProps(portableClassLikeStyleProps(style)!)
   for (const [name, style] of Object.entries(body.classDefs ?? {})) out.push(`  classDef ${name} ${styleText(style)}`)
   const styledStates: StateNode[] = []
   const transitions: StateTransition[] = []
@@ -728,9 +739,9 @@ export function renderState(body: StateBody): string {
   }
   for (const { id, className } of body.unresolvedClasses ?? []) out.push(`  class ${id} ${className}`)
   for (const { id, style } of body.unresolvedStyles ?? []) out.push(`  style ${id} ${styleText(style)}`)
-  if (body.defaultTransitionStyle) out.push(`  linkStyle default ${styleText(body.defaultTransitionStyle)}`)
+  if (body.defaultTransitionStyle) out.push(`  linkStyle default ${serializeStyleProps(body.defaultTransitionStyle)}`)
   transitions.forEach((transition, index) => {
-    if (transition.style) out.push(`  linkStyle ${index} ${styleText(transition.style)}`)
+    if (transition.style) out.push(`  linkStyle ${index} ${serializeStyleProps(transition.style)}`)
   })
   const source = out.join('\n') + '\n'
   assertWrittenStateOwnership(body, source)
@@ -759,6 +770,31 @@ function assertWrittenStateOwnership(body: StateBody, source: string): void {
   visit(body.states)
 }
 
+const portableStyleTarget = (id: string): boolean => /^\w+$/.test(id)
+const portableClassDefinition = (name: string): boolean => /^\w+$/.test(name) && !/^default$/i.test(name)
+
+function stateWriteProblem(body: StateBody): string | undefined {
+  const className = Object.keys(body.classDefs ?? {}).find(name => !portableClassDefinition(name))
+  if (className !== undefined) return `State class definition name "${className}" cannot be written in pinned Mermaid; definition names must contain only letters, digits, or underscore and cannot be default`
+  // Accessibility tokens are active only in the initial lexer state;
+  // composites use Mermaid's exclusive struct state, where these are IDs.
+  const endpoint = body.transitions.find(item => item.label !== undefined && /^acc(?:Title|Descr)$/i.test(item.to))?.to
+  let invalid = body.unresolvedStyles?.find(item => !portableStyleTarget(item.id))?.id
+  let invalidStyle = Object.values(body.classDefs ?? {}).some(style => !portableClassLikeStyleProps(style)) || body.unresolvedStyles?.some(item => !portableClassLikeStyleProps(item.style))
+  const visit = (states: StateNode[]): void => {
+    for (const state of states) {
+      if (state.style && !portableStyleTarget(state.id)) invalid ??= state.id
+      if (state.style && !portableClassLikeStyleProps(state.style)) invalidStyle = true
+      if (state.regions) for (const region of state.regions) visit(region.states)
+      else if (state.states) visit(state.states)
+    }
+  }
+  visit(body.states)
+  if (invalidStyle) return 'State style has a comma value without a supported lossless Mermaid spelling'
+  if (endpoint !== undefined) return `A top-level labeled State transition to "${endpoint}" cannot be written in pinned Mermaid because the destination and colon start an accessibility directive; rename the destination or remove the label for typed editing`
+  return invalid === undefined ? undefined : `State style target "${invalid}" cannot be written in pinned Mermaid; style targets must contain only letters, digits, or underscore`
+}
+
 // ---- Projection to MermaidGraph (verify / layout / describe) ----------------
 //
 // State bodies reuse the flowchart geometric verify path: serialize to
@@ -766,7 +802,7 @@ function assertWrittenStateOwnership(body: StateBody, source: string): void {
 // projection — the exact graph the renderer would lay out.
 
 import { parseMermaid as parseLegacy, parseStyleProps } from '../parser.ts'
-import { parseMutableStyleProps, unsafeStylePaintError } from '../shared/style-props.ts'
+import { parseMutableStyleProps, portableClassLikeStyleProps, serializeStyleProps, unsafeStylePaintError } from '../shared/style-props.ts'
 import type { MermaidGraph } from '../types.ts'
 
 export function stateBodyToGraph(body: StateBody): MermaidGraph {
@@ -923,7 +959,7 @@ function isComposite(s: StateNode): boolean {
   return s.states !== undefined || s.transitions !== undefined || s.regions !== undefined
 }
 
-function parseStateStyle(style: string, field: string): Result<Record<string, string>, MutationError> {
+function parseStateStyle(style: string, field: string, portable = true): Result<Record<string, string>, MutationError> {
   const parsed = parseMutableStyleProps(style)
   if (!parsed.ok) {
     const message = parsed.reason === 'NOT_STRING'
@@ -935,10 +971,13 @@ function parseStateStyle(style: string, field: string): Result<Record<string, st
           : `${field} must contain at least one property:value pair`
     return err({ code: 'INVALID_OP', message })
   }
-  return ok(parsed.value)
+  const value = portable ? portableClassLikeStyleProps(parsed.value) : parsed.value
+  return value ? ok(value) : err({ code: 'INVALID_OP', message: `${field} has a comma value without a supported lossless Mermaid spelling` })
 }
 
 export function mutateState(body: StateBody, op: StateMutationOp): Result<StateBody, MutationError> {
+  const problem = stateWriteProblem(body)
+  if (problem) return err({ code: 'INVALID_OP', message: problem })
   const next = cloneStateBody(body)
 
   switch (op.kind) {
@@ -1016,6 +1055,7 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
       const l = validLabel(op.label, 'label')
       if (!l.ok) return l
       loc.node.label = l.value
+      delete loc.node.declaredBare
       break
     }
     case 'add_transition': {
@@ -1203,8 +1243,8 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
       break
     }
     case 'define_class': {
-      if (typeof op.name !== 'string' || !/^[\w-]+$/.test(op.name)) {
-        return err({ code: 'INVALID_OP', message: 'State class name must contain only letters, digits, underscore, or hyphen' })
+      if (typeof op.name !== 'string' || !portableClassDefinition(op.name)) {
+        return err({ code: 'INVALID_OP', message: 'State class definition name must contain only letters, digits, or underscore and cannot be default' })
       }
       const style = parseStateStyle(op.style, 'State class style')
       if (!style.ok) return style
@@ -1226,6 +1266,7 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
       const loc = locate(next, op.id)
       if (!loc) return err({ code: 'STATE_NOT_FOUND', message: `State '${op.id}' not found` })
       if (op.style === null) { delete loc.node.style; break }
+      if (!portableStyleTarget(loc.node.id)) return err({ code: 'INVALID_OP', message: `State style target "${loc.node.id}" cannot be written in pinned Mermaid; style targets must contain only letters, digits, or underscore` })
       const style = parseStateStyle(op.style, 'State inline style')
       if (!style.ok) return style
       loc.node.style = style.value
@@ -1236,7 +1277,7 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
         if (op.index !== undefined || op.parent !== undefined || op.region !== undefined) return err({ code: 'INVALID_OP', message: 'Default transition style is diagram-wide; omit index, parent, and region' })
         if (op.style === null) delete next.defaultTransitionStyle
         else {
-          const style = parseStateStyle(op.style, 'State transition style')
+          const style = parseStateStyle(op.style, 'State transition style', false)
           if (!style.ok) return style
           next.defaultTransitionStyle = style.value
         }
@@ -1249,7 +1290,7 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
       if (!transition) return err({ code: 'TRANSITION_NOT_FOUND', message: `No transition at index ${op.index}` })
       if (op.style === null) delete transition.style
       else {
-        const style = parseStateStyle(op.style, 'State transition style')
+        const style = parseStateStyle(op.style, 'State transition style', false)
         if (!style.ok) return style
         transition.style = style.value
       }
@@ -1318,6 +1359,8 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
   }
   preserveOrphanedImplicitStates(next)
   canonicalizeStateOrder(next.states, next.transitions)
+  const writeProblem = stateWriteProblem(next)
+  if (writeProblem) return err({ code: 'INVALID_OP', message: writeProblem })
   try { renderState(next) } catch (error) {
     if (error instanceof StateOwnershipError) return err({ code: 'INVALID_OP', message: error.message })
     throw error
@@ -1576,9 +1619,18 @@ function stateReadOtherwiseWarnings(statements: readonly StateStatement[], heade
   }
   // After a block note's opener, until its first line of text.
   let noteTextAwaited = false
+  let depth = 0
   for (const statement of statements) {
     const text = statement.text
+    if (!statement.noteBody) {
+      if (text === '}') depth = Math.max(0, depth - 1)
+      else if (statement.opens) depth++
+    }
+    if (text.includes('%%{') && (statement.noteBody || matchFloatingNote(text) || matchNoteLine(text) || text.match(STATE_ALIAS_RE) || text.match(STATE_COMPOSITE_OPEN_RE) || text.match(STATE_DESCRIPTION_RE) || matchTransitionLine(text)?.label !== undefined)) {
+      warn(statement, 'state_text_directive', 'The directive-looking text is preserved as text. Pinned Mermaid preprocesses `%%{` even inside text; the writer escapes the percent sign as `#37;`.')
+    }
     if (statement.noteBody) {
+      if (/^end note/i.test(text)) warn(statement, 'state_note_terminator', 'The whole line is preserved as note text. Pinned Mermaid ends a block note at the `end note` prefix even when text follows; the writer escapes its first letter.')
       // Mermaid's one-line note text, `\s*":"[^:\n;]+`, starts after any
       // blank lines and indentation after the note's state: a block note
       // whose text starts with a colon is a one-line note there.
@@ -1591,6 +1643,21 @@ function stateReadOtherwiseWarnings(statements: readonly StateStatement[], heade
       continue
     }
     noteTextAwaited = false
+    const classDef = text.match(STATE_CLASS_DEF_RE)
+    if (classDef && classDef[1]!.split(',').some(name => !portableClassDefinition(name.trim()))) {
+      warn(statement, 'state_class_definition_name', 'The class definition name is preserved in source. Pinned Mermaid accepts only letters, digits, and underscore in definition names except `default`, with no quoted alternative; class references have a different grammar.')
+    }
+    const style = text.match(STATE_STYLE_RE)
+    const paint = classDef?.[2] ?? style?.[2]
+    if (paint !== undefined) {
+      const props = parseStyleProps(paint)
+      if (Object.values(props).some(value => value.includes(','))) warn(statement, 'state_style_commas', portableClassLikeStyleProps(props)
+        ? 'Commas inside CSS colors are read as color channels here. Pinned Mermaid splits every comma into separate styles; the writer preserves channels and alpha with CSS space/slash notation.'
+        : 'This style contains a comma value without a supported lossless State spelling. Source and native rendering are preserved, but typed editing is unavailable.')
+    }
+    if (style && style[1]!.split(',').some(id => !portableStyleTarget(id.trim()))) {
+      warn(statement, 'state_style_target', 'The style target is preserved in source. Pinned Mermaid accepts only letters, digits, and underscore in style targets, with no quoted alternative; use a portable target for typed editing.')
+    }
     const keyword = /^(cssClass|linkStyle)\s/.exec(text)?.[1]
     if (keyword === 'cssClass') {
       warn(statement, 'state_css_class', '`cssClass` is read as `class`, and written so. Pinned Mermaid\'s State grammar has no `cssClass`: it reads the words of the line as states. Write `class A name`.')
@@ -1621,6 +1688,9 @@ function stateReadOtherwiseWarnings(statements: readonly StateStatement[], heade
     }
     const transition = matchTransitionLine(text)
     if (transition) {
+      if (depth === 0 && transition.label !== undefined && /^acc(?:Title|Descr)$/i.test(transition.to)) {
+        warn(statement, 'state_accessibility_endpoint', 'The top-level labeled transition is preserved in source. Pinned Mermaid reads this destination followed by a colon as an accessibility directive; rename the destination or remove the label for typed editing.', statement.toLine)
+      }
       for (const endpoint of new Set([transition.from, transition.to])) {
         if (endpoint === PSEUDO || isHistoryEndpoint(endpoint) || hasBareSpelling(endpoint)) continue
         const line = endpoint === transition.from ? statement.line : statement.toLine

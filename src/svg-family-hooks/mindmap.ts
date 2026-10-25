@@ -19,7 +19,7 @@ export const MINDMAP_SVG_HOOKS = {
     },
   }),
   layout: ctx => layoutResult(positionMindmap(
-    withFrontmatterTitle(withAccessibilityFields(parseMindmap(ctx.source.familyBody), ctx.source.accessibility), ctx.source.frontmatter),
+    withFrontmatterTitle(withAccessibilityFields(parseMindmap(ctx.source.authoredFamilyBody ?? ctx.source.familyBody), ctx.source.accessibility), ctx.source.frontmatter),
     (ctx.familyConfig as { position?: ReturnType<typeof resolveMindmapPositionConfig> } | undefined)?.position
       ?? resolveMindmapPositionConfig(undefined, undefined),
     resolveRenderStyle(ctx.renderOptions, undefined, ctx.styleFace),

@@ -1,4 +1,5 @@
 import { authoredCssPaintDescription, drawableAuthoredCssPaint } from './css-color.ts'
+import { tryParseCssColor } from './color-math.ts'
 import { syntaxError } from './syntax-error.ts'
 
 /** Split CSS-like Mermaid style pairs at a `,` or `;` without splitting
@@ -137,4 +138,25 @@ export function parseMutableStyleProps(source: unknown): MutableStyleParseResult
 
 export function serializeStyleProps(style: Record<string, string>): string {
   return Object.entries(style).map(([key, value]) => `${key}:${value}`).join(',')
+}
+
+/** Class and State split every comma in a style value, including escaped
+ * commas. CSS Color 4 defines the same RGB/HSL channels and alpha in legacy
+ * comma and modern space/slash notation. Change separators only: preserve
+ * every numeric token, unit, percentage and function name without rounding.
+ * Other comma values (including var() fallbacks) have no supported lossless
+ * spelling in these two Mermaid grammars and must stay in native source.
+ * https://www.w3.org/TR/css-color-4/#rgb-functions */
+export function portableClassLikeStyleProps(style: Readonly<Record<string, string>>): Record<string, string> | undefined {
+  const entries: [string, string][] = []
+  for (const [property, value] of Object.entries(style)) {
+    if (!value.includes(',')) { entries.push([property, value]); continue }
+    const color = value.match(/^(rgba?|hsla?)\(([^()]*)\)$/i)
+    if (!PAINT_PROPERTIES.some(paint => paint === property) || !color || tryParseCssColor(value) === null) return
+    const channels = color[2]!.split(',').map(token => token.trim())
+    if (channels.length !== 3 && channels.length !== 4) return
+    const alpha = channels.length === 4 ? ` / ${channels[3]}` : ''
+    entries.push([property, `${color[1]}(${channels.slice(0, 3).join(' ')}${alpha})`])
+  }
+  return Object.fromEntries(entries)
 }

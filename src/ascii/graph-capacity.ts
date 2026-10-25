@@ -24,6 +24,7 @@ const logicalBounds = (endpoint: Endpoint): Bounds => {
  * never the authority for the container's face, ports or exterior clearance. */
 export function reserveGraphEdgeCapacity(graph: AsciiGraph, measure: () => ReadonlyMap<AsciiNode, Bounds>): void {
   const directed = new Map<Endpoint, Map<Endpoint, number>>()
+  const contacts = new Map<Endpoint, Map<string, Set<string>>>()
   let needsPhysicalFaces = false
   for (const edge of graph.edges) {
     if (edge.style === 'invisible') continue
@@ -33,6 +34,20 @@ export function reserveGraphEdgeCapacity(graph: AsciiGraph, measure: () => Reado
     outgoing.set(to, parallels); directed.set(from, outgoing)
     const compoundPair = isGroup(from) || isGroup(to)
     if (parallels >= 2 || compoundPair && (from === to || (directed.get(to)?.get(from) ?? 0) > 0)) needsPhysicalFaces = true
+    for (const start of [true, false]) {
+      const endpoint = start ? from : to, direction = start ? edge.startDir : edge.endDir
+      const faces = contacts.get(endpoint) ?? new Map<string, Set<string>>(), face = `${direction.x},${direction.y}`
+      const meanings = faces.get(face) ?? new Set<string>()
+      const marked = start ? edge.hasArrowStart : edge.hasArrowEnd
+      meanings.add(marked ? (start ? edge.startMarker : edge.endMarker) ?? 'arrow' : 'line')
+      faces.set(face, meanings); contacts.set(endpoint, faces)
+    }
+  }
+  for (const faces of contacts.values()) for (const meanings of faces.values()) {
+    // Compatible shared heads/trunks retain their existing ownership. A line
+    // cannot continue through another relationship's endpoint marker, and
+    // different markers cannot express both endpoint meanings in one glyph.
+    if (meanings.size > 1) needsPhysicalFaces = true
   }
   if (!needsPhysicalFaces && !graph.compoundRepacked) return
   const logicalEnvelopes = new Map<Endpoint, Bounds>()
