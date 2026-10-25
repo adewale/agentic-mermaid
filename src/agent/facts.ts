@@ -255,18 +255,23 @@ function factsState(out: string[], body: StateBody): void {
   for (const [index, note] of (body.notes ?? []).entries()) {
     add(out, `note#${index} ${note.side} of ${clean(note.target)} : ${clean(note.text)}`)
   }
+  for (const note of body.floatingNotes ?? []) {
+    add(out, `floating note ${clean(note.id)}${note.scope ? ` in ${clean(note.scope.parent)}${note.scope.region !== undefined ? ` region ${note.scope.region}` : ''}` : ''} : ${clean(note.text)}`)
+  }
 }
 
 function factsSequence(out: string[], body: SequenceBody): void {
   body.participants.forEach((p, i) => {
     add(out, `${p.kind} ${clean(p.id)} : ${clean(p.label || p.id)}`)
     add(out, `participant#${i} ${clean(p.id)} : ${clean(p.label || p.id)}`)
+    if (p.wrap !== undefined) add(out, `participant#${i} wrap ${p.wrap}`)
   })
   sequenceMessageContexts(body).forEach((context, i) => {
     const m = context.message
     add(out, `message ${clean(m.from)} -> ${clean(m.to)} : ${clean(m.text)}`)
     add(out, `message#${i} ${context.scope === 'top-level' ? 'top-level' : `fragment#${context.fragmentIndex} branch#${context.branchIndex}`} ${clean(m.from)} -> ${clean(m.to)} : ${clean(m.text)}`)
     if (m.style !== 'sync') add(out, `message#${i} style ${m.style}`)
+    if (m.wrap !== undefined) add(out, `message#${i} wrap ${m.wrap}`)
   })
   body.statements.forEach((statement, segment) => {
     if (statement.kind !== 'opaque-block') return
@@ -286,9 +291,11 @@ function factsSequence(out: string[], body: SequenceBody): void {
   fragments.forEach((statement, index) => {
     if (statement.kind !== 'fragment') return
     add(out, `fragment#${index} ${statement.fragment.fragmentKind}`)
+    if (statement.fragment.wrap !== undefined) add(out, `fragment#${index} wrap ${statement.fragment.wrap}`)
     statement.fragment.branches.forEach((branch, branchIndex) => {
       const label = branch.label ?? (branchIndex === 0 ? statement.fragment.label : undefined)
       add(out, `fragment#${index} branch#${branchIndex}${label ? ` : ${clean(label)}` : ''}`)
+      if (branch.wrap !== undefined) add(out, `fragment#${index} branch#${branchIndex} wrap ${branch.wrap}`)
     })
   })
 }

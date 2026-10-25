@@ -63,6 +63,7 @@ export const shapeRegistry: ShapeRegistry = new Map<AsciiNodeShape, ShapeRendere
   ['state-join', rectangleRenderer],
   ['state-choice', diamondRenderer],
   ['state-history', circleRenderer],
+  ['state-note', rectangleRenderer],
 ])
 
 /**

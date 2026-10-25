@@ -10,12 +10,93 @@ import { parseSequenceBody, renderSequence, sequenceUnsupportedSyntaxWarnings } 
 import { parseRegisteredMermaid, asSequence, mutate, serializeMermaid } from '../agent/index.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { verifyMermaid } from '../agent/verify.ts'
+import { layoutSequenceDiagram } from '../sequence/layout.ts'
 
 /** Helper to parse — preprocesses text the same way index.ts does */
 function parse(text: string) {
   const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
   return parseSequenceDiagram(lines)
 }
+
+describe('Sequence text wrapping controls', () => {
+  it('separates controls from source text before decoding literal entities', () => {
+    const diagram = parse('sequenceDiagram\nA->>B:wrap: Wrapped\nA->>B:nowrap: Unwrapped\nA->>B: #119;rap#58; Literal\nNote over A: :wrap: Note text')
+    expect(diagram.messages.map(message => [message.label, message.wrap])).toEqual([
+      ['Wrapped', true], ['Unwrapped', false], ['wrap: Literal', undefined],
+    ])
+    expect(diagram.notes[0]).toMatchObject({ text: 'Note text', wrap: true })
+    for (const [payload, text, wrap] of [['wrap:nowrap: text', 'nowrap: text', true], ['WRAP: text', 'WRAP: text', undefined], [':nowrap: text', 'text', false]] as const) {
+      const message = parse(`sequenceDiagram\nA->>B: ${payload}`).messages[0]!
+      expect([message.label, message.wrap]).toEqual([text, wrap])
+    }
+  })
+
+  it('preserves control fields through edits and protects directive-like literal typed text', () => {
+    const parsed = parseRegisteredMermaid('sequenceDiagram\nA->>B:wrap: Original\nB->>A: Other')
+    if (!parsed.ok) throw new Error('parse failed')
+    const edited = mutate(parsed.value, { kind: 'set_message_text', index: 0, text: 'nowrap: literal payload' })
+    if (!edited.ok) throw new Error('edit failed')
+    const literal = mutate(edited.value, { kind: 'set_message_text', index: 1, text: ':wrap: literal payload' })
+    if (!literal.ok) throw new Error('edit failed')
+    const written = serializeMermaid(literal.value)
+    expect(parse(written).messages.map(message => [message.label, message.wrap])).toEqual([
+      ['nowrap: literal payload', true], [':wrap: literal payload', undefined],
+    ])
+    const unwrapped = mutate(literal.value, { kind: 'set_message_wrap', index: 0, wrap: false })
+    if (!unwrapped.ok) throw new Error('wrap edit failed')
+    expect(parse(serializeMermaid(unwrapped.value)).messages[0]).toMatchObject({ label: 'nowrap: literal payload', wrap: false })
+    expect(parseRegisteredMermaid(written)).toMatchObject({ ok: true, value: { body: { messages: [{ text: 'nowrap: literal payload', wrap: true }, { text: ':wrap: literal payload' }] } } })
+  })
+
+  it('uses wrap and nowrap in measured message and note geometry without altering payloads', () => {
+    const text = 'The reviewer needs enough detail to understand this complete message and its context'
+    const wrapped = layoutSequenceDiagram(parse(`sequenceDiagram\nA->>B:wrap: ${text}\nNote over B:wrap: ${text}`))
+    const unwrapped = layoutSequenceDiagram(parse(`sequenceDiagram\nA->>B:nowrap: ${text}\nNote over B:nowrap: ${text}`))
+    expect(wrapped.messages[0]!.labelPosition.block!.lines.length).toBeGreaterThan(1)
+    expect(unwrapped.messages[0]!.labelPosition.block!.lines).toEqual([text])
+    expect(wrapped.notes[0]!.block!.lines.length).toBeGreaterThan(1)
+    expect(unwrapped.notes[0]!.block!.lines).toEqual([text])
+    expect(wrapped.messages[0]!.label).toBe(text)
+    expect(wrapped.notes[0]!.text).toBe(text)
+  })
+
+  it('edits fragment message wrapping independently of literal text', () => {
+    const parsed = parseRegisteredMermaid('sequenceDiagram\nloop Work\nA->>B:wrap: Original\nend')
+    if (!parsed.ok) throw new Error('parse failed')
+    const unwrapped = mutate(parsed.value, { kind: 'set_fragment_message_wrap', fragmentIndex: 0, index: 0, wrap: false })
+    if (!unwrapped.ok) throw new Error('wrap edit failed')
+    const edited = mutate(unwrapped.value, { kind: 'set_fragment_message_text', fragmentIndex: 0, index: 0, text: 'wrap: literal' })
+    if (!edited.ok) throw new Error('text edit failed')
+    expect(parse(serializeMermaid(edited.value)).messages[0]).toMatchObject({ label: 'wrap: literal', wrap: false })
+    const inherited = mutate(edited.value, { kind: 'set_fragment_message_wrap', fragmentIndex: 0, index: 0, wrap: null })
+    if (!inherited.ok) throw new Error('wrap reset failed')
+    const message = parse(serializeMermaid(inherited.value)).messages[0]!
+    expect([message.label, message.wrap]).toEqual(['wrap: literal', undefined])
+  })
+
+  it('keeps controls on aliases, boxes and fragment captions through edits and layout', () => {
+    const text = 'A long caption that explains the complete interaction and the people who take part in it'
+    const source = `sequenceDiagram\nbox transparent wrap: ${text}\nparticipant A as wrap: ${text}\nend\nparticipant B as nowrap: ${text}\nalt wrap: ${text}\nA->>B: work\nelse nowrap: ${text}\nB->>A: done\nend`
+    const native = parse(source)
+    expect(native.actors.map(actor => [actor.label, actor.wrap])).toEqual([[text, true], [text, false]])
+    expect(native.boxes?.[0]).toMatchObject({ label: text, wrap: true })
+    expect(parse('sequenceDiagram\nrect wrap: rgb(240, 240, 240)\nA->>B: work\nend').blocks[0]).toMatchObject({ type: 'rect', color: 'rgb(240, 240, 240)' })
+    expect(native.blocks[0]).toMatchObject({ label: text, wrap: true, dividers: [{ label: text, wrap: false }] })
+    const positioned = layoutSequenceDiagram(native)
+    expect(positioned.actors[0]!.labelPosition.block!.lines.length).toBeGreaterThan(1)
+    expect(positioned.actors[1]!.labelPosition.block!.lines).toEqual([text])
+    expect(positioned.boxes[0]!.block!.lines.length).toBeGreaterThan(1)
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error('parse failed')
+    const alias = mutate(parsed.value, { kind: 'set_participant_label', id: 'A', label: 'nowrap: literal alias' })
+    if (!alias.ok) throw new Error('alias edit failed')
+    const caption = mutate(alias.value, { kind: 'set_fragment_label', index: 0, label: 'nowrap: literal caption' })
+    if (!caption.ok) throw new Error('caption edit failed')
+    const reread = parse(serializeMermaid(caption.value))
+    expect(reread.actors[0]).toMatchObject({ label: 'nowrap: literal alias', wrap: true })
+    expect(reread.blocks[0]).toMatchObject({ label: 'nowrap: literal caption', wrap: true, dividers: [{ label: text, wrap: false }] })
+  })
+})
 
 // ============================================================================
 // Actor / Participant declarations

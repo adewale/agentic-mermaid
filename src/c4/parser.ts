@@ -220,6 +220,15 @@ function required(fields: Record<string, string>, field: string, macro: string):
   return value
 }
 
+function argumentLabel(args: readonly C4Argument[], names: readonly string[], fields: Record<string, string>, macro: string): string {
+  const label = c4DisplayArgument(args, names, 'label')
+  if (label !== undefined) return label
+  // Named arguments address their field even in a positional label slot.
+  // Keep that field and an empty label, rather than coercing it into text.
+  if (args[names.indexOf('label')]?.name) return ''
+  return required(fields, 'label', macro)
+}
+
 /** Fields which affect authored source, excluding derived cascade/layout data. */
 export function c4RecordSignature(record: C4Element | C4Boundary | C4Relationship | C4Directive): string {
   const { args: _args, style: _style, effectiveLink: _effectiveLink, statementId: _statementId, ...fields } = record as (C4Element | C4Boundary | C4Relationship) & { name?: string; category?: string }
@@ -465,7 +474,7 @@ function readC4(input: string | readonly string[], admitWork: boolean): C4Body {
       const record: C4Element = {
         id, macro, kind: element[1]!.toLowerCase() as C4Element['kind'], external: Boolean(element[3]),
         shape: element[1] === 'Person' ? 'person' : element[2] === 'Db' ? 'database' : element[2] === 'Queue' ? 'queue' : 'rectangle',
-        label: c4DisplayArgument(args, c4ElementFields(macro), 'label') ?? required(fields, 'label', macro),
+        label: argumentLabel(args, c4ElementFields(macro), fields, macro),
         technology: optional(c4DisplayArgument(args, c4ElementFields(macro), 'techn')), description: optional(c4DisplayArgument(args, c4ElementFields(macro), 'descr')),
         parentId: parents.at(-1), tags: tags(fields.tags), link: optional(fields.link), sprite: optional(fields.sprite), style: {}, args, statementId: statement.id,
       }
@@ -481,7 +490,7 @@ function readC4(input: string | readonly string[], admitWork: boolean): C4Body {
       if (ids.has(id)) throw new Error(`C4: duplicate declaration alias ${JSON.stringify(id)}`)
       ids.add(id)
       const record: C4Boundary = {
-        id, macro, kind: BOUNDARIES[macro]!, label: c4DisplayArgument(args, c4BoundaryFields(macro), 'label') ?? required(fields, 'label', macro),
+        id, macro, kind: BOUNDARIES[macro]!, label: argumentLabel(args, c4BoundaryFields(macro), fields, macro),
         type: optional(c4DisplayArgument(args, c4BoundaryFields(macro), 'type')), description: optional(c4DisplayArgument(args, c4BoundaryFields(macro), 'descr')),
         parentId: parents.at(-1), tags: tags(fields.tags), link: optional(fields.link), sprite: optional(fields.sprite), style: {}, args, statementId: statement.id,
         ...(macro === 'Node_L' ? { alignment: 'left' } : macro === 'Node_R' ? { alignment: 'right' } : {}),
@@ -500,7 +509,7 @@ function readC4(input: string | readonly string[], admitWork: boolean): C4Body {
       const reversed = macro === 'Rel_Back'
       const record: C4Relationship = {
         id: '', macro, from, to, source: reversed ? to : from, target: reversed ? from : to,
-        label: c4DisplayArgument(args, c4RelationshipFields(macro), 'label') ?? required(fields, 'label', macro),
+        label: argumentLabel(args, c4RelationshipFields(macro), fields, macro),
         technology: optional(c4DisplayArgument(args, c4RelationshipFields(macro), 'techn')), description: optional(c4DisplayArgument(args, c4RelationshipFields(macro), 'descr')),
         tags: tags(fields.tags), link: optional(fields.link), sprite: optional(fields.sprite), style: {}, args, statementId: statement.id,
         index: macro === 'RelIndex' ? required(fields, 'index', macro) : undefined,

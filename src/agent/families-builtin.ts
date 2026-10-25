@@ -54,6 +54,7 @@ import { mutateSankey, parseSankeyBody, renderSankey, verifySankey } from './san
 import { createSequenceMutationDraft, mutateSequence, parseSequenceBody, renderSequence } from './sequence-body.ts'
 import { recordSourceMapEnds } from './source-map-spans.ts'
 import { mutateState, parseStateBody, renderState, verifyOpaqueState, verifyState } from './state-body.ts'
+import { matchFloatingNote } from '../state/parse-core.ts'
 import { mutateTimeline, parseTimelineBody, renderTimeline } from './timeline-body.ts'
 import type { AnyMutationOp, ClassBody, DiagramBody, DiagramKind, ErBody, FamilyParsedBody, GanttBody, LayoutWarning, MutationError, PieBody, QuadrantBody, RadarBody, Result, SankeyBody, SourceLocation, SourceMap, XyChartBody } from './types.ts'
 import { err, ok } from './types.ts'
@@ -157,7 +158,10 @@ function extractStateLabels(source: string): ExtractedLabel[] {
     if (!raw || raw.startsWith('%%')) continue
     const target = `line${i + 1}`
     let m
-    if ((m = raw.match(/^state\s+"([^"]+)"\s+as\s+/i))) {
+    const floating = matchFloatingNote(raw)
+    if (floating) {
+      out.push({ text: floating.text, target })
+    } else if ((m = raw.match(/^state\s+"([^"]+)"\s+as\s+/i))) {
       out.push({ text: m[1]!.trim(), target })
     } else if (raw.includes('-->') && raw.includes(':')) {
       const colon = raw.indexOf(':')

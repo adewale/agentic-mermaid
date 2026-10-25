@@ -97,6 +97,10 @@ export function shapeOutline(
   const { x, y, width: w, height: h } = node
   const cx = x + w / 2, cy = y + h / 2
   switch (node.shape) {
+    case 'state-note': {
+      const fold = Math.min(12, w / 6, h / 4)
+      return polygon([{ x, y }, { x: x + w - fold, y }, { x: x + w, y: y + fold }, { x: x + w, y: y + h }, { x, y: y + h }], paint)
+    }
     case 'diamond':
     case 'state-choice':
       // Retain the established arithmetic order so consolidating the authority

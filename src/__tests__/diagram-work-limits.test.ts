@@ -57,6 +57,11 @@ describe('graph work admission', () => {
     expect(() => { parseMermaid(transitions) }).toThrow(/DIAGRAM_WORK_LIMIT.*edges/)
     const regions = `stateDiagram-v2\nstate C {\nA\n${'--\n'.repeat(5000)}}`
     expect(() => { parseMermaid(regions) }).toThrow(/DIAGRAM_WORK_LIMIT.*nodes/)
+    // Forward references can establish deep ownership even when each block
+    // is written at root level. Admit the resolved tree before projection.
+    const chain = (count: number) => `stateDiagram-v2\n${Array.from({ length: count }, (_, i) => `state C${i} { C${i + 1} }`).join('\n')}`
+    expect(() => parseMermaid(chain(64))).not.toThrow()
+    expect(() => parseMermaid(chain(65))).toThrow(/DIAGRAM_WORK_LIMIT.*nesting 65/)
   })
 
   test('source configuration cannot raise the work budget for SVG or terminal output', () => {

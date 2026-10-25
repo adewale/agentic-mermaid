@@ -82,7 +82,6 @@ const descriptorData = Object.freeze({
       "theme",
       "useMaxWidth",
       "useWidth",
-      "wrap",
       "wrapPadding"
     ]
   },

@@ -141,15 +141,14 @@ Users can discover fork features through:
 Flowchart and ER use the shared **first-subgraph-to-close** rule for competing
 candidates: at each `end`, keep candidates not already owned by an earlier-closed
 subgraph, once each. An inner subgraph closes before its enclosing subgraph.
-But the families do not collect the same candidates:
+Creation and membership are separate decisions:
 
-- Flowchart node statements and edge endpoints add newly created nodes and
-  explicit shaped/metadata definitions to the current subgraph. A link endpoint
-  naming an already-known node does not add it; neither does a `style` statement
-  that creates a node. A statement of node ids alone (`a`, `a & b`, `a:::c`) lists
-  them in the current subgraph if no subgraph has listed them yet, as Mermaid's
-  nested-subgraph spec reads it, and a subgraph id listed this way nests that
-  subgraph there. First mention therefore still matters for link endpoints.
+- Flowchart node statements and edge endpoints collect their identities in the
+  current subgraph, even when already known. A `style` statement that creates a
+  node does not collect it. References to a declared subgraph collect its group
+  identity, independently of whether its declaration precedes the reference.
+  Group references resolve after declarations close; the result is a tree, so
+  a reference cannot make a group contain itself or one of its ancestors.
 - ER collects entity declarations and entity endpoints of relations, even for
   entities already named at top level. A prior top-level mention does not prevent
   a later ER subgraph from keeping that entity. A style directive alone does not
@@ -172,14 +171,11 @@ For example:
       end
   ```
 
-Here `one` keeps only `a1`, and `three` only `c2`: the earlier edge created `c1`
-and `a2`, and the later bare references do not add them to those subgraphs.
-Writing `a2[Label]` inside `one` explicitly makes it a candidate there. When two
-subgraphs both collect a candidate, the one that closes first keeps it. In ER,
-even a bare declaration inside a subgraph collects an already-known entity.
-Do not assume a Flowchart-to-ER migration, or replacing a bare reference with a
-definition, leaves grouping unchanged. Calling all of this “first-defined-wins”
-was incomplete; calling every body mention a candidate would also be wrong.
+Here `one` keeps `a1` and `a2`, and `three` keeps `c1` and `c2`. The earlier edge
+created `c1` and `a2` without assigning a group. When two subgraphs collect the
+same candidate, the one that closes first keeps it. A later cross-group link
+does not move an identity out of an already-closed owner. Serialization emits
+this resolved membership before links so the same rule applies on re-reading.
 
 The [Flowchart candidate collector](https://github.com/adewale/agentic-mermaid/blob/3ef2fb8beff21359fb6e3b798e025a3d69311539/src/parser.ts#L1276-L1321),
 [shared membership authority](https://github.com/adewale/agentic-mermaid/blob/3ef2fb8beff21359fb6e3b798e025a3d69311539/src/shared/subgraph-membership.ts)
@@ -187,6 +183,44 @@ and [ER public-boundary regressions](https://github.com/adewale/agentic-mermaid/
 record this rule. Agreement on this grammar decision is not a promise of
 Mermaid pixel/layout parity. Current deliberate reader extensions and source
 preservation limits live in [`project/divergences.md`](./project/divergences.md).
+
+State resolves authored identities and scopes before building either the
+editable body or the render graph. A reference inside a composite can establish
+the scope of a later definition; a root reference alone establishes no parent.
+Each identity belongs to one scope, and a composite retains its first placement
+when reopened. Initial and final `[*]` endpoints each name one pseudostate per
+scope, with independent identities in concurrent regions. Generated region and
+endpoint names cannot alias authored names.
+The writer checks its emitted ownership against the typed body using that same
+resolver. An edit that cannot retain the requested scope returns an error;
+for example, moving a state to root while a transition inside its former
+composite would claim it again. Move or remove the conflicting transition first.
+
+Named floating notes (`note "text" as N`) retain their text and scope in
+`StateBody.floatingNotes`. Their identities are independent of state identities,
+so a state and a note may both be named `N`. The State operations
+`add_floating_note`, `set_floating_note_text` and `remove_floating_note` edit
+these annotations. Scope rename, removal and dissolution carry the annotations
+with their scope; serialization, SVG and terminal rendering preserve them.
+
+### ER parent endpoints
+
+ER's left endpoint can use `u` for the parent marker, independently of the four
+crow's-foot cardinalities. The native and typed models retain `parent`; SVG
+draws a hollow diamond and terminal output draws `◇` (`o` in plain ASCII). The
+writer and `add_relation` admit this marker only before the connector, where
+pinned Mermaid's lexer accepts it.
+
+### Sequence text controls
+
+Sequence `wrap:` and `nowrap:` are source controls, separated from text before
+entity decoding. Messages, notes, participant aliases, box titles and fragment
+captions retain the control; explicit controls override the diagram default.
+SVG measures wrapped text with a pixel budget; terminal output uses its own cell
+budget. An explicit `nowrap:` still preserves authored line breaks. Typed text
+edits retain the control, and typed strings beginning with control-like text are
+encoded as literal text. `set_message_wrap` and `set_fragment_message_wrap` accept
+`true`, `false`, or `null` to restore inheritance.
 
 ## What is intentionally not in this fork
 

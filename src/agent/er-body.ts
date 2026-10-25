@@ -138,9 +138,9 @@ function writableErId(id: string): boolean {
 
 // ---- Parser ---------------------------------------------------------------
 
-const AGENT_CARDINALITY: Record<NonNullable<ReturnType<typeof parseErCardinality>>, ErCardinality> = {
-  one: 'one-only', 'zero-one': 'zero-or-one', many: 'one-or-many', 'zero-many': 'zero-or-many',
-}
+const AGENT_CARDINALITY = {
+  one: 'one-only', 'zero-one': 'zero-or-one', many: 'one-or-many', 'zero-many': 'zero-or-many', parent: 'parent',
+} as const satisfies Record<NonNullable<ReturnType<typeof parseErCardinality>>, ErCardinality>
 
 /** Project the shared ER stream into the editable model. Unknown outer lines
  * remain ordered source; syntax that cannot be safely segmented stays opaque. */
@@ -226,7 +226,7 @@ function readErBody(lines: string[]): ErBody | null {
         const { relation } = statement
         const left = parseErCardinality(relation.leftToken)
         const right = parseErCardinality(relation.rightToken)
-        if (!left || !right) return null
+        if (!left || !right || right === 'parent') return null
         const relationIndex = body.relations.length
         body.relations.push({
           from: relation.entity1.id,
@@ -289,9 +289,9 @@ function readErBody(lines: string[]): ErBody | null {
 // ---- Serializer -----------------------------------------------------------
 
 const LEFT_GLYPH: Record<ErCardinality, string> = {
-  'one-only': '||', 'zero-or-one': '|o', 'zero-or-many': '}o', 'one-or-many': '}|',
+  'one-only': '||', 'zero-or-one': '|o', 'zero-or-many': '}o', 'one-or-many': '}|', parent: 'u',
 }
-const RIGHT_GLYPH: Record<ErCardinality, string> = {
+const RIGHT_GLYPH: Record<Exclude<ErCardinality, 'parent'>, string> = {
   'one-only': '||', 'zero-or-one': 'o|', 'zero-or-many': 'o{', 'one-or-many': '|{',
 }
 
@@ -390,6 +390,7 @@ function writeEr(body: ErBody, prefix: readonly ErEntity[]): { source: string; o
     fold.relationEnd(relation.to)
     const left = LEFT_GLYPH[relation.leftCard]
     const right = RIGHT_GLYPH[relation.rightCard]
+    if (left === undefined || right === undefined) throw new Error('Invalid ER endpoint marker: parent is only writable before the relationship connector')
     const link = relation.dashed ? '..' : '--'
     const label = relation.label ?? ''
     // Mermaid reads an alias only on a declaration, never on a relation end.
@@ -690,6 +691,9 @@ export function mutateEr(body: ErBody, op: ErMutationOp): Result<ErBody, Mutatio
       return ok(b)
     }
     case 'add_relation': {
+      if (!Object.hasOwn(LEFT_GLYPH, op.leftCard) || !Object.hasOwn(RIGHT_GLYPH, op.rightCard)) {
+        return err({ code: 'INVALID_OP', message: 'Invalid ER endpoint marker: parent is only writable on the left, before the relationship connector' })
+      }
       if (!find(op.from)) return err({ code: 'ENTITY_NOT_FOUND', message: `entity ${op.from} not found` })
       if (!find(op.to)) return err({ code: 'ENTITY_NOT_FOUND', message: `entity ${op.to} not found` })
       b.relations.push({ from: op.from, to: op.to, leftCard: op.leftCard, rightCard: op.rightCard, dashed: op.dashed ?? false, label: op.label })

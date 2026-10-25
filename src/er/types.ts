@@ -75,7 +75,7 @@ export interface ErAttribute {
  *   'many'      }|  one or more
  *   'zero-many' o{  zero or more
  */
-export type Cardinality = 'one' | 'zero-one' | 'many' | 'zero-many'
+export type Cardinality = 'one' | 'zero-one' | 'many' | 'zero-many' | 'parent'
 
 export interface ErRelationship {
   entity1: string

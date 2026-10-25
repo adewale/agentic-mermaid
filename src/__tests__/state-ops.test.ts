@@ -129,19 +129,25 @@ describe('move_state', () => {
     expect(machine.states!.some(s => s.id === 'Active')).toBe(true)
     // Cross-boundary transitions survive (ids are global in state diagrams).
     expect(d.body.transitions).toContainEqual({ from: 'Idle', to: 'Active', label: 'start' })
+    expect(state(serializeMermaid(d)).body).toEqual(d.body)
     roundTrips(d)
   })
   test('moves a nested state to the top level with parent: null', () => {
-    const d = apply(state(), { kind: 'move_state', id: 'Cog', parent: null })
+    const d = apply(state('stateDiagram-v2\nstate Machine { Cog }'), { kind: 'move_state', id: 'Cog', parent: null })
     expect(d.body.states.some(s => s.id === 'Cog')).toBe(true)
     const machine = d.body.states.find(s => s.id === 'Machine')!
     expect(machine.states!.some(s => s.id === 'Cog')).toBe(false)
+    expect(state(serializeMermaid(d)).body).toEqual(d.body)
     roundTrips(d)
+  })
+  test('refuses a move whose old scoped transition would silently claim the state back', () => {
+    expectErr(state(), { kind: 'move_state', id: 'Cog', parent: null }, 'INVALID_OP', 'cannot retain its requested scope')
   })
   test('promotes a simple parent into a composite', () => {
     const d = apply(state(), { kind: 'move_state', id: 'Idle', parent: 'Active' })
     const active = d.body.states.find(s => s.id === 'Active')!
     expect(active.states!.map(s => s.id)).toEqual(['Idle'])
+    expect(state(serializeMermaid(d)).body).toEqual(d.body)
     roundTrips(d)
   })
   test('errors: missing state/parent, self/descendant cycle, no-op move', () => {

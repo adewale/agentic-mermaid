@@ -3,6 +3,7 @@ import { resolveLabelContent, type DisplayTextInput } from '../shared/display-te
 import type { SequenceBounds, SequenceDiagram, PositionedSequenceDiagram, PositionedActor, Lifeline, PositionedMessage, Activation, PositionedBlock, PositionedNote, PositionedBoxGroup, LifelineCross } from './types.ts'
 import { SEQUENCE_SELF_LOOP, measureSequenceActorSpec, measureSequenceBlockSpec, measureSequenceMessageSpec, positionSequenceActor, positionSequenceBlock, positionSequenceMessage, resolveSequenceBlockScopes, sequenceDividerLeadingNote, translatePositionedSequence, type SequenceBlockPlacement } from './geometry.ts'
 import { getSequenceBlockBoundaries } from './parser.ts'
+import { SEQUENCE_TEXT_WRAP_WIDTH } from './geometry.ts'
 import type { RenderOptions } from '../types.ts'
 import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle, diagramTitleBand, positionDiagramTitle, titleOnlyCanvas } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
@@ -129,7 +130,7 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
   }
 
   // 1. Measure actor header specs and message specs
-  const actorSpecs = diagram.actors.map((a, index) => measureSequenceActorSpec(a, style, actorRoleStyles[index], minActorWidth, baseActorHeight))
+  const actorSpecs = diagram.actors.map((a, index) => measureSequenceActorSpec(a.wrap === undefined && config.wrap !== undefined ? { ...a, wrap: config.wrap } : a, style, actorRoleStyles[index], minActorWidth, baseActorHeight))
   const actorWidths = actorSpecs.map(spec => spec.width)
 
   // Build actor ID → index lookup before spacing: authored message labels and
@@ -137,7 +138,7 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
   // participate in the required horizontal span.
   const actorIndex = new Map<string, number>()
   for (let i = 0; i < diagram.actors.length; i++) actorIndex.set(diagram.actors[i]!.id, i)
-  const messageSpecs = diagram.messages.map(message => measureSequenceMessageSpec(message, style, activationWidth))
+  const messageSpecs = diagram.messages.map(message => measureSequenceMessageSpec(message.wrap === undefined && config.wrap !== undefined ? { ...message, wrap: config.wrap } : message, style, activationWidth))
   const messageGapRequirements = Array.from({ length: Math.max(0, diagram.actors.length - 1) }, () => 0)
   for (let mi = 0; mi < diagram.messages.length; mi++) {
     const message = diagram.messages[mi]!
@@ -178,7 +179,7 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
   //    the actor boxes, so boxed diagrams reserve extra headroom for it.
   const boxGroups = (diagram.boxes ?? []).flatMap((box, index) => {
     const memberIdxs = diagram.actors.flatMap((actor, i) => (actor.box === index ? [i] : []))
-    const block = box.label ? preparePixelText(resolveLabelContent(box.label, box.labelContent), { transform: style.groupTextTransform, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing, fontFamily: style.groupFont }) : undefined
+    const block = box.label ? preparePixelText(resolveLabelContent(box.label, box.labelContent), { transform: style.groupTextTransform, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing, fontFamily: style.groupFont, ...((box.wrap ?? config.wrap) ? { maxWidth: SEQUENCE_TEXT_WRAP_WIDTH } : {}) }) : undefined
     return memberIdxs.length > 0 ? [{ box, memberIdxs, block }] : []
   })
   const boxTitleHeight = Math.max(SEQ.boxTitleSpace, ...boxGroups.map(group => (group.block?.height ?? 0) + 8))
@@ -200,7 +201,7 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
   const messages: PositionedMessage[] = []
 
   const blockScopes = resolveSequenceBlockScopes(diagram)
-  const blockSpecs = diagram.blocks.map(block => measureSequenceBlockSpec(block, style, blockPadTop, blockHeaderExtra, SEQ.dividerExtra, edgeTextHeight))
+  const blockSpecs = diagram.blocks.map(block => measureSequenceBlockSpec({ ...block, wrap: block.wrap ?? config.wrap, dividers: block.dividers.map(divider => ({ ...divider, wrap: divider.wrap ?? config.wrap })) }, style, blockPadTop, blockHeaderExtra, SEQ.dividerExtra, edgeTextHeight))
   const boundaries = getSequenceBlockBoundaries(diagram)
 
   // Pre-scan blocks to determine which message indices need extra vertical
@@ -349,7 +350,7 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
   }
 
   const positionNote = (note: (typeof diagram.notes)[number], noteY: number): PositionedNote => {
-    const block = preparePixelText(resolveLabelContent(note.text, note.textContent), { transform: style.nodeTextTransform, fontSize: style.nodeLabelFontSize, fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing })
+    const block = preparePixelText(resolveLabelContent(note.text, note.textContent), { transform: style.nodeTextTransform, fontSize: style.nodeLabelFontSize, fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing, ...((note.wrap ?? config.wrap) ? { maxWidth: SEQUENCE_TEXT_WRAP_WIDTH } : {}) })
     const noteMetrics = block
     const noteW = Math.max(SEQ.noteWidth, noteMetrics.width + style.nodePaddingX * 2)
     const noteH = noteMetrics.height + style.nodePaddingY * 2

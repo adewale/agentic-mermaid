@@ -82,7 +82,47 @@ const stableRepresentativeCues = {
   block:
     'Seven components occupy four authored composite groups, including nested Delivery/Persistence inside a two-column Gateway plane span, two empty cells and durable queue/store artwork. Follow six complete labeled connections; Batch enters Ingress from the west while Enqueue leaves south, preserving distinct physical contacts.',
 } as const
+const ownershipGoldenIds = new Set(['corpus/flowchart/94', 'corpus/flowchart/95', 'corpus/flowchart/96', 'corpus/state/0', 'corpus/state/1', 'corpus/state/8', 'corpus/state/14', 'corpus/state/16', 'corpus/state/17', 'corpus/state/18', 'corpus/state/19'])
 const fixtures: Fixture[] = [
+  ...corpusSamples.filter(sample => ownershipGoldenIds.has(sample.id)).map(sample => ({
+    id: `compat-${sample.id.replaceAll('/', '-')}`,
+    title: `${sample.id}: ownership and contextual endpoint baseline`,
+    source: sample.source,
+    captureLayout: true as const,
+    cue: sample.family === 'flowchart'
+      ? 'Inspect the complete subgraph membership after earlier references, with unchanged authored edges. Added members change container sizes and placement; this is an intentional topology correction.'
+      : 'Inspect one contextual start/end per scope, all authored transitions, and separate concurrent regions. Generated endpoint names now include the region; unchanged names are not a paint contract.',
+  })),
+  {
+    id: "compat-flowchart-membership",
+    title: "Flowchart references retain their owning subgraphs",
+    source: "flowchart TB\nc1-->a2\nsubgraph one\na1-->a2\nend\nsubgraph three\nc1-->c2\nend",
+    cue: "Inspect a1 and a2 inside one, and c1 and c2 inside three. The first edge creates identities without assigning a group. This fixture checks ownership after an earlier reference; it does not establish general compound-graph routing quality.",
+  },
+  {
+    id: "compat-c4-named-label",
+    title: "C4 named fields remain named fields",
+    source: "C4Context\nPerson(user, $descr=\"A person\")",
+    cue: "The baseline may reject the named argument in the label slot. Inspect the retained description and the absence of a displayed dollar-prefixed argument; the input deliberately has no positional label.",
+  },
+  {
+    id: "compat-state-floating-note",
+    title: "Scoped floating State notes retain independent identity",
+    source: "stateDiagram-v2\nstate Outer {\n A --> B\n note \"Review before release\" as A\n}\nB --> C",
+    cue: "Inspect the note and state A as separate objects inside Outer. Compare the annotation text and unchanged transition endpoints. This fixture does not prove all nested note placements.",
+  },
+  {
+    id: "compat-er-parent",
+    title: "ER parent endpoints draw a distinct diamond",
+    source: "erDiagram\nPROJECT u--o{ TEAM_MEMBER : parent",
+    cue: "The baseline rejects the parent marker. After, inspect the hollow diamond at PROJECT and the circle/crow foot at TEAM_MEMBER; neither endpoint is replaced with another cardinality.",
+  },
+  {
+    id: "compat-sequence-wrap",
+    title: "Sequence controls affect wrapping without becoming label text",
+    source: "sequenceDiagram\nA->>B:wrap: The reviewer needs enough detail to understand this complete message and its context\nNote over B:wrap: The reviewer needs enough detail to understand this complete message and its context\nB->>A:nowrap: Reviewed",
+    cue: "Inspect the complete wrapped message and note, and the single-line reply. The wrap and nowrap prefixes must not appear as text. This fixture uses the default font and does not establish every font or width combination.",
+  },
   {
     id: 'architecture-junction-contact',
     title: 'Architecture junction contact',

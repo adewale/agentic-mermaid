@@ -1,3 +1,5 @@
+import { splitSequenceTextControl } from './text.ts'
+
 /** Exact Sequence block keywords shared by native and agent projections. */
 export type SequenceBlockOpener = 'loop' | 'alt' | 'opt' | 'par' | 'par_over' | 'critical' | 'break' | 'rect' | 'box'
 export type SequenceBlockContinuation = 'else' | 'and' | 'option'
@@ -10,14 +12,21 @@ export type SequenceBlockContinuation = 'else' | 'and' | 'option'
 const OPEN_RE = /^(loop|alt|opt|par_over|par|critical|break|rect|box)\b\s*([\s\S]*)$/i
 const CONTINUE_RE = /^(else|and|option)\b\s*([\s\S]*)$/i
 
-export function parseSequenceBlockOpener(line: string): { type: SequenceBlockOpener; label: string } | null {
+export function parseSequenceBlockOpener(line: string): { type: SequenceBlockOpener; label: string; wrap?: boolean } | null {
   const match = OPEN_RE.exec(line)
-  return match ? { type: match[1]!.toLowerCase() as SequenceBlockOpener, label: match[2]?.trim() ?? '' } : null
+  if (!match) return null
+  const type = match[1]!.toLowerCase() as SequenceBlockOpener
+  const label = match[2]?.trim() ?? ''
+  if (type === 'box') return { type, label }
+  const control = splitSequenceTextControl(label)
+  return { type, label: control.text, ...(control.wrap === undefined ? {} : { wrap: control.wrap }) }
 }
 
-export function parseSequenceBlockContinuation(line: string): { type: SequenceBlockContinuation; label: string } | null {
+export function parseSequenceBlockContinuation(line: string): { type: SequenceBlockContinuation; label: string; wrap?: boolean } | null {
   const match = CONTINUE_RE.exec(line)
-  return match ? { type: match[1]!.toLowerCase() as SequenceBlockContinuation, label: match[2]?.trim() ?? '' } : null
+  if (!match) return null
+  const control = splitSequenceTextControl(match[2] ?? '')
+  return { type: match[1]!.toLowerCase() as SequenceBlockContinuation, label: control.text, ...(control.wrap === undefined ? {} : { wrap: control.wrap }) }
 }
 
 export function continuationBelongsToBlock(
