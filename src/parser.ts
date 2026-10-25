@@ -339,9 +339,7 @@ function parseFlowchart(lines: string[], breaks: ReadonlyArray<readonly number[]
   const declaredSubgraphIds = new Set([...declarations.values()].map(group => group.id))
   // Upstream's membership rule: the first subgraph to close keeps a node.
   const membership = createSubgraphMembership()
-  // The subgraph ids each open subgraph lists on their own, and, in the order
-  // the listers close, those lists.
-  const listedSubgraphs = new Map<MermaidSubgraph, string[]>()
+  // Resolve group references after all declarations have closed.
   const listings: Array<{ lister: string; ids: string[] }> = []
 
   /** Close the innermost open subgraph, if any. */
@@ -352,9 +350,9 @@ function parseFlowchart(lines: string[], breaks: ReadonlyArray<readonly number[]
     // sees the same members, first title and unique group identity.
     const canonical = subgraphsById.get(completed.id)!
     const members = membership.close(completed.id, completed.nodeIds)
-    const listed = listedSubgraphs.get(completed)
-    if (listed) listings.push({ lister: completed.id, ids: listed })
-    canonical.nodeIds = [...new Set([...canonical.nodeIds, ...members])]
+    const listed = members.filter(id => declaredSubgraphIds.has(id) && id !== completed.id)
+    if (listed.length) listings.push({ lister: completed.id, ids: listed })
+    canonical.nodeIds = [...new Set([...canonical.nodeIds, ...members.filter(id => !declaredSubgraphIds.has(id))])]
     for (const child of completed.children) if (child !== canonical && !canonical.children.some(existing => existing.id === child.id)) canonical.children.push(child)
     canonical.direction ??= completed.direction
     const parent = subgraphStack.at(-1)
@@ -493,20 +491,6 @@ function parseFlowchart(lines: string[], breaks: ReadonlyArray<readonly number[]
       // --- Edge/node definitions ---
       const parsed = parseEdgeLine(line, graph, subgraphStack, declaredSubgraphIds)
       if (!parsed.ok) throw invalidFlowchartStatement(line, parsed)
-      const current = subgraphStack.at(-1)
-      if (current && parsed.listed) {
-        // A statement of ids alone lists them in the subgraph: a node no
-        // subgraph has listed yet joins it, and a subgraph is nested there
-        // (listSubgraphs). A link endpoint claims only a node it creates.
-        for (const id of parsed.listed) {
-          if (declaredSubgraphIds.has(id)) {
-            const listed = listedSubgraphs.get(current) ?? []
-            if (!listed.includes(id)) listedSubgraphs.set(current, [...listed, id])
-          } else if (membership.ownerOf(id) === undefined && !subgraphStack.some(open => open.nodeIds.includes(id))) {
-            trackInSubgraph(subgraphStack, id)
-          }
-        }
-      }
     }
   }
 
@@ -518,8 +502,7 @@ function parseFlowchart(lines: string[], breaks: ReadonlyArray<readonly number[]
 }
 
 /**
- * Nest each subgraph a subgraph's body lists on its own (`subgraph A` /
- * `B` / `end`, upstream's nested subgraphs) in the first lister to close,
+ * Nest each subgraph a subgraph's body references in the first lister to close,
  * when it is top-level. One declared inside another stays there, and none is
  * nested inside itself or its own descendant.
  */
@@ -1379,8 +1362,6 @@ function consumeClassShorthand(text: string): { className: string; length: numbe
  */
 type EdgeLineParseResult = {
   readonly ok: true
-  /** A statement of nodes alone (`A`, `A & B:::c`, `A[x]`), no link: their ids. */
-  readonly listed?: readonly string[]
 }
   | { readonly ok: false; readonly remaining: string; readonly reason: 'expected node' | 'expected edge operator' | 'expected edge target' }
 
@@ -1405,7 +1386,7 @@ function parseEdgeLine(
   }
 
   remaining = firstGroup.remaining.trim()
-  if (remaining.length === 0) return { ok: true, listed: firstGroup.ids }
+  if (remaining.length === 0) return { ok: true }
   let prevGroupIds = firstGroup.ids
 
   // Parse arrow + node-group pairs until the line is exhausted.
@@ -1747,16 +1728,15 @@ function consumeNode(
     }
   }
 
-  // Bare node reference — only register if node doesn't exist yet.
-  // If it already exists, do NOT track it in the current subgraph: a bare
-  // reference never claims a node (first-defined-wins, docs/fork-differences.md),
-  // unless its statement lists it alone (parseFlowchart). Among the subgraphs
-  // that do list a node, the first to close keeps it.
+  // Creation and membership are independent: a reference contributes to its
+  // current block even when the identity was declared elsewhere. Ownership
+  // is resolved once, when each block closes.
   if (id === null) {
     const bare = consumeBareNodeId(text)
     if (bare) {
       id = bare.id
-      if (mentionNode(graph, id, declaredSubgraphIds)) trackInSubgraph(subgraphStack, id)
+      mentionNode(graph, id, declaredSubgraphIds)
+      trackInSubgraph(subgraphStack, id)
       remaining = text.slice(bare.length)
     }
   }

@@ -764,11 +764,21 @@ describe('parseMermaid – subgraphs', () => {
       end`)
     const a = g.subgraphs.find(s => s.id === 'A')
     expect(g.nodes.has('B')).toBe(false)
-    // `a` stands alone in A and no subgraph listed it before. The link to B
-    // does not nest B in A, as upstream's does.
+    // References collect membership independently of declaration order.
     expect(a?.nodeIds).toEqual(['b', 'a'])
-    expect(g.subgraphs.map(s => s.id)).toEqual(['B', 'A'])
+    expect(g.subgraphs.map(s => s.id)).toEqual(['A'])
+    expect(a?.children.map(s => s.id)).toEqual(['B'])
     expect(g.edges).toContainEqual(expect.objectContaining({ source: 'b', target: 'B' }))
+  })
+
+  it('collects known edge endpoints in their first owning subgraph before serialization', () => {
+    const source = 'flowchart TB\nc1-->a2\nsubgraph one\na1-->a2\nend\nsubgraph three\nc1-->c2\nend'
+    const members = (text: string) => parseMermaid(text).subgraphs.map(s => [s.id, [...s.nodeIds].sort()])
+    const expected = [['one', ['a1', 'a2']], ['three', ['c1', 'c2']]]
+    expect(members(source)).toEqual(expected)
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(members(serializeMermaid(parsed.value))).toEqual(expected)
   })
 
   // Upstream's subgraph.spec.js "should handle nested subgraphs 2": ids alone
