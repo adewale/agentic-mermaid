@@ -1,6 +1,6 @@
-import { isOwnedFamily } from './experimental/owned-family.ts'
-import { DefaultBackend } from './scene/backend.ts'
-import { nativeDrawingOf } from './scene/drawing.ts'
+import { hasOriginalOwnedFamilyHooks } from './experimental/owned-family.ts'
+import { isOriginalEnrolledDefaultBackend } from './scene/backend.ts'
+import { nativeDrawingOf, originalNativeDrawingOf } from './scene/drawing.ts'
 import { sceneAssertionsEnabled } from './scene/assertions.ts'
 import { PERFORMANCE_EXPERIMENTS, performanceExperimentEnabled } from './experimental-performance.ts'
 import { borrowedPositioned, cachedPositioned, retainOwnedNativeSvgPositioned, retainPositioned } from './experimental/position-cache.ts'
@@ -40,8 +40,13 @@ export function positionResolvedFamily(familyId: FamilyId, request: ResolvedRend
 /** Private render adapter: borrowed geometry never crosses a public boundary. */
 export function positionFamilyForNativeRender(request: ResolvedRenderRequest): FamilyLayoutResult {
   const plan = resolvedRenderExecutionPlanOf(request)
-  const borrow = plan.mode === 'scene' && plan.backend?.backend === DefaultBackend
-    && isOwnedFamily(plan.family) && !!nativeDrawingOf(plan.family.lowerScene) && !sceneAssertionsEnabled(request)
+  // A modified native producer may retain its context. Give it the ordinary
+  // independent copy, including on the call that first fills the cache, so a
+  // later restored original producer never borrows caller-retained geometry.
+  const producer = nativeDrawingOf(plan.family.lowerScene)
+  const borrow = plan.mode === 'scene' && isOriginalEnrolledDefaultBackend(plan.backend?.backend)
+    && hasOriginalOwnedFamilyHooks(plan.family, plan.family.id) && !plan.textMeasurement
+    && !!producer && producer === originalNativeDrawingOf(plan.family.lowerScene) && !sceneAssertionsEnabled(request)
   return positionFamily(plan.family.id, request, request.source, {}, borrow)
 }
 
