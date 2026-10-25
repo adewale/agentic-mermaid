@@ -151,6 +151,7 @@ export const DefaultBackend: StyleBackend = {
 
 const OWNED_DEFAULT_RENDERERS = new WeakSet<StyleBackend['render']>([DefaultBackend.render])
 const ORIGINAL_DEFAULT_FIELDS = Object.getOwnPropertyDescriptors(DefaultBackend)
+let enrolledOriginalDefaultFields: PropertyDescriptorMap | undefined
 
 /** Only our unchanged own-data implementation may reuse the private fixture.
  * Check identity first so custom backends and Proxies observe no new reads. */
@@ -166,6 +167,16 @@ function hasOriginalDefaultImplementation(backend: StyleBackend): boolean {
 /** A replacement method must use the checked backend path. */
 export function isBuiltinDefaultBackend(backend: StyleBackend): boolean {
   return backend === DefaultBackend && OWNED_DEFAULT_RENDERERS.has(backend.render)
+}
+
+/** Match the original implementation after enrollment wrapped and froze it. */
+export function isOriginalEnrolledDefaultBackend(backend: unknown): boolean {
+  if (backend !== DefaultBackend || !enrolledOriginalDefaultFields) return false
+  for (const field of ['id', 'capabilities', 'drawNode', 'render'] as const) {
+    const descriptor = Object.getOwnPropertyDescriptor(backend, field)
+    if (!descriptor || !('value' in descriptor) || descriptor.value !== enrolledOriginalDefaultFields[field]!.value) return false
+  }
+  return true
 }
 
 const CORE_BACKEND_VERSION = '1.0.0'
@@ -446,6 +457,9 @@ export function registerBuiltInBackend(backend: StyleBackend): void {
     validateBackendCapabilities(backend, id)
     const conformance = lazyBuiltInConformance(backend, id, originalDefault)
     const frozen = freezeBuiltInBackend(refuseUntilConforming(backend, inputName, conformance))
+    if (originalDefault && backend === DefaultBackend && !enrolledOriginalDefaultFields) {
+      enrolledOriginalDefaultFields = Object.getOwnPropertyDescriptors(frozen)
+    }
     registerExtension(BACKENDS, {
       identity: backendIdentity(id, {
         version: CORE_BACKEND_VERSION,
