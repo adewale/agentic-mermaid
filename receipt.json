@@ -42,9 +42,25 @@
     "geometry": "44 cases; only AJ changes; no defect metric worsens; identities/node positions identical",
     "svgGoldens": "29/29 have zero changed raster channels; bundled fonts; no system fonts",
     "ownerTests": "339 pass across 12 files; 94 pass across 2 golden/contact files; 1 focused editor budget pass",
-    "redGreen": "8 fail on base production; 2 controls pass"
+    "redGreen": "8 fail on base production; 2 controls pass",
+    "CI": {
+      "head": "b6d033a6c9ee04a7847953dc1852b75d6391b211",
+      "base": "98f19638d489badb278e3aa694b7f5a0c5234a5f",
+      "CI": {
+        "run": 40230201933,
+        "conclusion": "success"
+      },
+      "pinnedDocs": {
+        "run": 40230201810,
+        "conclusion": "success"
+      },
+      "ruff": {
+        "run": 40230202089,
+        "conclusion": "success"
+      }
+    }
   },
-  "performance": "Current paired comparison and identical-build control retain adverse State80 and hand-drawn observations; no general parity claim. Numeric formatting cost remains under investigation. Prior-12d results retain their original revisions.",
+  "performance": "Paired comparison retains State80 1.14x and hand-drawn 1.16x adverse observations. Identical-build control: 0.99x / 1.05x. Formatter-disabled diagnostic confirms a measurable numeric-normalization cost; no performance-parity claim. Prior-12d results retain original revisions.",
   "limitations": [
     "Finite cohort and bundled font environment; no arbitrary graph or continuity completeness claim.",
     "No before image exists for Class/Quadrant because baseline APIs reject these inputs.",
