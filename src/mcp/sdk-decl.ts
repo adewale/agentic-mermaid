@@ -666,11 +666,11 @@ interface ClassNote { text: string; textContent?: LabelContent; for?: string }
 interface ClassNamespaceDecl { name: string; label?: string; labelContent?: LabelContent }
 interface ClassBody { kind: 'class'; title?: string; classes: ClassNode[]; relations: ClassRelation[]; notes: ClassNote[]; namespaces?: ClassNamespaceDecl[]; classDefs?: Record<string, Record<string, string>> }
 
-type ErCardinality = 'one-only' | 'zero-or-one' | 'zero-or-many' | 'one-or-many'
+type ErCardinality = 'one-only' | 'zero-or-one' | 'zero-or-many' | 'one-or-many' | 'parent'
 interface ErAttribute { text: string }
 interface ErEntity { id: string; label?: string; labelContent?: LabelContent; attributes: ErAttribute[]; className?: string; style?: Record<string, string>; groupId?: string }
 interface ErGroup { id: string; label: string; labelContent?: LabelContent; parentId?: string; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
-interface ErRelation { from: string; to: string; leftCard: ErCardinality; rightCard: ErCardinality; dashed: boolean; label?: string; labelContent?: LabelContent }
+interface ErRelation { from: string; to: string; leftCard: ErCardinality; rightCard: Exclude<ErCardinality, 'parent'>; dashed: boolean; label?: string; labelContent?: LabelContent }
 type ErStatement = { kind: 'entity'; id: string } | { kind: 'relation'; ref: number } | { kind: 'direction'; groupId?: string } | { kind: 'group-open'; id: string } | { kind: 'group-close'; id: string } | { kind: 'opaque'; lines: string[] }
 interface ErBody { kind: 'er'; entities: ErEntity[]; relations: ErRelation[]; groups?: ErGroup[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'; classDefs?: Record<string, Record<string, string>>; statements?: ErStatement[] }
 
@@ -878,7 +878,7 @@ type ErMutationOp =
   | { kind: 'set_entity_label'; entity: string; label: string | null }
   | { kind: 'add_attribute'; entity: string; text: string }
   | { kind: 'remove_attribute'; entity: string; index: number }
-  | { kind: 'add_relation'; from: string; to: string; leftCard: ErCardinality; rightCard: ErCardinality; dashed?: boolean; label?: string }
+  | { kind: 'add_relation'; from: string; to: string; leftCard: ErCardinality; rightCard: Exclude<ErCardinality, 'parent'>; dashed?: boolean; label?: string }
   | { kind: 'remove_relation'; index: number }
   | { kind: 'set_direction'; direction: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
   | { kind: 'define_class'; name: string; style: string }

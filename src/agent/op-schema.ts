@@ -77,7 +77,7 @@ const SEQUENCE_MESSAGE_STYLES: readonly SequenceMessageStyle[] = ['sync', 'reply
 const PARTICIPANT_KINDS = ['participant', 'actor'] as const
 const SEQUENCE_FRAGMENT_KINDS = ['alt', 'opt', 'loop', 'par', 'par_over'] as const
 const CLASS_REL_KINDS: readonly ClassRelationKind[] = ['inheritance', 'composition', 'aggregation', 'association', 'dependency', 'realization', 'link-solid', 'link-dashed', 'lollipop']
-const ER_CARDINALITIES: readonly ErCardinality[] = ['one-only', 'zero-or-one', 'zero-or-many', 'one-or-many']
+const ER_CARDINALITIES: readonly ErCardinality[] = ['one-only', 'zero-or-one', 'zero-or-many', 'one-or-many', 'parent']
 const ARCH_SIDES: readonly ArchitectureSide[] = ['L', 'R', 'T', 'B']
 const ARCH_BOUNDARIES: readonly ArchitectureEndpointBoundary[] = ['item', 'group']
 const SERIES_KINDS = ['bar', 'line'] as const
@@ -237,7 +237,7 @@ const ER_SCHEMA: Record<string, OpSpec> = {
   set_entity_label: { fields: { entity: str(), label: strOrNull() } },
   add_attribute: { fields: { entity: str(), text: str() } },
   remove_attribute: { fields: { entity: str(), index: num() } },
-  add_relation: { fields: { from: str(), to: str(), leftCard: oneOf(ER_CARDINALITIES), rightCard: oneOf(ER_CARDINALITIES), dashed: bool(false), label: str(false) } },
+  add_relation: { fields: { from: str(), to: str(), leftCard: oneOf(ER_CARDINALITIES), rightCard: oneOf(ER_CARDINALITIES.filter(card => card !== 'parent')), dashed: bool(false), label: str(false) } },
   remove_relation: { fields: { index: num() } },
   set_direction: { fields: { direction: oneOf(STATE_DIRECTIONS) } },
   define_class: { fields: { name: str(), style: str() } },

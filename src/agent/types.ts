@@ -326,6 +326,7 @@ export interface ClassBody {
 // ---- ER body --------------------------------------------------------------
 
 export type ErCardinality =
+  | 'parent' // u, before a relationship connector
   | 'one-only' // ||
   | 'zero-or-one' // |o or o|
   | 'zero-or-many' // }o or o{
@@ -362,7 +363,7 @@ export interface ErRelation {
   from: string
   to: string
   leftCard: ErCardinality
-  rightCard: ErCardinality
+  rightCard: Exclude<ErCardinality, 'parent'>
   /** Solid (--) or dashed (..) line. */
   dashed: boolean
   label?: string
@@ -1346,7 +1347,7 @@ export type ErMutationOp =
   | { kind: 'set_entity_label'; entity: string; label: string | null }
   | { kind: 'add_attribute'; entity: string; text: string }
   | { kind: 'remove_attribute'; entity: string; index: number }
-  | { kind: 'add_relation'; from: string; to: string; leftCard: ErCardinality; rightCard: ErCardinality; dashed?: boolean; label?: string }
+  | { kind: 'add_relation'; from: string; to: string; leftCard: ErCardinality; rightCard: Exclude<ErCardinality, 'parent'>; dashed?: boolean; label?: string }
   | { kind: 'remove_relation'; index: number }
   | { kind: 'set_direction'; direction: import('../types.ts').Direction }
   | { kind: 'define_class'; name: string; style: string }

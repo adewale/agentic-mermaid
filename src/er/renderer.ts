@@ -770,6 +770,11 @@ function renderCrowsFoot(
   const px = -uy
   const py = ux
 
+  if (cardinality === 'parent') {
+    const at = (back: number, side: number) => ({ x: point.x - ux * back + px * side, y: point.y - uy * back + py * side })
+    return [{ geometry: { kind: 'polygon', points: [at(0, 0), at(6, 4), at(12, 0), at(6, -4)] }, paint: { fill: 'var(--bg)', ...stroke } }]
+  }
+
   // Marker sits 4px from the endpoint, extending 12px back along the edge
   const tipX = point.x - ux * 4
   const tipY = point.y - uy * 4
