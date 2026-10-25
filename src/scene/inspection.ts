@@ -1,8 +1,8 @@
 import { tryParseCssColor } from '../shared/color-math.ts'
 import type { ConnectorMark, MarkPaint, SceneDoc, SceneNode, SceneOwner, SceneRole, SceneTransform, ShapeMark, TextMark } from './ir.ts'
 import { connectorInlineLabelVisualBounds, nodePaintBounds, transformedBounds, type ConnectorMarkerPaintRegion } from './bounds.ts'
-import { composeMatrices, IDENTITY_MATRIX, inverseMatrix, transformMatrix, type AffineMatrix } from './transforms.ts'
-import type { CheckedSequenceLine, SequenceLineCompiler } from './sequence-line-command.ts'
+import { composeMatrices, IDENTITY_MATRIX, transformMatrix, type AffineMatrix } from './transforms.ts'
+import type { CheckedSequenceLine } from './sequence-line-command.ts'
 import { sceneNodeSerialization } from './serialization.ts'
 import type { AxisAlignedBox } from '../shared/transformed-bounds.ts'
 
@@ -167,9 +167,9 @@ export function createOwnedNativePaintRecorder(header: PaintInspectionHeader) {
       if (!ownedAncestors.has(ancestors)) throw new TypeError('Native paint ancestors must be owned snapshots')
       recorder.leaf(node, key, parentMatrix, ancestors, conditional, groupOpacity, owner)
     },
-    sequenceLine(command: CheckedSequenceLine, compiler: SequenceLineCompiler, key: string, parentMatrix?: AffineMatrix, ancestors: readonly SceneOwner[] = emptyAncestors, conditional = false, groupOpacity = 1, owner?: SceneOwner) {
+    sequenceLine(command: CheckedSequenceLine, key: string, ancestors: readonly SceneOwner[] = emptyAncestors, owner?: SceneOwner) {
       if (!ownedAncestors.has(ancestors)) throw new TypeError('Native paint ancestors must be owned snapshots')
-      recorder.sequenceLine(command, compiler, key, parentMatrix, ancestors, conditional, groupOpacity, owner)
+      recorder.sequenceLine(command, key, ancestors, owner)
     },
     finish: recorder.finish,
   }
@@ -268,33 +268,15 @@ function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDet
   }
   return {
     leaf,
-    sequenceLine(command: CheckedSequenceLine, compiler: SequenceLineCompiler, key: string, parent: AffineMatrix | undefined, ancestors: readonly SceneOwner[], conditional: boolean, groupOpacity: number, explicitOwner?: SceneOwner): void {
+    sequenceLine(command: CheckedSequenceLine, key: string, ancestors: readonly SceneOwner[], explicitOwner?: SceneOwner): void {
       const owner = explicitOwner ?? ancestors.at(-1) ?? { id: command.id, role: 'message' as const }
-      const hidden = groupOpacity === 0
-      const [a, b, c, d, e, f] = parent ?? IDENTITY_MATRIX
-      const parentTransform: SceneTransform | undefined = parent ? { kind: 'matrix', a, b, c, d, e, f } : undefined
-      const matrix = !parent ? IDENTITY_PAINT_MATRIX : Object.freeze(composeMatrices(parent, IDENTITY_MATRIX))
-      // Match certification's world→parent association, including signed zeros.
-      const [ma, mb, mc, md, me, mf] = composeMatrices(matrix, inverseMatrix(IDENTITY_MATRIX)!)
-      const paint = compiler.paint(command, parentTransform, { kind: 'matrix', a: ma, b: mb, c: mc, d: md, e: me, f: mf }, hidden)
-      for (const region of paint.regions) {
-        Object.freeze(region.anchor)
-        if (region.bounds) Object.freeze(region.bounds)
-        if (region.hull) {
-          for (const point of region.hull) Object.freeze(point)
-          Object.freeze(region.hull)
-        }
-        Object.freeze(region)
-      }
-      const measured = !!paint.bounds && finite(paint.bounds)
+      const measured = !!command.bounds && finite(command.bounds)
       const primitive: ScenePaintGeometry = Object.freeze({ key, id: command.id, kind: 'connector', role: 'message',
         owner: ancestors.includes(owner) ? owner : ownerSnapshot(owner), ancestors,
-        order: primitives.length, coverage: hidden ? 'non-painting' : measured ? 'measured' : 'unmeasured',
-        ...(conditional ? { visibility: 'conditional' as const } : {}),
-        ...(groupOpacity < 1 ? { groupOpacity } : {}),
-        ...(measured ? { bounds: Object.freeze(paint.bounds!) } : !hidden ? { reason: 'missing-paint-geometry' } : {}),
+        order: primitives.length, coverage: measured ? 'measured' : 'unmeasured',
+        ...(measured ? { bounds: command.bounds } : { reason: 'missing-paint-geometry' }),
       })
-      append(primitive, matrix, hidden, measured, Object.freeze({ kind: 'sequence-line', from: command.from, to: command.to, regions: Object.freeze(paint.regions) }))
+      append(primitive, IDENTITY_PAINT_MATRIX, false, measured, command)
     },
     finish: (): ScenePaintGeometryInspection => Object.freeze({ version: 1, family: header.family, bounds: Object.freeze({ width: header.width, height: header.height }), primitives: Object.freeze(primitives), coverage: Object.freeze(coverage) }),
   }

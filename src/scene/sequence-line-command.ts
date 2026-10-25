@@ -2,16 +2,20 @@ import type { ConnectorLabelDescriptor, ConnectorMark, MarkerDescriptor, ScenePo
 import { connector, connectorSemanticFields } from './marks.ts'
 import { connectorUnitTangent } from './connector-geometry.ts'
 import { deferredTerminalProjectionInput } from './deferred-terminal-projection.ts'
-import { privateConnectorPaintGeometry } from './bounds.ts'
+import { privateConnectorPaintGeometry, type ConnectorMarkerPaintRegion } from './bounds.ts'
 import type { NativeSceneValidator } from './scene-validation.ts'
-import type { SequenceLineInput } from './sequence-line-sink.ts'
+import type { SequenceLineInput } from './drawing.ts'
+import type { AxisAlignedBox } from '../shared/transformed-bounds.ts'
+import { composeMatrices, IDENTITY_MATRIX, inverseMatrix } from './transforms.ts'
 
 /** Detached occurrence data; no route, hit, endpoint or terminal graph survives. */
-export interface CheckedSequenceLine extends Omit<SequenceLineInput, 'label' | 'labelContent'> {
+export interface CheckedSequenceLine {
   readonly kind: 'sequence-line'
-  readonly label?: ConnectorLabelDescriptor
-  readonly accessibleLabel: string
-  readonly relationLabel?: string
+  readonly id: string
+  readonly from: string
+  readonly to: string
+  readonly bounds?: AxisAlignedBox
+  readonly regions: readonly ConnectorMarkerPaintRegion[]
 }
 
 /** One complete constructor-owned admission projection is rebound privately.
@@ -19,6 +23,10 @@ export interface CheckedSequenceLine extends Omit<SequenceLineInput, 'label' | '
  * It is never frozen, inspected, adopted into a Scene, or returned to a producer. */
 export function createSequenceLineCompiler(marker: MarkerDescriptor) {
   const paintGeometry = privateConnectorPaintGeometry(marker)
+  // Original message groups have no transform/opacity/conditional fields.
+  // Keep the old identity world × inverse(own) association, including zeros.
+  const [a, b, c, d, e, f] = composeMatrices([1, 0, 0, 1, 0, 0], inverseMatrix(IDENTITY_MATRIX)!)
+  const markerParent: SceneTransform = { kind: 'matrix', a, b, c, d, e, f }
   let frame: ConnectorMark | undefined
   let labels: ConnectorLabelDescriptor[]
   let startTangent: ScenePoint
@@ -54,21 +62,6 @@ export function createSequenceLineCompiler(marker: MarkerDescriptor) {
     return node
   }
 
-  function restore(input: CheckedSequenceLine): ConnectorMark {
-    const node = geometry(input)
-    node.identity!.id = input.id
-    node.identity!.from = input.from
-    node.identity!.to = input.to
-    node.accessibility!.label = input.accessibleLabel
-    node.accessibility!.relation.from = input.from
-    node.accessibility!.relation.to = input.to
-    if (input.relationLabel === undefined) delete node.accessibility!.relation.label
-    else node.accessibility!.relation.label = input.relationLabel
-    labels.length = 0
-    if (input.label) labels.push(input.label)
-    return node
-  }
-
   return {
     compile(input: SequenceLineInput, validator: NativeSceneValidator): { readonly command: CheckedSequenceLine; readonly svg: string } {
       if (!frame) {
@@ -98,15 +91,24 @@ export function createSequenceLineCompiler(marker: MarkerDescriptor) {
       // Only the unchanged native shortcut may consume this projection.
       if (!deferredTerminalProjectionInput(frame)) throw new Error('Private Sequence projection must retain its deferred terminal input')
       const svg = validator.node(frame)
+      // This closed command has semantic-only labels: no bounds or inline ink.
+      // Admission/SVG already consumed them; paint needs no retained text graph.
+      labels.length = 0
+      const bounds = paintGeometry.bounds(frame)
+      const regions = paintGeometry.regions(frame, markerParent)
+      if (bounds) Object.freeze(bounds)
+      for (const region of regions) {
+        Object.freeze(region.anchor)
+        if (region.bounds) Object.freeze(region.bounds)
+        if (region.hull) {
+          for (const point of region.hull) Object.freeze(point)
+          Object.freeze(region.hull)
+        }
+        Object.freeze(region)
+      }
       const command: CheckedSequenceLine = Object.freeze({ kind: 'sequence-line', id: input.id, from: input.from, to: input.to,
-        x1: input.x1, y1: input.y1, x2: input.x2, y2: input.y2, strokeColor: input.strokeColor, strokeWidth: input.strokeWidth,
-        ...(labels[0] ? { label: labels[0] } : {}), accessibleLabel: frame.accessibility!.label,
-        ...(frame.accessibility!.relation.label !== undefined ? { relationLabel: frame.accessibility!.relation.label } : {}) })
+        ...(bounds ? { bounds } : {}), regions: Object.freeze(regions) })
       return { command, svg }
-    },
-    paint(command: CheckedSequenceLine, parent: SceneTransform | undefined, markerParent: SceneTransform, hidden = false) {
-      const node = restore(command)
-      return { bounds: hidden ? undefined : paintGeometry.bounds(node, parent), regions: paintGeometry.regions(node, markerParent) }
     },
   }
 }

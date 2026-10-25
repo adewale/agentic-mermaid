@@ -1,6 +1,6 @@
 import { pageRectFor } from './backend.ts'
 import type { StyleSpec } from './style-registry.ts'
-import type { DrawingDocument, DrawingFactory, DrawingProducer } from './drawing.ts'
+import { installSequenceLineSink, sequenceLineCompilerOf, type DrawingDocument, type DrawingFactory, type DrawingProducer } from './drawing.ts'
 import type { PositionedDiagram, RenderContext } from '../types.ts'
 import type { SceneDoc, SceneNode } from './ir.ts'
 import * as marks from './marks.ts'
@@ -10,8 +10,7 @@ import { createOwnedNativePaintRecorder, nativePaintAncestors, type NativePaintE
 import { createNativeSceneValidator, SceneValidationError, SCENE_VALIDATION_LIMITS, assertFinalSvgByteBudget } from './scene-validation.ts'
 import { withDeferredTerminalProjections } from './deferred-terminal-projection.ts'
 import { isPrivateSequenceNativeOperation } from './positioned.ts'
-import { installSequenceLineSink } from './sequence-line-sink.ts'
-import { createSequenceLineCompiler, type CheckedSequenceLine, type SequenceLineCompiler } from './sequence-line-command.ts'
+import type { CheckedSequenceLine, SequenceLineCompiler } from './sequence-line-command.ts'
 
 interface FragmentData {
   readonly svg: string
@@ -30,7 +29,7 @@ interface GroupFragment extends FragmentData {
   readonly opacity: number
 }
 type Fragment = (FragmentData & { readonly kind: 'leaf'; readonly node: LeafNode }) | GroupFragment
-  | (FragmentData & { readonly kind: 'sequence-line'; readonly command: CheckedSequenceLine; readonly compiler: SequenceLineCompiler })
+  | (FragmentData & { readonly kind: 'sequence-line'; readonly command: CheckedSequenceLine })
 export interface NativeDrawing {
   readonly svg: string
   readonly paint: ScenePaintGeometryInspection
@@ -68,7 +67,7 @@ function inspectPaint(header: PaintInspectionHeader, parts: readonly Fragment[])
         visit(fragment.children, key, { parentMatrix, ancestors, owner, conditional, groupOpacity })
         groups.pop()
       } else if (fragment.kind === 'sequence-line') {
-        recorder.sequenceLine(fragment.command, fragment.compiler, key, occurrence?.parentMatrix, occurrence?.ancestors, occurrence?.conditional, occurrence?.groupOpacity, occurrence?.owner)
+        recorder.sequenceLine(fragment.command, key, occurrence?.ancestors, occurrence?.owner)
       } else if (occurrence) {
         recorder.leaf(fragment.node, key, occurrence.parentMatrix, occurrence.ancestors, occurrence.conditional, occurrence.groupOpacity, fragment.node.owner ?? occurrence.owner)
       } else {
@@ -90,6 +89,7 @@ export function drawNative(
   const header = { family, width: context.positioned.width, height: context.positioned.height, colors: context.colors, transparent: context.resolved.renderOptions.transparent ?? false }
   const validator = createNativeSceneValidator(header)
   const privateSequence = isPrivateSequenceNativeOperation(context, producer)
+  const sequenceCompilerFactory = privateSequence ? sequenceLineCompilerOf(producer) : undefined
   let sequenceCompiler: SequenceLineCompiler | undefined
   const leaf = (node: LeafNode): Fragment => {
     const svg = validator.node(node)
@@ -106,9 +106,9 @@ export function drawNative(
     documentText: fields => leaf(marks.documentText(fields)),
     definitions(fields, svg) {
       const fragment = leaf(marks.definitions(fields, svg))
-      if (privateSequence) {
+      if (sequenceCompilerFactory) {
         const marker = fields.markerResources?.find(resource => resource.id === 'seq-arrow')
-        if (marker) sequenceCompiler = createSequenceLineCompiler(marker)
+        if (marker) sequenceCompiler = sequenceCompilerFactory(marker)
       }
       return fragment
     },
@@ -144,10 +144,10 @@ export function drawNative(
     },
     pathArtwork: fields => marks.drawPathArtwork(factory, fields),
   }
-  const releaseSink = privateSequence ? installSequenceLineSink(factory, (input): Fragment | undefined => {
+  const releaseSink = sequenceCompilerFactory ? installSequenceLineSink(factory, (input): Fragment | undefined => {
     if (!sequenceCompiler) return undefined
     const { command, svg } = sequenceCompiler.compile(input, validator)
-    return { kind: 'sequence-line', command, compiler: sequenceCompiler, svg, nodeCount: 1, depth: 0, prepared: true }
+    return { kind: 'sequence-line', command, svg, nodeCount: 1, depth: 0, prepared: true }
   }) : undefined
   let document: DrawingDocument<Fragment>
   try { document = withDeferredTerminalProjections(() => producer(factory, context)) } finally { releaseSink?.() }

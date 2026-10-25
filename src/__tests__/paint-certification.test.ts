@@ -35,7 +35,7 @@ test('private line paint occurrences preserve bounds, ownership, marker repaint 
     { id: 'line:zero', from: 'C', to: 'D', x1: 42, y1: 34, x2: 42, y2: 34, strokeColor: '#222', strokeWidth: '2', label: '' },
     { id: 'line:reverse', from: 'B', to: 'A', x1: 90, y1: 60, x2: 4, y2: 60, strokeColor: '#333', strokeWidth: '0.75', label: 'three' },
   ]
-  for (const parent of [undefined, [1.2, 0.25, -0.1, 0.8, -5, 2] as const]) {
+  {
     const compiler = createSequenceLineCompiler(arrow)
     const validator = createNativeSceneValidator(header)
     const ordinary = createOwnedNativePaintRecorder(header)
@@ -50,8 +50,8 @@ test('private line paint occurrences preserve bounds, ownership, marker repaint 
           relationship: { kind: 'sequence-message', direction: 'forward' }, route: { ownership: 'layout' }, markers: { mid: [], end: arrow },
           labels: input.label ? [{ text: input.label }] : [],
         })
-        ordinary.leaf(full, `scene.${index}`, parent, ancestors, false, index === 1 ? 0 : 0.8)
-        compact.sequenceLine(compiled[index]!.command, compiler, `scene.${index}`, parent, ancestors, false, index === 1 ? 0 : 0.8)
+        ordinary.leaf(full, `scene.${index}`, undefined, ancestors)
+        compact.sequenceLine(compiled[index]!.command, `scene.${index}`, ancestors)
       }
     })
     const cover = surface()

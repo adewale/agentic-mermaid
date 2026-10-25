@@ -13,7 +13,7 @@ import { tipAnchoredArrow } from '../scene/marker-resources.ts'
 // typed fields, so paint certification, which reads those fields, describes
 // the bytes. Families add only inert hooks.
 describe('typed Scene SVG writer', () => {
-  test('private line occurrences retain earlier bytes, semantics and marker geometry after later submissions', () => {
+  test('private untransformed line occurrences retain earlier bytes, semantics and marker geometry after later submissions', () => {
     const arrow = tipAnchoredArrow('seq-arrow', { width: 8, height: 6 }, 'end', { fill: '#123' })
     const compiler = createSequenceLineCompiler(arrow)
     const validator = createNativeSceneValidator({ family: 'sequence', width: 200, height: 100, colors: { bg: '#fff', fg: '#111' }, transparent: false })
@@ -24,7 +24,7 @@ describe('typed Scene SVG writer', () => {
       { id: 'm:reverse', from: 'B', to: 'A', x1: 91, y1: 42, x2: -3, y2: 42, strokeColor: '#456', strokeWidth: '0.75', label: rich,
         labelContent: { value: rich, prepared: prepareDisplayText(rich) } },
     ]
-    const parent = { kind: 'matrix', a: 1.25, b: 0.2, c: -0.3, d: 0.8, e: -5, f: 6 } as const
+    const parent = { kind: 'matrix', a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 } as const
     withDeferredTerminalProjections(() => {
       const compiled = inputs.map(input => compiler.compile(input, validator))
       expect(compiled[0]!.svg).toBe('<line x1="10" y1="20" x2="90" y2="20" stroke="#123" stroke-width="1.5" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="m:first" data-role="message" data-from="A" data-to="B" role="graphics-symbol" aria-roledescription="relation" aria-label="A to B: first" />')
@@ -36,12 +36,12 @@ describe('typed Scene SVG writer', () => {
           labels: input.label ? [{ text: input.label, ...(input.labelContent ? { textContent: input.labelContent } : {}) }] : [],
         })
         expect(compiled[index]!.svg).toBe(sceneNodeSerialization(full))
-        const expected = { bounds: nodePaintBounds(full, parent), regions: connectorMarkerPaintRegions(full, parent) }
-        expect(compiler.paint(compiled[index]!.command, parent, parent)).toEqual(expected)
+        const expected = { bounds: nodePaintBounds(full), regions: connectorMarkerPaintRegions(full, parent) }
+        expect({ bounds: compiled[index]!.command.bounds, regions: compiled[index]!.command.regions }).toEqual(expected)
       }
-      const firstPaint = compiler.paint(compiled[0]!.command, parent, parent)
+      const firstPaint = { bounds: compiled[0]!.command.bounds, regions: compiled[0]!.command.regions }
       const retained = structuredClone(firstPaint)
-      compiler.paint(compiled[2]!.command, undefined, parent)
+      compiler.compile({ ...inputs[2]!, id: 'later', x2: 170 }, validator)
       expect(firstPaint).toEqual(retained)
       expect(validator.finish().valid).toBe(true)
     })
