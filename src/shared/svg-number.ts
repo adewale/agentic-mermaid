@@ -11,6 +11,7 @@ const SVG_NUMERIC_ATTRIBUTES = new Set([
 // Spellings depend only on primitive numbers. Bound retention across unrelated
 // documents; repeated coordinates and text metrics share their conversion.
 const numberSpellings = new Map<number, string>()
+const attributeSpellings = new Map<string, string>()
 
 /** Write numeric SVG fields at twelve significant digits only when their decimal spelling has a long tail. */
 export function formatSvgNumber(value: number): string {
@@ -27,13 +28,17 @@ export function formatSvgNumber(value: number): string {
 /** Numeric SVG payloads share one spelling; semantic strings stay verbatim. */
 export function formatSvgNumericAttribute(name: string, value: string): string {
   if (value.length < 13 || !SVG_LONG_DECIMAL.test(value)) return value
+  // Retain only short numeric fields, never complete SVG or semantic payloads.
+  const key = value.length <= 512 ? `${name}\0${value}` : undefined
+  const cached = key === undefined ? undefined : attributeSpellings.get(key)
+  if (cached !== undefined) return cached
   const numeric = SVG_NUMERIC_ATTRIBUTES.has(name) && SCALAR_SVG_NUMBER.test(value)
     || (name === 'viewBox' || name === 'points' || name === 'stroke-dasharray') && /^[-+\d.eE,\s]+$/.test(value)
     || name === 'd' && /^[MmZzLlHhVvCcSsQqTtAa\d.eE,+\s-]+$/.test(value)
     || (name === 'transform' || name === 'gradientTransform' || name === 'patternTransform')
       && /^(?:(?:matrix|translate|scale|rotate|skewX|skewY)\s*\([-+\d.eE,\s]+\)\s*)+$/.test(value)
   if (!numeric) return value
-  return value.replace(SVG_NUMBER, (token, index: number) => {
+  const formatted = value.replace(SVG_NUMBER, (token, index: number) => {
     if (!SVG_LONG_DECIMAL.test(token)) return token
     const number = Number(token)
     if (!Number.isFinite(number)) return token
@@ -43,4 +48,9 @@ export function formatSvgNumericAttribute(name: string, value: string): string {
     return token.startsWith('.') && index > 0 && /[\d.]/.test(value[index - 1]!)
       ? ` ${formatted}` : formatted
   })
+  if (key !== undefined) {
+    if (attributeSpellings.size >= 256) attributeSpellings.clear()
+    attributeSpellings.set(key, formatted)
+  }
+  return formatted
 }
