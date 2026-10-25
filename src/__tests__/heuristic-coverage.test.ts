@@ -124,7 +124,10 @@ describe('occlusion-safe alignLayerNodes — the snapOccludes guard', () => {
   X --> E
   X --> F`
     const graph = parseMermaid(src)
-    const result = assessLayout(graph, layoutGraphSync(graph))
+    const positioned = layoutGraphSync(graph)
+    expect(positioned.nodes.map(node => node.id).sort()).toEqual(['A', 'B', 'C', 'D', 'E', 'F', 'X'])
+    expect(positioned.edges.map(edge => [edge.source, edge.target])).toEqual([['A', 'X'], ['B', 'X'], ['C', 'X'], ['X', 'D'], ['X', 'E'], ['X', 'F']])
+    const result = assessLayout(graph, positioned)
     expect(result.metrics.edgeThroughNode).toBe(0)
   })
 })

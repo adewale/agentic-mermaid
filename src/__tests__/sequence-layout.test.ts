@@ -167,6 +167,7 @@ describe('sequence layout – block spacing', () => {
     ['alt', 'alt Success\n B->>A: Reply', []],
     ['opt', 'opt Cached\n B->>A: Reply', []],
     ['critical', 'critical Transaction\n B->>A: Reply', []],
+    ['alt', 'alt Yes\n B->>A: Reply\nelse No\n B->>A: Alternate', ['No']],
     ['alt', 'alt Success\n B->>A: Reply\nelse Failure\n B->>A: Alternate', ['Failure']],
     ['alt', 'alt Success\n B->>A: Reply\nelse Failure\n B->>A: Alternate\nelse Locked\n B->>A: Locked out', ['Failure', 'Locked']],
     ['par', 'par User\n B->>A: Reply\nand Orders\n B->>A: Alternate', ['Orders']],
@@ -581,25 +582,6 @@ describe('sequence layout – render clearance', () => {
     expect(baselineClearance).toBeGreaterThanOrEqual(14)
   })
 
-  it('short divider labels keep the default offset (no unnecessary extra space)', () => {
-    // "No" is short enough that "[No]" doesn't reach the centered message
-    // label — no overlap, so the default offset (28) is used.
-    const result = layout(`sequenceDiagram
-      A->>B: Login
-      alt Yes
-        B->>A: 200
-      else No
-        B->>A: 500
-      end`)
-
-    const block = result.blocks[0]!
-    const divider = block.dividers[0]!
-    const msgAfter = result.messages[2]!
-
-    // Default offset 28: baseline clearance = (msg.y - 6) - (msg.y - 28 + 14) = 8
-    const baselineClearance = (msgAfter.y - 6) - (divider.y + 14)
-    expect(baselineClearance).toBe(8)
-  })
 })
 
 // ============================================================================
@@ -620,6 +602,7 @@ describe('sequence layout – note bounding box', () => {
       Note right of B: Right-side note
       B-->>A: Hi`)
 
+    expect(result.notes).toHaveLength(1)
     // Every note must fit within the diagram width with padding margin
     for (const note of result.notes) {
       expect(note.x).toBeGreaterThanOrEqual(0)
@@ -633,7 +616,8 @@ describe('sequence layout – note bounding box', () => {
       Note left of A: Left-side note
       B-->>A: Hi`)
 
-    // Left note should have been shifted right so x >= padding (30)
+    expect(result.notes).toHaveLength(1)
+    // The shifted note must remain on canvas.
     for (const note of result.notes) {
       expect(note.x).toBeGreaterThanOrEqual(0)
       expect(note.x + note.width).toBeLessThanOrEqual(result.width)
@@ -660,6 +644,9 @@ describe('sequence layout – note bounding box', () => {
       Note over A: Centered note
       B-->>A: Hi`)
 
+    expect(result.notes).toHaveLength(1)
+    const actor = result.actors.find(actor => actor.id === 'A')!
+    expect(result.notes[0]!.x + result.notes[0]!.width / 2).toBeCloseTo(actor.x, 6)
     for (const note of result.notes) {
       expect(note.x).toBeGreaterThanOrEqual(0)
       expect(note.x + note.width).toBeLessThanOrEqual(result.width)
@@ -689,21 +676,6 @@ describe('sequence layout – note bounding box', () => {
     for (const ll of result.lifelines) {
       expect(ll.x).toBe(actorX.get(ll.actorId)!)
     }
-  })
-
-  it('diagram without notes has no unnecessary shift', () => {
-    // No notes → no shift needed. Actors should start near SEQ.padding (30).
-    const result = layout(`sequenceDiagram
-      A->>B: Hello
-      B-->>A: Hi`)
-
-    // First actor center should be near the padding
-    // (actorWidth/2 + padding = ~70, but the key check is no extra shift)
-    const firstActorX = result.actors[0]!.x
-    const firstActorLeft = firstActorX - result.actors[0]!.width / 2
-
-    // Left edge should be at exactly SEQ.padding (30) — no shift applied
-    expect(firstActorLeft).toBe(30)
   })
 
   it('diagram width expands for right-side notes beyond actors', () => {

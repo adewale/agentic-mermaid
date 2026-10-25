@@ -121,8 +121,8 @@ describe('op-boundary fuzz: validateOp', () => {
 })
 
 describe('op-boundary fuzz: applyOps / mutateChecked', () => {
-  it('applyOps never throws, returns a well-formed envelope, and never silently mangles', () => {
-    // Vacuity counters: the success branch (the no-silent-mangle check) and the
+  it('applyOps is total, returns an envelope, and agrees with the shape validator', () => {
+    // Vacuity counters: the success branch (shape-gate agreement) and the
     // near-miss rejection must both actually run at the pinned seed.
     let appliedSeen = 0
     let shapeRejectedSeen = 0

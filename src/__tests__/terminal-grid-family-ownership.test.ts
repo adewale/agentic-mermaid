@@ -149,6 +149,7 @@ namespace Domain["First<br/>Second<br/>Third"] {
 }`, config))
     const rows = output.split('\n')
     expect(rows[0]).toContain('Diagram title')
+    for (const part of ['First', 'Second', 'Third']) expect(output).toContain(part)
     expect(rows.findIndex(row => row.includes('First'))).toBeLessThan(rows.findIndex(row => row.includes('Second')))
     expect(rows.findIndex(row => row.includes('Second'))).toBeLessThan(rows.findIndex(row => row.includes('Third')))
     expect(rows.findIndex(row => row.includes('Third'))).toBeLessThan(region('A').canvasRow)
@@ -347,7 +348,7 @@ root((Root))
     expect(doc.diagnostics).toEqual([])
   })
 
-  test('Class and ER self relations have complete exterior loops and owned labels', () => {
+  test('Class and ER self relations retain exterior ink and owned labels', () => {
     for (const source of ['classDiagram\nA --> A : recursive', 'erDiagram\nA ||--o{ A : recursive']) {
       const { output, doc, region } = capture(config => source.startsWith('class') ? renderClassAscii(source, config) : renderErAscii(source, config))
       expect(output).toContain('recursive')
@@ -399,6 +400,8 @@ root((Root))
   })
 
   for (const direction of ['TB', 'BT', 'LR', 'RL'] as const) test.each([
+    { name: 'Class self', family: 'classDiagram', declarations: '', relationships: ['A --> A'] },
+    { name: 'ER self', family: 'erDiagram', declarations: '', relationships: ['A ||--o{ A'] },
     { name: 'mixed Class', family: 'classDiagram', declarations: '', relationships: ['C --> D', 'A ..> F', 'C --* F', 'C --o B', 'A --> D', 'C ..> F'] },
     { name: 'mixed ER', family: 'erDiagram', declarations: '', relationships: ['C ||--o{ F', 'A }o..|| B', 'C ||--|| F', 'E ||--o{ B', 'E }o..|| B', 'E ||--|| D', 'E ||--o{ B', 'E }o..|| D'] },
     { name: 'namespace Class', family: 'classDiagram', declarations: 'class A["Actual source"]\nnamespace A["First 界<br/>complete header"] {\n class B["Actual target"]\n}', relationships: ['A --> B'] },

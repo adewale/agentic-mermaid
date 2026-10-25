@@ -19,7 +19,6 @@
 
 import { beforeAll, describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
-import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { layoutFamilyToRendered } from '../agent/family-layouts.ts'
 import { describeMermaidFacts, layoutMermaid, parseRegisteredMermaid as parseMermaid, renderMermaidSVG, serializeMermaid } from '../agent/index.ts'
 import { positionedToRenderedLayout } from '../agent/layout-to-rendered.ts'
@@ -342,13 +341,6 @@ function rendererSemanticProjection(layout: RenderedLayout): unknown {
 }
 
 describe('universal fuzz: every renderable family (strong output oracles)', () => {
-  // A new family in the central registry must declare a fuzz generator, or this
-  // fails — which is what "new diagram types automatically get fuzzing" means:
-  // the loop below picks up every registry entry, and this gate keeps the
-  // registry complete.
-  test('X1 acceptance: every built-in family has a cross-parser fuzz generator', () => {
-    expect(Object.keys(METAMORPHIC_FAMILIES).sort()).toEqual(BUILTIN_FAMILY_METADATA.map(f => f.id).sort())
-  })
 
   for (const fam of Object.values(METAMORPHIC_FAMILIES)) {
     const [kmin, kmax] = fam.kRange

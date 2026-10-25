@@ -220,18 +220,21 @@ describe('gantt dependency routing — layout invariants', () => {
       sectionBreaks: fc.array(fc.boolean(), { minLength: n, maxLength: n }),
     }).map(({ starts, durs, afters, milestones, sectionBreaks }) => {
       const lines = ['gantt', '  dateFormat YYYY-MM-DD']
+      const expectedDependencies: string[] = []
       for (let i = 0; i < starts.length; i++) {
         if (sectionBreaks[i] || i === 0) lines.push(`  section S${i}`)
         const tag = milestones[i] && i > 0 ? 'milestone, ' : ''
         const start = i > 0 && afters[i] !== undefined
           ? `after t${afters[i]! % i}`
           : `2024-01-${String(starts[i]).padStart(2, '0')}`
+        if (i > 0 && afters[i] !== undefined) expectedDependencies.push(`${afters[i]! % i}->${i}:after`)
         lines.push(`  Task ${i} :${tag}t${i}, ${start}, ${durs[i]}d`)
       }
-      return lines.join('\n') + '\n'
+      return { source: lines.join('\n') + '\n', expectedDependencies }
     }))
-    fc.assert(fc.property(arb, src => {
-      const { layout } = layoutOf(src)
+    fc.assert(fc.property(arb, ({ source, expectedDependencies }) => {
+      const { layout } = layoutOf(source)
+      expect(layout.dependencies.map(dependency => `${dependency.fromTaskIndex}->${dependency.toTaskIndex}:${dependency.kind}`).sort()).toEqual(expectedDependencies.sort())
       assertConnectorInvariants(layout)
     }), fcParameters({ numRuns: 50 }))
   })

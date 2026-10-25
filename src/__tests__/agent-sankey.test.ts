@@ -5,7 +5,6 @@ import { decodeXML } from 'entities'
 import type { SankeyBody, SankeyMutationOp, SankeyValidDiagram } from '../agent/index.ts'
 import { asSankey, buildMermaid, createMermaid, mutate, parseRegisteredMermaid as parseMermaid, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import type { SankeyRuntimeConfig } from '../index.ts'
-import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
 
 const BASIC = 'sankey-beta\n  Coal,Electricity,127.93\n  Gas,Electricity,80\n  Electricity,Homes,120'
 
@@ -250,13 +249,6 @@ describe('sankey agent surface · blank-slate authoring and SDK projection', () 
     void [config, badAlignment, badWidth]
   }
   void compileTimeSankeyConfig
-
-  test('the Code Mode SDK declaration exposes precise sankey types', () => {
-    expect(SDK_DECLARATION).toContain("interface SankeyBody { kind: 'sankey'; links: SankeyBodyLink[] }")
-    expect(SDK_DECLARATION).toContain('type SankeyMutationOp =')
-    expect(SDK_DECLARATION).toContain('asSankey(d: ParsedDiagram): SankeyValidDiagram | null')
-    expect(SDK_DECLARATION).toContain('sankey?: {')
-  })
 
   test('source map anchors every link row (sankey:link#i)', () => {
     // canonicalSource is the trimmed authored text, so rows anchor at col 1.

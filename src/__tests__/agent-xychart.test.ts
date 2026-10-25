@@ -497,9 +497,16 @@ describe('xychart round-trip property', () => {
             lines.push(`  ${s.kind} ${namePart}[${s.values.join(', ')}]`)
           }
           const d = xychart(lines.join('\n'))
+          const expected = { title, categories: cats, series }
+          const meaning = (diagram: XyChartValidDiagram) => ({
+            title: diagram.body.title,
+            categories: diagram.body.xAxis?.categories,
+            series: diagram.body.series.map(({ kind, name, values }) => ({ kind, name, values })),
+          })
+          expect(meaning(d)).toEqual(expected)
           const out = serializeMermaid(d)
           const d2 = xychart(out)
-          expect(d2.body).toEqual(d.body)
+          expect(meaning(d2)).toEqual(expected)
           expect(serializeMermaid(d2)).toBe(out)
         },
       ),

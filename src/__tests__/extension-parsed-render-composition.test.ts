@@ -14,7 +14,6 @@ import {
   type ParsedDiagram,
 } from '../agent/index.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
-import { SDK_CORE_DECLARATION } from '../mcp/sdk-discovery.ts'
 import {
   renderMermaidASCIIWithReceipt as renderRootASCIIWithReceipt,
   renderMermaidSVGWithReceipt as renderRootSVGWithReceipt,
@@ -246,16 +245,7 @@ describe('open parsed-diagram render composition', () => {
     }
   })
 
-  test('advertises the open parser/render envelope while keeping built-in ops closed', async () => {
-    const declaration = SDK_CORE_DECLARATION.replace(/\s+/g, '')
-    expect(declaration).toContain('typeParsedDiagram=ValidDiagram|ExtensionValidDiagram|PreservedValidDiagram')
-    expect(declaration).toContain('parseRegisteredMermaid(source:string):Result<ParsedDiagram')
-    expect(declaration).toContain('renderMermaidSVGWithReceipt(input:ParsedDiagram|string')
-    expect(declaration).toContain('renderMermaidASCIIWithReceipt(input:ParsedDiagram|string')
-    expect(declaration).toContain('layoutMermaidWithReceipt(input:ParsedDiagram|string')
-    expect(declaration).toContain('mutate(diagram:ValidDiagram,op:MutationOp)')
-    expect(declaration).not.toContain('mutate(diagram:ParsedDiagram')
-
+  test('executes open parsed inputs across graphical, terminal and layout Code Mode outputs', async () => {
     const unregister = registerFamily(descriptor())
     try {
       const executed = await executeInSandbox(`

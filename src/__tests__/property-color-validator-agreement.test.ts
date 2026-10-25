@@ -25,6 +25,7 @@ import type { MermaidRuntimeConfig } from '../mermaid-source.ts'
 import type { RenderOptions } from '../types.ts'
 import { compositeCssColor, isHexColor, isSixDigitHex, parseHex, relativeLuminance, tryParseCssColor, tryParseHex } from '../shared/color-math.ts'
 import { safeCssPaint } from '../shared/css-color.ts'
+import { scanSvgStartTags } from '../svg-structure.ts'
 
 import { contrastTextColor } from '../color-resolver.ts'
 import { boxColorToHex, isCssColorToken } from '../sequence/colors.ts'
@@ -307,6 +308,16 @@ const STYLE_OPS: Record<string, (style: string) => readonly [family: string, ops
   'er set_entity_style': style => ['er', [{ kind: 'add_entity', id: 'CUSTOMER' }, { kind: 'set_entity_style', entity: 'CUSTOMER', style }], `erDiagram\n  CUSTOMER\n  style CUSTOMER ${style}`],
 }
 
+/** Compare painted semantics: canonical writing may turn rgb(0, 0, 0) into
+ * rgb(0 0 0), changing both source spelling and the document's CSS scope hash. */
+function paintedColors(svg: string) {
+  return scanSvgStartTags(svg).flatMap(tag => {
+    const owner = tag.attributes.find(attribute => attribute.name === 'data-id')?.value
+    return tag.attributes.filter(attribute => ['fill', 'stroke', 'color', 'stop-color', 'flood-color'].includes(attribute.name))
+      .map(attribute => [tag.name, owner, attribute.name, tryParseCssColor(attribute.value) ?? attribute.value])
+  })
+}
+
 describe('typed style ops and direct source agree on independently classified colors', () => {
   test('including their serialized render and the distinction between none paint and ink', () => {
     const candidateArb = fc.oneof(classifiedColorArb, fc.constant({ color: 'none', valid: true }))
@@ -343,17 +354,17 @@ describe('typed style ops and direct source agree on independently classified co
         return
       }
       if (built.ok) {
-        expect(() => renderMermaidSVG(serializeMermaid(built.value))).not.toThrow()
+        expect(paintedColors(renderMermaidSVG(serializeMermaid(built.value))), `${op}: serialized paint matches authored source`).toEqual(paintedColors(direct.svg))
       }
     }), fcParameters({
       numRuns: RENDER_RUNS,
-      examples: Object.keys(STYLE_OPS).flatMap(op => [
+      examples: [['state define_class', 'fill', { color: 'rgb(0, 0, 0)', valid: true }], ...Object.keys(STYLE_OPS).flatMap(op => [
         [op, 'fill', { color: '#abcd', valid: true }],
         [op, 'color', { color: 'constructor', valid: false }],
         [op, 'color', { color: 'none', valid: true }],
         [op, 'fill', { color: 'hsl(0 0% 0% / 0)', valid: true }],
         [op, 'stroke', { color: 'var(--brand)', valid: true }],
-      ]),
+      ])],
     }))
   }, 120_000)
 })

@@ -718,7 +718,9 @@ describe('parseMermaid – subgraphs', () => {
   ])('reads `subgraph %s` with the id upstream reads, which a link names', (title, id, label) => {
     const source = `flowchart TD\n  subgraph ${title}\n    A\n  end\n  X --> ${id}`
     const parsed = parseRegisteredMermaid(source)
-    for (const g of [parseMermaid(source), ...(parsed.ok && parsed.value.body.kind === 'flowchart' ? [parseMermaid(serializeMermaid(parsed.value))] : [])]) {
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) throw new Error('Expected the public subgraph source to parse')
+    for (const g of [parseMermaid(source), parseMermaid(serializeMermaid(parsed.value))]) {
       expect(g.subgraphs.map(s => [s.id, s.label, s.nodeIds])).toEqual([[id, label, ['A']]])
       expect([...g.nodes.keys()]).toEqual(['A', 'X'])
       expect(g.edges.map(edge => [edge.source, edge.target])).toEqual([['X', id]])

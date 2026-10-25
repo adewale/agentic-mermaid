@@ -44,9 +44,24 @@ const NO_EXCLUDES = `gantt
   A :a, 2024-01-01, 10d
 `
 
+function expectCompleteWeekendShading(schedule: ReturnType<typeof resolveGanttSchedule>, bands: ReturnType<typeof layoutGantt>['excludedBands']): void {
+  const dayMs = 86_400_000
+  const firstDay = Math.floor(schedule.timeMin / dayMs) * dayMs
+  const expected: number[] = []
+  for (let day = firstDay; day < schedule.timeMax; day += dayMs) {
+    if ([0, 6].includes(new Date(day).getUTCDay())) expected.push(day)
+  }
+  const shaded: number[] = []
+  for (const band of bands) {
+    for (let day = Math.floor(band.start / dayMs) * dayMs; day < band.end; day += dayMs) shaded.push(day)
+  }
+  expect(shaded).toEqual(expected)
+}
+
 describe('gantt excluded-day shading — layout bands', () => {
   test('bands cover exactly the excluded days inside the schedule range, maximally merged', () => {
     const { schedule, layout } = layoutOf(WEEKENDS)
+    expectCompleteWeekendShading(schedule, layout.excludedBands)
     expect(layout.excludedBands.length).toBeGreaterThan(0)
     for (const band of layout.excludedBands) {
       // (1) inside the plot
@@ -88,6 +103,7 @@ describe('gantt excluded-day shading — layout bands', () => {
     })
     fc.assert(fc.property(arb, src => {
       const { schedule, layout } = layoutOf(src)
+      expectCompleteWeekendShading(schedule, layout.excludedBands)
       for (const band of layout.excludedBands) {
         expect(band.x).toBeGreaterThanOrEqual(layout.plot.x - 0.01)
         expect(band.x + band.w).toBeLessThanOrEqual(layout.plot.x + layout.plot.w + 0.01)

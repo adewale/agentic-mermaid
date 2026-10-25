@@ -60,7 +60,9 @@ describe('renderMermaidSVG – class diagrams', () => {
     const svg = renderMermaidSVG(`classDiagram
       Account <|-- Savings
       Account o-- Transaction`)
-    const lastClassBox = svg.lastIndexOf('<g class="class"')
+    const classBoxes = [...svg.matchAll(/<g class="class-node(?: [^"]*)?"[^>]*>/g)].map(match => match.index)
+    expect(classBoxes).toHaveLength(3)
+    const lastClassBox = Math.max(...classBoxes)
     const overlays = [...svg.matchAll(/class="class-marker-overlay"/g)].map(match => match.index)
 
     expect(svg).toMatch(/<marker id="cls-inherit"[^>]*overflow="visible"/)

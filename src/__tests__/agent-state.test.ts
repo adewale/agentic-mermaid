@@ -463,9 +463,12 @@ describe('state verify — geometric Tier 2 projection (parity with flowchart)',
     if (!r.ok) return
     const v = verifyMermaid(r.value)
     expect(v.layout.nodes.length).toBeGreaterThan(0)
-    const flat = JSON.stringify(v.layout)
-    expect(flat).not.toContain('NaN')
-    expect(flat).not.toContain('Infinity')
+    const pending: unknown[] = [v.layout]
+    while (pending.length) {
+      const value = pending.pop()
+      if (typeof value === 'number') expect(Number.isFinite(value)).toBe(true)
+      else if (value && typeof value === 'object') pending.push(...Object.values(value))
+    }
   })
 
   test('composite state ids are valid transition endpoints', () => {

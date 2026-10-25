@@ -63,6 +63,7 @@ describe('stable region tree MVP', () => {
     const layout = layoutMermaid(parsed.value, { debug: true })
     const edge = layout.edges[0]!
     const label = layout.regions?.find(r => r.id === `label:${edge.id}`)
+    expect(edge.label).toBeDefined()
     expect(label).toBeDefined()
     if (!edge.label || !label) return
     expect(label.bounds.x).toBe(edge.label.x)
@@ -132,6 +133,7 @@ describe('stable region tree MVP', () => {
         .filter(region => region.kind === 'cluster')
         .map(region => region.id)
         .sort()
+      expect(graphical.length).toBeGreaterThan(0)
       expect(terminal).toEqual(graphical)
     }
   })

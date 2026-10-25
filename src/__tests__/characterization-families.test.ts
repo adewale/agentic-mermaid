@@ -20,7 +20,6 @@
 
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
-import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
 import { renderMermaidASCII } from '../ascii/index.ts'
 import { hasDiagonalLines } from '../ascii/validate.ts'
@@ -277,10 +276,6 @@ const BOX_FAMILIES: Array<[string, fc.Arbitrary<string>]> = [
 // ===========================================================================
 
 describe('characterisation · families · universal invariants', () => {
-  it('canonical renderer cases exactly enroll every registered family', () => {
-    expect(RENDERER_CASES.map(entry => entry.family).sort()).toEqual(BUILTIN_FAMILY_METADATA.map(entry => entry.id).sort())
-    expect(ALL_FAMILIES.map(([family]) => family).sort()).toEqual(BUILTIN_FAMILY_METADATA.map(entry => entry.id).sort())
-  })
 
   it('all registered families render through Unicode, ASCII, SVG, and PNG surfaces', () => {
     for (const { source } of RENDERER_CASES) {

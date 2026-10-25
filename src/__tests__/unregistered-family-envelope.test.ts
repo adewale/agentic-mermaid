@@ -262,9 +262,9 @@ describe('forward-compatible unregistered family envelopes', () => {
         ok: false,
         error: { code: fixture.code === 'UNKNOWN_HEADER' ? 'UNKNOWN_HEADER' : 'UNSUPPORTED_FAMILY' },
       })
-      expect(applyOps({ source: fixture.source, ops: [] })).toMatchObject({
+      expect(applyOps({ source: fixture.source, ops: [{ kind: 'add_node', id: 'A', label: 'A' }] })).toMatchObject({
         ok: false,
-        error: { code: 'INVALID_OP' },
+        error: { code: 'INVALID_OP', message: expect.stringContaining('has no structured ops') },
       })
     }
   })

@@ -112,16 +112,18 @@ function detectBoxes(ascii: string) {
       for (let xx = x + 1; xx < row.length; xx++) {
         const c = row[xx]
         if (c === '┐') { x1 = xx; break }
-        if (c !== '─') break
+        if (!'─┬┴┼'.includes(c!)) break
       }
       if (x1 < 0) continue
       let y1 = -1
       for (let yy = y + 1; yy < rows.length; yy++) {
         const c = rows[yy]?.[x]
         if (c === '└') { y1 = yy; break }
-        if (c !== '│') break
+        if (!c || !'│├┤┼'.includes(c)) break
       }
-      if (y1 < 0) continue
+      if (y1 < 0 || rows[y1]?.[x1] !== '┘') continue
+      if (![...rows[y1]!.slice(x + 1, x1)].every(c => '─┬┴┼'.includes(c))) continue
+      if (rows.slice(y + 1, y1).some(row => !'│├┤┼'.includes(row[x1] ?? ''))) continue
       let label = ''
       for (let yy = y + 1; yy < y1; yy++) {
         const seg = (rows[yy] ?? '').slice(x + 1, x1).replace(/[│]/g, ' ').trim()
@@ -244,8 +246,9 @@ describe('characterisation · Tier B · structural (trees & chains)', () => {
   // guarantee it here. (Dense/cyclic graphs can overlap — a known limit.)
   it('P6 box non-overlap — tree node boxes are pairwise disjoint', () => {
     fc.assert(
-      fc.property(outTreeArb('TD'), ({ src }) => {
+      fc.property(outTreeArb('TD'), ({ src, ns }) => {
         const b = detectBoxes(renderMermaidASCII(src, U))
+        expect(b.map(box => box.label).sort()).toEqual([...ns].sort())
         for (let i = 0; i < b.length; i++) {
           for (let j = i + 1; j < b.length; j++) {
             const a = b[i]!, c = b[j]!
@@ -383,6 +386,7 @@ describe('characterisation · Tier C · metamorphic & topology regressions', () 
     }
     const graph = convertToAsciiGraph(parseMermaid('graph RL\n  A --> B\n  A --> C'), config)
     createMapping(graph)
+    expect(graph.nodes.map(node => node.name).sort()).toEqual(['A', 'B', 'C'])
     for (const node of graph.nodes) {
       expect(node.gridCoord).not.toBeNull()
       for (let dx = 0; dx < 3; dx++) {

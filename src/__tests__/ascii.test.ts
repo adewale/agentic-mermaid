@@ -51,6 +51,7 @@ function visualizeWhitespace(s: string): string {
 function runGoldenTests(dir: string, useAscii: boolean): void {
   const files = readdirSync(dir).filter(f => f.endsWith('.txt')).sort()
 
+  expect(files.length).toBeGreaterThan(0)
   for (const file of files) {
     const testName = file.replace('.txt', '')
 
@@ -66,6 +67,8 @@ function runGoldenTests(dir: string, useAscii: boolean): void {
 
       const normalizedExpected = normalizeWhitespace(tc.expected)
       const normalizedActual = normalizeWhitespace(actual)
+      const diagonals = useAscii ? DIAGONAL_CHARS.ascii : DIAGONAL_CHARS.unicode
+      expect([...diagonals].filter(char => actual.includes(char))).toEqual([])
 
       if (normalizedExpected !== normalizedActual) {
         const expectedVis = visualizeWhitespace(normalizedExpected)
@@ -122,30 +125,6 @@ describe('Config behavior', () => {
 // ============================================================================
 
 describe('Diagonal validation', () => {
-  const asciiDir = join(testdataDir, 'ascii')
-  const unicodeDir = join(testdataDir, 'unicode')
-
-  // The golden runner above byte-compares every render with its fixture's
-  // expected text, so checking the expected text covers the same renders (same
-  // options) without rendering every fixture a second time.
-  it('ASCII output should never contain diagonal characters', () => {
-    const files = readdirSync(asciiDir).filter((f) => f.endsWith('.txt'))
-    expect(files.length).toBeGreaterThan(0)
-    for (const file of files) {
-      const { expected } = parseAsciiGoldenFixture(readFileSync(join(asciiDir, file), 'utf-8'))
-      expect({ file, diagonals: [...DIAGONAL_CHARS.ascii].filter(char => expected.includes(char)) }).toEqual({ file, diagonals: [] })
-    }
-  })
-
-  it('Unicode output should never contain diagonal characters', () => {
-    const files = readdirSync(unicodeDir).filter((f) => f.endsWith('.txt'))
-    expect(files.length).toBeGreaterThan(0)
-    for (const file of files) {
-      const { expected } = parseAsciiGoldenFixture(readFileSync(join(unicodeDir, file), 'utf-8'))
-      expect({ file, diagonals: [...DIAGONAL_CHARS.unicode].filter(char => expected.includes(char)) }).toEqual({ file, diagonals: [] })
-    }
-  })
-
   it('hasDiagonalLines utility correctly detects diagonal characters', () => {
     // Should detect ASCII diagonals
     expect(hasDiagonalLines('A / B')).toBe(true)

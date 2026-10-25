@@ -884,11 +884,12 @@ steps with stub tools), `src/__tests__/theme-color-admission.test.ts`
 `src/__tests__/property-validator-surface-fuzz.test.ts` (the non-vacuity
 counter).
 
-Architecture requirements are deliberate exceptions to implementation freedom,
-not evidence of output correctness. Keep them small and explicit:
-`render-pipeline-architecture.test.ts` requires built-ins to share Scene lowering
-so styles, security and certification use the same integration boundary. Public
-dispatch behavior is checked separately in `render-family-hooks.test.ts`.
+`section-a-family-descriptor-conformance.test.ts` exercises built-in layout,
+Scene lowering and terminal hooks through public operations, then inspects emitted
+Scene roles, primitives and marker resources. Public dispatch and authored meaning
+are checked by `characterization-families.test.ts` and
+`diagram-family-citizenship.test.ts`. These executable witnesses also protect the
+shared style, security and certification integration boundary.
 Layout pass tests exercise production enforcement and resulting geometry; a
 particular pass name or decomposition is not a rendering contract.
 

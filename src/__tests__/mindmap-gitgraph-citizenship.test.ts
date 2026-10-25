@@ -9,7 +9,7 @@ import { GitGraphParseError, MindmapDuplicateIdError, parseGitGraph, parseMindma
 import { layoutMindmap } from '../mindmap/layout.ts'
 import { lowerMindmapScene } from '../mindmap/renderer.ts'
 import { DefaultBackend, getFamily } from '../agent/core.ts'
-import type { GitGraphCommitType, PositionedGitGraphCommit, PositionedGitGraphDiagram } from '../gitgraph/types.ts'
+import type { PositionedGitGraphCommit, PositionedGitGraphDiagram } from '../gitgraph/types.ts'
 import { contrastRatio } from '../shared/color-math.ts'
 import { DEFAULTS } from '../theme.ts'
 import { scanSvgStartTags } from '../svg-structure.ts'
@@ -53,8 +53,14 @@ test.each(['LR', 'TB', 'BT'] as const)('GitGraph %s branch extents retain empty 
     expect(positioned.branches.map(branch => branch.name)).toEqual(['main', 'empty', 'late'])
     for (const branch of positioned.branches) {
       const own = positioned.commits.filter(commit => commit.branch === branch.name)
-      if (direction === 'LR') expect(branch.x2).toBe(Math.max(branch.x1 + 14, ...own.map(commit => commit.x)))
-      else expect(branch.y2).toBe(Math.max(branch.y1 + 52, ...own.map(commit => commit.y)))
+      const start = direction === 'LR' ? branch.x1 : branch.y1
+      const end = direction === 'LR' ? branch.x2 : branch.y2
+      expect(end, branch.name).toBeGreaterThan(start)
+      for (const commit of own) {
+        const coordinate = direction === 'LR' ? commit.x : commit.y
+        expect(coordinate, `${branch.name} contains ${commit.id}`).toBeGreaterThanOrEqual(start)
+        expect(coordinate, `${branch.name} contains ${commit.id}`).toBeLessThanOrEqual(end)
+      }
     }
   }
 })
@@ -308,20 +314,6 @@ function publicGitGraphScene(commits: PositionedGitGraphCommit[]) {
 }
 
 describe('GitGraph full-family citizenship', () => {
-  test('authored array lookup changes cannot intercept a normal commit presentation', () => {
-    const original = Array.prototype.indexOf
-    let svg: string
-    try {
-      Array.prototype.indexOf = function (value: unknown, fromIndex?: number): number {
-        if (value === 'NORMAL') throw new Error('authored index lookup stop')
-        return Reflect.apply(original, this, [value, fromIndex])
-      }
-      svg = DefaultBackend.render(publicGitGraphScene([publicGitGraphCommit('ordinary', 0)]), { seed: 0 })
-    } finally {
-      Array.prototype.indexOf = original
-    }
-    expect(svg).toContain('<g class="git-commit type-normal" data-id="ordinary" data-branch="main" data-commit-type="NORMAL" data-role="node">')
-  })
 
   test('single-commit requests preserve every semantic and visual type pairing and current identity', () => {
     const presentations = [
@@ -344,48 +336,6 @@ describe('GitGraph full-family citizenship', () => {
         expect(Object.isFrozen(commit)).toBe(false)
       }
     }
-  })
-
-  test('the public GitGraph lowerer preserves both commit type observations and visual attribute presence', () => {
-    const reads: string[] = []
-    let reverseReads = 0, normalReads = 0
-    const reverse = { ...publicGitGraphCommit('reverse-observation', 1), get type(): GitGraphCommitType {
-      reads.push('reverse:type')
-      return ++reverseReads === 1 ? 'REVERSE' : 'NORMAL'
-    } }
-    const normal = { ...publicGitGraphCommit('normal-observation', 2), get type(): GitGraphCommitType {
-      reads.push('normal:type')
-      return ++normalReads === 1 ? 'NORMAL' : 'REVERSE'
-    } }
-    const svg = DefaultBackend.render(publicGitGraphScene([publicGitGraphCommit('stable', 0), reverse, normal]), { seed: 0 })
-    const groups = svg.match(/<g\b[^>]*class="git-commit type-normal"[^>]*>/g) ?? []
-    expect(groups).toHaveLength(3)
-    expect(groups[0]).toContain('data-id="stable" data-branch="main" data-commit-type="NORMAL"')
-    expect(groups[0]).not.toContain('data-visual-type=')
-    expect(groups[1]).toContain('data-id="reverse-observation" data-branch="main" data-commit-type="REVERSE"')
-    expect(groups[1]).not.toContain('data-visual-type=')
-    expect(groups[2]).toContain('data-id="normal-observation" data-branch="main" data-commit-type="NORMAL" data-visual-type="NORMAL"')
-    expect(reads).toEqual(['reverse:type', 'reverse:type', 'normal:type', 'normal:type'])
-    expect(Object.isFrozen(reverse)).toBe(false)
-    expect(Object.isFrozen(normal)).toBe(false)
-  })
-
-  test.each([true, false])('the public GitGraph lowerer evaluates class lowercase before authored type failures (lowercase throws: %s)', lowercaseThrows => {
-    const reads: string[] = []
-    let lowerCalls = 0
-    const customType = { toLowerCase() {
-      reads.push('lower:' + ++lowerCalls)
-      if (lowercaseThrows && lowerCalls === 3) throw new Error('authored class-lowercase stop')
-      return 'normal'
-    } }
-    const commit = { ...publicGitGraphCommit('failure', 0),
-      customType: customType as unknown as 'NORMAL',
-      get type(): GitGraphCommitType { reads.push('type'); throw new Error('authored type-read stop') },
-    }
-    expect(() => publicGitGraphScene([commit])).toThrow(lowercaseThrows ? 'authored class-lowercase stop' : 'authored type-read stop')
-    expect(reads).toEqual(lowercaseThrows ? ['lower:1', 'lower:2', 'lower:3'] : ['lower:1', 'lower:2', 'lower:3', 'type'])
-    expect(Object.isFrozen(customType)).toBe(false)
-    expect(Object.isFrozen(commit)).toBe(false)
   })
 
   test('replays branch, merge, and cherry-pick semantics with deterministic generated IDs', () => {

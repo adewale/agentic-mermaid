@@ -103,7 +103,7 @@ describe('synthesize fuzz: real payloads round-trip', () => {
     if (result.ok) expect(Array.isArray(result.value.meta.comments)).toBe(true)
   })
 
-  it('every family\'s created diagram survives JSON -> synthesizeFromGraph -> serialize -> parse unchanged', () => {
+  it('empty creation scaffolds survive JSON rehydration except radar, which requires axes', () => {
     // A deterministic loop, not constantFrom sampling: every family is visited.
     for (const { family, payload } of REAL_PAYLOADS) {
       const r = synthesizeFromGraph(payload as never)

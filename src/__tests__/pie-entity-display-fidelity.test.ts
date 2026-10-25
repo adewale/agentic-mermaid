@@ -1,3 +1,4 @@
+import { PIE_ENTITY_FIXTURES as cases } from './helpers/pie-entity-fixtures.ts'
 import { terminalText, withoutTerminalColor } from './helpers/terminal-text.ts'
 import { afterAll, expect, test } from 'bun:test'
 import { decodeHTML, decodeXML } from 'entities'
@@ -12,30 +13,7 @@ import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 const upstream = startUpstreamMermaid()
 afterAll(() => upstream.close())
 
-const cases = [
-  { sourceLabel: 'A&#35;B', display: 'A&#B', xml: 'A&amp;#B' },
-  { sourceLabel: 'A&#65;B', display: 'A&AB', xml: 'A&amp;AB' },
-  { sourceLabel: 'A&#128;B', display: 'A&€B', xml: 'A&amp;€B' },
-  { sourceLabel: 'A&#x23;B', display: 'A&&x23;B', xml: 'A&amp;&amp;x23;B' },
-  { sourceLabel: 'A&#amp;B', display: 'A&&B', xml: 'A&amp;&amp;B' },
-  { sourceLabel: 'A&amp;B', display: 'A&amp;B', xml: 'A&amp;amp;B' },
-  { sourceLabel: 'A#copy;B', display: 'A©B', xml: 'A©B' },
-  { sourceLabel: 'A#92;rB', display: 'A\\rB', xml: 'A\\rB' },
-  { sourceLabel: 'A#92;#35;B', display: 'A\\#B', xml: 'A\\#B' },
-  { sourceLabel: 'A#92;XB', display: 'A\\XB', xml: 'A\\XB' },
-  { sourceLabel: 'A#nbsp;B', display: 'A\u00a0B', xml: 'A\u00a0B' },
-  { sourceLabel: 'A#reg;B', display: 'A®B', xml: 'A®B' },
-  { sourceLabel: 'A#euro;B', display: 'A€B', xml: 'A€B' },
-  { sourceLabel: 'A#trade;B', display: 'A™B', xml: 'A™B' },
-  { sourceLabel: 'A#frac12;B', display: 'A½B', xml: 'A½B' },
-  { sourceLabel: 'A#NotEqualTilde;B', display: 'A≂̸B', xml: 'A≂̸B' },
-  { sourceLabel: 'A#notit;B', display: 'A¬it;B', xml: 'A¬it;B' },
-  { sourceLabel: 'A#REG;B', display: 'A®B', xml: 'A®B' },
-  { sourceLabel: 'A#Euro;B', display: 'A&Euro;B', xml: 'A&amp;Euro;B' },
-  { sourceLabel: 'A#unknown;B', display: 'A&unknown;B', xml: 'A&amp;unknown;B' },
-  { sourceLabel: 'A#constructor;B', display: 'A&constructor;B', xml: 'A&amp;constructor;B' },
-  { sourceLabel: 'A#__proto__;B', display: 'A&__proto__;B', xml: 'A&amp;__proto__;B' },
-] as const
+
 
 function legendXml(source: string): string {
   const svg = renderMermaidSVG(source)
@@ -255,7 +233,7 @@ test('Pie inline showData title keeps authored entity spelling and an entity-cre
   expect(renderMermaidASCII(mixed, { colorMode: 'none' })).toStartWith('AA<b>B</b>\n')
 })
 
-test('Pie entity display matches pinned Mermaid browser text while preserving authored section identity', async () => {
+test('Pie entity display follows authored expectations while preserving section identity', async () => {
   for (const { sourceLabel, display, xml } of cases) {
     const source = `pie\n  "${sourceLabel}" : 1\n`
     const parsed = parsePieChart(source.trim().split('\n'))

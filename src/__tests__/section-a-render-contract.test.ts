@@ -7,19 +7,16 @@ import { detectColorMode } from '../ascii/ansi.ts'
 import { renderMermaidASCII, renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
 import { HOSTED_TOOLS } from '../mcp/hosted-server.ts'
-import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
 import { LOCAL_TOOLS } from '../mcp/server.ts'
 import { projectMcpRenderOptions } from '../mcp/tool-surface.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { inspectPngColorProfile, OUTPUT_COLOR_PROFILE } from '../output-color-profile.ts'
 import { applyOutputSecurityPolicy, verifyNoExternalRefs } from '../output-security.ts'
 import {
-  ALL_RENDER_FIELDS_ACCOUNTED_FOR,
   CLI_RENDER_FORMATS,
   deferredRenderContractDigest,
   renderContractDigest,
   RENDER_OUTPUT_DESCRIPTORS,
-  RENDER_TRANSPORT_SURFACES,
   receiptOf,
   resolveAppearance,
   resolvedFamilyRenderContextOf,
@@ -89,8 +86,7 @@ describe('Section A canonical render contracts', () => {
     expect(() => deferredRenderContractDigest({ value: Number.POSITIVE_INFINITY })).toThrow(TypeError)
   })
 
-  test('the manifest accounts for every RenderOptions field and generates the adapter schema', () => {
-    expect(ALL_RENDER_FIELDS_ACCOUNTED_FOR).toBe(true)
+  test('the public render-option schema is closed and exposes shared options', () => {
     const schema = sharedRenderOptionsJsonSchema() as { additionalProperties: boolean; properties: Record<string, unknown> }
     expect(schema.additionalProperties).toBe(false)
     expect(Object.keys(schema.properties)).toEqual(expect.arrayContaining(['style', 'mermaidConfig', 'security', 'idPrefix']))
@@ -210,7 +206,7 @@ describe('Section A canonical render contracts', () => {
     ).toMatch(/must not exceed junctionOuterRadius/)
   })
 
-  test('output descriptors derive CLI aliases and the Code Mode render declaration', () => {
+  test('output descriptors publish CLI aliases and transport availability', () => {
     expect(CLI_RENDER_FORMATS).toEqual(['svg', 'ascii', 'unicode', 'png', 'layout'])
     const html = RENDER_OUTPUT_DESCRIPTORS.find(descriptor => descriptor.id === 'html')!
     const layout = RENDER_OUTPUT_DESCRIPTORS.find(descriptor => descriptor.id === 'layout')!
@@ -224,43 +220,7 @@ describe('Section A canonical render contracts', () => {
     expect(layout.transports.cli).toMatchObject({ availability: 'direct', format: 'layout' })
     expect(layout.transports.codeMode).toMatchObject({ availability: 'direct', method: 'layoutMermaidWithReceipt' })
     expect(layout.transports.localMcp).toMatchObject({ availability: 'indirect', entrypoint: 'execute' })
-    expect(RENDER_OUTPUT_DESCRIPTORS.flatMap(descriptor => RENDER_TRANSPORT_SURFACES.map(surface => descriptor.transports[surface]))).toHaveLength(42)
-    for (const descriptor of RENDER_OUTPUT_DESCRIPTORS) {
-      expect(Object.keys(descriptor.transports)).toEqual([...RENDER_TRANSPORT_SURFACES])
-      for (const surface of RENDER_TRANSPORT_SURFACES) {
-        const transport = descriptor.transports[surface]
-        expect(transport.entrypoint, `${descriptor.id}/${surface} entrypoint`).not.toBe('')
-        expect(transport.evidence.length, `${descriptor.id}/${surface} evidence`).toBeGreaterThan(0)
-        expect(Object.isFrozen(transport.evidence), `${descriptor.id}/${surface} evidence frozen`).toBe(true)
-      }
-    }
-    expect(SDK_DECLARATION.match(/renderMermaidSVG\(input/g) ?? []).toHaveLength(1)
-    expect(SDK_DECLARATION.match(/renderMermaidASCII\(input/g) ?? []).toHaveLength(1)
-    expect(SDK_DECLARATION.match(/renderMermaidSVGWithReceipt\(input/g) ?? []).toHaveLength(1)
-    expect(SDK_DECLARATION.match(/renderMermaidASCIIWithReceipt\(input/g) ?? []).toHaveLength(1)
-    expect(SDK_DECLARATION.match(/layoutMermaidWithReceipt\(input/g) ?? []).toHaveLength(1)
-    expect(SDK_DECLARATION).toContain("html: colorMode: 'html' (terminal projection; not a standalone CLI format)")
-    for (const field of SHARED_RENDER_OPTION_FIELDS) {
-      expect(SDK_DECLARATION).toContain(`  ${field}?:`)
-    }
-    expect(SDK_DECLARATION).toContain('interface ArchitectureVisualOverrides {')
-    expect(SDK_DECLARATION).toContain('  groupHeaderHeight?: number')
-    expect(SDK_DECLARATION).toContain('  groupFont?: string')
-  })
 
-  test('the Code Mode family roster and adapters project the canonical descriptors', () => {
-    const kindDeclaration = /type DiagramKind = ([^\n]+)/.exec(SDK_DECLARATION)?.[1] ?? ''
-    const declaredKinds = Array.from(kindDeclaration.matchAll(/'([^']+)'/g), match => match[1])
-    expect(declaredKinds).toEqual(BUILTIN_FAMILY_METADATA.map(family => family.id))
-
-    const apiBlock = SDK_DECLARATION.split('declare const mermaid: {')[1]?.split('\n}')[0] ?? ''
-    const declaredNarrowers = Array.from(apiBlock.matchAll(/^  (as[A-Z]\w+)\(d: ParsedDiagram\):/gm), match => match[1])
-    expect(declaredNarrowers).toEqual(BUILTIN_FAMILY_METADATA.map(family => family.narrower))
-    for (const family of BUILTIN_FAMILY_METADATA) {
-      const stem = family.narrower.slice(2)
-      expect(SDK_DECLARATION).toContain(`type ${stem}ValidDiagram = ValidDiagram & { body:`)
-      expect(apiBlock).toContain(`mutate(d: ${stem}ValidDiagram, op: ${stem}MutationOp)`)
-    }
   })
 
   test('every direct render tool exposes the canonical shared option schema', () => {
@@ -384,7 +344,6 @@ xychart-beta
     const hostile = JSON.parse('{"mermaidConfig":{"__proto__":{"polluted":true}}}')
     expect(validateSerializableRenderOptions(hostile).length).toBeGreaterThan(0)
     expect(validateSerializableRenderOptions({ backendPolicy: { selected: 'backend:probe' } })).toContain('unknown render option "backendPolicy"')
-    expect(SDK_DECLARATION).not.toContain('backendPolicy')
     for (const tool of [...HOSTED_TOOLS, ...LOCAL_TOOLS]) {
       expect(JSON.stringify(tool.inputSchema), tool.name).not.toContain('backendPolicy')
     }

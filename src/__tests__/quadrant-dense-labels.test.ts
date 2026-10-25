@@ -78,6 +78,10 @@ describe('quad-20 dense cluster placement', () => {
   })
 
   it('every label is either visible or explicitly recorded hidden — none lost', () => {
+    expect(positioned.points.map(p => p.label)).toEqual([
+      ...Array.from({ length: 10 }, (_, i) => `Cluster A item ${i}`),
+      ...Array.from({ length: 10 }, (_, i) => `Cluster B item ${i}`),
+    ])
     for (const p of positioned.points) {
       expect(Boolean(p.labelHidden) || p.labelBox !== undefined).toBe(true)
     }
@@ -174,6 +178,9 @@ describe('label placement property: invariants hold for arbitrary point sets', (
         (points) => {
           const src = 'quadrantChart\n' + points.map(p => `  ${p.label}: [${p.x}, ${p.y}]`).join('\n')
           const positioned = layout(src)
+          expect(positioned.points.map(p => [p.label, p.nx, p.ny])).toEqual(points.map(p => [p.label, p.x, p.y]))
+          expect(positioned.points[0]!.labelHidden).toBeUndefined()
+          expect(positioned.points[0]!.labelBox).toBeDefined()
           assertLabelInvariants(positioned)
           expect(JSON.stringify(layout(src))).toBe(JSON.stringify(positioned))
         },

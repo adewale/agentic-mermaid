@@ -85,6 +85,7 @@ describe('bounded generic bundle proposals', () => {
         strategy: 'bundled',
         preference: { reason: 'alternative-invalid', selectedScore: { edgeCrossings: 1 } },
       })
+      expect(selected.edges).toHaveLength(8)
       expect(selected.edges.every(edge => edge.points.length >= 2)).toBe(true)
     } finally {
       first.run = run

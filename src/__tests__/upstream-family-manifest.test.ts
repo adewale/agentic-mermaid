@@ -137,8 +137,10 @@ describe('forward-compatible family classification', () => {
 
     const future = '\uFEFF\n%% untouched\nfutureDiagram-v99\n  opaque { bytes }\n'
     const futureResult = parseRegisteredMermaid(future)
-    expect(futureResult.ok).toBe(true)
-    if (futureResult.ok && futureResult.value.body.kind === 'preserved') {
+    expect(futureResult).toMatchObject({ ok: true, value: { body: { kind: 'preserved' } } })
+    if (!futureResult.ok || futureResult.value.body.kind !== 'preserved') throw new Error('Expected preserved future source')
+    expect(serializeMermaid(futureResult.value)).toBe(future)
+    {
       expect(futureResult.value.body).toMatchObject({
         diagnostic: { code: 'UNKNOWN_HEADER' },
         preservation: { classification: 'unknown', source: future, header: 'futureDiagram-v99' },

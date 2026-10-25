@@ -9,7 +9,6 @@ import { parseMcpCliOptions } from '../mcp/mcp-cli.ts'
 import { knownStyles, resolveStyleReference } from '../scene/style-registry.ts'
 import { FAMILY_DESCRIPTOR_CONTRACT_VERSION, getFamily } from '../agent/families.ts'
 import { registerFamily } from '../agent/family-registration.ts'
-import { RENDER_CONTRACT_VERSION, RENDER_OUTPUT_DESCRIPTORS } from '../render-contract.ts'
 import { createExtensionIdentity } from '../shared/extension-identity.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -91,10 +90,4 @@ describe('removed compatibility surfaces stay removed', () => {
     expect(() => registerFamily({ ...descriptor, contractVersion: FAMILY_DESCRIPTOR_CONTRACT_VERSION } as never)).not.toThrow(/unsupported descriptor contract/)
   })
 
-  test('render output evidence names only the current render contract', () => {
-    for (const descriptor of RENDER_OUTPUT_DESCRIPTORS) {
-      expect(descriptor.evidence).toContain(`render-contract@${RENDER_CONTRACT_VERSION}`)
-      expect(descriptor.evidence).not.toContain('render-contract@1')
-    }
-  })
 })

@@ -16,7 +16,7 @@ const ENDPOINTS = ['X', 'A', 'B', 'Inner', 'Outer'] as const
 const MODES = [['INCLUDE_CHILDREN', false], ['SEPARATE', true]] as const
 
 // Pairs that do NOT route cleanly today, each with its current failure. These
-// are product limitations, pinned below with test.failing so a fix is noticed:
+// are product limitations, pinned below by their specific failure so a fix is noticed:
 // BUG-42 (TODO.md): with direction overrides, an edge
 // between Inner's child and the enclosing Outer makes ELK throw
 // UnsupportedGraphException, so the render fails (CLI RENDER_FAILED).
@@ -72,8 +72,9 @@ describe('bounded hierarchy endpoint model', () => {
 
   // Pinned limitations (see KNOWN_UNSUPPORTED). A case that starts passing
   // fails here: move it back to the supported set.
-  test.failing.each(UNSUPPORTED_ENDPOINT_CASES)('%s (known unsupported) routes without stale coordinates', (_name, withDirectionOverride, from, to) => {
-    assertCleanHierarchyCase(nestedGraph(withDirectionOverride, from, to), from, to)
+  test.each(UNSUPPORTED_ENDPOINT_CASES)('%s reports its documented unsupported hierarchy failure', (name, withDirectionOverride, from, to) => {
+    const expected = name === 'SEPARATE X->B' ? /offOutlineEndpoints/ : /UnsupportedGraphException/
+    expect(() => layoutGraphSync(parseMermaid(nestedGraph(withDirectionOverride, from, to)))).toThrow(expected)
   })
 })
 

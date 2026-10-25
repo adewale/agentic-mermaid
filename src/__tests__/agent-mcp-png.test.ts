@@ -77,7 +77,9 @@ describe('MCP — render_png tool', () => {
     })
     const a = JSON.parse((small!.result as { content: Array<{ text: string }> }).content[0]!.text) as { png_base64: string }
     const b = JSON.parse((big!.result as { content: Array<{ text: string }> }).content[0]!.text) as { png_base64: string }
-    expect(Buffer.from(b.png_base64, 'base64').length).toBeGreaterThan(Buffer.from(a.png_base64, 'base64').length)
+    const smallPng = decodePng(Buffer.from(a.png_base64, 'base64'))
+    const bigPng = decodePng(Buffer.from(b.png_base64, 'base64'))
+    expect([bigPng.width, bigPng.height]).toEqual([smallPng.width * 3, smallPng.height * 3])
   })
 
   test('honors background option', async () => {

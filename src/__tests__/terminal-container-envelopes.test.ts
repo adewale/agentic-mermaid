@@ -4,13 +4,16 @@ import { terminalDocumentOf } from '../ascii/terminal-document.ts'
 
 interface Bounds { left: number; top: number; right: number; bottom: number }
 
-function completeComposition(source: string, useAscii: boolean, labels: Record<string, string>): void {
+function completeComposition(source: string, useAscii: boolean, labels: Record<string, string>, containerIds: string[], expectedEdges: string[][]): void {
   const rendered = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none' })
   const document = terminalDocumentOf(rendered)!, regions = document.regions()
   for (const [id, label] of Object.entries(labels)) {
     expect(regions.find(region => region.id === id)?.projectedText).toBe(label)
     for (const line of label.split('\n')) expect(rendered.text).toContain(line)
   }
+  const containerKind = source.startsWith('stateDiagram-v2') ? 'cluster' : 'subgraph'
+  expect(regions.filter(region => region.kind === containerKind).map(region => region.id).sort()).toEqual([...containerIds].sort())
+  expect(regions.filter(region => region.kind === 'edge').map(edge => [edge.from!, edge.to!]).sort()).toEqual([...expectedEdges].sort())
   const cards = new Map<string, Bounds>()
   for (const [x, y, cell] of document.entries()) for (const owner of cell.owners) if (owner.kind === 'node') {
     const bounds = cards.get(owner.id) ?? { left: x, right: x, top: y, bottom: y }
@@ -70,7 +73,7 @@ for (const direction of ['TD', 'BT', 'LR', 'RL']) for (const depth of [1, 3, 5])
     completeComposition(source, useAscii, {
       X: 'Start', A: '日本語 👩‍💻 long label', B: 'Wide terminal label', C: 'Finish',
       ...Object.fromEntries(Array.from({ length: depth }, (_, index) => [`G${index}`, `Group ${index} 日本\nHierarchy\nComplete`])),
-    })
+    }, Array.from({ length: depth }, (_, index) => `G${index}`), [['X', 'A'], ['A', 'B'], ['B', 'C']])
   })
 }
 
@@ -81,14 +84,14 @@ for (const direction of ['TD', 'BT', 'LR', 'RL']) for (const depth of [3, 5]) fo
     completeComposition(source, useAscii, {
       A: 'Left start', B: 'Left finish', R: 'Right start', S: 'Right finish', C: 'Finish',
       ...Object.fromEntries(['L', 'R'].flatMap(prefix => Array.from({ length: depth }, (_, index) => [`${prefix}${index}`, `${prefix} group ${index} 日本`]))),
-    })
+    }, ['L', 'R'].flatMap(prefix => Array.from({ length: depth }, (_, index) => `${prefix}${index}`)), [['A', 'B'], ['R', 'S'], ['B', 'R'], ['S', 'C']])
   })
 }
 
 test.each(['TD', 'BT', 'LR', 'RL'])('%s places an interleaved nonmember outside its unrelated inner frame', direction => {
   for (const useAscii of [false, true]) {
     const source = `flowchart ${direction}\nsubgraph Outer\nsubgraph Inner\nA[First]\nB[Last]\nend\nX[Outside]\nend\nA --> X --> B`
-    completeComposition(source, useAscii, { A: 'First', B: 'Last', X: 'Outside', Inner: 'Inner', Outer: 'Outer' })
+    completeComposition(source, useAscii, { A: 'First', B: 'Last', X: 'Outside', Inner: 'Inner', Outer: 'Outer' }, ['Outer', 'Inner'], [['A', 'X'], ['X', 'B']])
   }
 })
 
@@ -97,17 +100,17 @@ for (const direction of ['TD', 'BT', 'LR', 'RL']) for (const useAscii of [false,
     const childDirection = direction === 'LR' || direction === 'RL' ? 'TD' : 'LR'
     completeComposition(`flowchart ${direction}\nsubgraph Outer[Outer 日本]\nsubgraph Inner[Inner 👩‍💻]\ndirection ${childDirection}\nA[First]\nB[Last]\nend\nX[Outside]\nend\nsubgraph Sibling\nC[Sibling card]\nend\nA --> X --> B\nX --> C`, useAscii, {
       A: 'First', B: 'Last', X: 'Outside', C: 'Sibling card', Inner: 'Inner 👩‍💻', Outer: 'Outer 日本', Sibling: 'Sibling',
-    })
+    }, ['Outer', 'Inner', 'Sibling'], [['A', 'X'], ['X', 'B'], ['X', 'C']])
   })
   test(`${direction} an unconnected empty child retains its own measured position (${useAscii ? 'ASCII' : 'Unicode'})`, () => {
     completeComposition(`flowchart ${direction}\nsubgraph Outer\nsubgraph Inner\nA[First]\nB[Last]\nsubgraph Empty[Unused 日本]\nend\nend\nX[Outside]\nend\nA --> X --> B`, useAscii, {
       A: 'First', B: 'Last', X: 'Outside', Inner: 'Inner', Outer: 'Outer', Empty: 'Unused 日本',
-    })
+    }, ['Outer', 'Inner', 'Empty'], [['A', 'X'], ['X', 'B']])
   })
 }
 
 for (const direction of ['TD', 'BT', 'LR', 'RL']) for (const useAscii of [false, true]) {
   test(`${direction} State compound membership shares complete relationship capacity (${useAscii ? 'ASCII' : 'Unicode'})`, () => {
-    completeComposition(`stateDiagram-v2\ndirection ${direction}\nstate Outer {\nstate Inner {\nstate "First" as A\nstate "Last" as B\n}\nstate "Outside" as X\n}\nA --> X: one\nA --> X: two\nX --> A: return\nX --> B: back\nB --> B: self`, useAscii, { A: 'First', B: 'Last', X: 'Outside', Inner: 'Inner', Outer: 'Outer' })
+    completeComposition(`stateDiagram-v2\ndirection ${direction}\nstate Outer {\nstate Inner {\nstate "First" as A\nstate "Last" as B\n}\nstate "Outside" as X\n}\nA --> X: one\nA --> X: two\nX --> A: return\nX --> B: back\nB --> B: self`, useAscii, { A: 'First', B: 'Last', X: 'Outside', Inner: 'Inner', Outer: 'Outer' }, ['Outer', 'Inner'], [['A', 'X'], ['A', 'X'], ['X', 'A'], ['X', 'B'], ['B', 'B']])
   })
 }

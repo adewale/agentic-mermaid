@@ -2,7 +2,7 @@ import { afterAll, expect, test } from 'bun:test'
 import { parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { parseSequenceDiagram, parseSequenceMessageLine } from '../sequence/parser.ts'
-import { costRelativeToLinearScan } from './helpers/complexity.ts'
+import { LINEAR_GROWTH_CEILING, measureGrowth } from './helpers/complexity.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const upstream = startUpstreamMermaid()
@@ -54,12 +54,14 @@ test('native and agent retain sender-spaced central messages and exactly two act
 })
 
 test('spaced central-start parsing stays bounded on malformed long tails', () => {
-  const line = `Alice ${' '.repeat(64_000)}() ${' '.repeat(64_000)}:missing`
-  expect(parseSequenceMessageLine(line)).toBeNull()
-  // Linear rejection costs a few plain scans of the line (3.5-7.5x measured,
-  // idle and under load); backtracking over either space run costs tens of
-  // thousands.
-  expect(costRelativeToLinearScan(line, () => parseSequenceMessageLine(line))).toBeLessThan(100)
+  // Judge input-size growth, not parser throughput relative to an unrelated
+  // character loop. Both space runs must still be rejected at every size.
+  const growth = measureGrowth(size => {
+    const line = `Alice ${' '.repeat(size)}() ${' '.repeat(size)}:missing`
+    expect(parseSequenceMessageLine(line)).toBeNull()
+  }, 1_024)
+  expect(growth.ratio).toBeLessThan(LINEAR_GROWTH_CEILING)
+  expect(parseSequenceMessageLine(`Alice ${' '.repeat(64_000)}() ${' '.repeat(64_000)}:missing`)).toBeNull()
 })
 
 test('sender-spaced central fallback does not accept forms Mermaid rejects', async () => {

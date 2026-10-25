@@ -69,7 +69,11 @@ describe('bounded final layout certification', () => {
     expect(positioned.certification?.status).toBe('passed')
     expect(positioned.certification?.hardViolations).toBe(0)
     expect(positioned.certification!.attempts).toBeLessThanOrEqual(MAX_LAYOUT_CANDIDATES)
-    expect(positioned.edges.every(edge => edge.labelBlock?.fontSize === 24)).toBe(true)
+    expect(positioned.nodes.map(node => node.id).sort()).toEqual(['A', 'B'])
+    expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual([
+      ['A', 'B', 'first'], ['B', 'A', 'second'],
+    ])
+    for (const edge of positioned.edges) expect(edge.labelBlock?.fontSize).toBe(24)
   })
 
   test('an invalid first route yields to a certified deterministic alternative', () => {

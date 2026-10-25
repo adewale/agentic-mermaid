@@ -179,6 +179,8 @@ describe('sankey integration · deterministic layout invariants', () => {
     const source = 'sankey-beta\n  A,B,0\n  A,C,0'
     const chart = layout(source)
     expect(chart.total).toBe(0)
+    expect(chart.nodes.map(node => node.label)).toEqual(['A', 'B', 'C'])
+    expect(chart.links.map(link => [link.source, link.target, link.value])).toEqual([['A', 'B', 0], ['A', 'C', 0]])
     expect(chart.nodes.every(node => node.value === 0 && node.y1 - node.y0 >= 1)).toBe(true)
     expect(chart.links.every(link => link.value === 0 && link.width === 0)).toBe(true)
     const svg = renderMermaidSVG(source)

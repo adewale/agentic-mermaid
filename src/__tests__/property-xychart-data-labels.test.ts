@@ -95,7 +95,7 @@ describe('xychart bar value labels', () => {
   it('never removes one bar\'s label because another bar shrinks', () => {
     const arb = fc.integer({ min: 2, max: 8 }).chain(length => fc.record({
       horizontal: fc.boolean(),
-      values: fc.array(fc.integer({ min: 10, max: 100 }), { minLength: length, maxLength: length }),
+      values: fc.uniqueArray(fc.integer({ min: 10, max: 100 }), { minLength: length, maxLength: length }),
       shrink: fc.integer({ min: 0, max: length - 1 }),
     }))
     fc.assert(

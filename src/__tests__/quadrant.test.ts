@@ -335,7 +335,7 @@ describe('quadrant property tests', () => {
   const pointArb = fc.tuple(labelArb, coordArb, coordArb)
   const pointsArb = fc.array(pointArb, { minLength: 1, maxLength: 8 })
 
-  it('every label appears once; rendered coords are in plot bounds; quadrant assignment matches math', () => {
+  it('every point is retained; visible labels appear once; quadrant assignment matches authored coordinates', () => {
     fc.assert(
       fc.property(pointsArb, (points) => {
         // De-dupe labels (parser rejects duplicates).
@@ -348,7 +348,7 @@ describe('quadrant property tests', () => {
         const midX = plot.x + plot.size / 2
         const midY = plot.y + plot.size / 2
 
-        expect(positioned.points).toHaveLength(unique.length)
+        expect(positioned.points.map(p => [p.label, p.nx, p.ny])).toEqual(unique)
 
         for (const pp of positioned.points) {
           // within plot bounds (small epsilon for rounding)
@@ -369,9 +369,9 @@ describe('quadrant property tests', () => {
         }
 
         const svg = renderMermaidSVG(src)
-        for (const [label] of unique) {
-          expect(svg).toContain(label)
-        }
+        const visibleLabels = [...svg.matchAll(/<text\b[^>]*\bclass="quadrant-point-label"[^>]*>([\s\S]*?)<\/text>/g)]
+          .map(match => match[1]!.replace(/<[^>]*>/g, ''))
+        expect(visibleLabels.sort()).toEqual(positioned.points.filter(point => !point.labelHidden).map(point => point.label).sort())
       }),
       fcParameters({ numRuns: 60 }),
     )

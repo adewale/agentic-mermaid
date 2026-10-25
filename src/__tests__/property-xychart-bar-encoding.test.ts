@@ -87,6 +87,7 @@ describe('xychart bars encode value as length from a shared baseline', () => {
         const baseline = expectedBaseline(parsedRange(source))
         const bars = renderedBars(renderMermaidSVG(source))
         expect(bars).toHaveLength(values.length)
+        expect(bars.map(bar => bar.value)).toEqual(values)
 
         // Near end = the edge at the baseline; far end = the edge at the value.
         // Vertical: larger values sit higher (smaller y). Horizontal: to the right.
@@ -127,6 +128,7 @@ describe('xychart bars encode value as length from a shared baseline', () => {
       fc.property(signedArb, values => {
         const source = sourceFor({ horizontal: false, values })
         const svgBars = renderedBars(renderMermaidSVG(source))
+        expect(svgBars.map(bar => bar.value)).toEqual(values)
         const baselineY = svgBars.map(bar => bar.value > 0 ? bar.y + bar.height : bar.y)[0]!
         for (const bar of svgBars) {
           if (bar.value > 0) expect(bar.y).toBeLessThan(baselineY)

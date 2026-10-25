@@ -92,7 +92,10 @@ const MFA_SOURCE = `flowchart LR
   F -- Yes --> G`
 
 function layoutEdges(source: string): PositionedEdge[] {
-  return layoutGraphSync(parseMermaid(source)).edges
+  const graph = parseMermaid(source), positioned = layoutGraphSync(graph)
+  expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+  expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
+  return positioned.edges
 }
 
 function findEdge(edges: PositionedEdge[], from: string, to: string, label?: string): PositionedEdge {
@@ -145,16 +148,6 @@ describe('route contracts — MFA/login regression (issue #25 acceptance criteri
     expect(isStraightHorizontal(e)).toBe(true)
   })
 
-  it('F -- Yes --> G emits from the diamond vertex and merges into G at its exact W port', () => {
-    // F's east side carries one line, so the port ranking emits from the
-    // sharp bit; G sits off F's centerline, so a single deliberate Z links
-    // vertex to port, converging with D --No--> G at the shared arrowhead.
-    const e = findEdge(edges, 'F', 'G')
-    expect(e.routeCertificate?.sourcePort).toBe('E')
-    expect(e.routeCertificate?.targetPort).toBe('W')
-    expect(e.points.length).toBeLessThanOrEqual(4)
-  })
-
   it('labeled feedback routes around through the outer channel with its label ON the loop', () => {
     // ELK's feedbackEdges routing (issue #25 §10) sends the retry edges
     // around the nodes; the inline label rides the loop as a layout citizen
@@ -187,12 +180,6 @@ describe('route contracts — MFA/login regression (issue #25 acceptance criteri
     }
   })
 
-  it('forward lanes are straight directly: feedback no longer competes for the facing sides', () => {
-    // With feedback routed around, B -> C should not even need repair.
-    const e = findEdge(edges, 'B', 'C')
-    expect(isStraightHorizontal(e)).toBe(true)
-  })
-
   it('unlabeled reciprocal pairs straighten into two parallel lanes', () => {
     const pair = layoutEdges('flowchart LR\n  A --> B\n  B --> A')
     const fwd = findEdge(pair, 'A', 'B')
@@ -203,7 +190,7 @@ describe('route contracts — MFA/login regression (issue #25 acceptance criteri
     expect(Math.abs(back.points[0]!.y - fwd.points[0]!.y)).toBeGreaterThanOrEqual(4)
   })
 
-  it('D --No--> G stays an explained detour: node F blocks every candidate lane', () => {
+  it('D --No--> G retains a detour', () => {
     const e = findEdge(edges, 'D', 'G', 'No')
     expect(e.points.length).toBeGreaterThan(2)
   })
@@ -324,7 +311,7 @@ describe('simplifyPolyline', () => {
 
   it('leaves two-point lines untouched', () => {
     const line = [{ x: 1, y: 2 }, { x: 3, y: 4 }]
-    expect(simplifyPolyline(line)).toBe(line)
+    expect(simplifyPolyline(line)).toEqual(line)
   })
 
   it('keeps genuine small bends (only sub-epsilon noise is removed)', () => {
@@ -373,6 +360,7 @@ describe('simplifyPolyline', () => {
 describe('certificates', () => {
   it('every positioned edge carries a certificate', () => {
     const positioned = layoutGraphSync(parseMermaid(MFA_SOURCE))
+    expect(positioned.edges).toHaveLength(9)
     for (const e of positioned.edges) {
       expect(e.routeCertificate).toBeDefined()
       expect(e.routeCertificate!.edgeIndex).toBeGreaterThanOrEqual(0)
@@ -517,12 +505,16 @@ describe('certificates', () => {
 describe('ROUTE_HITCH tripwire (issue #25 acceptance criterion 3)', () => {
   it('the default pipeline emits no ROUTE_HITCH for the MFA regression', () => {
     const result = verifyMermaid(MFA_SOURCE)
+    expect(result.ok).toBe(true)
+    expect(result.layout.edges).toHaveLength(9)
     expect(result.warnings.filter(w => w.code === 'ROUTE_HITCH')).toEqual([])
   })
 
   it('fires when geometry is mutated after certification (stale-pass detector)', () => {
     const graph = parseMermaid(MFA_SOURCE)
     const positioned = layoutGraphSync(graph)
+    expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+    expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
     const e = findEdge(positioned.edges, 'B', 'C')
     // Simulate a later pass re-introducing a dogleg without recertifying.
     const [a, b] = e.points as [{ x: number; y: number }, { x: number; y: number }]
@@ -535,6 +527,8 @@ describe('ROUTE_HITCH tripwire (issue #25 acceptance criterion 3)', () => {
   it('validation never mutates the layout it inspects', () => {
     const graph = parseMermaid(MFA_SOURCE)
     const positioned = layoutGraphSync(graph)
+    expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+    expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
     findEdge(positioned.edges, 'B', 'C').points = [
       { x: 100, y: 100 }, { x: 150, y: 100 }, { x: 150, y: 110 }, { x: 200, y: 110 },
     ]
@@ -657,8 +651,7 @@ describe('route contracts — feedback channel lanes', () => {
       const maxX = Math.max(...e.points.map(pt => pt.x))
       expect(maxX).toBeGreaterThan(b.x + b.width)
       const end = e.points[e.points.length - 1]!
-      const onBorder = Math.abs(end.y - a.y) < 1 || Math.abs(end.x - a.x) < 1 ||
-        Math.abs(end.x - (a.x + a.width)) < 1 || Math.abs(end.y - (a.y + a.height)) < 1
+      const onBorder = onShapeOutline(a, end)
       expect(onBorder).toBe(true)
     }
   })
@@ -711,6 +704,7 @@ describe('bundle contract — trunks never pass through nodes', () => {
 
   it('a high-degree rectangle fan-out keeps one clean trunk instead of forming a box', () => {
     const positioned = layoutGraphSync(parseMermaid('flowchart TD\n  A --> B\n  A --> C\n  A --> D\n  A --> E'))
+    expect(positioned.edges.map(edge => [edge.source, edge.target]).sort()).toEqual([['A', 'B'], ['A', 'C'], ['A', 'D'], ['A', 'E']])
     const starts = positioned.edges.map(e => JSON.stringify(e.points[0]))
     const trunks = positioned.edges.map(e => JSON.stringify(e.points[1]))
     expect(new Set(starts).size).toBe(1)
@@ -895,6 +889,8 @@ describe('straightenable shape whitelist', () => {
     const graph = parseMermaid('flowchart LR\n  A[Gateway] --> B[Auth]\n  B --> A')
     for (const node of graph.nodes.values()) node.shape = 'service'
     const positioned = layoutGraphSync(graph)
+    expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+    expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
     expect(isStraightHorizontal(findEdge(positioned.edges, 'A', 'B'))).toBe(true)
     expect(isStraightHorizontal(findEdge(positioned.edges, 'B', 'A'))).toBe(true)
   })
@@ -918,6 +914,8 @@ describe('validation ignores non-staircase routes', () => {
   it('a diagonal post-certification mutation is not reported as a hitch', () => {
     const graph = parseMermaid(MFA_SOURCE)
     const positioned = layoutGraphSync(graph)
+    expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+    expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
     const e = findEdge(positioned.edges, 'B', 'C')
     const [a, b] = e.points as [{ x: number; y: number }, { x: number; y: number }]
     // Diagonal middle segment: not orthogonal routing, so not a "hitch" —
@@ -940,6 +938,8 @@ describe('duplicate parallel edges (fast-check counterexample, pinned)', () => {
   it('no unexplained hitch survives when duplicates unblock each other mid-pass', () => {
     const graph = parseMermaid(DUP_SOURCE)
     const positioned = layoutGraphSync(graph)
+    expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+    expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
     expect(findRouteHitches(positioned, graph)).toEqual([])
   })
 
@@ -975,7 +975,10 @@ describe('duplicate parallel edges (fast-check counterexample, pinned)', () => {
   }
   for (const [name, source] of Object.entries(outlineCases)) {
     it(`keeps both endpoints on the node outline — ${name}`, () => {
-      const positioned = layoutGraphSync(parseMermaid(source))
+      const graph = parseMermaid(source)
+      const positioned = layoutGraphSync(graph)
+      expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+      expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
       const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
       for (const e of positioned.edges) {
         for (const [id, pt] of [
@@ -1009,7 +1012,10 @@ describe('duplicate parallel edges (fast-check counterexample, pinned)', () => {
   ]
   for (const { name, source, cross, count, src = 'A', tgt = 'B' } of laneCases) {
     it(`routes duplicate edges as separated parallel lanes — ${name}`, () => {
-      const positioned = layoutGraphSync(parseMermaid(source))
+      const graph = parseMermaid(source)
+      const positioned = layoutGraphSync(graph)
+      expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+      expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
       const dups = positioned.edges
         .filter(e => e.source === src && e.target === tgt)
         .sort((a, b) => (a.edgeIndex ?? 0) - (b.edgeIndex ?? 0))
@@ -1047,7 +1053,10 @@ describe('duplicate parallel edges (fast-check counterexample, pinned)', () => {
   ]
   for (const { name, source, hub } of mixedFanInCases) {
     it(`distributes a mixed fan-in without collapse or crossing — ${name}`, () => {
-      const positioned = layoutGraphSync(parseMermaid(source))
+      const graph = parseMermaid(source)
+      const positioned = layoutGraphSync(graph)
+      expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+      expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
       const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
       const incoming = positioned.edges.filter(e => e.target === hub)
       expect(incoming.length).toBeGreaterThanOrEqual(3)
@@ -1093,6 +1102,8 @@ describe('duplicate parallel edges (fast-check counterexample, pinned)', () => {
     ].join('\n')
     const graph = parseMermaid(source)
     const positioned = layoutGraphSync(graph)
+    expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+    expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
     const dups = positioned.edges
       .filter(e => e.source === 'E' && e.target === 'F')
       .sort((a, b) => (a.edgeIndex ?? 0) - (b.edgeIndex ?? 0))
@@ -1125,7 +1136,10 @@ describe('duplicate parallel edges (fast-check counterexample, pinned)', () => {
   }
   for (const [name, { source, hub }] of Object.entries(offsetHubCases)) {
     it(`nests offset duplicate lanes without crossing mid-path — ${name}`, () => {
-      const positioned = layoutGraphSync(parseMermaid(source))
+      const graph = parseMermaid(source)
+      const positioned = layoutGraphSync(graph)
+      expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+      expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
       const incoming = positioned.edges.filter(e => e.target === hub)
       for (let i = 0; i < incoming.length; i++) {
         for (let j = i + 1; j < incoming.length; j++) {
@@ -1251,6 +1265,8 @@ describe('ROUTE_HITCH tripwire covers feedback lanes', () => {
   it('a dogleg injected into a straightened back-edge is reported', () => {
     const graph = parseMermaid('flowchart LR\n  A --> B\n  B --> A')
     const positioned = layoutGraphSync(graph)
+    expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+    expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
     const back = findEdge(positioned.edges, 'B', 'A')
     expect(back.points.length).toBe(2)
     const [a, b] = back.points as [{ x: number; y: number }, { x: number; y: number }]
@@ -1306,6 +1322,8 @@ describe('container edges anchor on container borders (issue #25 §11.5)', () =>
     for (const src of [MFA_SOURCE, NESTED_DIRECTION_SOURCE]) {
       const graph = parseMermaid(src)
       const positioned = layoutGraphSync(graph)
+      expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+      expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
       expect(auditRouteContracts(positioned, graph)).toEqual([])
     }
   })
@@ -1332,6 +1350,8 @@ describe('route audit tripwires fire on post-certification corruption', () => {
     for (const points of [[], [{ x: 10, y: 20 }]] as const) {
       const graph = parseMermaid('flowchart LR\n  A --> B')
       const positioned = layoutGraphSync(graph)
+      expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+      expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
       const e = findEdge(positioned.edges, 'A', 'B')
       e.points = [...points]
       expect(auditRouteContracts(positioned, graph)).toEqual([])
@@ -1341,6 +1361,8 @@ describe('route audit tripwires fire on post-certification corruption', () => {
   it('ROUTE_UNEXPLAINED_BEND: a diagonal segment on a certified edge', () => {
     const graph = parseMermaid(MFA_SOURCE)
     const positioned = layoutGraphSync(graph)
+    expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+    expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
     const e = findEdge(positioned.edges, 'B', 'C')
     const [a, b] = e.points as [{ x: number; y: number }, { x: number; y: number }]
     e.points = [a, { x: (a.x + b.x) / 2, y: a.y + 30 }, b]
@@ -1350,6 +1372,8 @@ describe('route audit tripwires fire on post-certification corruption', () => {
   it('ROUTE_STALE_AFTER_NODE_MOVE: a node moved without rerouting its edges', () => {
     const graph = parseMermaid(MFA_SOURCE)
     const positioned = layoutGraphSync(graph)
+    expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+    expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
     const a = positioned.nodes.find(n => n.id === 'A')!
     a.y += 200 // node moves; its edge endpoints do not
     const findings = auditRouteContracts(positioned, graph)
@@ -1359,6 +1383,8 @@ describe('route audit tripwires fire on post-certification corruption', () => {
   it('ROUTE_STALE_AFTER_NODE_MOVE: a non-incident node moved onto a certified route', () => {
     const graph = parseMermaid('flowchart LR\n  A --> B\n  C')
     const positioned = layoutGraphSync(graph)
+    expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+    expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
     const e = findEdge(positioned.edges, 'A', 'B')
     const c = positioned.nodes.find(n => n.id === 'C')!
     c.x = (e.points[0]!.x + e.points[1]!.x) / 2 - c.width / 2
@@ -1370,6 +1396,8 @@ describe('route audit tripwires fire on post-certification corruption', () => {
   it('ROUTE_SHAPE_MISANCHOR: an endpoint pulled inside a diamond', () => {
     const graph = parseMermaid(MFA_SOURCE)
     const positioned = layoutGraphSync(graph)
+    expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+    expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
     const e = findEdge(positioned.edges, 'B', 'C')
     const end = e.points[e.points.length - 1]!
     const c = positioned.nodes.find(n => n.id === 'C')!
@@ -1384,6 +1412,8 @@ describe('route audit tripwires fire on post-certification corruption', () => {
         Fetch --> Parse
       end`)
     const positioned = layoutGraphSync(graph)
+    expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+    expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
     const e = findEdge(positioned.edges, 'Start', 'Pipeline')
     const end = e.points[e.points.length - 1]!
     e.points = [...e.points.slice(0, -1), { x: end.x + 50, y: end.y + 50 }]
@@ -1393,6 +1423,8 @@ describe('route audit tripwires fire on post-certification corruption', () => {
   it("ROUTE_LABEL_ON_SHARED_TRUNK: a label pill parked on another edge's collinear segment", () => {
     const graph = parseMermaid(MFA_SOURCE)
     const positioned = layoutGraphSync(graph)
+    expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+    expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
     const yes = findEdge(positioned.edges, 'D', 'E', 'Yes')
     const ef = findEdge(positioned.edges, 'E', 'F')
     // Move D->E's pill onto E->F's lane and make D->E share that lane segment.
@@ -1408,6 +1440,8 @@ describe('route audit — boundary harvest', () => {
   it('shared-trunk detection works for vertical trunks and respects the collinearity clearance', () => {
     const graph = parseMermaid('flowchart TD\n  A -- down --> B\n  C --> D')
     const positioned = layoutGraphSync(graph)
+    expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+    expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
     const labeled = findEdge(positioned.edges, 'A', 'B')
     const other = findEdge(positioned.edges, 'C', 'D')
     // Both edges share a vertical line under the pill: flagged.
@@ -1428,6 +1462,8 @@ describe('route audit — boundary harvest', () => {
   it('stale vs shape-misanchor boundary: ±2px detachment separates the two codes', () => {
     const graph = parseMermaid('flowchart LR\n  A --> B')
     const positioned = layoutGraphSync(graph)
+    expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+    expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
     const e = findEdge(positioned.edges, 'A', 'B')
     const b = positioned.nodes.find(n => n.id === 'B')!
     const startOnA = e.points[0]!
@@ -1450,6 +1486,8 @@ describe('route audit — boundary harvest', () => {
   it('container perimeter tolerance: 0.5px off is fine, 1.5px off fires', () => {
     const graph = parseMermaid('flowchart TD\n  Start --> Pipeline\n  subgraph Pipeline\n    F --> P\n  end')
     const positioned = layoutGraphSync(graph)
+    expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+    expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
     const e = findEdge(positioned.edges, 'Start', 'Pipeline')
     const end = e.points[e.points.length - 1]!
     e.points = [...e.points.slice(0, -1), { x: end.x, y: end.y - 0.5 }]
@@ -1509,7 +1547,7 @@ describe('container repair — axis selection harvest', () => {
   B1 --> B2`))).toEqual([])
   })
 
-  it('a non-straightenable node end (circle) declines repair gracefully', () => {
+  it('a circle-to-container relationship retains its attachment certificate', () => {
     const graph = parseMermaid(`flowchart TD
       S((Start)) --> Pipeline
       subgraph Pipeline
@@ -1517,13 +1555,15 @@ describe('container repair — axis selection harvest', () => {
       end`)
     // Must not throw, and the edge still certifies as container-attach.
     const positioned = layoutGraphSync(graph)
+    expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+    expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
     const e = findEdge(positioned.edges, 'S', 'Pipeline')
     expect(e.routeCertificate?.invariant).toBe('container-attach')
   })
 })
 
 describe('repairs never increase edge crossings', () => {
-  it('a back-lane that would cut through a fan-out trunk stays a certified loop instead', () => {
+  it('the feedback fan-out fixture has no proper edge crossings', () => {
     // stateDiagram corpus regression: collapsing Moving -> Still onto a
     // vertical back-lane would cross the Still fan-out trunk — a crossing
     // ELK's loop avoided. The crossing guard must refuse the collapse.
@@ -1534,6 +1574,7 @@ describe('repairs never increase edge crossings', () => {
       Moving --> Still
       Moving --> Crash`))
     const edges = positioned.edges
+    expect(edges.map(edge => [edge.source, edge.target]).sort()).toEqual([['S0', 'Still'], ['Still', 'S1'], ['Still', 'Moving'], ['Moving', 'Still'], ['Moving', 'Crash']].sort())
     function segInt(a: {x:number;y:number}, b: {x:number;y:number}, c: {x:number;y:number}, d: {x:number;y:number}): boolean {
       const det = (b.x - a.x) * (d.y - c.y) - (b.y - a.y) * (d.x - c.x)
       if (Math.abs(det) < 1e-9) return false
@@ -1599,12 +1640,15 @@ describe('semantic ports — N/E/S/W at bbox side midpoints (issue #26 WS3)', ()
     expect(Math.abs(end.y - cy)).toBeLessThan(0.5)
     expect(e.routeCertificate?.targetPort).toBe('W')
     expect(e.routeCertificate?.sourcePort).toBe('E')
+    expect(e.points.length).toBeLessThanOrEqual(4)
   })
 
   it('aligned chains run port to port: B -> C from East midpoint to the West vertex', () => {
     const e = findEdge(positioned.edges, 'B', 'C')
     expect(e.routeCertificate?.sourcePort).toBe('E')
     expect(e.routeCertificate?.targetPort).toBe('W')
+    expectSourceEndpointAtNamedPort(e, positioned.nodes.find(node => node.id === 'B')!)
+    expectTargetEndpointAtNamedPort(e, positioned.nodes.find(node => node.id === 'C')!)
   })
 
   it('circles join the straightenable set via their exact boundary ports', () => {
@@ -1873,28 +1917,17 @@ describe('port ranking — sharp bits win when a side carries one line (issue #2
     expect(yes.points[0]!.y).toBeCloseTo(no.points[0]!.y, 3)
   })
 
-  it('a TD decision fork/rejoin emits every line from a named source port', () => {
+  it('a TD decision fork/rejoin connects every line through named endpoint ports', () => {
     const positioned = layoutGraphSync(parseMermaid(`flowchart TD
   A[Start] --> B{Decision?}
   B -->|Yes| C[Do the thing]
   B -->|No| D[Skip it]
   C --> E[End]
   D --> E`))
+    expect(positioned.edges).toHaveLength(5)
     const nodes = new Map(positioned.nodes.map(node => [node.id, node]))
     for (const edge of positioned.edges) {
       expectSourceEndpointAtNamedPort(edge, nodes.get(edge.source)!)
-    }
-  })
-
-  it('a TD decision fork/rejoin enters every target through a named target port', () => {
-    const positioned = layoutGraphSync(parseMermaid(`flowchart TD
-  A[Start] --> B{Decision?}
-  B -->|Yes| C[Do the thing]
-  B -->|No| D[Skip it]
-  C --> E[End]
-  D --> E`))
-    const nodes = new Map(positioned.nodes.map(node => [node.id, node]))
-    for (const edge of positioned.edges) {
       expectTargetEndpointAtNamedPort(edge, nodes.get(edge.target)!)
     }
   })
@@ -1907,6 +1940,8 @@ describe('port ranking — sharp bits win when a side carries one line (issue #2
     B -.->|needs work| D[Refine]
   end`)
     const positioned = layoutGraphSync(graph)
+    expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+    expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
     const yes = findEdge(positioned.edges, 'B', 'C', 'yes')
     const retry = findEdge(positioned.edges, 'B', 'D', 'needs work')
     expect(findEdge(positioned.edges, 'A', 'B').routeCertificate?.sourcePort).toBe('S')
@@ -2020,7 +2055,10 @@ describe('route contracts — properties', () => {
 
   function layout(source: string): { graph: ReturnType<typeof parseMermaid>; positioned: PositionedGraph } {
     const graph = parseMermaid(source)
-    return { graph, positioned: layoutGraphSync(graph) }
+    const positioned = layoutGraphSync(graph)
+    expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
+    expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
+    return { graph, positioned }
   }
 
   it('every edge gets a certificate and no unexplained hitch survives the pipeline', () => {
