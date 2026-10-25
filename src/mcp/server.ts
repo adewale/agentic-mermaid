@@ -7,7 +7,7 @@ import { URL } from 'node:url'
 import { EDIT_TOOLS, handleEditTool } from './edit-tools.ts'
 import { executeInSandbox } from './sandbox.ts'
 import { DEFAULT_EXECUTE_TIMEOUT_MS } from './execute-limits.ts'
-import { isJsonContentType, preserveExactJsonRpcIds, reply, rpcError as error, stringifyJsonRpc, type ExactJsonRpcId, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
+import { isJsonContentType, preserveExactJsonRpcIds, rpcError as error, stringifyJsonRpc, toolResult, type ExactJsonRpcId, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
 import {
   EXECUTE_TIMEOUT_ERROR,
   createDescribeTool,
@@ -151,7 +151,7 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
   if (name === 'describe_sdk') {
     try {
       const payload = describeSdkPayload(args)
-      return reply(id, { content: [{ type: 'text', text: JSON.stringify(payload) }], isError: false })
+      return toolResult(id, payload, false)
     } catch (e) {
       return error(id, -32602, e instanceof Error ? e.message : String(e))
     }
@@ -168,7 +168,7 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
     )
     if (typeof code !== 'string') return error(id, -32602, 'execute requires `code` (string)')
     const r = await executeInSandbox(code, { timeoutMs })
-    return reply(id, { content: [{ type: 'text', text: JSON.stringify(r) }], isError: !r.ok })
+    return toolResult(id, r, !r.ok)
   }
   if (name === 'mutate') return handleEditTool(id, args, 'source')
   if (name === 'build') return handleEditTool(id, args, 'family')
@@ -178,11 +178,11 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
     if (typeof source !== 'string') return error(id, -32602, 'describe requires `source` (string)')
     try {
       const payload = mcpDescribePayload(source, args)
-      return reply(id, { content: [{ type: 'text', text: JSON.stringify(payload) }], isError: !payload.ok })
+      return toolResult(id, payload, !payload.ok)
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       const payload = { ok: false as const, error: { code: 'DESCRIBE_FAILED', message: msg } }
-      return reply(id, { content: [{ type: 'text', text: JSON.stringify(payload) }], isError: true })
+      return toolResult(id, payload, true)
     }
   }
   return error(id, -32602, `Unknown tool: ${name ?? '<none>'}`)
@@ -206,19 +206,19 @@ function handleRenderPng(id: number | string | null, args: Record<string, unknow
     if (output === 'base64') {
       const png_base64 = Buffer.from(rendered.png).toString('base64')
       const payload = { ok: true as const, png_base64, receipt: rendered.receipt, runtime: rendered.runtime, warnings }
-      return reply(id, { content: [{ type: 'text', text: JSON.stringify(payload) }], isError: false })
+      return toolResult(id, payload, false)
     }
     const store = context.artifactStore ?? getDefaultArtifactStore()
     if (output === 'url' && !store.hasBaseUrl()) return error(id, -32602, 'render_png output=url requires an HTTP/SSE artifact base URL')
     const artifact = store.write(rendered.png, { extension: '.png', mimeType: 'image/png' })
     const payload = { ok: true as const, artifact: artifactPayload(artifact, output as 'file' | 'url'), receipt: rendered.receipt, runtime: rendered.runtime, warnings }
-    return reply(id, { content: [{ type: 'text', text: JSON.stringify(payload) }], isError: false })
+    return toolResult(id, payload, false)
   } catch (e) {
     const payload = {
       ok: false as const,
       error: projectRenderErrorDiagnostic(e),
     }
-    return reply(id, { content: [{ type: 'text', text: JSON.stringify(payload) }], isError: true })
+    return toolResult(id, payload, true)
   }
 }
 

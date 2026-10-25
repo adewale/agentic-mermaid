@@ -1,7 +1,8 @@
 import { coalesceFlowchartLines, type FlowchartScan, type FlowchartTextRange, flowchartTextArrowLabelRanges, scanFlowchart } from '../flowchart-lexer.ts'
 import { INIT_DIRECTIVE_REGEX, MERMAID_DIRECTIVE_REGEX, splitHeaderStatement } from '../mermaid-source-wrapper.ts'
-import type { PreservedSourceSpans, SourceLocation, SourceMap, SourceMapSpans, SourceSpan, SourceSpanPoint } from './types.ts'
+import type { PreservedSourceSpans, SourceLocation, SourceMap, SourceMapSpans, SourceSpan } from './types.ts'
 import type { MermaidCleanup } from '../shared/mermaid-cleanup.ts'
+import { sourceLineStarts, sourcePointAt, sourceSpan } from '../family-detection.ts'
 
 interface PhysicalLine {
   text: string
@@ -64,33 +65,6 @@ function physicalLines(source: string): PhysicalLine[] {
     start = index + 1
   }
   return lines
-}
-
-function sourceLineStarts(source: string): readonly number[] {
-  const starts = [0]
-  for (let index = 0; index < source.length; index++) {
-    if (source.charCodeAt(index) === 13) {
-      if (source.charCodeAt(index + 1) === 10) index++
-      starts.push(index + 1)
-    } else if (source.charCodeAt(index) === 10) starts.push(index + 1)
-  }
-  return starts
-}
-
-function point(lineStarts: readonly number[], offset: number): SourceSpanPoint {
-  let low = 0
-  let high = lineStarts.length
-  while (low < high) {
-    const middle = low + Math.floor((high - low) / 2)
-    if (lineStarts[middle]! <= offset) low = middle + 1
-    else high = middle
-  }
-  const lineIndex = Math.max(0, low - 1)
-  return Object.freeze({ offset, line: lineIndex + 1, col: offset - lineStarts[lineIndex]! + 1 })
-}
-
-function span(lineStarts: readonly number[], start: number, end: number): SourceSpan {
-  return Object.freeze({ start: point(lineStarts, start), end: point(lineStarts, end) })
 }
 
 /**
@@ -361,7 +335,7 @@ interface AuthoredPosition {
 function statementSpan(lineStarts: readonly number[], position: AuthoredPosition | undefined, analysis: AuthoredLineAnalysis | undefined): SourceSpan | undefined {
   if (!position || !analysis) return undefined
   const [startInLine, endInLine] = statementBounds(analysis.statementBounds, position.at)
-  return span(lineStarts, position.line.start + startInLine, position.line.start + endInLine)
+  return sourceSpan(lineStarts, position.line.start + startInLine, position.line.start + endInLine)
 }
 
 /** For each canonical line of a flowchart statement the parser reads across
@@ -476,7 +450,7 @@ function labelEnd(line: string, start: number, key: string, analysis: AuthoredLi
 function labelSpan(lineStarts: readonly number[], position: AuthoredPosition | undefined, key: string, analysis: AuthoredLineAnalysis | undefined): SourceSpan | undefined {
   if (!position || !analysis) return undefined
   const endInLine = labelEnd(position.line.text, position.at, key, analysis)
-  return span(lineStarts, position.line.start + position.at, position.line.start + endInLine)
+  return sourceSpan(lineStarts, position.line.start + position.at, position.line.start + endInLine)
 }
 
 function mapStatementSpans(locations: Map<string, SourceLocation>, lineStarts: readonly number[], positionOf: (location: SourceLocation) => AuthoredPosition | undefined, analysisFor: (line: PhysicalLine) => AuthoredLineAnalysis): Map<string, SourceSpan> {
@@ -544,7 +518,7 @@ export function attachSourceMapSpans(sourceMap: SourceMap, canonicalSource: stri
       const location = locations.get(key)
       const start = location && offsetOf(location)
       const stop = offsetOf(end)
-      if (start !== undefined && stop !== undefined && stop >= start) located.set(key, span(lineStarts, start, stop))
+      if (start !== undefined && stop !== undefined && stop >= start) located.set(key, sourceSpan(lineStarts, start, stop))
     }
     return located
   }
@@ -565,7 +539,7 @@ export function attachSourceMapSpans(sourceMap: SourceMap, canonicalSource: stri
           keyEnd = offsetOf(field.key.end),
           valueStart = offsetOf(field.value.start),
           valueEnd = offsetOf(field.value.end)
-        if (keyStart !== undefined && keyEnd !== undefined && valueStart !== undefined && valueEnd !== undefined) located.set(name, { key: span(lineStarts, keyStart, keyEnd), value: span(lineStarts, valueStart, valueEnd) })
+        if (keyStart !== undefined && keyEnd !== undefined && valueStart !== undefined && valueEnd !== undefined) located.set(name, { key: sourceSpan(lineStarts, keyStart, keyEnd), value: sourceSpan(lineStarts, valueStart, valueEnd) })
       }
       if (located.size) spans.metadata.set(id, located)
     }
@@ -573,7 +547,7 @@ export function attachSourceMapSpans(sourceMap: SourceMap, canonicalSource: stri
   sourceMap.spans = spans
   authoredLinesBySourceMap.set(sourceMap, new Map([...lines].map(([canonicalLine, authoredLine]) => [
     canonicalLine,
-    { line: point(lineStarts, authoredLine.start).line, text: authoredLine.text },
+    { line: sourcePointAt(lineStarts, authoredLine.start).line, text: authoredLine.text },
   ])))
   return sourceMap
 }
