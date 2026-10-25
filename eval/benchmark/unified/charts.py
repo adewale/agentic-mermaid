@@ -233,9 +233,11 @@ def cli_resource_overlay(supplemental,result,directory):
     fresh_keys=Counter(canonical([tool(row),row.get('surface'),row.get('caseId'),row.get('operation'),row.get('format'),row.get('mode')])for row in fresh.get('diagnostics',[]))
     if expected_keys!=fresh_keys or any(row.get('samplesMs')for row in fresh.get('diagnostics',[])):raise ValueError('Resource-only overlay changes declared fixed per-case diagnostic keys or contains latency samples')
     old_rows=result.get('diagnostics',[])
-    if all(row.get('caseId')=='resource-observer'and row.get('status')=='blocked'for row in old_rows):
-        if len(old_rows)!=sum(expected_keys.values()):raise ValueError('Original unavailable-observer capability count differs from declared fixed-work slots')
-    elif Counter(canonical([tool(row),row.get('surface'),row.get('caseId'),row.get('operation'),row.get('format'),row.get('mode')])for row in old_rows)!=fresh_keys:raise ValueError('Resource-only overlay changes previously observed resource keys')
+    observer_rows=[row for row in old_rows if row.get('caseId')=='resource-observer'];old_slots=[row for row in old_rows if row.get('caseId')!='resource-observer']
+    if any(row.get('status')!='blocked'or 'GNU /usr/bin/time is unavailable'not in str(row.get('detail',''))for row in observer_rows):raise ValueError('Unkeyed original resource metadata is not the known unavailable-observer capability row')
+    if not old_slots:
+        if len(observer_rows)not in (1,sum(expected_keys.values())):raise ValueError('Original unavailable-observer capability count differs from declared fixed-work slots')
+    elif Counter(canonical([tool(row),row.get('surface'),row.get('caseId'),row.get('operation'),row.get('format'),row.get('mode')])for row in old_slots)!=fresh_keys:raise ValueError('Resource-only overlay changes previously observed resource keys')
     metadata=dict(directory=str(directory.resolve()),startedAt=fresh['startedAt'],finishedAt=fresh['finishedAt'],resourcePasses=1,latencyMeasured=False,baselineLatencyRounds=result['rounds'],originalFinishedAt=result['finishedAt'],originalResourceRows=len(result.get('diagnostics',[])),originalQualifiedResourceRanks=sum(row.get('qualified')is True for row in result.get('resourceRanks',[])),freshQualifiedResourceRanks=sum(row.get('qualified')is True for row in fresh.get('resourceRanks',[])),observer=observer,policy='Explicit later one-pass fixed-work GNU-time resource-only observation. The rounds3 field identifies earlier latency, not repeated resource passes. Original missing-observer diagnostics remain immutable; every existing CLI latency observation/rank/window is preserved. RSS/CPU are scoped diagnostics, not a latency rerun or allocation rank.')
     combined=dict(result,diagnostics=fresh['diagnostics'],resourceRanks=fresh['resourceRanks'],evidence=dict(result['evidence'],resourceObserver=observer),resourceDisplayCorrection=metadata)
     display=dict(supplemental,resourceRanks=fresh['resourceRanks'],evidence=combined['evidence'],resourceDisplayCorrection=metadata)
@@ -551,7 +553,7 @@ def family_correction(path,campaign):
         owner=targets.get(target['id']);coverage=[row for row in campaign.get('coverage',[])if row.get('target')==target['id']and row.get('suite')=='family']
         if not owner or owner.get('revision')!=target.get('targetRevision')or owner.get('tarballSha256')!=target.get('candidateSha256')or len(coverage)!=1 or Path(coverage[0]['resultPath']).resolve()!=Path(target['originalResultPath']).resolve():raise ValueError('Family correction differs from actual frozen target/archive/original coverage path')
         old=load(Path(target['originalResultPath']));fresh=load(Path(target['freshResultPath']));new=load(Path(target['correctedResultPath']))
-        if any(not result or result.get('id')!='family'or not result.get('finishedAt')for result in (old,fresh,new)):raise ValueError('Family correction requires complete original/fresh/composed family envelopes')
+        if any(not result or result.get('id')!='families'or not result.get('finishedAt')for result in (old,fresh,new)):raise ValueError('Family correction requires complete original/fresh/composed family envelopes')
         old_rows={canonical(key(row)):row for row in old['observations']};fresh_rows={canonical(key(row)):row for row in fresh['observations']};new_rows={canonical(key(row)):row for row in new['observations']}
         if any(len(mapping)!=len(result['observations'])for mapping,result in ((old_rows,old),(fresh_rows,fresh),(new_rows,new)))or set(new_rows)!=set(old_rows):raise ValueError('Family correction changes or duplicates observation keys')
         replacements=target.get('replacements',[]);selected={canonical(item['key'])for item in replacements}
@@ -560,10 +562,12 @@ def family_correction(path,campaign):
             if identity not in selected:
                 if new_rows[identity]!=row:raise ValueError('Family correction modifies an unselected observation')
                 continue
-            if identity not in fresh_rows or new_rows[identity]!=fresh_rows[identity]or row.get('operation')!='render-svg'or row.get('status')!='failed'or new_rows[identity].get('status')!='not-applicable':raise ValueError('Family correction must replace only failed empty SVG rows with exact fresh N/A evidence')
+            if identity not in fresh_rows or new_rows[identity]!=fresh_rows[identity]or row.get('operation')!='render-svg'or row.get('status')!='failed'or row.get('findings')!=['SVG has no positive finite viewBox or explicit canvas']or new_rows[identity].get('status')!='not-applicable':raise ValueError('Family correction must replace only sole-positive-canvas failed empty SVG rows with exact fresh N/A evidence')
         for replacement in replacements:
             if any(not finite(replacement.get('independentAssertions',{}).get(field))or replacement['independentAssertions'][field]!=0 for field in ('nodeCount','edgeCount','groupCount'))or replacement.get('expectedLabels')!=[]or set(replacement.get('observedLayout',{}))!={'nodes','edges','groups'}or any(not finite(value)or value!=0 for value in replacement.get('observedLayout',{}).values()):raise ValueError('Family empty-SVG correction does not establish independently empty expected/actual work')
             selected_row=new_rows[canonical(replacement['key'])];metrics=selected_row.get('metrics',{});canvas=replacement.get('zeroCanvas',{})
+            layout=[row for row in fresh['observations']if row.get('caseId')==selected_row.get('caseId')and row.get('family')==selected_row.get('family')and row.get('operation')=='layout-and-finite-geometry']
+            if len(layout)!=1 or any(not finite(layout[0].get('metrics',{}).get(field))or layout[0]['metrics'][field]!=0 for field in ('nodes','edges','groups')):raise ValueError('Family empty-SVG correction does not bind observed layout counts to actual fresh geometry evidence')
             if any(not finite(metrics.get(field))or metrics[field]!=0 for field in ('emptyCanvasWidth','emptyCanvasHeight'))or any(not finite(canvas.get(field))or canvas[field]!=0 for field in ('width','height'))or metrics.get('emptyCanvasViewBox')!=canvas.get('viewBox'):raise ValueError('Family empty-SVG correction lacks explicit independently observed finite zero canvas')
             source=replacement.get('ownerSource',{});blob=subprocess.check_output(['git','-C',source['root'],'rev-parse',source['revision']+':'+source['path']],text=True).strip()
             if blob!=source.get('blob'):raise ValueError('Family correction independent fixture Git identity changed')
@@ -1001,6 +1005,14 @@ class Figures:
         # These are diagnostic views, not matched-work efficiency ranks. Name
         # each source scope and runtime before grouping similarly named bytes.
         groups=defaultdict(dict)
+        if any(row.get('suite')=='community'and finite(row.get('metrics',{}).get('peakProcessRssBytes'))for row in observations):
+            warning='Community API peakProcessRssBytes from process.resourceUsage().maxRSS is uninterpretable as worker peak: identical inherited parent/fork high-water values recur across independent implementations. Excluded from plots/comparisons; raw values remain unchanged. After-loop endRssBytes is a current process.memoryUsage().rss snapshot including runtime/harness, not peak or allocation.'
+            self.gaps.append(warning)
+            self.memory_metric_exclusions=[dict(suite='community',metric='peakProcessRssBytes',status='uninterpretable inherited process high-water scope',policy=warning)]
+        if any(row.get('suite')=='invocation'and finite(row.get('metrics',{}).get('peakRssBytes'))for row in observations):
+            warning='Installed-library invocation peakRssBytes uses the same inherited process.resourceUsage().maxRSS path and is excluded as an attributable worker peak. Actual current rssBytes/heapUsedBytes snapshots remain scoped diagnostics; raw peaks are retained.'
+            self.gaps.append(warning)
+            self.memory_metric_exclusions=getattr(self,'memory_metric_exclusions',[])+[dict(suite='invocation',metric='peakRssBytes',status='uninterpretable inherited process high-water scope',policy=warning)]
         def admit(row, title, runtime, scope, metric, value, detail):
             if not finite(value):return
             metrics=row.get('metrics',{})
@@ -1023,11 +1035,11 @@ class Figures:
                 if suite=='invocation' and operation=='heap-checkpoint':
                     admit(row,'Invocation browser document V8 heap','chromium-v8','invocation:forced-GC-document-after-portfolio','usedSize',metrics.get('usedSize'),'Main-document V8 heap after forced GC; excludes worker/native/GPU/process memory. This is distinct from the community API portfolio.')
                 if suite=='invocation' and operation=='memory-checkpoint':
-                    for metric in ('rssBytes','heapUsedBytes','peakRssBytes'):
+                    for metric in ('rssBytes','heapUsedBytes'):
                         admit(row,'Invocation process memory',row.get('runtime','unrecorded'),'invocation:after-all-enrolled-operations',metric,metrics.get(metric),str(metrics.get('scope','After all enrolled operations; includes runtime/harness/qualification; not allocation or leak proof.')))
             if suite=='community':
-                for metric in ('peakProcessRssBytes','endRssBytes'):
-                    admit(row,'Community worker process memory',row.get('runtime','unrecorded'),'community:worker-'+str(row.get('format')),metric,metrics.get(metric),'Runtime, qualification and caches included. Every output/worker attempt stays distinct; process scope can contain failed render attempts.')
+                for metric in ('endRssBytes',):
+                    admit(row,'Community worker resident snapshot',row.get('runtime','unrecorded'),'community:worker-'+str(row.get('format')),metric,metrics.get(metric),'Actual after-loop process.memoryUsage().rss resident snapshot, not a peak. Runtime, qualification and caches included. Every output/worker attempt stays distinct; process scope can contain failed render attempts. Inherited maxRSS is excluded as uninterpretable.')
         for index,((title,runtime,scope,metric),entries) in enumerate(sorted(groups.items())):
             rows=sorted(entries.values(),key=lambda d:(d['implementation'],d['surface'],str(d['round']),str(d['workerAttempt'])))
             if not rows:continue
@@ -1325,7 +1337,7 @@ class Figures:
         self.save(figure,'owning-test-score-time','Owning suite counts and process wall time','Groups exercise different behavior and case counts: no cross-suite speed rank. Wall time includes initialization, assertions, reference IPC and instrumentation; it is not parser API latency.',data)
 
     def html(self, report, campaign, supplemental=None, correction=None, reference_overlay=None):
-        reduced=dict(run={k:report.get(k)for k in ('status','startedAt','finishedAt','profile','rounds','driverRevision','targetRevision')},suitePins={suite['id']:suite['pin']for suite in report.get('suites',[])if suite.get('pin')},prCampaign={k:campaign.get(k)for k in ('frozenAt','main','units','protocols','measurementConfig','measurementDriver')}if campaign else None,communityCli={**{k:supplemental.get(k)for k in ('startedAt','latencyFinishedAt','finishedAt','rounds','policy','resourcePolicy','executionOrder')},'resourceObserver':supplemental.get('evidence',{}).get('resourceObserver'),'composition':supplemental.get('composition'),'nativeBinding':supplemental.get('reportingNativeBinding'),'resourceDisplayCorrection':supplemental.get('resourceDisplayCorrection')}if supplemental else None,invocationCorrection=correction,referenceCorrection=reference_overlay,communityReplay=getattr(self,'community_replay',None),currentRun=getattr(self,'current_run',None),additionalRun=getattr(self,'additional_run',None),currentInvocationRun=getattr(self,'latest_invocation',None),suiteRuns=getattr(self,'suite_runs',[]),familyCorrection=getattr(self,'family_correction',None),historicalPrCampaign=getattr(self,'historical_campaign',None),figures=self.items,gaps=self.gaps)
+        reduced=dict(run={k:report.get(k)for k in ('status','startedAt','finishedAt','profile','rounds','driverRevision','targetRevision')},suitePins={suite['id']:suite['pin']for suite in report.get('suites',[])if suite.get('pin')},prCampaign={k:campaign.get(k)for k in ('frozenAt','main','units','protocols','measurementConfig','measurementDriver')}if campaign else None,communityCli={**{k:supplemental.get(k)for k in ('startedAt','latencyFinishedAt','finishedAt','rounds','policy','resourcePolicy','executionOrder')},'resourceObserver':supplemental.get('evidence',{}).get('resourceObserver'),'composition':supplemental.get('composition'),'nativeBinding':supplemental.get('reportingNativeBinding'),'resourceDisplayCorrection':supplemental.get('resourceDisplayCorrection')}if supplemental else None,invocationCorrection=correction,referenceCorrection=reference_overlay,communityReplay=getattr(self,'community_replay',None),currentRun=getattr(self,'current_run',None),additionalRun=getattr(self,'additional_run',None),currentInvocationRun=getattr(self,'latest_invocation',None),suiteRuns=getattr(self,'suite_runs',[]),familyCorrection=getattr(self,'family_correction',None),historicalPrCampaign=getattr(self,'historical_campaign',None),memoryMetricExclusions=getattr(self,'memory_metric_exclusions',[]),figures=self.items,gaps=self.gaps)
         (self.out/'chart-data.json').write_text(json.dumps(reduced,indent=2,allow_nan=False)+'\n')
         cards=[]
         for item in self.items:
