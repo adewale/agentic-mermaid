@@ -1,0 +1,7 @@
+1 candidate [('state80', 102.46818499999972), ('hand-drawn', 16.254604000000654)]
+1 base [('state80', 104.2956779999995), ('hand-drawn', 14.97549699999945)]
+2 base [('state80', 104.39445200000046), ('hand-drawn', 15.18184999999994)]
+2 candidate [('state80', 103.89377700000023), ('hand-drawn', 13.7559310000006)]
+3 candidate [('state80', 96.7301780000007), ('hand-drawn', 15.237011999999595)]
+3 base [('state80', 141.8483499999993), ('hand-drawn', 17.98816000000079)]
+All 288 fresh-layout output comparisons are byte-identical

@@ -1,0 +1,50 @@
+{
+  "head": "0f214b10f50f290e98738d1ac0f07c6c07d735ea",
+  "currentBase": "18017376db3168579b26cc9ecf01f8526e00146e",
+  "pre505Base": "98f19638d489badb278e3aa694b7f5a0c5234a5f",
+  "runtime": {
+    "bun": "1.4.2",
+    "platform": "linux",
+    "arch": "x64"
+  },
+  "byteIdentity": {
+    "inputs": 571,
+    "modes": 10,
+    "comparisons": 5710,
+    "differences": 0,
+    "command": "bun run eval/benchmark/output-identity.ts --baseline 18017376db3168579b26cc9ecf01f8526e00146e --jobs 1 --show 3"
+  },
+  "freshLayouts": {
+    "comparisons": 288,
+    "differences": 0,
+    "geometryCache": "off",
+    "variation": "padding=40+index/97",
+    "ratios": [
+      {
+        "id": "state80",
+        "pairedMedianRatio": 0.9824777686377398,
+        "roundRatios": [
+          0.9824777686377398,
+          0.9952040075846155,
+          0.6819267055274255
+        ]
+      },
+      {
+        "id": "hand-drawn",
+        "pairedMedianRatio": 0.9060773884606063,
+        "roundRatios": [
+          1.085413325514422,
+          0.9060773884606063,
+          0.8470578424918905
+        ]
+      }
+    ]
+  },
+  "limits": [
+    "The mixed-workload pre505 screen retains 1.12x hand-drawn, 1.08x Class80 and 1.07x Sequence20 observations. The dedicated five-round hand-drawn confirmation is 1.03x; State80 is 1.00x in the mixed run.",
+    "Identical-build controls are 0.94x State80 and 0.98x hand-drawn, with 9-10 percent within-round dispersion. These finite timing populations do not prove universal parity.",
+    "Initial-screen files predate the final committed head and are not exact-head qualification.",
+    "Fresh-layout variations exercise new geometry after separate warmup, not cold process startup. Retention is bounded at 1024 primitive-number spellings; no heap reduction claim is made.",
+    "Exact-head GitHub CI is queued; local tests, typecheck, lint and byte identity pass."
+  ]
+}

@@ -1,0 +1,15 @@
+$ bun run eval/benchmark/micro-bench.ts --aa --filter "^render:svg-(state80|flow5-hand-drawn)\$" --samples "31" --min-sample-ms "40" --max-case-ms "8000" --warmup-ms "1000" --rounds "5" --elk-cache on --json /tmp/svg-cache-aa.json
+round 1/5: candidate (0f214b10f50f)
+round 1/5: baseline (0f214b10f50f)
+round 2/5: baseline (0f214b10f50f)
+round 2/5: candidate (0f214b10f50f)
+round 3/5: candidate (0f214b10f50f)
+round 3/5: baseline (0f214b10f50f)
+round 4/5: baseline (0f214b10f50f)
+round 4/5: candidate (0f214b10f50f)
+round 5/5: candidate (0f214b10f50f)
+round 5/5: baseline (0f214b10f50f)
+
+case                         candidate  ±   baseline  ratio
+render:svg-state80            18.04 ms  9%  19.37 ms  0.94×
+render:svg-flow5-hand-drawn    4.32 ms  9%   4.61 ms  0.98×

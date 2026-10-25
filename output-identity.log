@@ -1,0 +1,16 @@
+baseline 18017376db31: rendering 571 inputs × 10 modes
+candidate 0f214b10f50f: rendering 571 inputs × 10 modes
+
+5710 outputs (571 inputs × 10 modes), baseline 18017376db31 vs candidate 0f214b10f50f
+svg: identical
+svg:excalidraw: identical
+svg:watercolor: identical
+svg:tokyo-night: identical
+svg:prefixed-compact: identical
+svg:live-vars: identical
+svg:host-font-strict: identical
+ascii: identical
+unicode: identical
+verify: identical
+
+All outputs are byte-identical.
