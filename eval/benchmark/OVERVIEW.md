@@ -61,8 +61,8 @@ actually checked against it.
 
 Performance and fidelity failures are both retained. A parser-only tool cannot
 enter an SVG speed rank. A project that loses one required case cannot enter a
-complete fixed-core rank using just its successful subset. Source-equivalent
-forks may share explicitly attributed evidence; they are not independent votes.
+complete fixed-core rank using just its successful subset. Forks with verified artifact and protocol equivalence may share explicitly
+attributed evidence; they are not independent votes.
 
 ## Keep the comparison lanes distinct
 
@@ -115,8 +115,12 @@ The portable project campaign accepts a frozen installed artifact directly:
 bun run eval/benchmark/portable/run.ts \
   --project obsidianmd/pele --artifact-root /path/to/installed/pele \
   --records bench-report/project-records --out bench-report/pele \
-  --rounds 5 --samples 31 --cold-samples 20
+  --rounds 5 --samples 31 --cold-samples 20 --allow-partial
 ```
+
+`--allow-partial` allows the diagnostic run to finish with a report when paint
+coverage or timing calibration is incomplete. It does not turn that evidence
+into a complete pass; declared check failures still fail execution.
 
 Its extraction contract is to run the neutral package in an empty workspace with
 the supplied project artifact, without importing Agentic Mermaid production
@@ -147,7 +151,9 @@ prelude is explicitly post-prelude, rather than a first-ever call. Whole-child
 resource passes run separately after the latency jobs.
 
 Reviewed paint projections cover flowchart, class, state, ER and simple sequence
-cases. They check visible owned identities, actual connecting geometry and
+cases in Pele’s SVG format. Other adapters need equivalent qualifiers before
+their painted fidelity can be compared; unavailable projection evidence is not a
+renderer failure. They check visible owned identities, actual connecting geometry and
 directed endpoint multiplicity. Flowcharts bind public edge IDs to owned ink;
 class/state/ER paths bind geometrically to unique node bounds without guessing
 generated relation IDs. Sequence messages bind to owned actor lifelines and
@@ -164,8 +170,8 @@ can pass public-model assertions while painted correspondence stays unmeasured.
 The report's semantic-completion flag means all declared scoped criteria passed;
 it is not a certificate of complete Mermaid meaning or visual fidelity.
 
-The case-study results should be read from the retained report for its exact
-artifact and protocol. The overview describes the suite's contracts rather than
+The dated [Pele case study](PELE-CASE-STUDY.md) records the run, reuse proof and
+lessons. Its retained report gives the exact artifact and protocol. The overview describes the suite's contracts rather than
 copying volatile performance numbers from a single machine into an architecture
 document.
 
