@@ -3,6 +3,16 @@ import type { Accessibility, DiagramBody } from './types.ts'
 
 export class AccessibilityTextError extends Error {}
 
+/** The pinned preprocessor consumes even an unclosed directive in text.
+ * Comment-backed metadata has its own escaped JSON transport; the ordinary
+ * fields retain authored grammar text and cannot add an escape losslessly. */
+export function accessibilitySerializationProblem(kind: string, value: Accessibility): string | undefined {
+  if (['block', 'sankey', 'mindmap', 'ishikawa'].includes(kind)) return undefined
+  return [value.title, value.descr].some(text => text?.includes('%%{'))
+    ? 'Accessibility text contains an init-directive opener. Source is preserved for native reading; remove the literal opener before typed editing or portable export.'
+    : undefined
+}
+
 /** JSON-comment fields have no physical-line grammar restriction. */
 export function nativeAccessibilityText(value: string): string {
   if (typeof value !== 'string' || !value.trim()) throw new AccessibilityTextError('Accessibility metadata must be non-empty text')
@@ -40,8 +50,10 @@ export function normalizeBodyAccessibility<T extends DiagramBody>(body: T): T {
 export function appendAccessibilityLines(lines: string[], value: { accessibilityTitle?: string; accessibilityDescription?: string }): void {
   if (value.accessibilityTitle !== undefined) lines.push(`  accTitle: ${accessibilityTitleText(value.accessibilityTitle)}`)
   if (value.accessibilityDescription === undefined) return
-  const description = accessibilityDescriptionText(value.accessibilityDescription)
-  if (!description.includes('\n')) {
+  // Readers can retain an explicitly empty block. Its writer spelling is
+  // independent of the non-empty mutation-input contract above.
+  const description = value.accessibilityDescription.trim() ? accessibilityDescriptionText(value.accessibilityDescription) : ''
+  if (description && !description.includes('\n')) {
     lines.push(`  accDescr: ${description}`)
     return
   }

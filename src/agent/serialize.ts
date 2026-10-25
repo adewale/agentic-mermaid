@@ -14,7 +14,7 @@ import { ok, err } from './types.ts'
 import { stringifyMermaidYaml } from '../shared/mermaid-yaml.ts'
 import { getFamily, knownFamilies } from './families.ts'
 import { parseRegisteredMermaid } from './parse.ts'
-import { ensureAccessibilityLines } from './accessibility-envelope.ts'
+import { accessibilitySerializationProblem, AccessibilityTextError, ensureAccessibilityLines } from './accessibility-envelope.ts'
 import type { ExtensionIdentity } from '../shared/extension-identity.ts'
 import { sameExtensionIdentity } from '../shared/extension-identity.ts'
 import { radarBodyProblem } from './radar-body.ts'
@@ -183,6 +183,8 @@ function renderBody(
   // state descriptor emits the stateDiagram-v2 header.
   if (body.kind === 'opaque') return body.source.endsWith('\n') ? body.source : body.source + '\n'
   if (body.kind === 'preserved') return body.source
+  const accessibilityProblem = body.kind === 'extension' ? undefined : accessibilitySerializationProblem(kind, meta.accessibility)
+  if (accessibilityProblem) throw new AccessibilityTextError(accessibilityProblem)
   const plugin = getFamily(kind)
   // Descriptor-owned `data` is meaningful only to the exact registration
   // contract that parsed it. After an extension upgrade, preserve/reparse the
