@@ -80,6 +80,7 @@ import {
 } from './layout/geometry.ts'
 import type { MarginInfo } from './layout/geometry.ts'
 import { directionToElk } from './layout/direction.ts'
+import type { ElkHierarchySegment } from './layout/passes/elk-edges.ts'
 export { directionToElk } from './layout/direction.ts'
 import {
   translateGeometryToNonNegativeOrigin,
@@ -304,25 +305,10 @@ interface ElkGraphNode extends ElkNode {
   edges?: ElkExtendedEdge[]
 }
 
-/**
- * Tracks port-to-edge mappings for hierarchical port edges.
- * Used to combine external and internal edge sections during extraction.
- */
-interface HierarchicalEdgeInfo {
-  originalIndex: number
-  externalEdgeId: string
-  internalEdgeId: string
-  subgraphId: string
-  direction: 'incoming' | 'outgoing'
-}
-
-interface CrossHierarchyEdgeInfo {
-  index: number
-  edge: MermaidEdge
-  sourceSubgraph: string | undefined
-  targetSubgraph: string | undefined
-  /** Lowest common compound that should host the external segment; undefined means root. */
-  hostSubgraph?: string
+interface HierarchyPort {
+  id: string
+  direction: 'in' | 'out'
+  avoidHeader: boolean
 }
 
 interface RoutePortHint {
@@ -510,6 +496,61 @@ function mermaidToElk(
 
   // Determine if we need SEPARATE hierarchy handling
   const hasDirectionOverride = usesSeparateHierarchy(graph, opts)
+  const routePortHints = buildRoutePortHints(graph, subgraphIds)
+  const subgraphPorts = new Map<string, HierarchyPort[]>()
+  const crossEdgesByHost = new Map<string | null, ElkExtendedEdge[]>()
+  let reservedIds: Set<string> | undefined
+  const allocateId = (preferred: string): string => {
+    reservedIds ??= new Set([...graph.nodes.keys(), ...subgraphIds,
+      ...[...routePortHints.byEndpoint.values()].map(port => port.portId)])
+    let id = preferred
+    while (reservedIds.has(id)) id += '_'
+    reservedIds.add(id)
+    return id
+  }
+  const boundaryPort = (group: string, index: number, direction: 'in' | 'out', avoidHeader: boolean): string => {
+    const id = allocateId(`${group}_${direction}_${index}`)
+    const ports = subgraphPorts.get(group) ?? []
+    ports.push({ id, direction, avoidHeader })
+    subgraphPorts.set(group, ports)
+    return id
+  }
+  const addHierarchyEdge = (edge: MermaidEdge, index: number): void => {
+    // A group connected to its own descendant is an endpoint on this scope's
+    // boundary, not a reference to the parent node from a different layout.
+    const sourceIsAncestor = subgraphIds.has(edge.source) && endpointAncestors(edge.target).includes(edge.source)
+    const targetIsAncestor = subgraphIds.has(edge.target) && endpointAncestors(edge.source).includes(edge.target)
+    const sourceScopes = sourceIsAncestor ? subgraphAncestors.get(edge.source)! : endpointAncestors(edge.source)
+    const targetScopes = targetIsAncestor ? subgraphAncestors.get(edge.target)! : endpointAncestors(edge.target)
+    const host = deepestCommonAncestor(sourceScopes, targetScopes)
+    const commonDepth = host ? sourceScopes.indexOf(host) + 1 : 0
+    const avoidHeader = sourceIsAncestor || targetIsAncestor
+      || sourceScopes.length - commonDepth > 1 || targetScopes.length - commonDepth > 1
+    let source = sourceIsAncestor ? boundaryPort(edge.source, index, 'in', avoidHeader)
+      : routePortHints.byEndpoint.get(endpointKey(index, 'source'))?.portId ?? edge.source
+    const target = targetIsAncestor ? boundaryPort(edge.target, index, 'out', avoidHeader)
+      : routePortHints.byEndpoint.get(endpointKey(index, 'target'))?.portId ?? edge.target
+    let order = 0
+    const segment = (scope: string | undefined, from: string, to: string, central = false): void => {
+      const base = central ? crossHierarchyElkEdge(index, edge, from, to, style, balancingLabels)
+        : { id: `e${index}_internal_${order}`, sources: [from], targets: [to] }
+      const elkEdge: ElkHierarchySegment = { ...base, id: allocateId(base.id), hierarchySegment: { edgeIndex: index, order: order++ } }
+      const edges = crossEdgesByHost.get(scope ?? null) ?? []
+      edges.push(elkEdge)
+      crossEdgesByHost.set(scope ?? null, edges)
+    }
+    for (const scope of sourceScopes.slice(commonDepth).reverse()) {
+      const port = boundaryPort(scope, index, 'out', avoidHeader)
+      segment(scope, source, port)
+      source = port
+    }
+    const targetChain = targetScopes.slice(commonDepth).map(scope => ({ scope, port: boundaryPort(scope, index, 'in', avoidHeader) }))
+    segment(host, source, targetChain[0]?.port ?? target, true)
+    for (let i = 0; i < targetChain.length; i++) {
+      const entry = targetChain[i]!
+      segment(entry.scope, entry.port, targetChain[i + 1]?.port ?? target)
+    }
+  }
 
   // Classify edges into three categories:
   // 1. Internal edges (both endpoints in same subgraph)
@@ -517,9 +558,6 @@ function mermaidToElk(
   // 3. Cross-hierarchy edges (endpoints in different levels)
   const edgesBySubgraph = new Map<string | null, Array<{ index: number; edge: typeof graph.edges[0] }>>()
   edgesBySubgraph.set(null, []) // Root-level edges
-
-  // Track cross-hierarchy edges for hierarchical port creation
-  const crossHierarchyEdges: CrossHierarchyEdgeInfo[] = []
 
   for (let i = 0; i < graph.edges.length; i++) {
     const edge = graph.edges[i]!
@@ -551,14 +589,9 @@ function mermaidToElk(
         edgesBySubgraph.get(null)!.push({ index: i, edge })
       }
     } else {
-      // Cross-hierarchy edge: need hierarchical ports. When both endpoints
-      // live under one compound, host the external port-to-port segment on
-      // that lowest common compound so extraction receives the right offset.
-      const hostSubgraph = deepestCommonAncestor(
-        endpointAncestors(edge.source),
-        endpointAncestors(edge.target),
-      )
-      crossHierarchyEdges.push({ index: i, edge, sourceSubgraph, targetSubgraph, hostSubgraph })
+      // Every traversed scope owns a port-to-child segment. This also keeps
+      // edges to an ancestor's boundary inside that ancestor's own layout.
+      addHierarchyEdge(edge, i)
     }
   }
 
@@ -606,63 +639,6 @@ function mermaidToElk(
     edges: [],
   }
 
-  // Track hierarchical ports per subgraph for cross-hierarchy edges
-  const subgraphPorts = new Map<string, Array<{
-    portId: string
-    edgeIndex: number
-    direction: 'incoming' | 'outgoing'
-    internalNodeId: string
-  }>>()
-  const crossEdgesByHost = new Map<string | null, CrossHierarchyEdgeInfo[]>()
-  crossEdgesByHost.set(null, [])
-
-  // Process cross-hierarchy edges to create port entries and host maps.
-  if (hasDirectionOverride) {
-    for (const info of crossHierarchyEdges) {
-      const { index, edge, sourceSubgraph, targetSubgraph, hostSubgraph } = info
-      const hostKey = hostSubgraph ?? null
-      if (!crossEdgesByHost.has(hostKey)) crossEdgesByHost.set(hostKey, [])
-      crossEdgesByHost.get(hostKey)!.push(info)
-
-      // Handle outgoing edges from nested source subgraphs. If the source's
-      // own subgraph hosts the external segment, the node can be referenced
-      // directly and no boundary port is needed.
-      if (sourceSubgraph && sourceSubgraph !== hostSubgraph) {
-        const portId = `${sourceSubgraph}_out_${index}`
-        if (!subgraphPorts.has(sourceSubgraph)) {
-          subgraphPorts.set(sourceSubgraph, [])
-        }
-        subgraphPorts.get(sourceSubgraph)!.push({
-          portId,
-          edgeIndex: index,
-          direction: 'outgoing',
-          internalNodeId: edge.source,
-        })
-      }
-
-      // Handle incoming edges to nested target subgraphs. If the target's own
-      // subgraph hosts the external segment, target the node directly.
-      if (targetSubgraph && targetSubgraph !== hostSubgraph) {
-        const portId = `${targetSubgraph}_in_${index}`
-        if (!subgraphPorts.has(targetSubgraph)) {
-          subgraphPorts.set(targetSubgraph, [])
-        }
-        subgraphPorts.get(targetSubgraph)!.push({
-          portId,
-          edgeIndex: index,
-          direction: 'incoming',
-          internalNodeId: edge.target,
-        })
-      }
-    }
-  }
-
-  // Pre-layout route intent: expose the same semantic source/target sides used
-  // by the certifying route-port allocator to ELK as fixed-side node ports.
-  // This is deliberately a hint layer (ELK still chooses coordinates/order);
-  // final certificates are still derived after clipping and route repair.
-  const routePortHints = buildRoutePortHints(graph, subgraphIds)
-
   // Projected families such as architecture may rely on parser child order
   // inside compounds for stable boundary routing; root-level group-vs-node
   // siblings still use source-before-target constraints.
@@ -708,8 +684,8 @@ function mermaidToElk(
   }
 
   // Add root-hosted cross-hierarchy edges (using ports when SEPARATE, direct when INCLUDE_CHILDREN)
-  for (const info of crossEdgesByHost.get(null) ?? []) {
-    elkGraph.edges!.push(crossHierarchyElkEdge(info, style, balancingLabels))
+  for (const edge of crossEdgesByHost.get(null) ?? []) {
+    elkGraph.edges!.push(edge)
   }
 
   applyLayoutHints(elkGraph, graph, opts.layoutHints)
@@ -938,15 +914,17 @@ function nodeToElkLeaf(id: string, node: MermaidNode, style: ResolvedRenderStyle
 }
 
 function crossHierarchyElkEdge(
-  info: CrossHierarchyEdgeInfo,
+  index: number,
+  edge: MermaidEdge,
+  source: string,
+  target: string,
   style: ResolvedRenderStyle,
   balancingLabels?: Map<number, BalancingLabel>,
 ): ElkExtendedEdge {
-  const { index, edge, sourceSubgraph, targetSubgraph, hostSubgraph } = info
   const elkEdge: ElkExtendedEdge = {
     id: `e${index}`,
-    sources: sourceSubgraph && sourceSubgraph !== hostSubgraph ? [`${sourceSubgraph}_out_${index}`] : [edge.source],
-    targets: targetSubgraph && targetSubgraph !== hostSubgraph ? [`${targetSubgraph}_in_${index}`] : [edge.target],
+    sources: [source],
+    targets: [target],
   }
   if (edge.label && !layoutEnvFlag('APL_DECOUPLE_LABELS')) {
     const metrics = graphTextBlock(resolveLabelContent(edge.label, edge.labelContent), style, 'edge')
@@ -996,13 +974,8 @@ function subgraphToElk(
   opts: ElkConversionOptions,
   style: ResolvedRenderStyle,
   edgesBySubgraph: Map<string | null, Array<{ index: number; edge: MermaidEdge }>>,
-  subgraphPorts: Map<string, Array<{
-    portId: string
-    edgeIndex: number
-    direction: 'incoming' | 'outgoing'
-    internalNodeId: string
-  }>>,
-  crossEdgesByHost: Map<string | null, CrossHierarchyEdgeInfo[]>,
+  subgraphPorts: Map<string, HierarchyPort[]>,
+  crossEdgesByHost: Map<string | null, ElkExtendedEdge[]>,
   routePortHints: RoutePortHints,
   useSourceAwareOrder: boolean,
   balancingLabels: Map<number, BalancingLabel>,
@@ -1057,11 +1030,17 @@ function subgraphToElk(
   // Add hierarchical ports for cross-hierarchy edges (when using SEPARATE)
   const ports = subgraphPorts.get(sg.id) ?? []
   if (ports.length > 0) {
-    // ELK supports ports but types don't include it
-    (elkNode as unknown as Record<string, unknown>).ports = ports.map(p => ({
-      id: p.portId,
-      // Port side is determined by ELK based on edge direction
-    }))
+    // Newly traversed intermediate scopes and ancestor endpoints need an
+    // interior path clear of the title-bearing north face. Existing single-
+    // boundary routes retain ELK's free-side policy.
+    const avoidHeader = groupHeaderHeight > 0 && ports.some(port => port.avoidHeader)
+    const flow = layoutFlow(graph.direction)
+    elkNode.ports = ports.map(port => {
+      const preferred = port.direction === 'in' ? flow.targetSide : flow.sourceSide
+      const side = preferred === 'N' ? (port.direction === 'in' ? 'W' : 'E') : preferred
+      return { id: port.id, ...(avoidHeader ? { layoutOptions: { 'elk.port.side': elkPortSide(side) } } : {}) }
+    })
+    if (avoidHeader) elkNode.layoutOptions!['elk.portConstraints'] = 'FIXED_SIDE'
   }
 
   // Add direct child nodes using the same source-aware ordering within the group
@@ -1106,21 +1085,10 @@ function subgraphToElk(
     elkNode.edges!.push(elkEdge)
   }
 
-  // Add cross-hierarchy external segments hosted by this compound. Ports are
-  // only used for endpoints that live in a nested child compound; direct
-  // children of this host are referenced by node id.
-  for (const info of crossEdgesByHost.get(sg.id) ?? []) {
-    elkNode.edges!.push(crossHierarchyElkEdge(info, style))
-  }
-
-  // Add internal edge segments for hierarchical ports (port → node or node → port)
-  // These connect the boundary ports to actual internal nodes
-  for (const port of ports) {
-    const internalEdgeId = `e${port.edgeIndex}_internal`
-    const elkEdge: ElkExtendedEdge = port.direction === 'incoming'
-      ? { id: internalEdgeId, sources: [port.portId], targets: [port.internalNodeId] }
-      : { id: internalEdgeId, sources: [port.internalNodeId], targets: [port.portId] }
-    elkNode.edges!.push(elkEdge)
+  // Each retained segment references direct children or this compound's own
+  // boundary ports, without skipping an enclosing layout scope.
+  for (const edge of crossEdgesByHost.get(sg.id) ?? []) {
+    elkNode.edges!.push(edge)
   }
 
   return elkNode
