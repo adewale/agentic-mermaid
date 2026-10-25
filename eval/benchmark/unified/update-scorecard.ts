@@ -280,6 +280,8 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
     '',
     '## Delivery and scoped memory diagnostics',
     '',
+    'Community API process.resourceUsage().maxRSS peaks are excluded as uninterpretable: identical parent/fork high-water values recur across independent worker implementations. Raw values remain unchanged. The displayed endRssBytes uses actual after-loop process.memoryUsage().rss, a resident snapshot including runtime/harness; it is not peak, allocation or a leak measurement.',
+    '',
     'Each runtime, boundary, output, round, worker attempt and attempted portfolio stays separate. In the feature-once replay, round-one full963-input work is never pooled with later six-core-input work; the original repeated-feature protocol retains its actual per-round counts. Browser V8 heap excludes WASM/native/GPU memory; process RSS includes runtime, caches and qualification. Missing metrics are unmeasured, not zero; these are not equal-work efficiency or leak ranks.',
     '',
     '| Implementation | Runtime / boundary / output | Round / attempt | Portfolio inputs / features | Metric | Value | Scope |',
@@ -295,7 +297,7 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
     portfolios.set(key, cases)
   }
   for (const row of results.observations) {
-    for (const metric of ['gzipBytes', 'jsHeapUsedBytes', 'endRssBytes', 'peakProcessRssBytes']) {
+    for (const metric of ['gzipBytes', 'jsHeapUsedBytes', 'endRssBytes']) {
       if ((metric === 'gzipBytes' && (row.operation !== 'delivery' || row.status !== 'passed')) || (metric === 'jsHeapUsedBytes' && (row.operation !== 'memory' || row.status !== 'passed'))) continue
       const value = row.metrics?.[metric]
       if (typeof value !== 'number' || !Number.isFinite(value)) continue
@@ -309,7 +311,7 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
     const inputCount = row.metrics?.portfolioCaseCount ?? (cases ? `${cases.size} observed case rows` : 'unrecorded')
     const featureCount = row.metrics?.featureCases ?? (cases ? [...cases].filter(id => featureIds.has(id)).length : 'unrecorded')
     lines.push(
-      `| ${escape(row.metrics?.implementation)} | ${escape(row.runtime)} / ${escape(row.surface)} / ${escape(row.format)} | ${escape(row.metrics?.round)} / ${escape(row.metrics?.workerAttempt)} | ${escape(inputCount)} / ${escape(featureCount)} | ${escape(metric)} | ${number(value / (metric === 'gzipBytes' ? 1024 : 1024 ** 2), 1)} ${metric === 'gzipBytes' ? 'KiB' : 'MiB'} | ${metric === 'gzipBytes' ? `through attempted portfolio; ${escape(row.metrics?.requests)} requests` : metric === 'jsHeapUsedBytes' ? 'forced-GC browser V8 heap' : 'output-worker process; includes failed attempts'} |`,
+      `| ${escape(row.metrics?.implementation)} | ${escape(row.runtime)} / ${escape(row.surface)} / ${escape(row.format)} | ${escape(row.metrics?.round)} / ${escape(row.metrics?.workerAttempt)} | ${escape(inputCount)} / ${escape(featureCount)} | ${escape(metric)} | ${number(value / (metric === 'gzipBytes' ? 1024 : 1024 ** 2), 1)} ${metric === 'gzipBytes' ? 'KiB' : 'MiB'} | ${metric === 'gzipBytes' ? `through attempted portfolio; ${escape(row.metrics?.requests)} requests` : metric === 'jsHeapUsedBytes' ? 'forced-GC browser V8 heap' : 'after-loop current resident RSS snapshot; not peak; runtime/harness/failed attempts included'} |`,
     )
   }
   lines.push(
