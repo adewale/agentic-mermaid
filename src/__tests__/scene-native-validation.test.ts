@@ -53,6 +53,34 @@ test('native admission refuses invalid geometry, headers, depth and retained gro
   expect(() => createNativeSceneValidator(header).node(marks.group({ id: 'tree', role: 'group', open: '<g>', close: '</g>', children: [{ node: shape(), indent: 2 }] }))).toThrow(/shallow/)
 })
 
+test('native numeric admission retains field reads and ordered diagnostics at finite and extent boundaries', () => {
+  const validator = createNativeSceneValidator(header)
+  const node = shape()
+  const reads: string[] = []
+  const values = { x: Number.NaN, y: Infinity, width: -SCENE_VALIDATION_LIMITS.maxExtent - 1, height: SCENE_VALIDATION_LIMITS.maxExtent + 1, rx: -0, ry: 0 }
+  for (const [field, value] of Object.entries(values)) {
+    Object.defineProperty(node.geometry, field, { configurable: true, get() { reads.push(field); return value } })
+  }
+  expect(() => validator.node(node)).toThrow(SceneValidationError)
+  expect(reads).toEqual(['x', 'y', 'width', 'height', 'rx', 'rx', 'ry', 'ry'])
+  expect(validator.finish().diagnostics).toEqual([
+    { code: 'SCENE_FINITE', path: 'scene.parts[0].geometry.x', message: 'must be a finite number' },
+    { code: 'SCENE_FINITE', path: 'scene.parts[0].geometry.y', message: 'must be a finite number' },
+    { code: 'SCENE_BOUNDS', path: 'scene.parts[0].geometry.width', message: 'must be non-negative' },
+    { code: 'SCENE_BOUNDS', path: 'scene.parts[0].geometry.width', message: 'must not exceed 1000000 user units' },
+    { code: 'SCENE_BOUNDS', path: 'scene.parts[0].geometry.height', message: 'must not exceed 1000000 user units' },
+  ])
+  const boundary = shape()
+  if (boundary.geometry.kind !== 'rect') throw new Error('Expected rect')
+  boundary.geometry.x = -SCENE_VALIDATION_LIMITS.maxExtent
+  boundary.geometry.width = -0
+  boundary.geometry.height = SCENE_VALIDATION_LIMITS.maxExtent
+  const accepted = createNativeSceneValidator(header)
+  accepted.node(boundary)
+  expect(accepted.finish()).toEqual({ valid: true, diagnostics: [] })
+  expect(Object.is(boundary.geometry.width, -0)).toBe(true)
+})
+
 test('native admission resolves local paint resources and refuses undeclared resources', () => {
   const gradient: LinearGradientDescriptor = { id: 'paint', units: 'userSpaceOnUse', x1: 0, y1: 0, x2: 20, y2: 0, stops: [{ offset: 0, color: '#111' }, { offset: 1, color: '#fff' }] }
   for (const declared of [false, true]) {
