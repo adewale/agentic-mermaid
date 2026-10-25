@@ -1,0 +1,20 @@
+name: Full qualification of merged main 98f19638
+on:
+  push:
+    branches: [codex/merged98-full-evidence-20261025]
+permissions:
+  contents: read
+  actions: write
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Dispatch complete frozen-source qualification without changing gates
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh api repos/adewale/agentic-mermaid/git/ref/heads/codex/merged98-full-qualification-20261025 --jq .object.sha)" = 98f19638d489badb278e3aa694b7f5a0c5234a5f
+          gh api --method POST repos/adewale/agentic-mermaid/actions/workflows/release-benchmark.yml/dispatches --input - <<'JSON'
+          {"ref":"codex/merged98-full-qualification-20261025","inputs":{"evidence-scope":"all","baseline-ref":"12d293836b25ae44f09a178c84c0a6eb9ceff80d","fixed-baseline-sha":"2cff725d219c75b75593b1d3e9bacd74cba7a08e"}}
+          JSON
