@@ -183,8 +183,6 @@ function renderBody(
   // state descriptor emits the stateDiagram-v2 header.
   if (body.kind === 'opaque') return body.source.endsWith('\n') ? body.source : body.source + '\n'
   if (body.kind === 'preserved') return body.source
-  const accessibilityProblem = body.kind === 'extension' ? undefined : accessibilitySerializationProblem(kind, meta.accessibility)
-  if (accessibilityProblem) throw new AccessibilityTextError(accessibilityProblem)
   const plugin = getFamily(kind)
   // Descriptor-owned `data` is meaningful only to the exact registration
   // contract that parsed it. After an extension upgrade, preserve/reparse the
@@ -193,7 +191,10 @@ function renderBody(
     || sameExtensionIdentity(parsedDescriptorIdentity, plugin?.identity)
   if (plugin?.serialize && descriptorMatches) {
     const rendered = plugin.serialize(body)
-    return ensureAccessibilityLines(rendered, meta.accessibility)
+    const source = ensureAccessibilityLines(rendered, meta.accessibility)
+    const accessibilityProblem = body.kind === 'extension' ? undefined : accessibilitySerializationProblem(source, plugin.statementEnds)
+    if (accessibilityProblem) throw new AccessibilityTextError(accessibilityProblem)
+    return source
   }
   if (body.kind === 'extension') return body.source.endsWith('\n') ? body.source : body.source + '\n'
   throw new Error(`No serializer registered for diagram kind "${kind}"`)

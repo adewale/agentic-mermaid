@@ -1,13 +1,15 @@
-import { appendNativeAccessibilityLines, parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
+import { appendNativeAccessibilityLines, parseAccessibilityDirective, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import type { Accessibility, DiagramBody } from './types.ts'
 
 export class AccessibilityTextError extends Error {}
 
-/** The pinned preprocessor consumes even an unclosed directive in text.
- * Comment-backed metadata has its own escaped JSON transport; the ordinary
- * fields retain authored grammar text and cannot add an escape losslessly. */
-export function accessibilitySerializationProblem(kind: string, value: Accessibility): string | undefined {
-  if (['block', 'sankey', 'mindmap', 'ishikawa'].includes(kind)) return undefined
+/** Inspect the writer's actual fields: families with an owned grammar escape
+ * or JSON transport can protect text which the ordinary field cannot spell.
+ * A literal opener lets pinned preprocessing consume even an unclosed directive. */
+export function accessibilitySerializationProblem(source: string, statementEnds?: (lines: readonly string[]) => readonly number[]): string | undefined {
+  if (!source.includes('%%{')) return undefined
+  const lines = source.split(/\r?\n/)
+  const value = scanAccessibilityDirectives(lines, statementEnds?.(lines)).accessibility
   return [value.title, value.descr].some(text => text?.includes('%%{'))
     ? 'Accessibility text contains an init-directive opener. Source is preserved for native reading; remove the literal opener before typed editing or portable export.'
     : undefined

@@ -502,7 +502,7 @@ function atAuthoredLines(warnings: LayoutWarning[], authoredLine: (line: number)
 }
 
 function cleanupWarningsForDiagram(d: ParsedDiagram, authored?: string): LayoutWarning[] {
-  const accessibilityProblem = accessibilitySerializationProblem(d.kind, d.meta.accessibility)
+  const accessibilityProblem = d.body.kind === 'opaque' ? accessibilitySerializationProblem(d.body.source, getFamily(d.kind)?.statementEnds) : undefined
   const wrapper = d.meta.wrapperSource ?? ''
   const frontmatter = matchMermaidFrontmatter(wrapper)
   const wrapperWarnings: LayoutWarning[] = frontmatter && frontmatter.yaml === '' ? [{

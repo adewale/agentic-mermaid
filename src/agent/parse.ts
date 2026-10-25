@@ -29,7 +29,7 @@ import {
 } from '../family-detection.ts'
 import { retainBodyComments } from './body-comments.ts'
 import { serializeMermaid } from './serialize.ts'
-import { accessibilitySerializationProblem, attachAccessibilityToBody } from './accessibility-envelope.ts'
+import { AccessibilityTextError, attachAccessibilityToBody } from './accessibility-envelope.ts'
 import type {
   ParsedDiagram, ExtensionValidDiagram, PreservedValidDiagram, ParseError, Result, ValidDiagram, ValidDiagramMeta,
   SourceMap, SourceComment,
@@ -385,10 +385,13 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
       })) ?? emptySourceMap(),
       kind === 'flowchart' ? 'flowchart' : 'generic',
     )
-    const body = accessibilitySerializationProblem(kind, meta.accessibility)
-      ? { kind: 'opaque' as const, family: kind, source: opaqueSource }
-      : parsed.value
-    const diagram: ValidDiagram = { kind, meta, body, source: sourceMap, canonicalSource }
+    let diagram: ValidDiagram = { kind, meta, body: parsed.value, source: sourceMap, canonicalSource }
+    if ([meta.accessibility.title, meta.accessibility.descr].some(text => text?.includes('%%{'))) {
+      try { serializeMermaid(diagram) } catch (error) {
+        if (!(error instanceof AccessibilityTextError)) throw error
+        diagram = { ...diagram, body: { kind: 'opaque', family: kind, source: opaqueSource } }
+      }
+    }
     markDroppedComments(diagram, source, plugin.statementEnds)
     retainBodyComments(diagram, source)
     return ok(diagram)
