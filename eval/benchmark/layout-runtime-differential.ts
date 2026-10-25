@@ -14,7 +14,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const sha = (value: string | Uint8Array) => createHash('sha256').update(value).digest('hex')
 
 export function differentialArgs(argv: string[]) {
-  const allowed = new Set(['baseline', 'candidate', 'main-elk', 'inputs', 'out', 'layout-cache', 'rounds', 'reps', 'budget-ms', 'include-fallback'])
+  const allowed = new Set(['baseline', 'candidate', 'main-elk', 'inputs', 'out', 'layout-cache', 'rounds', 'reps', 'budget-ms', 'memory-budget-ms', 'include-fallback'])
   const options = new Map<string, string>()
   for (let index = 0; index < argv.length; index += 2) {
     const key = argv[index]?.replace(/^--/, ''), value = argv[index + 1]
@@ -25,7 +25,7 @@ export function differentialArgs(argv: string[]) {
   if (!['off', 'normal'].includes(options.get('layout-cache')!)) throw new Error('--layout-cache requires off|normal')
   if (options.has('include-fallback') && !['true', 'false'].includes(options.get('include-fallback')!)) throw new Error('--include-fallback requires true|false')
   // These are the existing full-canary bounds, not knobs for rescuing a failure.
-  for (const [key, expected] of [['rounds', 3], ['reps', 25], ['budget-ms', 480000]] as const) {
+  for (const [key, expected] of [['rounds', 3], ['reps', 25], ['budget-ms', 480000], ['memory-budget-ms', 480000]] as const) {
     if (options.has(key) && options.get(key) !== String(expected)) throw new Error(`--${key} is fixed at ${expected}`)
   }
   return options
@@ -98,11 +98,12 @@ function main() {
     ...inputs.filter(input => input.kind !== 'corpus').map(input => ({ name: input.id, inputs: [input], budgetMs: 480000 }))]
   const plans = runtimeDifferentialPlans(baseline, candidate, cache, options.get('include-fallback') === 'true', mainElk)
   mkdirSync(out, { recursive: true })
+  const memoryBudgetMs = options.has('memory-budget-ms') ? 480000 : undefined
   const started = Date.now(), artifacts = { baseline, candidate, ...(mainElk ? { mainElk } : {}) }
   const harnessFiles = ['layout-runtime-differential.ts', 'layout-review-population.ts', 'release-bench.ts', 'release-bench-worker.ts', 'release-bench-fidelity.ts']
   const metadata = { protocol: 'native-runtime-differential@1', sourceRevision: process.env.GITHUB_SHA, startedAt: new Date(started).toISOString(),
-    config: { rounds: 3, reps: 25, budgetMs: 480000, layoutCache: cache, cacheEnvironment: layoutCacheEnvironment(cache), timing: 'batched-layout-reference@1',
-      consumption: 'svg-utf8-and-full-receipt-json', optionalFallback: options.get('include-fallback') === 'true', failurePolicy: 'no-retry; shared deadline; preserve incomplete campaigns' },
+    config: { rounds: 3, reps: 25, budgetMs: 480000, ...(memoryBudgetMs === undefined ? {} : { measurementProtocol: 'independent-timing-memory-budgets@1', timingBudgetMs: 480000, memoryBudgetMs, maximumMeasurementBudgetMs: 480000 + memoryBudgetMs }), layoutCache: cache, cacheEnvironment: layoutCacheEnvironment(cache), timing: 'batched-layout-reference@1',
+      consumption: 'svg-utf8-and-full-receipt-json', optionalFallback: options.get('include-fallback') === 'true', failurePolicy: memoryBudgetMs === undefined ? 'no-retry; shared deadline; preserve incomplete campaigns' : 'no-retry; independent timing and memory deadlines; preserve incomplete campaigns' },
     artifacts, population: populationIdentity(inputs), plans,
     harness: harnessFiles.map(name => ({ name, sha256: sha(readFileSync(join(import.meta.dir, name))) })),
     environment: { node: process.versions.node, bun: process.versions.bun, platform: process.platform, arch: process.arch, osRelease: release(),
@@ -118,7 +119,7 @@ function main() {
   save('plan.json', metadata); save('report.json', { ...metadata, status: 'running', ok: false })
   const comparisons: unknown[] = []
   try {
-    const measured = measureLayoutComparisons(join(out, 'shared-reference'), plans, groups, 3, 25, started + 480000, undefined, true)
+    const measured = measureLayoutComparisons(join(out, 'shared-reference'), plans, groups, 3, 25, started + 480000, undefined, true, memoryBudgetMs === undefined ? undefined : { budgetMs: memoryBudgetMs })
     let ok = true
     for (let index = 0; index < measured.length; index++) {
       const pair = measured[index]!, control = plans[index]!.name === 'native23-aa'

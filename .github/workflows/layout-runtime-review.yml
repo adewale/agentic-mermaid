@@ -87,14 +87,18 @@ jobs:
         if: inputs.campaign == 'all' || inputs.campaign == 'release'
         id: release
         continue-on-error: true
-        timeout-minutes: 17
+        timeout-minutes: ${{ inputs.campaign == 'release' && 33 || 17 }}
         env:
           GITHUB_SHA: ${{ github.sha }}
+          RUNTIME_REVIEW_CAMPAIGN: ${{ inputs.campaign }}
         run: |
           cases="$(bun run eval/benchmark/layout-review-population.ts --case-list)"
+          # Isolated reviews declare two 8-minute phases per policy; all retains its shared deadline.
+          memory_args=()
+          if [[ "$RUNTIME_REVIEW_CAMPAIGN" == release ]]; then memory_args=(--memory-budget-ms 480000); fi
           failed=0
           for cache in off normal; do
-            if ! bun run eval/benchmark/release-bench.ts --candidate . --layout-modes elk,agentic,agentic-with-elk --layout-cache "$cache" --layout-reference batched --rounds 3 --reps 25 --budget-ms 480000 --case "$cases" --out "layout-runtime-evidence/release-$cache"; then
+            if ! bun run eval/benchmark/release-bench.ts --candidate . --layout-modes elk,agentic,agentic-with-elk --layout-cache "$cache" --layout-reference batched --rounds 3 --reps 25 --budget-ms 480000 "${memory_args[@]}" --case "$cases" --out "layout-runtime-evidence/release-$cache"; then
               failed=1
             fi
           done
@@ -104,13 +108,17 @@ jobs:
         if: inputs.campaign == 'all' || inputs.campaign == 'differential'
         id: differential
         continue-on-error: true
-        timeout-minutes: 17
+        timeout-minutes: ${{ inputs.campaign == 'differential' && 33 || 17 }}
         env:
           GITHUB_SHA: ${{ github.sha }}
+          RUNTIME_REVIEW_CAMPAIGN: ${{ inputs.campaign }}
         run: |
+          # Isolated reviews declare two 8-minute phases per policy; all retains its shared deadline.
+          memory_args=()
+          if [[ "$RUNTIME_REVIEW_CAMPAIGN" == differential ]]; then memory_args=(--memory-budget-ms 480000); fi
           failed=0
           for cache in off normal; do
-            if ! bun run eval/benchmark/layout-runtime-differential.ts --baseline "$RUNNER_TEMP/layout-native23" --candidate . --inputs layout-runtime-evidence/full27-inputs.json --layout-cache "$cache" --rounds 3 --reps 25 --budget-ms 480000 --out "layout-runtime-evidence/native-differential-$cache"; then
+            if ! bun run eval/benchmark/layout-runtime-differential.ts --baseline "$RUNNER_TEMP/layout-native23" --candidate . --inputs layout-runtime-evidence/full27-inputs.json --layout-cache "$cache" --rounds 3 --reps 25 --budget-ms 480000 "${memory_args[@]}" --out "layout-runtime-evidence/native-differential-$cache"; then
               failed=1
             fi
           done
