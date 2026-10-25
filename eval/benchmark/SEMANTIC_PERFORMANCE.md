@@ -295,3 +295,30 @@ uncalibrated decisions remain in the aggregate JSON.
 Artifacts retain attempt numbers. Duplicate shards are rejected rather than
 silently selecting a favorable attempt. A complete campaign uses a fresh
 workflow run; partial controls from an interrupted run are not resumed.
+
+## Bounded first-use scheduling experiment
+
+`peer-bench --track-schedule` records either the existing `peer-block-v1` order
+or the opt-in `paired-cold-ordinal-v1` order in the complete control fingerprint.
+The latter launches each first-use case/probe/ordinal for adjacent comparison
+sides, reversing their order after each ordinal and each round. Every call still
+uses its own fresh process; timing, allocation and diagnostic populations stay
+separate. Warm phase ordering and measurements are unchanged. This option has
+no established calibration benefit until its fixed study completes.
+
+The manual **Bounded first-use scheduler study** workflow builds one exact
+source archive and uses those same bytes for both independently installed
+Agentic sides. On one otherwise idle hosted job it runs `blocked-aa1`,
+`paired-aa1`, `paired-aa2`, `blocked-aa2`, once each. Every report uses five rounds,
+cache ON, consumed SVG, and the fixed `flow5`, `seq20`, `requirement100` inputs,
+with 21 fresh-process clocks, three allocation probes and one untimed diagnostic
+worker per side/case/round. This yields 2,520 clocks, 360 allocation probes and
+120 diagnostic workers across the four reports. All raw reports and failed
+observations remain retained. These partial controls do not qualify the fixed
+seven-case cohort, a renderer improvement or a full campaign. The workflow makes
+no numeric performance decision and never replaces a failed or noisy report.
+
+The scheduling comparison tests the cross-family first-use drift seen in the
+frozen campaign; it does not remove GC calls, select late windows, change targets
+or transfer controls between schedules. A source or method change still needs
+fresh complete matching controls before a final acquisition can qualify.

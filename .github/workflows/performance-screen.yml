@@ -1,0 +1,155 @@
+name: Bounded first-use scheduler study
+
+# Diagnostic controls only. This partial cohort never claims release or peer
+# qualification. Four fixed reports retain both methods, including adverse rows.
+on:
+  workflow_dispatch:
+    inputs:
+      source-sha:
+        description: Exact merged source to build once and use on both sides
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  artifact:
+    name: Build the exact same-archive control
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+          no-cache: true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24.19.0'
+          package-manager-cache: false
+      - name: Build and verify the immutable source archive
+        env:
+          STUDY_SOURCE_SHA: ${{ inputs.source-sha }}
+        run: |
+          set -euo pipefail
+          [[ "$STUDY_SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]
+          npm install -g npm@11.18.0 --ignore-scripts
+          test "$(npm --version)" = 11.18.0
+          git fetch --no-tags origin "$STUDY_SOURCE_SHA"
+          git worktree add --detach "$RUNNER_TEMP/study-source" "$STUDY_SOURCE_SHA"
+          test "$(git -C "$RUNNER_TEMP/study-source" rev-parse HEAD)" = "$STUDY_SOURCE_SHA"
+          cd "$RUNNER_TEMP/study-source"
+          bun install --frozen-lockfile
+          bun run build
+          bun run scripts/ci/verify-publish-package.ts --pack-destination "$GITHUB_WORKSPACE/study-artifact/package"
+          git diff --exit-code
+          mkdir -p "$GITHUB_WORKSPACE/study-artifact/runtime-source"
+          cp bun.lock package.json "$GITHUB_WORKSPACE/study-artifact/runtime-source/"
+          jq -n --arg source "$STUDY_SOURCE_SHA" --arg harness "$GITHUB_SHA" --arg workflow "${GITHUB_WORKFLOW_SHA:-}" \
+            --arg archive "$(jq -er '.sha256' "$GITHUB_WORKSPACE/study-artifact/package/package-manifest.json")" \
+            '{sourceRevision:$source,harnessRevision:$harness,workflowRevision:$workflow,archiveSha256:$archive,sameArchive:true,performanceQualification:false}' \
+            > "$GITHUB_WORKSPACE/study-artifact/provenance.json"
+      - name: Retain the exact package and frozen runtime policy
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: scheduler-study-package-${{ github.run_id }}
+          path: study-artifact/
+          if-no-files-found: error
+          retention-days: 30
+
+  study:
+    name: Fixed paired-versus-blocked same-archive study
+    needs: artifact
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+          no-cache: true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24.19.0'
+          package-manager-cache: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: scheduler-study-package-${{ github.run_id }}
+          path: study-artifact
+      - name: Prepare the frozen harness and record the fixed design
+        env:
+          STUDY_SOURCE_SHA: ${{ inputs.source-sha }}
+        run: |
+          set -euo pipefail
+          bun install --frozen-lockfile
+          npm install -g npm@11.18.0 --ignore-scripts
+          test "$(node --version)" = v24.19.0
+          test "$(bun --version)" = 1.4.2
+          test "$(npm --version)" = 11.18.0
+          test "$(jq -er '.sourceRevision' study-artifact/provenance.json)" = "$STUDY_SOURCE_SHA"
+          cd study-artifact/package
+          sha256sum --check package.sha256
+          cd "$GITHUB_WORKSPACE"
+          mkdir -p scheduler-study
+          cp study-artifact/provenance.json scheduler-study/
+          node -p 'JSON.stringify(process.versions,null,2)' > scheduler-study/runtime.json
+          jq -n --arg source "$STUDY_SOURCE_SHA" --arg harness "$GITHUB_SHA" \
+            '{sourceRevision:$source,harnessRevision:$harness,status:"prepared",complete:false,performanceQualified:false,scope:"partial diagnostic same-archive controls",order:["blocked-aa1","paired-aa1","paired-aa2","blocked-aa2"],workloads:["flow5","seq20","requirement100"],phase:"first-use",consumer:"svg-utf8",cache:"on",rounds:5,clocksPerCaseSideRound:21,allocationProbesPerCaseSideRound:3,diagnosticWorkersPerCaseSideRound:1,plannedClocks:2520,plannedAllocationProbes:360,plannedDiagnosticWorkers:120,targetsChanged:false}' \
+            > scheduler-study/design.json
+      - name: Acquire each declared report once, retaining every outcome
+        run: |
+          set -uo pipefail
+          archive="$GITHUB_WORKSPACE/study-artifact/package/package.tgz"
+          archive_sha="$(jq -er '.sha256' study-artifact/package/package-manifest.json)"
+          failed=0
+          for report in blocked-aa1 paired-aa1 paired-aa2 blocked-aa2; do
+            schedule=peer-block-v1
+            case "$report" in paired-*) schedule=paired-cold-ordinal-v1;; esac
+            started="$(date -u +%FT%TZ)"
+            bun run eval/benchmark/peer-bench.ts --peers agentic \
+              --workloads flow5,seq20,requirement100 --tracks first-use --track-consumers svg-utf8 \
+              --track-schedule "$schedule" --rounds 5 --elk-cache on \
+              --candidate-tarball "$archive" --candidate-sha256 "$archive_sha" \
+              --baseline-tarball "$archive" --baseline-sha256 "$archive_sha" \
+              --runtime-source "$GITHUB_WORKSPACE/study-artifact/runtime-source" \
+              --json "scheduler-study/$report.json" --markdown "scheduler-study/$report.md"
+            result=$?
+            jq -n --arg report "$report" --arg schedule "$schedule" --arg started "$started" \
+              --arg finished "$(date -u +%FT%TZ)" --argjson exit "$result" \
+              '{report:$report,schedule:$schedule,started:$started,finished:$finished,exit:$exit}' \
+              > "scheduler-study/$report-execution.json"
+            if [ "$result" -ne 0 ]; then failed=1; fi
+          done
+          exit "$failed"
+      - name: Record population completeness without a qualification claim
+        if: always()
+        run: |
+          node --input-type=module <<'JS'
+          import { readFileSync, writeFileSync } from 'node:fs'
+          const expected = ['blocked-aa1', 'paired-aa1', 'paired-aa2', 'blocked-aa2']
+          const reports = expected.map(id => {
+            try {
+              const report = JSON.parse(readFileSync(`scheduler-study/${id}.json`, 'utf8'))
+              const execution = JSON.parse(readFileSync(`scheduler-study/${id}-execution.json`, 'utf8'))
+              const rows = report.tracks?.observations ?? []
+              const clocks = rows.reduce((n, row) => n + row.callSamplesMs.length, 0)
+              const probes = rows.reduce((n, row) => n + row.allocationSamplesBytes.length, 0)
+              const diagnostics = rows.filter(row => row.diagnostics?.complete).length
+              const complete = execution.exit === 0 && report.status === 'completed' && rows.length === 30 && clocks === 630 && probes === 90 && diagnostics === 30 && rows.every(row => row.status === 'ok' && row.callSamplesMs.length === 21 && row.allocationSamplesBytes.length === 3)
+              return { id, runId: report.runId, complete, clocks, probes, completedDiagnostics: diagnostics }
+            } catch (error) { return { id, complete: false, error: String(error) } }
+          })
+          const complete = reports.every(report => report.complete) && new Set(reports.map(report => report.runId)).size === 4
+          writeFileSync('scheduler-study/completion.json', JSON.stringify({ complete, performanceQualified: false, scope: 'partial diagnostic same-archive controls', reports }, null, 2) + '\n')
+          if (!complete) process.exitCode = 1
+          JS
+      - name: Retain all method populations and acquisition receipts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: scheduler-study-${{ github.sha }}-${{ github.run_attempt }}
+          path: scheduler-study/
+          if-no-files-found: error
+          retention-days: 30
