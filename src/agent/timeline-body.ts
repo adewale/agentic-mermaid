@@ -374,5 +374,10 @@ export function mutateTimeline(input: TimelineBody, op: TimelineMutationOp): Res
       return err({ code: 'INVALID_OP', message: unknownOpMessage('timeline', _x) })
     }
   }
+  // A section directive owns every following period until another named
+  // section. Moving implicit periods behind one would silently reparent them.
+  if (body.sections.some((section, index) => index > 0 && section.label === undefined)) {
+    return err({ code: 'INVALID_OP', message: 'Timeline unnamed section must remain first; name it before inserting or moving a named section ahead of it' })
+  }
   return ok(body)
 }
