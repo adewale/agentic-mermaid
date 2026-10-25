@@ -12,10 +12,10 @@ import { readFileSync } from 'node:fs'
 test.each([false, true])('retains an unroutable dense relationship as an owned, explicitly degraded summary (ASCII=%s)', useAscii => {
   const source = readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-19.mmd', import.meta.url), 'utf8')
   const { doc } = render(source, useAscii)
-  const edge = doc.regions().find(region => region.id === 'edge#14:n16->n3')!
-  expect(edge.projectedText).toContain('n16 --> n3')
+  const edge = doc.regions().find(region => region.id === 'edge#19:n3->n5')!
+  expect(edge.projectedText).toContain('n3 --> n5')
   expect(edge.ports!.every(port => port.markerProjection)).toBe(true)
-  expect(doc.diagnostics).toContainEqual(expect.objectContaining({ code: 'TERMINAL_GEOMETRY_COLLISION', feature: 'edge-lane:edge#14:n16->n3' }))
+  expect(doc.diagnostics).toContainEqual(expect.objectContaining({ code: 'TERMINAL_GEOMETRY_COLLISION', feature: 'edge-lane:edge#19:n3->n5' }))
   expect(doc.diagnostics).toContainEqual(expect.objectContaining({ code: 'TERMINAL_FAMILY_PROJECTION', feature: edge.ports![0]!.markerProjection }))
   expect(() => doc.assertMarkers()).not.toThrow()
 })
