@@ -73,12 +73,7 @@ export function layoutGitGraph(diagram: GitGraphDiagram, options: GitGraphLayout
   }
   const axisIndex = (commit: (typeof diagram.commits)[number]): number => (options.parallelCommits ? depth.get(commit.id)! : commit.sequence)
   const maxAxis = Math.max(0, ...preparedCommits.map(axisIndex))
-  const relativeBounds = preparedCommits.map(commit => relativeCommitTextBounds(commit, diagram.direction, rotateCommitLabel, commitLabelFontSize, showCommitLabel))
-  const laneGap = Math.max(
-    82,
-    ...orderedBranches.map(branch => branch.labelBlock.height + 20),
-    ...relativeBounds.map(bounds => bounds.maxY - bounds.minY + 20),
-  )
+  let laneGap = Math.max(82, ...orderedBranches.map(branch => branch.labelBlock.height + 20))
   const verticalLaneGap = Math.max(150, ...orderedBranches.map(branch => branch.labelBlock.width + 20))
   const commitGap = 94
   const branchLabelSpace = showBranches ? Math.max(80, ...orderedBranches.map(branch => branch.labelBlock.width + 24)) : 20
@@ -88,10 +83,10 @@ export function layoutGitGraph(diagram: GitGraphDiagram, options: GitGraphLayout
   // and CI/CD histories. This keeps topology order fixed while adding only the
   // space required by authored text.
   const axisExtents = new Map<number, TextBounds>()
-  for (let index = 0; index < preparedCommits.length; index++) {
-    const commit = preparedCommits[index]!
+  for (const commit of preparedCommits) {
     const axis = axisIndex(commit)
-    const bounds = relativeBounds[index]!
+    const bounds = relativeCommitTextBounds(commit, diagram.direction, rotateCommitLabel, commitLabelFontSize, showCommitLabel)
+    laneGap = Math.max(laneGap, bounds.maxY - bounds.minY + 20)
     const previous = axisExtents.get(axis)
     axisExtents.set(
       axis,
