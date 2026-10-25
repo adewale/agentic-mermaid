@@ -720,6 +720,7 @@ export function routeAddsCrossings(points: Point[], edge: PositionedEdge, ctx: L
 }
 
 export function routeEntersNodeBox(points: readonly Point[], node: PositionedNode): boolean {
+  const boundary = node.shape === 'cylinder' ? shapeRoutingProfile(node).boundary : undefined
   // These canonical decorations add internal lines to a full rectangle; they
   // do not leave an empty contact band around its body. Other symbols keep
   // their existing shape-specific tolerance, even when based on a rectangle.
@@ -731,6 +732,11 @@ export function routeEntersNodeBox(points: readonly Point[], node: PositionedNod
     const a = points[i - 1]!, b = points[i]!
     const xLo = Math.min(a.x, b.x), xHi = Math.max(a.x, b.x)
     const yLo = Math.min(a.y, b.y), yHi = Math.max(a.y, b.y)
+    // The classic cylinder's straight-sided opaque core has no empty rim.
+    // Semantic cylinder variants have different boundaries and stay excluded.
+    if (boundary?.kind === 'cylinder' && boundary.height > 2 * boundary.capRadiusY
+      && xHi > node.x && xLo < node.x + node.width
+      && yHi > boundary.y + boundary.capRadiusY && yLo < boundary.y + boundary.height - boundary.capRadiusY) return true
     if (xHi > node.x + inset && xLo < node.x + node.width - inset &&
       yHi > node.y + inset && yLo < node.y + node.height - inset) return true
   }

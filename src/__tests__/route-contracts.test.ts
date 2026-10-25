@@ -4,7 +4,7 @@ import { fcParameters } from './helpers/fc-parameters.ts'
 import { buildRoutePortHints, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { applyRouteContracts, auditRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, laneContextFor, recertifyReroutedEdge, shapePorts, simplifyPolyline, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills } from '../route-contracts.ts'
-import { assessLayout, countEdgeCrossings, countParallelRouteOverlaps, hardViolations, measureRubricMetrics, onShapeOutline } from '../layout-rubric.ts'
+import { assessLayout, countEdgeCrossings, countParallelRouteOverlaps, hardViolations, measureRubricMetrics, onShapeOutline, segmentThroughShape } from '../layout-rubric.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { layoutMermaid, parseRegisteredMermaid as agentParse, verifyMermaid } from '../agent/index.ts'
 import type { AnyPort, Point, PositionedEdge, PositionedGraph, PositionedGroup, PositionedNode } from '../types.ts'
@@ -184,14 +184,17 @@ it('keeps later fan-out repairs clear of a peer route moved earlier in the same 
 })
 
 describe('route proposal crossing consistency', () => {
-  it.each([0.02425, 0.035, 0.3].flatMap(intrusion => ['rectangle', 'subroutine', 'fr-rect', 'subproc', 'lin-rect', 'div-rect', 'win-pane'].flatMap(shape => ['route proposal', 'final safety net'].map(phase => ({ intrusion, phase, shape })))))('repairs an unrelated $shape intrusion in $phase at $intrusion pixels', ({ intrusion, phase, shape: cardShape }) => {
+  it.each([
+    ...[0.02425, 0.035, 0.3].flatMap(intrusion => ['rectangle', 'subroutine', 'fr-rect', 'subproc', 'lin-rect', 'div-rect', 'win-pane'].flatMap(shape => ['route proposal', 'final safety net'].map(phase => ({ intrusion, phase, shape, side: 'left' })))),
+    ...[0.1, 0.386].flatMap(intrusion => ['cylinder', 'cyl'].flatMap(shape => ['left', 'right'].flatMap(side => ['route proposal', 'final safety net'].map(phase => ({ intrusion, phase, shape, side }))))),
+  ])('repairs an unrelated $shape $side intrusion in $phase at $intrusion pixels', ({ intrusion, phase, shape: cardShape, side }) => {
     const node = (id: string, x: number, y: number, width: number, height: number): PositionedNode =>
       ({ id, label: id, shape: 'rectangle', x, y, width, height })
     const nodes = [node('A', 0, 0, 20, 20), node('B', 400, 100, 20, 20),
       node('C', 200 - intrusion, 40, 20, 20), node('D', -20, 60, 20, 20),
       node('E', 198, 60, 1, 20), node('F', 201, 60, 1, 20), node('G', 500, 60, 20, 20)]
-    const cardDeclaration = cardShape === 'rectangle' ? 'C' : cardShape === 'subroutine' ? 'C[[C]]' : `C@{ shape: ${cardShape}, label: "C" }`
-    const graph = parseMermaid(`flowchart LR\nA-->B\nD-->E\nF-->G\n${cardDeclaration}`)
+    const cardDeclaration = cardShape === 'rectangle' ? 'C' : cardShape === 'subroutine' ? 'C[[C]]' : cardShape === 'cylinder' ? 'C[(C)]' : `C@{ shape: ${cardShape}, label: "C" }`
+    const graph = parseMermaid(`flowchart ${side === 'right' ? 'RL' : 'LR'}\nA-->B\nD-->E\nF-->G\n${cardDeclaration}`)
     const parsedCard = graph.nodes.get('C')!
     nodes[2]!.shape = parsedCard.shape
     if (parsedCard.semanticShape) nodes[2]!.semanticShape = parsedCard.semanticShape
@@ -201,16 +204,21 @@ describe('route proposal crossing consistency', () => {
       [[20, 10], [200, 10], [200, 110], [400, 110]],
       [[0, 70], [198, 70]], [[202, 70], [500, 70]],
     ]
+    if (side === 'right') for (const node of nodes) node.x = 400 - node.x - node.width
     const edges: PositionedEdge[] = graph.edges.map((edge, index) => ({ ...edge, edgeIndex: index,
-      points: paths[index]!.map(([x, y]) => ({ x: x!, y: y! })) }))
+      points: paths[index]!.map(([x, y]) => ({ x: side === 'right' ? 400 - x! : x!, y: y! })) }))
     const edge = edges[0]!, card = nodes[2]!, contacts = [edge.points[0], edge.points.at(-1)]
-    // Each selected semantic decoration has this full opaque rectangle as
-    // its fill; its internal line subpaths do not subtract any body ink.
+    // Restate the cylinder's actual body and caps independently of routing.
+    // The rectangular decorations retain their complete opaque fill.
     const finalPaint = () => certifyScenePaint({ family: 'flowchart', width: 550, height: 150,
       transparent: false, colors: { bg: '#fff', fg: '#111' }, parts: [
         connector({ id: 'A->B', role: 'edge', lineStyle: 'solid', endpoints: { from: 'A', to: 'B' },
           geometry: { kind: 'polyline', points: edge.points }, paint: { stroke: '#111', strokeWidth: '1' } }),
-        shape({ id: 'C', role: 'node', geometry: cardShape === 'subroutine' ? { kind: 'compound', children: [
+        shape({ id: 'C', role: 'node', geometry: card.shape === 'cylinder' ? { kind: 'compound', children: [
+          { kind: 'rect', x: card.x, y: card.y + 7, width: card.width, height: card.height - 14 },
+          { kind: 'ellipse', cx: card.x + card.width / 2, cy: card.y + 7, rx: card.width / 2, ry: 7 },
+          { kind: 'ellipse', cx: card.x + card.width / 2, cy: card.y + card.height - 7, rx: card.width / 2, ry: 7 },
+        ] } : cardShape === 'subroutine' ? { kind: 'compound', children: [
           { kind: 'rect', x: card.x, y: card.y, width: card.width, height: card.height },
           { kind: 'line', x1: card.x + 8, y1: card.y, x2: card.x + 8, y2: card.y + card.height },
           { kind: 'line', x1: card.x + card.width - 8, y1: card.y, x2: card.x + card.width - 8, y2: card.y + card.height },
@@ -224,6 +232,37 @@ describe('route proposal crossing consistency', () => {
     expect([edge.points[0], edge.points.at(-1)]).toEqual(contacts)
     expect(edges.map(value => [value.source, value.target])).toEqual([['A', 'B'], ['D', 'E'], ['F', 'G']])
     expect(countEdgeCrossings(edges)).toBeGreaterThan(0)
+  })
+
+  it.each([0.1, 0.386].flatMap(intrusion => ['left', 'right'].flatMap(side => ['horizontal', 'vertical'].flatMap(axis => ([undefined, 'cyl'] as const).map(semanticShape => ({ intrusion, side, axis, semanticShape }))))))('detects a $axis classic cylinder core shaft at its $side side ($intrusion px, $semanticShape)', ({ intrusion, side, axis, semanticShape }) => {
+    const graph = parseMermaid('flowchart LR\nA-->B')
+    const card: PositionedNode = { id: 'C', label: 'C', shape: 'cylinder', semanticShape, x: 100, y: 100, width: 40, height: 40 }
+    const x = side === 'left' ? 100 + intrusion : 140 - intrusion
+    const points = axis === 'vertical' ? [{ x, y: 110 }, { x, y: 130 }]
+      : [{ x: side === 'left' ? 90 : 150, y: 120 }, { x, y: 120 }]
+    const edge: PositionedEdge = { ...graph.edges[0]!, edgeIndex: 0, points }
+    expect(segmentThroughShape(points[0]!, points[1]!, card)).toBe(true)
+    expect(auditRouteContracts({ nodes: [card], edges: [edge], groups: [] }, graph)).toContainEqual(
+      expect.objectContaining({ code: 'ROUTE_STALE_AFTER_NODE_MOVE', node: 'C' }))
+  })
+
+  it.each([
+    ...[
+    { name: 'left body boundary', points: [{ x: 100, y: 110 }, { x: 100, y: 130 }] },
+    { name: 'right body boundary', points: [{ x: 140, y: 110 }, { x: 140, y: 130 }] },
+    { name: 'fractional-width right body boundary', width: 100.1, points: [{ x: 200.1, y: 110 }, { x: 200.1, y: 130 }] },
+    { name: 'left horizontal boundary', points: [{ x: 90, y: 120 }, { x: 100, y: 120 }] },
+    { name: 'right horizontal boundary', points: [{ x: 150, y: 120 }, { x: 140, y: 120 }] },
+    { name: 'empty top cap corner', points: [{ x: 100.1, y: 100.1 }, { x: 100.2, y: 100.1 }] },
+    { name: 'empty bottom cap corner', points: [{ x: 139.9, y: 139.9 }, { x: 139.8, y: 139.9 }] },
+  ].flatMap(control => ([undefined, 'cyl'] as const).map(semanticShape => ({ width: 40, ...control, semanticShape }))),
+  ])('retains $name admission for $semanticShape', ({ points, semanticShape, width }) => {
+    const graph = parseMermaid('flowchart LR\nA-->B')
+    const card: PositionedNode = { id: 'C', label: 'C', shape: 'cylinder', semanticShape, x: 100, y: 100, width, height: 40 }
+    const edge: PositionedEdge = { ...graph.edges[0]!, edgeIndex: 0, points }
+    expect(segmentThroughShape(points[0]!, points[1]!, card)).toBe(false)
+    expect(auditRouteContracts({ nodes: [card], edges: [edge], groups: [] }, graph).some(
+      finding => finding.code === 'ROUTE_STALE_AFTER_NODE_MOVE' && finding.node === 'C')).toBe(false)
   })
 
   it('keeps settled reciprocal labels as obstacles in the final closure and its auditor', () => {

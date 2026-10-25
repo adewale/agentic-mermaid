@@ -173,6 +173,12 @@ export function segmentThroughShape(a: Point, b: Point, node: PositionedNode): b
   const hh = node.height / 2
   const xLo = Math.min(a.x, b.x), xHi = Math.max(a.x, b.x)
   const yLo = Math.min(a.y, b.y), yHi = Math.max(a.y, b.y)
+  // Independently restate the renderer's classic cylinder core (cap ry = 7).
+  // Its curved caps keep the existing graze policy; their empty corners do
+  // not justify a tolerance inside the core's straight, fully painted sides.
+  if (node.shape === 'cylinder' && (node.semanticShape === undefined || node.semanticShape === 'cyl')
+    && node.height > 14 && xHi > node.x && xLo < node.x + node.width
+    && yHi > node.y + 7 && yLo < node.y + node.height - 7) return true
   const rectangularBody = (node.shape === 'rectangle' || node.shape === 'subroutine')
     && (node.semanticShape === undefined || node.semanticShape === 'rect' || node.semanticShape === 'fr-rect'
       || node.semanticShape === 'lin-rect' || node.semanticShape === 'div-rect' || node.semanticShape === 'win-pane')
