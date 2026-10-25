@@ -11,6 +11,15 @@ function statusFiles(root: string): string[] {
   })
 }
 
+/** Keep the original artifacts intact. Decisions use the retained individual
+ * clock values, not the much larger duplicate per-call receipt inventories. */
+export function readPerformanceReport(file: string): PerformanceReport | undefined {
+  if (!existsSync(file)) return undefined
+  const report = JSON.parse(readFileSync(file, 'utf8')) as PerformanceReport
+  if (Array.isArray(report.tracks?.observations)) for (const observation of report.tracks.observations) delete (observation as { calls?: unknown }).calls
+  return report
+}
+
 if (import.meta.main) {
   const [input, output] = process.argv.slice(2)
   if (!input || !output) throw new Error('Usage: aggregate-semantic-performance.ts <downloaded-artifacts> <output-directory>')
@@ -18,7 +27,7 @@ if (import.meta.main) {
     const receipt = JSON.parse(readFileSync(path, 'utf8')) as SemanticPerformanceShard
     const report = (name: string) => {
       const file = join(dirname(path), `${name}.json`)
-      return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) as PerformanceReport : undefined
+      return readPerformanceReport(file)
     }
     return { ...receipt, evidence: path, candidate: report('candidate'), controls: [report('aa-1'), report('aa-2')].filter((r): r is PerformanceReport => r !== undefined) }
   })

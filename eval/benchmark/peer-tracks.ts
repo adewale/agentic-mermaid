@@ -161,7 +161,7 @@ export function consumePeerOutput(value: unknown, consumer: PeerConsumer): { svg
   if (consumer === 'receipt-json-utf8' && !Object.prototype.hasOwnProperty.call(value, 'receipt')) throw new Error('returned no complete receipt')
   const bytes = Buffer.from(consumer === 'svg-utf8' ? svg : JSON.stringify(value), 'utf8')
   let checksum = 0
-  for (const byte of bytes) checksum = (Math.imul(checksum, 31) + byte) >>> 0
+  for (let index = 0; index < bytes.length; index++) checksum = (Math.imul(checksum, 31) + bytes[index]!) >>> 0
   ;(globalThis as { __peerTrackSink?: unknown }).__peerTrackSink = { bytes, checksum }
   return { svg, bytes: bytes.length, checksum }
 }
