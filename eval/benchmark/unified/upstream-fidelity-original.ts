@@ -50,6 +50,8 @@ export function summarizeOriginalVitest(report: OriginalVitestJson, upstream: st
 
 export async function runUpstreamOriginalSuite(options: UpstreamOriginalOptions): Promise<UnifiedSuiteResult> {
   assertBenchmarkExecutionAllowed()
+  const skippedAt = new Date().toISOString()
+  if (options.communityProjects && !options.communityProjects.includes('mermaid-js/mermaid')) return { id: 'upstream-original', status: 'not-applicable', startedAt: skippedAt, finishedAt: skippedAt, observations: [], gaps: ['Pinned Mermaid original runner was not selected; no source, reference, runtime or project record was prepared'] }
   const startedAt = new Date().toISOString(), root = options.harnessRoot ?? options.root, upstream = options.mermaidDir ?? resolve(root, '../mermaid'), reference = options.referenceDir ?? resolve(root, '../mermaid-reference'), node = options.nodeExecutable ?? 'node'
   mkdirSync(options.out, { recursive: true })
   const pin = admitCurrentReference(upstream, reference)
