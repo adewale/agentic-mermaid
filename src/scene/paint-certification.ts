@@ -1,5 +1,5 @@
 import type { RenderedLayout } from '../agent/types.ts'
-import { connectorMarkerPaintRegions, expandSceneBounds, paintedStrokeExtent, transformedBounds, visitTypedPathSegments, type TypedPathSegment } from './bounds.ts'
+import { connectorMarkerPaintRegions, connectorStrokeHasJoins, expandSceneBounds, paintedStrokeExtent, transformedBounds, visitTypedPathSegments, type TypedPathSegment } from './bounds.ts'
 import type { AxisAlignedBox } from '../shared/transformed-bounds.ts'
 import { resolveInlineColorAttribute } from '../theme.ts'
 import { tryParseCssColor } from '../shared/color-math.ts'
@@ -306,7 +306,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
     const matrix = scenePrimitiveMatrix(primitive)!
     const [a, b, c, d, e, f] = matrix
     const transform: SceneTransform = { kind: 'matrix', a, b, c, d, e, f }
-    const extent = paintedStrokeExtent({ stroke: node.stroke.color, strokeWidth: String(node.stroke.width), strokeLinecap: node.stroke.lineCap, strokeLinejoin: node.stroke.lineJoin, strokeMiterlimit: String(node.stroke.miterLimit) }, node.route.geometry.kind !== 'line')
+    const extent = paintedStrokeExtent({ stroke: node.stroke.color, strokeWidth: String(node.stroke.width), strokeLinecap: node.stroke.lineCap, strokeLinejoin: node.stroke.lineJoin, strokeMiterlimit: String(node.stroke.miterLimit) }, connectorStrokeHasJoins(node.route))
     if (extent === undefined) { issue({ code: 'UNMEASURED_PAINT', id: primitive.id, message: 'Final connector stroke has no bounded cap/join extent' }); continue }
     const visit = (part: TypedPathSegment): boolean => {
       if (!work()) return false

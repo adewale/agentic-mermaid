@@ -409,6 +409,13 @@ function composedTransform(parent: SceneTransform | undefined, child: SceneTrans
   return { kind: 'matrix', a, b, c, d, e, f }
 }
 
+/** An open explicit two-point polyline has one segment and no stroke join.
+ * Paths/closed contours retain their conservative extent, regardless of their
+ * sampled point count. Cap extent remains owned by paintedStrokeExtent. */
+export function connectorStrokeHasJoins(route: Pick<ConnectorMark['route'], 'geometry' | 'closed'>): boolean {
+  return route.geometry.kind !== 'line' && !(route.geometry.kind === 'polyline' && route.geometry.points.length === 2 && !route.closed)
+}
+
 /** Numeric user-unit/px strokes have a typed extent. Relative and unresolved
  * CSS units do not: treating `1em` or `var(...)` as one pixel would undercount. */
 export function paintedStrokeExtent(paint: MarkPaint, hasJoins: boolean): number | undefined {
@@ -496,7 +503,7 @@ export function ribbonEndOvershoot(near: number, far: number, rise: number, half
 function connectorPaintBounds(node: ConnectorMark, transform?: SceneTransform): AxisAlignedBox | undefined {
   const geometry = node.route.geometry
   const local = geometryBounds(geometry)
-  const extent = paintedStrokeExtent({ stroke: node.stroke.color, strokeWidth: String(node.stroke.width), strokeLinecap: node.stroke.lineCap, strokeLinejoin: node.stroke.lineJoin, strokeMiterlimit: String(node.stroke.miterLimit) }, geometry.kind !== 'line')
+  const extent = paintedStrokeExtent({ stroke: node.stroke.color, strokeWidth: String(node.stroke.width), strokeLinecap: node.stroke.lineCap, strokeLinejoin: node.stroke.lineJoin, strokeMiterlimit: String(node.stroke.miterLimit) }, connectorStrokeHasJoins(node.route))
   if (!local || extent === undefined) return undefined
   const singleCubic = geometry.kind === 'path' && node.stroke.lineCap === 'butt' && !node.stroke.nonScaling
     ? ribbonCubicStrokeBounds(geometry.d, numericStrokeWidth(node.stroke.width) / 2) : undefined

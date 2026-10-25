@@ -1,6 +1,7 @@
 import { expect, test } from 'bun:test'
 import * as marks from '../scene/marks.ts'
-import { connectorMarkerPaintRegions } from '../scene/bounds.ts'
+import { readFileSync } from 'node:fs'
+import { connectorMarkerPaintRegions, nodePaintBounds } from '../scene/bounds.ts'
 import { certifyScenePaint } from '../scene/paint-certification.ts'
 import type { SceneDoc, SceneNode } from '../scene/ir.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
@@ -525,4 +526,66 @@ test('final ER certification rejects a group route corrupted through a same-name
     expect(verified.layoutCertification?.status).toBe('failed')
     expect(verified.layoutCertification?.issues).toContainEqual(expect.objectContaining({ code: 'CONNECTOR_CARD_CROSSING', by: expect.stringContaining('q') }))
   } finally { restore() }
+})
+
+test.each(['solid', 'dashed'] as const)('an open two-point %s polyline has the same join-free clearance as a line', lineStyle => {
+  const fields = { id: 'near-card', role: 'relationship' as const, lineStyle,
+    paint: { stroke: '#111', strokeWidth: '1', ...(lineStyle === 'dashed' ? { strokeDasharray: '6 4' } : {}) }, endpoints: { from: 'A', to: 'B' } }
+  const polyline = marks.connector({ ...fields, geometry: { kind: 'polyline', points: [{ x: 10, y: 8 }, { x: 90, y: 8 }] } })
+  const line = marks.connector({ ...fields, geometry: { kind: 'line', x1: 10, y1: 8, x2: 90, y2: 8 } })
+  const card = marks.shape({ id: 'C', role: 'node', geometry: { kind: 'rect', x: 40, y: 10, width: 10, height: 10 }, paint: { fill: '#fff', stroke: '#111', strokeWidth: '1' } })
+  expect(nodePaintBounds(polyline)).toEqual(nodePaintBounds(line))
+  expect(certifyScenePaint(scene([line, card])).status).toBe('passed')
+  expect(certifyScenePaint(scene([polyline, card])).status).toBe('passed')
+})
+
+test.each(['solid', 'dashed'] as const)('a genuinely entering %s two-point polyline keeps the collision guard', lineStyle => {
+  const edge = marks.connector({ id: 'entering', role: 'relationship', lineStyle,
+    geometry: { kind: 'polyline', points: [{ x: 10, y: 15 }, { x: 90, y: 15 }] },
+    paint: { stroke: '#111', strokeWidth: '1', ...(lineStyle === 'dashed' ? { strokeDasharray: '6 4' } : {}) }, endpoints: { from: 'A', to: 'B' } })
+  const card = marks.shape({ id: 'C', role: 'node', geometry: { kind: 'rect', x: 40, y: 10, width: 10, height: 10 }, paint: { fill: '#fff' } })
+  const proof = certifyScenePaint(scene([edge, card]))
+  expect(proof.status).toBe(lineStyle === 'solid' ? 'failed' : 'unverified')
+  expect(proof.issues).toContainEqual(expect.objectContaining({ code: lineStyle === 'solid' ? 'CONNECTOR_CARD_CROSSING' : 'POTENTIAL_OCCLUSION', id: 'entering', by: 'C' }))
+})
+
+test('closed, bent and path connectors retain conservative painted bounds and card warnings', () => {
+  const card = marks.shape({ id: 'C', role: 'node', geometry: { kind: 'rect', x: 40, y: 10, width: 10, height: 10 }, paint: { fill: '#fff', stroke: '#111', strokeWidth: '1' } })
+  // Width 1 and miter limit 4 retain a 2 px envelope. The quadratic's control
+  // hull reaches y=20; sampled endpoint count never replaces its curve bound.
+  const cases = [
+    { geometry: { kind: 'path' as const, d: 'M10 8 H90 V2 H10 Z', points: [{ x: 10, y: 8 }, { x: 90, y: 8 }, { x: 90, y: 2 }, { x: 10, y: 2 }] }, closed: true, bounds: { x0: 8, y0: 0, x1: 92, y1: 10 } },
+    { geometry: { kind: 'polyline' as const, points: [{ x: 10, y: 8 }, { x: 90, y: 8 }, { x: 90, y: 20 }] }, closed: false, bounds: { x0: 8, y0: 6, x1: 92, y1: 22 } },
+    { geometry: { kind: 'path' as const, d: 'M10 8 H90', points: [{ x: 10, y: 8 }, { x: 90, y: 8 }] }, closed: false, bounds: { x0: 8, y0: 6, x1: 92, y1: 10 } },
+    { geometry: { kind: 'path' as const, d: 'M10 8 Q50 20 90 8', points: [{ x: 10, y: 8 }, { x: 90, y: 8 }] }, closed: false, bounds: { x0: 8, y0: 6, x1: 92, y1: 22 } },
+  ]
+  for (const { geometry, closed, bounds } of cases) {
+    const edge = marks.connector({ id: 'conservative', role: 'relationship', lineStyle: 'dashed', geometry, route: { closed },
+      paint: { stroke: '#111', strokeWidth: '1', strokeDasharray: '6 4' }, endpoints: { from: 'A', to: 'B' } })
+    expect(nodePaintBounds(edge)).toEqual(bounds)
+    expect(certifyScenePaint(scene([edge, card]))).toMatchObject({ status: 'unverified', issues: [expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', id: 'conservative', by: 'C' })] })
+  }
+})
+
+test.each(['butt', 'round', 'square'] as const)('%s dash caps remain inside the straight polyline envelope', strokeLinecap => {
+  const fields = { id: 'capped', role: 'relationship' as const, lineStyle: 'dashed' as const,
+    paint: { stroke: '#111', strokeWidth: '2', strokeLinecap, strokeDasharray: '6 4' }, endpoints: { from: 'A', to: 'B' } }
+  const line = marks.connector({ ...fields, geometry: { kind: 'line', x1: 10, y1: 8, x2: 90, y2: 8 } })
+  const polyline = marks.connector({ ...fields, geometry: { kind: 'polyline', points: [{ x: 10, y: 8 }, { x: 90, y: 8 }] } })
+  expect(nodePaintBounds(polyline)).toEqual(nodePaintBounds(line))
+})
+
+test('a downscaled non-scaling two-point polyline still reports actual stroke/card overlap', () => {
+  const edge = marks.connector({ id: 'scaled-polyline', role: 'edge', geometry: { kind: 'polyline', points: [{ x: 300, y: 100 }, { x: 700, y: 100 }] },
+    lineStyle: 'dashed', paint: { stroke: '#f00', strokeWidth: '10', strokeDasharray: '6 4', vectorEffect: 'non-scaling-stroke' },
+    transform: { kind: 'matrix', a: 0.1, b: 0, c: 0, d: 0.1, e: 0, f: 20 }, endpoints: { from: 'A', to: 'B' } })
+  const card = marks.shape({ id: 'C', role: 'node', geometry: { kind: 'rect', x: 40, y: 32, width: 20, height: 18 }, paint: { fill: '#fff' } })
+  expect(certifyScenePaint(scene([edge, card]))).toMatchObject({ status: 'unverified', issues: [expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', id: 'scaled-polyline', by: 'C' })] })
+})
+
+test('the retained Native Class clearance witness certifies without changing its layout backend', () => {
+  const { source } = JSON.parse(readFileSync(new URL('./fixtures/class-native-clearance.json', import.meta.url), 'utf8')) as { source: string }
+  const rendered = renderMermaidSVGWithReceipt(source, { class: { hierarchicalNamespaces: true }, graphLayout: { backend: 'agentic' }, layoutSafety: 'strict', idPrefix: 'class-clearance-' })
+  expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+  expect(rendered.receipt.layoutDecisions).toContainEqual(expect.objectContaining({ requested: 'agentic', selected: 'agentic' }))
 })
