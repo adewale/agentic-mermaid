@@ -96,3 +96,6 @@ eval/palette-performance/report.json
 
 # Benchmark output written by Trident (eval/trident)
 bench-report/
+
+# Original upstream assertion-run evidence
+eval/mermaid-upstream-assertions/results/

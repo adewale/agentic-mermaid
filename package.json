@@ -199,6 +199,7 @@
     "eval:skill:materialize-codex-output": "bun run scripts/eval/materialize-codex-output.ts",
     "eval:skill:summarize-evidence": "bun run scripts/eval/summarize-skill-evidence.ts",
     "eval:family-portfolio": "bun run eval/mermaid-family-portfolio/build.ts",
+    "eval:mermaid-assertions": "bun run eval/mermaid-upstream-assertions/run.ts",
     "eval:mermaid-modern": "bun run eval/mermaid-modern-compat/run.ts",
     "eval:mermaid-grammar": "bun run eval/mermaid-modern-compat/grammar-run.ts",
     "reference:mermaid": "bash scripts/setup-mermaid-reference.sh",
@@ -281,6 +282,7 @@
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
     "upng-js": "^2.1.0",
+    "vitest": "4.1.11",
     "wrangler": "4.149.0",
     "saxes": "6.0.0"
   }
