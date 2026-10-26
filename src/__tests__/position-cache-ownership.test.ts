@@ -3,6 +3,76 @@ import { useTestChildren } from './helpers/test-child.ts'
 
 const runChild = useTestChildren(20_000)
 
+test('immutable enrollment proof cannot be upgraded, forged through a proxy, or inferred from freezing alone', async () => {
+  for (const mode of ['original', 'changed-before-enrollment', 'failed-enrollment']) {
+    const child = await runChild(process.execPath, ['-e', `
+      import assert from 'node:assert/strict'
+      import { enrollOwnedFamily, hasOriginalOwnedFamilyHooks, isOwnedFamily } from './src/experimental/owned-family.ts'
+      import { DefaultBackend, isOriginalEnrolledDefaultBackend, registerBackend, registerBuiltInBackend } from './src/scene/backend.ts'
+      const mode = ${JSON.stringify(mode)}
+      if (mode === 'original') {
+        const hook = () => undefined
+        const frozen = Object.freeze({ id: 'sequence', layout: hook, lowerScene: hook, normalizeRequest: undefined })
+        enrollOwnedFamily(frozen)
+        assert.equal(isOwnedFamily(frozen), true)
+        assert.equal(hasOriginalOwnedFamilyHooks(frozen, 'sequence'), true)
+        assert.equal(hasOriginalOwnedFamilyHooks(frozen, 'flowchart'), false)
+        assert.equal(Reflect.set(frozen, 'layout', () => undefined), false)
+        assert.equal(hasOriginalOwnedFamilyHooks(frozen, 'sequence'), true)
+        assert.equal(hasOriginalOwnedFamilyHooks(Object.freeze({ ...frozen }), 'sequence'), false)
+        const mutable = { id: 'sequence', layout: hook }
+        enrollOwnedFamily(mutable)
+        assert.equal(isOwnedFamily(mutable), true)
+        assert.equal(hasOriginalOwnedFamilyHooks(mutable, 'sequence'), false)
+        mutable.layout = () => 'changed'
+        Object.freeze(mutable)
+        enrollOwnedFamily(mutable)
+        assert.equal(hasOriginalOwnedFamilyHooks(mutable, 'sequence'), false)
+        let reads = 0
+        const accessor = Object.freeze({ id: 'sequence', get layout() { reads++; return hook } })
+        enrollOwnedFamily(accessor)
+        assert.equal(isOwnedFamily(accessor), true)
+        assert.equal(hasOriginalOwnedFamilyHooks(accessor, 'sequence'), false)
+        assert.equal(reads, 0)
+        for (const invalid of [Object.freeze({ layout: hook }), Object.freeze({ id: undefined, layout: hook })]) {
+          enrollOwnedFamily(invalid)
+          assert.equal(isOwnedFamily(invalid), true)
+          assert.equal(hasOriginalOwnedFamilyHooks(invalid, undefined), false)
+          assert.equal(hasOriginalOwnedFamilyHooks(invalid, 'sequence'), false)
+        }
+        const fail = () => { throw new Error('unowned query touched a proxy') }
+        const proxy = new Proxy(frozen, { get: fail, getOwnPropertyDescriptor: fail, ownKeys: fail, isExtensible: fail, getPrototypeOf: fail })
+        assert.equal(isOwnedFamily(proxy), false)
+        assert.equal(hasOriginalOwnedFamilyHooks(proxy, 'sequence'), false)
+        assert.equal(hasOriginalOwnedFamilyHooks(proxy, undefined), false)
+      }
+      const fail = () => { throw new Error('backend query touched a proxy') }
+      const proxy = new Proxy(DefaultBackend, { get: fail, getOwnPropertyDescriptor: fail, ownKeys: fail, isExtensible: fail })
+      assert.equal(isOriginalEnrolledDefaultBackend(undefined), false)
+      assert.equal(isOriginalEnrolledDefaultBackend(DefaultBackend), false)
+      assert.equal(isOriginalEnrolledDefaultBackend(proxy), false)
+      if (mode === 'changed-before-enrollment') DefaultBackend.drawNode = () => { throw new Error('unexpected rendering') }
+      if (mode === 'failed-enrollment') {
+        registerBackend({ ...DefaultBackend, id: 'backend:default' }, { compatibility: { core: '^0.4.0', scene: '^2.0.0' } })
+        assert.throws(() => registerBuiltInBackend(DefaultBackend), { name: 'ExtensionCollisionError' })
+        assert.equal(Object.isFrozen(DefaultBackend), true)
+        assert.equal(isOriginalEnrolledDefaultBackend(DefaultBackend), false)
+      } else {
+        registerBuiltInBackend(DefaultBackend)
+        assert.equal(Object.isFrozen(DefaultBackend), true)
+        assert.equal(isOriginalEnrolledDefaultBackend(DefaultBackend), mode === 'original')
+      }
+      assert.equal(isOriginalEnrolledDefaultBackend(undefined), false)
+      assert.equal(isOriginalEnrolledDefaultBackend(proxy), false)
+      assert.equal(isOriginalEnrolledDefaultBackend({ ...DefaultBackend }), false)
+      console.log('immutable enrollment proof passed')
+    `], { cwd: `${import.meta.dir}/../..` })
+    expect(child.stderr).toBe('')
+    expect(child.status).toBe(0)
+    expect(child.stdout).toContain('immutable enrollment proof passed')
+  }
+})
+
 for (const family of ['flowchart', 'state'] as const) {
   test(`native ${family} geometry stays isolated across private/public/PNG order and replacement hooks`, async () => {
     const child = await runChild(process.execPath, ['-e', `
