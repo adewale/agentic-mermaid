@@ -251,7 +251,6 @@ export function canonicalBrowserPng(outputOptions) {
     if (!previewDigest || previewInner.dataset.sharedRequestDigest !== previewDigest || artifact.receipt.sharedRequestDigest !== previewDigest) {
       throw new Error('PNG bytes and preview receipt do not describe the same render request');
     }
-    ui.lastRenderedPngArtifact = artifact;
     return artifact;
   });
 }
@@ -297,7 +296,6 @@ export function exportSVG() {
         || artifact.receipt.sharedRequestDigest !== previewDigest) {
       throw new Error('SVG bytes and preview receipt no longer match');
     }
-    ui.lastRenderedSvgExportProjection = { svg: projected.svg, receipt: artifact.receipt, diagnostics: projected.diagnostics };
     var blob = new Blob([projected.svg], { type: 'image/svg+xml;charset=utf-8' });
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
@@ -360,9 +358,7 @@ exportScale = Number(pngScaleControls.dataset.defaultScale);
 
 if (!Number.isFinite(exportScale) || exportScale <= 0) throw new Error('Invalid canonical PNG default scale');
 
-ui.lastRenderedPngArtifact = null;
 
-ui.lastRenderedSvgExportProjection = null;
 
 exportDropdown = document.getElementById('export-dropdown');
 
