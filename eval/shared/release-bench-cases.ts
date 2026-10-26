@@ -5,7 +5,7 @@
 
 import { readFileSync } from 'node:fs'
 import type { DiagramKind } from '../../src/agent/types.ts'
-import { flowchartMesh } from '../shared/graph-fixtures.ts'
+import { flowchartMesh, lcg } from '../shared/graph-fixtures.ts'
 export { flowchartMesh } from '../shared/graph-fixtures.ts'
 
 export interface BenchCase {
