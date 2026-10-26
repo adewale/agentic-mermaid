@@ -105,6 +105,17 @@ function sourceRejection(error: string, errorName: string): boolean {
     || /^Error: Invalid mermaid header:/.test(error)
     || /^Error: SEQUENCE_UNSUPPORTED_STATEMENT: line [1-9]\d*:/.test(error)
 }
+/** A family is unsupported only when the tool rejects its canonical family-cohort case
+ * (family:<name>, the family-support probe source). Then its rejected positive cases are
+ * unsupported; elsewhere a rejection stays a failure, whatever its message says. */
+export function unsupportedByFamilyProbe(rows: BenchmarkObservation[]): void {
+  const rejected = new Set(rows.filter(row => row.caseId === `family:${row.family}` && row.metrics?.accepted === false).map(row => row.family))
+  for (const row of rows)
+    if (rejected.has(row.family) && row.status === 'failed' && row.metrics?.accepted === false && row.metrics?.expectedAccepted !== false) {
+      row.status = 'unsupported'
+      row.detail = `Family unsupported: the tool rejected family:${row.family}, its canonical source. ${row.detail ?? ''}`.trim()
+    }
+}
 /** Authored expectations are independent of each renderer's accepted output. */
 export function qualifyBaselineBrowser(testCase: BaselineBrowserCase, result: any, preludes: readonly { status: BenchmarkStatus; findings: string[] }[] = []): { status: BenchmarkStatus; findings: string[]; scope: string } {
   const failedSetup = preludes.filter(value => value.status !== 'passed')
@@ -112,7 +123,7 @@ export function qualifyBaselineBrowser(testCase: BaselineBrowserCase, result: an
   if (!result.accepted) {
     const detail = String(result.error ?? 'No public result')
     if (!testCase.expected.accept && result.errorPhase === 'public-call' && sourceRejection(detail, String(result.errorName ?? 'Error'))) return { status: 'passed', findings: [], scope: 'recognized source rejection; no positive SVG credit' }
-    return { status: testCase.expected.accept && /unsupported|not supported|unknown diagram|no diagram type|not registered|diagram.*not found/i.test(detail) ? 'unsupported' : 'failed', findings: [detail], scope: 'public operation did not produce expected SVG' }
+    return { status: 'failed', findings: [detail], scope: 'public operation did not produce expected SVG' }
   }
   if (!testCase.expected.accept) return { status: 'failed', findings: ['Expected source rejection; public renderer accepted it'], scope: 'negative source control' }
   const qualification = qualifyOutput({ id: testCase.id, family: testCase.family, source: testCase.source, expectedLabels: testCase.expected.labels, features: testCase.cohorts, provenance: 'Independent authored portable/required-family literal' }, result.svg, 'svg')
@@ -310,6 +321,7 @@ export async function runBaselineBrowserSuite(options: BaselineBrowserOptions): 
       }
     }
     for (const collector of collectors.values()) {
+      unsupportedByFamilyProbe(collector.observations)
       collector.gaps.push('Admission proves XML/namespace/canvas/authored labels only; native relationships and CSS/paint fidelity unmeasured.', 'Document V8 heap excludes native/GPU/worker/whole-browser process peak. No monetary/model-token cost inferred.', 'A0/A1 are same-artifact controls, not independent tools. Five renderer rounds provide repeatability diagnostics, not p95 or causal proof.')
       const result: BaselineBrowserReport = { id: 'pinned-browser-baseline', status: collector.observations.some(row => row.status === 'failed') ? 'failed' : 'blocked', startedAt: collector.startedAt, finishedAt: new Date().toISOString(), observations: collector.observations, gaps: collector.gaps, artifacts: collector.artifacts, settings: plan.settings, identities: [collector.identity], cases: plan.cases, executionPlan, rolling, collectionId }
       write(join(collector.directory, 'browser-baseline-result.json'), result); collector.resolve(result)
