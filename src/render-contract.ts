@@ -13,6 +13,7 @@ import type { ArchitectureVisualConfig } from './architecture/config.ts'
 import type { DiagramColors } from './theme.ts'
 import type { NormalizedMermaidSource } from './mermaid-source.ts'
 import { normalizeMermaidRenderSource } from './mermaid-source.ts'
+import { observeCache } from './performance-observations.ts'
 import { CHANNEL_THEME_KEYS, readThemeValue, resolveDiagramColors } from './color-resolver.ts'
 import { checkArchitectureRenderOptionColors, checkFamilyConfigColors, checkThemeVariableColors } from './theme-color-admission.ts'
 import {
@@ -983,11 +984,14 @@ function normalizedFamilyData(
   family: FamilyDescriptor,
   value: Readonly<Record<string, unknown>> | undefined,
   label: 'config' | 'appearance',
+  capturedJson = false,
 ): Readonly<Record<string, unknown>> | undefined {
   if (value === undefined) return undefined
   if (!isPlainRecord(value)) {
     throw new TypeError(`Family "${family.id}" returned ${label} data that is not a plain object`)
   }
+  // This operation's bounded capture already froze and admitted every leaf.
+  if (capturedJson) return value
   let compact: unknown
   try {
     compact = omitUndefinedObjectFields(value)
@@ -1027,8 +1031,9 @@ function applyFamilyRequestNormalization(
   const raw = family.normalizeRequest(context)
   if (raw === undefined) return { renderOptions, colors }
   let admitted: unknown
+  const admission = { nodes: 0, valid: true }
   try {
-    admitted = boundedImmutableJsonSnapshot(raw, `Family "${family.id}" request normalizer result`)
+    admitted = boundedImmutableJsonSnapshot(raw, `Family "${family.id}" request normalizer result`, admission)
   } catch (error) {
     throw new TypeError(
       `Family "${family.id}" request normalizer returned invalid data: ${error instanceof Error ? error.message : String(error)}`,
@@ -1060,8 +1065,8 @@ function applyFamilyRequestNormalization(
   const normalizedColors = appearance?.colors
     ? normalizedFamilyColors(family, appearance.colors, colors)
     : colors
-  const familyConfig = normalizedFamilyData(family, result.familyConfig, 'config')
-  const familyAppearance = normalizedFamilyData(family, appearance?.family, 'appearance')
+  const familyConfig = normalizedFamilyData(family, result.familyConfig, 'config', admission.valid)
+  const familyAppearance = normalizedFamilyData(family, appearance?.family, 'appearance', admission.valid)
   return {
     renderOptions: normalizedOptions,
     colors: normalizedColors,
@@ -1394,6 +1399,44 @@ function executionCapabilityError(
   return new RenderCapabilityError(`No SVG renderer registered for Mermaid family ${family.id}${suffix}`, output, family, decision)
 }
 
+const EXECUTION_CAPABILITY_DECISIONS = new Map<string, CapabilityDecision>()
+
+/** Keys contain only captured tuple metadata, never source, hooks or policy.
+ * Length prefixes preserve order and boundaries without serialization hooks. */
+function executionCapabilityKey(output: RenderOutput, offers: readonly CapabilityOffer[], requirements: readonly CapabilityRequirement[], available: boolean): string | undefined {
+  const count = offers.length + requirements.length
+  if (typeof output !== 'string' || count > 256) return undefined
+  let characters = output.length + count * 16
+  if (characters > 16384) return undefined
+  let key = `${output.length}:${output};${available};${offers.length};${requirements.length};`
+  for (const offer of offers) {
+    if (typeof offer.id !== 'string' || typeof offer.version !== 'string') return undefined
+    characters += offer.id.length + offer.version.length
+    if (characters > 16384) return undefined
+    key += `${offer.id.length}:${offer.id}${offer.version.length}:${offer.version}`
+  }
+  for (const requirement of requirements) {
+    if (typeof requirement.id !== 'string' || typeof requirement.range !== 'string' || typeof requirement.level !== 'string') return undefined
+    characters += requirement.id.length + requirement.range.length + requirement.level.length
+    if (characters > 16384) return undefined
+    key += `${requirement.id.length}:${requirement.id}${requirement.range.length}:${requirement.range}${requirement.level.length}:${requirement.level}`
+  }
+  return key.length <= 8192 ? key : undefined
+}
+
+function executionCapabilityDecision(output: RenderOutput, offers: readonly CapabilityOffer[], requirements: readonly CapabilityRequirement[], outputAvailable: boolean): CapabilityDecision {
+  const key = executionCapabilityKey(output, offers, requirements, outputAvailable)
+  const retained = key === undefined ? undefined : EXECUTION_CAPABILITY_DECISIONS.get(key)
+  observeCache('capability-decision', key === undefined ? 'bypass' : retained ? 'hit' : 'miss', key === undefined ? 'tuple-budget' : undefined)
+  if (retained) return retained
+  const decision = negotiateRenderCapabilityTuple(output, { offers, requirements, outputAvailable })
+  if (key !== undefined) {
+    if (EXECUTION_CAPABILITY_DECISIONS.size < 32) EXECUTION_CAPABILITY_DECISIONS.set(key, decision)
+    else observeCache('capability-decision', 'store-skipped', 'capacity')
+  }
+  return decision
+}
+
 function resolveExecutionPlan(
   family: FamilyDescriptor,
   appearance: ResolvedAppearance,
@@ -1479,11 +1522,7 @@ function resolveExecutionPlan(
       break
   }
 
-  const capabilityDecision = negotiateRenderCapabilityTuple(output, {
-    offers,
-    requirements,
-    outputAvailable,
-  })
+  const capabilityDecision = executionCapabilityDecision(output, offers, requirements, outputAvailable)
   if (!capabilityDecision.accepted) {
     throw executionCapabilityError(output, family, appearance, mode, backend, capabilityDecision)
   }

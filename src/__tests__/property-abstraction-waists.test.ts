@@ -252,6 +252,10 @@ describe('property: FamilyDescriptor render waist', () => {
     }
 
     reject(() => ({ appearance: { family: { callback: () => true } as never } }), 'invalid appearance data')
+    for (const value of [NaN, Infinity, -Infinity, 1n, Symbol('invalid'), () => true]) {
+      reject(() => ({ familyConfig: { value } }), 'invalid config data')
+    }
+    reject(() => ({ familyConfig: JSON.parse('{"nested":{"constructor":true}}') }), 'uses a forbidden prototype key')
     reject(ctx => ({ appearance: { colors: { ...ctx.colors, font: 'A Different Font' } } }), 'may not rewrite appearance field "font"')
     reject(() => ({ legacyOptions: {} }) as never, 'unknown field "legacyOptions"')
 
@@ -267,6 +271,13 @@ describe('property: FamilyDescriptor render waist', () => {
 
     let resultReads = 0
     let nestedOptionReads = 0
+    let familyReads = 0
+    const familyValue = { label: 'captured' }
+    const arrayValue = { label: 'captured array child' }
+    const frozenFamily = Object.freeze({
+      get value() { familyReads++; return familyValue },
+      values: Object.freeze([arrayValue]),
+    })
     const restoreAccessorResult = replaceFamilyForTest('flowchart', {
       ...original,
       normalizeRequest: ctx => {
@@ -286,6 +297,7 @@ describe('property: FamilyDescriptor render waist', () => {
             return resultReads === 1 ? { ...ctx.renderOptions, class: classOptions } : { ...ctx.renderOptions, class: { hierarchicalNamespaces: 'changed after validation' } }
           },
         })
+        result.familyConfig = frozenFamily
         return result as never
       },
     })
@@ -295,6 +307,15 @@ describe('property: FamilyDescriptor render waist', () => {
       expect(nestedOptionReads).toBe(1)
       expect(request.renderOptions.class).toEqual({ hierarchicalNamespaces: false })
       expect(Object.isFrozen(request.renderOptions.class)).toBe(true)
+      familyValue.label = 'changed after capture'
+      arrayValue.label = 'changed array child'
+      expect(familyReads).toBe(1)
+      expect(request.familyConfig).toEqual({
+        value: { label: 'captured' }, values: [{ label: 'captured array child' }],
+      })
+      expect(Object.isFrozen(request.familyConfig?.value)).toBe(true)
+      expect(Object.isFrozen(request.familyConfig?.values)).toBe(true)
+      expect(Object.isFrozen((request.familyConfig?.values as readonly unknown[])[0])).toBe(true)
     } finally {
       restoreAccessorResult()
     }

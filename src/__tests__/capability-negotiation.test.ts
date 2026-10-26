@@ -278,16 +278,19 @@ describe('versioned capability negotiation', () => {
       provenance: { owner: 'frozen-plan-test', source: 'test-v1' },
     })
     let unregisterV2: (() => void) | undefined
+    let policyCalls = 0
     try {
       const renderer = createMermaidRenderer({
         backendPolicy: {
           selectBackend() {
-            unregisterV1()
-            unregisterV2 = registerBackend(backend('v2'), {
-              version: '2.0.0',
-              compatibility: BACKEND_COMPATIBILITY,
-              provenance: { owner: 'frozen-plan-test', source: 'test-v2' },
-            })
+            if (++policyCalls === 1) {
+              unregisterV1()
+              unregisterV2 = registerBackend(backend('v2'), {
+                version: '2.0.0',
+                compatibility: BACKEND_COMPATIBILITY,
+                provenance: { owner: 'frozen-plan-test', source: 'test-v2' },
+              })
+            }
             return id
           },
         },
@@ -307,6 +310,12 @@ describe('versioned capability negotiation', () => {
       })
       expect(knownBackendDescriptors().find(descriptor => descriptor.identity.id === id)?.identity.version)
         .toBe('2.0.0')
+      for (let repeat = 0; repeat < 2; repeat++) {
+        const next = renderer.renderMermaidSVGWithReceipt('flowchart LR\n  A --> B', { style: 'hand-drawn' })
+        expect(next.svg).toContain('data-frozen-backend="v2"')
+        expect(next.receipt.executionDecision?.backend).toMatchObject({ version: '2.0.0', hostPolicy: true })
+      }
+      expect(policyCalls).toBe(3)
     } finally {
       unregisterV2?.()
       unregisterV1()
