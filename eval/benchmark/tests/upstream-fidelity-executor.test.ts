@@ -45,11 +45,12 @@ test('infrastructure and unsupported assertion capabilities never satisfy origin
 })
 
 test('pure helpers and sync matchers around async calls cannot manufacture public parser evidence', async () => {
-  const files = [{ family: 'pie', path: '/pinned/async.spec.js', text: `import pie from './pieParser.js';it('pure helper',()=>expect(2).toBe(2));it('sync async mismatch',()=>expect(()=>pie.parser.parse('pie\\n"A":1')).not.toThrow());describe.skip('disabled group',()=>{it('disabled child',()=>expect(false).toBe(true))})` }]
+  const files = [{ family: 'pie', path: '/pinned/async.spec.js', text: `import pie from './pieParser.js';it('pure helper',()=>expect(2).toBe(2));it('failing private helper',()=>expect(2).toBe(3));it('sync async mismatch',()=>expect(()=>pie.parser.parse('pie\\n"A":1')).not.toThrow());describe.skip('disabled group',()=>{it('disabled child',()=>expect(false).toBe(true))})` }]
   const result = await executeProjectedUpstreamFiles(files, async () => ({ status: 'accepted', view: {} }))
-  expect(result.callbacks.map((row: any) => row.status)).toEqual(['unavailable', 'unavailable', 'skipped-upstream'])
+  expect(result.callbacks.map((row: any) => row.status)).toEqual(['unavailable', 'unavailable', 'unavailable', 'skipped-upstream'])
   expect(result.callbacks[0]!.reason).toContain('no target-specific evidence')
-  expect(result.callbacks[1]!.reason).toContain('asynchronous public parse')
+  expect(result.callbacks[1]!.reason).toContain('no target-specific evidence')
+  expect(result.callbacks[2]!.reason).toContain('asynchronous public parse')
 })
 
 test('original rejects assertions invoke async functions and retain actual public rejection evidence', async () => {
@@ -69,4 +70,16 @@ test('strict private prototypes cannot become a passing structural-only assertio
   const result = await executeProjectedUpstreamFiles(files, async () => ({ status: 'accepted', view: { getNode: () => new PrivateNode() } }))
   expect(result.callbacks[0]!.status).toBe('unavailable')
   expect(result.callbacks[0]!.reason).toContain('Private prototype')
+})
+
+
+test('Vitest diagnostic messages do not negate assertions and public parses cannot invent cumulative private DB state', async () => {
+  const files = [{ family: 'flowchart', path: '/pinned/diagnostic-state.spec.js', text: `import flow from './flowParser.ts';
+it('diagnostic message',()=>{flow.parser.parse('flowchart LR\\nA');expect(flow.parser.yy.getEdges(),'authored diagnostic').toBeDefined();expect(undefined,'explicit not').not.toBeDefined()});
+it('cumulative private state',()=>{flow.parser.parse('flowchart LR\\nA');flow.parser.parse('flowchart LR\\nB');expect(flow.parser.yy.getEdges()).toHaveLength(2)});
+it('explicit clear',()=>{flow.parser.parse('flowchart LR\\nA');flow.parser.yy.clear();flow.parser.parse('flowchart LR\\nB');expect(flow.parser.yy.getEdges()).toHaveLength(1)})` }]
+  const result = await executeProjectedUpstreamFiles(files, async () => ({ status: 'accepted', view: { getEdges: () => [{ start: 'A', end: 'B' }] } }))
+  expect(result.callbacks.map((row: any) => row.status)).toEqual(['passed', 'unavailable', 'passed'])
+  expect(result.callbacks[0]!.assertions.map((row: any) => row.negated)).toEqual([false, true])
+  expect(result.callbacks[1]!.reason).toContain('cumulative private DB state')
 })

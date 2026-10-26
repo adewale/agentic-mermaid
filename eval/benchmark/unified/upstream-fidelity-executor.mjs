@@ -58,8 +58,9 @@ export async function executeProjectedUpstreamFiles(files, acquire, options = {}
     let declarationLine, state, prepared = new Map(), context
     const unavailable = reason => { state?.unavailable.push(reason); throw new UpstreamCapabilityUnavailable(reason) }
     const db = new Proxy({}, { get(_target, key) {
-      if (key === 'clear') return () => { if (state) state.view = undefined }
+      if (key === 'clear') return () => { if (state) { state.view = undefined; state.parsesSinceClear = 0 } }
       if (key === 'then') return undefined
+      if (state?.view && state.parsesSinceClear > 1) return unavailable('Original callback observes cumulative private DB state after multiple parser invocations without clear; independent public acquisitions cannot supply that state')
       if (typeof state?.view?.[key] === 'function') return (...args) => state.view[key](...args)
       if (state?.view && key in state.view) return state.view[key]
       return deferredUnavailable(`Unprojected upstream DB capability ${file.family}.${String(key)}`)
@@ -68,6 +69,7 @@ export async function executeProjectedUpstreamFiles(files, acquire, options = {}
       const text = typeof alternate === 'string' && typeof source === 'string' && !source.includes('\n') ? alternate : source
       if (typeof text !== 'string') return unavailable('Upstream parser invocation does not supply Mermaid source text')
       state.sources.add(text)
+      state.parsesSinceClear++
       if (!prepared.has(text)) { state.pending.add(text); throw new PreparePublicSource() }
       const result = prepared.get(text)
       if (result.status === 'unavailable' || result.status === 'unsupported') return unavailable(result.error ?? `Public ${file.family} parser/model unavailable`)
@@ -80,7 +82,7 @@ export async function executeProjectedUpstreamFiles(files, acquire, options = {}
       state.view = result.view
       return asynchronous ? Promise.resolve() : undefined
     } }
-    const expect = (actual, negated = false, settled = false) => {
+    const expectation = (actual, negated = false, settled = false) => {
       const check = (passed, matcher, expected, value = actual) => {
         if (actual?.[missingCapability] || expected?.[missingCapability]) return unavailable(actual?.[missingCapability] ?? expected?.[missingCapability])
         const pass = negated ? !passed : passed
@@ -97,9 +99,9 @@ export async function executeProjectedUpstreamFiles(files, acquire, options = {}
         check(pass, 'toThrow', expected, error?.message ?? '<no public source rejection>')
       }
       const methods = {
-        get not() { return expect(actual, !negated, settled) },
-        get resolves() { return new Proxy({}, { get(_target, key) { if (key === 'not') return new Proxy({}, { get(_target2, matcher) { return async (...args) => expect(await actual, true, true)[matcher](...args) } }); return async (...args) => expect(await actual, negated, true)[key](...args) } }) },
-        get rejects() { return new Proxy({}, { get(_target, key) { return async (...args) => { let error; try { await (typeof actual === 'function' ? actual() : actual) } catch (caught) { error = caught }; if (!error) return check(false, 'rejects.' + String(key), args); if (!(error instanceof PublicSourceRejection)) throw error; return expect(error, negated, true)[key](...args) } } }) },
+        get not() { return expectation(actual, !negated, settled) },
+        get resolves() { return new Proxy({}, { get(_target, key) { if (key === 'not') return new Proxy({}, { get(_target2, matcher) { return async (...args) => expectation(await actual, true, true)[matcher](...args) } }); return async (...args) => expectation(await actual, negated, true)[key](...args) } }) },
+        get rejects() { return new Proxy({}, { get(_target, key) { return async (...args) => { let error; try { await (typeof actual === 'function' ? actual() : actual) } catch (caught) { error = caught }; if (!error) return check(false, 'rejects.' + String(key), args); if (!(error instanceof PublicSourceRejection)) throw error; return expectation(error, negated, true)[key](...args) } } }) },
         toBe: expected => check(Object.is(actual, expected), 'toBe', expected),
         toEqual: expected => check(matches(actual, expected), 'toEqual', expected),
         toStrictEqual: expected => { if (!strictPortable(actual) || !strictPortable(expected)) return unavailable('Private prototype/sparse-array strict equality is outside this public-model projection'); return check(matches(actual, expected), 'toStrictEqual', expected) },
@@ -125,6 +127,7 @@ export async function executeProjectedUpstreamFiles(files, acquire, options = {}
       }
       return new Proxy(methods, { get(target, key) { if (key in target) return target[key]; return () => unavailable('Unprojected assertion matcher ' + String(key)) } })
     }
+    const expect = (actual, _diagnosticMessage) => expectation(actual)
     expect.arrayContaining = values => ({ [asymmetric]: actual => Array.isArray(actual) && values.every(value => actual.some(item => matches(item, value))) })
     expect.objectContaining = value => ({ [asymmetric]: actual => matches(actual, value, true) })
     expect.anything = () => ({ [asymmetric]: actual => actual != null })
@@ -165,7 +168,7 @@ export async function executeProjectedUpstreamFiles(files, acquire, options = {}
       prepared = new Map()
       let row
       for (let attempt = 0; attempt < (options.preparationLimit ?? 2000); attempt++) {
-        state = { view: undefined, sources: new Set(), pending: new Set(), unavailable: [], assertions: [], rejections: 0 }
+        state = { view: undefined, sources: new Set(), pending: new Set(), unavailable: [], assertions: [], rejections: 0, parsesSinceClear: 0 }
         let error
         try {
           for (const hook of [...callback.beforeAll, ...callback.before]) { context.__call = hook; await vm.runInContext('__call()', context, { timeout: options.callbackTimeoutMs ?? 2000 }) }
@@ -176,7 +179,7 @@ export async function executeProjectedUpstreamFiles(files, acquire, options = {}
           for (const source of state.pending) { try { prepared.set(source, await acquire(source, file.family)) } catch (caught) { prepared.set(source, { status: 'unavailable', error: 'Public acquisition failed: ' + String(caught.message ?? caught) }) } }
           continue
         }
-        const unavailableReason = state.unavailable[0] ?? (!state.sources.size && !error ? 'Original callback did not request the supplied public parser; no target-specific evidence' : undefined) ?? (error && !(error instanceof assert.AssertionError || error instanceof PublicSourceRejection) ? String(error.message ?? error) : undefined)
+        const unavailableReason = state.unavailable[0] ?? (error instanceof UpstreamCapabilityUnavailable ? error.message : undefined) ?? (!state.sources.size ? 'Original callback did not request the supplied public parser; no target-specific evidence' : undefined) ?? (error && !(error instanceof assert.AssertionError || error instanceof PublicSourceRejection) ? String(error.message ?? error) : undefined)
         row = { family: file.family, path: file.path, name: callback.name, line: callback.line, status: unavailableReason ? 'unavailable' : error ? 'failed' : state.assertions.length ? 'passed' : 'unavailable', assertions: state.assertions, sources: [...state.sources], targetRejections: state.rejections, preparationReplays: attempt, ...(unavailableReason ? { reason: unavailableReason } : error ? { reason: String(error.message ?? error) } : !state.assertions.length ? { reason: 'Original callback executed no projected assertions' } : {}) }
         break
       }
