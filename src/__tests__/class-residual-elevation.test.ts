@@ -232,13 +232,28 @@ ${body}`
     }
   })
 
-  test('a flattened header with no safe detour is a diagnosed layout failure', () => {
+  test('flattened headers with zero authored padding retain a clear repaired relationship', () => {
     const source = 'classDiagram\n namespace Company.Platform { class API }\n namespace Vendor.Platform { class Worker }\n API --> Worker : invokes'
     const options = { class: { hierarchicalNamespaces: false }, style: { roles: { group: { paddingY: 0 } } } }
-    expect(() => renderMermaidSVG(source, options)).toThrow('cannot safely avoid namespace header Vendor.Platform')
+    const positioned = layoutClassDiagram(parseClassDiagram(lines(source)), options)
+    expect(positioned.namespaces.map(namespace => namespace.id)).toEqual(['Company.Platform', 'Vendor.Platform'])
+    expect(positioned.relationships.map(relation => [relation.from, relation.to, relation.label])).toEqual([['API', 'Worker', 'invokes']])
+    const points = positioned.relationships[0]!.points
+    expect(points.length).toBeGreaterThan(2)
+    for (let index = 1; index < points.length; index++) {
+      const a = points[index - 1]!, b = points[index]!
+      expect(a.x === b.x || a.y === b.y).toBe(true)
+      for (const namespace of positioned.namespaces) {
+        const crossesHeader = a.x === b.x
+          ? a.x > namespace.x - 0.5 && a.x < namespace.x + namespace.width + 0.5 && Math.max(a.y, b.y) > namespace.y - 0.5 && Math.min(a.y, b.y) < namespace.y + namespace.headerHeight + 0.5
+          : a.y > namespace.y - 0.5 && a.y < namespace.y + namespace.headerHeight + 0.5 && Math.max(a.x, b.x) > namespace.x - 0.5 && Math.min(a.x, b.x) < namespace.x + namespace.width + 0.5
+        expect(crossesHeader, namespace.id).toBe(false)
+      }
+    }
+    expect(renderMermaidSVG(source, options)).toContain('data-from="API" data-to="Worker"')
     const result = verifyMermaid(source, { renderOptions: options })
-    expect(result.ok).toBe(false)
-    expect(result.warnings).toContainEqual(expect.objectContaining({ code: 'INTERNAL_ERROR', reason: expect.stringContaining('cannot safely avoid namespace header Vendor.Platform'), defaultRender: 'fails' }))
+    expect(result.ok).toBe(true)
+    expect(result.warnings.some(warning => warning.code === 'INTERNAL_ERROR')).toBe(false)
   })
 
   test.each(['elk', 'agentic'] as const)('official flattened namespace fanout retains full paths and clears headers with %s', backend => {

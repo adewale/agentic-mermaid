@@ -417,6 +417,17 @@ export function repairClassNoteSeats(diagram: PositionedClassDiagram, style: Res
         )
       }
       candidates.push({ ...note, x: diagram.width + 24, y: target.y, targetX: target.x + target.width, targetY: target.y + target.height / 2, noteX: diagram.width + 24, noteY: target.y + note.height / 2 })
+      // A neighboring column or an endpoint marker can block every midpoint
+      // seat. Try the lower corners without changing a relationship's route.
+      const radius = Math.min(style.cornerRadius ?? 0, target.width / 2, target.height / 2)
+      for (let lane = 0; lane < Math.max(4, diagram.notes.length + 1); lane++) {
+        const y = target.y + target.height + 12 + lane * (note.height + 12)
+        for (const right of [true, false]) {
+          const center = target.x + (right ? target.width : 0)
+          const contact = target.x + (right ? Math.min(target.width * 0.75, target.width - radius) : Math.max(target.width * 0.25, radius))
+          candidates.push({ ...note, x: center - note.width / 2, y, targetX: contact, targetY: target.y + target.height, noteX: center, noteY: y })
+        }
+      }
     } else candidates.push({ ...note, x: padding, y: diagram.height + 16 })
     const seat = candidates.find(candidate => candidate.x >= padding && candidate.y >= padding && safe(candidate, i))
     if (!seat) throw new LayoutCertificationError([{ strategy: 'class-owned-note', violations: [`No safe note seat for ${note.for ?? 'unattached annotation'}`] }])

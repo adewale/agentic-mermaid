@@ -522,7 +522,7 @@ note "free note 37"
   })
 })
 
-import { classCarrierEntersMarker, classMarkerEntersBox, classNewMiterEntersMarker, classSegmentEntersBox, repairClassHeaderRoutes } from '../class/owned-surfaces.ts'
+import { classCarrierEntersMarker, classMarkerEntersBox, classNewMiterEntersMarker, classSegmentEntersBox, repairClassHeaderRoutes, repairClassNoteSeats } from '../class/owned-surfaces.ts'
 import { classMarkerPieces } from '../class/relationship-paint.ts'
 import * as elk from '../elk-instance.ts'
 import { resolveRenderStyle } from '../styles.ts'
@@ -613,6 +613,41 @@ describe('complete Class owned surfaces', () => {
         spy.mockRestore()
       }
     })
+})
+
+test.each(['A', 'C'])('a note for %s can clear marked faces and adjacent columns through a corner seat', targetId => {
+  const classes = [
+    { id: 'A', x: 40, y: 40 }, { id: 'B', x: 40, y: 148.9 },
+    { id: 'C', x: 180, y: 40 }, { id: 'D', x: 180, y: 148.9 },
+    { id: 'E', x: 320, y: 40 }, { id: 'F', x: 320, y: 148.9 },
+  ].map(node => ({ ...node, label: node.id, width: 120, height: 48.9, headerHeight: 32.9, attrHeight: 8, methodHeight: 8, attributes: [], methods: [] }))
+  const target = classes.find(node => node.id === targetId)!
+  const diagram: import('../class/types.ts').PositionedClassDiagram = {
+    width: 634, height: 240, classes, namespaces: [],
+    relationships: [
+      { from: 'A', to: 'B', type: 'inheritance', markerAt: 'both', points: [{ x: 100, y: 88.9 }, { x: 100, y: 148.9 }] },
+      { from: 'C', to: 'D', type: 'composition', markerAt: 'both', points: [{ x: 240, y: 88.9 }, { x: 240, y: 148.9 }] },
+      { from: 'E', to: 'F', type: 'dependency', markerAt: 'both', points: [{ x: 380, y: 88.9 }, { x: 380, y: 148.9 }] },
+    ],
+    notes: [{ for: targetId, text: 'base type', x: 504, y: 40, width: 90, height: 40, targetX: target.x + target.width, targetY: 64.45, noteX: 504, noteY: 60 }],
+  }
+  const relationships = structuredClone(diagram.relationships)
+  repairClassNoteSeats(diagram, resolveRenderStyle({}, CLASS_STYLE_DEFAULTS), 40)
+  expect(diagram.relationships).toEqual(relationships)
+  const note = diagram.notes[0]!
+  expect([note.for, note.text]).toEqual([targetId, 'base type'])
+  expect(note.targetY).toBe(target.y + target.height)
+  expect(note.targetX!).toBeGreaterThan(target.x + 66)
+  expect(note.targetX!).toBeLessThan(target.x + target.width)
+  // The gap between the two marked columns is literal independent evidence:
+  // left marker ink ends before x+66; the next marker begins after x+193.
+  expect(note.x).toBeGreaterThan(target.x + 66)
+  expect(note.x + note.width).toBeLessThan(target.x + 193)
+  expect(note.y).toBeGreaterThan(88.9)
+  expect(note.y + note.height).toBeLessThan(148.9)
+  expect(note.noteX).toBeGreaterThanOrEqual(note.x + 2)
+  expect(note.noteX).toBeLessThanOrEqual(note.x + note.width - 2)
+  expect(note.noteY).toBe(note.y)
 })
 
 test('header detour cannot cross the preserved source prefix', () => {
