@@ -14,6 +14,7 @@ import { join } from 'node:path'
 import { BROWSER_EDITOR_ADAPTER } from '../browser.ts'
 import { resolveEditorRenderOptions } from '../editor-render-options.ts'
 import { PNG_DEFAULT_SCALE } from '../png-contract.ts'
+import { HOSTED_FONT_RESOURCES } from '../font-manifest.ts'
 import { SHARED_RENDER_OPTION_FIELDS, sharedRenderOptionsJsonSchema, validateSerializableRenderOptions } from '../render-contract.ts'
 import { verifyNoExternalRefs } from '../output-security.ts'
 import { WARNING_TIER } from '../agent/types.ts'
@@ -69,6 +70,64 @@ describe('editor render-option boundary', () => {
     expect(resolveEditorRenderOptions({ style: 'hand-drawn' }, dependencies)).toMatchObject({ style: 'hand-drawn', seed: 0 })
     expect(resolveEditorRenderOptions({ style: 'hand-drawn', seed: Number.NaN }, dependencies)).toMatchObject({ seed: 0 })
     expect(resolveEditorRenderOptions({ style: 'crisp', seed: 7 }, dependencies)).not.toHaveProperty('seed')
+  })
+})
+
+describe('editor generated font catalog consumer', () => {
+  test('hosted, system and loaded fonts retain labels, filtering, selection and render behavior', () => {
+    const hosted = [...new Set(HOSTED_FONT_RESOURCES.map(font => font.family))]
+      .map(family => ({ name: family, value: family, group: 'Self-hosted' }))
+    const catalog = [...hosted,
+      { name: 'System UI', value: 'system-ui', group: 'System' },
+      { name: 'Arial', value: 'Arial', group: 'System' },
+      { name: 'Georgia', value: 'Georgia', group: 'System' },
+      { name: 'Courier New', value: 'Courier New', group: 'System' },
+    ]
+    const document = Object.assign(new FakeDocument(), {
+      fonts: new Set([{ family: '"Browser Family"' }, { family: '"Browser Family"' }]),
+    })
+    for (const id of ['font-popup', 'font-search', 'font-list', 'font-select-btn', 'font-select-label', 'cfg-padding', 'cfg-padding-slider']) {
+      document.element(id === 'font-select-btn' ? 'button' : 'div', { id })
+    }
+    const list = document.getElementById('font-list')!
+    Object.defineProperty(list, 'innerHTML', { set: () => list.replaceChildren() })
+    const applied: string[] = [], renders: number[] = []
+    let closes = 0
+    const picker = evaluateBrowserScript<{ openFontPopup(): void; readonly font: string }>(editorScript('font-picker.js'), {
+      document,
+      EDITOR_PRESET_FONTS: catalog,
+      cfgFont: hosted[0]!.value,
+      createPopupController: (options: { beforeOpen(): void }) => ({
+        open: () => options.beforeOpen(), close: () => { closes++ },
+      }),
+      positionAnchoredPopup: () => {},
+      readConfig: () => applied.push(picker.font),
+      scheduleRender: (delay: number) => renders.push(delay),
+    }, '({ openFontPopup, get font() { return cfgFont } })')
+    picker.openFontPopup()
+    const items = list.querySelectorAll('.font-item')
+    expect(items.map(item => item.querySelector('.font-item-name')!.textContent))
+      .toEqual([...catalog.map(font => font.name), 'Browser Family'])
+    expect(list.querySelectorAll('.font-section-label').map(label => label.textContent))
+      .toEqual(['Self-hosted', 'System', 'Loaded in browser'])
+    for (const [index, font] of catalog.entries()) {
+      expect(items[index]!.getAttribute('role')).toBe('option')
+      expect(items[index]!.getAttribute('aria-selected')).toBe(String(index === 0))
+      expect(items[index]!.querySelector('.font-item-preview')!.style.fontFamily).toBe(`${font.value}, sans-serif`)
+    }
+    items[catalog.findIndex(font => font.value === 'system-ui')]!.click()
+    expect(picker.font).toBe('system-ui')
+    expect(document.getElementById('font-select-label')!.textContent).toBe('System UI')
+    expect(document.activeElement).toBe(document.getElementById('font-select-btn'))
+    const search = document.getElementById('font-search')!
+    search.value = 'courier'
+    search.dispatch('input')
+    expect(list.querySelectorAll('.font-item-name').map(item => item.textContent)).toEqual(['Courier New'])
+    list.querySelector('.font-item')!.click()
+    expect(picker.font).toBe('Courier New')
+    expect(applied).toEqual(['system-ui', 'Courier New'])
+    expect(renders).toEqual([0, 0])
+    expect(closes).toBe(2)
   })
 })
 
