@@ -131,7 +131,7 @@ export async function runFidelityCampaign(options: FidelityRunOptions): Promise<
               await observer.evaluate(() => { document.body.style.margin = '0'; document.body.style.background = '#fff' })
               paint = await observer.evaluate(inspectFidelityPaint, { family: testCase.family, expected: testCase.expected, paint: testCase.paint })
               for (const item of paint!.checks) add('browser-owned-ink', item.criterion, item.status, item.actual, item.expected, item.scope)
-              const quantitative = await observer.evaluate(inspectQuantitativePaint, { family: testCase.family, expected: testCase.expected, source: testCase.source })
+              const quantitative = await observer.evaluate(inspectQuantitativePaint, { family: testCase.family, expected: testCase.expected, source: testCase.source, nodes: paint!.nodes })
               for (const item of quantitative) add('browser-owned-ink', item.criterion, item.status, item.actual, item.expected, item.scope)
               const stem = `${index}-${testCase.id.replace(/[^a-zA-Z0-9_.-]/g, '_')}`, svgPath = join(directory, stem + '.svg'), pngPath = join(directory, stem + '.png')
               writeFileSync(svgPath, rendered.svg); await observer.locator('svg').first().screenshot({ path: pngPath, timeout: 20_000 }); artifacts.push(svgPath, pngPath)
