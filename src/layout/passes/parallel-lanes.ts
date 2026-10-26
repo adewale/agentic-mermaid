@@ -186,20 +186,34 @@ export function applySymmetricParallelEdgeLanes(
  * duplicates use private lanes below. Fully labeled pairs are owned by
  * `applySymmetricParallelEdgeLanes`; other cases remain with route certification.
  */
-function parallelLaneProposalAllowed(edges: PositionedEdge[], proposed: Array<{ edge: PositionedEdge; points: Point[] }>, options?: { allowCrossingsForOverlap: boolean; labelClearance?: { nodes: PositionedNode[]; style: ResolvedRenderStyle } }): boolean {
+type ParallelLaneProposal = { edge: PositionedEdge; points: Point[]; label?: Point }
+type ParallelLabelClearance = { nodes: PositionedNode[]; style: ResolvedRenderStyle }
+
+function parallelLaneLabelAdmission(edges: PositionedEdge[], proposed: ParallelLaneProposal[], clearance: ParallelLabelClearance): boolean {
+  const proposals = new Map(proposed.map(candidate => [candidate.edge, candidate]))
+  const involved = new Set<number>()
+  const candidate = edges.map((edge, index) => {
+    const proposal = proposals.get(edge)
+    if (!proposal) return edge
+    involved.add(index)
+    // Prove exactly the seat the publisher will use. A guessed midpoint may
+    // reject a safe seat or certify geometry that will never be emitted.
+    return { ...edge, points: proposal.points, labelPosition: proposal.label }
+  })
+  const { nodes, style } = clearance
+  return measureLabelConflicts({ nodes, edges: candidate }, style, involved).total <= measureLabelConflicts({ nodes, edges }, style, involved).total
+}
+
+function parallelLaneProposalAllowed(edges: PositionedEdge[], proposed: ParallelLaneProposal[], options?: { allowCrossingsForOverlap: boolean; labelClearance?: ParallelLabelClearance }): boolean {
   const points = new Map(proposed.map(candidate => [candidate.edge, candidate.points]))
   const involved = new Set<number>()
   const candidate = edges.map((edge, index) => {
     const route = points.get(edge)
     if (!route) return edge
     involved.add(index)
-    if (options?.labelClearance) return { ...edge, points: route, labelPosition: edge.label ? longestSegmentMidpoint(route) : undefined }
     return { ...edge, points: route }
   })
-  if (options?.labelClearance) {
-    const { nodes, style } = options.labelClearance
-    if (measureLabelConflicts({ nodes, edges: candidate }, style, involved).total > measureLabelConflicts({ nodes, edges }, style, involved).total) return false
-  }
+  if (options?.labelClearance && !parallelLaneLabelAdmission(edges, proposed, options.labelClearance)) return false
   const extraCrossings = countEdgeCrossings(candidate, involved) - countEdgeCrossings(edges, involved)
   if (!options?.allowCrossingsForOverlap) return extraCrossings <= 0
   const repairedPairs = countParallelRouteOverlaps(edges, involved) - countParallelRouteOverlaps(candidate, involved)
@@ -352,7 +366,7 @@ export function applyParallelDuplicateLanes(
       }
       proposed.push({ edge, points: clipped, label: edge.label ? longestSegmentMidpoint(clipped) : undefined })
     }
-    if (!parallelLaneProposalAllowed(edges, proposed, proposalOptions)) return false
+    if (!parallelLaneProposalAllowed(edges, proposed, { allowCrossingsForOverlap: true })) return false
     if (placement !== 'original') {
       const outside = edges.filter(edge => !bucket.includes(edge))
       const candidateRoutes = [...outside, ...proposed.map(p => ({ ...p.edge, points: p.points }))]
@@ -371,6 +385,7 @@ export function applyParallelDuplicateLanes(
         labels.push(haloBoxAt(p.edge, p.label))
       }
     }
+    if (proposalOptions.labelClearance && !parallelLaneLabelAdmission(edges, proposed, proposalOptions.labelClearance)) return false
     for (const { edge, points, label } of proposed) {
       edge.points = points
       edge.labelPosition = label

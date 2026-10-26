@@ -15,7 +15,7 @@ const { assessLayout, countOpposingRouteOverlaps, countParallelRouteOverlaps, ha
 import { resolveRenderStyle } from '../styles.ts'
 import { labelRect } from '../route-contracts.ts'
 import * as routeContracts from '../route-contracts.ts'
-import { applySymmetricParallelEdgeLanes } from '../layout/passes/index.ts'
+import { applySymmetricParallelEdgeLanes, applyParallelDuplicateLanes } from '../layout/passes/index.ts'
 import { graphEdgeTextBlock } from '../graph-text.ts'
 import { createTextMeasurementExecution, withTextMeasurementExecution } from '../text-measurement-profile.ts'
 import type { PositionedEdge, PositionedGraph, PositionedNode } from '../types.ts'
@@ -286,6 +286,39 @@ S1["same word ok"] --> D`],
     expect(edges[0]!.labelPosition!.x + (block.width + 16) / 2).toBeLessThanOrEqual(200 - 18)
     expect(edges[1]!.labelPosition!.x - (block.width + 16) / 2).toBeGreaterThanOrEqual(300 + 18)
     if (retained) for (const edge of edges) expect(edge.labelBlock).toBe(block)
+  })
+
+  test.each([false, true])('mixed duplicate admission proves the label seat it publishes (Native clearance: %s)', native => {
+    const graph = parseMermaid('flowchart LR\nA-->B\nA-->|first<br/>second<br/>third|B\nO\nP\nQ')
+    const nodes: PositionedNode[] = [
+      { id: 'A', label: 'A', shape: 'rectangle', x: 0, y: 0, width: 120, height: 160 },
+      { id: 'B', label: 'B', shape: 'rectangle', x: 400, y: 100, width: 120, height: 160 },
+      { id: 'O', label: 'O', shape: 'rectangle', x: 250, y: 202, width: 10, height: 20 },
+      { id: 'P', label: 'P', shape: 'rectangle', x: 275, y: 202, width: 10, height: 20 },
+      { id: 'Q', label: 'Q', shape: 'rectangle', x: 380, y: 100, width: 10, height: 10 },
+    ]
+    // The longest-segment midpoint covers O and P. A later seat on the same
+    // shaft is clear; Q blocks the mirrored route, so rejecting a fictitious
+    // midpoint would leave both authored relationships collapsed together.
+    const edges: PositionedEdge[] = graph.edges.map((edge, edgeIndex) => ({
+      ...edge, edgeIndex,
+      points: [{ x: 120, y: 80 }, { x: 260, y: 80 }, { x: 260, y: 180 }, { x: 400, y: 180 }],
+      ...(edge.label ? { labelPosition: { x: 260, y: 80 } } : {}),
+    }))
+    const style = resolveRenderStyle()
+    applyParallelDuplicateLanes(nodes, edges, [], graph, new Set(), style, native ? style : undefined)
+    expect(countParallelRouteOverlaps(edges)).toBe(0)
+    const box = labelRect(edges[1]!, style)!
+    expect(box.x).toBeGreaterThan(285)
+    for (const node of nodes) expect(Math.min(box.x + box.w, node.x + node.width) > Math.max(box.x, node.x)
+      && Math.min(box.y + box.h, node.y + node.height) > Math.max(box.y, node.y)).toBe(false)
+    for (let i = 1; i < edges[0]!.points.length; i++) {
+      const a = edges[0]!.points[i - 1]!, b = edges[0]!.points[i]!
+      const enters = a.x === b.x
+        ? a.x > box.x && a.x < box.x + box.w && Math.max(a.y, b.y) > box.y && Math.min(a.y, b.y) < box.y + box.h
+        : a.y > box.y && a.y < box.y + box.h && Math.max(a.x, b.x) > box.x && Math.min(a.x, b.x) < box.x + box.w
+      expect(enters).toBe(false)
+    }
   })
 
   test('one crossing may resolve one actual collapsed duplicate route, without losing either authored edge', () => {
