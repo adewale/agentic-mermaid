@@ -56,7 +56,9 @@ for (const family of ['flowchart', 'state'] as const) test(`native ${family} sna
       decision(hitRequest, 'agentic', 'primary')
       const again = observe(() => positionFamilyForNativeRender(request('svg')))
       assert.deepEqual(again.stages, [])
-      assert.strictEqual(again.value, hit.value)
+      assert.notStrictEqual(again.value, hit.value)
+      assert.strictEqual(again.value.positioned, hit.value.positioned)
+      assert.equal(Object.isFrozen(again.value), true)
       assert.strictEqual(retainedFamilyProjection(again.value), retainedFamilyProjection(hit.value))
 
       const companionRequest = request('ascii')

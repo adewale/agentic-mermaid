@@ -384,7 +384,7 @@ it('standalone editor renders and verifies with one persistent Blob worker', asy
       const compound = 'flowchart TB\nsubgraph One\n A --> B\nend\nsubgraph Two\n C --> D\nend\nOne --> C'
       const promoted = await api.renderMermaidSVGWithReceipt(compound, { graphLayout: { backend: 'agentic' } })
       // Use the unchanged private-rank limit as the fallback witness.
-      const fallbackSource = ['flowchart LR', 'subgraph One', ' A[Leaf]', 'end', 'One ' + '-'.repeat(2049) + '> A'].join('\n')
+      const fallbackSource = ['flowchart LR', 'subgraph One', ' A[Leaf]', ' B[Tail]', ' A ' + '-'.repeat(2049) + '> B', 'end'].join('\n')
       const fallback = await api.renderMermaidSVGWithReceipt(fallbackSource, {
         graphLayout: { backend: 'agentic', fallback: 'elk' },
       })

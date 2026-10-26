@@ -32,7 +32,7 @@ describe('one positioned artifact for preview and verification', () => {
   ] as const)('retains $name selection while positioning and verifying a preview once', ({ backend, frame, fallback }) => {
     // Only the fallback row exceeds the unchanged private-rank limit.
     const source = fallback
-      ? `flowchart LR\nsubgraph One\n A[Leaf]\nend\nOne ${'-'.repeat(2049)}> A`
+      ? `flowchart LR\nsubgraph One\n A[Leaf]\n B[Tail]\n A ${'-'.repeat(2049)}> B\nend`
       : `flowchart TB\nsubgraph One\n A --> B\nend\nsubgraph Two\n C --> D\nend\n${frame ? 'One' : 'B'} -->|handoff| C`
     const options = { security: 'strict' as const, embedFontImport: false,
       graphLayout: { backend, ...(fallback ? { fallback: 'elk' as const } : {}) } }
