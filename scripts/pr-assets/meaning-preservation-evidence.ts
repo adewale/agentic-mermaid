@@ -85,6 +85,13 @@ const stableRepresentativeCues = {
 const ownershipGoldenIds = new Set(['corpus/flowchart/94', 'corpus/flowchart/95', 'corpus/flowchart/96', 'corpus/flowchart/98', 'corpus/state/0', 'corpus/state/1', 'corpus/state/8', 'corpus/state/14', 'corpus/state/16', 'corpus/state/17', 'corpus/state/18', 'corpus/state/19'])
 const fixtures: Fixture[] = [
   {
+    id: 'flowchart-mixed-parallel-feedback',
+    title: 'Mixed parallel edges retain separate visible shafts around feedback',
+    source: 'flowchart TD\nA["ok"]\nB{"rendered"}\nC["ok"]\nD["ok"]\nE{"ok"}\nA --> B\nA --> C\nB --> D\nC --> E\nB -->|retry| A\nB -->|no| D',
+    captureLayout: true,
+    cue: 'Inspect both B-to-D shafts and arrowheads, and the gap between the no label pill and the unlabelled shaft. Before, the two edges collapse; after, the target-side jog clears the feedback loop and the pill clears its neighbour. The five node positions and all six authored edge meanings remain controls; downstream certification also changes the feedback route. This default-font witness does not prove arbitrary crowded multigraphs have feasible corridors.',
+  },
+  {
     id: 'flowchart-cosmetic-circle-approach',
     title: 'Layer alignment preserves the circle’s reserved outward shaft',
     source: 'flowchart BT\nP0{a longer label goes here} --> H1["hub one"]\nP1((x)) -->|warnings| H1["hub one"]\nQ1 --> P1\nP2(["errors"]) --> H1["hub one"]\nH1 -->|done| H2["hub two"]\nR0((done)) --> H2\nR1(["same word ok"]) --> H2\nR2[/"errors"/] -->|a longer label goes here| H2\nR3["warnings"] --> H2\nH2 --> Z["end"]',
