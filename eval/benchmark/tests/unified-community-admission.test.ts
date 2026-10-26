@@ -181,6 +181,9 @@ describe('matched family evidence and artifact alias guards', () => {
 describe('negative admission survives crashed workers', () => {
   test('retains first-attempt sidecar and withholds earlier core pass after contradictory restarted admission', async () => {
     const directory = mkdtempSync(join(tmpdir(), 'am-negative-attempts-'))
+    const referenceDir = process.env.MERMAID_REFERENCE_DIR
+    // This parser fixture uses our declared jsdom, not a sibling reference checkout.
+    process.env.MERMAID_REFERENCE_DIR = driver
     try {
       const module = join(directory, 'parser.mjs'),
         counter = join(directory, 'imports.txt')
@@ -207,6 +210,8 @@ describe('negative admission survives crashed workers', () => {
       expect(history.some((entry: any) => entry.attempt === 1 && entry.file.endsWith('.parser-admission.json') && entry.controls.length === 2)).toBe(true)
       expect(history.some((entry: any) => entry.attempt === 2 && entry.controls?.some((control: any) => control.actualAccepted === true))).toBe(true)
     } finally {
+      if (referenceDir === undefined) delete process.env.MERMAID_REFERENCE_DIR
+      else process.env.MERMAID_REFERENCE_DIR = referenceDir
       rmSync(directory, { recursive: true, force: true })
     }
   })
