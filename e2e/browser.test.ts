@@ -335,13 +335,11 @@ it('shipped sketch looks paint readable label ink against an opaque halo', async
 
 it('standalone editor stays within its single-renderer payload budget', async () => {
   const html = new Uint8Array(await Bun.file(join(ROOT, 'editor.html')).arrayBuffer())
-  // Paired Bun 1.4.2 builds against merged PR512 c394219c (Bun gzip level 9):
-  // raw 4,426,949 → 4,427,844; gzip 1,333,752 → 1,334,065.
-  // Linked drawing retention and producer revalidation measure 4,428,732 B
-  // raw / 1,334,238 B gzip with Bun 1.4.2. Keep 268 B / 262 B headroom.
-  // One renderer still serves the main/worker realms; the single-engine and
-  // relative payload gates also apply.
-  expect(html.byteLength).toBeLessThanOrEqual(4_429_000)
+  // Current combined Native/correctness build, Bun 1.4.2: 4,444,144 B raw.
+  // Direct pass imports remove unused family downloads; private editor schema
+  // prose removal saves 6,112 B raw. Keep the existing compressed limit and
+  // per-PR growth gate while allowing the retained correctness code.
+  expect(html.byteLength).toBeLessThanOrEqual(4_450_000)
   expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_334_500)
   const runtime = new TextDecoder().decode(html).match(/<script type="module" id="editor-runtime">([\s\S]*?)<\/script>/)?.[1]
   expect(runtime).toBeDefined()

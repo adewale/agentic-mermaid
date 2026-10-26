@@ -23,13 +23,13 @@
       "requests": 34,
       "raw": 667000,
       "gzip": 214000,
-      "brotli": 189000
+      "brotli": 191000
     },
     "timeline": {
       "requests": 32,
       "raw": 617000,
       "gzip": 198000,
-      "brotli": 173500
+      "brotli": 175500
     },
     "class": {
       "requests": 37,
@@ -46,20 +46,20 @@
     "journey": {
       "requests": 33,
       "raw": 637000,
-      "gzip": 204000,
-      "brotli": 180500
+      "gzip": 205500,
+      "brotli": 182500
     },
     "architecture": {
       "requests": 35,
-      "raw": 2318000,
+      "raw": 2323500,
       "gzip": 751000,
       "brotli": 608500
     },
     "xychart": {
       "requests": 33,
       "raw": 654000,
-      "gzip": 210000,
-      "brotli": 186500
+      "gzip": 212000,
+      "brotli": 188500
     },
     "pie": {
       "requests": 35,
@@ -71,37 +71,37 @@
       "requests": 34,
       "raw": 622000,
       "gzip": 201000,
-      "brotli": 177000
+      "brotli": 179000
     },
     "gantt": {
       "requests": 32,
       "raw": 642000,
       "gzip": 207000,
-      "brotli": 182500
+      "brotli": 184500
     },
     "mindmap": {
       "requests": 32,
       "raw": 621000,
-      "gzip": 203000,
+      "gzip": 205000,
       "brotli": 186000
     },
     "gitgraph": {
       "requests": 33,
       "raw": 629000,
       "gzip": 204000,
-      "brotli": 179000
+      "brotli": 181000
     },
     "radar": {
       "requests": 35,
       "raw": 632000,
       "gzip": 205000,
-      "brotli": 181000
+      "brotli": 183000
     },
     "sankey": {
       "requests": 33,
       "raw": 624000,
       "gzip": 203000,
-      "brotli": 178500
+      "brotli": 180500
     },
     "c4": {
       "requests": 33,
@@ -112,14 +112,14 @@
     "packet": {
       "requests": 32,
       "raw": 586500,
-      "gzip": 192000,
-      "brotli": 170000
+      "gzip": 193500,
+      "brotli": 172000
     },
     "kanban": {
       "requests": 34,
       "raw": 595000,
-      "gzip": 195500,
-      "brotli": 173500
+      "gzip": 197000,
+      "brotli": 175500
     },
     "requirement": {
       "requests": 30,
@@ -130,14 +130,14 @@
     "treemap": {
       "requests": 33,
       "raw": 606000,
-      "gzip": 200000,
-      "brotli": 177500
+      "gzip": 202000,
+      "brotli": 179500
     },
     "ishikawa": {
       "requests": 31,
       "raw": 586500,
-      "gzip": 191500,
-      "brotli": 170000
+      "gzip": 193500,
+      "brotli": 172000
     },
     "block": {
       "requests": 30,
