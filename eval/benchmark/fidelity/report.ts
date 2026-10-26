@@ -28,7 +28,7 @@ export function reviewFidelityCapabilities(rows: readonly BenchmarkObservation[]
 /** Read retained observations only. Rendering, acquisition and performance
  * workers are deliberately absent from this consumer's dependency graph. */
 export function writeFidelityComparison(options: FidelityReportOptions) {
-  assertBenchmarkExecutionAllowed()
+  assertBenchmarkExecutionAllowed(process.env, { mermaidOracle: false }) // Reads evidence; renders nothing.
   const core = read(options.core), community = options.community ? read(options.community) : undefined
   const caseIds: string[] = core.cases.map((item: any) => item.id)
   if (community && JSON.stringify(community.selectedCaseIds) !== JSON.stringify(caseIds)) throw Error('Community and core authored case universes differ; collect matching functional evidence before composition')

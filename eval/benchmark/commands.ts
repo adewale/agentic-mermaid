@@ -11,6 +11,7 @@ node commands.ts build [--out FRESH_DIRECTORY]
 node commands.ts run --project OWNER/TOOL --artifact-root INSTALLED_PACKAGE [options]
 node commands.ts fidelity:report --core REPORT [--community REPORT] --out DIRECTORY
 node commands.ts export --input FILE [--out FRESH_FILE]
+node commands.ts mermaid:install [--dir DIRECTORY]
 
 build defaults to portable/dist. run requires that compiled kit and uses Node 24;
 set NODE_BIN to its executable. A custom --out kit runs via node KIT/run.mjs.
@@ -29,7 +30,10 @@ Aliases: bench=agentic, portable:build=build. portable keeps legacy source-mode
 execution with its committed-source identity; run uses compiled measurement bytes.
 Maintainer checks: test, typecheck, lint. Full tests/typechecking include optional
 Agentic source adapters; run them in the Agentic checkout.
-All measurement commands reject CI. --help does not start a benchmark.
+All measurement commands reject CI. Benchmark runs and test refuse to start without
+the pinned Mermaid oracle: MERMAID_REFERENCE_DIR, default ../mermaid-reference beside
+the Agentic checkout or this package. mermaid:install installs that pin with npm.
+--help does not start a benchmark.
 `
 
 function sourceCheckout(): string {
@@ -78,6 +82,12 @@ async function main() {
     else process.stdout.write(output)
     return
   }
+  if (selected === 'mermaid:install') {
+    if (args.length && (args.length !== 2 || args[0] !== '--dir')) throw Error('Use mermaid:install [--dir DIRECTORY]')
+    const { installMermaidOracle, mermaidOracleDirectory } = await import('./portable/mermaid-oracle.ts')
+    console.log(JSON.stringify(installMermaidOracle(args[1] ? resolve(args[1]) : mermaidOracleDirectory()), null, 2))
+    return
+  }
   if (selected !== 'run' && !Object.hasOwn(neutral, selected) && !Object.hasOwn(source, selected) && !Object.hasOwn(checks, selected)) throw Error(`Unknown Trident command ${command}; use --help`)
   if (selected === 'build' && args.length === 1 && args[0] === '--help') {
     console.log('node commands.ts build [--out FRESH_DIRECTORY]\nDefault: portable/dist. Copy the complete generated kit and its manifest; execute run.mjs with plain Node 24.')
@@ -104,7 +114,8 @@ async function main() {
     if (!process.versions.bun) throw Error('Maintainer checks require Bun 1.4 or later')
     argv = checks[selected]!
   } else throw Error(`Unknown Trident command ${command}; use --help`)
-  assertBenchmarkExecutionAllowed()
+  // Building, static checks and evidence reports run nothing that consults Mermaid.
+  assertBenchmarkExecutionAllowed(process.env, { mermaidOracle: !['build', 'fidelity:report', 'typecheck', 'lint'].includes(selected) })
   const result = spawnSync(executable, [...argv, ...args], { cwd, stdio: 'inherit' })
   if (result.error) throw result.error
   process.exitCode = result.status ?? 1

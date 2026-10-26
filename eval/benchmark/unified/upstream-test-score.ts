@@ -7,6 +7,7 @@ import { admitCurrentReference } from '../../mermaid-modern-compat/reference.ts'
 import { assertBenchmarkExecutionAllowed } from '../ci-policy.ts'
 import type { BenchmarkObservation, UnifiedRunOptions, UnifiedSuiteResult } from './types.ts'
 import { inventoryUpstreamTests } from './upstream-test-inventory.ts'
+import { mermaidOracleDirectory, mermaidUpstreamDirectory } from '../portable/mermaid-oracle.ts'
 
 export const UPSTREAM_TEST_SCORE_PRODUCERS = ['eval/benchmark/unified/upstream-test-score.ts', 'eval/benchmark/unified/upstream-test-worker.mjs', 'eval/benchmark/unified/upstream-test-assertions.mjs', 'eval/benchmark/unified/upstream-test-inventory.ts', 'eval/mermaid-modern-compat/corpus.ts'] as const
 
@@ -40,8 +41,8 @@ export async function runUpstreamTestScoreSuite(options: UnifiedRunOptions): Pro
   const startedAt = new Date().toISOString(),
     driver = options.harnessRoot ?? options.root,
     target = options.packageRoot ?? options.root
-  const upstream = options.mermaidDir ?? process.env.MERMAID_UPSTREAM_DIR ?? resolve(driver, '../mermaid'),
-    reference = options.referenceDir ?? process.env.MERMAID_REFERENCE_DIR ?? resolve(driver, '../mermaid-reference')
+  const upstream = options.mermaidDir ?? mermaidUpstreamDirectory(),
+    reference = options.referenceDir ?? mermaidOracleDirectory()
   const observations: BenchmarkObservation[] = [],
     gaps: string[] = []
   mkdirSync(options.out, { recursive: true })

@@ -8,6 +8,7 @@ import { benchmarkContext } from './benchmark-context.ts'
 import { runRetainedSuite } from './retained-suite.ts'
 import { assertBenchmarkExecutionAllowed } from '../ci-policy.ts'
 import type { BenchmarkObservation, UnifiedRunOptions, UnifiedSuiteResult } from './types.ts'
+import { mermaidUpstreamDirectory } from '../portable/mermaid-oracle.ts'
 
 interface SupportOptions extends UnifiedRunOptions {
   mermaidDir?: string
@@ -28,7 +29,7 @@ export async function runStableSupportSuite(options: SupportOptions): Promise<Un
   const audit = readJson(join(harness, 'eval/benchmark/unified/stable-maturity-review.json')) as FamilyMaturityAudit
   const cases = requiredFamilyWorkloads()
   const node = options.nodeExecutable ?? execFileSync('node', ['-p', 'process.execPath'], { encoding: 'utf8' }).trim()
-  const upstream = options.mermaidDir ?? process.env.MERMAID_UPSTREAM_DIR ?? resolve(harness, '../mermaid')
+  const upstream = options.mermaidDir ?? mermaidUpstreamDirectory()
   const sources = ['packages/mermaid/src/docs/syntax/eventmodeling.md', 'packages/mermaid/src/docs/syntax/zenuml.md', 'packages/mermaid/src/diagrams/eventmodeling/detector.ts']
   const git = (...args: string[]) => execFileSync('git', args, { cwd: upstream, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
   if (git('rev-parse', 'HEAD') !== policy.pin.commit || git('status', '--porcelain', '--', ...sources)) throw Error('Required-family maturity review needs the clean pinned Mermaid source')

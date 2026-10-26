@@ -23,6 +23,7 @@ import { planFidelityCriteria, completeCriterionLedger, compareFidelityCriteria 
 import { inspectQuantitativePaint } from './paint-values.ts'
 import { assessMeaning, type AuthoredFidelityCase } from './meaning.ts'
 import { inspectFidelityPaint } from './paint.ts'
+import { mermaidOracleDirectory, mermaidUpstreamDirectory } from '../portable/mermaid-oracle.ts'
 
 export interface FidelityRunOptions extends UnifiedRunOptions { fidelityDiagnostic?: boolean; fidelityCaseIds?: string[] }
 const write = (path: string, value: unknown) => writeFileSync(path, JSON.stringify(value, null, 2) + '\n')
@@ -34,7 +35,7 @@ export async function runFidelityCampaign(options: FidelityRunOptions): Promise<
   const startedAt = new Date().toISOString(), root = options.harnessRoot ?? options.root, out = options.out
   if (!selectsCoreFidelity(options.communityProjects)) return { id: 'mermaid-fidelity', startedAt, finishedAt: startedAt, status: 'not-applicable', observations: [], artifacts: [], gaps: ['No core public-model project was selected; no source, reference, runtime, browser or output directory was prepared.'] }
   mkdirSync(out, { recursive: true })
-  const reference = options.referenceDir ?? resolve(root, '../mermaid-reference'), upstream = options.mermaidDir ?? resolve(root, '../mermaid')
+  const reference = options.referenceDir ?? mermaidOracleDirectory(), upstream = options.mermaidDir ?? mermaidUpstreamDirectory()
   const sourcePin = admitCurrentReference(upstream, reference)
   const targets: Array<{ tool: MeaningTool; project: string; packageRoot: string; entry: string; version: string }> = []
   for (const tool of ['mermaid', 'agentic', 'pele'] as const) {

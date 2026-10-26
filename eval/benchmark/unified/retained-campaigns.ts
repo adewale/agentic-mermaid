@@ -14,6 +14,7 @@ import { runRetainedSuite } from './retained-suite.ts'
 import type { UnifiedRunOptions, UnifiedSuiteResult } from './types.ts'
 import { runUpstreamTestScoreSuite, UPSTREAM_TEST_SCORE_PRODUCERS } from './upstream-test-score.ts'
 import { assertBenchmarkSetVersions, assertBenchmarkToolVersion } from '../tool-versions.ts'
+import { mermaidOracleDirectory, mermaidUpstreamDirectory } from '../portable/mermaid-oracle.ts'
 
 interface RetainedCampaignOptions extends UnifiedRunOptions {
   benchmarkRecordStore?: string
@@ -142,8 +143,8 @@ export async function runRetainedUpstreamTestSuite(options: RetainedCampaignOpti
   const startedAt = new Date().toISOString()
   const harness = options.harnessRoot ?? options.root
   const node = nodePath(options)
-  const upstream = options.mermaidDir ?? process.env.MERMAID_UPSTREAM_DIR ?? resolve(harness, '../mermaid')
-  const reference = options.referenceDir ?? process.env.MERMAID_REFERENCE_DIR ?? resolve(harness, '../mermaid-reference')
+  const upstream = options.mermaidDir ?? mermaidUpstreamDirectory()
+  const reference = options.referenceDir ?? mermaidOracleDirectory()
   const git = (...args: string[]) => execFileSync('git', args, { cwd: upstream, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
   const sourcePin = () => {
     if (git('status', '--porcelain', '--untracked-files=all')) throw Error('Upstream test corpus must be a clean pinned checkout')

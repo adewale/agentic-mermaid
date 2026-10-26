@@ -12,6 +12,7 @@ import { assertCommunityNotInterrupted, trackCommunityProcess } from './communit
 import type { CommunityArtifact, CommunityNode, CommunityWorkerJob, PreparedCommunity } from './community-types.ts'
 import { readWorkerRows } from './community-worker-evidence.ts'
 import { familySupportRow, familySupportWorkloads, rejectsSource, unsupportedFamilyRow } from './family-support.ts'
+import { assertMermaidOracle, assertOracleAgrees, MERMAID_ORACLE_PIN } from '../portable/mermaid-oracle.ts'
 import { qualifyOutput, svgQualificationProvenance, withReferenceLabels } from './qualification.ts'
 import type { BenchmarkObservation, UnifiedRunOptions, UnifiedSuiteResult, UnifiedWorkload } from './types.ts'
 import { getWorkloadEvidence, unifiedWorkloads } from './workloads.ts'
@@ -868,6 +869,8 @@ export async function runCommunitySuite(options: UnifiedRunOptions): Promise<Uni
   const enriched = frozenInputs ? undefined : await withReferenceLabels(driverWorkloads, { root: options.harnessRoot ?? options.root })
   gaps.push(...(frozenInputs?.gaps ?? enriched!.gaps))
   const workloads = frozenInputs?.workloads ?? [...communityCoreWorkloads(), ...enriched!.workloads]
+  // Every family probe must be valid Mermaid by the pinned oracle before any tool runs it.
+  const familyProbeTypes = await assertOracleAgrees(assertMermaidOracle(), familySupportWorkloads(workloads).map(probe => ({ id: probe.id, source: probe.source, accept: true })))
   writeFileSync(
     join(options.out, 'community-inputs.json'),
     JSON.stringify(
@@ -1065,6 +1068,7 @@ export async function runCommunitySuite(options: UnifiedRunOptions): Promise<Uni
     scope: outputSelection ? 'partial-output-lane; omitted output observations were not executed' : 'all-bound-outputs',
     qualificationProtocol: options.communityQualificationProtocol ?? null,
     svgQualification: svgQualificationProvenance(),
+    mermaidOracle: { pin: MERMAID_ORACLE_PIN, familyProbeTypes },
     profile: options.profile,
     rounds: options.rounds,
     coverageOnce: options.communityCoverageOnce ?? true,

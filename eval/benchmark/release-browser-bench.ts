@@ -17,6 +17,7 @@ import { browserPerformanceOptions, configureAgenticEngines, configureBrowserPag
 import { browserMemoryDiagnostics, sharedMemoryInputs } from './browser-memory.ts'
 import { bezelEngine } from './bezel.ts'
 import { assertBenchmarkSetVersions, assertBenchmarkToolVersion, benchmarkToolPins } from './tool-versions.ts'
+import { assertMermaidOracle } from './portable/mermaid-oracle.ts'
 
 export interface Engine {
   label: string
@@ -100,6 +101,11 @@ function install(spec: string, name: string, label: string, parent: string, expe
     const child = spawnSync('npm', ['install', '--prefix', prefix, '--ignore-scripts', '--no-audit', '--no-fund', spec], { encoding: 'utf8', timeout: 180_000 })
     if (child.status !== 0) throw new Error(`${label}: package installation failed: ${child.stderr || child.error?.message}`)
   }
+  return installedEngine(prefix, name, label, expectedIntegrity, acquired?.runtime)
+}
+
+/** An engine from an existing npm prefix: a fresh install above, or the pinned Mermaid oracle. */
+function installedEngine(prefix: string, name: string, label: string, expectedIntegrity?: string, runtime?: RuntimeReceipt): Engine {
   const root = join(prefix, 'node_modules', name)
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { name: string; version: string }
   assertBenchmarkToolVersion(name, pkg.version, `${label} installed artifact`)
@@ -107,7 +113,7 @@ function install(spec: string, name: string, label: string, parent: string, expe
   if (expectedIntegrity && expectedIntegrity !== integrity) throw new Error(`${label}: package identity differs from the requested artifact`)
   return { label, name, version: pkg.version, root, kind: name === 'agentic-mermaid' ? 'agentic' : name as 'pele' | 'mermaid',
     bundle: name === 'agentic-mermaid' ? 'dist/browser.global.js' : name === 'pele' ? 'dist/pele.global.js' : 'dist/mermaid.min.js',
-    global: name === 'agentic-mermaid' ? 'agenticMermaid' : name, identity: { integrity, ...(acquired ? { runtime: acquired.runtime } : {}) } }
+    global: name === 'agentic-mermaid' ? 'agenticMermaid' : name, identity: { integrity, ...(runtime ? { runtime } : {}) } }
 }
 
 function size(paths: string[]) {
@@ -257,7 +263,7 @@ async function main() {
       ? assertNormalizedNpmRuntimes(engines.find(engine => engine.label === 'baseline')!.identity.runtime!, candidate.identity.runtime!)
       : (assertMatchedAgenticRuntimes(engines.map(engine => engine.identity.runtime!)), { mode: 'matched' as const })
     writeFileSync(join(out, 'browser-runtime-comparison.json'), `${JSON.stringify(runtimeComparison, null, 2)}\n`)
-    engines.push(install(`pele@${benchmarkToolPins['obsidianmd/pele'].version}`, 'pele', 'pele', temporary), install(`mermaid@${benchmarkToolPins['mermaid-js/mermaid'].version}`, 'mermaid', 'mermaid', temporary))
+    engines.push(install(`pele@${benchmarkToolPins['obsidianmd/pele'].version}`, 'pele', 'pele', temporary), installedEngine(assertMermaidOracle().directory, 'mermaid', 'mermaid'))
     if (bezel) engines.push(bezel)
     if (diagnostics.dart) {
       const root = join(temporary, 'dart')

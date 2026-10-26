@@ -14,6 +14,7 @@ import { baselineMeasurementContext } from './baseline-measurement-context.ts'
 import { runRetainedSuite } from './retained-suite.ts'
 import { inventoryOriginalDeclarations } from './upstream-fidelity-census.ts'
 import type { BenchmarkObservation, UnifiedRunOptions, UnifiedSuiteResult } from './types.ts'
+import { mermaidOracleDirectory, mermaidUpstreamDirectory } from '../portable/mermaid-oracle.ts'
 
 interface CallbackEvidence { family: string; path: string; name: string; line?: number; status: 'passed' | 'failed' | 'unavailable' | 'skipped-upstream'; assertions: { passed: boolean; matcher: string }[]; sources: string[]; reason?: string }
 interface WorkerEvidence { invocationId: string; tool: string; version: string; artifact: { name: string; version: string; entry: string }; callbacks: CallbackEvidence[]; fileErrors: { path: string; reason: string }[]; blocked?: string }
@@ -26,7 +27,7 @@ const scope = 'Original pinned source callbacks with expectations unchanged, thr
 
 function sourceContext(options: UpstreamFidelityOptions) {
   const root = options.harnessRoot ?? options.root
-  const upstream = options.mermaidDir ?? resolve(root, '../mermaid'), reference = options.referenceDir ?? resolve(root, '../mermaid-reference')
+  const upstream = options.mermaidDir ?? mermaidUpstreamDirectory(), reference = options.referenceDir ?? mermaidOracleDirectory()
   const pin = admitCurrentReference(upstream, reference)
   if (execFileSync('git', ['status', '--porcelain', '--untracked-files=no'], { cwd: upstream, encoding: 'utf8' }).trim()) throw Error('Pinned Mermaid tracked sources have local changes')
   return { root, upstream, reference, pin }

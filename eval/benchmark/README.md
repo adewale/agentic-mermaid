@@ -19,8 +19,8 @@ node commands.ts build --out /tmp/trident-kit
 ```
 
 Copy the complete generated kit, including its artifact manifest. It runs with
-plain Node 24 and the explicitly supplied tool artifact, without Bun, Git, an
-Agentic checkout or a harness dependency installation:
+plain Node 24, the explicitly supplied tool artifact and the pinned Mermaid oracle,
+without Bun, Git, an Agentic checkout or a harness dependency installation:
 
 ```sh
 node /tmp/trident-kit/run.mjs --help
@@ -42,6 +42,26 @@ Whole-worker CPU and peak RSS need GNU time. By default Trident uses
 `/usr/bin/time` when it is GNU time, otherwise `gtime` on `PATH`: macOS ships BSD
 time, so install `gnu-time`. `--observer` names another GNU time. Without one these
 values are recorded as unavailable, not zero.
+
+## The Mermaid oracle
+
+Every benchmark run, and `test`, consults one pinned Mermaid: `mermaid` 12.2.0 with
+`@mermaid-js/parser` 2.0.1 and `jsdom` 26.1.0, pinned in `tool-versions.json`. It
+decides whether each authored source and family-support probe is valid Mermaid,
+serves as Dave's Mermaid comparator and backs the tests. A run refuses to start
+unless exactly that install is present. Benchmarking a project does not benchmark
+Mermaid; the oracle only has to be installed:
+
+```sh
+node commands.ts mermaid:install
+```
+
+The default directory is `../mermaid-reference` beside the Agentic checkout, or
+beside this package or kit, so sibling checkouts share one install. Agentic's
+`bun run reference:mermaid` installs the same packages there.
+`MERMAID_REFERENCE_DIR`, or the kit's `--mermaid-reference`, names another install.
+In an Agentic checkout the pin must equal `docs/project/upstream-mermaid-policy.json`.
+`build`, `typecheck`, `lint`, `export` and `fidelity:report` do not need it.
 
 Read existing fidelity evidence without acquiring or rendering tools:
 
@@ -90,11 +110,10 @@ The containing checkout is detected only when its root package is named
 remains a legacy alias for `agentic`. Existing root `bench:*` shortcuts retain
 their suite IDs and options.
 
-Mermaid's Node lane renders through jsdom from the pinned Mermaid reference
-install. Run `bun run reference:mermaid` once in that checkout, or set
-`MERMAID_REFERENCE_DIR`; otherwise each Mermaid Node observation is blocked with
-that instruction. Community CLI resource diagnostics use `--startup-observer`,
-or the default GNU time above.
+Lanes that read Mermaid's upstream tests also need the pinned source checkout
+(`MERMAID_UPSTREAM_DIR`, default `../mermaid`); `bun run reference:mermaid`
+installs it beside the oracle. Community CLI resource diagnostics use
+`--startup-observer`, or the default GNU time above.
 
 Full source-adapter tests and typechecking still require the Agentic checkout;
 they are not a standalone-package promise:
