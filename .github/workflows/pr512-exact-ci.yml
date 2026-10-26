@@ -1,0 +1,22 @@
+name: PR512 frozen exact-head CI
+on:
+  push:
+    branches: [codex/pr512-f1f2-ci-dispatch-20261026]
+permissions:
+  contents: read
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Run product CI at the immutable PR head
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh api repos/adewale/agentic-mermaid/git/ref/heads/codex/pr512-f1f2-ci-20261026 --jq .object.sha)" = f1f2eabd8639c117f9322a4236757c8d253cb4ce
+          gh api --method POST repos/adewale/agentic-mermaid/actions/workflows/ci.yml/dispatches --input - <<'JSON'
+          {"ref":"codex/pr512-f1f2-ci-20261026"}
+          JSON
