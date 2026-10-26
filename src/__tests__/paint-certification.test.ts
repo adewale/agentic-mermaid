@@ -921,3 +921,33 @@ test('orthogonal stroke union leaves nonfinite geometry unmeasured', () => {
   expect(proof.status).toBe('unverified')
   expect(proof.coverage.unmeasured).toBeGreaterThan(0)
 })
+
+test.each(['clear-contact', 'centroid-on-line-body', 'all-witnesses-on-stroke', 'opaque-child', 'split-cover'] as const)('an attached line piece retains the same strict marker witness for %s', mode => {
+  const marker = tipAnchoredArrow('arrow', { width: 8, height: 5 }, 'end', { fill: '#111', stroke: '#111', strokeWidth: '0.75', strokeLinejoin: 'round' }, 'userSpaceOnUse')
+  const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => {
+    const body: Geometry = { kind: 'rect', x: 30, y: 30, width: 40, height: 30 }
+    const internal: Geometry = mode === 'centroid-on-line-body' ? { kind: 'line', x1: 50, y1: 20, x2: 50, y2: 60 }
+      : mode === 'all-witnesses-on-stroke' ? { kind: 'line', x1: 45, y1: 25, x2: 55, y2: 25 }
+      : mode === 'split-cover' ? { kind: 'line', x1: 51.25, y1: 20, x2: 51.25, y2: 32 }
+        : { kind: 'line', x1: 50, y1: 30, x2: 50, y2: 60 }
+    const extra: Geometry[] = mode === 'opaque-child' ? [{ kind: 'rect', x: 45, y: 20, width: 10, height: 12 }]
+      : mode === 'split-cover' ? [{ kind: 'rect', x: 45, y: 20, width: 5, height: 12 }] : []
+    const bodyPaint = { fill: '#fff', stroke: '#111', strokeWidth: '0.75' }
+    const linePaint = { fill: 'none', stroke: '#111', strokeWidth: mode === 'all-witnesses-on-stroke' ? '8' : mode === 'split-cover' ? '2' : '0.75' }
+    return { ...scene([]), parts: [
+      factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'),
+      factory.definitions({ id: 'markers' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
+      factory.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', endpoints: { from: 'outside', to: 'target' }, geometry: { kind: 'line', x1: 50, y1: 10, x2: 50, y2: 30 }, paint: { stroke: '#111', strokeWidth: '1' }, markers: { end: marker } }),
+      factory.shape({ id: 'target', role: 'node', geometry: { kind: 'compound', children: [body, internal, ...extra] }, paint: bodyPaint, childPaints: [bodyPaint, linePaint, ...extra.map(() => bodyPaint)] }),
+      factory.documentClose(),
+    ] }
+  }
+  const doc = producer(marks, context), drawing = drawNative(producer, context, 'flowchart')
+  expect(drawing.svg).toContain('<line')
+  for (const proof of [certifyScenePaint(doc), certifyNativePaint(drawing.header, drawing.paint)]) {
+    expect(proof.status).toBe(mode === 'clear-contact' ? 'passed' : mode === 'opaque-child' ? 'failed' : 'unverified')
+    if (mode === 'clear-contact') expect(proof.issues).toEqual([])
+    else expect(proof.issues).toContainEqual(expect.objectContaining({ code: mode === 'opaque-child' ? 'MARKER_OCCLUDED' : 'POTENTIAL_OCCLUSION', id: 'edge', by: 'target' }))
+  }
+})
