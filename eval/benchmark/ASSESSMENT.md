@@ -15,7 +15,7 @@ older run. The [inventory](INVENTORY.md) lists the current executable boundaries
 
 ## Fidelity repairs, 26 October 2026
 
-The new authored lane executes 91 cases and edits across all 23 declared
+The new authored lane executes 91 cases and edits across all 25 declared
 families, with independent native meaning and actual painted-output criteria.
 It includes every policy-stable family plus conservatively required Event
 Modeling and ZenUML. Source/configuration reset, invalid-source recovery,

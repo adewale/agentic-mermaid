@@ -6,7 +6,7 @@ they do not create a new overall tool score or silently retime unchanged tools.
 
 | Lane | Observable boundary | Main limits |
 | --- | --- | --- |
-| `mermaid-fidelity` | Actual public Node models and browser SVG for pinned Mermaid, Agentic and Pele; 70 authored cases plus 21 edits, across 23 families | Finite feature combinations; ambiguous native/paint projections stay unavailable. |
+| `mermaid-fidelity` | Actual public Node models and browser SVG for pinned Mermaid, Agentic and Pele; 70 authored cases plus 21 edits, across 25 families | Finite feature combinations; ambiguous native/paint projections stay unavailable. |
 | `community-fidelity` | The same authored cases and actual Chromium paint checks on frozen prepared community SVG artifacts | No acquisition, old timing reruns or inferred native-model passes. Terminal/parser/editor tools retain their separate boundaries. |
 | `upstream-original` | Genuine Mermaid 12.2.0 source core Vite/Vitest project, unchanged expectations and read-only snapshots | Excludes the docs-site and browser/e2e workspaces. Expanded callbacks are not individual assertions. |
 | `upstream-fidelity` | Original source callbacks/expectations through reviewed actual public parser/models | Private helpers, imports, state and matchers are unavailable; diagnostic/representation mismatches do not automatically establish a drawing defect. |
@@ -95,6 +95,13 @@ python3 eval/benchmark/fidelity/charts.py --report /tmp/fidelity-report/comparis
 The separate-dimension bars, full family heatmap and reference-qualification
 chart retain unavailable evidence. A radar score would hide missing axes and
 unjustified weighting, so it is not used for these bounded fidelity counts.
+
+Font-option reviews preserve raw computed-size statuses and available values but withhold configuration
+credit when an adapter's public API has no reviewed all-label mapping. Beautiful
+base APIs lack the global option; Vercel separates node and edge sizes. Merely
+finding a render export cannot establish option support. The report's capability
+review ledger records the original status, any actually recorded values and why comparison credit is withheld.
+This requalification does not rerender unchanged tools.
 
 ## Read the evidence
 

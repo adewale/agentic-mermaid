@@ -46,10 +46,9 @@ describe the marker, receipt-authority and animation-frame checks.
 ## Fidelity and original tests
 
 The authored campaign contains 70 source cases and 21 source edits: 91 executed
-cases across 23 families. All 20 policy-stable families are included; Event
+cases across 25 families. All 20 policy-stable families are included; Event
 Modeling and ZenUML remain conservatively required while their maturity
-exclusions are unresolved. Native 23-family supplements retain their own
-required flags. Feature cases exercise nesting, reciprocal/parallel edges,
+exclusions are unresolved. Timeline, C4 and Radar remain separate supplements. Feature cases exercise nesting, reciprocal/parallel edges,
 Unicode, namespaces, cardinalities, values and ordering. Real configuration,
 invalid-source recovery, edits and serializer/readback calls are separate
 observations; a feature tag itself earns no credit.

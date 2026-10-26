@@ -44,7 +44,7 @@ fig.suptitle('Separate Mermaid fidelity dimensions — sorted by paint passes, n
 fig.tight_layout()
 save(fig, 'fidelity-dimensions')
 
-families = [cell['family'] for cell in rows[0]['families']]
+families = [cell['family'] + ('' if cell['required'] else ' (supplement)') for cell in rows[0]['families']]
 values = np.array([[cell['passed']/cell['total'] if cell['total'] else np.nan for cell in row['families']] for row in rows])
 fig, ax = plt.subplots(figsize=(max(13, len(families)*.55), max(5, len(rows)*.30)))
 image = ax.imshow(values, vmin=0, vmax=1, aspect='auto', cmap=LinearSegmentedColormap.from_list('coverage', ['#f0f0f0','#acd4bc','#167342']))
