@@ -82,7 +82,7 @@
     "mindmap": {
       "requests": 32,
       "raw": 621000,
-      "gzip": 202500,
+      "gzip": 203000,
       "brotli": 186000
     },
     "gitgraph": {
@@ -137,7 +137,7 @@
       "requests": 31,
       "raw": 586500,
       "gzip": 191500,
-      "brotli": 169500
+      "brotli": 170000
     },
     "block": {
       "requests": 30,
