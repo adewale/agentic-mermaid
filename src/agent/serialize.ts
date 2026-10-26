@@ -14,7 +14,7 @@ import { ok, err } from './types.ts'
 import { stringifyMermaidYaml } from '../shared/mermaid-yaml.ts'
 import { getFamily, knownFamilies } from './families.ts'
 import { parseRegisteredMermaid } from './parse.ts'
-import { ensureAccessibilityLines } from './accessibility-envelope.ts'
+import { accessibilitySerializationProblem, AccessibilityTextError, ensureAccessibilityLines } from './accessibility-envelope.ts'
 import type { ExtensionIdentity } from '../shared/extension-identity.ts'
 import { sameExtensionIdentity } from '../shared/extension-identity.ts'
 import { radarBodyProblem } from './radar-body.ts'
@@ -191,7 +191,10 @@ function renderBody(
     || sameExtensionIdentity(parsedDescriptorIdentity, plugin?.identity)
   if (plugin?.serialize && descriptorMatches) {
     const rendered = plugin.serialize(body)
-    return ensureAccessibilityLines(rendered, meta.accessibility)
+    const source = ensureAccessibilityLines(rendered, meta.accessibility)
+    const accessibilityProblem = body.kind === 'extension' ? undefined : accessibilitySerializationProblem(source, plugin.statementEnds)
+    if (accessibilityProblem) throw new AccessibilityTextError(accessibilityProblem)
+    return source
   }
   if (body.kind === 'extension') return body.source.endsWith('\n') ? body.source : body.source + '\n'
   throw new Error(`No serializer registered for diagram kind "${kind}"`)

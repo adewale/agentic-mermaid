@@ -186,10 +186,10 @@ export function c4ArgumentsArePortable(args: readonly C4Argument[], positionalFi
     if (arg.name && (positionalFields.includes(arg.name) || index < positionalFields.length && positionalFields[index] !== 'label')) return false
     if (arg.raw.includes('%%{')) return false
     const text = (arg.name ? arg.raw.replace(/^\s*\$[A-Za-z_][A-Za-z_0-9]*\s*=/, '') : arg.raw).trim()
-    if (arg.name) return /^"[^"]+"$/.test(text)
-    if (text.startsWith('"')) return /^"[^"]*"$/.test(text)
+    if (arg.name) return /^ *\$[A-Za-z_][A-Za-z_0-9]* *= *"[^"]+"$/.test(arg.raw)
+    if (text.startsWith('"')) return /^ *"[^"]*"$/.test(arg.raw)
     if (arg.raw === '' && index < args.length - 1) return true
-    return index < args.length - 1 && text.length > 0 && !/^[\$']|[()\r\n]/.test(text)
+    return index < args.length - 1 && text.length > 0 && !/^[\$']|[(),\r\n]/.test(text)
   })
 }
 
@@ -450,6 +450,7 @@ function readC4(input: string | readonly string[], admitWork: boolean): C4Body {
     if (mermaidEntityPrepass(text) !== text) diagnostic(body, statement.id, 'c4_entity_prepass', 'The global Mermaid entity prepass changes this statement; the writer protects its text fields without changing their values')
     if (/^title\s/i.test(text)) {
       observeC4Statement(statement, 'title')
+      if (/[#;]/.test(mermaidEntityPrepass(text.replace(/^title\s+/i, '')))) diagnostic(body, statement.id, 'c4_title_token', 'The title contains literal token delimiters; serialization writes entity escapes for pinned Mermaid')
       body.title = decodeMermaidEntities(breakLineTags(text.replace(/^title\s+/i, '')))
       if (parserObservationActive('c4')) observeParserMutation('c4', 'set-title', body.title)
       statement.kind = 'title'; statement.signature = body.title; continue

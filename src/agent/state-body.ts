@@ -525,7 +525,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
   if (stateWriteProblem(body)) return null
   preserveOrphanedImplicitStates(body)
   try { renderState(body) } catch (error) {
-    if (error instanceof StateOwnershipError) return null
+    if (error instanceof StateWriteError) return null
     throw error
   }
   return body
@@ -781,12 +781,11 @@ export function renderState(body: StateBody): string {
   }
   const out: string[] = ['stateDiagram-v2']
   renderScope(body.states, body.transitions, body.direction, '  ', out, notesByScope)
-  // Notes last: colons and semicolons terminate Mermaid single-line notes,
-  // so punctuation-bearing or multiline text uses `note … end note`. Note text is canonical by construction
-  // (validNoteText): trimmed lines, no blank lines, no `end note` line.
+  // An inline note requires text. Empty, multiline and punctuation-bearing
+  // annotations use the block form; colons and semicolons end inline notes.
   for (const n of body.notes ?? []) {
     const text = writeStateText(n.text, n.textContent)
-    if (/[\n:;]/.test(n.text)) {
+    if (!text.trim() || /[\n:;]/.test(n.text)) {
       out.push(`  note ${n.side} of ${n.target}`)
       // Mermaid reads a block whose text starts with a colon, after any
       // blank lines, as a one-line note, and then rejects its `end note`;
@@ -814,10 +813,10 @@ export function renderState(body: StateBody): string {
   }
   collect(body.states, body.transitions)
   for (const state of styledStates) {
-    for (const className of graphClassNames(state.className)) out.push(`  class ${state.id} ${className}`)
+    for (const className of graphClassNames(state.className)) out.push(stateClassAssignment(state.id, className))
     if (state.style) out.push(classLikeStyleStatement(`  style ${state.id} `, state.style, undefined, state.styleDeclarations))
   }
-  for (const { id, className } of body.unresolvedClasses ?? []) out.push(`  class ${id} ${className}`)
+  for (const { id, className } of body.unresolvedClasses ?? []) out.push(stateClassAssignment(id, className))
   for (const { id, style, styleDeclarations } of body.unresolvedStyles ?? []) out.push(classLikeStyleStatement(`  style ${id} `, style, undefined, styleDeclarations))
   if (body.defaultTransitionStyle) out.push(`  linkStyle default ${serializeStyleProps(body.defaultTransitionStyle)}`)
   transitions.forEach((transition, index) => {
@@ -828,7 +827,12 @@ export function renderState(body: StateBody): string {
   return source
 }
 
-class StateOwnershipError extends Error {}
+class StateWriteError extends Error {}
+
+function stateClassAssignment(id: string, className: string): string {
+  if (!portableStyleTarget(id)) throw new StateWriteError(`State class target "${id}" needs letters, digits or underscore for portable export`)
+  return `  class ${id} ${className}`
+}
 
 /** A successful structured edit must have a Mermaid spelling with the same
  * ownership. Cross-scope references can claim a moved state before its new
@@ -836,12 +840,12 @@ class StateOwnershipError extends Error {}
 function assertWrittenStateOwnership(body: StateBody, source: string): void {
   const { statements } = readStateStatements(scanStateComments(source.split('\n')))
   const identities = resolveStateIdentities(statements)
-  if (identities.issue) throw new StateOwnershipError(identities.issue)
+  if (identities.issue) throw new StateWriteError(identities.issue)
   const visit = (states: StateNode[], scope?: StateScope): void => {
     for (const state of states) {
       const actual = identities.ownerOf(state.id)
       if (!identities.authored.has(state.id) || stateScopeKey(actual) !== stateScopeKey(scope)) {
-        throw new StateOwnershipError(`State '${state.id}' cannot retain its requested scope in Mermaid source. Move or remove transitions that claim it in another scope before changing its ownership.`)
+        throw new StateWriteError(`State '${state.id}' cannot retain its requested scope in Mermaid source. Move or remove transitions that claim it in another scope before changing its ownership.`)
       }
       if (state.regions) state.regions.forEach((region, index) => visit(region.states, { parent: state.id, region: index }))
       else if (state.states) visit(state.states, { parent: state.id })
@@ -1475,7 +1479,7 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
   const writeProblem = stateWriteProblem(next)
   if (writeProblem) return err({ code: 'INVALID_OP', message: writeProblem })
   try { renderState(next) } catch (error) {
-    if (error instanceof StateOwnershipError) return err({ code: 'INVALID_OP', message: error.message })
+    if (error instanceof StateWriteError) return err({ code: 'INVALID_OP', message: error.message })
     throw error
   }
   return ok(next)
@@ -1799,6 +1803,9 @@ function stateReadOtherwiseWarnings(statements: readonly StateStatement[], heade
     if (style && style[1]!.split(',').some(id => !portableStyleTarget(id.trim()))) {
       warn(statement, 'state_style_target', 'The style target is preserved in source. Pinned Mermaid accepts only letters, digits, and underscore in style targets, with no quoted alternative; use a portable target for typed editing.')
     }
+    const classShorthand = parseClassShorthandStatement(text)
+    const classTargets = matchStateClassAssignment(text)?.ids ?? (classShorthand ? [classShorthand.id] : [])
+    if (classTargets.some(id => !portableStyleTarget(id))) warn(statement, 'state_class_target', 'Class membership is preserved in source. Pinned Mermaid class assignments require targets containing only letters, digits, or underscore; repair the target before typed class editing.')
     const keyword = /^(cssClass|linkStyle)\s/.exec(text)?.[1]
     if (keyword === 'cssClass') {
       warn(statement, 'state_css_class', '`cssClass` is read as `class`, and written so. Pinned Mermaid\'s State grammar has no `cssClass`: it reads the words of the line as states. Write `class A name`.')

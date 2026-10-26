@@ -273,7 +273,6 @@ describe('typed State residual elevation (B07)', () => {
       ['A --> State: continue', 'State', undefined],
       ['state assstateDiagram-v2', 'assstateDiagram-v2', undefined],
       ['style note fill:#ff0000', 'note', undefined],
-      ['class S--econd pinned', 'S--econd', undefined],
     ] as const
     const upstream = startUpstreamMermaid()
     try {
@@ -302,6 +301,20 @@ describe('typed State residual elevation (B07)', () => {
     } finally {
       upstream.close()
     }
+  })
+
+  test('a class operand whose word prefix Mermaid accepts stays source-only with its complete target', async () => {
+    const source = 'stateDiagram-v2\nclass S--econd pinned'
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.accepts(source)).toBe(true)
+      const parsed = parseMermaid(source)
+      if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+      expect(parsed.value.body.kind).toBe('opaque')
+      expect(serializeMermaid(parsed.value)).toBe(source + '\n')
+      expect(unsupportedSyntax(source)).toContain('state_class_target@2')
+      expect(parseRenderGraph(source).nodes.has('S--econd')).toBe(false)
+    } finally { upstream.close() }
   })
 
   test('paint assignments preserve undeclared targets without inventing states, and resolve later declarations', async () => {

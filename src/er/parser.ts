@@ -336,12 +336,20 @@ export function erNameNeedsQuotes(id: string): boolean {
 }
 
 /** Offset of the `}` that ends an attribute block in `text`, or -1: the
- * first one outside a quoted comment. */
+ * first one outside an attribute word or comment's quoting. */
 function erBlockEndAt(text: string): number {
-  let quoted = false
+  let comment = false
   for (let index = 0; index < text.length; index++) {
-    if (text[index] === '"') quoted = !quoted
-    else if (text[index] === '}' && !quoted) return index
+    const char = text[index]
+    if (comment) {
+      if (char === '"') comment = false
+    } else if (char === '"') comment = true
+    else if (char === '`' && (index === 0 || /\s/.test(text[index - 1]!))) {
+      // Only a complete word owns this quote. A literal tick in a generous
+      // field cannot borrow a later word or comment's closing tick.
+      const end = text.indexOf('`', index + 1)
+      if (end > index + 1 && !/\s/.test(text.slice(index + 1, end))) index = end
+    } else if (char === '}') return index
   }
   return -1
 }
@@ -418,8 +426,9 @@ interface ErOpenAttribute {
 // Mermaid's attribute word (ATTRIBUTE_WORD in erDiagram.jison), or a generic
 // type (`List~int~`). Its lexer reads `PK`, `FK` and `UK` as keys first.
 const ER_ATTRIBUTE_WORD_RE = /^[*A-Za-z_\u00C0-\uFFFF][\w\-[\]().,\u00C0-\uFFFF*]*$/
+const ER_QUOTED_ATTRIBUTE_WORD_RE = /^`[^`]+`$/
 const isErAttributeWord = (token: ErBlockToken, text = token.text): boolean => token.kind === 'word'
-  && ((text.match(/~/g)?.length ?? 0) >= 2 || ER_ATTRIBUTE_WORD_RE.test(text)) && !/^(?:PK|FK|UK)\b/i.test(text)
+  && ((text.match(/~/g)?.length ?? 0) >= 2 || ER_ATTRIBUTE_WORD_RE.test(text) || ER_QUOTED_ATTRIBUTE_WORD_RE.test(text)) && !/^(?:PK|FK|UK)\b/i.test(text)
 const isErKeyList = (token: ErBlockToken): boolean =>
   token.kind === 'word' && token.text.split(',').every(part => !part || /^(?:PK|FK|UK)$/i.test(part))
 
@@ -449,10 +458,13 @@ function readErAttributeTokens(open: ErOpenAttribute | undefined, tokens: readon
 }
 
 function erAttribute(type: string, name: string, keys: ErAttribute['keys'], quoted: string | undefined): ErAttribute {
+  // Backticks delimit attribute words; they are not part of the type/name.
+  // Keep tokens and the typed body's attribute text authored for export.
+  const word = (value: string): string => value.replace(/^`([^`]+)`(\?)?$/, (_match, text: string, optional: string | undefined) => text + (optional ?? ''))
   // A quoted comment may hold <br> tags and entity codes.
   const comment = quoted === undefined ? undefined : decodeErText(normalizeBrTags(quoted))
   const commentContent = quoted === undefined ? undefined : erTextContent(quoted, comment!, true)
-  return { type, name, keys, comment, ...(commentContent ? { commentContent } : {}) }
+  return { type: word(type), name: word(name), keys, comment, ...(commentContent ? { commentContent } : {}) }
 }
 
 /** Whether an attribute's keys form Mermaid's key list, parted by commas
@@ -939,8 +951,8 @@ function ensureEntity(entityMap: Map<string, ErEntity>, id: string): ErEntity {
  * Parse one attribute written as text, without its trailing `%%` comment
  * (hasErTrailingComment); one that still has one is none. It reads as an
  * attribute block reads it: by Mermaid's attribute grammar, else in the
- * generous form (readGenerousErAttribute). A `}` outside the comment would
- * end the block, so no attribute holds one.
+ * generous form (readGenerousErAttribute). A `}` outside a quoted word or
+ * comment ends the block, so no unquoted field holds one.
  */
 export function parseErAttribute(line: string): ErAttribute | null {
   if (trailingCommentStart(line) >= 0 || erBlockEndAt(line) >= 0) return null

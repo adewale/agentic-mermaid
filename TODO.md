@@ -8,65 +8,48 @@ surfaces. IDs are stable names, not ordering.
 
 Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 
-Reconciliation updated on 2026-10-18 after merged #410 and against the current
-follow-up candidates. Candidate implementation does not establish merge,
+Reconciliation updated on 2026-10-25 against merged code and current issue
+dispositions; [completed and retired entries](docs/project/archive/backlog-reconciliation-2026-10-25.md)
+retain their evidence. Candidate implementation does not establish merge,
 publication or deployment; a closed issue is not completion evidence when its
 acceptance conditions still fail. Plans supply design context, never additional
 queues. Retired IDs are not reused.
 
 ## Release / owner decisions
 
-- [ ] **PERF-1 — Land the measured candidate and close performance gaps**
-  (`todo`, owner requested 2026-10-22). PR #467 completes the before/after
-  campaign, experiment selection and rebase qualification. Its
-  [report](docs/project/archive/performance-campaign-2026-10-22.md) and
+- [ ] **PERF-1 — Close the remaining measured performance gaps**
+  (`todo`, owner requested 2026-10-22). PRs #467 and #468 merged. Their
+  [campaign report](docs/project/archive/performance-campaign-2026-10-22.md),
   [recommendation crosswalk](docs/project/archive/performance-campaign-2026-10-22-crosswalk.md)
-  distinguish retained changes, rejected trials and unfinished redesigns.
-  Merge/publication remain outstanding. Agentic still trails Beautiful and
-  Pele on the shared peer cohort, production bundle size grows slightly, and
-  several timing/memory risks remain. PR #468 retains narrow Sequence miss
-  ownership transfer for repeatable allocation savings; its
-  [follow-up report](docs/project/archive/performance-followup-2026-10-23.md)
-  preserves the full-corpus timing losses, noisy confirmations and mixed memory
-  results. The native recorder rewrite was rejected. Renderer-instance lifetime
-  controls are implemented separately but blocked by unchanged payload caps;
-  they are not shipped or measured as a memory improvement. Next: qualify the
-  shared reachability workspace, integrate #433's semantic peer/tail/allocation
-  gates, establish geometry/proof ownership before broader reuse, and resolve
-  #449's native qualification failures. Production SVG-only distribution remains
-  unimplemented. Existing work stays with its owners;
-  the [campaign contract](docs/design/system/performance-campaign.md) records
-  the preservation requirements.
+  and [follow-up report](docs/project/archive/performance-followup-2026-10-23.md)
+  retain their measured revisions, rejected trials and mixed timing/memory
+  results. Later performance work also landed in #433, #479, #480, #495 and
+  #496; those merges do not establish current release qualification or general
+  superiority over peers. Finish the current candidate's semantic, peer,
+  tail-latency and allocation comparisons, qualify the SVG-number conversion
+  follow-up to #505, and resolve #449's native coverage/quality/cost limits
+  before promoting that backend. The rejected native recorder rewrite and
+  blocked renderer-lifetime prototype are not shipped improvements. Production
+  SVG-only distribution remains unimplemented. Renderer-lifetime controls still
+  need qualification within the payload caps; broader geometry reuse requires
+  explicit geometry/proof ownership. Keep the
+  [campaign preservation contract](docs/design/system/performance-campaign.md).
 
-- [ ] **REL-1 — Publish and verify the prepared release** (`todo`,
-  [#378](https://github.com/adewale/agentic-mermaid/issues/378)). Source declares
-  0.4.2, but npm and the hosted site/MCP still serve 0.4.1 at the reconciliation
-  date. Follow `docs/contributing/releasing.md`, choose the actual green release
-  SHA rather than an old issue-body SHA, finish the changelog, and verify npm,
-  site build identity and a hosted capability after publication. A green CI run
-  or a deliberately skipped deployment is not delivery evidence.
-  Merged PR [#410](https://github.com/adewale/agentic-mermaid/pull/410) resolves
-  [#406](https://github.com/adewale/agentic-mermaid/issues/406),
-  [#407](https://github.com/adewale/agentic-mermaid/issues/407),
-  and [#408](https://github.com/adewale/agentic-mermaid/issues/408):
-  relationship endpoint/shaft preservation, native multi-ended lollipops,
-  explicit relation metadata, checked lollipop admission, member admission and
-  caller-array ownership. The Class fact additions have an explicit
-  `exact: true` migration example in `docs/api.md`. Its semantic export/reload,
-  rendered-marker and installed-package checks passed before merge; that is
-  source completion, not publication or a general lossless-editing guarantee.
-  [PR #418](https://github.com/adewale/agentic-mermaid/pull/418) implements ER
-  entity order (#372) and the remaining Journey, empty-edit and YAML fixes
-  (#367). [PR #419](https://github.com/adewale/agentic-mermaid/pull/419) implements
-  CONS-46 and the remaining #372 text work. Completion of #372 depends on PR #418's ER fix and this candidate being
-  integrated and verified together; final CI and merge remain pending. The
-  completed #363 disposition record can close its investigation independently
-  of the runtime follow-ups it identifies. Config ownership in
-  [PR #416](https://github.com/adewale/agentic-mermaid/pull/416) is a separate
-  candidate, not a dependency of those text decisions. Qualify release claims
-  with [the remaining export limits](docs/project/divergences.md#mermaid-input-decisions-363)
-  and output-specific projection limits. REL-1 still
-  requires final-candidate CI and artifact/delivery verification.
+- [ ] **REL-1 — Qualify, publish and verify 0.5.0** (`todo`,
+  [#378](https://github.com/adewale/agentic-mermaid/issues/378)). The release
+  target is 0.5.0; source still declares 0.4.2 and npm served 0.4.1 when checked
+  on 25 October. No intermediate 0.4.2 publication is required. Settle scope,
+  update version/changelog and the release issue's automation marker, and run
+  canonical CI plus package, semantic and performance qualification on the
+  actual immutable release candidate. Follow `docs/contributing/releasing.md`,
+  publish the verified artifact, then verify npm/MCP Registry metadata and the
+  matching deployed site/MCP identity and a live capability.
+  #410's Class work, #418's ER/Journey/empty-edit/YAML repairs, #419's text
+  preservation and #416's config ownership are merged. #363, #367 and #372
+  are closed; they are no longer pending source integrations. Qualify release
+  claims with the [remaining export limits](docs/project/divergences.md#mermaid-input-decisions-363)
+  and output-specific projection limits. Green source CI alone does not prove
+  publication or hosted delivery; #477 and #478 remain delivery concerns.
 - [ ] **DEC-6 — Decide the hosted `execute` boundary from usage evidence**
   (`owner-decision`, [#204](https://github.com/adewale/agentic-mermaid/issues/204)).
   Compare hosted direct tools, hosted Code Mode and local Code Mode for real
@@ -232,20 +215,6 @@ queues. Retired IDs are not reused.
   migration. Do not recreate removed reports, receipts or mandatory review gates.
   Upstream cost/covering-array research is tracked in
   [`testing-best-practices#21`](https://github.com/adewale/testing-best-practices/issues/21).
-- [ ] **TEST-5 — Bind bundle exemptions to their constructed routes** (`todo`,
-  [#265](https://github.com/adewale/agentic-mermaid/issues/265)). An editable
-  certificate label must not exempt an unrelated or changed route from hitch
-  checks. Preserve shared trunks, symmetric convergence and separated parallel
-  lanes, and measure the cost on ordinary render/verify workloads. The former
-  policy/inventory programme is superseded; no new audit registry or mutation
-  score target is requested. The witness is deliberate fault injection, not an
-  established ordinary-input producer defect.
-- [ ] **TEST-7 — Characterize tangential rectangle arrivals** (`todo`,
-  [#259](https://github.com/adewale/agentic-mermaid/issues/259)). Add the
-  independent final-geometry incidence metric and report ordinary curated cases
-  separately from the 2,800-case pathological corpus. Keep it non-blocking and
-  make no route repair unless the issue's representative-witness and
-  non-regression decision gate passes.
 - [ ] **TEST-8 — Complete identity-aware label correspondence** (`todo`).
   The independent reference census now records raw labels and model, layout,
   SVG, terminal metadata, ASCII, facts and describe surfaces for the docs,
@@ -291,16 +260,6 @@ queues. Retired IDs are not reused.
   cohesive pass implementations out of `layout/passes/index.ts` one at a time
   behind the checked manifest; preserve order, mutation declarations,
   certificate reissue, layout bytes, and SVG bytes.
-- [ ] **CONS-44 — Integrate the config authority candidate** (`todo`). Source
-  implementation is complete in separate PR
-  [#416](https://github.com/adewale/agentic-mermaid/pull/416): family-owned
-  diagnostic hooks include public extension verification, and repeated
-  terminal/MCP schemas use their existing contracts. The candidate includes
-  native C4's family hook; final-head checks are recorded in the PR, and merge
-  remains pending. This PR is not a
-  dependency of the #363 dispositions or CONS-46 text
-  implementation; release delivery remains under REL-1.
-
 - [ ] **CONS-45 — Finish terminal-context convergence** (`todo`). Move remaining
   family-local cell writers and context argument lists onto shared grapheme-safe
   canvas/context helpers without projecting pixel Scene geometry. Build on the
@@ -314,17 +273,13 @@ queues. Retired IDs are not reused.
 
 ## Contribution governance backlog
 
-- [ ] **GOV-2 — Require canonical CI on `main`** (`owner-decision`,
+- [ ] **GOV-2 — Require canonical CI on `main`** (`blocked`,
   [#331](https://github.com/adewale/agentic-mermaid/issues/331)). Configure the
-  repository rule requiring `CI complete` on main. Main remains unprotected at
-  reconciliation; the golden-token removal and follow-up code changes already
-  landed. This is a repository-owner setting, not another CI implementation.
-- [ ] **GOV-1 — Enforce one primary contract boundary per PR** (`todo`,
-  [#263](https://github.com/adewale/agentic-mermaid/issues/263)). Require one of
-  grammar authority, mutation closure, rendered geometry, or an explicitly
-  justified coupled exception. Start with a ten-PR advisory period, measure
-  false positives and overrides, and only then make the least-privilege,
-  API-only metadata check blocking. Keep file-path inference advisory.
+  repository rule requiring `CI complete` on main. The owner has approved the
+  ruleset, but the integration cannot write repository rules (HTTP 403). Main
+  was still unprotected with no rulesets on 25 October. Apply the prepared
+  policy through a credential with repository-rules permission; no further
+  approval or additional CI implementation is needed.
 
 ## Source-preservation defects
 
@@ -332,49 +287,24 @@ queues. Retired IDs are not reused.
 
 ## Documentation / issue triage
 
-- [ ] **TRIAGE-1 — Revalidate the color issue's remaining surface matrix**
-  (`todo`, [#303](https://github.com/adewale/agentic-mermaid/issues/303)). Several
-  original cases have since been fixed. Reproduce each remaining source,
-  typed-edit, terminal and error-reporting claim on current main before keeping
-  or closing it; its original before/after table is historical, not today's state.
+TRIAGE-2 and CONS-46 are retired after merged #418/#419. The wholesale ER
+serializer WIP and Flowchart rejection proposal are superseded by the existing
+declaration planner and read-and-warn codecs. Publication remains under REL-1;
+terminal convergence remains under CONS-45.
 
-TRIAGE-2 is retired. PR #418 supplies #372's bounded ER order fix; the wholesale
-serializer WIP is superseded. The Flowchart rejection proposal is declined in
-favor of read-and-warn, and the Sequence proposal is replaced by context codecs.
-State/Mindmap text handling is implemented in this candidate. CONS-46's source
-implementation is complete and leaves the active backlog; final combined CI,
-merge and #372's dependency on PR #418 remain tracked under REL-1. Terminal
-geometry remains under CONS-45; Flowchart tokenization is shared already.
+## Export limits
 
-## Known defects
+The original BUG-20 ellipse and BUG-54/58 Quadrant witnesses are implemented
+and removed from the active backlog. The [completion record](docs/project/archive/backlog-reconciliation-2026-10-25.md)
+names the owning tests and distinguishes portable structured output from
+warning-bearing source preservation. Their historical decisions remain in
+[the #363 record](docs/project/divergences.md#mermaid-input-decisions-363).
 
-Found by the property and model tests. Where a test pins the wrong behaviour
-or a generator steers around it, the entry names the test; remove the pin
-and the steering with the fix.
-
-Only differences a user sees without comparing against Mermaid are listed
-here (see "Mermaid is our input language, not our spec" in `CLAUDE.md`).
-Differences that exist only against Mermaid, such as which subgraph wins a
-tie, participant creation order, sources only Mermaid rejects and display
-choices, have explicit dispositions in
-[the #363 decision record](docs/project/divergences.md#mermaid-input-decisions-363).
-That investigation is complete; the reader/writer defects below remain runtime
-work. BUG-9 is retired: its ER attribute-insertion witness already passes an
-owning regression test. The completed CONS-46 candidate covers the
-BUG-19/23/30/31/32 source/display work; its final checks and merge are tracked
-under REL-1.
-
-- [ ] **BUG-20 — Flowchart ellipse shape `A(-a-)` is unsupported** (`todo`). We read it as a rounded node labelled `-a-`.
-- [ ] **BUG-54 — Quote Quadrant text in its grammar context** (`todo`; #363). Clear keyword and semicolon labels draw, but some lack portability warnings and serialize to rejected source. Keep generous reading; finish canonical quoting and warnings at the Quadrant reader/writer.
-- [ ] **BUG-58 — Enforce portable Quadrant style authoring** (`todo`; #363). Functional colors, variables, fractional radii and unknown properties can produce rejected structured output. Keep clear source extensions with warnings; refuse regeneration without a meaning-preserving portable spelling. The initial strict subset is supported hexadecimal colors and integer radii, as specified in the decision record; do not round, resolve page variables or drop fields.
-
-
-The #363 record also retains two export limits: unsupported Architecture IDs
-and icons may draw with warnings but still emit rejected structured source;
-an empty Class diagram has no accepted bare-header spelling. Use explicit
-source preservation/refusal boundaries, without renaming IDs, replacing icons
-or inventing classes. BUG-57's consistent Quadrant reading is a documented
-divergence, not another runtime defect.
+Unsupported Architecture IDs/icons remain subject to the explicit
+source-preservation and typed-authoring refusal boundary. An empty Class
+diagram has no accepted bare-header spelling; do not invent classes or replace
+identities to conceal these limits. BUG-57 is a documented reading divergence.
+A new defect needs a current reproduction at its owning boundary.
 
 ## Non-goals
 

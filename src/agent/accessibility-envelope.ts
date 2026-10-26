@@ -1,7 +1,19 @@
-import { appendNativeAccessibilityLines, parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
+import { appendNativeAccessibilityLines, parseAccessibilityDirective, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import type { Accessibility, DiagramBody } from './types.ts'
 
 export class AccessibilityTextError extends Error {}
+
+/** Inspect the writer's actual fields: families with an owned grammar escape
+ * or JSON transport can protect text which the ordinary field cannot spell.
+ * A literal opener lets pinned preprocessing consume even an unclosed directive. */
+export function accessibilitySerializationProblem(source: string, statementEnds?: (lines: readonly string[]) => readonly number[]): string | undefined {
+  if (!source.includes('%%{')) return undefined
+  const lines = source.split(/\r?\n/)
+  const value = scanAccessibilityDirectives(lines, statementEnds?.(lines)).accessibility
+  return [value.title, value.descr].some(text => text?.includes('%%{'))
+    ? 'Accessibility text contains an init-directive opener. Source is preserved for native reading; remove the literal opener before typed editing or portable export.'
+    : undefined
+}
 
 /** JSON-comment fields have no physical-line grammar restriction. */
 export function nativeAccessibilityText(value: string): string {
@@ -28,7 +40,8 @@ export function normalizeBodyAccessibility<T extends DiagramBody>(body: T): T {
   const fields = accessibilityFromBody(body)
   if (!fields) return body
   const title = fields.title === undefined ? undefined : accessibilityTitleText(fields.title)
-  const descr = fields.descr === undefined ? undefined : accessibilityDescriptionText(fields.descr)
+  // Empty parsed blocks are valid retained values; setters validate new text.
+  const descr = fields.descr === undefined || fields.descr === '' ? fields.descr : accessibilityDescriptionText(fields.descr)
   return title === fields.title && descr === fields.descr ? body : {
     ...body,
     ...(title !== undefined ? { accessibilityTitle: title } : {}),
@@ -40,8 +53,10 @@ export function normalizeBodyAccessibility<T extends DiagramBody>(body: T): T {
 export function appendAccessibilityLines(lines: string[], value: { accessibilityTitle?: string; accessibilityDescription?: string }): void {
   if (value.accessibilityTitle !== undefined) lines.push(`  accTitle: ${accessibilityTitleText(value.accessibilityTitle)}`)
   if (value.accessibilityDescription === undefined) return
-  const description = accessibilityDescriptionText(value.accessibilityDescription)
-  if (!description.includes('\n')) {
+  // Readers can retain an explicitly empty block. Its writer spelling is
+  // independent of the non-empty mutation-input contract above.
+  const description = value.accessibilityDescription.trim() ? accessibilityDescriptionText(value.accessibilityDescription) : ''
+  if (description && !description.includes('\n')) {
     lines.push(`  accDescr: ${description}`)
     return
   }

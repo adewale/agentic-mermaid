@@ -106,6 +106,12 @@ const fixtures: Fixture[] = [
     cue: 'Follow the no feedback edge from E. Before, shortening replaces its rightward source stub with a vertical tangent to the rounded cap. After, the existing outward stub and exterior route remain. All five authored nodes, six edge identities, labels and markers must remain; inspect the geometry sidecar alongside the render. This proves the shown shortening case, not arbitrary routing completeness.',
   },
 
+  {
+    id: 'compat-er-attribute-quotes',
+    title: 'ER attribute delimiters stay out of displayed values',
+    source: 'erDiagram\nHOTEL {\n `my.type`? `geo.accuracy` UK "literal `ticks`"\n}',
+    cue: 'Inspect my.type? and geo.accuracy without backtick delimiters, while the literal backticks in the comment remain. Source export retains the delimiters. This checks already-readable, single-token attribute words; multiword and multiline quoted words remain outside this repair.',
+  },
   ...corpusSamples.filter(sample => ownershipGoldenIds.has(sample.id)).map(sample => ({
     id: `compat-${sample.id.replaceAll('/', '-')}`,
     title: `${sample.id}: ownership and contextual endpoint baseline`,

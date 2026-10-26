@@ -56,6 +56,19 @@ function expectErr(d: StateValidDiagram, op: StateMutationOp, code: MutationErro
 
 // ---------------------------------------------------------------------------
 describe('state structured parse', () => {
+  test('class assignment to a hyphenated identity stays source-only and typed assignment fails atomically', () => {
+    const source = 'stateDiagram-v2\n-:::-'
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(parsed.value.body.kind).toBe('opaque')
+    expect(serializeMermaid(parsed.value)).toBe(source + '\n')
+    expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'state_class_target' }))
+    const d = state('stateDiagram-v2\nstate "Working" as in-progress')
+    const before = structuredClone(d)
+    expectErr(d, { kind: 'set_state_class', id: 'in-progress', className: 'active' }, 'INVALID_OP')
+    expect(d).toEqual(before)
+  })
+
   test('models states, labels, transitions, and [*] pseudostates', () => {
     const d = state()
     expect(d.kind).toBe('state')

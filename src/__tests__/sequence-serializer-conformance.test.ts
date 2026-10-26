@@ -17,6 +17,7 @@ import { mutate } from '../agent/mutate.ts'
 import { asSequence } from '../agent/types.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../agent/index.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+import { projectEntityMarkers } from '../shared/mermaid-entity-display.ts'
 import type { SequenceValidDiagram, SequenceMutationOp } from '../agent/types.ts'
 
 function sequence(src: string): SequenceValidDiagram {
@@ -136,6 +137,9 @@ describe('sequence identities survive portable structured writing', () => {
 
   test.each([
     'sequenceDiagram\nJ->%:',
+    'sequenceDiagram\ne->right of:',
+    'sequenceDiagram\ne->right of Bob: reply',
+    'sequenceDiagram\nleft of->e:',
     'sequenceDiagram J->accDescr:',
     'sequenceDiagram\nalt retry\nJ->>accTitle: reply\nend',
     'sequenceDiagram\nlink >: @http:',
@@ -151,6 +155,69 @@ describe('sequence identities survive portable structured writing', () => {
     const edited = mutate(parsed.value, { kind: 'add_participant', id: 'Safe' })
     expect(edited.ok).toBe(false)
     if (!edited.ok) expect(edited.error.code).toBe('INVALID_OP')
+  })
+
+  test('declaration boundaries and literal comment text cannot change the emitted message', async () => {
+    for (const source of ['sequenceDiagram\nparticipant b\n@{->b:', 'sequenceDiagram\nloop\nb->e:%%\nend']) {
+      const parsed = sequence(source)
+      const written = serializeMermaid(parsed)
+      const result = await upstream.parse(written)
+      expect(result.ok, written).toBe(true)
+      if (!result.ok || !result.sequence) throw new Error('Expected portable messages')
+      const messages = result.sequence.messages.filter(message => message.from !== undefined && message.to !== undefined)
+      expect(messages.map(({ from, to, message }) => ({ from, to, text: projectEntityMarkers(message) }))).toEqual(source.includes('participant')
+        ? [{ from: '@{', to: 'b', text: '' }]
+        : [{ from: 'b', to: 'e', text: '%%' }])
+      expect(serializeMermaid(sequence(written))).toBe(written)
+    }
+  })
+
+  test.each([
+    'participant b',
+    'participant b\n%% preserved comment',
+    'participant b\nactivate b',
+    'participant b\nactivate b\ndeactivate b',
+    'participant b\ndestroy b',
+  ])('metadata message boundaries survive insertion after %s', async prefix => {
+    const source = `sequenceDiagram\n${prefix}\nA->>b: existing`
+    expect(await upstream.accepts(source), source).toBe(true)
+    const edited = apply(sequence(source), { kind: 'add_message', from: '@{', to: 'b', text: 'inserted', index: 0 })
+    const written = serializeMermaid(edited)
+    const result = await upstream.parse(written)
+    expect(result.ok, written).toBe(true)
+    if (!result.ok || !result.sequence) throw new Error('Expected portable messages')
+    const expected = [
+      { from: '@{', to: 'b', text: 'inserted' },
+      { from: 'A', to: 'b', text: 'existing' },
+    ]
+    expect(result.sequence.messages.filter(message => message.from !== undefined && message.to !== undefined)
+      .map(({ from, to, message }) => ({ from, to, text: projectEntityMarkers(message) }))).toEqual(expected)
+    expect(renderParse(written).messages.map(({ from, to, label }) => ({ from, to, text: label }))).toEqual(expected)
+    expect(serializeMermaid(sequence(written))).toBe(written)
+  })
+
+  test.each([
+    'participant b;',
+    'participant b\nactivate b;',
+    'participant b;\n\n%% preserved comment',
+    'activate b;',
+  ])('metadata message boundaries survive preserved fragment source after %s', async prefix => {
+    const source = `sequenceDiagram\nloop retry\n${prefix}\n@{->>b: preserved\nend`
+    expect(await upstream.accepts(source), source).toBe(true)
+    const parsed = sequence(source)
+    expect(parsed.body.statements[0]!.kind).toBe('opaque-block')
+    for (const diagram of [parsed, apply(parsed, { kind: 'add_participant', id: 'Control' })]) {
+      const written = serializeMermaid(diagram)
+      const result = await upstream.parse(written)
+      expect(result.ok, written).toBe(true)
+      if (!result.ok || !result.sequence) throw new Error('Expected portable preserved message')
+      const expected = [{ from: '@{', to: 'b', text: 'preserved' }]
+      expect(result.sequence.messages.filter(message => message.from !== undefined && message.to !== undefined)
+        .map(({ from, to, message }) => ({ from, to, text: projectEntityMarkers(message) }))).toEqual(expected)
+      expect(renderParse(written).messages.map(({ from, to, label }) => ({ from, to, text: label }))).toEqual(expected)
+      if (prefix.includes('\n\n')) expect(written).toContain('\n\n%% preserved comment')
+      expect(serializeMermaid(sequence(written))).toBe(written)
+    }
   })
 
   test('declarations, message references and aliases retain their distinct identity grammars', async () => {

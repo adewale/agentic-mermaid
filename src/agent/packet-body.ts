@@ -39,7 +39,7 @@ export function mutatePacket(body: PacketBody, op: PacketMutationOp): Result<Pac
       next.accessibilityTitle = op.title
       break
     case 'set_accessibility_description':
-      if (op.description !== undefined && !text(op.description)) return invalid('Packet accessibility description must be text')
+      if (op.description !== undefined && (!text(op.description) || !op.description.trim())) return invalid('Packet accessibility description must be non-empty text')
       next.accessibilityDescription = op.description
       break
     case 'add_field': {
