@@ -335,12 +335,12 @@ it('shipped sketch looks paint readable label ink against an opaque halo', async
 
 it('standalone editor stays within its single-renderer payload budget', async () => {
   const html = new Uint8Array(await Bun.file(join(ROOT, 'editor.html')).arrayBuffer())
-  // Paired Bun 1.4.2 builds against 97aea952:
-  // raw 4,422,894 → 4,424,081; Bun gzip 1,331,713 → 1,332,290.
-  // Portable Kanban IDs and halo-safe lanes add 1,187 B raw / 577 B gzip.
-  // Retain ~1.4 KB raw / 1.7 KB gzip headroom. The module
-  // graph has one renderer program for main and worker realms; single-engine
-  // and relative payload gates also apply.
+  // Paired Bun 1.4.2 builds against eab9407 (Bun gzip level 9):
+  // raw 4,424,081 → 4,425,416; gzip 1,332,290 → 1,333,346.
+  // The module/contract cleanup adds 1,335 B raw / 1,056 B gzip.
+  // Keep current main's ceilings unchanged: 84 B raw / 654 B gzip headroom.
+  // One renderer still serves the main/worker realms; the single-engine and
+  // relative payload gates also apply.
   expect(html.byteLength).toBeLessThanOrEqual(4_425_500)
   expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_334_000)
 })
