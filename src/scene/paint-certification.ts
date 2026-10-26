@@ -485,8 +485,14 @@ export function prepareMarkerPolygonInk(scene: Pick<NativePaintHeader, 'colors'>
   }
   // The all-piece proof is constructed only after the old padded fast paths
   // fail. This request-local descriptor carries the already-proved mapping.
-  const paintPieceSource =
-    marker.overflow === 'visible' &&
+  let matchedHiddenViewport = false
+  if (marker.overflow === 'hidden') {
+    if (!pay(5)) return undefined
+    matchedHiddenViewport = marker.viewBox?.x === 0 && marker.viewBox.y === 0
+      && marker.viewBox.width === marker.size.width && marker.viewBox.height === marker.size.height
+  }
+  let paintPieceSource: MarkerPieceSource | undefined
+  if ((marker.overflow === 'visible' || matchedHiddenViewport) &&
     (marker.orient === undefined || marker.orient === 'auto' || marker.orient === 'auto-start-reverse') &&
     fill !== 'unknown' &&
     stroke !== 'unknown' &&
@@ -495,9 +501,18 @@ export function prepareMarkerPolygonInk(scene: Pick<NativePaintHeader, 'colors'>
     !paint.strokeDasharray &&
     (paint.strokeLinecap === undefined || paint.strokeLinecap === 'butt') &&
     (paint.strokeLinejoin === undefined || paint.strokeLinejoin === 'miter') &&
-    (paint.strokeMiterlimit === undefined || Number(paint.strokeMiterlimit) === 4)
-      ? { marker, anchor: first, tangent, position, width }
-      : undefined
+    (paint.strokeMiterlimit === undefined || Number(paint.strokeMiterlimit) === 4)) {
+    if (matchedHiddenViewport && !pay(16)) return undefined
+    // Only the proof uses an unclipped stencil. Its full paint is a superset
+    // of the actual hidden marker, so strict separation proves visibility
+    // without asserting a clipping boundary or changing the emitted resource.
+    const stencil: MarkerDescriptor = matchedHiddenViewport ? {
+      id: marker.id, shape: marker.shape, geometry: marker.geometry, paint: marker.paint,
+      units: marker.units, size: marker.size, ref: marker.ref, orient: marker.orient,
+      viewBox: marker.viewBox, scale: marker.scale, overflow: 'visible',
+    } : marker
+    paintPieceSource = { marker: stencil, anchor: first, tangent, position, width }
+  }
   if (paintPieceSource && !work()) return undefined
   return { hull, fill, stroke, fillColor, strokeColor, innerStroke, strokeWitnesses, padding: region.padding, ...(paintPieceSource ? { paintPieceSource } : {}) }
 }

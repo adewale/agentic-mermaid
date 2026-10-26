@@ -1223,3 +1223,48 @@ test.each(['overlap', 'separated', 'empty', 'sharing', 'unknown'] as const)('str
     }
   }
 })
+
+test.each(['clear', 'hidden-overlap', 'unknown-view', 'aspect-mismatch', 'round-join-separated', 'opaque-covered'] as const)('hidden marker superset separation preserves %s', mode => {
+  // Actual retained capacity14 marker10/11 poses; all original resource and
+  // paint attributes remain unchanged in the Scene and emitted SVG.
+  const resources = classMarkerResources({ lineWidth: 1, edgeStrokeColor: '#47474a' } as any)
+  const earlier: MarkerDescriptor = { ...resources.find(marker => marker.id === 'cls-aggregation')!, id: 'hidden-diamond',
+    ...(mode === 'unknown-view' ? { viewBox: undefined } : {}),
+    ...(mode === 'aspect-mismatch' ? { size: { width: 14, height: 24 } } : {}),
+    ...(mode === 'round-join-separated' ? { paint: { fill: '#fff', stroke: '#47474a', strokeWidth: '1.5', strokeLinejoin: 'round' } } : {}),
+  }
+  const covered = mode === 'opaque-covered'
+  const later: MarkerDescriptor = { ...resources.find(marker => marker.id === (covered ? 'cls-inherit' : 'cls-arrow'))!, id: 'later-resource' }
+  const y = covered ? 167.315217391 : mode === 'hidden-overlap' ? 171.45 : 176.294264046
+  const context = { positioned: { width: 2300, height: 300 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => ({ ...scene([]), width: 2300, height: 300, parts: [
+    factory.documentOpen({ id: 'root', width: 2300, height: 300, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="2300" height="300">'),
+    factory.definitions({ id: 'resources' }, `<defs>${serializeMarkerResource(earlier)}${serializeMarkerResource(later)}</defs>`),
+    factory.connector({ id: 'earlier', role: 'relationship', owner: { id: 'earlier', role: 'relationship' }, endpoints: { from: 'A', to: 'B' }, lineStyle: 'solid', geometry: { kind: 'line', x1: 2098.968, y1: 163.45, x2: 2083.968, y2: 163.45 }, paint: { stroke: '#939395', strokeWidth: '1' }, stroke: { opacity: 0 }, markers: { start: earlier } }),
+    factory.connector({ id: 'later', role: 'relationship', owner: { id: 'later', role: 'relationship' }, endpoints: { from: 'C', to: 'D' }, lineStyle: 'solid', geometry: covered ? { kind: 'line', x1: 2098.968, y1: y, x2: 2083.968, y2: y } : { kind: 'line', x1: 2083.968, y1: y, x2: 2098.968, y2: y }, paint: { stroke: '#939395', strokeWidth: '1' }, stroke: { opacity: 0 }, markers: covered ? { start: later } : { end: later } }),
+    factory.documentClose(),
+  ] })
+  const originalResource = JSON.stringify(earlier)
+  const drawing = drawNative(producer, context, 'class')
+  expect(drawing.svg).toContain('overflow="hidden"')
+  expect(drawing.svg).toContain('markerWidth="14"')
+  if (mode === 'clear') {
+    expect(drawing.svg).toContain('viewBox="0 0 14 12" overflow="hidden"')
+    const before = JSON.stringify(earlier)
+    const connector = producer(marks, context).parts.find((node): node is Extract<SceneNode, { kind: 'connector' }> => node.kind === 'connector')!
+    let calls = 0
+    expect(prepareMarkerPolygonInk({ colors: context.colors }, connector, earlier, 'start', () => { calls++; return false })).toBeUndefined()
+    expect(calls).toBe(1)
+    expect(JSON.stringify(earlier)).toBe(before)
+  }
+  for (const proof of [certifyScenePaint(producer(marks, context)), certifyNativePaint(drawing.header, drawing.paint)]) {
+    // Round-join padding already proves these particular envelopes separate;
+    // unsupported extra stencil proof must not erase that earlier authority.
+    const clear = mode === 'clear' || mode === 'round-join-separated'
+    expect(proof.status).toBe(clear ? 'passed' : covered ? 'failed' : 'unverified')
+    if (clear) expect(proof.issues).toEqual([])
+    else expect(proof.issues).toContainEqual(expect.objectContaining({ code: covered ? 'MARKER_OCCLUDED' : 'POTENTIAL_OCCLUSION', id: 'earlier', by: 'later' }))
+    if (!covered) expect(proof.issues.some(issue => issue.code === 'MARKER_OCCLUDED')).toBe(false)
+  }
+  expect(JSON.stringify(earlier)).toBe(originalResource)
+})
