@@ -1,4 +1,4 @@
-import { hasOriginalOwnedFamilyHooks } from './experimental/owned-family.ts'
+import { isOwnedFamily } from './experimental/owned-family.ts'
 import { isOriginalEnrolledDefaultBackend } from './scene/backend.ts'
 import { nativeDrawingOf, originalNativeDrawingOf, type DrawingProducer } from './scene/drawing.ts'
 import { sceneAssertionsEnabled } from './scene/assertions.ts'
@@ -46,7 +46,7 @@ export function positionFamilyForNativeRender(request: ResolvedRenderRequest): F
   // later restored original producer never borrows caller-retained geometry.
   const producer = nativeDrawingOf(plan.family.lowerScene)
   const borrow = plan.mode === 'scene' && isOriginalEnrolledDefaultBackend(plan.backend?.backend)
-    && hasOriginalOwnedFamilyHooks(plan.family, plan.family.id) && !plan.textMeasurement
+    && isOwnedFamily(plan.family) && !plan.textMeasurement
     && !!producer && producer === originalNativeDrawingOf(plan.family.lowerScene) && !sceneAssertionsEnabled(request)
   const result = positionFamily(plan.family.id, request, request.source, {}, borrow)
   if (borrow && isRetainedPositionedSnapshot(result)) borrowedNativeProducers.set(result, producer!)

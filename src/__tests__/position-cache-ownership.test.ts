@@ -3,49 +3,13 @@ import { useTestChildren } from './helpers/test-child.ts'
 
 const runChild = useTestChildren(20_000)
 
-test('immutable enrollment proof cannot be upgraded, forged through a proxy, or inferred from freezing alone', async () => {
+test('family ownership follows constructed identities and backend ownership follows successful original enrollment', async () => {
   for (const mode of ['original', 'changed-before-enrollment', 'failed-enrollment']) {
     const child = await runChild(process.execPath, ['-e', `
       import assert from 'node:assert/strict'
-      import { enrollOwnedFamily, hasOriginalOwnedFamilyHooks, isOwnedFamily } from './src/experimental/owned-family.ts'
+      import { isOwnedFamily } from './src/experimental/owned-family.ts'
       import { DefaultBackend, isOriginalEnrolledDefaultBackend, registerBackend, registerBuiltInBackend } from './src/scene/backend.ts'
       const mode = ${JSON.stringify(mode)}
-      if (mode === 'original') {
-        const hook = () => undefined
-        const frozen = Object.freeze({ id: 'sequence', layout: hook, lowerScene: hook, normalizeRequest: undefined })
-        enrollOwnedFamily(frozen)
-        assert.equal(isOwnedFamily(frozen), true)
-        assert.equal(hasOriginalOwnedFamilyHooks(frozen, 'sequence'), true)
-        assert.equal(hasOriginalOwnedFamilyHooks(frozen, 'flowchart'), false)
-        assert.equal(Reflect.set(frozen, 'layout', () => undefined), false)
-        assert.equal(hasOriginalOwnedFamilyHooks(frozen, 'sequence'), true)
-        assert.equal(hasOriginalOwnedFamilyHooks(Object.freeze({ ...frozen }), 'sequence'), false)
-        const mutable = { id: 'sequence', layout: hook }
-        enrollOwnedFamily(mutable)
-        assert.equal(isOwnedFamily(mutable), true)
-        assert.equal(hasOriginalOwnedFamilyHooks(mutable, 'sequence'), false)
-        mutable.layout = () => 'changed'
-        Object.freeze(mutable)
-        enrollOwnedFamily(mutable)
-        assert.equal(hasOriginalOwnedFamilyHooks(mutable, 'sequence'), false)
-        let reads = 0
-        const accessor = Object.freeze({ id: 'sequence', get layout() { reads++; return hook } })
-        enrollOwnedFamily(accessor)
-        assert.equal(isOwnedFamily(accessor), true)
-        assert.equal(hasOriginalOwnedFamilyHooks(accessor, 'sequence'), false)
-        assert.equal(reads, 0)
-        for (const invalid of [Object.freeze({ layout: hook }), Object.freeze({ id: undefined, layout: hook })]) {
-          enrollOwnedFamily(invalid)
-          assert.equal(isOwnedFamily(invalid), true)
-          assert.equal(hasOriginalOwnedFamilyHooks(invalid, undefined), false)
-          assert.equal(hasOriginalOwnedFamilyHooks(invalid, 'sequence'), false)
-        }
-        const fail = () => { throw new Error('unowned query touched a proxy') }
-        const proxy = new Proxy(frozen, { get: fail, getOwnPropertyDescriptor: fail, ownKeys: fail, isExtensible: fail, getPrototypeOf: fail })
-        assert.equal(isOwnedFamily(proxy), false)
-        assert.equal(hasOriginalOwnedFamilyHooks(proxy, 'sequence'), false)
-        assert.equal(hasOriginalOwnedFamilyHooks(proxy, undefined), false)
-      }
       const fail = () => { throw new Error('backend query touched a proxy') }
       const proxy = new Proxy(DefaultBackend, { get: fail, getOwnPropertyDescriptor: fail, ownKeys: fail, isExtensible: fail })
       assert.equal(isOriginalEnrolledDefaultBackend(undefined), false)
@@ -65,6 +29,49 @@ test('immutable enrollment proof cannot be upgraded, forged through a proxy, or 
       assert.equal(isOriginalEnrolledDefaultBackend(undefined), false)
       assert.equal(isOriginalEnrolledDefaultBackend(proxy), false)
       assert.equal(isOriginalEnrolledDefaultBackend({ ...DefaultBackend }), false)
+      if (mode === 'original') {
+        const { getFamily, replaceFamilyForTest } = await import('./src/agent/families.ts')
+        const { createBrowserFamilyDescriptor } = await import('./src/browser-lazy/family.ts')
+        const original = getFamily('sequence')
+        assert.equal(Object.isFrozen(original), true)
+        assert.equal(isOwnedFamily(original), true)
+        assert.equal(Reflect.set(original, 'layout', () => undefined), false)
+        assert.equal(isOwnedFamily(Object.freeze({ ...original })), false)
+        const fail = () => { throw new Error('unowned family query touched a proxy') }
+        const familyProxy = new Proxy(original, { get: fail, getOwnPropertyDescriptor: fail, ownKeys: fail, isExtensible: fail, getPrototypeOf: fail })
+        for (const unowned of [familyProxy, {}, Object.freeze({ id: undefined }), undefined]) {
+          assert.equal(isOwnedFamily(unowned), false)
+        }
+        let idReads = 0, layoutReads = 0
+        const data = new Proxy({ ...original }, { get(target, key, receiver) {
+          if (key === 'id') idReads++
+          return Reflect.get(target, key, receiver)
+        } })
+        const hooks = { get layout() { layoutReads++; return original.layout }, projectPositioned: original.projectPositioned, lowerScene: original.lowerScene }
+        const browser = createBrowserFamilyDescriptor(data, hooks)
+        assert.equal(idReads, 1)
+        assert.equal(layoutReads, 1)
+        assert.equal(isOwnedFamily(data), false)
+        assert.equal(isOwnedFamily(browser), true)
+        assert.equal(Object.isFrozen(browser), true)
+        assert.equal(Reflect.set(browser, 'layout', () => undefined), false)
+        Object.defineProperty(hooks, 'layout', { get: fail })
+        assert.equal(browser.layout, original.layout)
+        assert.equal(isOwnedFamily(browser), true)
+        assert.equal(idReads, 1)
+        assert.equal(layoutReads, 1)
+        let replacementReads = 0
+        const restore = replaceFamilyForTest('sequence', { ...original, get layout() { replacementReads++; return original.layout } })
+        try {
+          const replacement = getFamily('sequence')
+          assert.equal(Object.isFrozen(replacement), true)
+          assert.equal(isOwnedFamily(replacement), false)
+          assert.equal(replacement.layout, original.layout)
+          assert.equal(replacementReads, 1)
+        } finally { restore() }
+        assert.equal(getFamily('sequence'), original)
+        assert.equal(isOwnedFamily(original), true)
+      }
       console.log('immutable enrollment proof passed')
     `], { cwd: `${import.meta.dir}/../..` })
     expect(child.stderr).toBe('')
