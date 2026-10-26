@@ -10,6 +10,7 @@ import { allocateTerminalRoute, paintTerminalRoute } from '../ascii/terminal-rou
 import type { ColorMode } from '../ascii/types.ts'
 import { renderContractDigest } from '../render-contract.ts'
 import { secureTerminalHtmlOutput } from '../terminal-security.ts'
+import { flowchartTree } from '../../eval/shared/release-bench-cases.ts'
 
 const owner = (id: string): TerminalOwner => ({ id, kind: 'node' })
 const inspect = (document: TerminalDocument, colorMode: ColorMode = 'none') => {
@@ -350,6 +351,34 @@ describe('original owner stroke directions', () => {
     document.stroke(1, 1, 5, { owner: edge('C') })
     expect(inspect(document).status).toBe('passed')
   })
+  test.each([false, true])('a growing shared trunk retains each crossing direction (crossing first=%s)', crossingFirst => {
+    const source = new TerminalDocument()
+    // Reverse registration exercises canonical owner order as the trunk grows.
+    for (let route = 95; route >= 0; route--) for (let x = 0; x < 8; x++) source.stroke(x, 1, 10, { owner: edge(`route-${route}`, 'trunk') })
+    const document = new TerminalDocument()
+    if (crossingFirst) document.stroke(3, 1, 5, { owner: edge('crossing') })
+    document.overlay(source)
+    expect(inspect(document).status).toBe('passed')
+    expect(document.cell(3, 1)!.owners).toHaveLength(crossingFirst ? 97 : 96)
+    if (!crossingFirst) document.stroke(3, 1, 5, { owner: edge('crossing') })
+    document.overlay(source)
+    expect(inspect(document).status).toBe('passed')
+    document.stroke(3, 1, 8, { owner: edge('crossing') })
+    expect(inspect(document)).toMatchObject({ status: 'failed', issues: expect.arrayContaining([expect.objectContaining({ code: 'TERMINAL_ROUTE_OVERLAP' })]) })
+  })
+  test('the release tree-300 workload remains admitted with bounded terminal evidence', () => {
+    const rendered = renderMermaidASCIIWithReceipt(flowchartTree(300), { colorMode: 'none' })
+    const labels = new Set([...rendered.text.matchAll(/\bNode (\d+)\b/g)].map(match => Number(match[1])))
+    expect([...labels].sort((a, b) => a - b)).toEqual(Array.from({ length: 300 }, (_, index) => index))
+    const certificate = rendered.receipt.layoutCertification!
+    if (certificate.scope !== 'terminal-cells') throw new Error('Expected native terminal cell evidence')
+    expect(certificate.status).not.toBe('failed')
+    expect(certificate.budget).toMatchObject({ maxOperations: 1_000_000, maxOutputCodeUnits: 2_000_000 })
+    if (certificate.status === 'unverified') {
+      expect(certificate.budget.exhausted).toBe(true)
+      expect(certificate.issues.map(issue => issue.code)).toEqual(['TERMINAL_CERTIFICATION_LIMIT'])
+    }
+  }, 120_000)
   test.each([false, true])('overlay and copied cell imports retain original directions (put=%s)', usePut => {
     const source = crossing(),
       document = new TerminalDocument()
