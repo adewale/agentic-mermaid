@@ -53,6 +53,38 @@ test('successful accessibility edits close through body, metadata and source wit
 })
 
 describe('#7254/#7255 SVG accessibility', () => {
+  test('literal directive openers in accessibility stay source-only and cannot escape through an edit', () => {
+    const source = 'pie\naccDescr {\nReview %%{prose\n}\n"Share": 2'
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(parsed.value.body.kind).toBe('opaque')
+    expect(serializeMermaid(parsed.value)).toBe(source + '\n')
+    expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'accessibility_directive_text' }))
+    const editable = parseMermaid('pie\n"Share": 2')
+    if (!editable.ok) throw new Error(JSON.stringify(editable.error))
+    const edited = mutate(editable.value, { kind: 'set_accessibility_description', description: 'Review %%{prose' })
+    expect(edited.ok).toBe(false)
+    expect(editable.value.meta.accessibility.descr).toBeUndefined()
+  })
+
+  test('empty description blocks retain their field and following statement through writing', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const [header, content] of [['xychart-beta', 'line [2]'], ['pie', '"Share": 2'], ['stateDiagram-v2', 'A --> B']]) {
+        const parsed = parseMermaid(`${header}\naccDescr{}${content}%%`)
+        if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+        expect(parsed.value.meta.accessibility.descr).toBe('')
+        expect(verifyMermaid(parsed.value).ok).toBe(true)
+        const written = serializeMermaid(parsed.value)
+        expect(await upstream.publicAccepts(written), written).toBe(true)
+        const reread = parseMermaid(written)
+        if (!reread.ok) throw new Error(JSON.stringify(reread.error))
+        expect(reread.value.meta.accessibility.descr).toBe('')
+        expect(reread.value.body.kind).toBe(parsed.value.body.kind)
+      }
+    } finally { upstream.close() }
+  })
+
   test('accTitle → <title>, accDescr → <desc>, role + ARIA references on root', () => {
     const svg = renderMermaidSVG('flowchart TD\n accTitle: Login Flow\n accDescr: How a user logs in\n A[Start] --> B[End]')
     expect(svg).toContain('<title id="svg-title">Login Flow</title>')

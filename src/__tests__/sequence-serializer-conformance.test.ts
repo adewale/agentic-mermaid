@@ -17,6 +17,7 @@ import { mutate } from '../agent/mutate.ts'
 import { asSequence } from '../agent/types.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../agent/index.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+import { projectEntityMarkers } from '../shared/mermaid-entity-display.ts'
 import type { SequenceValidDiagram, SequenceMutationOp } from '../agent/types.ts'
 
 function sequence(src: string): SequenceValidDiagram {
@@ -136,6 +137,9 @@ describe('sequence identities survive portable structured writing', () => {
 
   test.each([
     'sequenceDiagram\nJ->%:',
+    'sequenceDiagram\ne->right of:',
+    'sequenceDiagram\ne->right of Bob: reply',
+    'sequenceDiagram\nleft of->e:',
     'sequenceDiagram J->accDescr:',
     'sequenceDiagram\nalt retry\nJ->>accTitle: reply\nend',
     'sequenceDiagram\nlink >: @http:',
@@ -151,6 +155,21 @@ describe('sequence identities survive portable structured writing', () => {
     const edited = mutate(parsed.value, { kind: 'add_participant', id: 'Safe' })
     expect(edited.ok).toBe(false)
     if (!edited.ok) expect(edited.error.code).toBe('INVALID_OP')
+  })
+
+  test('declaration boundaries and literal comment text cannot change the emitted message', async () => {
+    for (const source of ['sequenceDiagram\nparticipant b\n@{->b:', 'sequenceDiagram\nloop\nb->e:%%\nend']) {
+      const parsed = sequence(source)
+      const written = serializeMermaid(parsed)
+      const result = await upstream.parse(written)
+      expect(result.ok, written).toBe(true)
+      if (!result.ok || !result.sequence) throw new Error('Expected portable messages')
+      const messages = result.sequence.messages.filter(message => message.from !== undefined && message.to !== undefined)
+      expect(messages.map(({ from, to, message }) => ({ from, to, text: projectEntityMarkers(message) }))).toEqual(source.includes('participant')
+        ? [{ from: '@{', to: 'b', text: '' }]
+        : [{ from: 'b', to: 'e', text: '%%' }])
+      expect(serializeMermaid(sequence(written))).toBe(written)
+    }
   })
 
   test('declarations, message references and aliases retain their distinct identity grammars', async () => {

@@ -190,6 +190,7 @@ function sequenceMessageFromParsed(msg: ReturnType<typeof parseSequenceMessageLi
  * source Mermaid reads. */
 function portableRaw(entry: SequenceSourceStatement): string {
   const message = entry.syntax?.kind === 'message' ? entry.syntax.message : undefined
+  if (message?.label.includes('%%')) return renderMessage(sequenceMessageFromParsed(message))
   if (!message?.localArrow) return entry.raw
   // Only `()` and spaces stand between the sender and its arrow.
   const at = entry.raw.indexOf(message.localArrow, entry.raw.length - entry.raw.trimStart().length + message.from.length)
@@ -370,7 +371,7 @@ export function renderSequence(body: SequenceBody): string {
     // the participant's first mention keeps its alias even when that is the
     // id, since Mermaid ignores a bare re-declaration.
     const mentioned = new Set<string>()
-    for (const st of body.statements) {
+    for (const [index, st] of body.statements.entries()) {
       if (st.kind === 'opaque-block') {
         assertParticipantDeclarations(readSequenceStatements(st.lines))
         for (const l of st.lines) lines.push(isSequenceCommentLine(l) ? writeMermaidComment(l) : l)
@@ -386,7 +387,12 @@ export function renderSequence(body: SequenceBody): string {
         lines.push(...renderFragment(st.fragment))
       } else {
         const m = body.messages[st.ref]
-        if (m) lines.push(renderMessage(m))
+        if (m) {
+          // ID's metadata lookahead crosses newlines. An explicit statement
+          // terminator prevents the next actor from reopening that ID.
+          if (m.from.startsWith('@{') && body.statements[index - 1]?.kind === 'participant') lines[lines.length - 1] += ';'
+          lines.push(renderMessage(m))
+        }
       }
       for (const id of statementParticipantIds(st, body.participants, body.messages)) mentioned.add(id)
     }
