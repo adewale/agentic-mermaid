@@ -466,7 +466,7 @@ jobs:
             '{status:"incomplete", requestedScope:$scope, runtimeComparison:"historical-compound", isolatedProductionGain:false, requestedBaselineSha:$sha, candidateSourceSha:$candidate, timingScope:"this job only"}' > fixed-evidence/identity.json
           [[ "$REQUESTED_SHA" =~ ^[0-9a-fA-F]{40}$ ]] || { echo 'fixed-baseline-sha must be one full 40-character commit SHA' >&2; exit 1; }
           printf 'FIXED_BASELINE_SHA=%s\n' "${REQUESTED_SHA,,}" >> "$GITHUB_ENV"
-          jq -n '{fixed:{rounds:5,reps:3,budgetMs:1200000,corpus:"complete official and scaling/workflow inputs",cacheModes:["off","on"]},aa:{rounds:5,reps:3,budgetMs:1200000,corpus:"complete official and scaling/workflow inputs",cache:"off",identity:"same installed verified baseline package and runtime dependency tree"},peers:{rounds:5,timeoutSeconds:300,ids:["agentic","beautiful","zombie","pele"],cacheModes:["off","on"],advisory:true},sceneAssertions:"off"}' > fixed-evidence/config.json
+          jq -n '{fixed:{rounds:5,reps:3,budgetMs:1200000,corpus:"complete official and scaling/workflow inputs",cacheModes:["off","on"]},aa:{rounds:5,reps:3,budgetMs:1200000,corpus:"complete official and scaling/workflow inputs",cache:"off",identity:"same installed verified baseline package and runtime dependency tree"},peers:{rounds:5,timeoutSeconds:600,ids:["agentic","beautiful","zombie","pele"],cacheModes:["off","on"],advisory:true},sceneAssertions:"off"}' > fixed-evidence/config.json
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
@@ -582,15 +582,15 @@ jobs:
         id: peers_off
         if: ${{ !cancelled() && steps.fixed_baseline.outcome == 'success' }}
         continue-on-error: true
-        timeout-minutes: 6
-        run: timeout --kill-after=15s 5m bun run bench:peers --runtime-source "$GITHUB_WORKSPACE" --peers agentic,beautiful,zombie,pele --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$CANDIDATE_SHA256" --rounds 5 --elk-cache off --json fixed-evidence/peers-off.json --markdown fixed-evidence/peers-off.md
+        timeout-minutes: 11
+        run: timeout --kill-after=15s 10m bun run bench:peers --runtime-source "$GITHUB_WORKSPACE" --peers agentic,beautiful,zombie,pele --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$CANDIDATE_SHA256" --rounds 5 --elk-cache off --json fixed-evidence/peers-off.json --markdown fixed-evidence/peers-off.md
 
       - name: Compare the packed candidate with pinned peers and ELK cache on
         id: peers_on
         if: ${{ !cancelled() && steps.fixed_baseline.outcome == 'success' }}
         continue-on-error: true
-        timeout-minutes: 6
-        run: timeout --kill-after=15s 5m bun run bench:peers --runtime-source "$GITHUB_WORKSPACE" --peers agentic,beautiful,zombie,pele --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$CANDIDATE_SHA256" --rounds 5 --elk-cache on --json fixed-evidence/peers-on.json --markdown fixed-evidence/peers-on.md
+        timeout-minutes: 11
+        run: timeout --kill-after=15s 10m bun run bench:peers --runtime-source "$GITHUB_WORKSPACE" --peers agentic,beautiful,zombie,pele --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$CANDIDATE_SHA256" --rounds 5 --elk-cache on --json fixed-evidence/peers-on.json --markdown fixed-evidence/peers-on.md
 
       - name: Retain sequential CPU profiles of the exact installed packages
         id: fixed_profiles
