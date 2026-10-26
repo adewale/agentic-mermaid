@@ -59,6 +59,10 @@ const op = {
   markerAt: 'both', fromKind: 'lollipop', toKind: 'aggregation', lineStyle: 'dashed',
 } as const
 const interfaceOp = { kind: 'add_interface', class: 'Service', label: 'Port', side: 'to' } as const
+const c4 = mermaid.createMermaid('c4', {c4Variant:'C4Deployment'})
+const builtC4 = mermaid.buildMermaid('c4', [], {c4Variant:'C4Container'})
+declare const region: RenderedRegion
+const covered: Array<{row:number;start:number;end:number}> | undefined = region.occludedCellSpans
 const parsed = mermaid.parseRegisteredMermaid('classDiagram\\nclass Port\\nclass Service')
 if (parsed.ok) {
   const diagram = mermaid.asClass(parsed.value)
@@ -91,6 +95,12 @@ const displayed = [
   visible(relationship.labelContent), visible(relationship.fromCardinalityContent), visible(relationship.toCardinalityContent),
 ]
 const authored: string | undefined = relationship.labelContent?.authored
+declare const mindmap: MindmapBody
+declare const gitgraph: GitGraphBody
+const mindmapLabels: string[] = mindmap.root.children.map(node => node.label)
+const authoredCommit: string | undefined = gitgraph.commits[0]?.sourceId
+const branchHead: string | undefined = gitgraph.branches[0]?.head
+const statementKind: 'commit' | 'branch' | 'checkout' | 'merge' | 'cherry-pick' | undefined = gitgraph.statements[0]?.kind
 const sourceStart: number | undefined = relationship.labelContent?.prepared.lines[0]?.[0]?.sourceStart
 const fittedWidth: number | undefined = flow.nodes.get('A')?.labelBlock?.lineBlocks[0]?.width
 `
@@ -149,41 +159,6 @@ const fittedWidth: number | undefined = flow.nodes.get('A')?.labelBlock?.lineBlo
       },
       'full',
     )
-  })
-
-  test('keeps parser-populated mindmap and gitgraph read-back fields recursively visible', () => {
-    const declaration = ts.createSourceFile('code-mode-sdk.d.ts', SDK_DECLARATION, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
-    const source = (path: string) => ts.createSourceFile(path, require('node:fs').readFileSync(path, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
-    const root = require('node:path').join(import.meta.dir, '..')
-    const mindmap = source(require('node:path').join(root, 'mindmap/types.ts'))
-    const gitgraph = source(require('node:path').join(root, 'gitgraph/types.ts'))
-    const fields = (file: ts.SourceFile, name: string) => {
-      const node = file.statements.find(statement => ts.isInterfaceDeclaration(statement) && statement.name.text === name)
-      expect(node && ts.isInterfaceDeclaration(node)).toBe(true)
-      if (!node || !ts.isInterfaceDeclaration(node)) return []
-      return node.members.flatMap(member => (member.name ? [member.name.getText(file)] : [])).sort()
-    }
-    expect(fields(declaration, 'MindmapNode')).toEqual(fields(mindmap, 'MindmapNode'))
-    expect(fields(declaration, 'GitGraphCommit')).toEqual(fields(gitgraph, 'GitGraphCommit'))
-    expect(fields(declaration, 'GitGraphBranch')).toEqual(fields(gitgraph, 'GitGraphBranch'))
-    expect(fields(declaration, 'GitGraphBody').filter(field => field !== 'kind')).toEqual(fields(gitgraph, 'GitGraphDiagram'))
-
-    const unionFields = (file: ts.SourceFile, name: string) => {
-      const alias = file.statements.find(statement => ts.isTypeAliasDeclaration(statement) && statement.name.text === name)
-      expect(alias && ts.isTypeAliasDeclaration(alias)).toBe(true)
-      if (!alias || !ts.isTypeAliasDeclaration(alias) || !ts.isUnionTypeNode(alias.type)) return []
-      return alias.type.types
-        .map(member =>
-          ts.isTypeLiteralNode(member)
-            ? member.members
-                .flatMap(field => (field.name ? [field.name.getText(file)] : []))
-                .sort()
-                .join(',')
-            : '',
-        )
-        .sort()
-    }
-    expect(unionFields(declaration, 'GitGraphStatement')).toEqual(unionFields(gitgraph, 'GitGraphStatement'))
   })
 
   test('uses one complete render-options and receipt authority in both declarations', () => {

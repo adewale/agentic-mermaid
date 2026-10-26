@@ -1,5 +1,4 @@
-import { KANBAN_OP_KINDS } from '../kanban/ops.ts'
-import { formatUnknownOpMessage } from './unknown-op.ts'
+import { unknownOpMessage } from './mutation-ops.ts'
 import YAML from 'yaml'
 import { preservedMermaidFamilyText, type NormalizedMermaidSource } from '../mermaid-source.ts'
 import { parseKanbanDiagram } from '../kanban/parser.ts'
@@ -160,7 +159,7 @@ export function mutateKanban(body: KanbanBody, op: KanbanMutationOp): Result<Kan
       break
     }
     default:
-      return fail(formatUnknownOpMessage('kanban', op, KANBAN_OP_KINDS.join(', ')))
+      return fail(unknownOpMessage('kanban', op))
   }
   // Typed edits must remain in the strict writer's grammar, including its
   // unusual metadata lexer (quotes may not contain a literal double quote).
