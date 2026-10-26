@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="376.79" height="136" viewBox="0 0 376.79 136" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-0r6py6d1tgtyh0">
+<style>
+  svg.am-0r6py6d1tgtyh0 { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  .am-0r6py6d1tgtyh0 .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
+  svg.am-0r6py6d1tgtyh0 {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+</defs>
+<g class="entity" data-id="HOTEL" data-label="HOTEL" data-role="entity">
+  <rect x="40" y="40" width="296.79" height="56" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="1" data-id="entity-rect:HOTEL" data-role="entity" />
+  <path d="M40,40 H336.79 V74 H40 Z" fill="#f4f4f4" stroke="#949495" stroke-width="1" />
+  <text x="188.395" y="57" text-anchor="middle" font-size="13" font-weight="700" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="48.75" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">HOTEL</text>
+  <line x1="40" y1="74" x2="336.79" y2="74" stroke="#949495" stroke-width="0.75" />
+  <g data-id="attr:HOTEL:`geo.accuracy`:row" data-role="attribute"><title>literal `ticks`</title>
+  <rect x="47" y="78" width="22.31" height="14" rx="2" ry="2" fill="#e9e9ea" />
+  <text x="58.155" y="85" text-anchor="middle" font-size="9" font-weight="600" fill="#575759" data-id="attr:HOTEL:`geo.accuracy`:key-text" data-role="attribute" data-prepared-text="true" dy="3.15" textLength="14.31" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">UK</text>
+  <text x="76.31" y="85" class="mono" text-anchor="start" font-size="11" font-weight="400" fill="#69696c" data-id="attr:HOTEL:`geo.accuracy`:type" data-role="attribute" data-prepared-text="true" dy="3.85" textLength="66" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">`my.type`?</text>
+  <text x="258.71" y="85" class="mono" text-anchor="end" font-size="11" font-weight="400" fill="#575759" data-id="attr:HOTEL:`geo.accuracy`" data-role="attribute" data-prepared-text="true" dy="3.85" textLength="92.4" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">`geo.accuracy`</text>
+  <text x="328.79" y="85" text-anchor="end" font-size="11" font-weight="400" fill="#69696c" data-id="attr:HOTEL:`geo.accuracy`:comment" data-role="attribute" data-prepared-text="true" dy="3.85" textLength="58.08" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">literal `ticks`</text>
+  </g>
+</g>
+</svg>

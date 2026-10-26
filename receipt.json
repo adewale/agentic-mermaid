@@ -1,0 +1,38 @@
+{
+  "base": "18017376db3168579b26cc9ecf01f8526e00146e",
+  "head": "2eb645f93b67aed95a9546df122ca29a1636f90d",
+  "bun": "1.4.2",
+  "fixtures": [
+    "compat-er-attribute-quotes"
+  ],
+  "sources": {
+    "compat-er-attribute-quotes": "erDiagram\nHOTEL {\n `my.type`? `geo.accuracy` UK \"literal `ticks`\"\n}"
+  },
+  "terminalFixtures": [],
+  "terminalOptions": {
+    "ascii": {
+      "colorMode": "none",
+      "useAscii": true
+    },
+    "unicode": {
+      "colorMode": "html",
+      "useAscii": false
+    }
+  },
+  "options": {
+    "security": "strict",
+    "style": "default unless fixtureOptions overrides it",
+    "fonts": "bundled"
+  },
+  "fixtureOptions": {
+    "compat-er-attribute-quotes": {
+      "svg": {
+        "security": "strict"
+      },
+      "png": {
+        "security": "strict",
+        "background": "#ffffff"
+      }
+    }
+  }
+}
