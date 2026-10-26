@@ -17,8 +17,9 @@ test('successful accessibility edits close through body, metadata and source wit
   const parsed = parseMermaid('packet\n0-7: "Payload"')
   if (!parsed.ok) throw new Error('Expected Packet')
   const original = structuredClone(parsed.value)
-  for (const description of ['one\n}\naccDescr {\ntwo', '{unfinished', 'one\r\ntwo', 'ordinary description']) {
+  for (const description of ['', '\n \t', 'one\n}\naccDescr {\ntwo', '{unfinished', 'one\r\ntwo', 'ordinary description']) {
     const result = mutate(parsed.value, { kind: 'set_accessibility_description', description })
+    if (!description.trim()) expect(result.ok).toBe(false)
     if (description === 'ordinary description' || description === 'one\r\ntwo') expect(result.ok).toBe(true)
     if (!result.ok) {
       expect(result.error.code).toBe('INVALID_OP')
@@ -67,21 +68,32 @@ describe('#7254/#7255 SVG accessibility', () => {
     expect(editable.value.meta.accessibility.descr).toBeUndefined()
   })
 
-  test('empty description blocks retain their field and following statement through writing', async () => {
+  test.each([
+    ['xychart-beta', 'line [2]', { kind: 'set_title', title: 'Changed' }, 'Changed'],
+    ['pie', '"Share": 2', { kind: 'add_slice', label: 'Other', value: 3 }, 'Other'],
+    ['stateDiagram-v2', 'A --> B', { kind: 'add_state', id: 'C' }, 'C'],
+    ['packet', '0-7: "Payload"', { kind: 'set_field_label', index: 0, label: 'Changed' }, 'Changed'],
+  ] as const)('empty description blocks survive writing and unrelated %s edits', async (header, content, op, changedText) => {
     const upstream = startUpstreamMermaid()
     try {
-      for (const [header, content] of [['xychart-beta', 'line [2]'], ['pie', '"Share": 2'], ['stateDiagram-v2', 'A --> B']]) {
-        const parsed = parseMermaid(`${header}\naccDescr{}${content}%%`)
-        if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
-        expect(parsed.value.meta.accessibility.descr).toBe('')
-        expect(verifyMermaid(parsed.value).ok).toBe(true)
-        const written = serializeMermaid(parsed.value)
-        expect(await upstream.publicAccepts(written), written).toBe(true)
-        const reread = parseMermaid(written)
-        if (!reread.ok) throw new Error(JSON.stringify(reread.error))
-        expect(reread.value.meta.accessibility.descr).toBe('')
-        expect(reread.value.body.kind).toBe(parsed.value.body.kind)
-      }
+      const parsed = parseMermaid(`${header}\naccDescr{}${content}%%`)
+      if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+      const original = structuredClone(parsed.value)
+      expect(parsed.value.meta.accessibility.descr).toBe('')
+      expect(verifyMermaid(parsed.value).ok).toBe(true)
+      expect(await upstream.publicAccepts(serializeMermaid(parsed.value))).toBe(true)
+      const edited = mutate(parsed.value, op)
+      expect(edited.ok).toBe(true)
+      if (!edited.ok) throw new Error(JSON.stringify(edited.error))
+      expect(edited.value.meta.accessibility.descr).toBe('')
+      const written = serializeMermaid(edited.value)
+      expect(written).toContain(changedText)
+      expect(await upstream.publicAccepts(written), written).toBe(true)
+      const reread = parseMermaid(written)
+      if (!reread.ok) throw new Error(JSON.stringify(reread.error))
+      expect(reread.value.meta.accessibility.descr).toBe('')
+      expect(reread.value.body.kind).toBe(parsed.value.body.kind)
+      expect(parsed.value).toEqual(original)
     } finally { upstream.close() }
   })
 

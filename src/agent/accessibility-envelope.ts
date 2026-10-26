@@ -40,7 +40,8 @@ export function normalizeBodyAccessibility<T extends DiagramBody>(body: T): T {
   const fields = accessibilityFromBody(body)
   if (!fields) return body
   const title = fields.title === undefined ? undefined : accessibilityTitleText(fields.title)
-  const descr = fields.descr === undefined ? undefined : accessibilityDescriptionText(fields.descr)
+  // Empty parsed blocks are valid retained values; setters validate new text.
+  const descr = fields.descr === undefined || fields.descr === '' ? fields.descr : accessibilityDescriptionText(fields.descr)
   return title === fields.title && descr === fields.descr ? body : {
     ...body,
     ...(title !== undefined ? { accessibilityTitle: title } : {}),
