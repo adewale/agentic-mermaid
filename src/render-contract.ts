@@ -7,6 +7,7 @@
 // lowering, graphical backends, rasterization, and terminal projection share.
 // ============================================================================
 
+import { validateJsonSchema, type SchemaProblem, type JsonSchema } from './shared/schema-validation.ts'
 import type { ConfigDiagnostic, RenderOptions, ResolvedFamilyRenderContext } from './types.ts'
 import type { ArchitectureVisualConfig } from './architecture/config.ts'
 import type { DiagramColors } from './theme.ts'
@@ -378,19 +379,6 @@ export function architectureVisualOverridesTypeScriptDeclaration(): string {
   return `interface ArchitectureVisualOverrides {\n${fields.join('\n')}\n}`
 }
 
-const FORBIDDEN_PROTOTYPE_KEYS = new Set(['__proto__', 'prototype', 'constructor'])
-
-interface SchemaProblem {
-  readonly path: readonly (string | number)[]
-  readonly message: string
-  /** Generic failures may use the field descriptor's clearer expectation. */
-  readonly generic: boolean
-}
-
-function schemaRecord(value: unknown): JsonSchemaNode | undefined {
-  return isPlainRecord(value) ? value : undefined
-}
-
 function cloneSchema(schema: JsonSchemaNode): Record<string, unknown> {
   const cloneValue = (value: unknown): unknown => {
     if (Array.isArray(value)) return value.map(cloneValue)
@@ -413,152 +401,8 @@ function renderOptionsAdmissionMessages(value: unknown): string[] {
       : `render options ${problem.message}`), 'render options')
 }
 
-function dereferenceSchema(schema: JsonSchemaNode, root: JsonSchemaNode): JsonSchemaNode | undefined {
-  const reference = schema.$ref
-  if (typeof reference !== 'string' || !reference.startsWith('#/')) return undefined
-  let cursor: unknown = root
-  for (const encoded of reference.slice(2).split('/')) {
-    if (!isPlainRecord(cursor)) return undefined
-    const key = encoded.replaceAll('~1', '/').replaceAll('~0', '~')
-    cursor = cursor[key]
-  }
-  return schemaRecord(cursor)
-}
-
-function schemaMatchesRuntimeKind(value: unknown, schema: JsonSchemaNode, root: JsonSchemaNode): boolean {
-  const resolved = dereferenceSchema(schema, root)
-  if (resolved) return schemaMatchesRuntimeKind(value, resolved, root)
-  const anyOf = Array.isArray(schema.anyOf) ? schema.anyOf.map(schemaRecord).filter((entry): entry is JsonSchemaNode => entry !== undefined) : []
-  if (anyOf.length > 0) return anyOf.some(candidate => schemaMatchesRuntimeKind(value, candidate, root))
-  switch (schema.type) {
-    case 'null': return value === null
-    case 'string': return typeof value === 'string'
-    case 'number': return typeof value === 'number'
-    case 'integer': return typeof value === 'number'
-    case 'boolean': return typeof value === 'boolean'
-    case 'array': return Array.isArray(value)
-    case 'object': return isPlainRecord(value)
-    default: return true
-  }
-}
-
-function validateSchemaValue(
-  value: unknown,
-  schema: JsonSchemaNode,
-  root: JsonSchemaNode,
-  path: readonly (string | number)[],
-  ancestors: Set<object>,
-): SchemaProblem[] {
-  const resolved = dereferenceSchema(schema, root)
-  if (schema.$ref !== undefined) {
-    if (!resolved) return [{ path, message: 'uses an unresolved schema reference', generic: false }]
-    return validateSchemaValue(value, resolved, root, path, ancestors)
-  }
-
-  const anyOf = Array.isArray(schema.anyOf)
-    ? schema.anyOf.map(schemaRecord).filter((entry): entry is JsonSchemaNode => entry !== undefined)
-    : []
-  if (anyOf.length > 0) {
-    const compatible = anyOf.filter(candidate => schemaMatchesRuntimeKind(value, candidate, root))
-    const candidates = compatible.length > 0 ? compatible : anyOf
-    const branchProblems = candidates.map(candidate => validateSchemaValue(value, candidate, root, path, ancestors))
-    if (!branchProblems.some(problems => problems.length === 0)) {
-      const expectation = schema['x-agentic-mermaid-validation-expectation']
-      if (compatible.length === 0 && typeof expectation === 'string') return [{ path, message: `must be ${expectation}`, generic: true }]
-      return branchProblems.sort((left, right) => left.length - right.length)[0]
-        ?? [{ path, message: 'must match an allowed shape', generic: true }]
-    }
-  }
-
-  if ('const' in schema && value !== schema.const) {
-    return [{ path, message: `must equal ${String(schema.const)}`, generic: true }]
-  }
-  if (Array.isArray(schema.enum) && !schema.enum.includes(value)) {
-    return [{ path, message: `must be one of ${schema.enum.map(String).join(' | ')}`, generic: true }]
-  }
-
-  const type = schema.type
-  const typeIsValid = type === undefined
-    || (type === 'null' && value === null)
-    || (type === 'string' && typeof value === 'string')
-    || (type === 'number' && typeof value === 'number' && Number.isFinite(value))
-    || (type === 'integer' && typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value))
-    || (type === 'boolean' && typeof value === 'boolean')
-    || (type === 'array' && Array.isArray(value))
-    || (type === 'object' && isPlainRecord(value))
-  if (!typeIsValid) {
-    const expected = type === 'number' ? 'a finite number'
-      : type === 'integer' ? 'a finite integer'
-        : type === 'object' ? 'a plain JSON object'
-          : type === 'array' ? 'an array'
-            : type === 'null' ? 'null'
-              : `a ${String(type)}`
-    return [{ path, message: `must be ${expected}`, generic: true }]
-  }
-
-  if (typeof value === 'number') {
-    if (typeof schema.minimum === 'number' && value < schema.minimum) return [{ path, message: `must be at least ${schema.minimum}`, generic: true }]
-    if (typeof schema.exclusiveMinimum === 'number' && value <= schema.exclusiveMinimum) return [{ path, message: `must be greater than ${schema.exclusiveMinimum}`, generic: true }]
-    if (typeof schema.maximum === 'number' && value > schema.maximum) return [{ path, message: `must be at most ${schema.maximum}`, generic: true }]
-  }
-
-  if (typeof value === 'string' && typeof schema.pattern === 'string') {
-    let matches = false
-    try {
-      matches = new RegExp(schema.pattern).test(value)
-    } catch {
-      return [{ path, message: 'uses an invalid schema pattern', generic: false }]
-    }
-    if (!matches) return [{ path, message: `must match ${schema.pattern}`, generic: true }]
-  }
-
-  if (Array.isArray(value) && type === 'array') {
-    if (ancestors.has(value)) return [{ path, message: 'must be acyclic', generic: false }]
-    const items = schemaRecord(schema.items)
-    if (items) {
-      ancestors.add(value)
-      try {
-        const problems = value.flatMap((item, index) => validateSchemaValue(item, items, root, [...path, index], ancestors))
-        if (problems.length > 0) return problems
-      } finally {
-        ancestors.delete(value)
-      }
-    }
-  }
-
-  if (isPlainRecord(value) && type === 'object') {
-    if (ancestors.has(value)) return [{ path, message: 'must be acyclic', generic: false }]
-    ancestors.add(value)
-    try {
-      const properties = schemaRecord(schema.properties) ?? {}
-      const required = Array.isArray(schema.required) ? schema.required.filter((entry): entry is string => typeof entry === 'string') : []
-      const problems: SchemaProblem[] = []
-      for (const key of required) {
-        if (!Object.prototype.hasOwnProperty.call(value, key)) problems.push({ path: [...path, key], message: 'is required', generic: false })
-      }
-      for (const [key, child] of Object.entries(value)) {
-        if (FORBIDDEN_PROTOTYPE_KEYS.has(key)) {
-          problems.push({ path: [...path, key], message: 'uses a forbidden prototype key', generic: false })
-          continue
-        }
-        const propertySchema = schemaRecord(properties[key])
-        if (propertySchema) {
-          problems.push(...validateSchemaValue(child, propertySchema, root, [...path, key], ancestors))
-          continue
-        }
-        if (schema.additionalProperties === false) {
-          problems.push({ path: [...path, key], message: 'is not allowed', generic: false })
-          continue
-        }
-        const additionalSchema = schemaRecord(schema.additionalProperties)
-        if (additionalSchema) problems.push(...validateSchemaValue(child, additionalSchema, root, [...path, key], ancestors))
-      }
-      if (problems.length > 0) return problems
-    } finally {
-      ancestors.delete(value)
-    }
-  }
-
+/** Domain rules shared by render fields and tool-schema projections. */
+export function renderSchemaProblems(value: unknown, schema: JsonSchema, path: readonly (string | number)[]): SchemaProblem[] {
   const runtimeValidator = schema['x-agentic-mermaid-runtime-validator']
   if (runtimeValidator === 'safeCssColor' && safeCssColor(value) === undefined) {
     return [{ path, message: 'must be a safe, non-fetching CSS color', generic: false }]
@@ -613,7 +457,7 @@ export function validateSerializableRenderOptions(value: unknown): string[] {
       continue
     }
     const descriptor = SHARED_RENDER_OPTION_FIELD_DESCRIPTORS[field as SharedRenderOptionField]
-    const schemaProblems = validateSchemaValue(fieldValue, descriptor.schema, rootSchema, [field], new Set())
+    const schemaProblems = validateJsonSchema(fieldValue, descriptor.schema, rootSchema, [field], { diagnostics: 'field', validateRuntime: renderSchemaProblems })
     if (schemaProblems.length > 0 && schemaProblems.every(problem => problem.generic && problem.path.length === 1)) {
       problems.push(`render option "${field}" must ${descriptor.validationExpectation}`)
     } else {
@@ -1151,7 +995,7 @@ function normalizedFamilyData(
     throw new TypeError(`Family "${family.id}" returned invalid ${label} data: ${error instanceof Error ? error.message : String(error)}`)
   }
   const root: JsonSchemaNode = { ...JSON_VALUE_SCHEMA, $defs: { jsonValue: JSON_VALUE_SCHEMA } }
-  const problems = validateSchemaValue(compact, root, root, [`family${label === 'config' ? 'Config' : 'Appearance'}`], new Set())
+  const problems = validateJsonSchema(compact, root, root, [`family${label === 'config' ? 'Config' : 'Appearance'}`], { diagnostics: 'field', validateRuntime: renderSchemaProblems })
   if (problems.length > 0) {
     const detail = problems.map(problem => `${problem.path.join('.')} ${problem.message}`).join('; ')
     throw new TypeError(`Family "${family.id}" returned invalid ${label} data: ${detail}`)

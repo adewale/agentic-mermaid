@@ -245,6 +245,22 @@ describe('Section A canonical render contracts', () => {
     })
   })
 
+  test('MCP projection validates the captured option value rather than rereading a live getter', () => {
+    let reads = 0
+    const options = Object.defineProperty({}, 'bg', {
+      enumerable: true,
+      get() { return ++reads === 1 ? '#123456' : 'url(https://invalid.example/changed)' },
+    })
+    let optionReads = 0
+    const args = Object.defineProperty({}, 'options', {
+      get() { return ++optionReads === 1 ? options : null },
+    })
+    const projected = projectMcpRenderOptions(args)
+    expect(projected).toEqual({ bg: '#123456' })
+    expect(resolveRenderRequest(SOURCE, projected).appearance.colors.bg).toBe('#123456')
+    expect({ optionReads, valueReads: reads }).toEqual({ optionReads: 1, valueReads: 1 })
+  })
+
   test('one appearance receipt survives graphical and terminal output choices', () => {
     const options = { style: ['hand-drawn', { colors: { accent: '#005fcc' } }], seed: 4 }
     const svg = resolveRenderRequest(SOURCE, options, 'svg')
