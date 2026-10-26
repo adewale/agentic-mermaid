@@ -1,7 +1,7 @@
 import { gzipSync } from 'node:zlib'
 import { execFileSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync, openSync, closeSync, unlinkSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync, openSync, closeSync, unlinkSync } from 'node:fs'
 import { join, resolve, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { portableCases, PORTABLE_COHORT_PROTOCOL, type PortableCohort } from './cohorts.ts'
@@ -84,7 +84,7 @@ export function parsePortableOptions(argv: string[]): PortableOptions {
     preparationConcurrency: integer('--preparation-concurrency', 8),
     maximumControlSpread: decimal('--maximum-control-spread', 0.25),
     cohorts,
-    observer: values.has('--observer') ? resolve(values.get('--observer')!) : existsSync('/usr/bin/time') ? '/usr/bin/time' : undefined,
+    observer: values.has('--observer') ? resolve(values.get('--observer')!) : defaultObserver(),
     usage: values.has('--usage') ? resolve(values.get('--usage')!) : undefined,
     cpuHourUsd: values.has('--cpu-hour-usd') ? decimal('--cpu-hour-usd', 0) : undefined,
     force: values.has('--force'),
@@ -95,6 +95,16 @@ export function parsePortableOptions(argv: string[]): PortableOptions {
 const now = () => new Date().toISOString()
 const writeJson = (file: string, value: unknown) => writeFileSync(file, JSON.stringify(value, null, 2) + '\n', { flag: 'wx' })
 const jsonValue = <T>(value: T): T => JSON.parse(JSON.stringify(value))
+// BSD /usr/bin/time (macOS) is not GNU time; only an explicit --observer must be GNU.
+function defaultObserver() {
+  if (!existsSync('/usr/bin/time')) return undefined
+  try {
+    return /GNU\s*Time/i.test(execFileSync('/usr/bin/time', ['--version'], { encoding: 'utf8', timeout: 10_000, stdio: ['ignore', 'pipe', 'ignore'] })) ? '/usr/bin/time' : undefined
+  } catch {
+    return undefined
+  }
+}
+
 function observerIdentity(path?: string) {
   if (!path) return { status: 'unavailable', path: null, detail: 'GNU time not configured; current API snapshots still execute' }
   const version = execFileSync(path, ['--version'], { encoding: 'utf8', timeout: 10_000 }).trim()
@@ -277,4 +287,5 @@ export async function main(argv = process.argv.slice(2)) {
     process.off('SIGTERM', cleanup)
   }
 }
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main()
+// Compare real paths: a kit reached through a symlink (macOS /tmp, /var) must still run.
+if (process.argv[1] && realpathSync(resolve(process.argv[1])) === realpathSync(fileURLToPath(import.meta.url))) await main()

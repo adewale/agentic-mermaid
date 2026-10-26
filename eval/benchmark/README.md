@@ -38,6 +38,11 @@ explicit in each report. It does not claim to execute every source diagnostic.
 `portable:build` remains an alias for `build`. `portable` retains the legacy
 source-mode runner, whose identity requires committed source.
 
+Whole-worker CPU and peak RSS need GNU time. `/usr/bin/time` is used by default
+only when it is GNU time; macOS ships BSD time, so install `gnu-time` and pass
+`--observer "$(command -v gtime)"`. Without an observer these values are recorded
+as unavailable, not zero.
+
 Read existing fidelity evidence without acquiring or rendering tools:
 
 ```sh
