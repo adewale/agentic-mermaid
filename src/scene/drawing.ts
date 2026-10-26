@@ -11,30 +11,29 @@ export type DrawingFactory<T> = {
   pathArtwork(fields: Parameters<typeof marks.pathArtwork>[0]): T
 }
 export type DrawingProducer<P extends PositionedDiagram = PositionedDiagram> = <T>(factory: DrawingFactory<T>, context: RenderContext<P>) => DrawingDocument<T>
-const nativeDrawings = new WeakMap<object, DrawingProducer>()
-const originalNativeDrawings = new WeakMap<object, DrawingProducer>()
+const nativeDrawings = new WeakMap<object, { readonly original: DrawingProducer; current: DrawingProducer }>()
 
 export function sceneLowering<P extends PositionedDiagram>(draw: DrawingProducer<P>): (context: RenderContext<P>) => SceneDoc {
   const lower = (context: RenderContext<P>): SceneDoc => draw<SceneNode>(marks, context)
-  nativeDrawings.set(lower, draw as DrawingProducer)
-  originalNativeDrawings.set(lower, draw as DrawingProducer)
+  nativeDrawings.set(lower, { original: draw as DrawingProducer, current: draw as DrawingProducer })
   return lower
 }
 
 /** Keep the private native capability when adapting a typed built-in hook. */
 export function inheritNativeDrawing<T extends object>(source: object, target: T): T {
-  const drawing = nativeDrawings.get(source)
+  const drawing = nativeDrawings.get(source)?.current
   if (drawing) {
-    nativeDrawings.set(target, drawing)
-    if (!originalNativeDrawings.has(target)) originalNativeDrawings.set(target, drawing)
+    const installed = nativeDrawings.get(target)
+    if (installed) installed.current = drawing
+    else nativeDrawings.set(target, { original: drawing, current: drawing })
   }
   return target
 }
 export function nativeDrawingOf(lower: object | undefined): DrawingProducer | undefined {
-  return lower && nativeDrawings.get(lower)
+  return lower && nativeDrawings.get(lower)?.current
 }
 
 /** Later capability inheritance cannot rewrite the originally installed producer. */
 export function originalNativeDrawingOf(lower: object | undefined): DrawingProducer | undefined {
-  return lower && originalNativeDrawings.get(lower)
+  return lower && nativeDrawings.get(lower)?.original
 }

@@ -462,9 +462,7 @@ export function registerBuiltInBackend(backend: StyleBackend): void {
     })
     BACKEND_CONFORMANCE.set(id, conformance.report)
     BACKEND_INPUT_NAMES.set(inputName, id)
-    if (originalDefault && !enrolledOriginalDefault && frozen === DefaultBackend && Object.isFrozen(frozen)) {
-      enrolledOriginalDefault = frozen
-    }
+    if (originalDefault) enrolledOriginalDefault = frozen
     selectionSnapshot = undefined
   } finally {
     backendConformanceCandidate = null
