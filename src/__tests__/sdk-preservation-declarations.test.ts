@@ -51,7 +51,7 @@ describe('Code Mode preservation declarations', () => {
   test.each([
     ['full', SDK_DECLARATION],
     ['core', SDK_CORE_DECLARATION],
-  ])('a typed %s Code Mode client can author mixed Class marker and shaft metadata', (label, declaration) => {
+  ])('a typed %s Code Mode client preserves advertised operation and read-back contracts', (label, declaration) => {
     const path = '/class-sdk-consumer.ts'
     const source = `${declaration}\n
 const op = {
@@ -63,6 +63,12 @@ const c4 = mermaid.createMermaid('c4', {c4Variant:'C4Deployment'})
 const builtC4 = mermaid.buildMermaid('c4', [], {c4Variant:'C4Container'})
 declare const region: RenderedRegion
 const covered: Array<{row:number;start:number;end:number}> | undefined = region.occludedCellSpans
+declare const sourceMap: SourceMap
+const nodeLocation: SourceLocation | undefined = sourceMap.nodes.get('A')
+// @ts-expect-error Source locations are exposed through a read-only map facade.
+sourceMap.nodes.set('A', { line: 1, col: 1 })
+// @ts-expect-error Reading a location does not permit mutating source coordinates.
+sourceMap.nodes.get('A')!.line = 2
 const parsed = mermaid.parseRegisteredMermaid('classDiagram\\nclass Port\\nclass Service')
 if (parsed.ok) {
   const diagram = mermaid.asClass(parsed.value)
@@ -77,6 +83,21 @@ ${
   label === 'full'
     ? `
 const typed: ClassMutationOp = op
+const blockStatement: Statement = {
+  id: 'A', label: 'A', width: 2, directions: ['LR'],
+  children: [{ id: 'nested', width: 1, directions: ['TB'], children: [{ id: 'leaf' }] }],
+}
+const linkedBlocks: Statement = [{ id: 'A' }, { id: 'B', label: 'B' }]
+const nestedDirections: string[] | undefined = blockStatement.children?.[0]?.directions
+const statementWidth: number | undefined = blockStatement.width
+// @ts-expect-error Block identities remain strings in either statement form.
+const invalidBlockStatement: Statement = { id: 1 }
+// @ts-expect-error Every linked-statement item must be a Block.
+const invalidLinkedBlocks: Statement = [{ id: 'A' }, 1]
+// @ts-expect-error Nested block directions are arrays of strings.
+const invalidNestedDirections: Statement = { id: 'A', children: [{ id: 'B', directions: [1] }] }
+// @ts-expect-error A block width is numeric.
+const invalidStatementWidth: Statement = { id: 'A', width: '2' }
 declare const relationship: ClassRelation
 const shaft: 'solid' | 'dashed' | undefined = relationship.lineStyle
 // A client can read literal/formatted runs without parsing the compatibility string again.
@@ -85,6 +106,11 @@ function visible(content: LabelContent | undefined): string | undefined {
 }
 declare const flow: FlowchartGraph
 declare const sequence: SequenceBody
+const participant: SeqParticipant = sequence.participants[0]!
+const participantKind: SeqParticipantKind = participant.kind
+const scheduled: GanttTask = { id: 'launch', label: 'Launch', tags: ['active'], end: '2026-10-26' }
+const scheduledTag: GanttTaskTag = scheduled.tags[0]!
+const scheduleSection: GanttSection = { id: 'delivery', tasks: [scheduled] }
 declare const er: ErBody
 declare const uml: ClassBody
 const displayed = [

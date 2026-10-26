@@ -116,6 +116,8 @@ const text = declarations([
 const models = declarations([
   rootDeclaration('src/agent/types.ts', 'DiagramBody'),
   rootDeclaration('src/agent/types.ts', 'AnyMutationOp'),
+  // This public SDK name is not referenced by the body/operation roots.
+  rootDeclaration('src/block/types.ts', 'Statement'),
 ], new Set(['DiagramKind', 'ExternalFamilyId', 'LabelContent', 'PixelTextBlock', 'MermaidRuntimeConfig', 'MermaidConfigMap', 'MermaidFrontmatterMap', 'C4Variant', 'Direction']))
 const aliases = `\ntype SeqParticipantKind = SequenceParticipantKind\ntype SeqParticipant = SequenceParticipant\ntype SeqMessage = SequenceMessage\ntype SeqFragmentKind = SequenceFragmentKind\ntype SeqFragmentBranch = SequenceFragmentBranch\ntype SeqFragment = SequenceFragment\ntype GanttTaskTag = GanttBodyTaskTag\ntype GanttTask = GanttBodyTask\ntype GanttSection = GanttBodySection\n`
 // Tokenize only the generated common fragment. String/template literal bytes
