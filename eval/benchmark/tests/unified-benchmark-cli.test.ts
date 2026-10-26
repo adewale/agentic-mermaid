@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { resolve } from 'node:path'
 import { createRequire } from 'node:module'
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, relative, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -144,7 +144,7 @@ test('a copied Trident package builds relative outputs and runs its compiled wor
 }, 45_000)
 
 test('an explicit Agentic adapter runs its own checkout protocol with the original arguments', () => {
-  const directory = mkdtempSync(join(tmpdir(), 'trident-agentic-adapter-')),
+  const directory = realpathSync(mkdtempSync(join(tmpdir(), 'trident-agentic-adapter-'))),
     source = join(directory, 'source'),
     command = resolve(dirname(fileURLToPath(import.meta.url)), '../commands.ts')
   try {

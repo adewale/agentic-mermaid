@@ -11,7 +11,7 @@ import { assertBenchmarkExecutionAllowed } from '../ci-policy.ts'
 import { assertBenchmarkSetVersions, benchmarkToolPins } from '../tool-versions.ts'
 import { baselineBrowserAction } from '../unified/baseline-browser-worker.mjs'
 import { baselineMeasurementContext } from '../unified/baseline-measurement-context.ts'
-import { deliveredArtifactIdentity, executableIdentity } from '../unified/benchmark-context.ts'
+import { defaultChromium, deliveredArtifactIdentity, executableIdentity } from '../unified/benchmark-context.ts'
 import { runRetainedSuite } from '../unified/retained-suite.ts'
 import { qualifyOutput } from '../unified/qualification.ts'
 import type { BenchmarkObservation, UnifiedRunOptions, UnifiedSuiteResult } from '../unified/types.ts'
@@ -61,7 +61,7 @@ export async function runFidelityCampaign(options: FidelityRunOptions): Promise<
   if (!selectedCases.length) throw Error('No authored fidelity cases selected')
   const planned = planFidelityCriteria(selectedCases)
   const request = createRequire(join(root, 'eval/benchmark/package.json')), { chromium } = request('playwright')
-  const browserExecutable = options.executable ?? '/usr/bin/chromium', node = options.nodeExecutable ?? process.execPath
+  const browserExecutable = options.executable ?? defaultChromium(chromium), node = options.nodeExecutable ?? process.execPath
   let browser: any
   const getBrowser = async () => browser ??= await chromium.launch({ headless: true, executablePath: browserExecutable })
   const server = createServer((request, response) => {

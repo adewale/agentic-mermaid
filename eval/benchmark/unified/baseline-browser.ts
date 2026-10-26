@@ -11,7 +11,7 @@ import { assertBenchmarkExecutionAllowed } from '../ci-policy.ts'
 import { assertBenchmarkToolVersion } from '../tool-versions.ts'
 import { portableCases, type Json } from '../portable/cohorts.ts'
 import { byteDigest } from '../portable/artifacts.ts'
-import { deliveredArtifactIdentity, executableIdentity } from './benchmark-context.ts'
+import { defaultChromium, deliveredArtifactIdentity, executableIdentity } from './benchmark-context.ts'
 import { baselineMeasurementContext } from './baseline-measurement-context.ts'
 import { baselineBrowserAction } from './baseline-browser-worker.mjs'
 import { qualifyOutput } from './qualification.ts'
@@ -179,7 +179,7 @@ export async function runBaselineBrowserSuite(options: BaselineBrowserOptions): 
     return result
   }
   const require = createRequire(join(options.root, 'eval/benchmark/package.json')), { chromium } = require('playwright')
-  const executable = options.browserExecutable ?? '/usr/bin/chromium'
+  const executable = options.browserExecutable ?? defaultChromium(chromium)
   const node = options.nodeExecutable ?? 'node'
   const collectors = new Map<string, Collector>(), tickets: Promise<UnifiedSuiteResult>[] = [], cached: string[] = []
   const executionPlan: BaselineBrowserReport['executionPlan'] = []

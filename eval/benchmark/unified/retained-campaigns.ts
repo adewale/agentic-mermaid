@@ -1,12 +1,12 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, readFileSync, realpathSync } from 'node:fs'
+import { readFileSync, realpathSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { join, relative, resolve } from 'node:path'
 import { assertBenchmarkExecutionAllowed } from '../ci-policy.ts'
 import { artifactIdentity, resolveArtifact } from '../portable/artifacts.ts'
 import { captureInstalledDependencyClosure } from '../portable/artifact-dependencies.ts'
 import { defaultTimeObserver } from '../portable/time-observer.ts'
-import { benchmarkContext, deliveredArtifactIdentity, executableIdentity } from './benchmark-context.ts'
+import { benchmarkContext, defaultChromium, deliveredArtifactIdentity, executableIdentity } from './benchmark-context.ts'
 import { committedDataIdentity } from './committed-data-identity.ts'
 import { ENTRY_STARTUP_PRODUCERS, type EntryStartupOptions, prepareEntryStartup, runEntryStartupSuite } from './entry-startup.ts'
 import { projectReportView } from './project-report-view.ts'
@@ -70,7 +70,7 @@ export async function runRetainedEntryStartupSuite(options: RetainedCampaignOpti
   const harness = options.harnessRoot ?? options.root
   const node = nodePath(options)
   const require = createRequire(join(harness, 'eval/benchmark/package.json'))
-  const browser = options.executable ?? (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : require('playwright').chromium.executablePath())
+  const browser = options.executable ?? defaultChromium(require('playwright').chromium)
   const projects = targets(options)
   const results: UnifiedSuiteResult[] = missingProjects(
     options,

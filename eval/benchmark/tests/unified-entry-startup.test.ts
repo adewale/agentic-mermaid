@@ -1,11 +1,12 @@
 import { expect, test } from 'bun:test'
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { discoverStartupInventory, parseStartupResource, prepareEntryStartup, runEntryStartupSuite, runStartupChild } from '../unified/entry-startup.ts'
 import { finishStartupMcpObserver, runInvocationMcpStartup } from '../unified/invocation-mcp.ts'
 import { spawn } from 'node:child_process'
 import { runInvocationBrowser } from '../unified/invocation-browser.ts'
+import { chromiumExecutable } from './helpers/environment.ts'
 
 test('inventory expands actual wildcard files and retains aliases, browser/data and missing native declarations', () => {
   const root = mkdtempSync(join(tmpdir(), 'entry-inventory-'))
@@ -25,7 +26,7 @@ test('inventory expands actual wildcard files and retains aliases, browser/data 
 })
 
 test('fresh public self-import uses the candidate, includes delayed initialization, first async result and every metadata byte', async () => {
-  const root = mkdtempSync(join(tmpdir(), 'entry-candidate-'))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'entry-candidate-')))
   try {
     writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'agentic-mermaid', type: 'module', exports: { '.': './candidate.js' } }))
     const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 40"><text>Start End</text></svg>'
@@ -52,7 +53,7 @@ test('browser startup consumes one first result in each fresh browser and keeps 
     writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'fixture', exports: { './browser': './global.js' } }))
     writeFileSync(join(root, 'global.js'), `let calls=0;const svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 40"><text>Start End</text></svg>';function first(){if(++calls!==1)throw Error('Startup made a warmup call before the recorded result')}const receipt=output=>({version:1,output,requestDigest:'fixture'});var agenticMermaid={renderMermaidSVG(){first();return svg},async renderMermaidSVGAsync(){first();await new Promise(r=>setTimeout(r,25));return svg},renderMermaidSVGWithReceipt(){first();return{svg,receipt:receipt('svg'),metadata:{owner:'fixture'}}},renderMermaidASCIIWithReceipt(source,options){first();return{text:'Start --> End',receipt:receipt(options.useAscii?'ascii':'unicode')}},renderMermaidPNGInBrowserWithReceipt(){first();return{png:Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6gM0AAAAASUVORK5CYII='),c=>c.charCodeAt(0)),receipt:receipt('png')}}}`)
     const workload = { id: 'browser-first', family: 'flowchart', source: 'flowchart LR\nA[Start] --> B[End]', expectedLabels: ['Start', 'End'], features: [], provenance: 'authored first-browser-call regression' }
-    const result = await runInvocationBrowser({ root, harnessRoot: process.cwd(), out: join(root, 'out'), rounds: 1, profile: 'smoke', startupOnly: true, startupSamplesPerRound: 1, executable: '/usr/bin/chromium' }, [workload])
+    const result = await runInvocationBrowser({ root, harnessRoot: process.cwd(), out: join(root, 'out'), rounds: 1, profile: 'smoke', startupOnly: true, startupSamplesPerRound: 1, executable: chromiumExecutable }, [workload])
     const rows = result.rows.filter(value => value.mode === 'browser-launch-to-first-consumed')
     expect(rows).toHaveLength(6)
     expect(rows.map(value => ({ status: value.status, detail: value.detail, findings: value.findings }))).toEqual(rows.map(() => ({ status: 'passed', detail: undefined, findings: [] })))

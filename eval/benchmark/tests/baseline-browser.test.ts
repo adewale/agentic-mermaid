@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { baselineBrowserAction } from '../unified/baseline-browser-worker.mjs'
 import { baselineBrowserCases, baselineRoleOrder, qualifyBaselineBrowser, type BaselineBrowserCase } from '../unified/baseline-browser.ts'
 import { runRetainedSuite } from '../unified/retained-suite.ts'
+import { chromiumExecutable } from './helpers/environment.ts'
 
 const witness: BaselineBrowserCase = { id: 'independent-label-witness', family: 'flowchart', source: 'flowchart LR\nA[Alpha] --> B[Beta]', cohorts: ['test'], expected: { accept: true, labels: ['Alpha', 'Beta'] } }
 const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 40"><text>Alpha Beta</text></svg>'
@@ -56,7 +57,7 @@ test('counterbalancing rotates all four roles and keeps sample order determinist
 
 test('real browser consumer includes module initialization and traverses Map/Set sidecars, while recording excluded callbacks', async () => {
   const require = createRequire(join(process.cwd(), 'eval/benchmark/package.json')), { chromium } = require('playwright')
-  const browser = await chromium.launch({ headless: true, executablePath: '/usr/bin/chromium' })
+  const browser = await chromium.launch({ headless: true, executablePath: chromiumExecutable })
   try {
     const page = await browser.newPage()
     const module = `await new Promise(r=>setTimeout(r,25));let calls=0,configuration;export default{async initialize(value){await new Promise(r=>setTimeout(r,25));configuration=value},async render(){if(++calls!==1)throw Error('Unexpected extra render/warmup');await new Promise(r=>setTimeout(r,25));return{svg:${JSON.stringify(svg)},bindFunctions(){},metadata:new Map([['large-payload','x'.repeat(4096)],['nested',new Set(['first','second'])],['security',configuration.securityLevel]])}}}`

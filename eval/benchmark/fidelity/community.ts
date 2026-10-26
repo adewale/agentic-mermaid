@@ -10,7 +10,7 @@ import { gzipSync } from 'node:zlib'
 import { assertBenchmarkExecutionAllowed } from '../ci-policy.ts'
 import { assertBenchmarkSetVersions } from '../tool-versions.ts'
 import { baselineMeasurementContext } from '../unified/baseline-measurement-context.ts'
-import { executableIdentity } from '../unified/benchmark-context.ts'
+import { defaultChromium, executableIdentity } from '../unified/benchmark-context.ts'
 import type { PreparedCommunityBrowser, CommunityBrowserEngine } from '../unified/community-browser.ts'
 import { qualifyOutput } from '../unified/qualification.ts'
 import { runRetainedSuite } from '../unified/retained-suite.ts'
@@ -75,7 +75,7 @@ export async function runCommunityFidelitySuite(options: CommunityFidelityOption
     boundaries.push({ project: node.id, selected, catalogOutputs: node.outputs, status, reason, ...(peer?.browser ? { kind: peer.browser.kind, version: peer.browser.version, artifactSha256: peer.browser.artifactSha256 } : {}) })
   }
   const toolVersions = assertBenchmarkSetVersions(targets.map(({ peer, admission }) => ({ tool: peer.node.id, version: admission.version, source: admission.entry })))
-  const require = createRequire(join(root, 'eval/benchmark/package.json')), { chromium } = require('playwright'), executable = options.executable ?? '/usr/bin/chromium'
+  const require = createRequire(join(root, 'eval/benchmark/package.json')), { chromium } = require('playwright'), executable = options.executable ?? defaultChromium(chromium)
   let browser: any
   const getBrowser = async () => browser ??= await chromium.launch({ headless: true, executablePath: executable })
   const results: UnifiedSuiteResult[] = [], aliases = new Map<string, { project: string; result: UnifiedSuiteResult }>()
