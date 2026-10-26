@@ -1098,4 +1098,3 @@ test('strict Native completes dense compound relationships with distinct visible
  expect(rendered.svg).toContain('owned note 33')
  expect(rendered.svg).toContain('free note 33')
 })
-

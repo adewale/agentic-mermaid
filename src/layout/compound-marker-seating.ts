@@ -99,13 +99,15 @@ export function seatMeasuredMarkers(
     charge()
     if (edge.visible !== false) markerCount += Number(!!edge.markerPaint?.start?.length) + Number(!!edge.markerPaint?.end?.length)
   }
-  let segmentCount = 0
+  let segmentCount = 0, straightCount = 0
   if (carrierWidth !== undefined) {
     if (!Number.isFinite(carrierWidth) || carrierWidth <= 0 || !Number.isFinite(carrierBendRadius) || carrierBendRadius < 0) throw new TypeError('Invalid measured marker carrier width')
     for (let i = 0; i < routes.length; i++) {
       charge()
       if (edges[i]!.visible === false) continue
       const path = routes[i]!.points
+      charge(2)
+      if (path.length === 2) straightCount++
       segmentCount += Math.max(0, path.length - 1)
       for (let j = 1; j + 1 < path.length; j++) {
         charge(4)
@@ -116,11 +118,11 @@ export function seatMeasuredMarkers(
       }
     }
   }
-  const eventCapacity = 4 * (markerCount + segmentCount + (ink?.obstacles.length ?? 0)) + 4
+  const eventCapacity = 4 * (markerCount + segmentCount + 4 * straightCount + (ink?.obstacles.length ?? 0)) + 4
   records(eventCapacity)
   charge(eventCapacity)
   const cuts = new Float64Array(eventCapacity)
-  type Carrier = { a: Point; b: Point; point: number; join: boolean; minX: number; maxX: number; minY: number; maxY: number }
+  type Carrier = { current: boolean; a: Point; b: Point; point: number; join: boolean; minX: number; maxX: number; minY: number; maxY: number }
   type Range = { begin: number; end: number; minX: number; maxX: number; minY: number; maxY: number }
   records(2 * segmentCount + 2 * routes.length + 9)
   reservePoints(4)
@@ -171,7 +173,7 @@ export function seatMeasuredMarkers(
     if (carrierWidth !== undefined && edges[i]!.visible !== false)
       for (let j = 1; j < routes[i]!.points.length; j++) {
         charge()
-        carriers.push({ a: routes[i]!.points[j - 1]!, b: routes[i]!.points[j]!, point: j - 1, join: false, minX: 0, maxX: 0, minY: 0, maxY: 0 })
+        carriers.push({ current: true, a: routes[i]!.points[j - 1]!, b: routes[i]!.points[j]!, point: j - 1, join: false, minX: 0, maxX: 0, minY: 0, maxY: 0 })
       }
     if (carrierWidth !== undefined && edges[i]!.visible !== false)
       for (let j = 1; j + 1 < routes[i]!.points.length; j++) {
@@ -179,10 +181,27 @@ export function seatMeasuredMarkers(
         const a = routes[i]!.points[j - 1]!,
           b = routes[i]!.points[j]!,
           c = routes[i]!.points[j + 1]!
-        if ((a.x === b.x) !== (b.x === c.x)) carriers.push({ a: b, b, point: j, join: true, minX: 0, maxX: 0, minY: 0, maxY: 0 })
+        if ((a.x === b.x) !== (b.x === c.x)) carriers.push({ current: true, a: b, b, point: j, join: true, minX: 0, maxX: 0, minY: 0, maxY: 0 })
       }
     ranges.push({ begin, end: carriers.length, minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity })
     refresh(i)
+  }
+  // A straight carrier can acquire two paid bends. Keep old physical records
+  // retained, but only its current range participates in any later proof.
+  records(1)
+  const growStraightRange = (index: number, candidate: Point[]): void => {
+    const old = ranges[index]!, begin = carriers.length
+    records(10) // three segment records, two joins and their five retained refs
+    for (let j = 0; j < 3; j++) {
+      charge()
+      carriers.push({ current: true, a: candidate[j]!, b: candidate[j+1]!, point: j, join: false, minX:0,maxX:0,minY:0,maxY:0 })
+    }
+    for (let j = 1; j < 3; j++) {
+      charge()
+      carriers.push({ current: true, a: candidate[j]!, b: candidate[j]!, point: j, join: true, minX:0,maxX:0,minY:0,maxY:0 })
+    }
+    for (let cursor=old.begin;cursor<old.end;cursor++){charge();carriers[cursor]!.current=false}
+    old.begin=begin;old.end=carriers.length
   }
   const intersects = (shape: Pose, box: { minX: number; maxX: number; minY: number; maxY: number }): boolean => {
     charge(5)
@@ -275,7 +294,7 @@ export function seatMeasuredMarkers(
   }
   // Synchronous scratch is owned by this seating phase. No old query lease
   // survives, and every accepted route refreshes its borrowed current records.
-  const changedCarrier: Carrier = { a: undefined as unknown as Point, b: undefined as unknown as Point, point: 0, join: false, minX: 0, maxX: 0, minY: 0, maxY: 0 }
+  const changedCarrier: Carrier = { current: true, a: undefined as unknown as Point, b: undefined as unknown as Point, point: 0, join: false, minX: 0, maxX: 0, minY: 0, maxY: 0 }
 
   const pose = (template: readonly ClassMarkerPiece[], port: Point, next: Point, owner: number, source: boolean): Pose => {
     charge(10)
@@ -372,7 +391,6 @@ export function seatMeasuredMarkers(
       let current = all[poseCursor++]!
       let proposals = 0
       if (!clear(current, index, source)) {
-        if (path.length < 3) fail('No safe marker seat on a straight route')
         const box = subjects[source ? edge.source : edge.target]!,
           vertical = q.x === p.x
         const low = vertical ? box.x : box.y,
@@ -391,7 +409,7 @@ export function seatMeasuredMarkers(
               charge(8)
               const blocker = carriers[k]!,
                 j = blocker.point
-              if (blocker.join || j < 2 || j + 1 > foreign.length - 3) continue
+              if (blocker.join || j < 1 || j + 2 >= foreign.length) continue
               const a = foreign[j]!,
                 b = foreign[j + 1]!,
                 before = foreign[j - 1]!,
@@ -459,9 +477,9 @@ export function seatMeasuredMarkers(
                 emit((horizontal ? glyph.minY : glyph.minX) - half - 0.01, (horizontal ? glyph.maxY : glyph.maxX) + half + 0.01)
               }
               for (let c = 0; c < carriers.length; c++) {
-                charge(4)
+                charge(5)
                 const peer = carriers[c]!
-                if (c === k || peer.join || (peer.a.y === peer.b.y) !== horizontal) continue
+                if (!peer.current || c === k || peer.join || (peer.a.y === peer.b.y) !== horizontal) continue
                 if (horizontal ? peer.maxX < spanLow || peer.minX > spanHigh : peer.maxY < spanLow || peer.minY > spanHigh) continue
                 emit((horizontal ? peer.minY : peer.minX) - half - 0.01, (horizontal ? peer.maxY : peer.maxX) + half + 0.01)
               }
@@ -520,7 +538,8 @@ export function seatMeasuredMarkers(
                 let paintOkay = true
                 // All changed segments/joins against ALL current glyphs,
                 // including later, unseated endpoint reservations. Endpoints
-                // and protected first/last normal segments are untouched.
+                // and their normal directions remain fixed. Changed terminal
+                // lengths and joins still pass the complete owned-path proof.
                 for (let segment = j - 1; segment <= j + 1 && paintOkay; segment++) {
                   updateCarrier(changedCarrier, trial[segment]!, trial[segment + 1]!)
                   if (!parallelClear(other, changedCarrier)) {
@@ -528,8 +547,8 @@ export function seatMeasuredMarkers(
                     break
                   }
                   for (const glyph of all) {
-                    charge()
-                    const ownIncident = glyph.owner === other && (glyph.source ? segment <= 1 : segment >= foreign.length - 3)
+                    charge(2)
+                    const ownIncident = segment !== j && glyph.owner === other && (glyph.source ? segment <= 1 : segment >= foreign.length - 3)
                     if (!ownIncident && hits(glyph, changedCarrier)) {
                       paintOkay = false
                       break
@@ -557,7 +576,8 @@ export function seatMeasuredMarkers(
                     }
                   }
                 }
-                for (let point = j - 1; point <= j + 2 && paintOkay; point++) {
+                charge(4)
+                for (let point = Math.max(1, j - 1); point <= Math.min(trial.length - 2, j + 2) && paintOkay; point++) {
                   charge(4)
                   const u = trial[point - 1]!,
                     v = trial[point]!,
@@ -678,23 +698,45 @@ export function seatMeasuredMarkers(
           previousSlot = slot
           previousClass = kind
           proposals++
-          records(path.length + 1)
-          reservePoints(3)
+          const straight = path.length === 2
+          charge(3)
+          let turn = 0
+          if (straight) {
+            const from = vertical ? p.y : p.x, to = vertical ? q.y : q.x, sign = Math.sign(to-from)
+            let firstDepth = sign > 0 ? (vertical ? current.maxY : current.maxX)-from : from-(vertical ? current.minY : current.minX), otherDepth=0
+            for (const glyph of all) {
+              charge(5)
+              if (glyph.owner===index && glyph.source!==source) otherDepth=Math.max(otherDepth,sign>0?to-(vertical?glyph.minY:glyph.minX):(vertical?glyph.maxY:glyph.maxX)-to)
+            }
+            charge(10)
+            const margin=half+carrierBendRadius, lead=Math.min(8,Math.abs(to-from)), begin=from+sign*Math.max(lead,firstDepth+margin)
+            let end=to-sign*Math.max(lead,otherDepth+margin)
+            if(edge.label){
+              charge(9)
+              const label=routes[index]!.labelPosition
+              if(!label||!pointOnMeasuredSegment(label,p,q))continue
+              const center=vertical?label.y:label.x,extent=(vertical?edge.label.height:edge.label.width)/2+2+half
+              end=sign>0?Math.min(end,center-extent):Math.max(end,center+extent)
+            }
+            if (!(sign*(end-begin)>0)) continue
+            turn=begin+(end-begin)/2
+          }
+          records((straight?4:path.length) + 1)
+          reservePoints(straight?4:3)
           charge(path.length + 6)
-          const candidate = path.slice(),
-            port = { x: p.x, y: p.y },
-            bend = { x: q.x, y: q.y }
+          const port = { x: p.x, y: p.y }, bend = { x: q.x, y: q.y }
           if (vertical) {
-            port.x = value
-            bend.x = value
+            port.x = value; bend.x = value
+            if(straight)bend.y=turn
             if (Math.abs(port.y - box.y) < 1e-7) port.y = box.y
             else if (Math.abs(port.y - box.y - box.height) < 1e-7) port.y = box.y + box.height
           } else {
-            port.y = value
-            bend.y = value
+            port.y = value; bend.y = value
+            if(straight)bend.x=turn
             if (Math.abs(port.x - box.x) < 1e-7) port.x = box.x
             else if (Math.abs(port.x - box.x - box.width) < 1e-7) port.x = box.x + box.width
           }
+          const candidate = straight ? (source ? [port,bend,vertical?{x:q.x,y:turn}:{x:turn,y:q.y},q] : [q,vertical?{x:q.x,y:turn}:{x:turn,y:q.y},bend,port]) : path.slice()
           candidate[source ? 0 : candidate.length - 1] = port
           candidate[source ? 1 : candidate.length - 2] = bend
           // Normalize only the untouched leaf endpoint's sub-1e-7 face error;
@@ -731,15 +773,16 @@ export function seatMeasuredMarkers(
           if (carrierWidth !== undefined)
             for (let cursor = 1; cursor < candidate.length; cursor++) {
               charge()
-              if (source ? cursor > 2 && cursor !== candidate.length - 1 : cursor < candidate.length - 2 && cursor !== 1) continue
+              if (!straight && (source ? cursor > 2 && cursor !== candidate.length - 1 : cursor < candidate.length - 2 && cursor !== 1)) continue
               updateCarrier(changedCarrier, candidate[cursor - 1]!, candidate[cursor]!)
               if (!parallelClear(index, changedCarrier)) {
                 carrierClear = false
                 break
               }
-              for (const peer of seated) {
-                charge()
-                if (peer.owner !== index && hits(peer, changedCarrier)) {
+              for (const peer of straight ? all : seated) {
+                charge(3)
+                const ownIncident = peer.owner===index && (straight ? (peer.source ? cursor===1 : cursor===candidate.length-1) : (peer.source ? cursor<=2 : cursor>=candidate.length-2))
+                if (!ownIncident && hits(peer, changedCarrier)) {
                   carrierClear = false
                   break
                 }
@@ -749,7 +792,7 @@ export function seatMeasuredMarkers(
           if (carrierClear && carrierWidth !== undefined)
             for (let cursor = 1; cursor + 1 < candidate.length; cursor++) {
               charge()
-              if (source ? cursor > 2 && cursor !== candidate.length - 2 : cursor < candidate.length - 3 && cursor !== 1) continue
+              if (!straight && (source ? cursor > 2 && cursor !== candidate.length - 2 : cursor < candidate.length - 3 && cursor !== 1)) continue
               const a = candidate[cursor - 1]!,
                 b = candidate[cursor]!,
                 c = candidate[cursor + 1]!
@@ -761,9 +804,10 @@ export function seatMeasuredMarkers(
               // Keep the join rectangle's prepared bounds while hits reads its
               // explicit join flag; restore the scratch tag before next use.
               changedCarrier.join = true
-              for (const peer of seated) {
-                charge()
-                if (peer.owner !== index && hits(peer, changedCarrier)) {
+              for (const peer of straight ? all : seated) {
+                charge(3)
+                const ownIncident = !straight && peer.owner===index && (peer.source ? cursor===1 : cursor===candidate.length-2)
+                if (!ownIncident && hits(peer, changedCarrier)) {
                   carrierClear = false
                   break
                 }
@@ -772,6 +816,7 @@ export function seatMeasuredMarkers(
               if (!carrierClear) break
             }
           if (!carrierClear || !accept(index, candidate)) continue
+          if (straight && carrierWidth !== undefined) growStraightRange(index,candidate)
           routes[index]!.points = candidate
           if (carrierWidth !== undefined) refresh(index)
           current = moved

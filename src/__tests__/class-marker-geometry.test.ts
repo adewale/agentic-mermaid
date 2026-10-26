@@ -498,3 +498,88 @@ test('far support requires no formatting capacity; exact narrow work fails befor
 })
 
 })
+
+
+describe('internal track sharing a protected endpoint normal', () => {
+ const fail=(message:string):never=>{throw new Error(message)},budget=()=>({pairs:1_000_000,arcs:65536,swaps:1_000_000})
+ for(const transpose of [false,true])for(const sx of [-1,1])for(const sy of [-1,1])test(`keeps both real endpoints and normals in reflection ${transpose}/${sx}/${sy}`,()=>{
+  const p=(x:number,y:number)=>transpose?{x:y*sy,y:x*sx}:{x:x*sx,y:y*sy},r=(x:number,y:number,w:number,h:number)=>{const a=p(x,y),b=p(x+w,y+h);return{x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),width:Math.abs(a.x-b.x),height:Math.abs(a.y-b.y)}}
+  const resource=classMarkerResources({lineWidth:1} as any).find(m=>m.id==='cls-inherit')!,marker={end:classMarkerPieces(resource,{x:0,y:0},{x:-1,y:0},'end',1)}
+  const routes=[{points:[p(200,180),p(220,180),p(220,140),p(60,140),p(60,80)]},{points:[p(20,20),p(20,88),p(120,88),p(120,128)]}],before=structuredClone(routes),boxes=[r(40,40,40,40),r(160,160,40,40),r(0,0,40,20),r(110,128,20,20)],changed:number[]=[]
+  seatMeasuredMarkers([{source:1,target:0,markerPaint:marker},{source:2,target:3}],routes,boxes,budget(),()=>{},fail,(i,path)=>{
+   expect(i).toBe(1);expect(path[0]).toEqual(before[1]!.points[0]);expect(path.at(-1)).toEqual(before[1]!.points.at(-1))
+   for(const first of [true,false]){const a=first?path[0]!:path.at(-1)!,b=first?path[1]!:path.at(-2)!,oldA=first?before[1]!.points[0]!:before[1]!.points.at(-1)!,oldB=first?before[1]!.points[1]!:before[1]!.points.at(-2)!;expect(Math.sign(b.x-a.x)).toBe(Math.sign(oldB.x-oldA.x));expect(Math.sign(b.y-a.y)).toBe(Math.sign(oldB.y-oldA.y));expect(Math.abs(b.x-a.x)+Math.abs(b.y-a.y)).toBeGreaterThanOrEqual(8)}
+   return true
+  },i=>changed.push(i),undefined,1,0,{bounds:r(-30,0,270,240),obstacles:boxes})
+  expect(changed).toEqual([1]);expect(routes[0]).toEqual(before[0]);expect(routes[1]!.points[1]).not.toEqual(before[1]!.points[1])
+ })
+})
+
+test('reseating one end cannot sweep its shaft across its already seated opposite glyph', () => {
+  const style = { lineWidth: 1, edgeStrokeColor: '#333' } as any
+  const markerPaint = buildClassEndpointMarkerTemplates([{ from: 'S', to: 'T', type: 'aggregation', markerAt: 'both' } as any], style)[0]!
+  const points = [{ x: 0, y: 0 }, { x: 15, y: 0 }, { x: 15, y: -20 }, { x: -30, y: -20 }, { x: -30, y: 40 }, { x: 5, y: 40 }, { x: 5, y: 20 }, { x: 100, y: 20 }]
+  const bodies = [{ x: -20, y: -10, width: 20, height: 20 }, { x: 100, y: -15, width: 20, height: 36 }]
+  const obstruction = [{ kind: 'polygon' as const, points: [{ x: 93, y: 23 }, { x: 95, y: 23 }, { x: 95, y: 24 }, { x: 93, y: 24 }] }]
+  const resource = classMarkerResources(style).find(marker => marker.id === 'cls-aggregation')!
+  const start = classMarkerPieces(resource, points[0]!, { x: 1, y: 0 }, 'start', 1)
+  const end = (y: number) => classMarkerPieces(resource, { x: 100, y }, { x: 1, y: 0 }, 'end', 1)
+  expect(classMarkerPiecesOverlap(start, obstruction)).toBe(false)
+  expect(classMarkerPiecesOverlap(end(20), obstruction)).toBe(true)
+  expect(classMarkerPiecesOverlap(end(3), obstruction)).toBe(false)
+  const sweptShaft = [{ kind: 'polygon' as const, points: [{ x: 5, y: 2.5 }, { x: 100, y: 2.5 }, { x: 100, y: 3.5 }, { x: 5, y: 3.5 }] }]
+  expect(classMarkerPiecesOverlap(start, sweptShaft)).toBe(true)
+  const valid = (path: typeof points): boolean => {
+    for (let i = 1; i < path.length; i++) {
+      const a = path[i - 1]!, b = path[i]!
+      if (a.x !== b.x && a.y !== b.y) return false
+      for (const box of bodies) {
+        if (a.x === b.x ? a.x > box.x && a.x < box.x + box.width && Math.max(a.y, b.y) > box.y && Math.min(a.y, b.y) < box.y + box.height : a.y > box.y && a.y < box.y + box.height && Math.max(a.x, b.x) > box.x && Math.min(a.x, b.x) < box.x + box.width) return false
+      }
+      for (let j = i + 2; j < path.length; j++) {
+        const c = path[j - 1]!, d = path[j]!
+        if (a.x === b.x && c.x === d.x ? a.x === c.x && Math.min(Math.max(a.y, b.y), Math.max(c.y, d.y)) >= Math.max(Math.min(a.y, b.y), Math.min(c.y, d.y)) : a.y === b.y && c.y === d.y ? a.y === c.y && Math.min(Math.max(a.x, b.x), Math.max(c.x, d.x)) >= Math.max(Math.min(a.x, b.x), Math.min(c.x, d.x)) : a.x === b.x ? a.x >= Math.min(c.x, d.x) && a.x <= Math.max(c.x, d.x) && c.y >= Math.min(a.y, b.y) && c.y <= Math.max(a.y, b.y) : c.x >= Math.min(a.x, b.x) && c.x <= Math.max(a.x, b.x) && a.y >= Math.min(c.y, d.y) && a.y <= Math.max(c.y, d.y)) return false
+      }
+    }
+    return true
+  }
+  const proposed = points.map(p => ({ ...p })); proposed[6]!.y = proposed[7]!.y = 3
+  expect(valid(points)).toBe(true)
+  expect(valid(proposed)).toBe(true)
+  const routes = [{ points }], original = structuredClone(routes), budget = { pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 }
+  expect(() => seatMeasuredMarkers([{ source: 0, target: 1, markerPaint }], routes, bodies, budget, () => {}, reason => { throw new Error(reason) }, (_i, path) => valid(path), () => {}, (_i, _source, pieces) => !classMarkerPiecesOverlap(pieces, obstruction), 1)).toThrow('No physically clear measured marker seat')
+  expect(routes).toEqual(original)
+})
+
+describe('straight measured carriers can reserve a normal dogleg', () => {
+ const fail=(message:string):never=>{throw new Error(message)},budget=()=>({pairs:1_000_000,arcs:65536,swaps:1_000_000})
+ for(const transpose of [false,true])for(const sign of [-1,1])test(`retains the opposite pose and both normal leads in reflection ${transpose}/${sign}`,()=>{
+  const p=(x:number,y:number)=>transpose?{x:y,y:x*sign}:{x:x*sign,y},r=(x:number,y:number,w:number,h:number)=>{const a=p(x,y),b=p(x+w,y+h);return{x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),width:Math.abs(a.x-b.x),height:Math.abs(a.y-b.y)}}
+  const resource=classMarkerResources({lineWidth:1} as any).find(m=>m.id==='cls-inherit')!,marker={start:classMarkerPieces(resource,{x:0,y:0},{x:1,y:0},'start',1)}
+  const edges=[{source:0,target:1,markerPaint:marker},{source:0,target:1}],routes=[{points:[p(100,20),p(200,20)]},{points:[p(100,24),p(150,24),p(150,90),p(200,90)]}],before=structuredClone(routes),boxes=[r(80,0,20,100),r(200,0,20,100)],changed:number[]=[]
+  seatMeasuredMarkers(edges,routes,boxes,budget(),()=>{},fail,(index,path)=>{
+   expect(index).toBe(0);expect(path).toHaveLength(4);expect(path.at(-1)).toEqual(before[0]!.points.at(-1))
+   for(let i=1;i<path.length;i++)expect(path[i]!.x===path[i-1]!.x||path[i]!.y===path[i-1]!.y).toBe(true)
+   const a=path[0]!,b=path[1]!,z=path.at(-1)!,y=path.at(-2)!
+   expect(Math.sign(b.x-a.x)).toBe(Math.sign(before[0]!.points[1]!.x-before[0]!.points[0]!.x));expect(Math.sign(b.y-a.y)).toBe(Math.sign(before[0]!.points[1]!.y-before[0]!.points[0]!.y));expect(Math.sign(y.x-z.x)).toBe(Math.sign(before[0]!.points[0]!.x-before[0]!.points[1]!.x));expect(Math.sign(y.y-z.y)).toBe(Math.sign(before[0]!.points[0]!.y-before[0]!.points[1]!.y))
+   expect(Math.abs(b.x-a.x)+Math.abs(b.y-a.y)).toBeGreaterThan(13)
+   expect(Math.abs(y.x-z.x)+Math.abs(y.y-z.y)).toBeGreaterThanOrEqual(8)
+   return true
+  },i=>changed.push(i),undefined,1)
+  expect(changed).toEqual([0]);expect(routes[0]!.points).toHaveLength(4);expect(routes[1]).toEqual(before[1])
+ })
+ test('new dogleg cannot discard a measured label on the original straight shaft',()=>{
+  const resource=classMarkerResources({lineWidth:1} as any).find(m=>m.id==='cls-inherit')!,marker={start:classMarkerPieces(resource,{x:0,y:0},{x:1,y:0},'start',1)},label={x:110,y:20}
+  const routes=[{points:[{x:100,y:20},{x:200,y:20}],labelPosition:label},{points:[{x:100,y:24},{x:150,y:24},{x:150,y:90},{x:200,y:90}]}],before=structuredClone(routes)
+  expect(()=>seatMeasuredMarkers([{source:0,target:1,markerPaint:marker,label:{width:20,height:10}},{source:0,target:1}],routes,[{x:80,y:0,width:20,height:100},{x:200,y:0,width:20,height:100}],budget(),()=>{},fail,(_i,path)=>path.some((b,i)=>i>0&&((path[i-1]!.x===b.x&&label.x===b.x&&label.y>=Math.min(path[i-1]!.y,b.y)&&label.y<=Math.max(path[i-1]!.y,b.y))||(path[i-1]!.y===b.y&&label.y===b.y&&label.x>=Math.min(path[i-1]!.x,b.x)&&label.x<=Math.max(path[i-1]!.x,b.x)))),()=>{},undefined,1)).toThrow('No physically clear measured marker seat')
+  expect(routes).toEqual(before)
+ })
+})
+
+
+test('a straight marker dogleg retains the measured label and its halo on the fixed spine',()=>{
+ const fail=(reason:string):never=>{throw new Error(reason)},resource=classMarkerResources({lineWidth:1} as any).find(m=>m.id==='cls-inherit')!,marker={start:classMarkerPieces(resource,{x:0,y:0},{x:1,y:0},'start',1)},label={x:150,y:20}
+ const routes=[{points:[{x:100,y:20},{x:200,y:20}],labelPosition:label},{points:[{x:100,y:24},{x:150,y:24},{x:150,y:90},{x:200,y:90}]}]
+ seatMeasuredMarkers([{source:0,target:1,markerPaint:marker,label:{width:20,height:10}},{source:0,target:1}],routes,[{x:80,y:0,width:20,height:100},{x:200,y:0,width:20,height:100}],{pairs:1_000_000,arcs:65536,swaps:1_000_000},()=>{},fail,(_i,path)=>{expect(path[2]!.x).toBeLessThan(138);expect(path[2]!.y).toBe(20);expect(path.at(-1)).toEqual({x:200,y:20});return true},()=>{},undefined,1)
+ expect(routes[0]!.labelPosition).toEqual(label);expect(routes[0]!.points).toHaveLength(4)
+})
