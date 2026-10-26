@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { PERFORMANCE_POLICY as policy, performanceScorecard, type PerformanceReport, type PerformanceScope } from '../performance-gates.ts'
+import { PERFORMANCE_POLICY as policy, performanceScorecard, regressionCells, type RegressionCellRequest, type PerformanceReport, type PerformanceScope } from '../performance-gates.ts'
 import * as campaignGates from '../performance-gates.ts'
 import type { SemanticPerformanceShard } from '../performance-gates.ts'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -23,6 +23,90 @@ function report(id: string, aa = false, scope?: PerformanceScope): PerformanceRe
     tracks: { phases: scope ? [scope.phase] : policy.phases, consumers: scope ? [scope.consumer] : policy.consumers, schemaVersion: 1, contractVersion: policy.version, cohort: policy.cohort, observations } }
 }
 const setup = () => ({ candidate: report('ab'), controls: [report('aa1', true), report('aa2', true)] })
+
+function supplementalSetup() {
+  const scope = { phase: 'warm-new-source', consumer: 'svg-utf8' } as const
+  const candidate = report('ab', false, scope), controls = [report('aa1', true, scope), report('aa2', true, scope)]
+  for (const r of [candidate, ...controls]) {
+    const rows = r.tracks.observations.filter(o => o.workload === 'seq20' && o.peer.startsWith('agentic'))
+    r.tracks.observations.push(...rows.map(o => ({ ...structuredClone(o), workload: 'seq300' })))
+    r.tracksConfig!.inputs = { ...(r.tracksConfig!.inputs as object), seq300: { source: 'fixture:seq300', expected: ['seq300'] } }
+  }
+  return { candidate, controls, scope }
+}
+
+describe('shared regression-cell arithmetic', () => {
+  test('supplementary cells preserve request order, paired round ratios, tails, budgets and control-derived floors', () => {
+    const { candidate, controls, scope } = supplementalSetup()
+    for (const r of [candidate, ...controls]) for (const row of r.tracks.observations.filter(o => o.workload === 'seq300')) {
+      const base = (row.round + 1) * 10, measured = row.peer === 'agentic'
+      const ab = r === candidate && measured, aa = r === controls[0] && measured
+      row.callSamplesMs = [...Array(29).fill(base * (ab ? .8 : aa ? 1.1 : 1)), base * (ab ? 2.4 : 2), base * (ab ? 4 : 3)]
+      row.allocationSamplesBytes.fill(measured ? ab ? 80 : aa ? 105 : 100 : 100)
+    }
+    const requests = (['allocation', 'p95', 'p50'] as const).map(metric => ({ workload: 'seq300', ...scope, metric }))
+    const result = regressionCells(candidate, controls, requests)
+    expect(result.calibration.validControls).toBe(true)
+    expect(result.expectedControls).toBe(10)
+    expect(result.cells.map(cell => cell.gate.metric)).toEqual(['allocation', 'p95', 'p50'])
+    expect(result.cells.map(cell => cell.gate.status)).toEqual(['pass', 'fail', 'pass'])
+    const expected = [
+      { ratio: .8, spread: 1.05, budget: 1.071, floor: .9337068160597572, controls: [...Array(5).fill(1.05), ...Array(5).fill(1)] },
+      { ratio: 1.2, spread: 1, budget: 1.10, floor: .9803921568627451, controls: Array(10).fill(1) },
+      { ratio: .8, spread: 1.1, budget: 1.122, floor: .8912655971479501, controls: [...Array(5).fill(1.1), ...Array(5).fill(1)] },
+    ]
+    for (const [index, cell] of result.cells.entries()) {
+      const value = expected[index]!
+      expect(cell.gate.ratio).toBeCloseTo(value.ratio, 12)
+      expect(cell.controlSpread).toBeCloseTo(value.spread, 12)
+      expect(cell.gate.budget).toBeCloseTo(value.budget, 12)
+      expect(cell.improvementFloor).toBeCloseTo(value.floor, 12)
+      expect(cell.gate.controls).toEqual(value.controls)
+      expect(cell.gate.blocking).toBe(true)
+      expect(cell.gate).not.toHaveProperty('improvementFloor')
+      expect(cell.gate).not.toHaveProperty('controlSpread')
+    }
+    expect(performanceScorecard(candidate, controls, scope).releaseRegression.some(gate => gate.workload === 'seq300')).toBe(false)
+  })
+
+  test.each(['missing', 'zero', 'short-tail', 'semantic'] as const)('unavailable candidate %s remains blocking when its controls calibrate', fault => {
+    const { candidate, controls, scope } = supplementalSetup()
+    const row = candidate.tracks.observations.find(o => o.workload === 'seq300' && o.peer === 'agentic' && o.round === 2)!
+    if (fault === 'missing') candidate.tracks.observations.splice(candidate.tracks.observations.indexOf(row), 1)
+    if (fault === 'zero') row.allocationSamplesBytes.fill(0)
+    if (fault === 'short-tail') row.callSamplesMs.splice(1)
+    if (fault === 'semantic') row.semantic.ok = false
+    const metric = fault === 'zero' ? 'allocation' : fault === 'short-tail' ? 'p95' : 'p50'
+    const { gate } = regressionCells(candidate, controls, [{ workload: 'seq300', ...scope, metric }]).cells[0]!
+    expect(gate.status).toBe('unavailable')
+    expect(gate.blocking).toBe(true)
+    expect(gate.ratio).toBeUndefined()
+    expect(gate.controls).toHaveLength(10)
+    expect(gate.reason).toBe('Missing, failed or zero-denominator metric')
+  })
+
+  test.each(['archive', 'fingerprint', 'dirty', 'duplicate-control', 'missing-control'] as const)('%s cannot supply a supplementary blocking gate or improvement floor', fault => {
+    const { candidate, controls, scope } = supplementalSetup()
+    if (fault === 'archive') controls[0]!.pins[0]!.identity!.sha256 = afterSha
+    if (fault === 'fingerprint') controls[0]!.tracksConfig!.context = 'different method'
+    if (fault === 'dirty') candidate.tracksConfig!.harnessDirty = true
+    if (fault === 'duplicate-control') controls[1]!.runId = controls[0]!.runId
+    if (fault === 'missing-control') controls[0]!.tracks.observations = controls[0]!.tracks.observations.filter(o => !(o.workload === 'seq300' && o.peer === 'agentic' && o.round === 2))
+    const cell = regressionCells(candidate, controls, [{ workload: 'seq300', ...scope, metric: 'p50' }]).cells[0]!
+    expect(cell.gate.status).toBe('uncalibrated')
+    expect(cell.gate.blocking).toBe(false)
+    expect(cell.gate.budget).toBeUndefined()
+    expect(cell.improvementFloor).toBeUndefined()
+  })
+
+  test('duplicate requests and unknown methods cannot stand in for a declared cell', () => {
+    const { candidate, controls, scope } = supplementalSetup()
+    const cell: RegressionCellRequest = { workload: 'seq300', ...scope, metric: 'p50' }
+    expect(() => regressionCells(candidate, controls, [cell, cell])).toThrow('Unknown or duplicate')
+    expect(() => regressionCells(candidate, controls, [{ ...cell, phase: 'cold' } as unknown as RegressionCellRequest])).toThrow('Unknown or duplicate')
+    expect(() => regressionCells(candidate, controls, [{ ...cell, metric: 'mean' } as unknown as RegressionCellRequest])).toThrow('Unknown or duplicate')
+  })
+})
 
 function campaign(): SemanticPerformanceShard[] {
   return ['off', 'on'].flatMap(cache => policy.phases.flatMap(phase => policy.consumers.map(consumer => {

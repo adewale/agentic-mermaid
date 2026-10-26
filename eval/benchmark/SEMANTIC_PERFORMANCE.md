@@ -109,6 +109,14 @@ Earlier controls with unavailable endpoint observability do not transfer.
 
 ## Calibration and decisions
 
+`regressionCells(candidate, controls, requests)` shares the stock scorecard's
+numeric control/ratio/spread/budget authority for explicitly requested cells.
+It retains unavailable rows and returns control spread and a calibrated
+improvement floor separately from each unchanged gate record. These arithmetic
+results do not admit a report, population, runtime graph or diagnostic replay;
+the bounded caller must enforce those prerequisites and its complete declared
+cell set. This does not add supplementary cases to the default scorecard.
+
 `bench:peers:qualify` runs **two independent A/A reports**, followed by the
 candidate comparison, serially on the same host and in the same cache mode.
 Each report uses five counterbalanced rounds. Both Agentic sides in A/A install
