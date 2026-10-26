@@ -833,3 +833,191 @@ test.each(['elk', 'agentic'] as const)('retains a proved note seat outside obstr
   expect(rendered.svg).toContain('marker-start=')
   expect(rendered.svg).toContain('marker-end=')
 })
+
+import * as classMarkerAdmission from '../class/marker-admission.ts'
+import * as nativeClassProducer from '../layout/agentic-layered.ts'
+import { LayoutCertificationError, withGraphLayoutDecisionObserver } from '../layout/backend.ts'
+import { resolveRenderRequest } from '../render-contract.ts'
+
+describe('Class marker meaning before producer selection', () => {
+  const modelSource = 'classDiagram\nclass S\nclass T\nS o-- T\nS <|-- T'
+  const paths = (separation: number) => [
+    [
+      { x: 200, y: 120 },
+      { x: 180, y: 120 },
+      { x: 180, y: 80 },
+      { x: 580, y: 80 },
+      { x: 580, y: 120 },
+      { x: 600, y: 120 },
+    ],
+    [
+      { x: 200, y: 120 + separation },
+      { x: 170, y: 120 + separation },
+      { x: 170, y: 60 },
+      { x: 560, y: 60 },
+      { x: 560, y: 130 },
+      { x: 600, y: 130 },
+    ],
+  ]
+  function controlled(separation: number, elkSeparation = separation) {
+    let nativeCalls = 0,
+      elkCalls = 0
+    const native = spyOn(nativeClassProducer, 'layoutAgenticGraph').mockImplementation((_graph: any): any => {
+      nativeCalls++
+      return {
+        width: 900,
+        height: 300,
+        nodes: [
+          { x: 200, y: 100 },
+          { x: 600, y: 100 },
+        ],
+        groups: [],
+        edges: paths(separation).map(points => ({ points })),
+      }
+    })
+    const stock = spyOn(elk, 'elkLayoutSync').mockImplementation((graph: any): any => {
+      elkCalls++
+      const routes = paths(elkSeparation)
+      return {
+        ...graph,
+        width: 900,
+        height: 300,
+        children: graph.children.map((child: any, index: number) => ({ ...child, x: index ? 600 : 200, y: 100 })),
+        edges: graph.edges.map((edge: any, index: number) => ({ ...edge, sections: [{ id: 'section', startPoint: routes[index]![0], bendPoints: routes[index]!.slice(1, -1), endPoint: routes[index]!.at(-1) }] })),
+      }
+    })
+    return {
+      native,
+      stock,
+      counts: () => ({ nativeCalls, elkCalls }),
+      restore: () => {
+        native.mockRestore()
+        stock.mockRestore()
+      },
+    }
+  }
+  test.each(['agentic', 'elk'] as const)('rejects real later-fill marker loss in %s before recording selected', backend => {
+    const producer = controlled(3.865),
+      decisions: unknown[] = []
+    try {
+      // Earlier aggregation's lower-left stroke midpoint is(191,122.5).
+      // All three independent half-plane distances place it in the later
+      // triangle's opaque fill, beyond its own .75px outline.
+      const triangle = [
+          { x: 188, y: 118.865 },
+          { x: 200, y: 123.865 },
+          { x: 188, y: 128.865 },
+        ],
+        witness = { x: 191, y: 122.5 }
+      for (let i = 0; i < triangle.length; i++) {
+        const a = triangle[i]!,
+          b = triangle[(i + 1) % triangle.length]!,
+          dx = b.x - a.x,
+          dy = b.y - a.y
+        expect((dx * (witness.y - a.y) - dy * (witness.x - a.x)) / Math.hypot(dx, dy)).toBeGreaterThan(0.75)
+      }
+      expect(() =>
+        withGraphLayoutDecisionObserver(
+          d => decisions.push(d),
+          () => layoutClassDiagram(parseClassDiagram(toMermaidLines(modelSource)), { graphLayout: { backend, fallback: 'none' } }),
+        ),
+      ).toThrow(LayoutCertificationError)
+      expect(decisions).toEqual([])
+      expect(producer.counts()).toEqual({ nativeCalls: backend === 'agentic' ? 1 : 0, elkCalls: backend === 'elk' ? 1 : 0 })
+    } finally {
+      producer.restore()
+    }
+  })
+  test.each(['agentic', 'elk'] as const)('does not exempt distinct glyph meanings merely because anchors coincide in %s', backend => {
+    const producer = controlled(0)
+    try {
+      expect(() => layoutClassDiagram(parseClassDiagram(toMermaidLines(modelSource)), { graphLayout: { backend, fallback: 'none' } })).toThrow(LayoutCertificationError)
+    } finally {
+      producer.restore()
+    }
+  })
+  test.each(['agentic', 'elk'] as const)('retains separated markers and exact shared identical glyphs in %s', backend => {
+    const separated = controlled(20)
+    try {
+      expect(layoutClassDiagram(parseClassDiagram(toMermaidLines(modelSource)), { graphLayout: { backend, fallback: 'none' } }).relationships).toHaveLength(2)
+    } finally {
+      separated.restore()
+    }
+    const shared = controlled(0)
+    try {
+      expect(layoutClassDiagram(parseClassDiagram(toMermaidLines(modelSource.replace('o--', '<|--'))), { graphLayout: { backend, fallback: 'none' } }).relationships).toHaveLength(2)
+    } finally {
+      shared.restore()
+    }
+  })
+  test('uses effective transparent and unknown palette paint without inventing opaque fill', () => {
+    const producer = controlled(3.865)
+    try {
+      for (const bg of ['transparent', 'rgba(255,255,255,0.5)']) {
+        const request = resolveRenderRequest(modelSource, { graphLayout: { backend: 'agentic', fallback: 'none' }, style: { colors: { bg } } })
+        expect(request.renderOptions.bg).toBe(bg)
+        expect(layoutClassDiagram(parseClassDiagram(toMermaidLines(modelSource)), request.renderOptions, request.appearance.face).relationships).toHaveLength(2)
+      }
+      // Direct unpainted callers can carry unresolved paint. It is not an
+      // opaque-cover proof, nor a claim this token is public Style input.
+      expect(layoutClassDiagram(parseClassDiagram(toMermaidLines(modelSource)), { graphLayout: { backend: 'agentic', fallback: 'none' }, bg: 'var(--unknown-background)' }).relationships).toHaveLength(2)
+    } finally {
+      producer.restore()
+    }
+  })
+  test('retains canonical first-party marker authority and leaves unknown custom paint uncertain', () => {
+    const producer = controlled(3.865)
+    try {
+      for (const backend of ['backend:default', 'backend:rough', 'backend:hybrid']) expect(() => layoutClassDiagram(parseClassDiagram(toMermaidLines(modelSource)), { graphLayout: { backend: 'agentic', fallback: 'none' } }, undefined, backend)).toThrow(LayoutCertificationError)
+      expect(layoutClassDiagram(parseClassDiagram(toMermaidLines(modelSource)), { graphLayout: { backend: 'agentic', fallback: 'none' } }, undefined, 'backend:unknown-host').relationships).toHaveLength(2)
+    } finally {
+      producer.restore()
+    }
+  })
+  test('typed marker rejection belongs to requested Native→ELK fallback and palette is resolved once', () => {
+    const producer = controlled(3.865, 20),
+      decisions: any[] = [],
+      proofCalls: { ledger: classMarkerAdmission.ClassMarkerAdmissionWork; before: number; after: number }[] = []
+    const originalAdmission = classMarkerAdmission.assertClassMarkerMeaning,
+      proof = spyOn(classMarkerAdmission, 'assertClassMarkerMeaning').mockImplementation((diagram, style, colors, ledger) => {
+        const call = { ledger: ledger!, before: ledger!.operations, after: ledger!.operations }
+        proofCalls.push(call)
+        try {
+          return originalAdmission(diagram, style, colors, ledger)
+        } finally {
+          call.after = ledger!.operations
+        }
+      })
+    let paletteReads = 0
+    const options = {
+      graphLayout: { backend: 'agentic' as const, fallback: 'elk' as const },
+      get bg() {
+        paletteReads++
+        return '#FFFFFF'
+      },
+    }
+    try {
+      const result = withGraphLayoutDecisionObserver(
+        d => decisions.push(d),
+        () => layoutClassDiagram(parseClassDiagram(toMermaidLines(modelSource)), options),
+      )
+      expect(result.relationships).toHaveLength(2)
+      expect(producer.counts()).toEqual({ nativeCalls: 1, elkCalls: 1 })
+      expect(decisions).toHaveLength(1)
+      expect(decisions[0].selected).toBe('elk')
+      expect(decisions[0].attempts.map((attempt: any) => [attempt.backend, attempt.outcome])).toEqual([
+        ['agentic', 'candidate-rejected'],
+        ['elk', 'selected'],
+      ])
+      expect(paletteReads).toBe(1)
+      expect(proofCalls).toHaveLength(2)
+      expect(proofCalls[0]!.ledger).toBe(proofCalls[1]!.ledger)
+      expect(proofCalls[0]!.after).toBeGreaterThan(proofCalls[0]!.before)
+      expect(proofCalls[1]!.before).toBe(proofCalls[0]!.after)
+      expect(proofCalls[1]!.after).toBeGreaterThan(proofCalls[1]!.before)
+    } finally {
+      proof.mockRestore()
+      producer.restore()
+    }
+  })
+})

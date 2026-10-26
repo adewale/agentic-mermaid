@@ -1,3 +1,4 @@
+import { resolveDiagramColors } from '../color-resolver.ts'
 import { connectorMarkerPaintRegions } from '../scene/bounds.ts'
 import { connector } from '../scene/marks.ts'
 import { configSpacing } from '../shared/config-spacing.ts'
@@ -5,6 +6,7 @@ import { assertClassDiagramWork } from '../shared/diagram-limits.ts'
 import { type DisplayTextInput, prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
 import { type PixelTextBlock, preparePixelText } from '../shared/prepared-text.ts'
 import { classInterfaceMarker } from './interface-occurrences.ts'
+import { assertClassMarkerMeaning, type ClassMarkerAdmissionWork, createClassMarkerAdmissionWork } from './marker-admission.ts'
 import { classMarkerHeaderInsets, classOwnedSurfaceViolations, repairClassHeaderRoutes, repairClassNoteSeats } from './owned-surfaces.ts'
 import { memberToString } from './text.ts'
 
@@ -587,9 +589,14 @@ function placeClassCardinalityLabels(relationships: PositionedClassRelationship[
 /**
  * Lay out measured Class cards with the selected graph backend.
  */
-export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions = {}, styleFace?: Readonly<InternalStyleFace>): PositionedClassDiagram {
+export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions = {}, styleFace?: Readonly<InternalStyleFace>, paintBackendId?: string): PositionedClassDiagram {
   assertClassDiagramWork(diagram)
   const style = resolveRenderStyle(options, CLASS_STYLE_DEFAULTS, styleFace)
+  // These first-party marker overlays are canonical. Sketch notes can extend
+  // outside the native note envelope, so they cannot prove final non-restoration.
+  const canonicalMarkers = paintBackendId === undefined || paintBackendId === 'backend:default' || ((paintBackendId === 'backend:rough' || paintBackendId === 'backend:hybrid') && diagram.notes.length === 0)
+  // Resolve once, before either callback, from the canonical request options.
+  const markerAdmission = canonicalMarkers && diagram.relationships.some(rel => rel.markerAt !== 'none') ? { colors: resolveDiagramColors(options, options.mermaidConfig ?? {}), work: createClassMarkerAdmissionWork() } : undefined
   if (diagram.classes.length === 0 && !diagram.namespaces.length && !diagram.notes.length) {
     const empty = (): PositionedClassDiagram => withClassTitle({ width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, classes: [], relationships: [], notes: [], namespaces: [] }, diagram.title, style)
     return runMeasuredGraphBackend(options, empty, empty)
@@ -660,7 +667,7 @@ export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions
           ]),
         ),
       }
-      return finishClassLayout(extractClassLayout(geometry, diagram, classSizes, style, hierarchicalNamespaces), diagram, style)
+      return finishClassLayout(extractClassLayout(geometry, diagram, classSizes, style, hierarchicalNamespaces), diagram, style, markerAdmission)
     },
     () => {
       // Wrapped namespace headers retain the existing bounded ELK sizing loop.
@@ -675,13 +682,13 @@ export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions
         titles = wrapped
         headerInsets = nextInsets
       }
-      return finishClassLayout(result!, diagram, style)
+      return finishClassLayout(result!, diagram, style, markerAdmission)
     },
     true,
   )
 }
 
-function finishClassLayout(positioned: PositionedClassDiagram, diagram: ClassDiagram, style: ResolvedRenderStyle): PositionedClassDiagram {
+function finishClassLayout(positioned: PositionedClassDiagram, diagram: ClassDiagram, style: ResolvedRenderStyle, markerAdmission?: { colors: ReturnType<typeof resolveDiagramColors>; work: ClassMarkerAdmissionWork }): PositionedClassDiagram {
   for (const cls of positioned!.classes) {
     cls.labelBlock = classTextBlock(resolveLabelContent(cls.label, cls.labelContent), style, 'node')
     cls.attributeBlocks = cls.attributes.map(classMemberBlock)
@@ -717,6 +724,7 @@ function finishClassLayout(positioned: PositionedClassDiagram, diagram: ClassDia
     }
   }
   finalizeClassOwnedSurfaces(result, style)
+  if (markerAdmission) assertClassMarkerMeaning(result, style, markerAdmission.colors, markerAdmission.work)
   return result
 }
 

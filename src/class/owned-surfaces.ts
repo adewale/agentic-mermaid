@@ -249,9 +249,9 @@ function ellipseBox(cx: number, cy: number, radius: number, r: ClassSurfaceBox):
     dy = cy - Math.max(r.y, Math.min(r.y + r.height, cy))
   return dx * dx + dy * dy < radius * radius
 }
-export function classRelationshipPaintBoxes(diagram: PositionedClassDiagram, style: ResolvedRenderStyle): { box: ClassSurfaceBox; edge: number; kind: 'label' | 'cardinality' | 'marker'; endpoint?: 'from' | 'to'; pieces?: ClassMarkerPiece[] }[] {
+export function classRelationshipPaintBoxes(diagram: PositionedClassDiagram, style: ResolvedRenderStyle, includeMarkers = true): { box: ClassSurfaceBox; edge: number; kind: 'label' | 'cardinality' | 'marker'; endpoint?: 'from' | 'to'; pieces?: ClassMarkerPiece[] }[] {
   const result: { box: ClassSurfaceBox; edge: number; kind: 'label' | 'cardinality' | 'marker'; endpoint?: 'from' | 'to'; pieces?: ClassMarkerPiece[] }[] = [],
-    resources = classMarkerResources(style),
+    resources = includeMarkers ? classMarkerResources(style) : [],
     halo = RELATION_LABEL_HALO_WIDTH / 2
   diagram.relationships.forEach((rel, edge) => {
     if (rel.label && rel.labelPosition && rel.labelBlock) result.push({ edge, kind: 'label', box: { x: rel.labelPosition.x - rel.labelBlock.width / 2 - halo, y: rel.labelPosition.y - 8 - rel.labelBlock.height / 2 - halo, width: rel.labelBlock.width + 2 * halo, height: rel.labelBlock.height + 2 * halo } })
@@ -260,6 +260,7 @@ export function classRelationshipPaintBoxes(diagram: PositionedClassDiagram, sty
         p = rel[`${side}CardinalityPosition`]
       if (block && p) result.push({ edge, kind: 'cardinality', box: { x: p.x - block.width / 2 - halo, y: p.y - block.height / 2 - halo, width: block.width + 2 * halo, height: block.height + 2 * halo } })
     }
+    if (!includeMarkers) return
     const startId = rel.markerAt === 'from' || rel.markerAt === 'both' ? getMarkerDefId(rel.fromType ?? rel.type) : null,
       endId = rel.markerAt === 'to' || rel.markerAt === 'both' ? getMarkerDefId(rel.toType ?? rel.type) : null
     const first = emittedPoint(rel.points[0] ?? { x: 0, y: 0 }),
