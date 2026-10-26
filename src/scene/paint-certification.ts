@@ -3,7 +3,6 @@ import { connectorMarkerPaintRegions, connectorStrokeHasJoins, expandSceneBounds
 import type { AxisAlignedBox } from '../shared/transformed-bounds.ts'
 import { resolveInlineColorAttribute } from '../theme.ts'
 import { tryParseCssColor } from '../shared/color-math.ts'
-import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
 import { inspectScenePaintGeometry, paintPrimitiveSource, scenePrimitiveMatrix, sceneGroupOpacity, type ScenePaintGeometryInspection, type NativeConnectorPaintSource, type ScenePaintGeometry as ScenePaintPrimitive } from './inspection.ts'
 import type { Geometry, SceneDoc, SceneOwner, ScenePoint, SceneTransform, MarkerDescriptor } from './ir.ts'
 import { composeMatrices, inverseMatrix, transformMatrix, transformPoint } from './transforms.ts'
@@ -260,8 +259,7 @@ function outsideFilledBody(surface: Surface, bounds: AxisAlignedBox, attached: b
  * corners of its conservative stroke envelope. Clipped-away ink is excluded. */
 function markerInkWitnesses(marker: MarkerDescriptor | undefined, hull: readonly ScenePoint[] | undefined, scene: NativePaintHeader, work: () => boolean): readonly ScenePoint[] | undefined {
   if (!marker || !hull || marker.geometry?.kind !== 'polygon' || (marker.scale ?? 1) > 1 || sceneGroupOpacity(marker.paint?.opacity) !== 1 || sceneGroupOpacity(marker.paint?.fillOpacity) !== 1 || !marker.paint?.fill) return undefined
-  const svg = inlineResolvedColors(`<rect fill="${escapeAttr(marker.paint.fill)}"/>`, scene.colors)
-  const fill = decodedSvgAttributeValue(scanSvgStartTags(svg)[0]!, 'fill')
+  const fill = resolveInlineColorAttribute(marker.paint.fill, scene.colors)
   if (!fill || tryParseCssColor(fill)?.[3] !== 1) return undefined
   const points = marker.geometry.points
   if (points.length < 3 || points.length > 64 || points.length !== hull.length) return undefined
@@ -289,8 +287,7 @@ function markerHasInk(marker: MarkerDescriptor | undefined, witnesses: readonly 
   const visible = (p: ScenePoint): boolean => Number.isFinite(p.x) && Number.isFinite(p.y) && (marker.overflow === 'visible' || !!viewport && p.x > viewport.x && p.x < viewport.x + viewport.width && p.y > viewport.y && p.y < viewport.y + viewport.height)
   const opaque = (color: string | undefined): boolean => {
     if (!color || !work()) return false
-    const svg = inlineResolvedColors(`<rect fill="${escapeAttr(color)}"/>`, scene.colors)
-    const value = decodedSvgAttributeValue(scanSvgStartTags(svg)[0]!, 'fill')
+    const value = resolveInlineColorAttribute(color, scene.colors)
     return !!value && tryParseCssColor(value)?.[3] === 1
   }
   const g = marker.geometry
