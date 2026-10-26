@@ -397,9 +397,20 @@ export function transformedBounds(box: AxisAlignedBox, transform?: SceneTransfor
   if (!transform) return box
   if (transform.kind === 'rotate') return rotateBoxBounds(box, { x: transform.cx, y: transform.cy }, transform.angle)
   const m = transformMatrix(transform)
-  const corners = [[box.x0, box.y0], [box.x0, box.y1], [box.x1, box.y0], [box.x1, box.y1]]
-    .map(([x, y]) => transformPoint({ x: x!, y: y! }, m))
-  return corners.every(point => Number.isFinite(point.x) && Number.isFinite(point.y)) ? pointsBounds(corners) : undefined
+  // Snapshot every corner before arithmetic: caller getters and numeric
+  // coercions may mutate later fields. Only this flat private buffer changes.
+  const corners = [box.x0, box.y0, box.x0, box.y1, box.x1, box.y0, box.x1, box.y1]
+  for (let i = 0; i < corners.length; i += 2) {
+    const x = corners[i]!, y = corners[i + 1]!
+    corners[i] = m[0] * x + m[2] * y + m[4]
+    corners[i + 1] = m[1] * x + m[3] * y + m[5]
+  }
+  return corners.every(value => Number.isFinite(value)) ? {
+    x0: Math.min(corners[0]!, corners[2]!, corners[4]!, corners[6]!),
+    y0: Math.min(corners[1]!, corners[3]!, corners[5]!, corners[7]!),
+    x1: Math.max(corners[0]!, corners[2]!, corners[4]!, corners[6]!),
+    y1: Math.max(corners[1]!, corners[3]!, corners[5]!, corners[7]!),
+  } : undefined
 }
 
 function composedTransform(parent: SceneTransform | undefined, child: SceneTransform | undefined): SceneTransform | undefined {
