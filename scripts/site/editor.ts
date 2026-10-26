@@ -241,6 +241,9 @@ async function generateEditorHtml(): Promise<string> {
         defaults: false, join_vars: true, evaluate: true, unused: true, keep_fargs: true,
         dead_code: true, conditionals: true, booleans: true, comparisons: true,
         reduce_vars: true, sequences: true,
+        collapse_vars: true, if_return: true, properties: true,
+        side_effects: true, loops: true, switches: true, typeofs: true,
+        inline: 1, passes: 2,
       },
       format: { comments: 'some', inlineScript: true },
     })
