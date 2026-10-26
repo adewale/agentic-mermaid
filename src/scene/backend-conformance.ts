@@ -52,6 +52,7 @@ import {
 import { sceneNodeSerialization } from './serialization.ts'
 import { deepFreeze } from '../shared/plain-data.ts'
 import { withTextMeasurementExecution } from '../text-measurement-profile.ts'
+import { admitBackendSceneDocument } from './external-data-snapshot.ts'
 
 export const BACKEND_CONFORMANCE_VERSION = 4 as const
 export const BACKEND_CONFORMANCE_FIXTURE_ID = 'backend-claim-matrix@4' as const
@@ -378,6 +379,23 @@ function createFixture(): ConformanceFixture {
 // Fixture construction belongs to the first executable proof, not import.
 // Keep its measurements independent of the request that first needs it.
 let FIXTURE: ConformanceFixture
+
+/** The registry selects this adapter only for the unchanged frozen default
+ * implementation. Keep every executable witness and method receiver; reuse
+ * only admission's own immutable snapshot of our private fixture document. */
+export function backendWithAdmittedConformanceFixture(backend: StyleBackend): StyleBackend {
+  const { id, capabilities, drawNode, render } = backend
+  let admitted: SceneDoc | undefined
+  return {
+    id,
+    capabilities,
+    drawNode(node, context) { return drawNode.call(backend, node, context) },
+    render(doc, context) {
+      const input = doc === FIXTURE?.doc ? (admitted ??= admitBackendSceneDocument(doc)) : doc
+      return render.call(backend, input, context)
+    },
+  }
+}
 
 function fragmentDiagnostic(missing: readonly string[]): string | undefined {
   return missing.length === 0 ? undefined : `missing ${missing.join(', ')}`
