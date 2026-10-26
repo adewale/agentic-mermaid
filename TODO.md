@@ -40,8 +40,12 @@ queues. Retired IDs are not reused.
   target is 0.5.0; source still declares 0.4.2 and npm served 0.4.1 when checked
   on 25 October. No intermediate 0.4.2 publication is required. Settle scope,
   update version/changelog and the release issue's automation marker, and run
-  canonical CI plus package, semantic and performance qualification on the
-  actual immutable release candidate. Follow `docs/contributing/releasing.md`,
+  canonical CI, including its independent semantic and packed-consumer checks,
+  on the actual immutable release candidate. The publication workflow also
+  requires platform smoke tests and the verified package artifact. Following
+  #492, benchmarks run separately in explicit local sessions; they do not block
+  or authorize publication. Keep performance claims within their measured scope
+  under PERF-1. Follow `docs/contributing/releasing.md`,
   publish the verified artifact, then verify npm/MCP Registry metadata and the
   matching deployed site/MCP identity and a live capability.
   #410's Class work, #418's ER/Journey/empty-edit/YAML repairs, #419's text
