@@ -1,8 +1,6 @@
 // Route-contract orchestration, certificate closure, and final audit. Geometry,
 // lane proofs, feedback shortening, and per-pass self-loop occupancy have
 // separate owners; the pass order and certificate lifecycle remain here.
-import { withinLayoutPreferenceBudget } from './layout/pass.ts'
-
 import { customTextMeasurementActive } from './text-measurement-profile.ts'
 import { resolveLabelContent } from './shared/display-text.ts'
 import type { Direction, MermaidGraph, Point, PortSide, PositionedEdge, PositionedGroup, PositionedNode, RouteCertificate, RouteClass, RouteInvariant } from './types.ts'
@@ -14,6 +12,7 @@ import { renderedEndpointContact } from './rendered-endpoint-diagnostics.ts'
 import { LABEL_PILL_PADDING, labelHaloExtension, labelRect, pillRect, segmentEntersLabelRect } from './shared/edge-label-geometry.ts'
 import { bundleRouteBeforeRewrite, hasConstructedBundleRoute, retainBundleRouteAfterRewrite } from './layout/bundle-routes.ts'
 import {
+  withinLayoutPreferenceBudget,
   EPS,
   CLEARANCE,
   RECT_LIKE,

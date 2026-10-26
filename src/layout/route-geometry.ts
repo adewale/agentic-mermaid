@@ -1,10 +1,28 @@
 import { type NodeLaneIndex } from '../shared/node-lane-index.ts'
 import { customTextMeasurementActive } from '../text-measurement-profile.ts'
 import { type RouteChannelGeometry } from '../shared/route-channel-geometry.ts'
-import type { AnyPort, DiamondFacet, Direction, MermaidGraph, Point, PortSemanticRole, PortSide, PositionedEdge, PositionedGroup, PositionedNode, RouteClass, RoutePortAssignment } from '../types.ts'
+import type { AnyPort, DiamondFacet, Direction, MermaidGraph, MermaidSubgraph, Point, PortSemanticRole, PortSide, PositionedEdge, PositionedGroup, PositionedNode, RouteClass, RoutePortAssignment } from '../types.ts'
 import { isOutwardShapeApproach } from '../shape-clipping.ts'
 import { pointOnShapeSide, shapeCardinalPorts, shapeRoutingProfile } from '../shape-outline.ts'
 import { renderedEndpointContact } from '../rendered-endpoint-diagnostics.ts'
+import { labelRect } from '../shared/edge-label-geometry.ts'
+
+// Quality exploration is deterministic and bounded independently of machine
+// speed. Larger graphs keep the existing first-certified fallback behavior.
+export const MAX_PREFERENCE_NODES = 64
+export const MAX_PREFERENCE_EDGES = 128
+
+export function withinLayoutPreferenceBudget(graph: MermaidGraph): boolean {
+  let nodes = graph.nodes.size
+  const count = (groups: readonly MermaidSubgraph[]): void => {
+    for (const group of groups) {
+      nodes++
+      count(group.children)
+    }
+  }
+  count(graph.subgraphs)
+  return nodes <= MAX_PREFERENCE_NODES && graph.edges.length <= MAX_PREFERENCE_EDGES
+}
 
 /** Two coordinates within this distance are the same point. */
 export const EPS = 0.01
@@ -607,4 +625,57 @@ function allocateRoutePortsImpl(
   }
 
   return { byEdge, sideUse }
+}
+
+/** Translate all positioned geometry together so the public canvas origin is non-negative. */
+export function translateGeometryToNonNegativeOrigin(nodes: PositionedNode[], edges: PositionedEdge[], groups: PositionedGroup[], padding: number, style?: LabelMetricsStyle): void {
+  let minX = 0
+  let minY = 0
+  const visitGroup = (group: PositionedGroup): void => {
+    minX = Math.min(minX, group.x)
+    minY = Math.min(minY, group.y)
+    for (const child of group.children) visitGroup(child)
+  }
+  for (const node of nodes) {
+    minX = Math.min(minX, node.x)
+    minY = Math.min(minY, node.y)
+  }
+  for (const group of groups) visitGroup(group)
+  for (const edge of edges) {
+    for (const point of edge.points) {
+      minX = Math.min(minX, point.x)
+      minY = Math.min(minY, point.y)
+    }
+    const pill = style && edge.labelBlock ? labelRect(edge, style) : null
+    if (pill) {
+      minX = Math.min(minX, pill.x)
+      minY = Math.min(minY, pill.y)
+    } else if (edge.labelPosition) {
+      minX = Math.min(minX, edge.labelPosition.x)
+      minY = Math.min(minY, edge.labelPosition.y)
+    }
+  }
+  if (minX >= 0 && minY >= 0) return
+  const dx = minX < 0 ? -minX + padding : 0
+  const dy = minY < 0 ? -minY + padding : 0
+  const moveGroup = (group: PositionedGroup): void => {
+    group.x += dx
+    group.y += dy
+    for (const child of group.children) moveGroup(child)
+  }
+  for (const node of nodes) {
+    node.x += dx
+    node.y += dy
+  }
+  for (const group of groups) moveGroup(group)
+  for (const edge of edges) {
+    for (const point of edge.points) {
+      point.x += dx
+      point.y += dy
+    }
+    if (edge.labelPosition) {
+      edge.labelPosition.x += dx
+      edge.labelPosition.y += dy
+    }
+  }
 }

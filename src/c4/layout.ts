@@ -6,7 +6,7 @@ import { resolveRenderStyle, positionDiagramTitle, DIAGRAM_TITLE_FONT_SIZE, DIAG
 import { resolveC4Config, c4Appearance, effectiveC4Shape, type C4Config, type C4ConfigInput } from './config.ts'
 import { projectC4Graph, c4ElementText, c4BoundaryText, c4RelationshipText } from './projection.ts'
 import { placeC4Boxes, type C4Box } from './placement.ts'
-import { translateGeometryToNonNegativeOrigin } from '../layout/passes/translation.ts'
+import { translateGeometryToNonNegativeOrigin } from '../layout/route-geometry.ts'
 import { routeC4Pixels } from './routing.ts'
 import { c4LegendEntries, type C4LegendEntry } from './legend.ts'
 import type { PixelTextBlock } from '../shared/prepared-text.ts'
