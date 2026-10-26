@@ -372,6 +372,7 @@ describe('link length is honored across subgraph boundaries', () => {
     for (const dir of ['LR', 'RL', 'TD', 'BT'] as const) {
       const base = verifyMermaid(tpl(dir, '-->'))
       const long = verifyMermaid(tpl(dir, '---->'))
+      expect(base.ok, dir).toBe(true)
       expect(long.ok, dir).toBe(true)
       expect(long.warnings.filter(w => w.code.startsWith('ROUTE_'))).toEqual([])
       expect(long.warnings.filter(w => w.code === 'OFF_CANVAS')).toEqual([])
