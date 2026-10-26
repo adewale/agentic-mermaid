@@ -1,9 +1,9 @@
 import { isOwnedFamily } from './experimental/owned-family.ts'
-import { DefaultBackend } from './scene/backend.ts'
-import { nativeDrawingOf } from './scene/drawing.ts'
+import { isOriginalEnrolledDefaultBackend } from './scene/backend.ts'
+import { nativeDrawingOf, originalNativeDrawingOf, type DrawingProducer } from './scene/drawing.ts'
 import { sceneAssertionsEnabled } from './scene/assertions.ts'
 import { PERFORMANCE_EXPERIMENTS, performanceExperimentEnabled } from './experimental-performance.ts'
-import { borrowedPositioned, cachedPositioned, retainOwnedNativeSvgPositioned, retainPositioned } from './experimental/position-cache.ts'
+import { borrowedPositioned, cachedPositioned, clonePositioned, isRetainedPositionedSnapshot, retainOwnedNativeSvgPositioned, retainPositioned } from './experimental/position-cache.ts'
 import { observeCache } from './performance-observations.ts'
 // Canonical resolved-request -> positioned-artifact seam.
 //
@@ -24,6 +24,7 @@ import type { PositionedDiagram } from './types.ts'
 // A certification and its consumers use one projection of the same final
 // artifact. Keep this internal evidence outside descriptor-owned return data.
 const retainedProjections = new WeakMap<FamilyLayoutResult, FamilyPositionedView>()
+const borrowedNativeProducers = new WeakMap<FamilyLayoutResult, DrawingProducer>()
 
 export function retainedFamilyProjection(result: FamilyLayoutResult): FamilyPositionedView | undefined {
   return retainedProjections.get(result)
@@ -40,9 +41,24 @@ export function positionResolvedFamily(familyId: FamilyId, request: ResolvedRend
 /** Private render adapter: borrowed geometry never crosses a public boundary. */
 export function positionFamilyForNativeRender(request: ResolvedRenderRequest): FamilyLayoutResult {
   const plan = resolvedRenderExecutionPlanOf(request)
-  const borrow = plan.mode === 'scene' && plan.backend?.backend === DefaultBackend
-    && isOwnedFamily(plan.family) && !!nativeDrawingOf(plan.family.lowerScene) && !sceneAssertionsEnabled(request)
-  return positionFamily(plan.family.id, request, request.source, {}, borrow)
+  // A modified native producer may retain its context. Give it the ordinary
+  // independent copy, including on the call that first fills the cache, so a
+  // later restored original producer never borrows caller-retained geometry.
+  const producer = nativeDrawingOf(plan.family.lowerScene)
+  const borrow = plan.mode === 'scene' && isOriginalEnrolledDefaultBackend(plan.backend?.backend)
+    && isOwnedFamily(plan.family) && !plan.textMeasurement
+    && !!producer && producer === originalNativeDrawingOf(plan.family.lowerScene) && !sceneAssertionsEnabled(request)
+  const result = positionFamily(plan.family.id, request, request.source, {}, borrow)
+  if (borrow && isRetainedPositionedSnapshot(result)) borrowedNativeProducers.set(result, producer!)
+  return result
+}
+
+/** A stage/cache observer can replace the native capability after positioning.
+ * Clone only our known raw cache graph before handing it to a different
+ * producer. Public positioned inputs keep their original getter observations. */
+export function positionedForNativeProducer(layout: FamilyLayoutResult, producer: DrawingProducer): PositionedDiagram {
+  const original = borrowedNativeProducers.get(layout)
+  return original && original !== producer ? clonePositioned(layout.positioned) : layout.positioned
 }
 
 function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, source: Readonly<NormalizedMermaidSource>, projectionOptions: FamilyPositionedProjectionOptions, borrow: boolean): FamilyLayoutResult {

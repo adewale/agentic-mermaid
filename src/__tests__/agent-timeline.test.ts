@@ -788,9 +788,52 @@ describe('timeline ops parity with the journey convention (move/insert)', () => 
     if (r.ok) return
     expect(r.error.message).toContain('(0..1)')
   })
-  test('move_section reorders sections', () => {
-    const r = mutate(timeline(SRC), { kind: 'move_section', from: 1, to: 0 })
-    expect(r.ok && r.value.body.sections.map(s => s.label)).toEqual(['P2', 'P1'])
+  test('move_section reorders named sections while preserving period ownership', () => {
+    const cases = [
+      {
+        source: SRC, from: 1, to: 0,
+        expected: [
+          { label: 'P2', periods: [{ label: '2022', events: ['C'] }] },
+          { label: 'P1', periods: [{ label: '2020', events: ['A'] }, { label: '2021', events: ['B'] }] },
+        ],
+      },
+      {
+        source: 'timeline\n  2019 : Intro\n  section P1\n  2020 : A\n  section P2\n  2021 : B', from: 2, to: 1,
+        expected: [
+          { label: undefined, periods: [{ label: '2019', events: ['Intro'] }] },
+          { label: 'P2', periods: [{ label: '2021', events: ['B'] }] },
+          { label: 'P1', periods: [{ label: '2020', events: ['A'] }] },
+        ],
+      },
+    ]
+    for (const { source, from, to, expected } of cases) {
+      const result = mutate(timeline(source), { kind: 'move_section', from, to })
+      expect(result.ok).toBe(true)
+      if (!result.ok) continue
+      expect(timelineMeaning(result.value.body).sections).toEqual(expected)
+      const written = serializeMermaid(result.value)
+      expect(timelineMeaning(timeline(written).body).sections).toEqual(expected)
+      expect(timelineMeaning({ kind: 'timeline', ...parseTimelineDiagram(normalizeMermaidSource(written).lines) }).sections).toEqual(expected)
+    }
+  })
+  test.each<TimelineMutationOp>([
+    { kind: 'move_section', from: 0, to: 1 },
+    { kind: 'move_section', from: 1, to: 0 },
+    { kind: 'add_section', label: 'Before', index: 0 },
+  ])('rejects section ordering that would reparent unnamed periods: %j', op => {
+    const input = timeline('timeline\n  2019 : Intro\n  section Named\n  2020 : Milestone')
+    const before = structuredClone(input.body)
+    const result = mutate(input, op)
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error.code).toBe('INVALID_OP')
+      expect(result.error.message).toContain('unnamed section must remain first')
+    }
+    expect(input.body).toEqual(before)
+    expect(timelineMeaning(input.body).sections).toEqual([
+      { label: undefined, periods: [{ label: '2019', events: ['Intro'] }] },
+      { label: 'Named', periods: [{ label: '2020', events: ['Milestone'] }] },
+    ])
   })
   test('move_section bad target names the valid range', () => {
     const r = mutate(timeline(SRC), { kind: 'move_section', from: 0, to: 4 })

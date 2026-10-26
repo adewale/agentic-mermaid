@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import fc from 'fast-check'
 
-import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
+import { BUILTIN_FAMILY_METADATA, getFamily } from '../agent/families.ts'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
 import {
   detectDiagramType,
@@ -18,6 +18,25 @@ import {
 import { mermaidFirstLine } from '../mermaid-source-wrapper.ts'
 
 describe('preprocessMermaidSource', () => {
+  it('observes the family descriptor even when configuration is empty', () => {
+    let reads = 0
+    let fail = false
+    const family = {
+      ...getFamily('flowchart')!,
+      get id() {
+        reads++
+        if (fail) throw new Error('descriptor failed')
+        return 'flowchart' as const
+      },
+    }
+    const source = 'flowchart TD\nA --> B'
+    expect(preprocessMermaidSource(source, {}, family).frontmatter).toEqual({})
+    expect(reads).toBe(1)
+    fail = true
+    expect(() => preprocessMermaidSource(source, {}, family)).toThrow('descriptor failed')
+    expect(reads).toBe(2)
+  })
+
   it('applies base, YAML and init config in order when a scalar replaces a map', () => {
     const source = '---\nconfig:\n  xyChart: false\n---\n%%{init: {"xyChart":{"height":200}}}%%\nxychart\nbar [1]'
     const normalized = normalizeMermaidSource(source, { xyChart: { width: 100 } })
@@ -113,6 +132,30 @@ bar [1]`)
 })
 
 describe('normalizeMermaidSource', () => {
+  it.each([
+    '',
+    '\uFEFF%% comment\n',
+    '---\nconfig: {}\n---\n',
+    '---\n- ignored metadata\n---\n',
+    '%%{config: {"theme":"dark"}}%%\n',
+  ])('keeps empty configuration independently mutable with wrapper %j', wrapper => {
+    const base = {}
+    const text = `${wrapper}flowchart TD\n  A --> B`
+    const first = normalizeMermaidSource(text, base)
+    const second = normalizeMermaidSource(text, base)
+
+    expect(first.frontmatter).toEqual({})
+    expect(first.config).toEqual({})
+    expect(first.familyLines).toEqual(['flowchart TD', 'A --> B'])
+    first.frontmatter.theme = 'dark'
+    expect(first.config).toEqual({})
+    first.config.theme = 'forest'
+    expect(base).toEqual({})
+    expect(second.frontmatter).toEqual({})
+    expect(second.config).toEqual({})
+    expect(normalizeMermaidSource(text, base).frontmatter).toEqual({})
+  })
+
   it('owns universal accessibility grammar and preserves family suffixes', () => {
     const normalized = normalizeMermaidSource(`flowchart TD
   accTitle Accessible graph

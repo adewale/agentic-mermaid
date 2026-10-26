@@ -190,10 +190,14 @@ function sequenceMessageFromParsed(msg: ReturnType<typeof parseSequenceMessageLi
  * source Mermaid reads. */
 function portableRaw(entry: SequenceSourceStatement): string {
   const message = entry.syntax?.kind === 'message' ? entry.syntax.message : undefined
-  if (!message?.localArrow) return entry.raw
-  // Only `()` and spaces stand between the sender and its arrow.
-  const at = entry.raw.indexOf(message.localArrow, entry.raw.length - entry.raw.trimStart().length + message.from.length)
-  return entry.raw.slice(0, at) + message.arrow + entry.raw.slice(at + message.localArrow.length)
+  if (message?.label.includes('%%')) return renderMessage(sequenceMessageFromParsed(message))
+  let source = entry.raw
+  if (message?.localArrow) {
+    // Only `()` and spaces stand between the sender and its arrow.
+    const at = source.indexOf(message.localArrow, source.length - source.trimStart().length + message.from.length)
+    source = source.slice(0, at) + message.arrow + source.slice(at + message.localArrow.length)
+  }
+  return message ? messageWithBoundary(message.from, source) : source
 }
 
 function parseTypedFragment(entries: SequenceSourceStatement[]): SequenceFragment | null {
@@ -489,13 +493,19 @@ function statementParticipantIds(statement: SequenceStatement, participants: Seq
   }
 }
 
+/** ID metadata lookahead crosses newlines and preserved comments. Both raw
+ * and modeled messages must end that lexical state before an `@{` sender. */
+function messageWithBoundary(sender: string, source: string): string {
+  return sender.startsWith('@{') ? `;${source}` : source
+}
+
 function renderMessage(m: SequenceMessage): string {
   const from = `${m.from}${m.centralStart ? '()' : ''}`
   const to = `${m.centralEnd ? '()' : ''}${m.activate ? '+' : m.deactivate ? '-' : ''}${m.to}`
   // `title: ` starts Mermaid's legacy title token; an adjacent message
   // payload keeps the same actor ID and message text.
   const prefix = `  ${from}${m.arrow ?? arrowForStyle(m.style)}${to}:${m.to.toLowerCase() === 'title' ? '' : ' '}`
-  return prefix + writeSequenceControlledText(m.text, m.textContent, m.wrap, prefix)
+  return messageWithBoundary(m.from, prefix + writeSequenceControlledText(m.text, m.textContent, m.wrap, prefix))
 }
 
 export function arrowForStyle(s: SequenceMessageStyle): string {

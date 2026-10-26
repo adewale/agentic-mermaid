@@ -1,11 +1,4 @@
-var PRESET_FONTS = (typeof EDITOR_PRESET_FONTS !== 'undefined' && Array.isArray(EDITOR_PRESET_FONTS))
-  ? EDITOR_PRESET_FONTS
-  : [
-    { name: 'System UI', value: 'system-ui', group: 'System' },
-    { name: 'Arial', value: 'Arial', group: 'System' },
-    { name: 'Georgia', value: 'Georgia', group: 'System' },
-    { name: 'Courier New', value: 'Courier New', group: 'System' },
-  ];
+var PRESET_FONTS = EDITOR_PRESET_FONTS;
 
 var fontPopup     = document.getElementById('font-popup');
 var fontSearch    = document.getElementById('font-search');

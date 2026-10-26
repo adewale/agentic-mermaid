@@ -114,6 +114,7 @@ export function sequenceActorIdCanSerialize(id: string, context: 'declaration' |
   if (SEQUENCE_SPACED_CENTRAL_RESERVED_SENDERS.has(keyword)
     && !['title', 'link', 'links', 'properties', 'details'].includes(keyword)) return false
   if (context === 'receiver' && ['acctitle', 'accdescr'].includes(keyword)) return false
+  if (/^(?:left|right) of(?:\s|$)/.test(keyword)) return false
   return mermaidSequenceActorAt(`${token}${context === 'sender' ? '->>Z:' : ':'}`, 0) === token
 }
 
@@ -685,6 +686,11 @@ export function readSequenceStatements(lines: readonly string[]): { statements: 
     if (syntax.kind === 'declaration' || syntax.kind === 'create') {
       const problem = sequenceParticipantIdProblem(syntax.declaration.id)
       if (problem) issue(entry, 'sequence_participant_id_extension', problem)
+    }
+    if (syntax.kind === 'message') {
+      for (const [context, id] of [['sender', syntax.message.from], ['receiver', syntax.message.to]] as const) {
+        if (!sequenceActorIdCanSerialize(id, context)) issue(entry, 'sequence_message_id_extension', `Participant "${id}" is read as the ${context}, but pinned Mermaid reads another token there; rename it before typed editing`)
+      }
     }
   }
   for (const index of stack) issue(statements[index]!, 'sequence_block_boundary', 'Sequence block or box is never closed by end')

@@ -19,6 +19,29 @@ cover Timeline keywords/separators, Sequence ACTOR identities, C4 arguments,
 Gantt task labels, Block formatting, Journey actors and separators, Mindmap
 anonymous identities, Ishikawa cause labels and Treemap quoted text.
 
+The #494 follow-up examines its 162 reduced reports and their 162 original
+witnesses. Readable aliases, Unicode whitespace, compact statements, comments,
+leading-dot numbers, native-only identifiers and empty containers are not
+missing rendering features. Their intended readings are retained; no blanket
+warning is added merely because a fuzzer found another spelling. Class-header
+aliases and Quadrant statement separators were fixed separately in #505.
+
+Empty State notes and accessibility descriptions retain explicit empty fields
+using block syntax. C4 raw statement reuse must satisfy its argument lexer;
+otherwise the field writer constructs quotes and separators. Sequence writers
+shield literal percent pairs and terminate a participant declaration when the
+next message would be read as metadata. Placement keywords cannot become typed
+message endpoints. State class assignments to non-word targets remain
+source-only, with a warning and atomic refusal of typed class edits.
+
+An init-directive opener inside ordinary accessibility text remains source-only
+and warns: its current authored-text representation cannot add a protective
+escape without changing the reloaded field. Comment-backed accessibility keeps
+its existing JSON transport. Invalid or unusually delimited YAML wrappers can
+remain verbatim on default export; canonical wrapper mode repairs those whose
+metadata and configuration can be represented. Source-preserving output is not
+a promise of external Mermaid acceptance.
+
 Journey, Mindmap, Ishikawa and Treemap share grammar escape interpretation. XML
 transport references expand inside classified fields, before formatting;
 protected grammar escapes expand afterward, once. This prevents an encoded
@@ -74,8 +97,10 @@ faces reserve distinct contacts when marker meanings conflict; compound or
 parallel classification alone cannot establish safety. Reciprocal/parallel
 Block edges and cross-scope State edges are checked against actual owned
 stroke/marker ink and frame contacts, independently of stored endpoint metadata.
-When contact allocation is required, the current global routing mode may
-unbundle otherwise compatible routes elsewhere in the graph.
+Contact conflicts close over the affected routes locally. Compatible bundles
+elsewhere retain their shared trunks. The terminal router still has bounded
+search and can refuse a layout when it cannot certify protected approaches;
+successful local contact allocation is not a proof for every later route cell.
 
 Style construction follows each family's grammar and consumer. Flowchart
 class definitions protect value commas and separate a trailing backslash from
@@ -130,8 +155,11 @@ a disconnected state and pseudostate exchange terminal positions. Its labels,
 identities, parents and endpoints are unchanged. Canonical serialization does
 not preserve every layout-sensitive declaration order.
 
-The candidate has 992 typed inputs, 250 source-only inputs and 41 explicit parse
-failures. No reference-accepted retained input loses typed admission. The 250
+The historical #490 candidate has 992 typed inputs, 250 source-only inputs and 41 explicit parse
+failures. These counts precede #499, whose same-corpus replay has 1,051 typed
+inputs, 191 source-only inputs and 41 parse failures; accepted typed canonical
+exports rise from 962 to 1,020. Neither comparison credits additional imported
+upstream test passes. No reference-accepted retained input loses typed admission. The historical 250
 source-only inputs retain family statements and cannot accept typed edits,
 including edits to portable portions. One Radar input loses only adjacent empty
 frontmatter delimiters under the existing warned `empty_frontmatter` policy.
@@ -633,8 +661,8 @@ Use the existing structured-or-opaque boundary rather than introduce a second
 serializer framework. A newly supplied typed value must have a proven portable
 spelling. A readable existing extension without such a spelling stays
 source-preserved, carries the portability warning and is refused for any typed
-edit that would require regenerating it. This is the chosen boundary, not a
-claim that all the admission checks already exist.
+edit that would require regenerating it. Merged writer work implements this boundary for the Quadrant and Architecture
+witnesses below; its finite regression set does not cover every extension.
 
 For Quadrant styles, portable hexadecimal colors and supported integer radii
 are the initial strict-authoring subset. Do not round a fractional radius,
@@ -666,15 +694,15 @@ accessibility text to conceal it.
 ### Implementation after the historical baseline
 
 The table above records the historical baseline. The changes below are
-implemented in the current candidates; final combined checks and merge remain
-pending. Source completion is separate from npm publication and hosted delivery.
+merged. The linked PRs and commit below identify their delivery revisions;
+npm publication and hosted delivery remain separate.
 
 - [PR #418](https://github.com/adewale/agentic-mermaid/pull/418) supplies ER order
   preservation after grouped edits (BUG-10/#372) and #367's Journey break-only
   labels, renderable empty edits and YAML scalar/wrapper preservation
   (BUG-47/52/60). The footer follow-up is included. #367's terminal wrapping
   already landed in #394; BUG-9 had a passing owning regression at the baseline.
-- CONS-46's source implementation is complete in this text candidate. It
+- Merged #419 completed CONS-46's source implementation. It
   preserves literal entity-derived runs beside authored formatting through
   Flowchart, ER, Sequence and Class, including Sequence aliases/messages/notes
   and Class member/annotation metrics. The Flowchart preprocessor warning and
@@ -687,16 +715,22 @@ pending. Source completion is separate from npm publication and hosted delivery.
   authored text is an intentional divergence. Actual comments outside text
   contexts retain their comment behavior. Mindmap's existing accessibility
   extension policy is unchanged.
-- Completing #372 requires both PR #418's ER implementation and this text
-  candidate to be integrated and verified. The wholesale serializer WIP is
-  superseded. Final CI and merge are tracked under REL-1, rather than keeping
-  implemented defects in the active backlog.
-- CONS-44 is implemented in separate, unmerged
+- #418 and #419 merged, and #372 is closed. The wholesale serializer WIP is
+  superseded. REL-1 tracks publication and final release qualification.
+- Merged CONS-44 implementation is in
   [PR #416](https://github.com/adewale/agentic-mermaid/pull/416), with family-owned
   config diagnostic hooks and transport schemas projected from existing
-  contracts, including native C4's diagnostic hook. Final-head checks are
-  recorded in the PR; merge remains pending. It is not a dependency of
-  CONS-46 or of completing these grammar dispositions.
+  contracts, including native C4's diagnostic hook. Its final-head checks are
+  recorded in the PR. It was independent of CONS-46 and completion of these
+  grammar dispositions.
+- Merged commit `31fb78d` supplies the strict-writer boundaries for BUG-54/58
+  and Architecture ID/icon extensions. Quadrant keyword/semicolon labels receive
+  grammar-aware quoting and portability warnings. Unsupported styles retain
+  source and native rendering with warnings; typed regeneration is refused.
+  Architecture extensions use the same source-preserving/refusal distinction.
+  The owning agent tests check canonical output against pinned Mermaid and
+  retained text/fields through edits. The old “Open” rows above remain dated
+  baseline evidence, not current implementation status.
 - The Class header alias and Quadrant statement separators from BUG-56 now
   use their native family readers. `classDiagram-v2` remains editable and
   exports the canonical `classDiagram` header. Quadrant separates statements
@@ -710,9 +744,10 @@ steps: every original item has a decision and a recorded implementation status.
 Closing the investigation does not assert that every reader/export gap is fixed.
 
 Original BUG-54/56/58 remain historical references for the Quadrant portability
-and reader decisions in the tables. BUG-56's reader witnesses are implemented;
-its historical rows are not an active backlog. Architecture ID/icon
-exports and the empty-Class spelling remain explicit limits. BUG-57 is a
+and reader decisions in the tables. The original BUG-54/56/58 witnesses have
+merged implementations; those historical rows are not an active backlog.
+Architecture extensions remain source-only when no portable spelling exists,
+and the empty-Class spelling remains an explicit limit. BUG-57 is a
 consistent local reading, not a remaining defect. No new issues or parity-only
 work are implied by these decisions.
 

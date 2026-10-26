@@ -241,6 +241,23 @@ describe('state notes — SVG rendering', () => {
 
 // ---------------------------------------------------------------------------
 describe('state notes — structured agent body', () => {
+  test.each([
+    ['empty', 'note right of A\nend note'],
+    ['blank lines', 'note right of A\n  \n\t\nend note'],
+    ['nested target', 'state Outer {\nA\nnote right of A\nend note\n}'],
+  ])('%s block notes retain their annotation through verification and writing', (_name, body) => {
+    const d = state(`stateDiagram-v2\n${body}`)
+    expect(d.body.notes).toMatchObject([{ target: 'A', side: 'right', text: '' }])
+    expect(verifyMermaid(d).ok).toBe(true)
+    const written = serializeMermaid(d)
+    expect(written).toContain('note right of A\n')
+    expect(state(written).body).toEqual(d.body)
+    expect(parseLegacy(written).stateNotes).toMatchObject([{ target: 'A', side: 'right', text: '' }])
+    expect(renderMermaidSVG(written)).toContain('class="state-note"')
+    const edited = apply(d, { kind: 'set_note_text', index: 0, text: 'Review' })
+    expect(state(serializeMermaid(edited)).body.notes).toMatchObject([{ target: 'A', text: 'Review' }])
+  })
+
   test('notes parse structured (no opaque fallback), queryable on the body', () => {
     const d = state()
     expect(d.body.notes).toBeDefined()

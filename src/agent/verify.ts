@@ -34,7 +34,7 @@ import { formatBarValue } from '../xychart/axis-utils.ts'
 import type { PositionedXYChart } from '../xychart/types.ts'
 import type { PositionedQuadrantChart } from '../quadrant/types.ts'
 import type { PositionedTreemap } from '../treemap/types.ts'
-import { ensureAccessibilityLines } from './accessibility-envelope.ts'
+import { accessibilitySerializationProblem, ensureAccessibilityLines } from './accessibility-envelope.ts'
 import { renderErrorOrigin } from './error-origin.ts'
 import { architectureUnsupportedSyntaxWarnings } from './architecture-body.ts'
 import { blockUnsupportedSyntaxWarnings } from './block-body.ts'
@@ -502,6 +502,7 @@ function atAuthoredLines(warnings: LayoutWarning[], authoredLine: (line: number)
 }
 
 function cleanupWarningsForDiagram(d: ParsedDiagram, authored?: string): LayoutWarning[] {
+  const accessibilityProblem = d.body.kind === 'opaque' ? accessibilitySerializationProblem(d.body.source, getFamily(d.kind)?.statementEnds) : undefined
   const wrapper = d.meta.wrapperSource ?? ''
   const frontmatter = matchMermaidFrontmatter(wrapper)
   const wrapperWarnings: LayoutWarning[] = frontmatter && frontmatter.yaml === '' ? [{
@@ -509,6 +510,7 @@ function cleanupWarningsForDiagram(d: ParsedDiagram, authored?: string): LayoutW
     line: wrapper.slice(0, wrapper.indexOf('---')).split(/\r\n?|\n/).length,
     message: 'Frontmatter without a content line is read as no configuration. Pinned Mermaid rejects adjacent delimiters; serialization omits them.',
   }] : []
+  if (accessibilityProblem) wrapperWarnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax: 'accessibility_directive_text', message: accessibilityProblem })
   for (const directive of d.meta.initDirectives) if (/\}\s+%%\s*$/.test(directive.raw)) wrapperWarnings.push({
     code: 'UNSUPPORTED_SYNTAX', syntax: 'separated_directive_close',
     message: 'Directive closing delimiters must be contiguous in pinned Mermaid. Native reading repairs the separated close; canonical serialization emits }%%.',

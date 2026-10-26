@@ -117,3 +117,68 @@ test('first backend proof uses default measurements under a custom caller profil
   expect(child.stderr).toBe('')
   expect(child.status).toBe(0)
 })
+
+test('a replaced default drawer cannot hide later fixture mutation behind prior admission', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import assert from 'node:assert/strict'
+    import { DefaultBackend, getBackendDescriptor } from './src/scene/backend.ts'
+    import { attachSceneNodeSerialization, sceneNodeSerialization } from './src/scene/serialization.ts'
+    const draw = DefaultBackend.drawNode
+    const visits = new WeakMap()
+    let root, poisoned = false
+    DefaultBackend.drawNode = function(node, context) {
+      if (node.kind === 'document' && node.element === 'open') root = node
+      const count = (visits.get(node) ?? 0) + 1
+      visits.set(node, count)
+      // Initial identical text probes pass. A later claim changes opaque
+      // document metadata, which object freezing alone does not protect.
+      if (!poisoned && node.kind === 'text' && count > 2) {
+        attachSceneNodeSerialization(root, sceneNodeSerialization(root) + '<script>late()</script>')
+        poisoned = true
+      }
+      return draw.call(this, node, context)
+    }
+    await import('./src/scene/default-backend.ts')
+    const report = getBackendDescriptor('default').conformance
+    assert.equal(poisoned, true)
+    assert.equal(report.passed, false)
+    assert.ok(report.claims.some(claim => claim.status === 'failed' && claim.diagnostic?.includes('active content')))
+    assert.throws(() => DefaultBackend.drawNode(undefined, undefined), /failed SVG conformance/)
+  `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' } })
+  expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+})
+
+test.each(['accessor', 'proxy'])('built-in fixture reuse leaves %s backend observations unchanged', async mode => {
+  const child = await runChild(process.execPath, ['-e', `
+    import assert from 'node:assert/strict'
+    import { DefaultBackend, getBackendDescriptor, registerBuiltInBackend } from './src/scene/backend.ts'
+    const events = []
+    if (${JSON.stringify(mode)} === 'accessor') {
+      const draw = DefaultBackend.drawNode
+      let method = function(node, context) { events.push('call'); assert.equal(this, DefaultBackend); return draw.call(this, node, context) }
+      Object.defineProperty(DefaultBackend, 'drawNode', {
+        enumerable: true, configurable: true,
+        get() { events.push('get'); return method },
+        set(value) { events.push('set'); method = value },
+      })
+      await import('./src/scene/default-backend.ts')
+      assert.deepEqual(events, ['get', 'set'])
+      assert.equal(getBackendDescriptor('default').conformance.passed, true)
+      const calls = events.slice(2)
+      assert.ok(calls.length > 2)
+      for (let index = 0; index < calls.length; index += 2) assert.deepEqual(calls.slice(index, index + 2), ['get', 'call'])
+    } else {
+      const target = { ...DefaultBackend, id: 'test-proxy', capabilities: DefaultBackend.capabilities.map(claim => ({ ...claim, target: 'backend:test-proxy' })) }
+      const proxy = new Proxy(target, {
+        get(object, key, receiver) { events.push('get:' + String(key)); return Reflect.get(object, key, receiver) },
+        getOwnPropertyDescriptor(object, key) { events.push('descriptor:' + String(key)); return Reflect.getOwnPropertyDescriptor(object, key) },
+      })
+      registerBuiltInBackend(proxy)
+      // Eligibility checks must not inspect a custom/proxy property surface.
+      assert.deepEqual(events.slice(0, 2), ['get:id', 'get:capabilities'])
+      assert.equal(getBackendDescriptor('test-proxy').backend, proxy)
+      assert.equal(getBackendDescriptor('test-proxy').conformance.passed, true)
+    }
+  `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' } })
+  expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+})
