@@ -13,6 +13,45 @@ import { useTestChildren } from './helpers/test-child.ts'
 
 const runChild = useTestChildren(20_000)
 
+test('capability reuse reports hits, bounded capacity and oversized bypass without retaining a different tuple', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import './src/index.ts'
+    import { getFamily, replaceFamilyForTest } from './src/agent/families.ts'
+    import { resolveRenderRequest } from './src/render-contract.ts'
+    import { withPerformanceObserver } from './src/performance-observations.ts'
+    const original = getFamily('flowchart')
+    const source = 'flowchart LR\\n PrivateCapabilitySource --> End'
+    const capture = version => {
+      const restore = replaceFamilyForTest('flowchart', {
+        ...original, identity: Object.freeze({ ...original.identity, version }),
+      })
+      const events = []
+      try {
+        const request = withPerformanceObserver(event => {
+          if (event.kind === 'cache' && event.owner === 'capability-decision') events.push(event)
+        }, () => resolveRenderRequest(source))
+        const row = request.capabilityDecision.resolutions.find(value => value.id === original.identity.id)
+        return { events, correct: row?.version === version && row.range === version && row.status === 'selected' }
+      } finally { restore() }
+    }
+    const filled = Array.from({length: 40}, (_, index) => capture('1.0.' + (100 + index)))
+    console.log(JSON.stringify({ filled, first: capture('1.0.100'), last: capture('1.0.139'), huge: capture('1.0.' + '1'.repeat(5000)) }))
+  `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env } })
+  expect(child.status, child.stderr).toBe(0)
+  expect(child.stderr).toBe('')
+  const result = JSON.parse(child.stdout) as {
+    filled: Array<{ events: PerformanceObservation[]; correct: boolean }>
+    first: { events: PerformanceObservation[]; correct: boolean }
+    last: { events: PerformanceObservation[]; correct: boolean }
+    huge: { events: PerformanceObservation[]; correct: boolean }
+  }
+  expect([...result.filled, result.first, result.last, result.huge].every(row => row.correct)).toBe(true)
+  expect(result.first.events).toContainEqual({ version: 1, kind: 'cache', owner: 'capability-decision', outcome: 'hit' })
+  expect(result.last.events).toContainEqual({ version: 1, kind: 'cache', owner: 'capability-decision', outcome: 'store-skipped', reason: 'capacity' })
+  expect(result.huge.events).toContainEqual({ version: 1, kind: 'cache', owner: 'capability-decision', outcome: 'bypass', reason: 'tuple-budget' })
+  expect(JSON.stringify(result)).not.toContain('PrivateCapabilitySource')
+}, 20_000)
+
 test('inspection observations distinguish actual reuse, rewritten bytes and bypass without exposing bytes', () => {
   const events: PerformanceObservation[] = []
   let inspections = 0
