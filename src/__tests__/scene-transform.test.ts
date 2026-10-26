@@ -24,6 +24,39 @@ describe('Scene transforms are typed semantic geometry', () => {
     expect(transformedBounds(values, { ...matrix, a: Number.MAX_VALUE })).toBeUndefined()
   })
 
+  test('matrix bounds snapshot caller corners before numeric coercion can change later fields', () => {
+    const events: string[] = []
+    const values = { x0: -2, y0: 1, x1: 4, y1: 8 }
+    const reads = { x0: 0, y0: 0, x1: 0, y1: 0 }
+    const box = Object.defineProperties({}, Object.fromEntries(Object.keys(values).map(name => {
+      const key = name as keyof typeof values
+      return [key, { get() {
+        events.push(`read:${key}`)
+        const captured = values[key]
+        if (++reads[key] === 1) return captured
+        return { [Symbol.toPrimitive]() {
+          events.push(`coerce:${key}`)
+          values.x1 = 900
+          return captured
+        } }
+      } }]
+    }))) as typeof values
+    const matrix = { kind: 'matrix' as const, a: 2, b: -1, c: 3, d: 4, e: 10, f: -5 }
+    expect(transformedBounds(box, matrix)).toEqual({ x0: 9, y0: -5, x1: 42, y1: 29 })
+    expect(events).toEqual([
+      'read:x0', 'read:y0', 'read:x1', 'read:y1',
+      'read:x0', 'read:y0', 'read:x0', 'read:y1', 'read:x1', 'read:y0', 'read:x1', 'read:y1',
+      'coerce:x0', 'coerce:y0', 'coerce:x0', 'coerce:y0',
+      'coerce:x0', 'coerce:y1', 'coerce:x0', 'coerce:y1',
+      'coerce:x1', 'coerce:y0', 'coerce:x1', 'coerce:y0',
+      'coerce:x1', 'coerce:y1', 'coerce:x1', 'coerce:y1',
+    ])
+    events.length = 0
+    const invalid = { ...values, x0: { [Symbol.toPrimitive]() { events.push('invalid coercion'); return 0 } } }
+    expect(transformedBounds(invalid as unknown as typeof values, matrix)).toBeUndefined()
+    expect(events).toEqual([])
+  })
+
   test.each([
     ['matrix(,1,1,0,0,0)', { a: 0, b: 1, c: 1, d: 0, e: 0, f: 0 }],
     ['matrix(1,0,0,1,0,)', { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }],
