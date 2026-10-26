@@ -20,7 +20,6 @@ export const QUALITY_CHECKS: readonly QualityCheck[] = [
   // the unit shards, E2E lanes and release jobs that build it no longer each
   // report the same overrun.
   { id: 'browser-lazy', label: 'Verify the lazy browser bundle graph and size budgets', command: ['bun', 'run', 'check:browser-lazy'] },
-  { id: 'sketch', label: 'Run sketch prototype style checks', command: ['bun', 'run', 'sketch:check'] },
   { id: 'rendered-corpora', label: 'Audit rendered corpora and family structural evidence', command: ['bun', 'run', 'audit:ugly'] },
   { id: 'lint', label: 'Lint TypeScript', command: ['bun', 'run', 'lint:biome'] },
   { id: 'typecheck', label: 'Type check', command: ['bun', 'run', 'typecheck'] },
