@@ -1,0 +1,22 @@
+name: PR512 frozen final qualification against mainbe6
+on:
+  push:
+    branches: [codex/pr512-7771-evidence-20261026]
+permissions:
+  contents: read
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Dispatch complete semantic and original-corpus qualification once
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh api repos/adewale/agentic-mermaid/git/ref/heads/codex/pr512-7771-qualification-20261026 --jq .object.sha)" = 7771ad9ffe94db5c4aacad5dac5d10b1584bad01
+          gh api --method POST repos/adewale/agentic-mermaid/actions/workflows/release-benchmark.yml/dispatches --input - <<'JSON'
+          {"ref":"codex/pr512-7771-qualification-20261026","inputs":{"evidence-scope":"all","baseline-ref":"be6eabd66d0fe3df3c077ae780dd28ef3953119b","fixed-baseline-sha":"2cff725d219c75b75593b1d3e9bacd74cba7a08e"}}
+          JSON
