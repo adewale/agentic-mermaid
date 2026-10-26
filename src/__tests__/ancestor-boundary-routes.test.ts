@@ -78,7 +78,7 @@ C --> G`
 
 test.each(['source', 'target'] as const)('long ancestor %s links reserve the authored minimum in their actual inward prefix', end => {
   let previous = 0
-  for (const [span, minimum] of [[2, 136], [3, 224], [4, 312]] as const) {
+  for (const [span, minimum] of [[2, 136], [3, 224], [4, 312], [2048, 180184]] as const) {
     const relationship = end === 'source' ? `G ${'-'.repeat(span + 1)}> A` : `A ${'-'.repeat(span + 1)}> G`
     const source = `flowchart TD\nsubgraph G[Group]\nA[Leaf]\nend\n${relationship}`
     const native = { graphLayout: { backend: 'agentic' as const } }, output = layoutMermaidWithReceipt(source, native), layout = output.layout
@@ -166,7 +166,9 @@ test('ancestor reservations retain original groups without incidence and keep al
   const input = fixture(), owners = new Int32Array([1, -1, 0])
   const ordinary = { ...input, edges: [{ source: 0, target: 0, minSpan: 1 }] }
   expect(planAncestorBoundaryConnections(ordinary, owners, work(), fail).groups).toBe(input.groups!)
-  expect(() => planAncestorBoundaryConnections({ ...input, edges: [{ source: 1, target: 0, minSpan: 2048 }] }, owners, work(), fail)).toThrow('rank-expansion limit')
+  const long = planAncestorBoundaryConnections({ ...input, edges: [{ source: 1, target: 0, minSpan: 2048 }] }, owners, work(), fail)
+  expect(long.connections.get(0)!.minimumLead).toBe(180184)
+  expect(long.groups[0]!.padding.left).toBeGreaterThanOrEqual(180192)
   const plan = planAncestorBoundaryConnections(input, owners, work(), fail)
   const placed = layoutAgenticGraph({ ...input, groups: plan.groups, edges: [] })
   placed.edges = input.edges.map((_, index) => projectAncestorBoundaryPlaceholder(plan, index, placed.groups!))
@@ -175,4 +177,18 @@ test('ancestor reservations retain original groups without incidence and keep al
     work: work(), remainingVertices: 64, reserveVertices: amount => { allocated += amount }, fail, accept: () => true,
   })).toThrow('visibility-expansion limit')
   expect(allocated).toBeLessThanOrEqual(64)
+})
+
+// Ancestor occurrences reserve one measured corridor, independent of private
+// sibling ranks. Invalid inputs and unrepresentable coordinate gaps still fail.
+test('sparse ancestor prefixes reject invalid spans and unsafe coordinate gaps', () => {
+  const input = fixture(), owners = new Int32Array([1, -1, 0])
+  for (const minSpan of [0, -1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) {
+    expect(() => planAncestorBoundaryConnections({ ...input, edges: [{ source: 1, target: 0, minSpan }] }, owners, work(), fail)).toThrow(TypeError)
+  }
+  expect(() => planAncestorBoundaryConnections({ ...input, edges: [{ source: 1, target: 0, minSpan: Number.MAX_SAFE_INTEGER }] }, owners, work(), fail)).toThrow('coordinate-range limit')
+  const shortWork = work(), longWork = work()
+  planAncestorBoundaryConnections({ ...input, edges: [{ source: 1, target: 0, minSpan: 2 }] }, owners, shortWork, fail)
+  planAncestorBoundaryConnections({ ...input, edges: [{ source: 1, target: 0, minSpan: 2048 }] }, owners, longWork, fail)
+  expect(longWork).toEqual(shortWork)
 })

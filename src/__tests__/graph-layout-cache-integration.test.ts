@@ -95,8 +95,8 @@ for (const family of ['flowchart', 'state'] as const) test(`native ${family} sna
 test('borrowed and public fallback hits notify each current request once and retain strict refusal', async () => {
   const child = await runChild(process.execPath, ['-e', `${prelude}
     withPerformanceExperiments(['text-spans', 'position-cache'], () => {
-      const source = ['flowchart LR', 'subgraph FallbackCacheOuter', ' FallbackCacheA[Leaf]', 'end',
-        'FallbackCacheOuter ' + '-'.repeat(2049) + '> FallbackCacheA'].join(String.fromCharCode(10))
+      const source = ['flowchart LR', 'FallbackCacheA[Source]', 'FallbackCacheB[Target]',
+        'FallbackCacheA ' + '-'.repeat(2049) + '> FallbackCacheB'].join(String.fromCharCode(10))
       const calls = { miss: [], borrowed: [], public: [], companion: [], rendered: [] }
       const options = name => ({ graphLayout: { backend: 'agentic', fallback: 'elk' },
         onConfigDiagnostic: value => calls[name].push(value) })

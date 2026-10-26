@@ -22,7 +22,8 @@ import { generatedFlowchartSamples } from '../../eval/layout-compare/generated.t
 const SOURCE = 'flowchart TD\n A[Start] --> B[Finish]'
 const AGENTIC = { graphLayout: { backend: 'agentic' as const } }
 const FALLBACK = { graphLayout: { backend: 'agentic' as const, fallback: 'elk' as const } }
-const RANK_CAP_SOURCE = `flowchart LR\nsubgraph Outer\n A[Leaf]\nend\nOuter ${'-'.repeat(2049)}> A`
+// A sibling edge still materializes private ranks; ancestor prefixes do not.
+const RANK_CAP_SOURCE = `flowchart LR\n A[Source]\n B[Target]\n A ${'-'.repeat(2049)}> B`
 
 describe('checked graph layout selection', () => {
   test('admits only closed, nonredundant selection objects and normalizes fallback', () => {

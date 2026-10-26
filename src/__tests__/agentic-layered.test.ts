@@ -1074,7 +1074,21 @@ describe('owned measured layered layout', () => {
       for (const frame of ancestor.groups!) expect(crossesInterior(a, b, { ...frame, height: pad.top })).toBe(false)
       for (let node = 0; node < input.nodes.length; node++) expect(crossesInterior(a, b, { ...input.nodes[node]!, ...ancestor.nodes[node]! })).toBe(false)
     }
-    expect(() => layoutAgenticGraph({ ...input, edges: [{ source: input.nodes.length, target: 1, minSpan: 2048 }] })).toThrow('rank-expansion limit')
+    const longAncestor = layoutAgenticGraph({ ...input, edges: [{ source: input.nodes.length, target: 1, minSpan: 2048 }] })
+    const longPoints = longAncestor.edges[0]!.points
+    expect(longAncestor.nodes).toHaveLength(input.nodes.length)
+    expect(longAncestor.groups).toHaveLength(input.groups!.length)
+    expect(longAncestor.edges).toHaveLength(1)
+    expect(onOutline(longPoints[0]!, longAncestor.groups![0]!)).toBe(true)
+    expect(onOutline(longPoints.at(-1)!, { ...input.nodes[1]!, ...longAncestor.nodes[1]! })).toBe(true)
+    expect(longPoints[1]!.x - longPoints[0]!.x).toBeGreaterThanOrEqual(180184)
+    for (let segment = 1; segment < longPoints.length; segment++) {
+      const a = longPoints[segment - 1]!, b = longPoints[segment]!
+      expect(a.x === b.x || a.y === b.y).toBe(true)
+      for (const frame of longAncestor.groups!) expect(crossesInterior(a, b, { ...frame, height: pad.top })).toBe(false)
+      for (let node = 0; node < input.nodes.length; node++) expect(crossesInterior(a, b, { ...input.nodes[node]!, ...longAncestor.nodes[node]! })).toBe(false)
+    }
+    expect(input).toEqual(original)
     expect(() => layoutAgenticGraph({ ...input, groups: input.groups!.map((group, index) => index === 0 ? { ...group, parent: 1 } : group) })).toThrow(TypeError)
     expect(() => layoutAgenticGraph({ ...input, groups: input.groups!.map(group => ({ ...group, headerHeight: pad.top + 1 })) })).toThrow('Invalid measured compound header')
   })
