@@ -2672,3 +2672,67 @@ it('website Cloud source retains all authored nodes, groups, markers and clear l
 })
 
 })
+
+describe('port-lane reserved-header admission', () => {
+  const n = (id: string, x: number, y: number, width = 40, height = 30): PositionedNode => ({ id, label: id, shape: 'rectangle', x, y, width, height })
+  const e = (source: string, target: string, points: Point[]): PositionedEdge => ({ source, target, points, style: 'solid', hasArrowStart: false, hasArrowEnd: true })
+  const g = (x: number, y: number, width: number, height: number, headerHeight = height): PositionedGroup => ({ id: 'G', label: 'G', x, y, width, height, headerHeight, children: [] })
+  const stairs = () => ({ nodes: [n('S', 0, 100), n('T', 100, 0)], edges: [e('S', 'T', [{ x: 40, y: 115 }, { x: 70, y: 115 }, { x: 70, y: 15 }, { x: 100, y: 15 }])] })
+
+  it('retains the clear compound detour from chained hubs 355 instead of sweeping its terminal run through G', () => {
+    // Literal saved pre-alignPortLanes SEPARATE geometry, not a producer call.
+    const nodes = [n('H2', 236.34675, 216.89999999999998, 85.66899999999998, 36.900000000000006), n('Z', 535.3045, 40, 64.17999999999999, 36.900000000000006)]
+    const edges = [e('H2', 'Z', [{ x: 279.18125, y: 216.89999999999998 }, { x: 279.18125, y: 168.89999999999998 }, { x: 557.3945, y: 168.89999999999998 }, { x: 567.3945, y: 168.89999999999998 }, { x: 567.3945, y: 76.9 }])]
+    const before = structuredClone({ nodes, edges })
+    alignPortLanes(nodes, edges, [g(40, 124.89999999999998, 517.3945, 653.324, 28)], 'BT', resolveRenderStyle())
+    expect(nodes).toEqual(before.nodes)
+    expect(edges).toEqual(before.edges)
+  })
+
+  it('rejects a moved node footprint entering a header even when its new shaft stays outside the band', () => {
+    const { nodes, edges } = stairs(), before = structuredClone({ nodes, edges })
+    alignPortLanes(nodes, edges, [g(110, 120, 20, 5)], 'LR', resolveRenderStyle())
+    expect(nodes).toEqual(before.nodes)
+    expect(edges).toEqual(before.edges)
+  })
+
+  for (const child of [false, true]) it(`rejects a stretched incident hop through a ${child ? 'nested' : 'direct'} header`, () => {
+    const { nodes, edges } = stairs()
+    nodes.push(n('U', 300, 55))
+    edges.push(e('T', 'U', [{ x: 140, y: 15 }, { x: 160, y: 15 }, { x: 160, y: 70 }, { x: 300, y: 70 }]))
+    const band = g(150, 85, 20, 10)
+    // The far endpoint belongs to a separate zero-header region and cannot
+    // travel with T; the actual stretched hop must still clear the band.
+    const pin = { ...g(280, 40, 80, 80, 0), id: 'Pin' }
+    const groups = child ? [{ ...g(500, 500, 20, 20, 0), children: [band] }, pin] : [band, pin]
+    const before = structuredClone({ nodes, edges })
+    alignPortLanes(nodes, edges, groups, 'LR', resolveRenderStyle())
+    expect(nodes).toEqual(before.nodes)
+    expect(edges).toEqual(before.edges)
+  })
+
+  it('still performs the clear alignment with an unrelated live header', () => {
+    const { nodes, edges } = stairs()
+    alignPortLanes(nodes, edges, [g(400, 400, 40, 28)], 'LR', resolveRenderStyle())
+    expect(nodes.find(node => node.id === 'T')!.y).toBe(100)
+    expect(edges[0]!.points.at(-1)).toEqual({ x: 100, y: 115 })
+  })
+
+  for (const kind of ['zero-width', 'zero-height', 'concurrency', 'exterior-contact'] as const) it(`retains the legal ${kind} header control`, () => {
+    const { nodes, edges } = stairs()
+    const band = kind === 'zero-width' ? g(110, 100, 0, 30) : kind === 'zero-height' ? g(110, 100, 20, 0)
+      : kind === 'concurrency' ? { ...g(110, 100, 20, 30), concurrencyRegion: true as const } : g(110, 130, 20, 5)
+    alignPortLanes(nodes, edges, [band], 'LR', resolveRenderStyle())
+    expect(nodes.find(node => node.id === 'T')!.y).toBe(100)
+    expect(edges[0]!.points.at(-1)).toEqual({ x: 100, y: 115 })
+  })
+
+  it('does not turn an unchanged pre-existing bad edge into a veto of an unrelated clear move', () => {
+    const { nodes, edges } = stairs()
+    edges.push(e('outside-a', 'outside-b', [{ x: 410, y: 390 }, { x: 410, y: 450 }]))
+    const old = structuredClone(edges[1])
+    alignPortLanes(nodes, edges, [g(400, 400, 40, 28)], 'LR', resolveRenderStyle())
+    expect(nodes.find(node => node.id === 'T')!.y).toBe(100)
+    expect(edges[1]).toEqual(old)
+  })
+})

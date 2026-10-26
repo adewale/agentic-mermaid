@@ -583,7 +583,7 @@ describe('hierarchy parameter compatibility', () => {
     const { svg, receipt } = renderMermaidSVGWithReceipt(source, {
       embedFontImport: false, security: 'strict', style: ['status-dashboard', 'salmon'],
     })
-    expect(['passed', 'unverified']).toContain(receipt.layoutCertification?.status)
+    expect(['passed', 'unverified']).toContain(receipt.layoutCertification?.status ?? '')
     const tags = scanSvgStartTags(svg), root = tags.find(tag => tag.name === 'svg')!
     const width = Number(decodedSvgAttributeValue(root, 'width')), height = Number(decodedSvgAttributeValue(root, 'height'))
     expect(Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0).toBe(true)

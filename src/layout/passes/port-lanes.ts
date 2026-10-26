@@ -206,6 +206,50 @@ export function alignLabeledSourcePort(
   }
 }
 
+/** Final candidate admission for this node mover. Groups stay live and are
+ * never flattened into a stale obstacle cache. An absent retained header uses
+ * the whole frame conservatively, as in the shared lane predictor. Unchanged
+ * pre-existing defects remain for the final gate; every changed subject must
+ * clear the band, including old contacts of a route that the move rewrites. */
+function portLaneHeadersClear(nodes: readonly PositionedNode[], edges: readonly PositionedEdge[], beforeNodes: readonly PositionedNode[], beforeEdges: readonly PositionedEdge[], groups: readonly PositionedGroup[]): boolean {
+  const changedNodes = nodes.filter((node, index) => node.x !== beforeNodes[index]!.x || node.y !== beforeNodes[index]!.y)
+  const changedEdges = edges.filter((edge, ordinal) => {
+    const previous = beforeEdges[ordinal]!
+    return edge.style !== 'invisible' && (edge.points.length !== previous.points.length
+      || edge.points.some((point, index) => point.x !== previous.points[index]!.x || point.y !== previous.points[index]!.y))
+  })
+  const enters = (a: Point, b: Point, group: PositionedGroup, height: number): boolean => {
+    let low = 0, high = 1
+    for (const [start, delta, min, max] of [
+      [a.x, b.x - a.x, group.x, group.x + group.width],
+      [a.y, b.y - a.y, group.y, group.y + height],
+    ]) {
+      if (delta === 0) { if (start! <= min! || start! >= max!) return false; continue }
+      const first = (min! - start!) / delta!, last = (max! - start!) / delta!
+      low = Math.max(low, Math.min(first, last)); high = Math.min(high, Math.max(first, last))
+      if (low >= high) return false
+    }
+    return low < high
+  }
+  const clear = (group: PositionedGroup): boolean => {
+    if (!group.concurrencyRegion && group.width !== 0) {
+      const height = group.headerHeight ?? group.height
+      if (!Number.isFinite(height) || height < 0) return false
+      if (height > 0 && group.width > 0) {
+        for (const node of changedNodes) {
+          if (Math.max(node.x, group.x) < Math.min(node.x + node.width, group.x + group.width)
+            && Math.max(node.y, group.y) < Math.min(node.y + node.height, group.y + height)) return false
+        }
+        for (const edge of changedEdges) {
+          for (let index = 1; index < edge.points.length; index++) if (enters(edge.points[index - 1]!, edge.points[index]!, group, height)) return false
+        }
+      }
+    }
+    return group.children.every(clear)
+  }
+  return groups.every(clear)
+}
+
 export function alignPortLanes(
   nodes: PositionedNode[],
   edges: PositionedEdge[],
@@ -216,6 +260,9 @@ export function alignPortLanes(
   const candidateNodes = nodes.map(node => ({ ...node }))
   const candidateEdges = edges.map(edge => ({ ...edge, points: edge.points.map(point => ({ ...point })), ...(edge.labelPosition ? { labelPosition: { ...edge.labelPosition } } : {}) }))
   alignPortLaneCandidate(candidateNodes, candidateEdges, groups, direction, style)
+  // Admit the actual transformed geometry, including every incident run and
+  // stretched hop. A node-only lane proof cannot see a reserved header band.
+  if (groups.length && !portLaneHeadersClear(candidateNodes, candidateEdges, nodes, edges, groups)) return
   // Centering is preparatory, but may not silently break more canonical
   // contacts than it establishes. Keep the prior layout when it does.
   if (portEndpointRate({ nodes: candidateNodes, edges: candidateEdges }, true) + 1e-6 < portEndpointRate({ nodes, edges }, true)) return
