@@ -232,25 +232,39 @@ ${body}`
     }
   })
 
-  test('flattened headers with zero authored padding retain a clear repaired relationship', () => {
+  test('zero configured namespace padding still reserves shaft and arrow clearance', () => {
     const source = 'classDiagram\n namespace Company.Platform { class API }\n namespace Vendor.Platform { class Worker }\n API --> Worker : invokes'
     const options = { class: { hierarchicalNamespaces: false }, style: { roles: { group: { paddingY: 0 } } } }
     const positioned = layoutClassDiagram(parseClassDiagram(lines(source)), options)
     expect(positioned.namespaces.map(namespace => namespace.id)).toEqual(['Company.Platform', 'Vendor.Platform'])
-    expect(positioned.relationships.map(relation => [relation.from, relation.to, relation.label])).toEqual([['API', 'Worker', 'invokes']])
-    const points = positioned.relationships[0]!.points
-    expect(points.length).toBeGreaterThan(2)
-    for (let index = 1; index < points.length; index++) {
-      const a = points[index - 1]!, b = points[index]!
+    expect(positioned.relationships).toHaveLength(1)
+    const relation = positioned.relationships[0]!
+    expect([relation.from, relation.to, relation.label]).toEqual(['API', 'Worker', 'invokes'])
+    const target = positioned.classes.find(node => node.id === 'Worker')!
+    const header = positioned.namespaces.find(namespace => namespace.id === 'Vendor.Platform')!
+    const end = relation.points.at(-1)!, previous = relation.points.at(-2)!
+    expect(end.y).toBe(target.y)
+    expect(end.x).toBeGreaterThan(target.x)
+    expect(end.x).toBeLessThan(target.x + target.width)
+    expect(previous.x).toBe(end.x)
+    expect(previous.y).toBeLessThan(end.y)
+    // The emitted open arrow reaches eight units behind its tip. Its 1.5-unit
+    // butt stroke adds this normal component at each open tail, beyond the
+    // centreline envelope that the former zero-padding layout overlooked.
+    expect(end.y - header.y - header.headerHeight).toBeGreaterThan(8 + 0.75 * 3 / Math.hypot(8, 3))
+    for (let index = 1; index < relation.points.length; index++) {
+      const a = relation.points[index - 1]!, b = relation.points[index]!
       expect(a.x === b.x || a.y === b.y).toBe(true)
       for (const namespace of positioned.namespaces) {
         const crossesHeader = a.x === b.x
           ? a.x > namespace.x - 0.5 && a.x < namespace.x + namespace.width + 0.5 && Math.max(a.y, b.y) > namespace.y - 0.5 && Math.min(a.y, b.y) < namespace.y + namespace.headerHeight + 0.5
           : a.y > namespace.y - 0.5 && a.y < namespace.y + namespace.headerHeight + 0.5 && Math.max(a.x, b.x) > namespace.x - 0.5 && Math.min(a.x, b.x) < namespace.x + namespace.width + 0.5
-        expect(crossesHeader, namespace.id).toBe(false)
+        expect(crossesHeader, `shaft enters ${namespace.id} header`).toBe(false)
       }
     }
-    expect(renderMermaidSVG(source, options)).toContain('data-from="API" data-to="Worker"')
+    const svg = renderMermaidSVG(source, options)
+    expect(svg).toContain('data-label="invokes"')
+    expect(svg).toContain('data-from="API" data-to="Worker"')
     const result = verifyMermaid(source, { renderOptions: options })
     expect(result.ok).toBe(true)
     expect(result.warnings.some(warning => warning.code === 'INTERNAL_ERROR')).toBe(false)
