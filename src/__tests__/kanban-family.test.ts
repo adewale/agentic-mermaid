@@ -13,6 +13,7 @@ import { withParserObservation } from '../shared/parser-observation.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { kanbanStatementEnds, parseKanbanDiagram } from '../kanban/parser.ts'
 import { fcParameters } from './helpers/fc-parameters.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 test('Kanban group padding reserves real space around cards independently of node padding', () => {
   const source = 'kanban\n  todo[To do]\n    work[日本 delivery]@{assigned: "Alice"}\n  done[Done]',
@@ -160,6 +161,46 @@ test('Kanban canonical round trips retain order, quoting, identity and metadata'
     }),
     fcParameters({ numRuns: 50, seed: 1202002 }),
   )
+})
+
+test('Kanban typed writes preserve keyword-like identities, labels and membership in Mermaid', async () => {
+  const upstream = startUpstreamMermaid()
+  try {
+    for (const id of ['kanban', 'KANBAN', 'kanban-board', 'kanbané', 'kanban1', 'kanban_1']) {
+      const parsed = parseRegisteredMermaid('kanban\n  todo[Todo]')
+      if (!parsed.ok) throw Error(JSON.stringify(parsed.error))
+      const addedColumn = mutate(asKanban(parsed.value)!, { kind: 'add_column', id, label: 'Doing' })
+      if (!addedColumn.ok) throw Error(addedColumn.error.message)
+      const addedTask = mutate(addedColumn.value, { kind: 'add_task', column: id, id: `${id}-task`, label: 'Ship', metadata: { assigned: 'Iris', ticket: 'ID-42' } })
+      if (!addedTask.ok) throw Error(addedTask.error.message)
+      const source = serializeMermaid(addedTask.value)
+      if (id === 'kanban1' || id === 'kanban_1') expect(source).toContain(`${id}["Doing"]`)
+      const expected = [
+        { id: 'todo', label: 'Todo', parentId: undefined, assigned: undefined, ticket: undefined },
+        { id, label: 'Doing', parentId: undefined, assigned: undefined, ticket: undefined },
+        { id: `${id}-task`, label: 'Ship', parentId: id, assigned: 'Iris', ticket: 'ID-42' },
+      ]
+      const reference = await upstream.project(source, diagram => diagram.db.getData().nodes.map((node: Record<string, unknown>) => ({ id: node.id, label: node.label, parentId: node.parentId, assigned: node.assigned, ticket: node.ticket })))
+      expect(reference).toEqual({ ok: true, value: expected })
+      const reloaded = parseRegisteredMermaid(source)
+      if (!reloaded.ok) throw Error(JSON.stringify(reloaded.error))
+      const body = asKanban(reloaded.value)!.body
+      expect(body.columns.flatMap(column => [
+        { id: column.id, label: column.label, parentId: undefined, assigned: column.metadata.assigned, ticket: column.metadata.ticket },
+        ...column.tasks.map(task => ({ id: task.id, label: task.label, parentId: column.id, assigned: task.metadata.assigned, ticket: task.metadata.ticket })),
+      ])).toEqual(expected)
+      expect(serializeMermaid(reloaded.value)).toBe(source)
+      const renamed = mutate(asKanban(reloaded.value)!, { kind: 'set_task_label', id: `${id}-task`, label: 'Shipped' })
+      if (!renamed.ok) throw Error(renamed.error.message)
+      const renamedSource = serializeMermaid(renamed.value)
+      expect(await upstream.project(renamedSource, diagram => diagram.db.getData().nodes.map((node: Record<string, unknown>) => ({ id: node.id, label: node.label, parentId: node.parentId })))).toEqual({ ok: true, value: [
+        { id: 'todo', label: 'Todo', parentId: undefined }, { id, label: 'Doing', parentId: undefined }, { id: `${id}-task`, label: 'Shipped', parentId: id },
+      ] })
+      expect(asKanban(parsed.value)!.body.columns.map(column => column.id)).toEqual(['todo'])
+    }
+  } finally {
+    upstream.close()
+  }
 })
 
 
