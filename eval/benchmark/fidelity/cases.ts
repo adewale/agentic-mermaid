@@ -199,4 +199,3 @@ export function fidelityCases(): AuthoredFidelityCase[] {
 export function expandedFidelityCases(): AuthoredFidelityCase[] {
   return fidelityCases().flatMap(value => [value, ...(value.edit ? [{ ...value, id: value.id + ':edit', source: value.edit.source, expected: value.edit.expected, renderOptions: value.edit.renderOptions, paint: value.edit.paint, edit: undefined, prelude: [...(value.prelude ?? []), { source: value.source, accept: true, renderOptions: value.renderOptions }] }] : [])])
 }
-

@@ -85,6 +85,17 @@ bun run eval/benchmark/fidelity/report.ts \
   --out /tmp/fidelity-report
 ```
 
+Export standalone charts using standard Matplotlib plotting:
+
+```sh
+python3 eval/benchmark/fidelity/charts.py --report /tmp/fidelity-report/comparison.json \
+  --out /tmp/fidelity-report/charts
+```
+
+The separate-dimension bars, full family heatmap and reference-qualification
+chart retain unavailable evidence. A radar score would hide missing axes and
+unjustified weighting, so it is not used for these bounded fidelity counts.
+
 ## Read the evidence
 
 A criterion plan is created before rendering. It includes every authored

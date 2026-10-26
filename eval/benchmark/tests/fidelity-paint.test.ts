@@ -102,3 +102,29 @@ test('requested font size is checked on every authored text run rather than one 
   const wrong = await inspect(configured.replace('x="154" y="30"', 'x="154" y="30" font-size="24"'), expected, { paint: { fontSize: 14 } })
   expect(wrong.checks.find(item => item.criterion === 'computed-authored-font-size')?.status).toBe('failed')
 })
+
+test('barbed four-vertex arrows are concave directional heads rather than convex cardinality diamonds', async () => {
+  const barb = fixture.replace('M0 0 L6 3 L0 6 Z', 'M6 3 L0 6 L2 3 L0 0 Z')
+  expect((await inspect(barb, expected, { family: 'state' })).checks.find(item => item.criterion === 'painted-relationships')?.status).toBe('passed')
+  expect((await inspect(barb.replace('M6 3 L0 6 L2 3 L0 0 Z', 'M0 3 L6 6 L4 3 L6 0 Z'), expected, { family: 'state' })).checks.find(item => item.criterion === 'painted-relationships')?.status).toBe('failed')
+})
+
+test('actual sequence messages exclude painted actor lifelines and nested outlines retain node ownership', async () => {
+  const sequence = fixture.replace('height="80" viewBox="0 0 240 80"', 'height="100" viewBox="0 0 240 100"').replace('<g class="edge"><path d="M70 25 L150 25" fill="none" stroke="black" marker-end="url(#arrow)"/></g>', '<line class="lifeline" x1="40" y1="40" x2="40" y2="95" stroke="black"/><line class="lifeline" x1="180" y1="40" x2="180" y2="95" stroke="black"/><g class="message"><line x1="40" y1="60" x2="180" y2="60" stroke="black" marker-end="url(#arrow)"/></g>')
+  expect((await inspect(sequence, expected, { family: 'sequence' })).checks.find(item => item.criterion === 'painted-relationships')?.status).toBe('passed')
+  const nested = fixture.replace(/(<rect\b[^>]*\/>)/g, '<g class="outer-path">$1</g>')
+  expect((await inspect(nested, expected, { family: 'class' })).checks.find(item => item.criterion === 'painted-node-ownership')?.status).toBe('passed')
+})
+
+test('rich foreignObject leaves remain actual authored text and logical tree groups do not imply enclosure', async () => {
+  const rich = fixture.replace('<text x="14" y="30">Alpha</text>', '<foreignObject x="14" y="14" width="52" height="22"><div xmlns="http://www.w3.org/1999/xhtml"><span><b>Alpha</b></span></div></foreignObject>')
+  expect((await inspect(rich, expected, { family: 'eventmodeling' })).checks.find(item => item.criterion === 'visible-authored-labels')?.status).toBe('passed')
+  const hierarchy = await inspect(fixture, { ...expected, groups: [{ id: 'A', label: 'Alpha', members: ['B'] }] }, { family: 'mindmap' })
+  expect(hierarchy.checks.find(item => item.criterion === 'painted-group:A')?.status).toBe('unavailable')
+})
+
+test('C4 person relationships can attach to the actual compound head rather than an unrelated body rectangle', async () => {
+  const compound = '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="110"><defs><marker id="arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0 0 L6 3 L0 6 Z"/></marker></defs><g class="node c4-person"><g class="basic label-container"><rect x="10" y="50" width="60" height="30"/><circle cx="40" cy="35" r="20"/></g><text x="14" y="70" fill="white">Alpha</text></g><g class="node"><rect x="150" y="10" width="60" height="30"/><text x="154" y="30" fill="white">Beta</text></g><g class="edge"><path d="M60 35 L150 25" fill="none" stroke="black" marker-end="url(#arrow)"/></g></svg>'
+  expect((await inspect(compound, expected, { family: 'c4' })).checks.find(item => item.criterion === 'painted-relationships')?.status).toBe('passed')
+  expect((await inspect(compound.replace('<circle cx="40" cy="35" r="20"/>', ''), expected, { family: 'c4' })).checks.find(item => item.criterion === 'painted-relationships')?.status).toBe('failed')
+})
