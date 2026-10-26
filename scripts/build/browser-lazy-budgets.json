@@ -29,7 +29,7 @@
       "requests": 32,
       "raw": 617000,
       "gzip": 198000,
-      "brotli": 173000
+      "brotli": 173500
     },
     "class": {
       "requests": 37,
