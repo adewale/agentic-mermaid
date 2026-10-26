@@ -4,7 +4,7 @@ import type { Point, PositionedEdge, PositionedNode, PositionedGroup, MermaidGra
 import type { planC4Identity } from './identity.ts'
 import type { C4Box } from './placement.ts'
 import { simplifyPolyline, applyRouteContracts, repairLabelsOffOwnRoute, separateEdgeLabelPills, closeRouteContracts, laneContextFor, findLabelSlot, recertifyReroutedEdge, type LabelMetricsStyle } from '../route-contracts.ts'
-import { rerouteEdgesThroughNodes } from '../layout/passes/index.ts'
+import { rerouteEdgesThroughNodes } from '../layout/passes/obstacle-routing.ts'
 import { calculatePathMidpoint } from '../layout/geometry.ts'
 import { segmentThroughShape } from '../layout-rubric.ts'
 
