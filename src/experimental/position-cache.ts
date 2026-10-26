@@ -1,6 +1,6 @@
 import { estimatedResidency } from './cache-residency.ts'
 import type { FamilyLayoutResult, FamilyPositionedView } from '../agent/families.ts'
-import { graphLayoutDecisionsOf, transferGraphLayoutDecisions } from '../layout/backend.ts'
+import { graphLayoutDecisionsOf, transferGraphLayoutDecisions } from '../layout/decision-evidence.ts'
 import { transferRetainedPixelText } from '../shared/prepared-text.ts'
 import { WeightedLru } from './weighted-lru.ts'
 import { observeCache } from '../performance-observations.ts'
@@ -58,6 +58,7 @@ export function borrowedPositioned(family: object, key: string, nativeSvgRequest
     // The operation owns this wrapper. A retained request cannot keep the
     // cache graph alive through its proof after eviction or an early exit.
     const result = Object.freeze({ ...value.result })
+    transferGraphLayoutDecisions(value.result, result)
     nativeOwners.set(result, { key: isolated, snapshot: value, request: nativeSvgRequest })
     retainedResults.add(result)
     return { ...value, result }
@@ -110,7 +111,7 @@ export function retainNativeDrawing(request: object, layout: FamilyLayoutResult,
   // Paint certification's private WeakMaps also retain source fields and
   // world matrices. Count those aliases in the same graph, without storing
   // the temporary inventory or pulling Scene code into this cache module.
-  const weight = entry.key.length * 2 + estimatedResidency([combined, hiddenEvidence()], MAX_WEIGHT) + 1024
+  const weight = entry.key.length * 2 + estimatedResidency([combined, graphLayoutDecisionsOf(entry.snapshot.result), hiddenEvidence()], MAX_WEIGHT) + 1024
   if (weight > MAX_WEIGHT) { observeCache('native-drawing', 'store-skipped', 'weight-limit'); return }
   entry.snapshot.drawing = drawing
   results.set(entry.key, entry.snapshot, weight)

@@ -195,10 +195,11 @@ for (const family of ['flowchart', 'state'] as const) {
       import { getFamily, replaceFamilyForTest } from './src/agent/families.ts'
       import { PERFORMANCE_EXPERIMENTS, withPerformanceExperiments } from './src/experimental-performance.ts'
       const family = ${JSON.stringify(family)}
-      // The fallback witness exceeds the unchanged private-rank limit.
+      // An ordinary internal edge exceeds the unchanged private-rank limit.
+      // Ancestor boundary edges now use sparse spans without private ranks.
       const source = ${JSON.stringify(backend)} === 'fallback'
-        ? ['flowchart LR', 'subgraph CacheOwnerOuter', ' CacheOwnerA[Leaf]', 'end',
-          'CacheOwnerOuter ' + '-'.repeat(2049) + '> CacheOwnerA'].join(String.fromCharCode(10))
+        ? ['flowchart LR', 'subgraph CacheOwnerOuter', ' CacheOwnerA[Leaf]', ' CacheOwnerB[Tail]',
+          ' CacheOwnerA ' + '-'.repeat(2049) + '> CacheOwnerB', 'end'].join(String.fromCharCode(10))
         : family === 'flowchart'
         ? 'flowchart LR\\nsubgraph CacheOwnerGroup["Group"]\\nCacheOwnerA["wide 界 #35; text"] -->|first| CacheOwnerB["Tail"]\\nCacheOwnerA -->|second| CacheOwnerB\\nCacheOwnerB -->|return| CacheOwnerA\\nend'
         : 'stateDiagram-v2\\nstate CacheOwnerGroup {\\nstate "wide 界 #35; text" as CacheOwnerA\\nstate "Tail" as CacheOwnerB\\nCacheOwnerA --> CacheOwnerB: first\\nCacheOwnerA --> CacheOwnerB: second\\nCacheOwnerB --> CacheOwnerA: return\\n}\\n[*] --> CacheOwnerGroup'
@@ -233,7 +234,9 @@ for (const family of ['flowchart', 'state'] as const) {
       assert.deepEqual(renderMermaidSVGWithReceipt(publicFirstSource, options), publicFirstReference)
       assert.deepEqual(renderMermaidSVGWithReceipt(publicFirstSource, options), publicFirstReference)
 
-      const pngOptions = { ...options, scale: 0.1, loadSystemFonts: false, onWarning: () => {} }
+      // The rank-cap witness is deliberately long; keep its raster inside the
+      // unchanged maximum dimension while still exercising the PNG/cache order.
+      const pngOptions = { ...options, scale: ${backend === 'fallback' ? '0.05' : '0.1'}, loadSystemFonts: false, onWarning: () => {} }
       const pngReference = withoutPositionCache(() => renderMermaidPNGWithReceipt(source, pngOptions))
       assert.deepEqual(renderMermaidPNGWithReceipt(source, pngOptions), pngReference)
       assert.deepEqual(renderMermaidSVGWithReceipt(source, options), first)
