@@ -21,6 +21,7 @@ import { replaceFamilyForTest } from '../agent/families.ts'
 import type { PositionedArchitectureDiagram } from '../architecture/types.ts'
 import type { PositionedErDiagram } from '../er/types.ts'
 import type { PositionedIshikawa } from '../ishikawa/types.ts'
+import { classMarkerResources } from '../class/relationship-paint.ts'
 
 const scene = (parts: SceneNode[]): SceneDoc => ({ family: 'flowchart', width: 100, height: 80, transparent: false, colors: { bg: '#fff', fg: '#111' }, parts })
 const label = () => {
@@ -379,7 +380,7 @@ test.each(['1', 'var(--unknown,0.5)'])('native group opacity %s admits only cert
     const cover = factory.shape({ id: 'cover', role: 'node', geometry: { kind: 'rect', x: 10, y: 10, width: 80, height: 60 }, paint: { fill: '#fff' } })
     return { ...scene([]), parts: [
       factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'),
-      factory.text({ id: 'text', role: 'label', text: 'Read', block: preparePixelText('Read', { fontSize: 12, fontWeight: 400 }), x: 20, y: 30, fontSize: 12, anchor: 'start', paint: { fill: '#111' } }),
+      factory.text({ id: 'text', role: 'label', text: 'Read', block: preparePixelText('Read', { fontSize: 12, fontWeight: 400 }), x: 40, y: 50, fontSize: 12, anchor: 'start', paint: { fill: '#111' } }),
       factory.group({ id: 'cover-group', role: 'chrome', open: '<g>', close: '</g>', paint: { opacity }, children: [{ node: cover, indent: 0 }] }),
       factory.documentClose(),
     ] }
@@ -406,7 +407,7 @@ test.each([
     factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'),
     factory.definitions({ id: 'markers' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
     factory.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 20, y1: 30, x2: 30, y2: 30 }, paint: { stroke: '#111' }, endpoints: { from: 'outside', to: 'cover' }, markers: { end: marker } }),
-    factory.text({ id: 'text', role: 'label', text: 'Read', block: preparePixelText('Read', { fontSize: 12, fontWeight: 400 }), x: 20, y: 30, fontSize: 12, anchor: 'start', paint: { fill: '#111' } }),
+    factory.text({ id: 'text', role: 'label', text: 'Read', block: preparePixelText('Read', { fontSize: 12, fontWeight: 400 }), x: 40, y: 50, fontSize: 12, anchor: 'start', paint: { fill: '#111' } }),
     factory.shape({ id: 'cover', role: 'node', geometry: { kind: 'compound', children: [{ kind: 'rect', x: 80, y: 10, width: 10, height: 10 }, { kind: 'rect', x: 10, y: 10, width: 60, height: 60 }] }, paint: { fill: 'none', opacity: '0' }, childPaints: [first, second] }),
     factory.documentClose(),
   ] })
@@ -1064,5 +1065,34 @@ test.each(['covered-white', 'covered-same-black', 'separate', 'unknown-fill'] as
   for (const proof of proofs) {
     expect(proof.status).toBe(mode === 'separate' ? 'passed' : 'unverified')
     if (mode !== 'separate') expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', id: 'black-relation', by: 'white-relation' }))
+  }
+})
+
+
+test.each(['foreign', 'owned', 'separated', 'nonpainting', 'transparent', 'same-paint', 'before', 'owned-repaint', 'empty-marker'] as const)('prepared text and canonical marker visibility retain uncertainty for %s', mode => {
+  const canonical = classMarkerResources({ lineWidth: 1, edgeStrokeColor: '#47474a' } as any).find(marker => marker.id === 'cls-inherit')!
+  const marker: MarkerDescriptor = mode === 'empty-marker' ? { ...canonical, paint: { fill: 'none', stroke: 'none' } } : canonical
+  const block = preparePixelText('0..1', { fontSize: 11, fontWeight: 400 })
+  const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => {
+    const carrier = () => factory.connector({ id: 'relation', role: 'relationship', endpoints: { from: 'A', to: 'B' }, lineStyle: 'solid', geometry: { kind: 'line', x1: 70, y1: 40, x2: 20, y2: 40 }, paint: { stroke: '#47474a', strokeWidth: '1' }, markers: { start: marker } })
+    const label = () => factory.text({ id: 'count', role: 'cardinality', ...(mode === 'owned' || mode === 'owned-repaint' ? { owner: { id: 'relation', role: 'relationship' } } : {}), text: '0..1', block, x: 61, y: mode === 'separated' ? 65 : 40, fontSize: 11, anchor: 'middle', paint: { fill: mode === 'nonpainting' ? 'none' : mode === 'same-paint' ? '#47474a' : '#69696c', stroke: mode === 'nonpainting' ? 'none' : mode === 'same-paint' ? '#47474a' : '#fff', strokeWidth: '3', strokeLinejoin: 'round', paintOrder: 'stroke', ...(mode === 'transparent' ? { opacity: '0' } : {}) } })
+    const parts = [factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'), factory.definitions({ id: 'defs' }, `<defs>${serializeMarkerResource(marker)}</defs>`), ...(mode === 'before' ? [label(), carrier()] : [carrier(), label()])]
+    if (mode === 'owned-repaint') parts.push(factory.connector({ id: 'repaint', role: 'chrome', owner: { id: 'relation', role: 'relationship' }, lineStyle: 'solid', geometry: { kind: 'line', x1: 70, y1: 40, x2: 20, y2: 40 }, paint: { stroke: '#47474a', strokeWidth: '1' }, stroke: { opacity: 0 }, markers: { start: marker } }))
+    parts.push(factory.documentClose())
+    return { ...scene([]), parts }
+  }
+  const drawing = drawNative(producer, context, 'class')
+  expect(drawing.svg).toContain('marker-start="url(#cls-inherit)"')
+  const clear = ['separated', 'nonpainting', 'transparent', 'empty-marker'].includes(mode)
+  for (const proof of [certifyScenePaint(producer(marks, context)), certifyNativePaint(drawing.header, drawing.paint)]) {
+    expect(proof.status).toBe(clear ? 'passed' : 'unverified')
+    if (clear) expect(proof.issues).toEqual([])
+    else {
+      const inverse = mode === 'before' || mode === 'owned-repaint'
+      expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', id: inverse ? 'count' : 'relation', by: inverse ? mode === 'owned-repaint' ? 'repaint' : 'relation' : 'count' }))
+      expect(proof.issues.some(issue => issue.code === 'MARKER_OCCLUDED' || issue.code === 'TEXT_OCCLUDED')).toBe(false)
+      if (mode === 'owned-repaint') expect(proof.issues).toHaveLength(1)
+    }
   }
 })

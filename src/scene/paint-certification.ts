@@ -801,6 +801,22 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
     }
   }
   for (const target of lastMarkers.values()) markerCheck(surfaces, target)
+  // Prepared text and endpoint markers can hide each other in either paint
+  // order. Text bounds already include the actual halo stroke; neither
+  // a same owner/color nor a bounds overlap proves glyph-ink separation.
+  for (const target of lastMarkers.values()) {
+    if (!work()) break
+    if (!target.semantic || target.primitive.visibility === 'conditional'
+      || target.strokeProof?.fill === 'absent' && target.strokeProof.stroke === 'absent') continue
+    for (const primitive of inspection.primitives) {
+      if (!work()) break
+      if (primitive.kind !== 'text' || primitive.coverage !== 'measured' || primitive.visibility === 'conditional'
+        || !primitive.bounds || !overlaps(primitive.bounds, target.bounds)) continue
+      if (++pairs > MAX_OCCLUSION_PAIRS) { exhausted = true; break }
+      const markerLater = target.primitive.order > primitive.order
+      issue({ code: 'POTENTIAL_OCCLUSION', id: markerLater ? primitive.id : target.primitive.id, by: markerLater ? target.primitive.id : primitive.id, message: markerLater ? 'Later endpoint-marker ink overlaps occupied text; actual text visibility is unverified.' : 'Later occupied text or its halo overlaps an endpoint marker; actual marker ink visibility is unverified.' })
+    }
+  }
   for (const earlier of lastMarkers.values()) {
     if (exhausted) break
     if (!earlier.semantic || earlier.primitive.visibility === 'conditional') continue
