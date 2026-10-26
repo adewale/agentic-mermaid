@@ -453,9 +453,24 @@ export function prepareMarkerPolygonInk(scene: Pick<NativePaintHeader, 'colors'>
   const strokeWitnesses: ScenePoint[] = []
   if (!noStroke && knownWidth !== undefined && knownWidth > 0 && strokeColor?.[3] === 1 && opacity === 1 && !paint.strokeDasharray) {
     for (let i = 0; i < points.length - (marker.geometry.kind === 'polyline' ? 1 : 0); i++) {
-      if (!pay(3)) return undefined
-      const a = points[i]!, b = points[(i + 1) % points.length]!, p = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
-      if ((a.x !== b.x || a.y !== b.y) && unclipped(p)) strokeWitnesses.push({ x: (hull[i]!.x + hull[(i + 1) % hull.length]!.x) / 2, y: (hull[i]!.y + hull[(i + 1) % hull.length]!.y) / 2 })
+      const a = points[i]!, b = points[(i + 1) % points.length]!
+      if (a.x === b.x && a.y === b.y) continue
+      // Fixed dyadic interior points are actual stroke ink; unlike a convex
+      // hull corner or a cap boundary, none invents an unpainted segment.
+      for (let sample = 1; sample < 4; sample++) {
+        if (!pay(3)) return undefined
+        const t = sample / 4, p = { x: a.x * (1 - t) + b.x * t, y: a.y * (1 - t) + b.y * t }
+        if (unclipped(p)) strokeWitnesses.push({ x: hull[i]!.x * (1 - t) + hull[(i + 1) % hull.length]!.x * t, y: hull[i]!.y * (1 - t) + hull[(i + 1) % hull.length]!.y * t })
+      }
+    }
+    // A closed vertex or an open interior join is genuine stroke interior.
+    // Open butt-cap endpoints are deliberately not promoted to opaque points.
+    const firstJoin = marker.geometry.kind === 'polygon' ? 0 : 1
+    const lastJoin = points.length - (marker.geometry.kind === 'polygon' ? 0 : 1)
+    for (let i = firstJoin; i < lastJoin; i++) {
+      if (!pay(2)) return undefined
+      const a = points[(i + points.length - 1) % points.length]!, b = points[i]!, c = points[(i + 1) % points.length]!
+      if ((a.x !== b.x || a.y !== b.y) && (b.x !== c.x || b.y !== c.y) && unclipped(b)) strokeWitnesses.push(hull[i]!)
     }
   }
   return { hull, fill, stroke, fillColor, strokeColor, innerStroke, strokeWitnesses, padding: region.padding }
@@ -464,7 +479,8 @@ export function prepareMarkerPolygonInk(scene: Pick<NativePaintHeader, 'colors'>
 /** Strict half-plane distance proves a real stroke point lies in opaque fill,
  * away from its own outline. Conservative hull padding proves separation only.
  */
-export function compareMarkerStrokeInk(earlier: MarkerPolygonProof | undefined, later: MarkerPolygonProof | undefined, work: () => boolean): Readonly<ScenePoint> | 'clear' | 'unknown' {
+export function compareMarkerStrokeInk(earlier: MarkerPolygonProof | undefined, later: MarkerPolygonProof | undefined, work: () => boolean, startWitness = 0): Readonly<ScenePoint> | 'clear' | 'unknown' {
+  if (!work() || !Number.isSafeInteger(startWitness) || startWitness < 0) return 'unknown'
   if (later?.fill === 'absent' || earlier?.stroke === 'absent') return 'clear'
   if (!earlier || !later) return 'unknown'
   const hull = later.hull
@@ -508,7 +524,9 @@ export function compareMarkerStrokeInk(earlier: MarkerPolygonProof | undefined, 
   let sameColor = true
   for (let i = 0; i < 3; i++) { if (!work()) return 'unknown'; if (earlier.strokeColor[i] !== later.fillColor[i]) sameColor = false }
   if (sameColor) return 'unknown'
-  for (const p of earlier.strokeWitnesses) {
+  for (let witness = startWitness; witness < earlier.strokeWitnesses.length; witness++) {
+    if (!work()) return 'unknown'
+    const p = earlier.strokeWitnesses[witness]!
     let sign = 0, inside = true
     for (let i = 0; i < hull.length; i++) {
       if (!work()) return 'unknown'
@@ -791,30 +809,43 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
       if (!later.semantic || !later.mayFill || later.primitive.visibility === 'conditional' || later.primitive.order <= earlier.primitive.order
         || earlier.anchor.x === later.anchor.x && earlier.anchor.y === later.anchor.y && earlier.repaint === later.repaint || !overlaps(earlier.bounds, later.bounds)) continue
       if (++pairs > MAX_OCCLUSION_PAIRS) { exhausted = true; break }
-      const proof = compareMarkerStrokeInk(earlier.strokeProof, later.strokeProof, work)
-      // A still-later primitive might restore the visible stroke. Its envelope
-      // is not ink proof, so that ambiguity prevents a hard final-paint claim.
-      let restored = false
-      if (typeof proof !== 'string') for (const primitive of inspection.primitives) {
-        if (!work()) break
-        const b = primitive.bounds
-        if (primitive.order <= later.primitive.order || primitive.coverage === 'non-painting') continue
-        if (!b) { restored = true; break }
-        if (b.x0 > proof.x || proof.x > b.x1 || b.y0 > proof.y || proof.y > b.y1) continue
-        const source = paintPrimitiveSource(primitive)
-        if (source?.kind === 'connector' && Number(source.stroke.opacity) === 0) {
-          let markerMayRestore = false
-          for (const marker of lastMarkers.values()) {
-            if (!work()) break
-            if (marker.primitive.order !== primitive.order || marker.bounds.x0 > proof.x || proof.x > marker.bounds.x1 || marker.bounds.y0 > proof.y || proof.y > marker.bounds.y1) continue
-            if (!outsideMarkerPolygon(marker.strokeProof, proof, work)) { markerMayRestore = true; break }
+      let startWitness = 0, result: 'covered' | 'clear' | 'unknown' = 'unknown'
+      while (!exhausted) {
+        const proof = compareMarkerStrokeInk(earlier.strokeProof, later.strokeProof, work, startWitness)
+        if (typeof proof === 'string') { result = proof; break }
+        // A still-later primitive might restore this particular stroke point.
+        // Continue through the finite evidence under the SAME charged budget;
+        // restoring one point does not prove every other stroke point visible.
+        let restored = false
+        for (const primitive of inspection.primitives) {
+          if (!work()) break
+          const b = primitive.bounds
+          if (primitive.order <= later.primitive.order || primitive.coverage === 'non-painting') continue
+          if (!b) { restored = true; break }
+          if (b.x0 > proof.x || proof.x > b.x1 || b.y0 > proof.y || proof.y > b.y1) continue
+          const source = paintPrimitiveSource(primitive)
+          if (source?.kind === 'connector' && Number(source.stroke.opacity) === 0) {
+            let markerMayRestore = false
+            for (const marker of lastMarkers.values()) {
+              if (!work()) break
+              if (marker.primitive.order !== primitive.order || marker.bounds.x0 > proof.x || proof.x > marker.bounds.x1 || marker.bounds.y0 > proof.y || proof.y > marker.bounds.y1) continue
+              if (!outsideMarkerPolygon(marker.strokeProof, proof, work)) { markerMayRestore = true; break }
+            }
+            if (!markerMayRestore && !exhausted) continue
           }
-          if (!markerMayRestore && !exhausted) continue
+          restored = true; break
         }
-        restored = true; break
+        if (!restored && !exhausted) { result = 'covered'; break }
+        const witnesses = earlier.strokeProof!.strokeWitnesses
+        let advanced = false
+        for (; startWitness < witnesses.length; startWitness++) {
+          if (!work()) break
+          if (witnesses[startWitness] === proof) { startWitness++; advanced = true; break }
+        }
+        if (!advanced) break
       }
-      if (typeof proof !== 'string' && !restored && !exhausted) issue({ code: 'MARKER_OCCLUDED', id: earlier.primitive.id, by: later.primitive.id, message: 'Later opaque endpoint-marker fill covers actual stroke ink of a distinct marker.' }, true)
-      else if (proof === 'unknown' || restored) issue({ code: 'POTENTIAL_OCCLUSION', id: earlier.primitive.id, by: later.primitive.id, message: 'Distinct endpoint-marker envelopes overlap; actual marker ink separation is unverified.' })
+      if (result === 'covered' && !exhausted) issue({ code: 'MARKER_OCCLUDED', id: earlier.primitive.id, by: later.primitive.id, message: 'Later opaque endpoint-marker fill covers actual stroke ink of a distinct marker.' }, true)
+      else if (result === 'unknown') issue({ code: 'POTENTIAL_OCCLUSION', id: earlier.primitive.id, by: later.primitive.id, message: 'Distinct endpoint-marker envelopes overlap; actual marker ink separation is unverified.' })
     }
   }
   if (exhausted) issue({ code: 'CHECK_BUDGET', message: `Occlusion checking reached its ${MAX_OCCLUSION_PAIRS}-pair or ${MAX_OCCLUSION_OPERATIONS}-operation limit` })
