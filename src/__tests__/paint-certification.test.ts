@@ -888,3 +888,36 @@ test('nested compound paint indices cannot provide an emitted border-band proof'
   // The nested first piece must not borrow the root sibling's 10px band.
   expect(certifyScenePaint(scene([edge, card])).status).toBe('unverified')
 })
+
+test.each(['clear-body', 'body-crossing', 'join-reach', 'square-cap', 'affine', 'non-scaling', 'unsupported-join', 'unknown-color'] as const)('orthogonal stroke union retains exact body/cap/join authority for %s', mode => {
+  const context = { positioned: { width: 200, height: 160 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => {
+    const points = mode === 'square-cap' ? [{ x: 10, y: 40 }, { x: 40, y: 40 }]
+      : [{ x: 52, y: 70 }, { x: 52, y: 10 }, { x: 80, y: 10 }]
+    const edge = factory.connector({ id: 'route', role: 'edge', lineStyle: 'solid', endpoints: { from: 'A', to: 'B' }, geometry: { kind: 'polyline', points },
+      ...(mode === 'affine' ? { transform: { kind: 'matrix' as const, a: 0.99, b: 0, c: 0, d: 0.99, e: 0, f: 0 } } : {}),
+      paint: { stroke: mode === 'unknown-color' ? 'var(--host)' : '#111', strokeWidth: mode === 'square-cap' ? '8' : '1', strokeLinecap: mode === 'square-cap' ? 'square' : 'butt',
+        strokeLinejoin: mode === 'unsupported-join' ? 'miter-clip' : 'miter', strokeMiterlimit: '4', ...(mode === 'non-scaling' ? { vectorEffect: 'non-scaling-stroke' } : {}) } })
+    const geometry: Geometry = mode === 'body-crossing' ? { kind: 'rect', x: 50, y: 30, width: 4, height: 20 }
+      : mode === 'join-reach' ? { kind: 'circle', cx: 51.65, cy: 9.65, r: 0.1 }
+        : mode === 'square-cap' ? { kind: 'circle', cx: 43, cy: 40, r: 0.5 }
+          : { kind: 'circle', cx: 40, cy: 40, r: 10 }
+    const card = factory.shape({ id: 'foreign', role: 'node', geometry, paint: { fill: '#fff', stroke: '#111', strokeWidth: '0.75' } })
+    const parts = [edge, card]
+    return { ...scene([]), width: 200, height: 160, parts }
+  }
+  const doc = producer(marks, context), drawing = drawNative(producer, context, 'flowchart')
+  for (const proof of [certifyScenePaint(doc), certifyNativePaint(drawing.header, drawing.paint)]) {
+    expect(proof.status).toBe(mode === 'clear-body' ? 'passed' : mode === 'body-crossing' ? 'failed' : 'unverified')
+    if (mode === 'clear-body') expect(proof.issues).toEqual([])
+    else expect(proof.issues).toContainEqual(expect.objectContaining({ code: mode === 'body-crossing' ? 'CONNECTOR_CARD_CROSSING' : 'POTENTIAL_OCCLUSION', id: 'route', by: 'foreign' }))
+  }
+})
+
+test('orthogonal stroke union leaves nonfinite geometry unmeasured', () => {
+  const edge = marks.connector({ id: 'nonfinite-route', role: 'edge', lineStyle: 'solid', endpoints: { from: 'A', to: 'B' }, geometry: { kind: 'polyline', points: [{ x: 52, y: 70 }, { x: 52, y: 10 }, { x: 80, y: 10 }] }, paint: { stroke: '#111', strokeWidth: '1' } })
+  const raw: SceneNode = { ...edge, route: { ...edge.route, geometry: { kind: 'polyline', points: [{ x: 52, y: Number.POSITIVE_INFINITY }, { x: 52, y: 10 }] } } }
+  const proof = certifyScenePaint(scene([raw, surface()]))
+  expect(proof.status).toBe('unverified')
+  expect(proof.coverage.unmeasured).toBeGreaterThan(0)
+})

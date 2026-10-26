@@ -70,6 +70,34 @@ function tree(items: Surface[]): Tree | undefined {
   return { bounds, left: tree(items.slice(0, middle)), right: tree(items.slice(middle)) }
 }
 
+/** A straight orthogonal stroke is contained by its half-width body and
+ * endpoint neighborhoods bounded by the original cap/join extent. The latter
+ * retain every possible miter; they need not inflate the distant body. Only
+ * translation preserves these world-space widths without additional proof. */
+function separatedOrthogonalStroke(
+  line: readonly [ScenePoint, ScenePoint], surface: AxisAlignedBox,
+  stroke: NativeConnectorPaintSource['stroke'], width: number, extent: number,
+  matrix: readonly number[], work: () => boolean,
+): boolean {
+  if (!work() || !matrix.every(Number.isFinite) || matrix[0] !== 1 || matrix[1] !== 0 || matrix[2] !== 0 || matrix[3] !== 1
+    || stroke.nonScaling || !['butt', 'round', 'square'].includes(stroke.lineCap ?? 'butt')
+    || !['miter', 'round', 'bevel'].includes(stroke.lineJoin ?? 'miter') || !Number.isFinite(width) || width <= 0
+    || !Number.isFinite(extent) || extent < width / 2) return false
+  const [first, last] = line
+  if (![first.x, first.y, last.x, last.y].every(Number.isFinite)
+    || first.x !== last.x && first.y !== last.y || first.x === last.x && first.y === last.y) return false
+  const half = width / 2
+  const body = { x0: Math.min(first.x, last.x) - half, y0: Math.min(first.y, last.y) - half,
+    x1: Math.max(first.x, last.x) + half, y1: Math.max(first.y, last.y) + half }
+  if (!work() || !Object.values(body).every(Number.isFinite) || overlaps(body, surface)) return false
+  for (const point of line) {
+    if (!work()) return false
+    const end = { x0: point.x - extent, y0: point.y - extent, x1: point.x + extent, y1: point.y + extent }
+    if (!Object.values(end).every(Number.isFinite) || overlaps(end, surface)) return false
+  }
+  return true
+}
+
 /** A filled rectangle's inset is known to be solid, unlike an arbitrary path's
  * conservative envelope. Rounded corners are excluded before transformation.
  */
@@ -464,6 +492,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
           if (!CARD_ROLES.has(surface.primitive.role) || surface.primitive.owner.id === primitive.owner.id && surface.primitive.owner.role === primitive.owner.role || !overlaps(surface.bounds, bounds)) continue
           const relation = endpointRelation(node, surface.primitive.owner)
           if (relation === 'attached') continue
+          if (exactInk && line && separatedOrthogonalStroke(line, surface.bounds, node.stroke, width, extent, matrix, work)) continue
           if (exactInk && relation === 'unrelated' && line && surface.interiors?.some(interior => work() && lineCrossesInterior(line, interior))) issue({ code: 'CONNECTOR_CARD_CROSSING', id: primitive.id, by: surface.primitive.id, message: `Final connector shaft crosses opaque artwork owned by unrelated card ${surface.primitive.owner.id}` }, true)
           else issue({ code: 'POTENTIAL_OCCLUSION', id: primitive.id, by: surface.primitive.id, message: 'Final connector envelope intersects unrelated filled card artwork; actual route/card crossing is unverified' })
         }
