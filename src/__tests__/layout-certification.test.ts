@@ -21,6 +21,41 @@ import type { MermaidGraph, PositionedGraph, PositionedGroup } from '../types.ts
 
 const source = 'flowchart LR\nA -- first --> B\nB -- second --> A'
 
+// These two literal fixtures contain only rectangular nodes and external frame
+// contacts. Verify their actual complete routes independently of certification.
+function expectClearZeroFixture(positioned: PositionedGraph): void {
+  expect(positioned.nodes.map(node => node.id).sort()).toEqual(['a1', 'a2', 'b1', 'b2', 'c1', 'c2'])
+  expect(positioned.edges.map(edge => [edge.source, edge.target]).sort()).toEqual([
+    ['a1', 'a2'], ['b1', 'b2'], ['c1', 'a2'], ['c1', 'c2'], ['one', 'two'], ['three', 'two'], ['two', 'c2'],
+  ])
+  const groups = [...positioned.groups]
+  for (let cursor = 0; cursor < groups.length; cursor++) groups.push(...groups[cursor]!.children)
+  const owners = new Map([...positioned.nodes, ...groups].map(owner => [owner.id, owner]))
+  const crosses = (a: { x: number; y: number }, b: { x: number; y: number }, box: { x: number; y: number; width: number; height: number }): boolean =>
+    box.width > 0 && box.height > 0 && Math.max(a.x, b.x) > box.x && Math.min(a.x, b.x) < box.x + box.width
+      && Math.max(a.y, b.y) > box.y && Math.min(a.y, b.y) < box.y + box.height
+  for (const edge of positioned.edges) {
+    expect([edge.hasArrowStart, edge.hasArrowEnd, edge.label ?? null]).toEqual([false, true, null])
+    for (let cursor = 1; cursor < edge.points.length; cursor++) {
+      const a = edge.points[cursor - 1]!, b = edge.points[cursor]!
+      expect(a.x === b.x || a.y === b.y).toBe(true)
+      for (const node of positioned.nodes) { expect(node.shape).toBe('rectangle'); expect(crosses(a, b, node)).toBe(false) }
+      for (const group of groups) {
+        expect(Number.isFinite(group.headerHeight) && group.headerHeight! >= 0).toBe(true)
+        if (!group.concurrencyRegion) expect(crosses(a, b, { ...group, height: group.headerHeight! })).toBe(false)
+      }
+    }
+    for (const [id, start] of [[edge.source, true], [edge.target, false]] as const) {
+      const owner = owners.get(id)!, point = start ? edge.points[0]! : edge.points.at(-1)!
+      const next = (start ? edge.points : edge.points.toReversed()).find(next => next.x !== point.x || next.y !== point.y)!
+      expect(point.x === owner.x && next.x < point.x && next.y === point.y
+        || point.x === owner.x + owner.width && next.x > point.x && next.y === point.y
+        || point.y === owner.y && next.y < point.y && next.x === point.x
+        || point.y === owner.y + owner.height && next.y > point.y && next.x === point.x).toBe(true)
+    }
+  }
+}
+
 function routeWitness(graph: MermaidGraph, positions: Record<string, [number, number]>, routes: Array<Array<[number, number]>>, width = 360, height = 280): PositionedGraph {
   return {
     width, height, groups: [],
@@ -381,10 +416,14 @@ describe('bounded final layout certification', () => {
       expect(crossing.certification?.preference.compared).toHaveLength(1)
       calls = 0
       const alreadySeparate = layoutGraphSync(parseMermaid('flowchart TB\nc1-->a2\nsubgraph one\ndirection TB\na1\nend\na1-->a2\nsubgraph two\nb1-->b2\nend\nsubgraph three\nc2\nend\nc1-->c2\none --> two\nthree --> two\ntwo --> c2'))
-      // A distinct route proposal may reuse the same placement even when no
-      // distinct hierarchy strategy is eligible.
-      expect(calls).toBe(2)
-      expect(alreadySeparate.certification?.preference.routing?.preference.compared).toHaveLength(2)
+      // A header-clear, zero-crossing placement has no reason to run the
+      // saved unbundled proposal solely to satisfy a comparison count.
+      expect(calls).toBe(1)
+      expect(alreadySeparate.certification).toMatchObject({ status: 'passed', hardViolations: 0, attempts: 1,
+        preference: { reason: 'first-certified', selectedScore: { edgeCrossings: 0, labelConflicts: 0 } } })
+      expect(alreadySeparate.certification?.preference.compared).toHaveLength(1)
+      expect(alreadySeparate.certification?.preference.routing).toBeUndefined()
+      expectClearZeroFixture(alreadySeparate)
     } finally { firstPass.run = run }
   })
 
@@ -404,19 +443,17 @@ describe('bounded final layout certification', () => {
     expect(positioned.groups.map(group => ({ id: group.id, nodes: group.nodeIds?.toSorted() })).sort((a, b) => a.id.localeCompare(b.id))).toEqual([
       { id: 'one', nodes: ['a1'] }, { id: 'three', nodes: ['c2'] }, { id: 'two', nodes: ['b1', 'b2'] },
     ])
-    expect(preference.compared).toHaveLength(2)
-    expect(new Set(preference.compared.map(candidate => candidate.strategy)).size).toBe(2)
+    expect(preference.reason).toBe('first-certified')
+    expect(preference.compared).toHaveLength(1)
+    expect(new Set(preference.compared.map(candidate => candidate.strategy)).size).toBe(1)
     const placement = preference.compared.find(candidate => candidate.strategy === certification.strategy)
     expect(placement).toBeDefined()
-    const routing = preference.routing!
-    expect(routing).toBeDefined()
-    expect(routing.preference.compared).toHaveLength(2)
-    expect(new Set(routing.preference.compared.map(candidate => candidate.strategy)).size).toBe(2)
-    expect(routing.preference.compared.find(candidate => candidate.strategy === 'bundled')?.score).toEqual(placement!.score)
-    const selectedRoute = routing.preference.compared.find(candidate => candidate.strategy === routing.strategy)
-    expect(selectedRoute).toBeDefined()
-    expect(preference.selectedScore).toEqual(selectedRoute!.score)
-    expect(preference.selectedScore).toEqual(routing.preference.selectedScore)
+    // The selected placement already has zero crossings and label conflicts;
+    // the bounded selector correctly avoids a cosmetic routing production.
+    expect(preference.routing).toBeUndefined()
+    expect(preference.selectedScore).toEqual(placement!.score)
+    expect(preference.selectedScore.labelConflicts).toBe(0)
+    expectClearZeroFixture(positioned)
     // This fixture has no title-band projection: its score describes this canvas.
     expect(preference.selectedScore.area).toBeCloseTo(positioned.width * positioned.height, 5)
     expect(preference.selectedScore.edgeCrossings).toBe(0)
@@ -428,8 +465,12 @@ describe('bounded final layout certification', () => {
     expect(positioned.edges.map(edge => invalidEndpointApproaches(edge, nodes.get(edge.source), nodes.get(edge.target)))).toEqual(graph.edges.map(() => 0))
     const a1 = nodes.get('a1')!
     const repaired = positioned.edges.find(edge => edge.source === 'a1' && edge.target === 'a2')!
-    expect(repaired.points[0]).toEqual({ x: a1.x, y: a1.y + a1.height / 2 })
-    expect(repaired.routeCertificate).toMatchObject({ sourcePort: 'W', sourcePortAssignment: { side: 'W', port: 'W', slotIndex: 0, slotCount: 1 } })
+    const contact = repaired.points[0]!
+    const side = contact.x === a1.x ? 'W' : contact.x === a1.x + a1.width ? 'E' : contact.y === a1.y ? 'N' : 'S'
+    expect(contact).toEqual(side === 'W' ? { x: a1.x, y: a1.y + a1.height / 2 }
+      : side === 'E' ? { x: a1.x + a1.width, y: a1.y + a1.height / 2 }
+        : { x: a1.x + a1.width / 2, y: side === 'N' ? a1.y : a1.y + a1.height })
+    expect(repaired.routeCertificate).toMatchObject({ sourcePort: side, sourcePortAssignment: { side, port: side, slotIndex: 0, slotCount: 1 } })
     const endpoints = new Map([...positioned.nodes, ...positioned.groups].map(endpoint => [endpoint.id, endpoint]))
     const noise = 1e-6
     for (const edge of positioned.edges) {

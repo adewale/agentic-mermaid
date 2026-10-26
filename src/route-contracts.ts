@@ -1,6 +1,7 @@
 // Route-contract orchestration, certificate closure, and final audit. Geometry,
 // lane proofs, feedback shortening, and per-pass self-loop occupancy have
 // separate owners; the pass order and certificate lifecycle remain here.
+import { withinLayoutPreferenceBudget } from './layout/pass.ts'
 
 import { customTextMeasurementActive } from './text-measurement-profile.ts'
 import { resolveLabelContent } from './shared/display-text.ts'
@@ -115,6 +116,7 @@ export function applyRouteContracts(
   const nodeMap = indexRouteNodes(positioned.nodes)
   const groupMap = flattenGroups(positioned.groups)
   const drafts: Array<{ edge: PositionedEdge; cert: DraftRouteCertificate }> = []
+  let unlabelledContainerRepair: boolean | undefined
 
   // Attempt one proof-carrying straightening; updates geometry + certificate.
   // `applied` means the route is straight; `mutated` means geometry moved this
@@ -245,7 +247,15 @@ export function applyRouteContracts(
    * channels ELK already proved navigable. All three segments are proved,
    * the label must fit on the longest lane, and crossings may not increase.
    */
-  function tryZRoute(edge: PositionedEdge, source: PositionedNode, target: PositionedNode, ctx: LaneContext, axis: Axis, sourcePortOnly = false, forcedLanes?: { sourceLane?: number; targetLane?: number; preferSourceJog?: boolean }): boolean {
+  function tryZRoute(
+    edge: PositionedEdge,
+    source: PositionedNode,
+    target: PositionedNode,
+    ctx: LaneContext,
+    axis: Axis,
+    sourcePortOnly = false,
+    forcedLanes?: { sourceLane?: number; targetLane?: number; preferSourceJog?: boolean; requireFewerCrossings?: boolean },
+  ): boolean {
     if (edge.points.length < 2) return false
     const srcSpan = attachSpan(source, axis, 1)
     const tgtSpan = attachSpan(target, axis, -1)
@@ -317,7 +327,7 @@ export function applyRouteContracts(
     // (e.g. a later node-mover parked a node in the routed corridor). Only in
     // that repair does the label fall back to an on-route seat when no clear
     // pill slot exists (see below); an ordinary blockage keeps the strict slot.
-    const repairingOcclusion = routeThroughNodeBBox(edge, ctx)
+    const repairingOcclusion = !forcedLanes?.requireFewerCrossings && routeThroughNodeBBox(edge, ctx)
     // Deferred on-route label fallback: the first proven occlusion-clearing
     // route whose label lane has capacity but no fully-clear pill slot. Used
     // only if the whole search finds no route with a clear slot, so a clean
@@ -387,9 +397,8 @@ export function applyRouteContracts(
           // into the routed corridor): a legal crossing always beats an
           // occlusion. The Z itself is lane-proved through clear space.
           if (!repairingOcclusion && nextCrossings > priorCrossings) continue
-          if (
-            !repairingOcclusion &&
-            nextCrossings >= priorCrossings &&
+          if (forcedLanes?.requireFewerCrossings && nextCrossings >= priorCrossings) continue
+          if (!repairingOcclusion && nextCrossings >= priorCrossings &&
             invalidEndpointApproaches({ ...edge, points: route }, source, target) >= invalidEndpointApproaches(edge, source, target) &&
             (bendCount(route) > bendCount(edge.points) || (bendCount(route) === bendCount(edge.points) && nextContacts < priorContacts))
           )
@@ -672,10 +681,21 @@ export function applyRouteContracts(
       }
     } else if (routeClass === 'container') {
       cert.invariant = 'container-attach'
-      if (tryRepairContainerEdge(edge, groupMap, nodeMap, ctx)) {
-        cert.bendCount = 0
-        cert.directLaneClear = true
-        cert.straightened = true
+      const repair = containerRepairGeometry(edge, groupMap, nodeMap)
+      if (repair) {
+        const straight = tryStraighten(edge, repair.source, repair.target, ctx, repair.axis).applied
+        // A separated frame can have no common straight lane while another
+        // automatic face slot admits a clear Z. Reuse the existing constructor
+        // only for an actual crossing in an unlabelled graph, requiring strict
+        // crossing improvement. Label/halo placement keeps its existing path.
+        const improved = !straight
+          && (unlabelledContainerRepair ??= withinLayoutPreferenceBudget(graph) && !customTextMeasurementActive() && !positioned.edges.some(candidate => candidate.label))
+          && countRouteCrossings(edge.points, edge, ctx) > 0
+          && tryZRoute(edge, repair.source, repair.target, ctx, repair.axis, false, { requireFewerCrossings: true })
+        if (straight || improved) {
+          cert.bendCount = bendCount(edge.points)
+          if (straight) { cert.directLaneClear = true; cert.straightened = true }
+        }
       }
     } else if (routeClass === 'primary-forward' || routeClass === 'feedback') {
       if (cert.bendCount > 0) {
@@ -923,9 +943,13 @@ function scanRouteHitches(positioned: { nodes: PositionedNode[]; edges: Position
  * neither box. When the two end rects are cleanly separated along one axis,
  * collapse the route onto a proven straight lane between the facing borders
  * — the same machinery as node straightening, with the container rect
- * standing in as a rectangle. Returns true when the route was repaired.
+ * standing in as a rectangle. Return the eligible separated geometry.
  */
-function tryRepairContainerEdge(edge: PositionedEdge, groupMap: Map<string, PositionedGroup>, nodeMap: Map<string, PositionedNode>, ctx: LaneContext): boolean {
+function containerRepairGeometry(
+  edge: PositionedEdge,
+  groupMap: Map<string, PositionedGroup>,
+  nodeMap: Map<string, PositionedNode>,
+): { source: PositionedNode; target: PositionedNode; axis: Axis } | null {
   const rectFor = (id: string): PositionedNode | null => {
     const group = groupMap.get(id)
     if (group) return { id, label: '', shape: 'rectangle', x: group.x, y: group.y, width: group.width, height: group.height }
@@ -935,12 +959,14 @@ function tryRepairContainerEdge(edge: PositionedEdge, groupMap: Map<string, Posi
   }
   const src = rectFor(edge.source)
   const tgt = rectFor(edge.target)
-  if (!src || !tgt) return false
+  if (!src || !tgt) return null
 
   // Already a straight border-to-border lane: nothing to repair.
   const simplified = simplifyPolyline(edge.points)
-  if (simplified.length === 2 && onRectPerimeter(simplified[0]!, src.x, src.y, src.width, src.height, 1) && onRectPerimeter(simplified[1]!, tgt.x, tgt.y, tgt.width, tgt.height, 1)) {
-    return false
+  if (simplified.length === 2 &&
+    onRectPerimeter(simplified[0]!, src.x, src.y, src.width, src.height, 1) &&
+    onRectPerimeter(simplified[1]!, tgt.x, tgt.y, tgt.width, tgt.height, 1)) {
+    return null
   }
 
   // The lane axis comes from how the rects are separated, not the graph
@@ -952,9 +978,9 @@ function tryRepairContainerEdge(edge: PositionedEdge, groupMap: Map<string, Posi
     { gap: src.x - (tgt.x + tgt.width), axis: { main: 'x', cross: 'y', sign: -1 } },
   ]
   const best = gaps.filter(g => g.gap > EPS).sort((a, b) => b.gap - a.gap)[0]
-  if (!best) return false
+  if (!best) return null
 
-  return tryStraighten(edge, src, tgt, ctx, best.axis).applied
+  return { source: src, target: tgt, axis: best.axis }
 }
 
 // =====================================================================// Route audit — the remaining issue #25 Phase 1 warning codes. Each check is

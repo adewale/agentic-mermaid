@@ -2736,3 +2736,70 @@ describe('port-lane reserved-header admission', () => {
     expect(edges[1]).toEqual(old)
   })
 })
+
+describe('container crossing repair reuses proven Z lanes', () => {
+  const fixture = (labelled = false, peerX = 110) => {
+    const graph = parseMermaid(`flowchart TD\nsubgraph one\nP\nend\nsubgraph two\nQ\nend\nU --> V\none -->${labelled ? '|keep|' : ''} two`)
+    const positions: Record<string, [number, number, number, number]> = {
+      P: [130, 40, 40, 20], Q: [20, 400, 40, 20], U: [peerX, 110, 40, 40], V: [peerX, 220, 40, 20],
+    }
+    const nodes = [...graph.nodes.values()].map(node => {
+      const [x, y, width, height] = positions[node.id]!
+      return { ...node, x, y, width, height }
+    })
+    const groups: PositionedGroup[] = [
+      { id: 'one', label: 'one', x: 100, y: 0, width: 100, height: 100, headerHeight: 20, children: [], nodeIds: ['P'] },
+      { id: 'two', label: 'two', x: 0, y: 360, width: 80, height: 100, headerHeight: 20, children: [], nodeIds: ['Q'] },
+    ]
+    const edges: PositionedEdge[] = [
+      { ...graph.edges[0]!, edgeIndex: 0, points: [{ x: peerX + 20, y: 150 }, { x: peerX + 20, y: 220 }] },
+      { ...graph.edges[1]!, edgeIndex: 1, points: [{ x: 100, y: 100 }, { x: 100, y: 190 }, { x: 160, y: 190 },
+        { x: 160, y: 352 }, { x: 40, y: 352 }, { x: 40, y: 360 }], ...(labelled ? { labelPosition: { x: 160, y: 300 } } : {}) },
+    ]
+    return { graph, positioned: { width: 500, height: 500, nodes, edges, groups } }
+  }
+  it('a separated container with no common straight lane removes its crossing through a complete clear Z', () => {
+    const { graph, positioned } = fixture(), before = structuredClone(graph)
+    expect(countEdgeCrossings(positioned.edges)).toBe(1)
+    applyRouteContracts(positioned, graph, new Set(), resolveRenderStyle({}))
+    expect(countEdgeCrossings(positioned.edges)).toBe(0)
+    expect(graph).toEqual(before)
+    const edge = positioned.edges[1]!, points = edge.points
+    expect(edge.routeCertificate).toMatchObject({ invariant: 'container-attach', bendCount: 2 })
+    expect(edge.routeCertificate?.invariant === 'straight').toBe(false)
+    expect(points[0]!.y).toBe(100)
+    expect(points[1]!.y).toBeGreaterThan(points[0]!.y)
+    expect(points.at(-1)!.y).toBe(360)
+    expect(points.at(-2)!.y).toBeLessThan(points.at(-1)!.y)
+    for (let index = 1; index < points.length; index++) {
+      const a = points[index - 1]!, b = points[index]!
+      expect(a.x === b.x || a.y === b.y).toBe(true)
+      for (const box of [...positioned.nodes, ...positioned.groups.map(group => ({ ...group, height: group.headerHeight! }))]) {
+        expect(Math.max(a.x, b.x) > box.x && Math.min(a.x, b.x) < box.x + box.width
+          && Math.max(a.y, b.y) > box.y && Math.min(a.y, b.y) < box.y + box.height).toBe(false)
+      }
+    }
+  })
+  it.each(['already clear', 'labelled'] as const)('preserves existing geometry for an %s container route', kind => {
+    const { graph, positioned } = fixture(kind === 'labelled', kind === 'already clear' ? 20 : 110)
+    const saved = structuredClone(positioned.edges[1]!.points), crossings = countEdgeCrossings(positioned.edges)
+    applyRouteContracts(positioned, graph, new Set(), resolveRenderStyle({}))
+    expect(positioned.edges[1]!.points).toEqual(saved)
+    expect(countEdgeCrossings(positioned.edges)).toBe(crossings)
+    expect(positioned.edges[1]!.label).toBe(kind === 'labelled' ? 'keep' : undefined)
+  })
+  it('the existing total-node quality bound leaves a large container route unchanged', () => {
+    const { graph, positioned } = fixture()
+    // Four leaves plus two frames start at six subjects;59 extra leaves make65.
+    for (let index = 0; index < 59; index++) {
+      const node = { id: `Extra${index}`, label: `Extra${index}`, shape: 'rectangle' as const }
+      graph.nodes.set(node.id, node)
+      positioned.nodes.push({ ...node, x: 500 + index * 40, y: 100, width: 20, height: 20 })
+    }
+    positioned.width = 3500
+    const saved = structuredClone(positioned.edges[1]!.points)
+    applyRouteContracts(positioned, graph, new Set(), resolveRenderStyle({}))
+    expect(positioned.edges[1]!.points).toEqual(saved)
+    expect(countEdgeCrossings(positioned.edges)).toBe(1)
+  })
+})

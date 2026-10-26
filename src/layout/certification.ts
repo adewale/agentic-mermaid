@@ -2,7 +2,8 @@ import { assessLayout, hardViolations, type RubricMetrics } from '../layout-rubr
 import { labelRect } from '../route-contracts.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
 import type { MermaidGraph, MermaidSubgraph, PositionedGraph, PositionedGroup, Point } from '../types.ts'
-import { LayoutPassContractError } from './pass.ts'
+import { LayoutPassContractError, withinLayoutPreferenceBudget } from './pass.ts'
+export { MAX_PREFERENCE_NODES, MAX_PREFERENCE_EDGES, withinLayoutPreferenceBudget } from './pass.ts'
 import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
 import { DeferredDependencyError, LayoutCertificationError, type LayoutCertificationAttempt } from './certification-error.ts'
 import type { PixelTextBlock } from '../shared/prepared-text.ts'
@@ -13,10 +14,6 @@ import { graphTextBlock } from '../graph-text.ts'
 export { LayoutCertificationError, type LayoutCertificationAttempt } from './certification-error.ts'
 
 export const MAX_LAYOUT_CANDIDATES = 4
-// Quality exploration is deterministic and bounded independently of machine
-// speed. Larger graphs keep the existing first-certified fallback behavior.
-export const MAX_PREFERENCE_NODES = 64
-export const MAX_PREFERENCE_EDGES = 128
 
 export interface LayoutPreferenceScore {
   unreadableTitles: 0 | 1
@@ -281,18 +278,6 @@ function preferenceScore(positioned: PositionedGraph, metrics: RubricMetrics, pr
     peerBarycenterDelta: Math.round(metrics.peerBarycenterDelta * 1000) / 1000,
     area: positioned.width * positioned.height,
   }
-}
-
-export function withinLayoutPreferenceBudget(graph: MermaidGraph): boolean {
-  let nodes = graph.nodes.size
-  const count = (groups: readonly MermaidSubgraph[]): void => {
-    for (const group of groups) {
-      nodes++
-      count(group.children)
-    }
-  }
-  count(graph.subgraphs)
-  return nodes <= MAX_PREFERENCE_NODES && graph.edges.length <= MAX_PREFERENCE_EDGES
 }
 
 interface CertifiedCandidate {

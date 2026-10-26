@@ -1,3 +1,5 @@
+import type { MermaidGraph, MermaidSubgraph } from '../types.ts'
+
 // The LayoutPass abstraction — see docs/design/system/route-contracts.md §8.
 //
 // Generic over the concrete context so this module has NO dependency on the
@@ -234,4 +236,21 @@ export function assertTopologicalOrder<C extends PassContextBase>(passes: Readon
     }
     seen.add(pass.id)
   }
+}
+
+// Quality exploration is deterministic and bounded independently of machine
+// speed. Larger graphs keep the existing first-certified fallback behavior.
+export const MAX_PREFERENCE_NODES = 64
+export const MAX_PREFERENCE_EDGES = 128
+
+export function withinLayoutPreferenceBudget(graph: MermaidGraph): boolean {
+  let nodes = graph.nodes.size
+  const count = (groups: readonly MermaidSubgraph[]): void => {
+    for (const group of groups) {
+      nodes++
+      count(group.children)
+    }
+  }
+  count(graph.subgraphs)
+  return nodes <= MAX_PREFERENCE_NODES && graph.edges.length <= MAX_PREFERENCE_EDGES
 }
