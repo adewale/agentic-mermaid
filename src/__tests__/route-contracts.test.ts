@@ -15,6 +15,7 @@ import { labelRect } from '../route-contracts.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
 import { trimOccludedShapeEndpoint } from '../shape-clipping.ts'
+import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
 
 describe('outward exact endpoint approaches', () => {
   const source = 'flowchart LR\nsubgraph S\nA\nend\nA o-- kept label --o B'
@@ -1219,6 +1220,34 @@ describe('duplicate parallel edges (fast-check counterexample, pinned)', () => {
     expect(dups.find(e => e.label)?.routeCertificate?.invariant).toBe('bundle')
     expect(auditRouteContracts(positioned, graph).filter(f => f.code === 'ROUTE_LABEL_ON_SHARED_TRUNK')).toEqual([])
     expect(assessLayout(graph, positioned).metrics.labelConflicts).toBe(0)
+    const tags = scanSvgStartTags(renderMermaidSVG(source.replace('flowchart TD', `flowchart ${direction}`), { embedFontImport: false }))
+    const owner = tags.findIndex(tag => tag.name === 'g' && decodedSvgAttributeValue(tag, 'class') === 'edge-label' && decodedSvgAttributeValue(tag, 'data-from') === from && decodedSvgAttributeValue(tag, 'data-to') === to)
+    expect(owner).toBeGreaterThanOrEqual(0)
+    const halo = tags[owner + 1]!
+    expect(decodedSvgAttributeValue(halo, 'class')).toBe('edge-label-halo')
+    const x = Number(decodedSvgAttributeValue(halo, 'x')), y = Number(decodedSvgAttributeValue(halo, 'y'))
+    const right = x + Number(decodedSvgAttributeValue(halo, 'width')), bottom = y + Number(decodedSvgAttributeValue(halo, 'height'))
+    const shaft = tags.find(tag => tag.name === 'polyline' && decodedSvgAttributeValue(tag, 'data-from') === from && decodedSvgAttributeValue(tag, 'data-to') === to && decodedSvgAttributeValue(tag, 'data-label') === undefined)!
+    const points = decodedSvgAttributeValue(shaft, 'points')!.split(' ').map(point => point.split(',').map(Number))
+    for (let i = 1; i < points.length; i++) {
+      const [ax, ay] = points[i - 1]!, [bx, by] = points[i]!
+      const covered = ax === bx
+        ? ax! > x && ax! < right && Math.max(ay!, by!) > y && Math.min(ay!, by!) < bottom
+        : ay! > y && ay! < bottom && Math.max(ax!, bx!) > x && Math.min(ax!, bx!) < right
+      expect(covered).toBe(false)
+    }
+  })
+
+  it.each(['LR', 'RL'])('a multiline mixed-pair label does not expand into a neighbouring node: %s', direction => {
+    const source = `flowchart ${direction}\nA["a"]\nB{"rendered"}\nC["c"]\nD["d"]\nE{"e"}\nA --> B\nA --> C\nB --> D\nB -->|first<br/>second<br/>third| D\nC --> E`
+    const positioned = layoutGraphSync(parseMermaid(source))
+    const tags = scanSvgStartTags(renderMermaidSVG(source, { embedFontImport: false }))
+    const halo = tags.find(tag => decodedSvgAttributeValue(tag, 'class') === 'edge-label-halo')!
+    const x = Number(decodedSvgAttributeValue(halo, 'x')), y = Number(decodedSvgAttributeValue(halo, 'y'))
+    const right = x + Number(decodedSvgAttributeValue(halo, 'width')), bottom = y + Number(decodedSvgAttributeValue(halo, 'height'))
+    const node = positioned.nodes.find(node => node.id === 'E')!
+    expect(Math.min(right, node.x + node.width) > Math.max(x, node.x) && Math.min(bottom, node.y + node.height) > Math.max(y, node.y)).toBe(false)
+    expect(countParallelRouteOverlaps(positioned.edges)).toBe(0)
   })
 
   // When a duplicate pair feeds a hub that is cross-axis OFFSET from the source

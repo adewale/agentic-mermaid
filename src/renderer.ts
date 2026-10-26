@@ -19,7 +19,7 @@ import { serializeMarkerResources } from './scene/marker-resources.ts'
 import { flowchartMarkerResources, markerIdPrefix, markerSuffix, graphEdgePathProjection } from './graph-connectors.ts'
 export { compactSvg, namespaceSvgIds } from './svg-postprocess.ts'
 import { paintsNodeFill, shapeOutline } from './shape-outline.ts'
-import { LABEL_PILL_PADDING } from './shared/edge-label-geometry.ts'
+import { LABEL_PILL_PADDING, labelHaloExtension } from './shared/edge-label-geometry.ts'
 import { calculatePathMidpoint } from './layout/geometry.ts'
 
 // ============================================================================
@@ -490,8 +490,7 @@ function renderEdgeLabel<T>(marks: DrawingFactory<T>, edge: PositionedEdge, font
   const block = edge.labelBlock ?? graphTextBlock(resolveLabelContent(edge.label!, edge.labelContent), style, 'edge')
   const label = block.text
   const padding = LABEL_PILL_PADDING
-  const strokeWidth = edge.style === 'thick' ? style.lineWidth * 2 : style.lineWidth
-  const haloPadding = padding + Math.max(4, strokeWidth * 2)
+  const haloPadding = padding + labelHaloExtension(edge, style.lineWidth)
 
   // Measure text (works for both single and multi-line)
   const metrics = block
