@@ -7,6 +7,7 @@ import { type DisplayTextInput, prepareDisplayText, resolveLabelContent } from '
 import { type PixelTextBlock, preparePixelText } from '../shared/prepared-text.ts'
 import { classInterfaceMarker } from './interface-occurrences.ts'
 import { assertClassMarkerMeaning, type ClassMarkerAdmissionWork, createClassMarkerAdmissionWork } from './marker-admission.ts'
+import { classElkMarkerMinimums } from './marker-port-capacity.ts'
 import { classMarkerHeaderInsets, classOwnedSurfaceViolations, repairClassHeaderRoutes, repairClassNoteSeats } from './owned-surfaces.ts'
 import { memberToString } from './text.ts'
 
@@ -398,7 +399,7 @@ function extractClassLayout(result: ClassPlacement, diagram: ClassDiagram, class
         height: child.height ?? size.height,
         headerHeight: size.headerHeight,
         attrHeight: size.attrHeight,
-        methodHeight: size.methodHeight,
+        methodHeight: size.methodHeight + Math.max(0, (child.height ?? size.height) - size.height),
         ...(cls.className ? { className: cls.className } : {}),
         ...(cls.href ? { href: cls.href } : {}),
         ...(cls.tooltip !== undefined ? { tooltip: cls.tooltip } : {}),
@@ -673,14 +674,26 @@ export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions
       // Wrapped namespace headers retain the existing bounded ELK sizing loop.
       let result: PositionedClassDiagram | undefined
       let headerInsets: ReadonlyMap<string, number> = new Map()
+      let elkSizes = classSizes
       for (let pass = 0; pass < 3; pass++) {
-        const { elkGraph, namespacePaths } = buildClassElkGraph(diagram, options, classSizes, styleFace, titles, headerInsets)
-        result = extractClassLayout(projectClassElkPlacement(elkLayoutSync(elkGraph), namespacePaths), diagram, classSizes, style, hierarchicalNamespaces, titles)
+        const { elkGraph, namespacePaths } = buildClassElkGraph(diagram, options, elkSizes, styleFace, titles, headerInsets)
+        result = extractClassLayout(projectClassElkPlacement(elkLayoutSync(elkGraph), namespacePaths), diagram, elkSizes, style, hierarchicalNamespaces, titles)
         const wrapped = wrappedNamespaceTitles(result.namespaces, style)
         const nextInsets = classMarkerHeaderInsets(result, style, headerInsets)
-        if (wrapped.size === titles.size && [...wrapped].every(([path, title]) => titles.get(path) === title) && nextInsets.size === headerInsets.size && [...nextInsets].every(([id, inset]) => headerInsets.get(id) === inset)) break
+        const minimums = markerAdmission ? classElkMarkerMinimums(result, style, markerAdmission.work) : new Map()
+        let nextSizes = elkSizes
+        for (const [id, minimum] of minimums) {
+          const size = elkSizes.get(id)!
+          const width = Math.max(size.width, minimum.width),
+            height = Math.max(size.height, minimum.height)
+          if (width === size.width && height === size.height) continue
+          if (nextSizes === elkSizes) nextSizes = new Map(elkSizes)
+          nextSizes.set(id, { ...size, width, height, methodHeight: size.methodHeight + height - size.height })
+        }
+        if (nextSizes === elkSizes && wrapped.size === titles.size && [...wrapped].every(([path, title]) => titles.get(path) === title) && nextInsets.size === headerInsets.size && [...nextInsets].every(([id, inset]) => headerInsets.get(id) === inset)) break
         titles = wrapped
         headerInsets = nextInsets
+        elkSizes = nextSizes
       }
       return finishClassLayout(result!, diagram, style, markerAdmission)
     },

@@ -75,7 +75,8 @@ export type ClassMarkerPiece = { kind: 'polygon'; points: { x: number; y: number
 /** Canonical Class resources contain only convex polygons, two-segment open
  * arrows and circles. Retain their actual fill/stroke pieces, including joins
  * and marker viewport clipping, instead of treating an AABB corner as paint. */
-export function classMarkerPieces(marker: MarkerDescriptor, anchor: { x: number; y: number }, tangent: { x: number; y: number }, position: 'start' | 'end', strokeWidth: number): ClassMarkerPiece[] {
+export function classMarkerPieces(marker: MarkerDescriptor, anchor: { x: number; y: number }, tangent: { x: number; y: number }, position: 'start' | 'end', strokeWidth: number, charge?: () => void): ClassMarkerPiece[] {
+  charge?.()
   const geometry = marker.geometry
   if (!geometry) return []
   const factor = position === 'start' && marker.orient === 'auto-start-reverse' ? -1 : 1,
@@ -88,6 +89,7 @@ export function classMarkerPieces(marker: MarkerDescriptor, anchor: { x: number;
   if (!Number.isFinite(scale)) throw new TypeError('Nonfinite Class marker scale')
   if (scale <= 0) return []
   const world = (p: { x: number; y: number }) => {
+    charge?.()
     const x = (p.x - (marker.ref?.x ?? 0)) * scale,
       y = (p.y - (marker.ref?.y ?? 0)) * scale
     return { x: anchor.x + cosine * x - sine * y, y: anchor.y + sine * x + cosine * y }
@@ -102,14 +104,19 @@ export function classMarkerPieces(marker: MarkerDescriptor, anchor: { x: number;
   if (geometry.kind !== 'polygon' && geometry.kind !== 'polyline') throw new TypeError('Unmeasured Class marker geometry')
   const points = geometry.points,
     local: { x: number; y: number }[][] = []
-  if (filled && geometry.kind === 'polygon') local.push([...points])
+  if (filled && geometry.kind === 'polygon') {
+    for (let i = 0; i < points.length; i++) charge?.()
+    local.push([...points])
+  }
   const count = geometry.kind === 'polygon' ? points.length : points.length - 1
   const vector = (a: { x: number; y: number }, b: { x: number; y: number }) => {
+    charge?.()
     const n = Math.hypot(b.x - a.x, b.y - a.y)
     return { x: (b.x - a.x) / n, y: (b.y - a.y) / n }
   }
   if (radius > 0) {
     for (let i = 0; i < count; i++) {
+      charge?.()
       const a = points[i]!,
         b = points[(i + 1) % points.length]!,
         d = vector(a, b),
@@ -122,6 +129,7 @@ export function classMarkerPieces(marker: MarkerDescriptor, anchor: { x: number;
       ])
     }
     for (let i = geometry.kind === 'polygon' ? 0 : 1; i < (geometry.kind === 'polygon' ? points.length : points.length - 1); i++) {
+      charge?.()
       const p = points[i]!,
         a = points[(i - 1 + points.length) % points.length]!,
         b = points[(i + 1) % points.length]!,
@@ -140,6 +148,7 @@ export function classMarkerPieces(marker: MarkerDescriptor, anchor: { x: number;
   const clip = (polygon: { x: number; y: number }[], axis: 'x' | 'y', boundary: number, low: boolean) => {
     const result: { x: number; y: number }[] = []
     for (let i = 0; i < polygon.length; i++) {
+      charge?.()
       const a = polygon[i]!,
         b = polygon[(i + 1) % polygon.length]!,
         inside = (p: { x: number; y: number }) => (low ? p[axis] >= boundary : p[axis] <= boundary),
@@ -154,19 +163,23 @@ export function classMarkerPieces(marker: MarkerDescriptor, anchor: { x: number;
     return result
   }
   return local.flatMap(piece => {
+    charge?.()
     if (marker.overflow === 'hidden' && view) {
       for (const [axis, boundary, low] of [
         ['x', view.x, true],
         ['x', view.x + view.width, false],
         ['y', view.y, true],
         ['y', view.y + view.height, false],
-      ] as const)
+      ] as const) {
+        charge?.()
         piece = clip(piece, axis, boundary, low)
+      }
     }
     const origin = piece[0]
     let area = 0
     if (origin)
       for (let i = 0; i < piece.length; i++) {
+        charge?.()
         const a = piece[i]!,
           b = piece[(i + 1) % piece.length]!
         area += (a.x - origin.x) * (b.y - origin.y) - (a.y - origin.y) * (b.x - origin.x)

@@ -20,6 +20,16 @@ export function createClassMarkerAdmissionWork(): ClassMarkerAdmissionWork {
   return { operations: 0, pairs: 0, exhausted: false }
 }
 
+/** Shared by reservation and final proof; a backend retry never restores work. */
+export function chargeClassMarkerAdmissionWork(ledger: ClassMarkerAdmissionWork): boolean {
+  if (ledger.exhausted || ledger.operations >= MAX_OCCLUSION_OPERATIONS) {
+    ledger.exhausted = true
+    return false
+  }
+  ledger.operations++
+  return true
+}
+
 interface MarkerInk {
   readonly owner: string
   readonly bounds: AxisAlignedBox
@@ -34,14 +44,7 @@ export function assertClassMarkerMeaning(diagram: PositionedClassDiagram, style:
   // The shared sufficient proof currently admits cardinal sharp carriers.
   // Do not substitute an ideal polyline for actual rounded marker tangents.
   if (style.edgeBendRadius > 0 || ledger.exhausted) return
-  const work = (): boolean => {
-    if (ledger.operations >= MAX_OCCLUSION_OPERATIONS) {
-      ledger.exhausted = true
-      return false
-    }
-    ledger.operations++
-    return true
-  }
+  const work = (): boolean => chargeClassMarkerAdmissionWork(ledger)
   const width = formatSvgNumericAttribute('stroke-width', String(style.lineWidth)),
     resources = classMarkerResources(style),
     markers: MarkerInk[] = []

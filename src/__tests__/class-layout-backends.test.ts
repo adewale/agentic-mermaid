@@ -1013,11 +1013,68 @@ describe('Class marker meaning before producer selection', () => {
       expect(proofCalls).toHaveLength(2)
       expect(proofCalls[0]!.ledger).toBe(proofCalls[1]!.ledger)
       expect(proofCalls[0]!.after).toBeGreaterThan(proofCalls[0]!.before)
-      expect(proofCalls[1]!.before).toBe(proofCalls[0]!.after)
+      // ELK's measured face reservation also debits this request ledger before its final ink proof.
+      expect(proofCalls[1]!.before).toBeGreaterThan(proofCalls[0]!.after)
       expect(proofCalls[1]!.after).toBeGreaterThan(proofCalls[1]!.before)
     } finally {
       proof.mockRestore()
       producer.restore()
     }
+  })
+})
+
+import { classElkMarkerMinimums } from '../class/marker-port-capacity.ts'
+import type { PositionedClassDiagram, PositionedClassRelationship } from '../class/types.ts'
+
+describe('ELK Class measured marker face capacity', () => {
+  const card = (id: string, x: number, y: number, height: number) => ({ id, label: id, attributes: [], methods: [], x, y, width: 120, height, headerHeight: 32.9, attrHeight: 8, methodHeight: height - 40.9 })
+  const relation = (y: number, marked: boolean): PositionedClassRelationship => ({
+    from: 'ns:Domain',
+    to: 'T',
+    type: marked ? 'aggregation' : 'link-solid',
+    markerAt: marked ? 'from' : 'none',
+    lineStyle: 'solid',
+    points: [
+      { x: 220, y },
+      { x: 500, y },
+    ],
+  })
+  const placed = (height: number, relationships: PositionedClassRelationship[]): PositionedClassDiagram => ({ width: 800, height: 600, namespaces: [], notes: [], classes: [card('ns:Domain', 100, 100, height), card('T', 500, 0, 400)], relationships })
+  test('reserves real authored-card ink and all self-loop endpoint incidences without mutating the placement', () => {
+    const p = placed(48.9, [relation(110, true), relation(120, true), relation(130, false), relation(135, false)]),
+      style = resolveRenderStyle({}, CLASS_STYLE_DEFAULTS),
+      before = structuredClone(p),
+      work = classMarkerAdmission.createClassMarkerAdmissionWork(),
+      first = classElkMarkerMinimums(p, style, work)
+    expect(first.get('ns:Domain')!.height).toBeGreaterThan(p.classes[0]!.height)
+    expect(first.has('T')).toBe(false)
+    expect(p).toEqual(before)
+    p.relationships.push({
+      from: 'ns:Domain',
+      to: 'ns:Domain',
+      type: 'link-solid',
+      markerAt: 'none',
+      lineStyle: 'solid',
+      points: [
+        { x: 220, y: 140 },
+        { x: 260, y: 140 },
+        { x: 260, y: 145 },
+        { x: 220, y: 145 },
+      ],
+    })
+    const second = classElkMarkerMinimums(p, style, work)
+    expect(second.get('ns:Domain')!.height).toBeGreaterThan(first.get('ns:Domain')!.height)
+    expect(work.operations).toBeGreaterThan(0)
+    expect(work.exhausted).toBe(false)
+  })
+  test('retains a clear nonuniform mixed-marker face instead of imposing a common pitch', () => {
+    const p = placed(60, [relation(110, true), relation(122, true), ...Array.from({ length: 8 }, (_, index) => relation(136 + 2 * index, false))]),
+      before = structuredClone(p),
+      work = classMarkerAdmission.createClassMarkerAdmissionWork()
+    // Both diamond outlines fit within six pixels of their actual anchors;
+    // the remaining half-pixel stems have disjoint, deliberately denser seats.
+    expect(classElkMarkerMinimums(p, resolveRenderStyle({}, CLASS_STYLE_DEFAULTS), work).size).toBe(0)
+    expect(p).toEqual(before)
+    expect(work.exhausted).toBe(false)
   })
 })

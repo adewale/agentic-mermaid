@@ -36,6 +36,8 @@ function compareSvgSum(value: number, a: number, b: number): number {
   return delta < 0n ? -1 : delta > 0n ? 1 : 0
 }
 
+export { compareSvgSum as compareClassSvgSum }
+
 const emittedBox = (b: ClassSurfaceBox): ClassSurfaceBox => {
   if (b.width < 0 || b.height < 0 || !Number.isFinite(b.x + b.width) || !Number.isFinite(b.y + b.height)) throw new LayoutCertificationError([{ strategy: 'class-owned-surfaces', violations: ['Invalid retained Class surface'] }])
   return { x: emitted(b.x), y: emitted(b.y), width: emitted(b.width), height: emitted(b.height) }
