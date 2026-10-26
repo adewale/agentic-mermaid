@@ -221,7 +221,7 @@ console.log(JSON.stringify(entries.map(entry => Object.hasOwn(entry, 'TUFTE_STYL
   test('ships public API documentation without benchmark reports or benchmark tooling', () => {
     expect(haveConsumer).toBe(true)
     expect(existsSync(join(packageDir, 'docs/api.md'))).toBe(true)
-    for (const path of ['docs/community-benchmark-ranking.md', 'eval/benchmark', 'bench-report']) {
+    for (const path of ['docs/community-benchmark-ranking.md', 'eval/benchmark', 'eval/trident', 'bench-report']) {
       expect({ path, shipped: existsSync(join(packageDir, path)) }).toEqual({ path, shipped: false })
     }
   })

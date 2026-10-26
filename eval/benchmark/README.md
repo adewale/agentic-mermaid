@@ -1,3 +1,7 @@
+> Active benchmark commands now use the pinned external Trident integration in
+> [eval/trident](../trident/README.md). This directory is a retained legacy copy;
+> it is not required by the active launcher or Trident source workspace.
+
 # Local Mermaid benchmarks
 
 This directory owns the performance runners, community adapters, result
