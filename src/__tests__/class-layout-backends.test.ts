@@ -758,7 +758,7 @@ test('rounded header detour cannot cut through a foreign card and uses the oppos
   const style = resolveRenderStyle({ styleFace: { edge: { bendRadius: 25 } } }, CLASS_STYLE_DEFAULTS)
   repairClassHeaderRoutes(diagram, style)
   const route = diagram.relationships[0].points,
-    projection = projectRoundedConnectorPath(route, 25, { metric: 'manhattan', precision: 3 })
+    projection = projectRoundedConnectorPath(route, 25, { metric: 'manhattan' })
   const d = (projection.geometry as any).d
   let start: any
   for (const m of d.matchAll(/([MLQ])([^MLQ]+)/g)) {

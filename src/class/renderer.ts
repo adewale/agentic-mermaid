@@ -599,7 +599,6 @@ function renderRelationship<T>(marks: DrawingFactory<T>, rel: PositionedClassRel
   if (style.edgeBendRadius > 0 && rel.points.length > 2) {
     const projection = projectRoundedConnectorPath(rel.points, style.edgeBendRadius, {
       metric: 'manhattan',
-      precision: 3,
     })
     return marks.connector({
       id: sceneId,
@@ -654,7 +653,6 @@ function renderRelationshipMarkerOverlay<T>(marks: DrawingFactory<T>, rel: Posit
   if (style.edgeBendRadius > 0 && rel.points.length > 2) {
     const projection = projectRoundedConnectorPath(rel.points, style.edgeBendRadius, {
       metric: 'manhattan',
-      precision: 3,
     })
     return marks.connector({ ...fields, geometry: projection.geometry, route: { contours: projection.contours } })
   }

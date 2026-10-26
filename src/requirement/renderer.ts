@@ -68,7 +68,7 @@ export function lowerRequirementDrawing<T>(marks: DrawingFactory<T>, ctx: Render
     parts.push(marks.group({ id: `node:${node.id}`, role: 'node', open: `<g class="${escapeAttr(classes.join(' '))}" data-id="${escapeAttr(node.id)}">`, close: '</g>', children }))
   }
   for (const edge of p.edges) {
-    const projection = p.style.edgeBendRadius > 0 && edge.points.length > 2 ? projectRoundedConnectorPath(edge.points, p.style.edgeBendRadius, { precision: 3 }) : undefined
+    const projection = p.style.edgeBendRadius > 0 && edge.points.length > 2 ? projectRoundedConnectorPath(edge.points, p.style.edgeBendRadius) : undefined
     parts.push(
       marks.connector({
         id: edge.id,

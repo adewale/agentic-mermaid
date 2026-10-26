@@ -112,7 +112,7 @@ export function lowerBlockDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContex
   for (const edge of p.edges) {
     const start = markerSet[`${edge.arrowTypeStart}:start`],
       end = markerSet[`${edge.arrowTypeEnd}:end`],
-      projection = p.style.edgeBendRadius > 0 && edge.points.length > 2 ? projectRoundedConnectorPath(edge.points, p.style.edgeBendRadius, { precision: 3 }) : undefined
+      projection = p.style.edgeBendRadius > 0 && edge.points.length > 2 ? projectRoundedConnectorPath(edge.points, p.style.edgeBendRadius) : undefined
     parts.push(
       marks.connector({
         id: edge.id,

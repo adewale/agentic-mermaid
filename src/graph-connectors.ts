@@ -122,7 +122,7 @@ function pointsToCurveProjection(points: Point[]): ConnectorPathProjection {
 /** The same typed path drives marker tangents during placement and lowering. */
 export function graphEdgePathProjection(edge: PositionedEdge, style: { edgeBendRadius?: number }): ConnectorPathProjection | undefined {
   return edge.curve ? pointsToCurveProjection(edge.points)
-    : (style.edgeBendRadius ?? 0) > 0 ? projectRoundedConnectorPath(edge.points, style.edgeBendRadius!, { precision: 3 }) : undefined
+    : (style.edgeBendRadius ?? 0) > 0 ? projectRoundedConnectorPath(edge.points, style.edgeBendRadius!) : undefined
 }
 
 /** Reserve painted endpoint resources before opaque labels are moved. These

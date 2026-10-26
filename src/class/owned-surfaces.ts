@@ -208,7 +208,7 @@ export function classNewRoundedCornersClear(route: readonly Point[], original: r
       p = route[i]!,
       b = route[i + 1]!
     if (original.some((q, j) => j > 0 && j + 1 < original.length && q.x === p.x && q.y === p.y && original[j - 1]!.x === a.x && original[j - 1]!.y === a.y && original[j + 1]!.x === b.x && original[j + 1]!.y === b.y)) continue
-    const projection = projectRoundedConnectorPath([a, p, b], style.edgeBendRadius, { metric: 'manhattan', precision: 3 })
+    const projection = projectRoundedConnectorPath([a, p, b], style.edgeBendRadius, { metric: 'manhattan' })
     if (projection.geometry.kind !== 'path') return false
     const match = /L([^LQ]+)Q([^LQ]+)/.exec(projection.geometry.d)
     if (!match) continue
