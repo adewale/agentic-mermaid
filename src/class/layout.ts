@@ -1,4 +1,3 @@
-import { buildClassEndpointMarkerTemplates } from './marker-measurement.ts'
 import { resolveDiagramColors } from '../color-resolver.ts'
 import { connectorMarkerPaintRegions } from '../scene/bounds.ts'
 import { connector } from '../scene/marks.ts'
@@ -6,10 +5,13 @@ import { configSpacing } from '../shared/config-spacing.ts'
 import { assertClassDiagramWork } from '../shared/diagram-limits.ts'
 import { type DisplayTextInput, prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
 import { type PixelTextBlock, preparePixelText } from '../shared/prepared-text.ts'
+import { repairClassAnnotationSeats } from './annotation-seats.ts'
 import { classInterfaceMarker } from './interface-occurrences.ts'
 import { assertClassMarkerMeaning, type ClassMarkerAdmissionWork, createClassMarkerAdmissionWork } from './marker-admission.ts'
+import { buildClassEndpointMarkerTemplates } from './marker-measurement.ts'
 import { classElkMarkerMinimums } from './marker-port-capacity.ts'
 import { classMarkerHeaderInsets, classOwnedSurfaceViolations, repairClassHeaderRoutes, repairClassNoteSeats } from './owned-surfaces.ts'
+import { classEndpointTextCandidates } from './relationship-paint.ts'
 import { memberToString } from './text.ts'
 
 export { memberToString } from './text.ts'
@@ -539,29 +541,13 @@ function placeClassCardinalityLabels(relationships: PositionedClassRelationship[
         return preferred
       }
     }
-    const dx = toward.x - endpoint.x
-    const dy = toward.y - endpoint.y
-    const horizontal = Math.abs(dx) >= Math.abs(dy)
-    const ux = horizontal ? Math.sign(dx || 1) : 0
-    const uy = horizontal ? 0 : Math.sign(dy || 1)
-    const px = -uy
-    const py = ux
-    const perpendicular: number[] = []
-    for (let distance = 10; distance <= 190; distance += 12) perpendicular.push(-distance, distance)
     const candidates: Array<{ point: Point; box: CardinalityBox }> = []
-    for (let along = 14; along <= 150; along += 10) {
-      for (const offset of perpendicular) {
-        const point = {
-          x: endpoint.x + ux * along + px * offset,
-          y: endpoint.y + uy * along + py * offset,
-        }
-        const box = { x0: point.x - halfW, y0: point.y - halfH, x1: point.x + halfW, y1: point.y + halfH }
-        candidates.push({ point, box })
-        if (box.x0 < 0 || box.y0 < 0 || box.x1 > width || box.y1 > height) continue
-        if (accepted(box)) {
-          obstacles.push(box)
-          return point
-        }
+    for (const point of classEndpointTextCandidates(endpoint, toward)) {
+      const box = { x0: point.x - halfW, y0: point.y - halfH, x1: point.x + halfW, y1: point.y + halfH }
+      candidates.push({ point, box })
+      if (accepted(box)) {
+        obstacles.push(box)
+        return point
       }
     }
     // Extremely small canvases may have no perfect slot. Choose the stable
@@ -598,7 +584,8 @@ export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions
   // outside the native note envelope, so they cannot prove final non-restoration.
   const canonicalMarkers = paintBackendId === undefined || paintBackendId === 'backend:default' || ((paintBackendId === 'backend:rough' || paintBackendId === 'backend:hybrid') && diagram.notes.length === 0)
   // Resolve once, before either callback, from the canonical request options.
-  const markerAdmission = canonicalMarkers && diagram.relationships.some(rel => rel.markerAt !== 'none') ? { colors: resolveDiagramColors(options, options.mermaidConfig ?? {}), work: createClassMarkerAdmissionWork() } : undefined
+  const inkWork = diagram.relationships.some(rel => rel.markerAt !== 'none') ? createClassMarkerAdmissionWork() : undefined
+  const markerAdmission = canonicalMarkers && inkWork ? { colors: resolveDiagramColors(options, options.mermaidConfig ?? {}), work: inkWork } : undefined
   if (diagram.classes.length === 0 && !diagram.namespaces.length && !diagram.notes.length) {
     const empty = (): PositionedClassDiagram => withClassTitle({ width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, classes: [], relationships: [], notes: [], namespaces: [] }, diagram.title, style)
     return runMeasuredGraphBackend(options, empty, empty)
@@ -639,8 +626,8 @@ export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions
       })
       const placed = measureRenderStage('agentic', () =>
         layoutAgenticGraph({
-          nodes: diagram.classes.map((cls,index) => ({ id: cls.id, width: classSizes.get(cls.id)!.width, height: classSizes.get(cls.id)!.height, paintStrokeWidth: markerNodeStrokes[index], ...(membership.has(cls.id) ? { parent: membership.get(cls.id)! } : {}) })),
-          groups: groups.map(group => ({...group,paintStrokeWidth:style.groupLineWidth})),
+          nodes: diagram.classes.map((cls, index) => ({ id: cls.id, width: classSizes.get(cls.id)!.width, height: classSizes.get(cls.id)!.height, paintStrokeWidth: markerNodeStrokes[index], ...(membership.has(cls.id) ? { parent: membership.get(cls.id)! } : {}) })),
+          groups: groups.map(group => ({ ...group, paintStrokeWidth: style.groupLineWidth })),
           edges: diagram.relationships.map((rel, index) => {
             const source = indices.get(rel.from),
               target = indices.get(rel.to)
@@ -651,7 +638,9 @@ export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions
           padding: CLS.padding,
           nodeSpacing: options.nodeSpacing ?? CLS.nodeSpacing,
           layerSpacing: options.layerSpacing ?? CLS.layerSpacing,
-          edgeSpacing: Math.max(6, style.lineWidth + 4), maximumEdgeStrokeWidth: style.lineWidth, maximumEdgeBendRadius: style.edgeBendRadius,
+          edgeSpacing: Math.max(6, style.lineWidth + 4),
+          maximumEdgeStrokeWidth: style.lineWidth,
+          maximumEdgeBendRadius: style.edgeBendRadius,
         }),
       )
       if (placed.nodes.length !== diagram.classes.length || (placed.groups?.length ?? 0) !== namespaces.length || placed.edges.length !== diagram.relationships.length) {
@@ -675,7 +664,7 @@ export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions
           ]),
         ),
       }
-      return finishClassLayout(extractClassLayout(geometry, diagram, classSizes, style, hierarchicalNamespaces), diagram, style, markerAdmission)
+      return finishClassLayout(extractClassLayout(geometry, diagram, classSizes, style, hierarchicalNamespaces), diagram, style, markerAdmission, inkWork)
     },
     () => {
       // Wrapped namespace headers retain the existing bounded ELK sizing loop.
@@ -702,13 +691,13 @@ export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions
         headerInsets = nextInsets
         elkSizes = nextSizes
       }
-      return finishClassLayout(result!, diagram, style, markerAdmission)
+      return finishClassLayout(result!, diagram, style, markerAdmission, inkWork)
     },
     true,
   )
 }
 
-function finishClassLayout(positioned: PositionedClassDiagram, diagram: ClassDiagram, style: ResolvedRenderStyle, markerAdmission?: { colors: ReturnType<typeof resolveDiagramColors>; work: ClassMarkerAdmissionWork }): PositionedClassDiagram {
+function finishClassLayout(positioned: PositionedClassDiagram, diagram: ClassDiagram, style: ResolvedRenderStyle, markerAdmission?: { colors: ReturnType<typeof resolveDiagramColors>; work: ClassMarkerAdmissionWork }, inkWork?: ClassMarkerAdmissionWork): PositionedClassDiagram {
   for (const cls of positioned!.classes) {
     cls.labelBlock = classTextBlock(resolveLabelContent(cls.label, cls.labelContent), style, 'node')
     cls.attributeBlocks = cls.attributes.map(classMemberBlock)
@@ -743,17 +732,22 @@ function finishClassLayout(positioned: PositionedClassDiagram, diagram: ClassDia
       }
     }
   }
-  finalizeClassOwnedSurfaces(result, style)
+  finalizeClassOwnedSurfaces(result, style, inkWork)
   if (markerAdmission) assertClassMarkerMeaning(result, style, markerAdmission.colors, markerAdmission.work)
   return result
 }
 
 /** Shared final geometric admission for both Class producers. */
-export function finalizeClassOwnedSurfaces(result: PositionedClassDiagram, style: ResolvedRenderStyle): void {
+export function finalizeClassOwnedSurfaces(result: PositionedClassDiagram, style: ResolvedRenderStyle, inkWork?: ClassMarkerAdmissionWork): void {
   repairClassHeaderRoutes(result, style)
   const extra = [...result.namespaces.map(ns => ({ x0: ns.x, y0: ns.y, x1: ns.x + ns.width, y1: ns.y + ns.headerHeight })), ...result.notes.map(n => ({ x0: n.x, y0: n.y, x1: n.x + n.width, y1: n.y + n.height }))]
-  placeClassCardinalityLabels(result.relationships, result.classes, style, result.width, result.height, extra, true)
-  repairClassNoteSeats(result, style, CLS.padding)
+  if (result.relationships.some(rel => rel.markerAt !== 'none')) {
+    repairClassNoteSeats(result, style, CLS.padding)
+    repairClassAnnotationSeats(result, style, inkWork ?? createClassMarkerAdmissionWork())
+  } else {
+    placeClassCardinalityLabels(result.relationships, result.classes, style, result.width, result.height, extra, true)
+    repairClassNoteSeats(result, style, CLS.padding)
+  }
   const violations = classOwnedSurfaceViolations(result, style)
   if (violations.length) throw new LayoutCertificationError([{ strategy: 'class-owned-surfaces', violations }])
 }

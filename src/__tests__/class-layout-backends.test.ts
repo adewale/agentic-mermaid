@@ -5,7 +5,7 @@ import { releaseBenchCases } from '../../eval/shared/release-bench-cases.ts'
 import { layoutMermaidWithReceipt, parseRegisteredMermaid } from '../agent/core.ts'
 import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
 import { renderMermaidASCII } from '../ascii/index.ts'
-import { CLASS_STYLE_DEFAULTS, layoutClassDiagram } from '../class/layout.ts'
+import { CLASS_STYLE_DEFAULTS, classTextBlock, finalizeClassOwnedSurfaces, layoutClassDiagram } from '../class/layout.ts'
 import { parseClassDiagram } from '../class/parser.ts'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
@@ -526,7 +526,7 @@ note "free note 37"
 import { classCarrierEntersMarker, classMarkerEntersBox, classNewMiterEntersMarker, classSegmentEntersBox, repairClassHeaderRoutes, repairClassNoteSeats } from '../class/owned-surfaces.ts'
 import { classMarkerPieces } from '../class/relationship-paint.ts'
 import * as elk from '../elk-instance.ts'
-import { resolveRenderStyle } from '../styles.ts'
+import { diagramTitleBand, resolveRenderStyle } from '../styles.ts'
 
 describe('complete Class owned surfaces', () => {
   const inside = (a: any, b: any, r: any) => (a.x === b.x ? a.x > r.x && a.x < r.x + r.width && Math.max(a.y, b.y) > r.y && Math.min(a.y, b.y) < r.y + r.height : a.y === b.y ? a.y > r.y && a.y < r.y + r.height && Math.max(a.x, b.x) > r.x && Math.min(a.x, b.x) < r.x + r.width : false)
@@ -1097,4 +1097,152 @@ test('strict Native completes dense compound relationships with distinct visible
  expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({selected:'agentic',role:'primary'})])
  expect(rendered.svg).toContain('owned note 33')
  expect(rendered.svg).toContain('free note 33')
+})
+
+
+describe('Class annotations preserve endpoint marker ink', () => {
+  test.each(['from', 'to', 'caption', 'fallback caption'] as const)('seats %s text away from actual marker outlines and retains clear seats', role => {
+    const card = (id: string, y: number) => ({ id, label: id, attributes: [], methods: [], x: 200, y, width: 120, height: 60, headerHeight: 40, attrHeight: 10, methodHeight: 10 })
+    const reversed = role === 'to',
+      caption = role === 'caption' || role === 'fallback caption'
+    const points = (x: number) =>
+      reversed
+        ? [
+            { x, y: 500 },
+            { x, y: 260 },
+          ]
+        : [
+            { x, y: 260 },
+            { x, y: 500 },
+          ]
+    const text = role === 'fallback caption' ? { label: '0..1' } : role === 'caption' ? { label: '0..1', labelPosition: { x: 250, y: 278 } } : role === 'to' ? { toCardinality: '0..1', toCardinalityPosition: { x: 250, y: 270 } } : { fromCardinality: '0..1', fromCardinalityPosition: { x: 250, y: 270 } }
+    const p: PositionedClassDiagram = {
+      width: 600,
+      height: 650,
+      namespaces: [],
+      notes: [],
+      classes: [card('S', 200), card('T', 500)],
+      relationships: [
+        { from: reversed ? 'T' : 'S', to: reversed ? 'S' : 'T', type: 'inheritance', markerAt: reversed ? 'to' : 'from', points: points(240) },
+        {
+          from: reversed ? 'T' : 'S',
+          to: reversed ? 'S' : 'T',
+          type: 'link-solid',
+          markerAt: 'none',
+          points:
+            role === 'fallback caption'
+              ? [
+                  { x: 260, y: 260 },
+                  { x: 260, y: 278 },
+                  { x: 250, y: 278 },
+                  { x: 250, y: 500 },
+                ]
+              : points(260),
+          ...text,
+        },
+        {
+          from: 'S',
+          to: 'T',
+          type: 'link-solid',
+          markerAt: 'none',
+          points: [
+            { x: 280, y: 260 },
+            { x: 280, y: 500 },
+          ],
+          fromCardinality: '1',
+          fromCardinalityPosition: { x: 300, y: 330 },
+        },
+      ],
+    }
+    const style = resolveRenderStyle({}, CLASS_STYLE_DEFAULTS),
+      relation = p.relationships[1]!,
+      block = classTextBlock('0..1', style, 'edge'),
+      before = structuredClone(p),
+      halfWidth = block.width / 2 + 1.5,
+      halfHeight = block.height / 2 + 1.5
+    // Literal inheritance edge: tip(240,260), base(235,272),(245,272).
+    // Its right-edge midpoint is actual painted ink, not an AABB corner.
+    const witness = { x: 242.5, y: 266 }
+    expect(Math.abs(witness.x - 250)).toBeLessThan(halfWidth)
+    expect(Math.abs(witness.y - 270)).toBeLessThan(halfHeight)
+    finalizeClassOwnedSurfaces(p, style)
+    const anchor = caption ? (relation.labelPosition ?? relation.points[Math.floor(relation.points.length / 2)]!) : role === 'to' ? relation.toCardinalityPosition! : relation.fromCardinalityPosition!
+    const center = { x: anchor.x, y: anchor.y - (caption ? 8 : 0) }
+    // Independently test the WHOLE measured row/halo against the literal
+    // triangle's three stroked edges by their segment bounding rectangles.
+    for (const [a, b] of [
+      [
+        { x: 240, y: 260 },
+        { x: 235, y: 272 },
+      ],
+      [
+        { x: 235, y: 272 },
+        { x: 245, y: 272 },
+      ],
+      [
+        { x: 245, y: 272 },
+        { x: 240, y: 260 },
+      ],
+    ]) {
+      const overlaps = center.x - halfWidth < Math.max(a!.x, b!.x) + 0.75 && center.x + halfWidth > Math.min(a!.x, b!.x) - 0.75 && center.y - halfHeight < Math.max(a!.y, b!.y) + 0.75 && center.y + halfHeight > Math.min(a!.y, b!.y) - 0.75
+      expect(overlaps, 'annotation halo covers actual inheritance outline').toBe(false)
+    }
+    expect(p.relationships.map(r => r.points)).toEqual(before.relationships.map(r => r.points))
+    expect(p.classes).toEqual(before.classes)
+    expect(p.relationships[2]!.fromCardinalityPosition).toEqual({ x: 300, y: 330 })
+    expect(p.relationships.map(r => [r.from, r.to, r.label, r.fromCardinality, r.toCardinality])).toEqual(before.relationships.map(r => [r.from, r.to, r.label, r.fromCardinality, r.toCardinality]))
+  })
+})
+
+test('Class annotation repair reserves the prepared title before choosing a north-side replacement', () => {
+  const p: PositionedClassDiagram = {
+    width: 700,
+    height: 650,
+    namespaces: [],
+    notes: [],
+    title: { text: 'Title', x: 270, y: 16, block: diagramTitleBand('Title', resolveRenderStyle({}, CLASS_STYLE_DEFAULTS))!.block },
+    classes: ['S', 'T'].map((id, i) => ({ id, label: id, x: 200, y: i ? 500 : 40, width: 120, height: 60, headerHeight: 40, attrHeight: 10, methodHeight: 10, attributes: [], methods: [] })),
+    relationships: [
+      {
+        from: 'S',
+        to: 'T',
+        type: 'inheritance',
+        markerAt: 'from',
+        points: [
+          { x: 240, y: 40 },
+          { x: 240, y: 0 },
+          { x: 500, y: 0 },
+          { x: 500, y: 480 },
+          { x: 240, y: 480 },
+          { x: 240, y: 500 },
+        ],
+      },
+      {
+        from: 'S',
+        to: 'T',
+        type: 'link-solid',
+        markerAt: 'none',
+        fromCardinality: '0..1',
+        fromCardinalityPosition: { x: 250, y: 30 },
+        points: [
+          { x: 260, y: 40 },
+          { x: 260, y: 0 },
+          { x: 520, y: 0 },
+          { x: 520, y: 470 },
+          { x: 260, y: 470 },
+          { x: 260, y: 500 },
+        ],
+      },
+    ],
+  }
+  const before = structuredClone(p),
+    style = resolveRenderStyle({}, CLASS_STYLE_DEFAULTS)
+  finalizeClassOwnedSurfaces(p, style)
+  const point = p.relationships[1]!.fromCardinalityPosition!,
+    block = classTextBlock('0..1', style, 'edge'),
+    title = p.title!,
+    titleBlock = title.block!
+  expect(Math.abs(point.x - title.x) >= block.width / 2 + 1.5 + titleBlock.width / 2 || Math.abs(point.y - title.y) >= block.height / 2 + 1.5 + titleBlock.height / 2).toBe(true)
+  expect(p.title).toEqual(before.title)
+  expect(p.relationships.map(r => r.points)).toEqual(before.relationships.map(r => r.points))
 })

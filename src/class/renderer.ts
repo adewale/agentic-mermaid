@@ -17,7 +17,7 @@ import { buildShadowDefs, buildStyleBlock, type DiagramColors, svgOpenTag } from
 import type { RenderContext } from '../types.ts'
 import { CLASS_STYLE_DEFAULTS, CLS, classAnnotationBlock, classMemberBlock, classTextBlock } from './layout.ts'
 import { classRelationshipLineStyle } from './parser.ts'
-import { classMarkerResources, getMarkerDefId, RELATION_LABEL_HALO_WIDTH } from './relationship-paint.ts'
+import { classCaptionAnchor, classCardinalityAnchor, classMarkerResources, getMarkerDefId, RELATION_LABEL_HALO_WIDTH, RELATION_LABEL_OFFSET_Y } from './relationship-paint.ts'
 import { decodeClassText, memberToString } from './text.ts'
 import type { ClassMember, PositionedClassDiagram, PositionedClassNamespace, PositionedClassNode, PositionedClassNote, PositionedClassRelationship } from './types.ts'
 
@@ -678,7 +678,7 @@ function renderRelationshipLabels<T>(marks: DrawingFactory<T>, rel: PositionedCl
 
   // Label — prefer layout-computed position (collision-aware), fall back to midpoint
   if (rel.label) {
-    const pos = rel.labelPosition ?? midpoint(rel.points)
+    const pos = classCaptionAnchor(rel)!
     const labelBlock = rel.labelBlock ?? classTextBlock(resolveLabelContent(rel.label, rel.labelContent), style, 'edge')
     const label = labelBlock.text
     out.push(
@@ -688,7 +688,7 @@ function renderRelationshipLabels<T>(marks: DrawingFactory<T>, rel: PositionedCl
         text: label,
         block: labelBlock,
         x: pos.x,
-        y: pos.y - 8,
+        y: pos.y - RELATION_LABEL_OFFSET_Y,
         fontSize: style.edgeLabelFontSize,
         anchor: 'middle',
         paint,
@@ -698,10 +698,7 @@ function renderRelationshipLabels<T>(marks: DrawingFactory<T>, rel: PositionedCl
 
   // From cardinality (near start)
   if (rel.fromCardinality) {
-    const p = rel.points[0]!
-    const next = rel.points[1]!
-    const offset = cardinalityOffset(p, next)
-    const position = rel.fromCardinalityPosition ?? { x: p.x + offset.x, y: p.y + offset.y }
+    const position = classCardinalityAnchor(rel, 'from')!
     const block = rel.fromCardinalityBlock ?? preparePixelText(resolveLabelContent(rel.fromCardinality, rel.fromCardinalityContent), { fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing })
     out.push(
       marks.text({
@@ -720,10 +717,7 @@ function renderRelationshipLabels<T>(marks: DrawingFactory<T>, rel: PositionedCl
 
   // To cardinality (near end)
   if (rel.toCardinality) {
-    const p = rel.points[rel.points.length - 1]!
-    const prev = rel.points[rel.points.length - 2]!
-    const offset = cardinalityOffset(p, prev)
-    const position = rel.toCardinalityPosition ?? { x: p.x + offset.x, y: p.y + offset.y }
+    const position = classCardinalityAnchor(rel, 'to')!
     const block = rel.toCardinalityBlock ?? preparePixelText(resolveLabelContent(rel.toCardinality, rel.toCardinalityContent), { fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing })
     out.push(
       marks.text({
@@ -744,26 +738,6 @@ function renderRelationshipLabels<T>(marks: DrawingFactory<T>, rel: PositionedCl
 }
 
 /** Halo behind relationship labels and cardinalities. */
-
-/** Get the midpoint of a point array */
-function midpoint(points: Array<{ x: number; y: number }>): { x: number; y: number } {
-  if (points.length === 0) return { x: 0, y: 0 }
-  const mid = Math.floor(points.length / 2)
-  return points[mid]!
-}
-
-/** Calculate offset for cardinality label perpendicular to edge direction */
-function cardinalityOffset(from: { x: number; y: number }, to: { x: number; y: number }): { x: number; y: number } {
-  const dx = to.x - from.x
-  const dy = to.y - from.y
-  // Place label perpendicular to the edge, 14px away
-  if (Math.abs(dx) > Math.abs(dy)) {
-    // Mostly horizontal — offset vertically
-    return { x: dx > 0 ? 14 : -14, y: -10 }
-  }
-  // Mostly vertical — offset horizontally
-  return { x: -14, y: dy > 0 ? 14 : -14 }
-}
 
 // ============================================================================
 // Utilities

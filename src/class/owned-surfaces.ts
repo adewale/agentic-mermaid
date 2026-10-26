@@ -6,7 +6,7 @@ import { connector } from '../scene/marks.ts'
 import { formatSvgNumber } from '../shared/svg-number.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
 import type { Point } from '../types.ts'
-import { type ClassMarkerPiece, classMarkerPieces, classMarkerResources, getMarkerDefId, RELATION_LABEL_HALO_WIDTH } from './relationship-paint.ts'
+import { type ClassMarkerPiece, classCaptionAnchor, classCardinalityAnchor, classMarkerPieces, classMarkerResources, getMarkerDefId, RELATION_LABEL_HALO_WIDTH, RELATION_LABEL_OFFSET_Y } from './relationship-paint.ts'
 import type { PositionedClassDiagram, PositionedClassNote } from './types.ts'
 export interface ClassSurfaceBox {
   x: number
@@ -101,29 +101,39 @@ function roundedHit(a: Point, b: Point, r: ClassSurfaceBox, radius: number): boo
   for (const x of [r.x + rx, r.x + r.width - rx]) for (const y of [r.y + ry, r.y + r.height - ry]) if (ellipseHit(a, b, x, y, rx, ry)) return true
   return false
 }
-function convexOverlap(left: readonly Point[], right: readonly Point[]): boolean {
+function convexOverlap(left: readonly Point[], right: readonly Point[], charge?: () => void): boolean {
   if (left.length < 3 || right.length < 3) return false
   const origin = left[0]!,
-    a = left.map(p => ({ x: p.x - origin.x, y: p.y - origin.y })),
-    b = right.map(p => ({ x: p.x - origin.x, y: p.y - origin.y })),
+    a = left.map(p => {
+      charge?.()
+      return { x: p.x - origin.x, y: p.y - origin.y }
+    }),
+    b = right.map(p => {
+      charge?.()
+      return { x: p.x - origin.x, y: p.y - origin.y }
+    }),
     axes: Point[] = []
   for (const points of [a, b])
     for (let i = 0; i < points.length; i++) {
+      charge?.()
       const p = points[i]!,
         q = points[(i + 1) % points.length]!
       if (p.x !== q.x || p.y !== q.y) axes.push({ x: p.y - q.y, y: q.x - p.x })
     }
   for (const n of axes) {
+    charge?.()
     let lo = Infinity,
       hi = -Infinity,
       L = Infinity,
       H = -Infinity
     for (const p of a) {
+      charge?.()
       const v = p.x * n.x + p.y * n.y
       lo = Math.min(lo, v)
       hi = Math.max(hi, v)
     }
     for (const p of b) {
+      charge?.()
       const v = p.x * n.x + p.y * n.y
       L = Math.min(L, v)
       H = Math.max(H, v)
@@ -132,14 +142,18 @@ function convexOverlap(left: readonly Point[], right: readonly Point[]): boolean
   }
   return axes.length > 0
 }
-function polygonBox(points: readonly Point[], r: ClassSurfaceBox): boolean {
+function polygonBox(points: readonly Point[], r: ClassSurfaceBox, charge?: () => void): boolean {
   if (r.width <= 0 || r.height <= 0) return false
-  return convexOverlap(points, [
-    { x: r.x, y: r.y },
-    { x: r.x + r.width, y: r.y },
-    { x: r.x + r.width, y: r.y + r.height },
-    { x: r.x, y: r.y + r.height },
-  ])
+  return convexOverlap(
+    points,
+    [
+      { x: r.x, y: r.y },
+      { x: r.x + r.width, y: r.y },
+      { x: r.x + r.width, y: r.y + r.height },
+      { x: r.x, y: r.y + r.height },
+    ],
+    charge,
+  )
 }
 function circlePolygon(cx: number, cy: number, r: number, points: readonly Point[]): boolean {
   if (r <= 0 || points.length < 3) return false
@@ -163,9 +177,12 @@ function circlePolygon(cx: number, cy: number, r: number, points: readonly Point
   }
   return area !== 0 && inside
 }
-export function classMarkerEntersBox(pieces: readonly ClassMarkerPiece[], box: ClassSurfaceBox): boolean {
+export function classMarkerEntersBox(pieces: readonly ClassMarkerPiece[], box: ClassSurfaceBox, charge?: () => void): boolean {
   const r = emittedBox(box)
-  return pieces.some(piece => (piece.kind === 'polygon' ? polygonBox(piece.points, r) : ellipseBox(piece.cx, piece.cy, piece.r, r)))
+  return pieces.some(piece => {
+    charge?.()
+    return piece.kind === 'polygon' ? polygonBox(piece.points, r, charge) : ellipseBox(piece.cx, piece.cy, piece.r, r)
+  })
 }
 /** Exact orthogonal carrier pieces: butt strips plus each ninety-degree miter. */
 export function classCarrierEntersMarker(a: Point, b: Point, pieces: readonly ClassMarkerPiece[], width: number): boolean {
@@ -251,25 +268,32 @@ function ellipseBox(cx: number, cy: number, radius: number, r: ClassSurfaceBox):
     dy = cy - Math.max(r.y, Math.min(r.y + r.height, cy))
   return dx * dx + dy * dy < radius * radius
 }
-export function classRelationshipPaintBoxes(diagram: PositionedClassDiagram, style: ResolvedRenderStyle, includeMarkers = true): { box: ClassSurfaceBox; edge: number; kind: 'label' | 'cardinality' | 'marker'; endpoint?: 'from' | 'to'; pieces?: ClassMarkerPiece[] }[] {
+export function classRelationshipPaintBoxes(diagram: PositionedClassDiagram, style: ResolvedRenderStyle, includeMarkers = true, charge?: () => void, includeText = true): { box: ClassSurfaceBox; edge: number; kind: 'label' | 'cardinality' | 'marker'; endpoint?: 'from' | 'to'; pieces?: ClassMarkerPiece[] }[] {
   const result: { box: ClassSurfaceBox; edge: number; kind: 'label' | 'cardinality' | 'marker'; endpoint?: 'from' | 'to'; pieces?: ClassMarkerPiece[] }[] = [],
     resources = includeMarkers ? classMarkerResources(style) : [],
     halo = RELATION_LABEL_HALO_WIDTH / 2
   diagram.relationships.forEach((rel, edge) => {
-    if (rel.label && rel.labelPosition && rel.labelBlock) result.push({ edge, kind: 'label', box: { x: rel.labelPosition.x - rel.labelBlock.width / 2 - halo, y: rel.labelPosition.y - 8 - rel.labelBlock.height / 2 - halo, width: rel.labelBlock.width + 2 * halo, height: rel.labelBlock.height + 2 * halo } })
+    charge?.()
+    const caption = classCaptionAnchor(rel)
+    if (includeText && rel.label && caption && rel.labelBlock?.text) result.push({ edge, kind: 'label', box: { x: caption.x - rel.labelBlock.width / 2 - halo, y: caption.y - RELATION_LABEL_OFFSET_Y - rel.labelBlock.height / 2 - halo, width: rel.labelBlock.width + 2 * halo, height: rel.labelBlock.height + 2 * halo } })
     for (const side of ['from', 'to'] as const) {
+      charge?.()
       const block = rel[`${side}CardinalityBlock`],
-        p = rel[`${side}CardinalityPosition`]
-      if (block && p) result.push({ edge, kind: 'cardinality', box: { x: p.x - block.width / 2 - halo, y: p.y - block.height / 2 - halo, width: block.width + 2 * halo, height: block.height + 2 * halo } })
+        p = classCardinalityAnchor(rel, side)
+      if (includeText && block?.text && p) result.push({ edge, kind: 'cardinality', box: { x: p.x - block.width / 2 - halo, y: p.y - block.height / 2 - halo, width: block.width + 2 * halo, height: block.height + 2 * halo } })
     }
     if (!includeMarkers) return
     const startId = rel.markerAt === 'from' || rel.markerAt === 'both' ? getMarkerDefId(rel.fromType ?? rel.type) : null,
       endId = rel.markerAt === 'to' || rel.markerAt === 'both' ? getMarkerDefId(rel.toType ?? rel.type) : null
+    // Rounding clamps each corner to half its adjacent legs, preserving the
+    // admitted cardinal endpoint tangent. SvgWriter normalizes both path d
+    // and sharp polyline coordinates, so both poses use written endpoints.
     const first = emittedPoint(rel.points[0] ?? { x: 0, y: 0 }),
       last = emittedPoint(rel.points.at(-1) ?? first)
     let next = first,
       previous = last
     for (let i = 1; i < rel.points.length; i++) {
+      charge?.()
       const p = emittedPoint(rel.points[i]!)
       if (p.x !== first.x || p.y !== first.y) {
         next = p
@@ -277,6 +301,7 @@ export function classRelationshipPaintBoxes(diagram: PositionedClassDiagram, sty
       }
     }
     for (let i = rel.points.length - 2; i >= 0; i--) {
+      charge?.()
       const p = emittedPoint(rel.points[i]!)
       if (p.x !== last.x || p.y !== last.y) {
         previous = p
@@ -288,21 +313,39 @@ export function classRelationshipPaintBoxes(diagram: PositionedClassDiagram, sty
       role: 'relationship',
       geometry: { kind: 'polyline', points: [first, next, previous, last] },
       lineStyle: 'solid',
-      paint: { strokeWidth: String(style.lineWidth) },
+      paint: { strokeWidth: String(emitted(style.lineWidth)) },
       markers: { ...(startId ? { start: resources.find(m => m.id === startId) } : {}), ...(endId ? { end: resources.find(m => m.id === endId) } : {}) },
     })
     for (const region of connectorMarkerPaintRegions(mark)) {
+      charge?.()
       const b = region.bounds
       if (!b) throw new TypeError('Class marker paint has no finite bound')
       const start = region.position === 'start',
         descriptor = resources.find(m => m.id === region.resource)!
-      result.push({
-        edge,
-        kind: 'marker',
-        endpoint: start ? 'from' : 'to',
-        pieces: classMarkerPieces(descriptor, start ? first : last, start ? { x: next.x - first.x, y: next.y - first.y } : { x: last.x - previous.x, y: last.y - previous.y }, start ? 'start' : 'end', emitted(style.lineWidth)),
-        box: { x: b.x0, y: b.y0, width: b.x1 - b.x0, height: b.y1 - b.y0 },
-      })
+      const anchor = start ? first : last,
+        tangent = start ? { x: next.x - first.x, y: next.y - first.y } : { x: last.x - previous.x, y: last.y - previous.y }
+      const pieces = classMarkerPieces(descriptor, anchor, tangent, start ? 'start' : 'end', emitted(style.lineWidth), charge)
+      let x0 = b.x0,
+        y0 = b.y0,
+        x1 = b.x1,
+        y1 = b.y1
+      for (const piece of pieces) {
+        charge?.()
+        if (piece.kind === 'circle') {
+          x0 = Math.min(x0, piece.cx - piece.r)
+          x1 = Math.max(x1, piece.cx + piece.r)
+          y0 = Math.min(y0, piece.cy - piece.r)
+          y1 = Math.max(y1, piece.cy + piece.r)
+        } else
+          for (const p of piece.points) {
+            charge?.()
+            x0 = Math.min(x0, p.x)
+            x1 = Math.max(x1, p.x)
+            y0 = Math.min(y0, p.y)
+            y1 = Math.max(y1, p.y)
+          }
+      }
+      result.push({ edge, kind: 'marker', endpoint: start ? 'from' : 'to', pieces, box: { x: x0, y: y0, width: x1 - x0, height: y1 - y0 } })
     }
   })
   return result

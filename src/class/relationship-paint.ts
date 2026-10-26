@@ -1,7 +1,8 @@
 import type { MarkerDescriptor } from '../scene/ir.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
+import type { Point } from '../types.ts'
 import { classInterfaceMarker } from './interface-occurrences.ts'
-import type { RelationshipType } from './types.ts'
+import type { PositionedClassRelationship, RelationshipType } from './types.ts'
 export function classMarkerResources(style: ResolvedRenderStyle): readonly MarkerDescriptor[] {
   const edgeColor = style.edgeStrokeColor ?? 'var(--_arrow)'
   const triangle = [
@@ -70,5 +71,30 @@ export function getMarkerDefId(type: RelationshipType): string | null {
 }
 
 export const RELATION_LABEL_HALO_WIDTH = 3
+export const RELATION_LABEL_OFFSET_Y = 8
+/** Same stored anchors and fallback semantics consumed by Class drawing. */
+export function classCaptionAnchor(rel: PositionedClassRelationship): Point | undefined {
+  return rel.label && rel.points.length >= 2 ? (rel.labelPosition ?? rel.points[Math.floor(rel.points.length / 2)]) : undefined
+}
+export function classCardinalityAnchor(rel: PositionedClassRelationship, side: 'from' | 'to'): Point | undefined {
+  if (!rel[`${side}Cardinality`] || rel.points.length < 2) return undefined
+  const stored = rel[`${side}CardinalityPosition`]
+  if (stored) return stored
+  const p = side === 'from' ? rel.points[0]! : rel.points.at(-1)!,
+    q = side === 'from' ? rel.points[1]! : rel.points.at(-2)!,
+    dx = q.x - p.x,
+    dy = q.y - p.y
+  return Math.abs(dx) > Math.abs(dy) ? { x: p.x + (dx > 0 ? 14 : -14), y: p.y - 10 } : { x: p.x - 14, y: p.y + (dy > 0 ? 14 : -14) }
+}
+// The existing Class endpoint roster: 14 along slots × 32 perpendicular slots.
+export const CLASS_TEXT_CANDIDATE_LIMIT = (Math.floor((150 - 14) / 10) + 1) * 2 * (Math.floor((190 - 10) / 12) + 1)
+export function* classEndpointTextCandidates(endpoint: Point, toward: Point): Generator<Point> {
+  const dx = toward.x - endpoint.x,
+    dy = toward.y - endpoint.y,
+    horizontal = Math.abs(dx) >= Math.abs(dy),
+    ux = horizontal ? Math.sign(dx || 1) : 0,
+    uy = horizontal ? 0 : Math.sign(dy || 1)
+  for (let along = 14; along <= 150; along += 10) for (let distance = 10; distance <= 190; distance += 12) for (const offset of [-distance, distance]) yield { x: endpoint.x + ux * along - uy * offset, y: endpoint.y + uy * along + ux * offset }
+}
 
 export { markerPaintPieces as classMarkerPieces, type MarkerPaintPiece as ClassMarkerPiece } from '../scene/marker-paint-pieces.ts'
