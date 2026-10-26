@@ -46,8 +46,6 @@ export function invalidateRenderedArtifacts() {
   delete previewInner.dataset.sharedRequestDigest;
   delete previewInner.dataset.renderRequestDigest;
   delete previewInner.dataset.appearanceDigest;
-  if (typeof ui.lastRenderedPngArtifact !== "undefined") ui.lastRenderedPngArtifact = null;
-  if (typeof ui.lastRenderedSvgExportProjection !== "undefined") ui.lastRenderedSvgExportProjection = null;
   if (typeof updateExportAvailability === "function") updateExportAvailability();
   if (typeof refreshC4Navigation === "function") refreshC4Navigation();
   if (typeof refreshDiagramTools === "function") refreshDiagramTools();
