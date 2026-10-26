@@ -151,7 +151,7 @@ export const DefaultBackend: StyleBackend = {
 
 const OWNED_DEFAULT_RENDERERS = new WeakSet<StyleBackend['render']>([DefaultBackend.render])
 const ORIGINAL_DEFAULT_FIELDS = Object.getOwnPropertyDescriptors(DefaultBackend)
-let enrolledOriginalDefaultFields: PropertyDescriptorMap | undefined
+let enrolledOriginalDefault: StyleBackend | undefined
 
 /** Only our unchanged own-data implementation may reuse the private fixture.
  * Check identity first so custom backends and Proxies observe no new reads. */
@@ -171,12 +171,7 @@ export function isBuiltinDefaultBackend(backend: StyleBackend): boolean {
 
 /** Match the original implementation after enrollment wrapped and froze it. */
 export function isOriginalEnrolledDefaultBackend(backend: unknown): boolean {
-  if (backend !== DefaultBackend || !enrolledOriginalDefaultFields) return false
-  for (const field of ['id', 'capabilities', 'drawNode', 'render'] as const) {
-    const descriptor = Object.getOwnPropertyDescriptor(backend, field)
-    if (!descriptor || !('value' in descriptor) || descriptor.value !== enrolledOriginalDefaultFields[field]!.value) return false
-  }
-  return true
+  return enrolledOriginalDefault !== undefined && backend === enrolledOriginalDefault
 }
 
 const CORE_BACKEND_VERSION = '1.0.0'
@@ -467,8 +462,8 @@ export function registerBuiltInBackend(backend: StyleBackend): void {
     })
     BACKEND_CONFORMANCE.set(id, conformance.report)
     BACKEND_INPUT_NAMES.set(inputName, id)
-    if (originalDefault && backend === DefaultBackend && !enrolledOriginalDefaultFields) {
-      enrolledOriginalDefaultFields = Object.getOwnPropertyDescriptors(frozen)
+    if (originalDefault && !enrolledOriginalDefault && frozen === DefaultBackend && Object.isFrozen(frozen)) {
+      enrolledOriginalDefault = frozen
     }
     selectionSnapshot = undefined
   } finally {

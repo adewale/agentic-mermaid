@@ -1,24 +1,26 @@
 // Exact first-party descriptor identities. Replacement and extension hooks
 // cannot acquire private cache ownership by copying a native lowering hook.
 const owned = new WeakSet<object>()
-const hookFields = ['id', 'layout', 'projectPositioned', 'lowerScene', 'normalizeRequest', 'configDiagnostics', 'statementEnds'] as const
-const originalHooks = new WeakMap<object, readonly unknown[]>()
+const hookFields = ['layout', 'projectPositioned', 'lowerScene', 'normalizeRequest', 'configDiagnostics', 'statementEnds'] as const
+const originalFamilyIds = new WeakMap<object, string>()
 export function enrollOwnedFamily(descriptor: object): void {
   if (owned.has(descriptor)) return
   owned.add(descriptor)
-  // Only first-party installers call this, after capturing and freezing their
-  // descriptor. Never replace the original surface on repeated enrollment.
-  originalHooks.set(descriptor, hookFields.map(field => Object.getOwnPropertyDescriptor(descriptor, field)?.value))
+  // Installers supply fresh plain snapshots. Frozen own data cannot change;
+  // optional absent hooks remain compatible with their captured surface.
+  if (!Object.isFrozen(descriptor)) return
+  const id = Object.getOwnPropertyDescriptor(descriptor, 'id')
+  if (!id || !('value' in id) || typeof id.value !== 'string') return
+  for (const field of hookFields) {
+    const hook = Object.getOwnPropertyDescriptor(descriptor, field)
+    if (hook && !('value' in hook)) return
+  }
+  originalFamilyIds.set(descriptor, id.value)
 }
 export function isOwnedFamily(descriptor: object): boolean { return owned.has(descriptor) }
 
 /** Custom/replacement descriptors stop before any property or proxy read. */
 export function hasOriginalOwnedFamilyHooks(descriptor: object, familyId: string): boolean {
-  const original = originalHooks.get(descriptor)
-  if (!original || original[0] !== familyId) return false
-  return hookFields.every((field, index) => {
-    const current = Object.getOwnPropertyDescriptor(descriptor, field)
-    return current === undefined ? original[index] === undefined
-      : 'value' in current && current.value === original[index]
-  })
+  const originalId = originalFamilyIds.get(descriptor)
+  return originalId !== undefined && originalId === familyId
 }
