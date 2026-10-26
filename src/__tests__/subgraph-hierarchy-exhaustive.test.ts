@@ -2,7 +2,8 @@ import { beforeAll, describe, expect, test } from 'bun:test'
 
 import { knownStyles, renderMermaidSVG, renderMermaidSVGWithReceipt } from '../index.ts'
 import { layoutMermaidWithReceipt } from '../agent/index.ts'
-import { layoutGraphSync } from '../layout-engine.ts'
+import { LAYOUT_PIPELINE, convertToElkFormat, layoutGraphSync } from '../layout-engine.ts'
+import type { ElkNode, ElkExtendedEdge } from 'elkjs'
 import { assessLayout, hardViolations } from '../layout-rubric.ts'
 import { parseMermaid } from '../parser.ts'
 import { auditRouteContracts } from '../route-contracts.ts'
@@ -352,4 +353,263 @@ describe('group titles and hierarchy handling', () => {
       }
     }
   })
+})
+
+const HIERARCHY_PARAMETER_CLOUD = `graph TD
+  subgraph Cloud
+    subgraph us-east [US East Region]
+      A[Web Server] --> B[App Server]
+    end
+    subgraph us-west [US West Region]
+      C[Web Server] --> D[App Server]
+    end
+  end
+  E[Load Balancer] --> A
+  E --> C`
+
+function hierarchyScope(root: ElkNode, id: string): ElkNode {
+  const pending = [...(root.children ?? [])]
+  for (let index = 0; index < pending.length; index++) {
+    const node = pending[index]!
+    if (node.id === id) return node
+    pending.push(...(node.children ?? []))
+  }
+  throw new Error(`Missing scope ${id}`)
+}
+
+function observeHierarchyPorts<T>(produce: () => T) {
+  const pass = LAYOUT_PIPELINE.find(candidate => candidate.id === 'extractEdgesRecursively')!, run = pass.run
+  const snapshots: Array<{ hierarchy: string | undefined; portCount: number; incidences: Array<{ edge: string; port: string; expected: { x: number; y: number }; actual: { x: number; y: number } }> }> = []
+  let observationError: unknown
+  pass.run = context => {
+    if (context.elkResult) try {
+      const ports = new Map<string, { x: number; y: number }>()
+      const hosted: Array<{ host: ElkNode; x: number; y: number }> = []
+      const visit = (node: ElkNode, x: number, y: number) => {
+        x += node.x ?? 0; y += node.y ?? 0
+        hosted.push({ host: node, x, y })
+        for (const port of node.ports ?? []) ports.set(port.id, { x: x + (port.x ?? 0), y: y + (port.y ?? 0) })
+        for (const child of node.children ?? []) visit(child, x, y)
+      }
+      visit(context.elkResult, 0, 0)
+      const incidences: typeof snapshots[number]['incidences'] = []
+      for (const { host, x, y } of hosted) for (const candidate of host.edges ?? []) {
+        const edge = candidate as ElkExtendedEdge
+        for (const [ids, key] of [[edge.sources, 'startPoint'], [edge.targets, 'endPoint']] as const) {
+          for (const id of ids) {
+            const port = ports.get(id)
+            if (!port) continue
+            // Each retained occurrence in these two fixtures has one section.
+            if (edge.sections?.length !== 1) throw new Error(`Unexpected section topology for ${edge.id}`)
+            const point = edge.sections[0]![key]
+            incidences.push({ edge: edge.id, port: id, expected: port, actual: { x: point.x + x, y: point.y + y } })
+          }
+        }
+      }
+      snapshots.push({ hierarchy: context.elkResult.layoutOptions?.['elk.hierarchyHandling'], portCount: ports.size, incidences })
+    } catch (error) { observationError = error }
+    return run(context)
+  }
+  let value: T
+  try { value = produce() } finally { pass.run = run }
+  // Observation errors fail as test-harness errors outside canonical fallback.
+  expect(observationError, 'raw boundary observation failed').toBeUndefined()
+  return { value, snapshots }
+}
+
+function expectSharedHierarchyPorts(snapshots: ReturnType<typeof observeHierarchyPorts>['snapshots'], ports: number) {
+  const separate = snapshots.filter(snapshot => snapshot.hierarchy === 'SEPARATE')
+  expect(separate.length).toBeGreaterThan(0)
+  for (const snapshot of separate) {
+    expect(snapshot.portCount).toBe(ports)
+    expect(snapshot.incidences).toHaveLength(2 * ports)
+    for (const incidence of snapshot.incidences) {
+      expect(incidence.actual, `${incidence.edge} shares ${incidence.port}`).toEqual(incidence.expected)
+    }
+  }
+}
+
+describe('hierarchy parameter compatibility', () => {
+  test('nested-only overrides select separate layout and pass their direction to descendants', () => {
+    const graph = parseMermaid(`flowchart LR
+      subgraph Outer
+        subgraph Inner
+          direction TB
+          subgraph Leaf
+            A --> B
+          end
+        end
+      end`)
+    const elk = convertToElkFormat(graph)
+    expect(elk.layoutOptions!['elk.hierarchyHandling']).toBe('SEPARATE')
+    expect(hierarchyScope(elk, 'Outer').layoutOptions!['elk.direction']).toBe('RIGHT')
+    expect(hierarchyScope(elk, 'Inner').layoutOptions!['elk.direction']).toBe('DOWN')
+    expect(hierarchyScope(elk, 'Leaf').layoutOptions!['elk.direction']).toBe('DOWN')
+  })
+
+  test('requested separate scopes inherit direction while include input stays implicit', () => {
+    const graph = parseMermaid('flowchart TB\nsubgraph G\nA --> B\nend')
+    const included = convertToElkFormat(graph), separate = convertToElkFormat(graph, { separateHierarchy: true })
+    expect(included.layoutOptions!['elk.hierarchyHandling']).toBe('INCLUDE_CHILDREN')
+    expect(hierarchyScope(included, 'G').layoutOptions!['elk.direction']).toBeUndefined()
+    expect(separate.layoutOptions!['elk.hierarchyHandling']).toBe('SEPARATE')
+    expect(hierarchyScope(separate, 'G').layoutOptions!['elk.direction']).toBe('DOWN')
+    // No synthetic ports exist here; forcing remains the established policy.
+    expect(separate.layoutOptions!['elk.layered.crossingMinimization.forceNodeModelOrder']).toBe('true')
+  })
+
+  test.each([
+    ['flat', 'flowchart TD\nA --> B'],
+    ['aligned boundary', 'flowchart LR\nsubgraph G\nA --> B\nend\nX --> A'],
+    ['same-axis reversed child', 'flowchart LR\nsubgraph G\ndirection RL\nA --> B\nend\nX --> A'],
+  ])('%s keeps the original forced-order policy', (_name, source) => {
+    const elk = convertToElkFormat(parseMermaid(source), { separateHierarchy: true })
+    expect(elk.layoutOptions!['elk.layered.crossingMinimization.forceNodeModelOrder']).toBe('true')
+    expect(elk.layoutOptions!['elk.layered.considerModelOrder.strategy']).toBe('NODES_AND_EDGES')
+  })
+
+  test.each([['TB', 'LR'], ['BT', 'RL'], ['LR', 'TB'], ['RL', 'BT']])(
+    '%s parent permits fixed-port resolution for its %s child', (parent, child) => {
+      const elk = convertToElkFormat(parseMermaid(`flowchart ${parent}\nsubgraph G\ndirection ${child}\nA --> B\nend\nX --> A`))
+      expect(hierarchyScope(elk, 'G').ports).toHaveLength(1)
+      expect(elk.layoutOptions!['elk.layered.crossingMinimization.forceNodeModelOrder']).toBe('false')
+      expect(elk.layoutOptions!['elk.layered.considerModelOrder.strategy']).toBe('NODES_AND_EDGES')
+    },
+  )
+
+  test('nested adjacency retains one feasible sibling order with coherent fixed ports', () => {
+    const graph = parseMermaid(`flowchart LR
+      subgraph Outer
+        direction TB
+        X[First]
+        Y[Second]
+        Z[Join]
+        subgraph Inner
+          direction LR
+          A --> B
+        end
+        X --> Z
+        Y --> Z
+        Z --> A
+      end`)
+    const layoutHints = { adjacent: [['Y', 'X']], shortEdges: ['Z->A'] }
+    const elk = convertToElkFormat(graph, { layoutHints }), outer = hierarchyScope(elk, 'Outer')
+    expect(outer.children!.slice(0, 2).map(node => node.id)).toEqual(['Y', 'X'])
+    expect(outer.layoutOptions!['elk.layered.crossingMinimization.forceNodeModelOrder']).toBe('false')
+    expect(outer.layoutOptions!['elk.layered.considerModelOrder.strategy']).toBe('NODES_AND_EDGES')
+    expect(outer.edges!.find(edge => edge.id === 'e3')!.layoutOptions!['elk.layered.priority.shortness']).toBe('100')
+    expect(elk.layoutOptions!['elk.layered.crossingMinimization.forceNodeModelOrder']).toBe('true')
+
+    const { value: positioned, snapshots } = observeHierarchyPorts(() => layoutGraphSync(graph, { layoutHints }))
+    expectSharedHierarchyPorts(snapshots, 1)
+    const node = (id: string) => positioned.nodes.find(candidate => candidate.id === id)!
+    // This connected same-rank fan-in is a feasible preference witness, not an
+    // absolute adjacency guarantee for arbitrary hinted diagrams.
+    expect(node('Y').x).toBeLessThan(node('X').x)
+    expect(node('Y').y).toBeCloseTo(node('X').y, 8)
+    expect(positioned.nodes.map(candidate => candidate.id).sort()).toEqual(['A', 'B', 'X', 'Y', 'Z'])
+    expect(positioned.edges.map(edge => [edge.source, edge.target]).sort()).toEqual([['A', 'B'], ['X', 'Z'], ['Y', 'Z'], ['Z', 'A']])
+    expect(hardViolations(assessLayout(graph, positioned))).toEqual([])
+    expect(auditRouteContracts(positioned, graph)).toEqual([])
+    for (const edge of positioned.edges) for (let i = 1; i < edge.points.length; i++) {
+      const a = edge.points[i - 1]!, b = edge.points[i]!
+      for (const card of positioned.nodes) {
+        // The independently audited outward terminal ray may touch its own
+        // outline; every other segment must clear that same card as well.
+        if ((card.id === edge.source && i === 1) || (card.id === edge.target && i === edge.points.length - 1)) continue
+        const clear = Math.max(a.x, b.x) <= card.x || Math.min(a.x, b.x) >= card.x + card.width
+          || Math.max(a.y, b.y) <= card.y || Math.min(a.y, b.y) >= card.y + card.height
+        expect(clear, `${edge.source}->${edge.target} clears ${card.id}'s full body`).toBe(true)
+      }
+    }
+    const clearHeaders = (headers: typeof positioned.groups): void => {
+      for (const group of headers) {
+        expect(Number.isFinite(group.headerHeight)).toBe(true)
+        const left = group.x, right = group.x + group.width, top = group.y, bottom = group.y + group.headerHeight!
+        for (const edge of positioned.edges) for (let i = 1; i < edge.points.length; i++) {
+          const a = edge.points[i - 1]!, b = edge.points[i]!
+          const clear = Math.max(a.x, b.x) <= left || Math.min(a.x, b.x) >= right
+            || Math.max(a.y, b.y) <= top || Math.min(a.y, b.y) >= bottom
+          expect(clear, `${edge.source}->${edge.target} avoids all of ${group.id}'s header`).toBe(true)
+        }
+        clearHeaders(group.children)
+      }
+    }
+    clearHeaders(positioned.groups)
+  })
+
+  test('the actual Cloud SVG retains four arrows without an opposing shared shaft', () => {
+    const { value: { svg, receipt }, snapshots } = observeHierarchyPorts(() => renderMermaidSVGWithReceipt(HIERARCHY_PARAMETER_CLOUD, { embedFontImport: false }))
+    expectSharedHierarchyPorts(snapshots, 4)
+    expect(receipt.layoutCertification?.status).toBe('passed')
+    const carriers = scanSvgStartTags(svg).filter(tag => decodedSvgAttributeValue(tag, 'data-role') === 'edge')
+    expect(carriers).toHaveLength(4)
+    expect(carriers.map(tag => [decodedSvgAttributeValue(tag, 'data-from'), decodedSvgAttributeValue(tag, 'data-to')]).sort())
+      .toEqual([['A', 'B'], ['C', 'D'], ['E', 'A'], ['E', 'C']])
+    const paths = carriers.map(tag => {
+      expect(decodedSvgAttributeValue(tag, 'data-arrow-end')).toBe('true')
+      expect(decodedSvgAttributeValue(tag, 'marker-end')).toMatch(/^url\(#.+\)$/)
+      return decodedSvgAttributeValue(tag, 'points')!.trim().split(/\s+/).map(point => point.split(',').map(Number))
+    })
+    let opposing = 0
+    for (let i = 0; i < paths.length; i++) for (let j = i + 1; j < paths.length; j++) {
+      for (let a = 1; a < paths[i]!.length; a++) for (let b = 1; b < paths[j]!.length; b++) {
+        const p = paths[i]![a - 1]!, q = paths[i]![a]!, r = paths[j]![b - 1]!, s = paths[j]![b]!
+        const horizontal = p[1] === q[1]
+        if (horizontal !== (r[1] === s[1])) continue
+        const axis = horizontal ? 0 : 1, cross = 1 - axis
+        if (p[cross] !== r[cross]) continue
+        const overlap = Math.min(Math.max(p[axis]!, q[axis]!), Math.max(r[axis]!, s[axis]!))
+          - Math.max(Math.min(p[axis]!, q[axis]!), Math.min(r[axis]!, s[axis]!))
+        if (overlap > 0 && (q[axis]! - p[axis]!) * (s[axis]! - r[axis]!) < 0) opposing++
+      }
+    }
+    expect(opposing).toBe(0)
+  })
+
+  test('the browser rounded-fill fixture keeps its authored downward flow', () => {
+    const source = `flowchart TD
+  subgraph edge[Edge Layer]
+    web[Web App]
+  end
+  subgraph core[Core Services]
+    api[API]
+    db[(Postgres)]
+  end
+  web --> api
+  api --> db`
+    // Exact editorHash payload resolution: crisp/seed0 is reset before the
+    // status-dashboard Look and Salmon Palette, with strict SVG sink policy.
+    const { svg, receipt } = renderMermaidSVGWithReceipt(source, {
+      embedFontImport: false, security: 'strict', style: ['status-dashboard', 'salmon'],
+    })
+    expect(['passed', 'unverified']).toContain(receipt.layoutCertification?.status)
+    const tags = scanSvgStartTags(svg), root = tags.find(tag => tag.name === 'svg')!
+    const width = Number(decodedSvgAttributeValue(root, 'width')), height = Number(decodedSvgAttributeValue(root, 'height'))
+    expect(Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0).toBe(true)
+    expect(height).toBeGreaterThan(width)
+    expect(svg).toContain('A10,10')
+    expect(svg).not.toContain('rx="18" ry="18" fill="var(--_group-hdr)"')
+    expect(tags.filter(tag => tag.name === 'g' && decodedSvgAttributeValue(tag, 'class') === 'node'
+      && decodedSvgAttributeValue(tag, 'data-role') === 'node').map(tag => decodedSvgAttributeValue(tag, 'data-id')).sort())
+      .toEqual(['api', 'db', 'web'])
+    // Styled paint primitives carry their own body roles beneath the authored
+    // wrappers; retaining them must not double the authored subject count.
+    expect(tags.filter(tag => decodedSvgAttributeValue(tag, 'data-role') === 'node'
+      && decodedSvgAttributeValue(tag, 'data-id')?.startsWith('node-shape:')).map(tag => decodedSvgAttributeValue(tag, 'data-id')).sort())
+      .toEqual(['node-shape:api', 'node-shape:db', 'node-shape:web'])
+    const carriers = tags.filter(tag => decodedSvgAttributeValue(tag, 'data-role') === 'edge')
+    expect(carriers).toHaveLength(2)
+    expect(carriers.map(tag => [decodedSvgAttributeValue(tag, 'data-from'), decodedSvgAttributeValue(tag, 'data-to')]).sort())
+      .toEqual([['api', 'db'], ['web', 'api']])
+    for (const carrier of carriers) {
+      const coordinates = (decodedSvgAttributeValue(carrier, 'points') ?? decodedSvgAttributeValue(carrier, 'd'))!
+        .match(/[-+]?(?:\d*\.\d+|\d+)(?:[eE][-+]?\d+)?/g)!.map(Number)
+      expect(coordinates.length).toBeGreaterThanOrEqual(4)
+      expect(coordinates.every(Number.isFinite)).toBe(true)
+      expect(coordinates[coordinates.length - 1]!).toBeGreaterThan(coordinates[1]!)
+      expect(decodedSvgAttributeValue(carrier, 'data-arrow-end')).toBe('true')
+    }
+  })
+
 })

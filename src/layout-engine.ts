@@ -493,7 +493,7 @@ function mermaidToElk(
     nodeToSubgraphAncestors.get(id) ?? subgraphAncestors.get(id)?.slice(0, -1) ?? []
 
   // Determine if we need SEPARATE hierarchy handling
-  const hasDirectionOverride = usesSeparateHierarchy(graph, opts)
+  const separateHierarchy = usesSeparateHierarchy(graph, opts)
   const routePortHints = buildRoutePortHints(graph, subgraphIds)
   const subgraphPorts = new Map<string, HierarchyPort[]>()
   const crossEdgesByHost = new Map<string | null, ElkExtendedEdge[]>()
@@ -569,7 +569,7 @@ function mermaidToElk(
     } else if (!sourceSubgraph && !targetSubgraph) {
       // Root-level edge: neither endpoint in a subgraph
       edgesBySubgraph.get(null)!.push({ index: i, edge })
-    } else if (!hasDirectionOverride) {
+    } else if (!separateHierarchy) {
       // INCLUDE_CHILDREN can route direct descendant edges without ports, but
       // ELK reports an edge's section in the coordinate space of its lowest
       // common compound. Store such edges on that compound so recursive
@@ -629,7 +629,7 @@ function mermaidToElk(
       'elk.layered.wrapping.strategy': 'OFF',
       // Use SEPARATE when subgraphs have direction overrides (enables proper direction handling)
       // Use INCLUDE_CHILDREN otherwise (simpler cross-hierarchy edge routing)
-      'elk.hierarchyHandling': hasDirectionOverride ? 'SEPARATE' : 'INCLUDE_CHILDREN',
+      'elk.hierarchyHandling': separateHierarchy ? 'SEPARATE' : 'INCLUDE_CHILDREN',
     },
     children: [],
     edges: [],
@@ -645,7 +645,7 @@ function mermaidToElk(
   for (const id of rootOrder) {
     const sg = topLevelSubgraphs.get(id)
     if (sg) {
-      elkGraph.children!.push(subgraphToElk(sg, graph, opts, style, edgesBySubgraph, subgraphPorts, crossEdgesByHost, routePortHints, useSourceAwareChildOrder, balancingLabels, graph.direction))
+      elkGraph.children!.push(subgraphToElk(sg, graph, opts, style, edgesBySubgraph, subgraphPorts, crossEdgesByHost, routePortHints, useSourceAwareChildOrder, balancingLabels, separateHierarchy, graph.direction))
       continue
     }
     const node = graph.nodes.get(id)
@@ -685,6 +685,7 @@ function mermaidToElk(
   }
 
   applyLayoutHints(elkGraph, graph, opts.layoutHints)
+  if (separateHierarchy && subgraphPorts.size > 0) preserveHierarchyPortConstraints(elkGraph, subgraphPorts)
   return elkGraph
 }
 
@@ -944,7 +945,40 @@ function crossHierarchyElkEdge(
  * direction, or when a group's title needs a width INCLUDE_CHILDREN would not
  * give it; otherwise INCLUDE_CHILDREN. */
 function usesSeparateHierarchy(graph: MermaidGraph, opts: Pick<ElkConversionOptions, 'separateHierarchy'>): boolean {
-  return opts.separateHierarchy === true || graph.subgraphs.some(sg => sg.direction !== undefined)
+  const hasOverride = (sg: MermaidSubgraph): boolean => sg.direction !== undefined || sg.children.some(hasOverride)
+  return opts.separateHierarchy === true || graph.subgraphs.some(hasOverride)
+}
+
+/** A separate child exports fixed boundary ports before its parent is laid out.
+ * ELK's forced model-order heuristic skips the constraint resolver that keeps
+ * non-flow port dummies on their declared side. Preserve the model-order
+ * preference, but let those port constraints resolve before exporting routes. */
+function preserveHierarchyPortConstraints(root: ElkNode, syntheticPorts: ReadonlyMap<string, readonly HierarchyPort[]>): void {
+  const horizontal = (direction: string | undefined): boolean => direction === 'RIGHT' || direction === 'LEFT'
+  const visit = (scope: ElkNode): void => {
+    const scopeHorizontal = horizontal(scope.layoutOptions?.['elk.direction'])
+    let needsPortConstraints = false
+    for (const child of scope.children ?? []) {
+      if (child.children === undefined) continue
+      if (!needsPortConstraints && syntheticPorts.has(child.id)) {
+        // An unspecified side follows the child's flow before child export;
+        // a different parent axis therefore makes it a non-flow fixed port.
+        needsPortConstraints = horizontal(child.layoutOptions?.['elk.direction']) !== scopeHorizontal
+          || (child.ports ?? []).some(port => {
+            const side = port.layoutOptions?.['elk.port.side']
+            return scopeHorizontal ? side === 'NORTH' || side === 'SOUTH' : side === 'EAST' || side === 'WEST'
+          })
+      }
+      visit(child)
+    }
+    if (needsPortConstraints && scope.layoutOptions?.['elk.layered.crossingMinimization.forceNodeModelOrder'] === 'true') {
+      scope.layoutOptions['elk.layered.crossingMinimization.forceNodeModelOrder'] = 'false'
+      // Adjacency hints may enable forcing in a nested scope. Its requested
+      // child sequence remains an ELK preference while port constraints win.
+      scope.layoutOptions['elk.layered.considerModelOrder.strategy'] ??= 'NODES_AND_EDGES'
+    }
+  }
+  visit(root)
 }
 
 /** The width a titled group needs so its header title stays inside the frame.
@@ -989,6 +1023,7 @@ function subgraphToElk(
   routePortHints: RoutePortHints,
   useSourceAwareOrder: boolean,
   balancingLabels: Map<number, BalancingLabel>,
+  separateHierarchy: boolean,
   inheritedDirection: Direction = 'TB',
 ): ElkGraphNode {
   // Concurrency regions draw no header band of their own, so they reserve
@@ -1011,9 +1046,9 @@ function subgraphToElk(
     'elk.spacing.nodeNode': String(opts.nodeSpacing),
   }
 
-  // Apply direction override if specified
-  if (sg.direction) {
-    layoutOptions['elk.direction'] = directionToElk(sg.direction)
+  // SEPARATE scopes are independent ELK runs; direction is not inherited.
+  if (sg.direction || separateHierarchy) {
+    layoutOptions['elk.direction'] = directionToElk(effectiveDirection)
   }
 
   // The header title is drawn from the group's left edge, so a group narrower
@@ -1023,7 +1058,7 @@ function subgraphToElk(
   // INCLUDE_CHILDREN ignores the width and instead grows a small group by a
   // title line's height, so the constraint is set for SEPARATE layouts alone.
   const titleWidth = groupTitleWidth(sg, style)
-  if (titleWidth > 0 && usesSeparateHierarchy(graph, opts)) {
+  if (titleWidth > 0 && separateHierarchy) {
     layoutOptions['elk.nodeSize.constraints'] = 'MINIMUM_SIZE'
     layoutOptions['elk.nodeSize.minimum'] = `(${titleWidth}, 0)`
   }
@@ -1070,7 +1105,7 @@ function subgraphToElk(
 
   // Add nested subgraphs recursively
   for (const child of sg.children) {
-    elkNode.children!.push(subgraphToElk(child, graph, opts, style, edgesBySubgraph, subgraphPorts, crossEdgesByHost, routePortHints, useSourceAwareOrder, balancingLabels, effectiveDirection))
+    elkNode.children!.push(subgraphToElk(child, graph, opts, style, edgesBySubgraph, subgraphPorts, crossEdgesByHost, routePortHints, useSourceAwareOrder, balancingLabels, separateHierarchy, effectiveDirection))
   }
 
   // Add internal edges (edges where both endpoints are in this subgraph)
