@@ -2803,3 +2803,35 @@ describe('container crossing repair reuses proven Z lanes', () => {
     expect(countEdgeCrossings(positioned.edges)).toBe(1)
   })
 })
+
+it('a crossing container Z cannot borrow a bbox-gap proof for a diamond facet inside that box', () => {
+  const graph = parseMermaid('flowchart TD\nD{Diamond}\nsubgraph Target\nT\nend\nsubgraph Band\nend\nP --> Q\nD --> Target')
+  const nodes: PositionedNode[] = [
+    { id: 'D', label: 'Diamond', shape: 'diamond', x: 100, y: 0, width: 100, height: 100 },
+    { id: 'T', label: 'T', shape: 'rectangle', x: 45, y: 160, width: 20, height: 20 },
+    { id: 'P', label: 'P', shape: 'rectangle', x: 190, y: 190, width: 15, height: 20 },
+    { id: 'Q', label: 'Q', shape: 'rectangle', x: 215, y: 190, width: 10, height: 20 },
+  ]
+  const groups: PositionedGroup[] = [
+    { id: 'Target', label: 'Target', x: 40, y: 120, width: 40, height: 100, headerHeight: 20, children: [], nodeIds: ['T'] },
+    { id: 'Band', label: 'Band', x: 100, y: 103, width: 100, height: 10, headerHeight: 10, children: [], nodeIds: [] },
+  ]
+  const points = [{ x: 175, y: 75 }, { x: 210, y: 75 }, { x: 210, y: 300 }, { x: 20, y: 300 },
+    { x: 20, y: 100 }, { x: 60, y: 100 }, { x: 60, y: 120 }]
+  const edges: PositionedEdge[] = [
+    { ...graph.edges[0]!, edgeIndex: 0, points: [{ x: 205, y: 200 }, { x: 215, y: 200 }] },
+    { ...graph.edges[1]!, edgeIndex: 1, points },
+  ]
+  const saved = structuredClone(points)
+  expect(countEdgeCrossings(edges)).toBe(1)
+  applyRouteContracts({ nodes, groups, edges }, graph, new Set(), resolveRenderStyle({}))
+  // Independent exact diamond interior: |x-150| + |y-50| <50.
+  for (let index = 1; index < edges[1]!.points.length; index++) {
+    const a = edges[1]!.points[index - 1]!, b = edges[1]!.points[index]!, vertical = a.x === b.x
+    const fixed = vertical ? a.x : a.y, center = vertical ? 150 : 50
+    const radius = 50 - Math.abs(fixed - center), movingCenter = vertical ? 50 : 150
+    expect(radius > 0 && Math.max(Math.min(vertical ? a.y : a.x, vertical ? b.y : b.x), movingCenter - radius)
+      < Math.min(Math.max(vertical ? a.y : a.x, vertical ? b.y : b.x), movingCenter + radius)).toBe(false)
+  }
+  expect(edges[1]!.points).toEqual(saved)
+})

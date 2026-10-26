@@ -355,6 +355,12 @@ export function applyRouteContracts(
         if (Math.abs(c1 - c2) < CLEARANCE) continue // that would be a hitch, not a Z
         const srcMain = anchorMain(source, c1, axis, 1)
         if (srcMain === null) continue
+        // The optional container tier proves its jog lies outside both endpoint
+        // bodies via their separated boxes. A slanted facet inside either box
+        // cannot borrow that proof, even when its first/last ray is outward.
+        if (forcedLanes?.requireFewerCrossings
+          && (srcMain !== (axis.sign === 1 ? srcMainHi : srcMainLo)
+            || tgtMain !== (axis.sign === 1 ? tgtMainLo : tgtMainHi))) continue
         if ((tgtMain - srcMain) * axis.sign <= EPS) continue
         const jogs = forcedLanes?.preferSourceJog
           ? [srcMain + axis.sign * 12, (srcMain + tgtMain) / 2, tgtMain - axis.sign * 12]
