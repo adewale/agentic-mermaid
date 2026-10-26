@@ -1,6 +1,6 @@
 import type { PortableCase } from './cohorts.ts'
 
-export const PORTABLE_MEASUREMENT_PROTOCOL = 'portable-svg-processes-v2'
+export const PORTABLE_MEASUREMENT_PROTOCOL = 'portable-svg-processes-v3'
 export type Replica = 'A0' | 'A1' | 'B'
 export type Track = 'first-use' | 'warm-repeat' | 'warm-new-source' | 'warm-label-edit'
 export interface PortableArtifact {
@@ -13,7 +13,7 @@ export interface PortableArtifact {
 export interface PortableJob {
   artifact: PortableArtifact
   testCase: PortableCase
-  mode: 'warm' | 'cold' | 'memory' | 'baseline' | 'retention'
+  mode: 'probe' | 'warm' | 'cold' | 'memory' | 'baseline' | 'retention'
   samples: number
   round: number
   replica: Replica
@@ -33,14 +33,15 @@ export interface MemorySnapshot {
   arrayBuffers: number
 }
 export interface PortableWorkerResult {
-  protocol: typeof PORTABLE_MEASUREMENT_PROTOCOL | 'portable-svg-processes-v1'
+  protocol: typeof PORTABLE_MEASUREMENT_PROTOCOL | 'portable-svg-processes-v2' | 'portable-svg-processes-v1'
   caseId: string
   family: string
   mode: PortableJob['mode']
   round: number
   replica: Replica
   sample: number
-  status: 'passed' | 'failed' | 'blocked' | 'partial'
+  /** A probe reports passed when the renderer accepts its family's canonical source, otherwise unsupported. */
+  status: 'passed' | 'failed' | 'blocked' | 'partial' | 'unsupported'
   importMs: number
   tracks: Partial<Record<Track, number[]>>
   outputBytes: number

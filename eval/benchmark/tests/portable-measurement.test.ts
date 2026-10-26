@@ -9,6 +9,8 @@ import { modelCost, processCpuCost } from '../portable/costs.ts'
 import { resetPortableCancellation, runFirstUseBatch, runSerialJob, terminatePortableWorkers } from '../portable/execution.ts'
 import { portableDirectory } from '../portable/artifacts.ts'
 import { parsePortableOptions } from '../portable/run.ts'
+import { readProjectBenchmarkRecord } from '../portable/project-records.ts'
+import { pathToFileURL } from 'node:url'
 import type { PortableJob, PortableWorkerResult } from '../portable/protocol.ts'
 
 const directories: string[] = []
@@ -218,3 +220,30 @@ test('unserializable jobs are rejected before any serial or batch worker can be 
   expect(() => resetPortableCancellation()).not.toThrow()
   expect(readdirSync(f.directory).sort()).toEqual(['index.mjs', 'package.json'])
 })
+
+test('a family whose canonical source the renderer rejects is unsupported and none of its cases run', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'portable-family-support-'))
+  directories.push(directory)
+  const tool = join(directory, 'tool'), calls = join(directory, 'calls.txt')
+  mkdirSync(tool)
+  writeFileSync(join(tool, 'package.json'), '{"name":"family-support-fixture","version":"1.0.0","type":"module"}')
+  writeFileSync(join(tool, 'index.mjs'), `import{appendFileSync}from'node:fs';export function render(source){appendFileSync(${JSON.stringify(calls)},source.split('\\n')[0]+'\\n');if(!source.startsWith('flowchart'))throw Error('Invalid mermaid header');return{svg:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 40"><text>Alpha Beta Gamma</text></svg>'}}`)
+  // The compiled kit measures without Git; the source runner requires committed protocol files.
+  const kit = join(directory, 'kit')
+  execFileSync(process.execPath, [join(portableDirectory, 'build.ts'), '--out', kit], { stdio: 'ignore' })
+  const { runPortable } = await import(pathToFileURL(join(kit, 'run.mjs')).href)
+  const options = parsePortableOptions(['--project', 'fixture/family-support', '--artifact-root', tool, '--entry', 'index.mjs', '--cohort', 'family', '--rounds', '1', '--samples', '1', '--cold-samples', '1', '--min-sample-ms', '0', '--preparation-concurrency', '1', '--out', join(directory, 'out'), '--records', join(directory, 'records'), '--allow-partial'])
+  const report = await runPortable({ ...options, observer: undefined })
+  if (!('summary' in report)) throw Error('Expected a measured report')
+  const families: string[] = report.summary.familyTimings.map((row: { family: string }) => row.family)
+  expect(report.summary.counts.unsupportedFamilies).toEqual(families.filter((family: string) => family !== 'flowchart'))
+  expect(report.summary.status).not.toBe('failed')
+  // Each rejected family's source reached the renderer once, as its probe; no measured case ran.
+  const rejectedCalls = readFileSync(calls, 'utf8').split('\n').filter(line => line && !line.startsWith('flowchart'))
+  expect(rejectedCalls).toHaveLength(families.length - 1)
+  const record = readProjectBenchmarkRecord(join(report.evidenceDirectory, 'result.json.gz'))
+  const pie = record.observations.filter(row => row.family === 'pie')
+  expect(pie.map(row => [row.operation, row.status])).toEqual([['family-support', 'unsupported'], ['render', 'unsupported']])
+  expect(pie[1]!.detail).toContain('Invalid mermaid header')
+  expect(record.observations.filter(row => row.family === 'flowchart' && row.operation === 'family-support').map(row => row.status)).toEqual(['passed'])
+}, 60_000)

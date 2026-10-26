@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync, openSync, closeSync, unlinkSync } from 'node:fs'
 import { join, resolve, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { portableCases, PORTABLE_COHORT_PROTOCOL, type PortableCohort } from './cohorts.ts'
+import { FAMILY_SUPPORT_PROTOCOL, familySupportProbe, portableCases, PORTABLE_COHORT_PROTOCOL, type PortableCase, type PortableCohort } from './cohorts.ts'
 import { environmentIdentity } from './environment.ts'
 import { artifactIdentity, byteDigest, harnessIdentity, portableDirectory, readJson, resolveArtifact } from './artifacts.ts'
 import { activateProjectRecord, findProjectRecord, inspectCurrentProjectRecords, publishProjectRecord, writeProjectBenchmarkRecord, stableValue, type ProjectBenchmarkIdentity, type ProjectBenchmarkRecord } from './project-records.ts'
@@ -108,14 +108,21 @@ function listFiles(directory: string, root = directory): string[] {
     .flatMap(entry => (entry.isDirectory() ? listFiles(join(directory, entry.name), root) : entry.isFile() ? [relative(root, join(directory, entry.name))] : []))
     .sort()
 }
-function observations(project: string, results: PortableWorkerResult[]): BenchmarkObservation[] {
-  return results.flatMap<BenchmarkObservation>(result => {
+function observations(project: string, cases: PortableCase[], results: PortableWorkerResult[]): BenchmarkObservation[] {
+  const rejected = new Map(results.filter(result => result.mode === 'probe' && result.status === 'unsupported').map(result => [result.family, result]))
+  // Cases of a rejected family were never run; each keeps one unsupported row naming the probe.
+  const unrun = cases.flatMap<BenchmarkObservation>(testCase => {
+    const probe = rejected.get(testCase.family)
+    return probe ? [{ suite: 'portable-community', surface: 'node:public-svg', runtime: `node:${probe.runtime.node}`, family: testCase.family, caseId: testCase.id, format: 'svg', operation: 'render', mode: 'family-unsupported', status: 'unsupported', detail: `Not run: the renderer rejected ${probe.caseId}: ${probe.error}`, metrics: { implementation: project } }] : []
+  })
+  return [...results.flatMap<BenchmarkObservation>(result => {
     const status = result.status === 'partial' ? ('blocked' as const) : result.status
     const metrics = { implementation: project, round: result.round, replica: result.replica, sample: result.sample, accepted: result.qualification?.accepted ?? null, semanticComplete: result.qualification?.semanticComplete ?? false }
     const base = { suite: 'portable-community', surface: 'node:public-svg', runtime: `node:${result.runtime.node}`, family: result.family, caseId: result.caseId, format: 'svg', status, detail: result.qualification?.scope ?? result.error }
+    if (result.mode === 'probe') return [{ ...base, operation: 'family-support', mode: 'probe', detail: result.error, metrics: { ...metrics, metricId: `probe:${result.family}` } }]
     if (result.mode === 'baseline' || result.mode === 'memory' || result.mode === 'retention') return [{ ...base, operation: 'resource-diagnostic', mode: result.mode, metrics: { ...metrics, metricId: `${result.mode}:${result.round}:${result.replica}:${result.sample}` } }]
     return Object.entries(result.tracks).map(([track, samples]) => ({ ...base, operation: 'render', mode: `${result.replica}:${track}`, samplesMs: samples, metrics: { ...metrics, metricId: `${track}:${result.round}:${result.replica}:${result.sample}` } }))
-  })
+  }), ...unrun]
 }
 export async function runPortable(options: PortableOptions) {
   assertPortableLocal()
@@ -142,7 +149,7 @@ export async function runPortable(options: PortableOptions) {
   const identity: ProjectBenchmarkIdentity = jsonValue({
     project: options.project,
     lane: 'portable-svg',
-    protocol: { measurement: PORTABLE_MEASUREMENT_PROTOCOL, cohort: PORTABLE_COHORT_PROTOCOL, harness: harnessIdentity(), cases: testCases },
+    protocol: { measurement: PORTABLE_MEASUREMENT_PROTOCOL, cohort: PORTABLE_COHORT_PROTOCOL, harness: harnessIdentity(), cases: testCases, familySupport: { protocol: FAMILY_SUPPORT_PROTOCOL, probes: [...new Set(testCases.map(testCase => testCase.family))].flatMap(family => familySupportProbe(family) ?? []) } },
     artifact: artifactIdentity(artifact),
     measurement: { sampling: Object.fromEntries(Object.entries(sampling).filter(([key]) => key !== 'maximumControlSpread')), environment: environmentIdentity(options.node), observer: observerIdentity(options.observer) },
   })
@@ -186,7 +193,7 @@ export async function runPortable(options: PortableOptions) {
       }
       await measurePortableProject(artifact, testCases, options, directory, retain)
       assertIdentityStable()
-      const actualObservations = observations(options.project, results)
+      const actualObservations = observations(options.project, testCases, results)
       const finishedAt = now()
       record = {
         schemaVersion: 1,

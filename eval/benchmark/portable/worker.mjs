@@ -11,7 +11,7 @@ const job = transport === '--ipc' ? await new Promise(resolve => process.once('m
 const started = process.hrtime.bigint()
 const clock = () => Number(process.hrtime.bigint()) / 1e6
 const runtime = { executable: process.execPath, node: process.versions.node, platform: process.platform, arch: process.arch }
-const result = { protocol: 'portable-svg-processes-v2', caseId: job.testCase.id, family: job.testCase.family, mode: job.mode, round: job.round, replica: job.replica, sample: job.sample, status: 'blocked', importMs: 0, tracks: {}, iterations: {}, outputBytes: 0, qualification: null, prelude: [], runtime }
+const result = { protocol: 'portable-svg-processes-v3', caseId: job.testCase.id, family: job.testCase.family, mode: job.mode, round: job.round, replica: job.replica, sample: job.sample, status: 'blocked', importMs: 0, tracks: {}, iterations: {}, outputBytes: 0, qualification: null, prelude: [], runtime }
 const errorText = error => error instanceof Error ? String(error.stack ?? error) : String(error)
 const thenable = value => value && typeof value.then === 'function'
 function collect() { if (global.gc) { global.gc(); global.gc() } }
@@ -66,7 +66,13 @@ try {
     result.prelude.push({ source: prelude.source, expectedAccepted: prelude.accept, actualAccepted, passed: prelude.accept === actualAccepted })
   }
   let retained
-  if (job.mode === 'baseline') {
+  if (job.mode === 'probe') {
+    // Family support only: one untimed call, accepted or rejected; checks belong to measured cases.
+    const probe = await invoke(testCase.source, testCase.renderOptions)
+    result.status = probe.error ? 'unsupported' : 'passed'
+    result.outputBytes = probe.bytes
+    if (probe.error) result.error = probe.error
+  } else if (job.mode === 'baseline') {
     collect()
     const before = process.memoryUsage()
     collect()

@@ -6,7 +6,10 @@ import { modelCost, processCpuCost, type UsageEvidence } from './costs.ts'
 export function portableSummary(cases: PortableCase[], results: PortableWorkerResult[], settings: { rounds: number; samples: number; coldSamples: number; maximumControlSpread: number; cpuHourUsd?: number; usage?: UsageEvidence }) {
   if (new Set(results.map(result => result.protocol)).size > 1) throw Error('Cannot combine different portable measurement protocols')
   const tracks: Track[] = ['first-use', 'warm-repeat', 'warm-new-source', 'warm-label-edit']
-  const rows = cases.flatMap(testCase =>
+  // Families whose canonical source the renderer rejected; their cases were never run.
+  const unsupported = new Map(results.filter(result => result.mode === 'probe' && result.status === 'unsupported').map(result => [result.family, result.error ?? 'Renderer rejected the canonical family source']))
+  const measured = cases.filter(testCase => !unsupported.has(testCase.family))
+  const rows = measured.flatMap(testCase =>
     tracks
       .filter(track => track !== 'warm-label-edit' || testCase.edit)
       .map(track => {
@@ -54,6 +57,7 @@ export function portableSummary(cases: PortableCase[], results: PortableWorkerRe
       family: testCase.family,
       cohort: testCase.cohort,
       expectedAccepted: testCase.expected.accept,
+      unsupported: unsupported.get(testCase.family) ?? null,
       checkedWorkers: calls.length,
       acceptanceMatches: timingComplete && calls.length > 0 && calls.every(result => result.qualification?.accepted === testCase.expected.accept),
       failedWorkers: failed.length,
@@ -93,10 +97,10 @@ export function portableSummary(cases: PortableCase[], results: PortableWorkerRe
   const representativeFamilies = [...new Set(cases.filter(testCase => testCase.cohort === 'family').map(testCase => testCase.family))]
   const familyTimings = representativeFamilies.map(family => {
     const row = rows.find(row => row.family === family && row.cohort === 'family' && row.track === 'warm-repeat')
-    return { family, medianMs: row?.medianMs ?? null, calibrated: row?.calibration.status === 'calibrated', semanticComplete: row?.semanticComplete ?? false }
+    return { family, supported: !unsupported.has(family), medianMs: row?.medianMs ?? null, calibrated: row?.calibration.status === 'calibrated', semanticComplete: row?.semanticComplete ?? false }
   })
   return {
-    status: results.some(result => result.status === 'failed') ? 'failed' : results.some(result => result.status === 'blocked') ? 'blocked' : rows.some(row => row.calibration.status !== 'calibrated') ? 'uncalibrated' : 'measured',
+    status: results.some(result => result.status === 'failed') ? 'failed' : results.some(result => result.status === 'blocked') ? 'blocked' : !measured.length ? 'unsupported' : rows.some(row => row.calibration.status !== 'calibrated') ? 'uncalibrated' : 'measured',
     cases: coverage,
     timing: rows,
     familyTimings,
@@ -108,6 +112,8 @@ export function portableSummary(cases: PortableCase[], results: PortableWorkerRe
       positiveCases: cases.filter(testCase => testCase.expected.accept).length,
       negativeCases: cases.filter(testCase => !testCase.expected.accept).length,
       families: representativeFamilies.length,
+      unsupportedFamilies: [...unsupported.keys()],
+      unsupportedCases: cases.length - measured.length,
       workers: results.length,
       failedWorkers: results.filter(result => result.status === 'failed').length,
       blockedWorkers: results.filter(result => result.status === 'blocked').length,
@@ -141,11 +147,12 @@ export function portableMarkdown(report: { project: string; version: string; sta
     '',
     'A0, A1 and B use the same admitted artifact. Their differences diagnose measurement variation; they cannot establish a product speedup. Cold imports may prepare in batches, but first API calls execute one at a time after the complete idle barrier. Timings exclude import and qualification. Cases with a prelude report first-final-source timing after that prelude.',
     '',
+    ...(summary.counts.unsupportedFamilies.length ? [`Unsupported families: ${summary.counts.unsupportedFamilies.join(', ')}. The renderer rejected each family's canonical source, so their ${summary.counts.unsupportedCases} cases were not run; they are coverage gaps, not failures.`, ''] : []),
     '## Family representatives',
     '',
     '| Family | Warm repeated API median (ms) | Calibrated | Native + painted criteria |',
     '|---|---:|---|---|',
-    ...summary.familyTimings.map(row => `| ${row.family} | ${row.medianMs?.toFixed(4) ?? 'unavailable'} | ${row.calibrated} | ${row.semanticComplete ? 'declared criteria complete' : 'partial; see case scopes'} |`),
+    ...summary.familyTimings.map(row => `| ${row.family} | ${row.supported ? (row.medianMs?.toFixed(4) ?? 'unavailable') : 'unsupported'} | ${row.calibrated} | ${row.semanticComplete ? 'declared criteria complete' : 'partial; see case scopes'} |`),
     '',
     '## Scaling',
     '',
@@ -161,7 +168,7 @@ export function portableMarkdown(report: { project: string; version: string; sta
     '| Case | Acceptance matches | Failed / blocked workers | Semantic scope |',
     '|---|---|---:|---|',
     ...summary.cases.map(
-      row => `| ${escape(row.id)} | ${row.acceptanceMatches} | ${row.failedWorkers} / ${row.blockedWorkers} | ${row.semanticComplete ? 'Declared native + painted checks complete' : row.expectedAccepted ? 'Paint/native projection incomplete; never a full fidelity pass' : 'Negative-source rejection only'} |`,
+      row => `| ${escape(row.id)} | ${row.acceptanceMatches} | ${row.failedWorkers} / ${row.blockedWorkers} | ${row.unsupported ? 'Family unsupported; not run' : row.semanticComplete ? 'Declared native + painted checks complete' : row.expectedAccepted ? 'Paint/native projection incomplete; never a full fidelity pass' : 'Negative-source rejection only'} |`,
     ),
     '',
     '## Memory and cost',

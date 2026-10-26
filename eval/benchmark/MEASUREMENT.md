@@ -38,6 +38,14 @@ unsupported diagrams and failures. Shared-success timing uses its explicitly
 reported subset; it does not erase full-corpus coverage failures. Changing the
 reference pin or excluding a family creates a different comparison.
 
+The portable kit and community lanes first probe each family once, untimed, with
+the portable family cohort's canonical source. If the tool rejects that source
+(an error, nonzero exit or no output), the family is unsupported: each of its
+cases is recorded `unsupported`, naming the probe, and is not run. The cases stay
+in the universe as coverage gaps. A probe that returns output keeps the family
+supported, so every later failure in it is a failure, even when the probe's own
+output fails qualification.
+
 The selected-input pinned-reference score retains its historical selection and
 provenance. Its source harvester used Agentic-derived fields and local admission,
 so it cannot certify all upstream assertions. The original-assertion lane instead

@@ -3,6 +3,7 @@ import { fork, spawn, type ChildProcess } from 'node:child_process'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { portableDirectory } from './artifacts.ts'
+import { familySupportProbe } from './cohorts.ts'
 import { PORTABLE_MEASUREMENT_PROTOCOL, type PortableArtifact, type PortableJob, type PortableWorkerResult, type Replica } from './protocol.ts'
 import type { PortableCase } from './cohorts.ts'
 import type { PortableOptions } from './run.ts'
@@ -34,7 +35,7 @@ export function terminatePortableWorkers() {
   for (const child of active) kill(child)
 }
 function validateResult(job: PortableJob, result: PortableWorkerResult) {
-  if (result.protocol !== PORTABLE_MEASUREMENT_PROTOCOL || result.caseId !== job.testCase.id || result.mode !== job.mode || result.round !== job.round || result.replica !== job.replica || result.sample !== job.sample || !['passed', 'partial', 'failed', 'blocked'].includes(result.status))
+  if (result.protocol !== PORTABLE_MEASUREMENT_PROTOCOL || result.caseId !== job.testCase.id || result.mode !== job.mode || result.round !== job.round || result.replica !== job.replica || result.sample !== job.sample || !['passed', 'partial', 'failed', 'blocked', ...(job.mode === 'probe' ? ['unsupported'] : [])].includes(result.status))
     throw Error('Worker evidence does not match the declared job')
   return result
 }
@@ -177,6 +178,17 @@ export async function measurePortableProject(artifact: PortableArtifact, testCas
       ...(mode === 'warm' && round === 1 && replica === 'B' ? { svgFile: join(directory, 'svg', testCase.id.replaceAll(':', '_') + '.svg') } : {}),
     }
   }
+  // Probe each selected family once, untimed, before any measured case of that family runs.
+  const unsupported = new Set<string>()
+  for (const family of new Set(testCases.map(testCase => testCase.family))) {
+    const probe = familySupportProbe(family)
+    if (!probe) continue
+    const result = await runSerialJob(makeJob(probe, 1, 'B', 'probe', 0), options.node)
+    retain(result)
+    if (result.status === 'unsupported') unsupported.add(family)
+    console.log(JSON.stringify({ phase: 'family-support', project: options.project, family, supported: result.status !== 'unsupported' }))
+  }
+  testCases = testCases.filter(testCase => !unsupported.has(testCase.family))
   const order = (round: number, index: number) => {
     const values: Replica[] = ['A0', 'A1', 'B']
     const offset = (round + index) % values.length

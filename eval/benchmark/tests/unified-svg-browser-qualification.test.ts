@@ -29,7 +29,8 @@ browserTest(
       const cases = authored.map(entry => ({ ...entry, source: entry.source ?? `flowchart LR\n %% ${entry.id}\n A[Fixture]` }))
       const workloads = cases.map(entry => ({ id: entry.id, family: 'flowchart', source: entry.source, expectedLabels: entry.labels, features: ['qualification-reader-fixture'], provenance: 'independently authored XML reader expectations; not a renderer benchmark' }))
       const module = join(directory, 'fixture.js')
-      await build({ stdin: { contents: `const cases=${JSON.stringify(cases)};globalThis.fixtureRender=source=>cases.find(entry=>entry.source===source).output`, sourcefile: 'authored-qualification-fixture.js' }, outfile: module, bundle: true, format: 'iife', platform: 'browser', minify: true, logLevel: 'silent' })
+      // Any other source (the family-support probe) gets an empty drawing, so the family stays supported.
+      await build({ stdin: { contents: `const cases=${JSON.stringify(cases)};globalThis.fixtureRender=source=>cases.find(entry=>entry.source===source)?.output??'<svg xmlns="http://www.w3.org/2000/svg"/>'`, sourcefile: 'authored-qualification-fixture.js' }, outfile: module, bundle: true, format: 'iife', platform: 'browser', minify: true, logLevel: 'silent' })
       const out = join(directory, 'results')
       mkdirSync(out)
       const root = resolve(import.meta.dir, '../../..')
