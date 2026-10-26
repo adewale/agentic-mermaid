@@ -51,7 +51,7 @@
     },
     "architecture": {
       "requests": 35,
-      "raw": 2323500,
+      "raw": 2318000,
       "gzip": 751000,
       "brotli": 608500
     },

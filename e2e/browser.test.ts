@@ -335,11 +335,9 @@ it('shipped sketch looks paint readable label ink against an opaque halo', async
 
 it('standalone editor stays within its single-renderer payload budget', async () => {
   const html = new Uint8Array(await Bun.file(join(ROOT, 'editor.html')).arrayBuffer())
-  // Current combined Native/correctness build, Bun 1.4.2: 4,444,144 B raw.
-  // Direct pass imports remove unused family downloads; private editor schema
-  // prose removal saves 6,112 B raw. Keep the existing compressed limit and
-  // per-PR growth gate while allowing the retained correctness code.
-  expect(html.byteLength).toBeLessThanOrEqual(4_450_000)
+  // Bun 1.4.2 with locked ELK 0.11.1: 4,425,760 B raw / 1,317,466 B gzip.
+  // The combined renderer fits the existing limits and relative growth gate.
+  expect(html.byteLength).toBeLessThanOrEqual(4_429_000)
   expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_334_500)
   const runtime = new TextDecoder().decode(html).match(/<script type="module" id="editor-runtime">([\s\S]*?)<\/script>/)?.[1]
   expect(runtime).toBeDefined()
