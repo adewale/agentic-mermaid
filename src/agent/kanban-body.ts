@@ -23,15 +23,19 @@ export function renderKanban(body: KanbanBody): string {
   const lines = ['kanban']
   appendAccessibilityLines(lines, body)
   const emit = (item: KanbanItem, indent: string): void => {
+    // Mermaid's case-insensitive keyword token also matches kanban-… and
+    // kanban followed by a non-ASCII letter. Its implicit-ID form retains
+    // those identities without exposing them to the keyword lexer.
+    const implicitId = item.implicitId || /^kanban\b/i.test(item.sourceId)
     // A quoted node label cannot contain a physical quote in Mermaid's Jison
     // lexer. Use its entity spelling; IDs retain the original authored text.
-    const label = encodeMermaidEntities(item.implicitId ? item.sourceId : item.label, '"').replace(/\r\n/g, '\r\r\n')
-    const identifier = item.implicitId ? '' : encodeMermaidEntities(item.sourceId, '()[]{}@')
+    const label = encodeMermaidEntities(implicitId ? item.sourceId : item.label, '"').replace(/\r\n/g, '\r\r\n')
+    const identifier = implicitId ? '' : encodeMermaidEntities(item.sourceId, '()[]{}@')
     lines.push(`${indent}${identifier}["${label}"]`)
     const metadata = { ...item.metadata }
     // An implicit identity comes from the declaration, independently of a
     // later display-label edit. Keep both through the public writer.
-    if (item.implicitId && item.sourceId !== item.label) metadata.label = item.label
+    if (implicitId && item.sourceId !== item.label) metadata.label = item.label
     if (item.icon !== undefined) metadata.icon = item.icon
     if (Object.keys(metadata).length) {
       // Block YAML also represents metadata whose values contain commas or

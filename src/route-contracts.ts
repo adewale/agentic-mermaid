@@ -9,7 +9,7 @@ import { graphEdgeMarkerPaintRegions } from './graph-connectors.ts'
 import { resolveRenderStyle } from './styles.ts'
 import { trimOccludedShapeEndpoint } from './shape-clipping.ts'
 import { renderedEndpointContact } from './rendered-endpoint-diagnostics.ts'
-import { LABEL_PILL_PADDING, labelRect, pillRect } from './shared/edge-label-geometry.ts'
+import { LABEL_PILL_PADDING, labelHaloExtension, labelRect, pillRect } from './shared/edge-label-geometry.ts'
 import { bundleRouteBeforeRewrite, hasConstructedBundleRoute, retainBundleRouteAfterRewrite } from './layout/bundle-routes.ts'
 import {
   EPS,
@@ -1112,11 +1112,7 @@ export function separateEdgeLabelPills(positioned: { nodes: PositionedNode[]; ed
   if (labeled.length === 0) return
   // Match renderEdgeLabel's halo beyond each measured pill, including thick
   // edges. Separating inner pills alone can leave opaque painted halos touching.
-  const haloOf = (edge: PositionedEdge): number => {
-    const lineWidth = (style as LabelMetricsStyle & { lineWidth?: number }).lineWidth ?? 1
-    const strokeWidth = lineWidth * (edge.style === 'thick' ? 2 : 1)
-    return Math.max(4, strokeWidth * 2)
-  }
+  const haloOf = (edge: PositionedEdge): number => labelHaloExtension(edge, style.lineWidth ?? 1)
   const rectOf = (e: PositionedEdge): { x: number; y: number; w: number; h: number } | null => {
     const r = labelRect(e, style)
     const halo = haloOf(e)
