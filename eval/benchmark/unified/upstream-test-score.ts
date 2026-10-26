@@ -53,12 +53,12 @@ export async function runUpstreamTestScoreSuite(options: UnifiedRunOptions): Pro
   let provenance: ReturnType<typeof admitCurrentReference> | undefined, inventory: ReturnType<typeof inventoryUpstreamTests> | undefined
   try {
     provenance = admitCurrentReference(upstream, reference)
-    inventory = inventoryUpstreamTests(upstream)
-    writeFileSync(join(options.out, 'upstream-test-inventory.json'), JSON.stringify({ provenance, ...inventory }, null, 2))
   } catch (error) {
-    gaps.push(`Current upstream inventory/reference admission unavailable: ${String(error)}`)
+    // Without the pinned Mermaid source and oracle there are no upstream tests to run; refuse.
+    throw Error(`The pinned Mermaid source checkout (${upstream}) and oracle (${reference}) are required; run \`bun run reference:mermaid\` in the Agentic checkout. ${String(error)}`)
   }
-  if (!provenance || !inventory) return { id: 'upstream-test-assertions', status: 'blocked', startedAt, finishedAt: new Date().toISOString(), observations, gaps }
+  inventory = inventoryUpstreamTests(upstream)
+  writeFileSync(join(options.out, 'upstream-test-inventory.json'), JSON.stringify({ provenance, ...inventory }, null, 2))
   const files = historicalFiles.map(file => ({ family: file.family, path: join(upstream, file.relativePath), relativePath: file.relativePath, historicalByteEquivalent: readFileSync(file.path).equals(readFileSync(join(upstream, file.relativePath))) }))
   const coveredPaths = new Set(files.map(file => file.relativePath))
   const unprojectedFamilyFiles = inventory.files.filter(file => ['mindmap', 'gitgraph'].includes(file.family) && !coveredPaths.has(file.path))

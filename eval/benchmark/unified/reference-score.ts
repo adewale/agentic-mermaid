@@ -131,7 +131,8 @@ export async function runReferenceScoreSuite(options: UnifiedRunOptions): Promis
   try {
     provenance = admitCurrentReference(upstream, referenceDir)
   } catch (error) {
-    return { id: 'pinned-reference-score', status: 'blocked', startedAt, finishedAt: new Date().toISOString(), observations, gaps: [String(error)] }
+    // Without the pinned Mermaid source and oracle this lane cannot score; it refuses to run.
+    throw Error(`The pinned Mermaid source checkout (${upstream}) and oracle (${referenceDir}) are required; run \`bun run reference:mermaid\` in the Agentic checkout. ${String(error)}`)
   }
   const target = options.packageRoot ?? options.root
   if (!existsSync(join(target, 'dist/agent-core.js'))) return { id: 'pinned-reference-score', status: 'blocked', startedAt, finishedAt: new Date().toISOString(), observations, gaps: ['Missing actual target dist/agent-core.js'] }
