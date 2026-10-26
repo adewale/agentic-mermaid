@@ -235,6 +235,54 @@ test('Sequence keeps a modified default backend observable after enrollment', as
   expect(child.status).toBe(0)
 })
 
+test('Sequence compiler metadata cannot replace the original or authorize a different producer during reentry', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import assert from 'node:assert/strict'
+    import { renderMermaidSVGWithReceipt } from './src/index.ts'
+    import { getFamily, replaceFamilyForTest } from './src/agent/families.ts'
+    import { sceneLowering, nativeDrawingOf, inheritNativeDrawing } from './src/scene/drawing.ts'
+    import { withRenderStageObserver } from './src/render-stages.ts'
+    const original = getFamily('sequence'), lower = original.lowerScene
+    const producer = nativeDrawingOf(lower), holder = sceneLowering(producer)
+    const source = 'sequenceDiagram\\nMetaA->>MetaB: outer\\nMetaB->>MetaA: return'
+    const nestedSource = 'sequenceDiagram\\nNestedA->>NestedB: nested'
+    const options = { embedFontImport: false }
+    const restoreFamily = replaceFamilyForTest('sequence', { ...original })
+    let expected, expectedNested
+    try {
+      expected = renderMermaidSVGWithReceipt(source, options)
+      expectedNested = renderMermaidSVGWithReceipt(nestedSource, options)
+    } finally { restoreFamily() }
+    let compilerCalls = 0, producerCalls = 0
+    const hostileCompiler = () => { compilerCalls++; throw new Error('caller compiler must remain unobserved') }
+    sceneLowering(producer, hostileCompiler)
+    let actual
+    assert.doesNotThrow(() => { actual = renderMermaidSVGWithReceipt(source, options) })
+    assert.deepEqual(actual, expected)
+    const custom = sceneLowering((factory, context) => { producerCalls++; return producer(factory, context) }, hostileCompiler)
+    inheritNativeDrawing(custom, lower)
+    try {
+      assert.doesNotThrow(() => { actual = renderMermaidSVGWithReceipt(source, options) })
+      assert.deepEqual(actual, expected)
+    } finally { inheritNativeDrawing(holder, lower) }
+    assert.equal(producerCalls, 1)
+    let entered = false, nested
+    actual = withRenderStageObserver(sample => {
+      if (sample.stage === 'drawing' && !entered) {
+        entered = true
+        nested = renderMermaidSVGWithReceipt(nestedSource, options)
+      }
+    }, () => renderMermaidSVGWithReceipt(source, options))
+    assert.equal(entered, true)
+    assert.deepEqual(actual, expected)
+    assert.deepEqual(nested, expectedNested)
+    assert.deepEqual(renderMermaidSVGWithReceipt(source, options), expected)
+    assert.equal(compilerCalls, 0)
+  `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' } })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
+
 describe('shared extension identity', () => {
   test('requires kind-qualified IDs and rejects replacement with owner evidence', () => {
     expect(canonicalExtensionId('look', 'acme/report')).toBe('look:acme/report')

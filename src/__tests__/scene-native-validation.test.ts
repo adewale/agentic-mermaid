@@ -5,7 +5,7 @@ import { deferredTerminalProjectionInput, withDeferredTerminalProjections } from
 import { serializeLinearGradientResources } from '../scene/gradient-resources.ts'
 import type { LinearGradientDescriptor, MarkerDescriptor, SceneDoc } from '../scene/ir.ts'
 import { createSequenceLineCompiler } from '../scene/sequence-line-command.ts'
-import type { SequenceLineInput } from '../scene/sequence-line-sink.ts'
+import type { SequenceLineInput } from '../scene/drawing.ts'
 
 const header: Omit<SceneDoc, 'parts'> = { family: 'flowchart', width: 200, height: 100, colors: { bg: '#fff', fg: '#111' }, transparent: false }
 const shape = (id = 'A') => marks.shape({ id, role: 'node', geometry: { kind: 'rect', x: 10, y: 10, width: 20, height: 20 }, paint: { fill: '#111' } })
