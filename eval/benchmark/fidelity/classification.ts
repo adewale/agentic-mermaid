@@ -27,7 +27,7 @@ export function classifyAdmission(policy: FamilyPolicy, family: string, attempt:
 }
 
 export function compareAdmission(peer: AdmissionClassification, baseline: AdmissionClassification) {
-  if (peer.family !== baseline.family) throw Error('Admission comparison requires the same family and source occurrence')
+  if (peer.family !== baseline.family) throw Error('Admission comparison requires the same family; callers must join the same source occurrence')
   return {
     admissionDifference: Number(peer.admission) - Number(baseline.admission),
     outcome: peer.admission ? baseline.admission ? 'both-returned-output' : 'peer-only-output' : baseline.admission ? 'baseline-only-output' : 'neither-returned-output',

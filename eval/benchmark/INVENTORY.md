@@ -1,7 +1,7 @@
 # Benchmark and evaluation inventory
 
 This inventory describes the executable boundaries in the repository after the
-October 25, 2026 rebase. It distinguishes performance measurements from
+October 26, 2026 update. It distinguishes performance measurements from
 correctness tests, corpus preparation and external model evaluations. A test
 group's process wall time is not renderer latency.
 
@@ -28,6 +28,10 @@ pinned-reference input comparisons:
 
 | ID | Entry | Scope |
 | --- | --- | --- |
+| `mermaid-fidelity` | [fidelity/run.ts](fidelity/run.ts), through a native Node worker | 91 authored cases/edits, native public-model meaning, actual workflows and owned visible/quantitative SVG criteria. Per-project records, isolated observer and raw/reference-qualified ledgers; no performance clocks. |
+| `community-fidelity` | [fidelity/community.ts](fidelity/community.ts) | Same authored universe on frozen prepared public SVG artifacts; all catalog boundaries, independent alias attribution, lossless SVG/PNG evidence, explicit missing native projections. |
+| `upstream-original` | [upstream-fidelity-original.ts](unified/upstream-fidelity-original.ts) | Genuine pinned Mermaid source core Vitest/Vite execution, unchanged expectations, read-only snapshots, declaration/callback accounting and actual dependency admission. |
+| `upstream-fidelity` | [upstream-fidelity.ts](unified/upstream-fidelity.ts) | Expanded original callbacks through actual peer public parser/models; private and helper-only assertions remain unavailable. Distinct from genuine Mermaid's own runner. |
 | `stable-support` | [stable-support-run.ts](unified/stable-support-run.ts) | Runtime required-family SVG/label admission, policy maturity review and separate supplements; per-project retained results. |
 | `upstream-test-assertions` | [upstream-test-score.ts](unified/upstream-test-score.ts) | Original current-pinned Mindmap/GitGraph assertions, full monorepo declaration census, separate unscored literal replay; per-project retained results. |
 | `entry-startup` | [entry-startup.ts](unified/entry-startup.ts) | Manifest-derived public entries and real operations; fresh first-result latency plus separate paired memory/CPU diagnostics; per-project retained results. |

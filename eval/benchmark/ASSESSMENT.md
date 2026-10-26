@@ -13,6 +13,41 @@ catalog members and acquired/built 83 artifacts. The rebased catalog has 88
 members; those four additional entries do not inherit measurements from the
 older run. The [inventory](INVENTORY.md) lists the current executable boundaries.
 
+## Fidelity repairs, 26 October 2026
+
+The new authored lane executes 91 cases and edits across all 23 declared
+families, with independent native meaning and actual painted-output criteria.
+It includes every policy-stable family plus conservatively required Event
+Modeling and ZenUML. Source/configuration reset, invalid-source recovery,
+serializer/readback and feature interactions are real operations. A declared
+criterion ledger prevents failed renders, missing observers or missing peer
+rows from shrinking the denominator. Native admission, SVG admission, drawing
+criteria and capability-specific writes are separate.
+
+Actual Chromium evidence now includes visibility/clipping, owned endpoints and
+marker/edge-label correspondence, requested font size, embedded images and
+supported quantitative value-to-geometry checks. Mutation controls corrupt the
+actual drawing while retaining correct labels/models. Ambiguous custom paint,
+ownership or chart projections remain unavailable rather than silently passing.
+The community lane reuses frozen installed artifacts, but collects this new
+functional evidence for each available SVG engine. It does not relabel old
+label admission as fidelity or repeat unrelated performance experiments.
+
+The authentic pinned Mermaid baseline now executes its own unchanged core test
+runner: 6,677 callbacks passed, 16 pending, two todo, zero failed or unavailable
+files; 99/99 snapshots matched without updates. Expanded peer public-assertion
+coverage is a separate lane and explicitly accounts for the full declaration
+inventory. The previous 99-declaration projection remains historical evidence,
+not the limit of the new lane.
+
+This resolves the missing evidence paths, not the possibility of every unknown
+language or drawing defect. The corpus is bounded. Full feature combinations,
+private upstream APIs, browser/e2e test execution, complete paint projections,
+independent perceptual review, native/GPU/process-tree memory, leak slopes and
+production deployment costs remain outside current comprehensive claims. See
+[fidelity commands and limits](fidelity/README.md) and the maintained
+[community comparison](../../docs/community-benchmark-ranking.md).
+
 ## Changes prompted by this assessment
 
 The [overview](OVERVIEW.md) describes the suite's current layers and contracts.
@@ -234,7 +269,7 @@ not every older source-stage/paired evaluation has incremental caching. The
 startup source controller still reaches shared invocation/family helpers in the
 checkout, although its target consumers import only supplied public artifacts.
 
-## Is the suite sufficient for a Mermaid-baseline ranking?
+## Retained cost baseline, 25 October 2026
 
 The completed current comparison supports a scoped cost judgment. In five
 counterbalanced renderer rounds across 48 shared positive cases, Agentic cost
@@ -282,7 +317,7 @@ host is part of its named startup stack. Its validation/type/config return and
 the other tools' richer models are different output contracts, so those clocks
 are not a pure-AST parser contest.
 
-The remaining limits are material:
+At the time of that retained performance collection, the limits included:
 
 - Original upstream callbacks cover 99 declarations in two files out of 3,995
   inventoried declarations. Literal source replay receives no assertion credit.

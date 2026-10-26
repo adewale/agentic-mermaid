@@ -1,3 +1,4 @@
+import { fidelityCriteriaProtocol } from './protocol.ts'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
@@ -18,7 +19,8 @@ import { communityFidelityBrowserAction } from './community-browser-helper.ts'
 import { planFidelityCriteria, completeCriterionLedger } from './ledger.ts'
 import { inspectFidelityPaint } from './paint.ts'
 import { inspectQuantitativePaint } from './paint-values.ts'
-import { expandedFidelityCases, type FidelityRunOptions } from './run.ts'
+import { expandedFidelityCases } from './cases.ts'
+import type { FidelityRunOptions } from './run.ts'
 
 export interface CommunityFidelityOptions extends FidelityRunOptions { communityFidelityPng?: 'basic-families' | 'none' }
 const core = new Set(['adewale/agentic-mermaid', 'obsidianmd/pele', 'mermaid-js/mermaid'])
@@ -81,7 +83,7 @@ export async function runCommunityFidelitySuite(options: CommunityFidelityOption
     for (const target of targets) {
       const { peer, admission } = target, engine = peer.browser!, project = peer.node.id, projectOut = join(out, Buffer.from(project).toString('base64url'))
       const aliasKey = stableValue({ kind: engine.kind, global: engine.global ?? null, version: engine.version, legacy: engine.legacyMermaid ?? false, syncLegacy: engine.synchronousLegacyRender ?? false, scriptType: engine.scriptType ?? null, entry: engine.entry, wasm: engine.wasm ?? null, files: admission.files.filter(file => file.path.startsWith(admission.root + sep)).map(file => ({ path: relative(admission.root, file.path), sha256: file.sha256 })).sort((a, b) => a.path.localeCompare(b.path)) })
-      const identity = () => JSON.parse(JSON.stringify({ project, lane: 'community-fidelity', protocol: producerContext(), artifact: admitPreparedFidelityEngine(peer), measurement: { kind: engine.kind, global: engine.global ?? null, entry: engine.entry, scriptType: engine.scriptType ?? null, legacyMermaid: engine.legacyMermaid ?? false, synchronousLegacyRender: engine.synchronousLegacyRender ?? false, wasm: engine.wasm ?? null, cases: selectedCases.map(value => value.id), browser: executableIdentity(executable), screenshots: options.communityFidelityPng ?? 'basic-families', deadlineMs: 15000 } }))
+      const identity = () => JSON.parse(JSON.stringify({ project, lane: 'community-fidelity', protocol: producerContext(), artifact: admitPreparedFidelityEngine(peer), measurement: { kind: engine.kind, global: engine.global ?? null, entry: engine.entry, scriptType: engine.scriptType ?? null, legacyMermaid: engine.legacyMermaid ?? false, synchronousLegacyRender: engine.synchronousLegacyRender ?? false, wasm: engine.wasm ?? null, cases: selectedCases.map(value => value.id), browser: executableIdentity(executable), screenshots: options.communityFidelityPng ?? 'basic-families', deadlineMs: 20000 } }))
       const measure = async (directory: string): Promise<UnifiedSuiteResult> => {
         mkdirSync(directory, { recursive: true })
         const prior = aliases.get(aliasKey)
@@ -161,7 +163,7 @@ export async function runCommunityFidelitySuite(options: CommunityFidelityOption
       write(join(out, 'community-fidelity-progress.json'), { completed: results.length, selected: targets.length, project, observations: result.observations.length })
     }
   } finally { await browser?.close() }
-  const observations = results.flatMap(result => result.observations), report = { id: 'mermaid-fidelity', status: observations.some(row => row.status === 'failed') ? 'failed' : 'blocked', startedAt, finishedAt: new Date().toISOString(), observations, artifacts: results.flatMap(result => result.artifacts ?? []), gaps: [...new Set(results.flatMap(result => result.gaps))], toolVersions, catalogFile, preparedFile, boundaries, selectedCaseIds: selectedCases.map(value => value.id), scope: 'New SVG functionality collection on frozen prepared artifacts, no timing/startup/memory claims; core3 delegated; all missing native projections remain unavailable' }
+  const observations = results.flatMap(result => result.observations), report = { id: 'mermaid-fidelity', status: observations.some(row => row.status === 'failed') ? 'failed' : 'blocked', startedAt, finishedAt: new Date().toISOString(), observations, artifacts: results.flatMap(result => result.artifacts ?? []), gaps: [...new Set(results.flatMap(result => result.gaps))], toolVersions, criteriaProtocol: fidelityCriteriaProtocol(root, executable), catalogFile, preparedFile, boundaries, selectedCaseIds: selectedCases.map(value => value.id), scope: 'New SVG functionality collection on frozen prepared artifacts, no timing/startup/memory claims; core3 delegated; all missing native projections remain unavailable' }
   write(join(out, 'community-fidelity-report.json'), report)
   return report as UnifiedSuiteResult
 }

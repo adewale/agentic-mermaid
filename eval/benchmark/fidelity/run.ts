@@ -1,3 +1,4 @@
+import { fidelityCriteriaProtocol } from './protocol.ts'
 import { createServer } from 'node:http'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
@@ -14,7 +15,9 @@ import { runRetainedSuite } from '../unified/retained-suite.ts'
 import { qualifyOutput } from '../unified/qualification.ts'
 import type { BenchmarkObservation, UnifiedRunOptions, UnifiedSuiteResult } from '../unified/types.ts'
 import { createMeaningAdapter, normalizeMeaning, type MeaningTool } from './adapters.ts'
-import { fidelityCases } from './cases.ts'
+import { fidelityCoreProjects as projects, selectsCoreFidelity } from './selection.ts'
+import { expandedFidelityCases } from './cases.ts'
+export { expandedFidelityCases } from './cases.ts'
 import { planFidelityCriteria, completeCriterionLedger, compareFidelityCriteria } from './ledger.ts'
 import { inspectQuantitativePaint } from './paint-values.ts'
 import { assessMeaning, type AuthoredFidelityCase } from './meaning.ts'
@@ -23,17 +26,12 @@ import { inspectFidelityPaint } from './paint.ts'
 export interface FidelityRunOptions extends UnifiedRunOptions { fidelityDiagnostic?: boolean; fidelityCaseIds?: string[] }
 const write = (path: string, value: unknown) => writeFileSync(path, JSON.stringify(value, null, 2) + '\n')
 const packageNames: Record<MeaningTool, string> = { agentic: 'agentic-mermaid', pele: 'pele', mermaid: 'mermaid' }
-const projects: Record<MeaningTool, string> = { agentic: 'adewale/agentic-mermaid', pele: 'obsidianmd/pele', mermaid: 'mermaid-js/mermaid' }
 
-/** The edited source has its own authored expectations; it is never compared
- * with the implementation's previous answer. Preludes remain real operations. */
-export function expandedFidelityCases(): AuthoredFidelityCase[] {
-  return fidelityCases().flatMap(value => [value, ...(value.edit ? [{ ...value, id: value.id + ':edit', source: value.edit.source, expected: value.edit.expected, renderOptions: value.edit.renderOptions, paint: value.edit.paint, edit: undefined, prelude: [...(value.prelude ?? []), { source: value.source, accept: true, renderOptions: value.renderOptions }] }] : [])])
-}
 
 export async function runFidelityCampaign(options: FidelityRunOptions): Promise<UnifiedSuiteResult> {
   assertBenchmarkExecutionAllowed()
   const startedAt = new Date().toISOString(), root = options.harnessRoot ?? options.root, out = options.out
+  if (!selectsCoreFidelity(options.communityProjects)) return { id: 'mermaid-fidelity', startedAt, finishedAt: startedAt, status: 'not-applicable', observations: [], artifacts: [], gaps: ['No core public-model project was selected; no source, reference, runtime, browser or output directory was prepared.'] }
   mkdirSync(out, { recursive: true })
   const reference = options.referenceDir ?? resolve(root, '../mermaid-reference'), upstream = options.mermaidDir ?? resolve(root, '../mermaid')
   const sourcePin = admitCurrentReference(upstream, reference)
@@ -66,7 +64,7 @@ export async function runFidelityCampaign(options: FidelityRunOptions): Promise<
   let browser: any
   const getBrowser = async () => browser ??= await chromium.launch({ headless: true, executablePath: browserExecutable })
   const server = createServer((request, response) => {
-    if (request.url === '/blank') { response.setHeader('content-type', 'text/html'); response.end('<!doctype html><meta charset="utf-8"><body>'); return }
+    if (request.url === '/blank' || request.url === '/observer') { response.setHeader('content-type', 'text/html'); if (request.url === '/observer') response.setHeader('content-security-policy', "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data: blob:; connect-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'"); response.end('<!doctype html><meta charset="utf-8"><body>'); return }
     if (addon && request.url?.startsWith('/addon/')) { const path = resolve(addon.root, decodeURIComponent(request.url.slice(7))); if (!path.startsWith(addon.root + sep) || !existsSync(path)) { response.writeHead(404).end(); return }; response.setHeader('content-type', 'text/javascript'); response.end(readFileSync(path)); return }
     const match = /^\/package\/([^/]+)\/(.*)$/.exec(new URL(request.url!, 'http://localhost').pathname), target = targets.find(value => value.tool === match?.[1])
     const path = target && match ? resolve(target.packageRoot, decodeURIComponent(match[2]!)) : undefined
@@ -85,11 +83,12 @@ export async function runFidelityCampaign(options: FidelityRunOptions): Promise<
         mkdirSync(directory, { recursive: true })
         const adapter = await createMeaningAdapter({ tool: target.tool, packageRoot: target.packageRoot, ...(target.tool === 'mermaid' ? { referenceRoot: reference } : {}) })
         const referenceAdapter = target.tool === 'agentic' ? await createMeaningAdapter({ tool: 'mermaid', packageRoot: join(reference, 'node_modules/mermaid'), referenceRoot: reference }) : undefined
-        const context = await (await getBrowser()).newContext({ viewport: { width: 1400, height: 1000 }, serviceWorkers: 'block' }), page = await context.newPage()
+        const context = await (await getBrowser()).newContext({ viewport: { width: 1400, height: 1000 }, serviceWorkers: 'block' }), page = await context.newPage(), observer = await context.newPage()
         const blockedRequests: string[] = [], collectionErrors: string[] = []
         try {
         await context.route('**/*', async (route: any) => { const url = route.request().url(); if (url.startsWith(origin + '/') || url.startsWith('data:') || url === 'about:blank') await route.continue(); else { blockedRequests.push(url); await route.abort() } })
         await page.goto(origin + '/blank')
+        await observer.goto(origin + '/observer')
         await page.evaluate(baselineBrowserAction, { type: 'initialize', kind: target.tool, url: `${origin}/package/${target.tool}/${target.entry.replace(/^\.\//, '')}`, configuration: { startOnLoad: false, securityLevel: 'strict', logLevel: 'fatal' } })
         if (target.tool === 'mermaid' && addon) await page.evaluate(async (url: string) => { const api = (globalThis as any).__baselineBrowser.api, plugin = await import(url); await api.registerExternalDiagrams([plugin.default]) }, origin + '/addon/' + addon.entry)
           for (const [index, testCase] of selectedCases.entries()) {
@@ -128,13 +127,14 @@ export async function runFidelityCampaign(options: FidelityRunOptions): Promise<
             if (rendered.accepted) {
               const qualification = qualifyOutput({ id: testCase.id, family: testCase.family, source: testCase.source, expectedLabels: testCase.expected.labels, features: testCase.features, provenance: testCase.provenance }, rendered.svg, 'svg')
               add('browser-public-api', 'standalone-svg-and-labels', qualification.ok ? 'passed' : 'failed', qualification.findings, [], qualification.scope)
-              await page.evaluate((svg: string) => { document.body.innerHTML = svg; document.body.style.margin = '0'; document.body.style.background = '#fff' }, rendered.svg)
-              paint = await page.evaluate(inspectFidelityPaint, { family: testCase.family, expected: testCase.expected, paint: testCase.paint })
+              await observer.setContent(rendered.svg)
+              await observer.evaluate(() => { document.body.style.margin = '0'; document.body.style.background = '#fff' })
+              paint = await observer.evaluate(inspectFidelityPaint, { family: testCase.family, expected: testCase.expected, paint: testCase.paint })
               for (const item of paint!.checks) add('browser-owned-ink', item.criterion, item.status, item.actual, item.expected, item.scope)
-              const quantitative = await page.evaluate(inspectQuantitativePaint, { family: testCase.family, expected: testCase.expected, source: testCase.source })
+              const quantitative = await observer.evaluate(inspectQuantitativePaint, { family: testCase.family, expected: testCase.expected, source: testCase.source })
               for (const item of quantitative) add('browser-owned-ink', item.criterion, item.status, item.actual, item.expected, item.scope)
               const stem = `${index}-${testCase.id.replace(/[^a-zA-Z0-9_.-]/g, '_')}`, svgPath = join(directory, stem + '.svg'), pngPath = join(directory, stem + '.png')
-              writeFileSync(svgPath, rendered.svg); await page.locator('svg').first().screenshot({ path: pngPath, timeout: 20_000 }); artifacts.push(svgPath, pngPath)
+              writeFileSync(svgPath, rendered.svg); await observer.locator('svg').first().screenshot({ path: pngPath, timeout: 20_000 }); artifacts.push(svgPath, pngPath)
             }
             if (adapter.serialize && acquired.status === 'accepted') {
               try { const source = await adapter.serialize(testCase.source), readback = await adapter.parse(source, testCase.family), result = assessMeaning(testCase, readback.meaning); add('native-public-api', 'serialized-meaning-readback', result.passed ? 'passed' : !result.complete ? 'unavailable' : readback.status === 'unsupported' ? 'unsupported' : 'failed', result.checks, 'same authored meaning', 'Actual public serialization and reparsing; every authored criterion survives') }
@@ -161,7 +161,7 @@ export async function runFidelityCampaign(options: FidelityRunOptions): Promise<
   } finally { if (browser) await browser.close(); await new Promise<void>(done => server.close(() => done())) }
   const observations = results.flatMap(result => result.observations)
   const calibration = compareFidelityCriteria(observations, targets.map(target => target.project))
-  const report = { id: 'mermaid-fidelity', status: results.some(result => result.status === 'failed') ? 'failed' : results.some(result => result.status === 'blocked') ? 'blocked' : 'passed', startedAt, finishedAt: new Date().toISOString(), observations, artifacts: results.flatMap(result => result.artifacts ?? []), gaps: [...new Set(results.flatMap(result => result.gaps))], toolVersions, calibration, cases: selectedCases, targets, sourcePin, addon: addon ? { name: addon.manifest.name, version: addon.manifest.version, root: addon.root, scope: 'Explicit pinned first-party browser addon; core Node parser remains a separate host/capability' } : null }
+  const report = { id: 'mermaid-fidelity', status: results.some(result => result.status === 'failed') ? 'failed' : results.some(result => result.status === 'blocked') ? 'blocked' : 'passed', startedAt, finishedAt: new Date().toISOString(), observations, artifacts: results.flatMap(result => result.artifacts ?? []), gaps: [...new Set(results.flatMap(result => result.gaps))], toolVersions, calibration, criteriaProtocol: fidelityCriteriaProtocol(root, browserExecutable), cases: selectedCases, targets, sourcePin, addon: addon ? { name: addon.manifest.name, version: addon.manifest.version, root: addon.root, scope: 'Explicit pinned first-party browser addon; core Node parser remains a separate host/capability' } : null }
   write(join(out, 'fidelity-report.json'), report)
   writeFileSync(join(out, 'index.html'), '<!doctype html><meta charset="utf-8"><title>Authored Mermaid fidelity evidence</title><style>body{font:16px system-ui;margin:2rem}img{max-width:100%;max-height:600px}figure{border-bottom:1px solid #ccc;padding:1rem}</style><h1>Actual rendered fidelity evidence</h1><p>Layouts belong to each renderer. Compare authored meaning, clipping, ownership and visible content; these are not pixel-equality goldens.</p>' + report.artifacts.filter(path => path.endsWith('.png')).map(path => `<figure><figcaption>${path.slice(out.length + 1)}</figcaption><img loading="lazy" src="${path.slice(out.length + 1)}"></figure>`).join(''))
   return report as UnifiedSuiteResult

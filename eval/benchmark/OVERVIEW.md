@@ -26,7 +26,8 @@ hide these distinctions.
 | Question | Owning benchmark | What the result can establish |
 | --- | --- | --- |
 | How well do we render Mermaid's docs? | Original Dave browser comparison | Every official fence occurrence remains in its denominator. SVG acceptance and shared-success time are measured; acceptance alone does not certify drawing fidelity. |
-| How well do we match Mermaid's own tests? | `upstream-test-assertions`, alongside the existing selected-input `pinned-reference-score` | Execute original pinned assertions where a reviewed public-model adapter exists; retain every other inventoried declaration as unprojected. Selected historical input replay is a separate score. |
+| How well do we match Mermaid's own tests? | `upstream-original` and `upstream-fidelity`; historical `upstream-test-assertions` and `pinned-reference-score` retained | Execute genuine unchanged Mermaid core Vitest tests as the baseline. Run original callbacks through reviewed peer public APIs separately; private imports, state and matchers remain unavailable. Declarations, expanded callbacks and individual assertions are different counts. |
+| Does authored meaning survive, and is the actual drawing usable? | `mermaid-fidelity` and `community-fidelity` | Independently authored identities, endpoints, direction, multiplicity, parents and values; actual source/configuration/edit workflows; measured owned ink, text, markers, clipping, images and quantitative chart geometry. Every required family stays in the declared criterion ledger. |
 | Do we cover every required diagram family? | `stable-support`, with `family` functionality | Executed public SVG/label admission for every policy-stable family, plus unresolved exclusions conservatively retained. Native operations and painted fidelity need their own evidence. |
 | How quickly can each entry return its first usable result? | `entry-startup`, alongside the wider `invocation` matrix | Fresh process through fully consumed first payload; import/readiness/API clocks remain separate. Browser launch, CLI inputs, factory setup, optional backends and MCP initialization belong inside their declared startup boundaries. |
 | How much memory and CPU does it use? | Separate paired resource passes in `entry-startup` and the portable campaign | Whole-child high-water RSS/CPU and named JS/RSS snapshots. Browser document heap is not whole-browser, worker, native or GPU memory. |
@@ -41,6 +42,56 @@ before the clock. The full editor sample measures a fresh editor followed by an
 eight-input burst through the latest verified DOM preview. It does not measure
 eight completed renders or a single-keystroke preview; the measurement rules
 describe the marker, receipt-authority and animation-frame checks.
+
+## Fidelity and original tests
+
+The authored campaign contains 70 source cases and 21 source edits: 91 executed
+cases across 23 families. All 20 policy-stable families are included; Event
+Modeling and ZenUML remain conservatively required while their maturity
+exclusions are unresolved. Native 23-family supplements retain their own
+required flags. Feature cases exercise nesting, reciprocal/parallel edges,
+Unicode, namespaces, cardinalities, values and ordering. Real configuration,
+invalid-source recovery, edits and serializer/readback calls are separate
+observations; a feature tag itself earns no credit.
+
+The paint observer inspects the returned SVG in Chromium. It checks actual
+visibility, canvas/clip bounds, owned node and group geometry, routes, marker and
+relationship-label ownership, every requested font-size run, embedded-image
+presence/decoding and supported quantitative chart geometry. SVG scripts cannot
+run in the isolated observer. Ambiguous projections remain unavailable. Actual
+SVG and PNG evidence supports review; this is not pixel equality or a complete
+judgment of typography and aesthetics.
+
+One criterion universe is declared before any engine executes. Failed renders
+leave the remaining criteria unavailable in that universe. Reports preserve raw
+outcomes, baseline-qualified comparisons and baseline criteria requiring review;
+missing evidence cannot become passing credit or a smaller peer denominator.
+Admission, native meaning, paint and optional serialization capabilities stay
+separate. The wider collector uses exactly the same cases on existing frozen
+community SVG artifacts. It does not acquire tools or repeat old speed/memory
+experiments. CLI, terminal, parser-only and application boundaries stay explicit
+in the complete catalog ledger.
+
+`upstream-original` runs the original pinned Mermaid core Vite/Vitest project,
+with genuine prerequisites and read-only snapshots. The 26 October run passed
+6,677 expanded callbacks out of 6,695; 16 were pending and two todo. All 99
+snapshots matched, with no additions or updates and no unavailable files. Those
+are callbacks, not individual assertion invocations. The 3,995 source declaration
+census additionally includes declarations outside the core runner's discovery
+and declarations whose runtime locations cannot be mapped. The browser/e2e and
+docs-site workspaces are not part of that core run.
+
+`upstream-fidelity` runs the original callbacks and expectations against reviewed
+public-model adapters across stable families. It does not impersonate private
+Mermaid internals. Private helper-only tests, imports, matchers and cumulative DB
+state that a public snapshot does not expose remain unprojected. Diagnostic
+wording and representation compatibility are not automatically drawing defects.
+Neither runner's total workflow time is an equivalent renderer speed score.
+
+For commands, record reuse, interpretation and reproducible evidence, see the
+[fidelity guide](fidelity/README.md). The original Dave docs benchmark remains an
+independent external workload; its full occurrence denominator and historical
+performance protocol are preserved.
 
 ## The layers
 

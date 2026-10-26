@@ -193,3 +193,10 @@ export function fidelityCases(): AuthoredFidelityCase[] {
   const image: AuthoredFidelityCase = { id: 'features:flowchart:controlled-image', family: 'flowchart', required: true, source: `flowchart LR\nArt@{ img: "${redPixel}", label: "Icon", w: 32, h: 32, constraint: "on" }\nArt --> Target[Target]`, features: ['authored-image-presence', 'controlled-asset', 'image-decoding'], provenance: 'Pinned Mermaid image-node grammar with an independent inline opaque-red PNG; native image policy and actual emitted/decode evidence are separate', expected: { labels: ['Icon', 'Target'], nodes: [{ id: 'Art', label: 'Icon' }, { id: 'Target', label: 'Target' }], edges: [relation('Art', 'Target')], facts: { 'image-requests': [{ id: 'Art', href: redPixel }] } }, paint: { images: [{ href: redPixel, count: 1 }] } }
   return [...basics, ...variants, ...workflows, styleWorkflow, image, ...pending]
 }
+
+/** The edited source has its own authored expectations; it is never compared
+ * with the implementation's previous answer. Preludes remain real operations. */
+export function expandedFidelityCases(): AuthoredFidelityCase[] {
+  return fidelityCases().flatMap(value => [value, ...(value.edit ? [{ ...value, id: value.id + ':edit', source: value.edit.source, expected: value.edit.expected, renderOptions: value.edit.renderOptions, paint: value.edit.paint, edit: undefined, prelude: [...(value.prelude ?? []), { source: value.source, accept: true, renderOptions: value.renderOptions }] }] : [])])
+}
+
