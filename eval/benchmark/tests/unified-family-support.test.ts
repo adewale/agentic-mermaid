@@ -38,3 +38,25 @@ test('a community tool that rejects a family canonical source runs none of that 
     rmSync(directory, { recursive: true, force: true })
   }
 }, 60_000)
+
+test('an error that says unsupported, inside a supported family, is a failure', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'am-unsupported-message-'))
+  try {
+    const module = join(directory, 'fixture.mjs')
+    // Renders flowcharts, but one feature's error names itself "unsupported".
+    writeFileSync(module, `globalThis.fixtureRender=source=>{if(!source.startsWith('flowchart'))throw Error('Invalid mermaid header');if(source.includes('~~~'))throw Error('unsupported graph direction');return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 40"><text>Alpha</text><text>Beta</text><text>Gamma</text></svg>'}`)
+    const node = { id: 'fixture/flow-only-api', roles: ['renderer'], outputs: ['svg'], benchmark: { adapter: 'fixture', outputs: ['svg'] } }
+    const files = { catalog: join(directory, 'catalog.json'), prepared: join(directory, 'prepared.json'), browser: join(directory, 'browser.json'), inputs: join(directory, 'inputs.json') }
+    writeFileSync(files.catalog, JSON.stringify({ nodes: [node] }))
+    writeFileSync(files.prepared, JSON.stringify([{ node, artifact: { kind: 'global', module, global: 'fixtureRender', sha256: createHash('sha256').update(readFileSync(module)).digest('hex'), version: '1.0.0' } }]))
+    writeFileSync(files.browser, JSON.stringify([{ node, browserStatus: 'not-applicable', browserDetail: 'Node fixture' }]))
+    const feature = { id: 'feature:invisible-link', family: 'flowchart', source: 'flowchart LR\nA[Alpha] ~~~ B[Beta]', expectedLabels: ['Alpha', 'Beta'], features: [], provenance: 'authored unsupported-message fixture' }
+    writeFileSync(files.inputs, JSON.stringify({ workloads: [...communityCoreWorkloads(), feature] }))
+    const root = resolve(import.meta.dir, '../../..')
+    const result = await runCommunitySuite({ root, harnessRoot: root, out: join(directory, 'out'), profile: 'smoke', rounds: 1, communityProjects: [node.id], communityCatalogFile: files.catalog, communityPreparedFile: files.prepared, communityBrowserPreparedFile: files.browser, communityInputsFile: files.inputs })
+    const row = result.observations.find(row => row.caseId === feature.id)!
+    expect({ status: row.status, detail: row.detail }).toEqual({ status: 'failed', detail: 'Error: unsupported graph direction' })
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+}, 60_000)

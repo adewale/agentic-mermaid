@@ -44,7 +44,7 @@ the portable family cohort's canonical source. If the tool rejects that source
 cases is recorded `unsupported`, naming the probe, and is not run. The cases stay
 in the universe as coverage gaps. A probe that returns output keeps the family
 supported, so every later failure in it is a failure, even when the probe's own
-output fails qualification.
+output fails qualification. A case's error message never makes it unsupported.
 
 The selected-input pinned-reference score retains its historical selection and
 provenance. Its source harvester used Agentic-derived fields and local admission,

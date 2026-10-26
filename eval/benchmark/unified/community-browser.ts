@@ -40,7 +40,6 @@ export interface PreparedCommunityBrowser extends PreparedCommunity {
 }
 const digest = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex')
 const safe = (id: string): string => encodeURIComponent(id)
-const unsupported = /unsupported (?:diagram|family)|diagram (?:type|family).*(?:not supported|unsupported)|unknown diagram|unrecognized mermaid header|no diagram type detected|invalid mermaid header|not implemented.*(?:family|diagram)/i
 /** Seal executable/browser assets, not source-tree inputs or node_modules.
  * Delivery totals still use only observed requests, never this overapproximation. */
 function browserFiles(engine: CommunityBrowserEngine): { path: string; sha256: string }[] {
@@ -557,7 +556,7 @@ export async function runCommunityBrowserSuite(prepared: readonly PreparedCommun
                 timer = setTimeout(() => reject(new Error('Browser API workload exceeded 30s')), 30_000)
               }),
             ]).finally(() => clearTimeout(timer))
-            const status = measured.status === 'ok' ? 'passed' : measured.status === 'error' && unsupported.test(measured.error ?? '') ? 'unsupported' : 'failed'
+            const status = measured.status === 'ok' ? 'passed' : 'failed'
             const observation = row(peer, workload, workload.features.includes('core-graph-batch') ? 'core-api-repeat' : (options.communityCoverageOnce ?? true) ? 'feature-corpus-qualification' : 'feature-corpus-attempt', status, {
               ...(measured.samples ? { samplesMs: measured.samples } : {}),
               ...(measured.bytes === undefined ? {} : { bytes: measured.bytes }),

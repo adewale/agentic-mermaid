@@ -103,7 +103,7 @@ export async function runExternalCommunity(prepared: PreparedCommunity, workload
     writeFileSync(join(root, name + '-attempts.json'), JSON.stringify(attempts, null, 2))
     for (const w of selected) {
       const r = results.get(w.id),
-        status = r?.status === 'ok' || r?.status === 'passed' ? 'passed' : r?.status === 'unsupported' ? 'unsupported' : r ? 'failed' : 'blocked'
+        status = r?.status === 'ok' || r?.status === 'passed' ? 'passed' : r ? 'failed' : 'blocked'
       rows.push({
         suite: 'community',
         surface: artifact.kind === 'python' ? 'python:public-api' : 'native:in-process-api',
@@ -123,6 +123,7 @@ export async function runExternalCommunity(prepared: PreparedCommunity, workload
           round,
           workerAttempt: (r?.workerAttempt as number) ?? null,
           firstMs: (r?.firstMs as number) ?? null,
+          rejected: r?.status === 'unsupported' || r?.rejected === true,
           qualification: w.expectedLabels?.length ? 'declared-labels' : 'artifact-envelope-only',
           boundary: 'native public API; executable startup excluded',
         },

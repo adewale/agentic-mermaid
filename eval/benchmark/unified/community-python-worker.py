@@ -33,6 +33,6 @@ for w in job['workloads']:
    samples.append((time.perf_counter()-t)*1000/iterations)
   qualify(sink,w)
   r.update(status='ok',firstMs=first,samplesMs=samples,medianMs=statistics.median(samples),outputBytes=len(sink.encode()))
- except Exception as e:r.update(status='unsupported'if not isinstance(e,ValueError) and re.search(r'unsupported|unknown.*diagram|invalid.*header',str(e),re.I)else'error',detail=str(e))
+ except Exception as e:r.update(status='error',rejected=not isinstance(e,ValueError),detail=str(e))
  out.write(json.dumps(r)+'\n');out.flush()
 out.write(json.dumps(dict(type='end',maxRssKiB=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss))+'\n')
