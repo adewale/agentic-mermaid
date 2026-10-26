@@ -2613,3 +2613,62 @@ describe('DECISION_BRANCH_UNLABELED lint (ISO 5807 10.3.1.2 / ANSI X3.5 4.10.2)'
     }
   })
 })
+
+describe('node repairs retain terminal axes around measured headers', () => {
+const repair = rerouteEdgesThroughNodes
+const cross=(a:any,b:any,box:any)=>a.x===b.x?a.x>box.x&&a.x<box.x+box.width&&Math.max(a.y,b.y)>box.y&&Math.min(a.y,b.y)<box.y+box.height:a.y===b.y&&a.y>box.y&&a.y<box.y+box.height&&Math.max(a.x,b.x)>box.x&&Math.min(a.x,b.x)<box.x+box.width
+const clear=(path:any[],box:any)=>path.slice(1).every((b,i)=>!cross(path[i],b,box))
+const sameRay=(port:any,old:any,next:any)=>old.x===port.x&&next.x===port.x&&Math.sign(old.y-port.y)===Math.sign(next.y-port.y)||old.y===port.y&&next.y===port.y&&Math.sign(old.x-port.x)===Math.sign(next.x-port.x)
+for(const transpose of[false,true])for(const mirror of[false,true])for(const reverse of[false,true])it(`terminal ray and live header: transpose=${transpose}, mirror=${mirror}, reverse=${reverse}`,()=>{
+ const p=(x:number,y:number)=>{if(mirror)x=500-x;return transpose?{x:y,y:x}:{x,y}}
+ const box=(id:string,x:number,y:number,w:number,h:number)=>{const a=p(x,y),b=p(x+w,y+h);return{id,label:id,shape:'rectangle' as const,x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),width:Math.abs(a.x-b.x),height:Math.abs(a.y-b.y)}}
+ const nodes=[box('S',220,40,40,40),box('T',80,330,100,40),box('B',240,330,110,40)]
+ const bands=[box('outer-header',50,120,330,28),box('nested-header',65,285,300,28)]
+ const groups=bands.map((b,i)=>({...b,headerHeight:b.height,height:i===0?1:b.height,children:[]})) // Retained band may extend beyond the frame.
+ let points=[[240,80],[240,110],[400,110],[400,350],[180,350]].map(([x,y])=>p(x!,y!));if(reverse)points=points.toReversed()
+ const edge={source:reverse?'T':'S',target:reverse?'S':'T',style:'solid' as const,hasArrowStart:false,hasArrowEnd:true,endMarker:'arrow' as const,edgeIndex:0,points}
+ const old=structuredClone(points);let work=0
+ repair(nodes,[edge],{direction:transpose?(reverse?'RL':'LR'):(reverse?'BT':'TB')},(n:number)=>work+=n,groups)
+ expect(edge.points[0]).toEqual(old[0]);expect(edge.points.at(-1)).toEqual(old.at(-1));expect(sameRay(old[0],old[1],edge.points[1])).toBe(true);expect(sameRay(old.at(-1),old.at(-2),edge.points.at(-2))).toBe(true)
+ for(const b of[...nodes,...bands])expect(clear(edge.points,b)).toBe(true)
+ expect(edge.hasArrowEnd).toBe(true);expect(edge.endMarker).toBe('arrow');expect(work).toBeGreaterThan(0)
+ const duplicate=structuredClone({...edge,points:old});repair(nodes,[duplicate],{direction:transpose?(reverse?'RL':'LR'):(reverse?'BT':'TB')},()=>{},groups);expect(duplicate.points).toEqual(edge.points)
+})
+for(const headerCase of ['remote', 'none', 'zero-width'] as const)it('new terminal detour cannot traverse its own endpoint body / '+headerCase,()=>{
+ const nodes=[{id:'S',label:'S',shape:'rectangle' as const,x:25,y:20,width:10,height:10},{id:'T',label:'T',shape:'rectangle' as const,x:50,y:35,width:10,height:10},{id:'B',label:'B',shape:'rectangle' as const,x:15,y:35,width:5,height:10}]
+ const points=[[35,25],[45,25],[45,0],[10,0],[10,40],[50,40]].map(([x,y])=>({x:x!,y:y!})),old=structuredClone(points)
+ const edge={source:'S',target:'T',style:'solid' as const,hasArrowStart:false,hasArrowEnd:true,points}
+ const group={id:'remote',label:'remote',x:0,y:-20,width:100,height:10,headerHeight:10,children:[]}
+ repair(nodes,[edge],{direction:'LR'},()=>{},headerCase==='none'?[]:headerCase==='zero-width'?[{...group,width:0,headerHeight:undefined}]:[group])
+ for(const n of nodes)expect(clear(edge.points,n)).toBe(true)
+ expect(sameRay(old[0],old[1],edge.points[1])).toBe(true);expect(sameRay(old.at(-1),old.at(-2),edge.points.at(-2))).toBe(true)
+})
+it('new terminal detour never changes a simple route into selfcontact',()=>{
+ const nodes=[{id:'S',label:'S',shape:'rectangle' as const,x:-10,y:-5,width:10,height:10},{id:'T',label:'T',shape:'rectangle' as const,x:100,y:5,width:10,height:10},{id:'B',label:'B',shape:'rectangle' as const,x:50,y:5,width:10,height:10}]
+ const points=[[0,0],[30,0],[30,-20],[-20,-20],[-20,10],[100,10]].map(([x,y])=>({x:x!,y:y!})),old=structuredClone(points)
+ const edge={source:'S',target:'T',style:'solid' as const,hasArrowStart:false,hasArrowEnd:true,points}
+ const groups=[{id:'G1',label:'G1',x:11,y:-4,width:2,height:3,headerHeight:3,children:[]},{id:'G2',label:'G2',x:11,y:1,width:2,height:36,headerHeight:36,children:[]}]
+ repair(nodes,[edge],{direction:'LR'},()=>{},groups)
+ // Independent exact integer-cell walk catches crossings, overlaps and touches.
+ const visited=new Set([`${edge.points[0]!.x},${edge.points[0]!.y}`]);let repeated=false
+ for(let i=1;i<edge.points.length;i++){const a=edge.points[i-1]!,b=edge.points[i]!,dx=Math.sign(b.x-a.x),dy=Math.sign(b.y-a.y);expect(dx===0||dy===0).toBe(true);let x=a.x,y=a.y;while(x!==b.x||y!==b.y){x+=dx;y+=dy;const key=`${x},${y}`;if(visited.has(key))repeated=true;visited.add(key)}}
+ expect(repeated).toBe(false)
+ // Both bounded replacement lanes are obstructed; keep the original failure.
+ expect(edge.points).toEqual(old);expect(edge.hasArrowEnd).toBe(true)
+})
+it('website Cloud source retains all authored nodes, groups, markers and clear literal bands',async()=>{
+ const source="graph TD\n  subgraph Cloud\n    subgraph us-east [US East Region]\n      A[Web Server] --> B[App Server]\n    end\n    subgraph us-west [US West Region]\n      C[Web Server] --> D[App Server]\n    end\n  end\n  E[Load Balancer] --> A\n  E --> C"
+ const result=renderMermaidSVGWithReceipt(source,{idPrefix:'cloud-owner-'})
+ expect(result.receipt.layoutCertification?.status).toBe('passed')
+ const tags=[...result.svg.matchAll(/<polyline\b[^>]*data-from="([^"]+)"[^>]*data-to="([^"]+)"[^>]*>/g)]
+ expect(tags.map(m=>`${m[1]}->${m[2]}`).sort()).toEqual(['A->B','C->D','E->A','E->C']);expect(tags.every(m=>m[0].includes('marker-end='))).toBe(true)
+ for(const id of['A','B','C','D','E'])expect(result.svg).toContain(`data-id="${id}"`)
+ expect(result.svg).toContain('data-id="us-east" data-region="subgraph" data-label="US East Region" data-parent-id="Cloud"');expect(result.svg).toContain('data-id="us-west" data-region="subgraph" data-label="US West Region" data-parent-id="Cloud"')
+ // Literal measured default headers: independent coordinate oracle, not routing helper.
+ const headers=[...result.svg.matchAll(/<g\b[^>]*data-region="subgraph"[^>]*>\s*<rect\b[^>]*>\s*<path\b[^>]*d="([^"]+)"/g)]
+ expect(headers).toHaveLength(3)
+ const bands=headers.map(m=>{const n=m[1]!.match(/[-+]?(?:\d*\.\d+|\d+\.?\d*)(?:[eE][-+]?\d+)?/g)!.map(Number);expect(n).toHaveLength(5);expect(n[3]!-n[1]!).toBe(28);return{x:n[0]!,y:n[1]!,width:n[2]!-n[0]!,height:n[3]!-n[1]!}})
+ for(const m of tags){const pts=/points="([^"]+)"/.exec(m[0])![1]!.split(/\s+/).map(s=>{const[x,y]=s.split(',').map(Number);return{x,y}});for(const b of bands)expect(clear(pts,b)).toBe(true)}
+})
+
+})

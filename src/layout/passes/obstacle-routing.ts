@@ -1,4 +1,4 @@
-import type { MermaidGraph, Point, PositionedEdge, PositionedNode } from '../../types.ts'
+import type { MermaidGraph, Point, PositionedEdge, PositionedNode, PositionedGroup } from '../../types.ts'
 import { onShapeOutline, segmentThroughShape } from '../../layout-rubric.ts'
 import { recertifyReroutedEdge, shapePorts, simplifyPolyline } from '../../route-contracts.ts'
 import { bundleRouteBeforeRewrite, retainBundleRouteAfterRewrite } from '../bundle-routes.ts'
@@ -75,7 +75,7 @@ export function reanchorOffOutlineEndpoints(nodes: PositionedNode[], edges: Posi
  * equivalence holds. Edge-only, deterministic (fixed candidate order); label
  * re-centred on the new route. Self-loops are skipped.
  */
-export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: PositionedEdge[], graph: Pick<MermaidGraph, 'direction'>, chargeWork?: (operations: number) => void): void {
+export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: PositionedEdge[], graph: Pick<MermaidGraph, 'direction'>, chargeWork?: (operations: number) => void, groups: readonly PositionedGroup[] = []): void {
   const f = layoutFlow(graph.direction)
   chargeWork?.(nodes.length)
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
@@ -87,6 +87,27 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
       for (let i = 1; i < pts.length; i++) { chargeWork?.(1); if (segmentThroughShape(pts[i - 1]!, pts[i]!, n)) return true }
     }
     return false
+  }
+  // Headers are live reserved geometry, including endpoint ancestors. A node
+  // detour may not trade an opaque card crossing for a reserved-band crossing.
+  const clearHeaders = (pts: readonly Point[]): boolean => {
+    const visit = (group: PositionedGroup): boolean => {
+      chargeWork?.(1)
+      const height = group.concurrencyRegion ? 0 : group.headerHeight
+      // Final pipeline retains the writer's measured height. Missing metadata
+      // cannot prove a clear candidate; a measured band may exceed its frame.
+      if (group.width !== 0 && (height === undefined || !Number.isFinite(height) || height < 0)) return false
+      if (height !== undefined && height > 0 && group.width > 0) for (let i = 1; i < pts.length; i++) {
+        chargeWork?.(1)
+        const a = pts[i - 1]!, b = pts[i]!
+        if (Math.max(a.x, b.x) > group.x && Math.min(a.x, b.x) < group.x + group.width
+          && Math.max(a.y, b.y) > group.y && Math.min(a.y, b.y) < group.y + height) return false
+      }
+      for (const child of group.children) if (!visit(child)) return false
+      return true
+    }
+    for (const group of groups) if (!visit(group)) return false
+    return true
   }
   // Slide a blocked INTERIOR (non-terminal) axis-aligned segment sideways to the
   // nearest parallel lane clear of every node, keeping the polyline's endpoints
@@ -112,7 +133,7 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
       for (const cp of cands) {
         const trial = pts.map(p => ({ ...p }))
         trial[k]![ax] = cp; trial[k + 1]![ax] = cp
-        if (!throughNode(trial, skip) && routeClearOfNodes(trial, nodes, skip, chargeWork)) return simplifyPolyline(trial)
+        if (!throughNode(trial, skip) && routeClearOfNodes(trial, nodes, skip, chargeWork) && clearHeaders(trial)) return simplifyPolyline(trial)
       }
     }
     return null
@@ -149,7 +170,67 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
     const lanes = [...new Set(laneSet)].sort((p, q) => Math.abs(p - mean) - Math.abs(q - mean))
     for (const lane of lanes) {
       const route = simplifyPolyline([start, pt(m1, start[f.cross]), pt(m1, lane), pt(m2, lane), pt(m2, end[f.cross]), end])
-      if (!throughNode(route, skip) && routeClearOfNodes(route, nodes, skip, chargeWork)) return route
+      if (!throughNode(route, skip) && routeClearOfNodes(route, nodes, skip, chargeWork) && clearHeaders(route)) return route
+    }
+    return null
+  }
+  // New fallback paths must remain simple, including touches and backtracking.
+  // Normal adjacent segments may share only their common endpoint.
+  const simpleOrthogonal = (pts: readonly Point[]): boolean => {
+    for (let i = 1; i < pts.length; i++) {
+      chargeWork?.(1)
+      const a = pts[i - 1]!, b = pts[i]!
+      if (!Number.isFinite(a.x) || !Number.isFinite(a.y) || !Number.isFinite(b.x) || !Number.isFinite(b.y)
+        || a.x !== b.x && a.y !== b.y || a.x === b.x && a.y === b.y) return false
+      const vertical = a.x === b.x
+      for (let j = 1; j < i; j++) {
+        chargeWork?.(1)
+        const c = pts[j - 1]!, d = pts[j]!, peerVertical = c.x === d.x
+        if (vertical === peerVertical) {
+          const axis = vertical ? 'y' : 'x', fixed = vertical ? 'x' : 'y'
+          if (a[fixed] !== c[fixed]) continue
+          const low = Math.max(Math.min(a[axis], b[axis]), Math.min(c[axis], d[axis]))
+          const high = Math.min(Math.max(a[axis], b[axis]), Math.max(c[axis], d[axis]))
+          if (j === i - 1 ? low < high : low <= high) return false
+        } else if (j !== i - 1) {
+          const x = vertical ? a.x : c.x, y = vertical ? c.y : a.y
+          if (x >= Math.min(a.x, b.x) && x <= Math.max(a.x, b.x) && y >= Math.min(a.y, b.y) && y <= Math.max(a.y, b.y)
+            && x >= Math.min(c.x, d.x) && x <= Math.max(c.x, d.x) && y >= Math.min(c.y, d.y) && y <= Math.max(c.y, d.y)) return false
+        }
+      }
+    }
+    return true
+  }
+  // A blocked terminal shaft may enter from a different axis than graph flow.
+  // Keep that actual port ray; move the preceding turn around the blocking card.
+  chargeWork?.(1)
+  const noSkip = new Set<string>()
+  const detourTerminalSegment = (pts: Point[], skip: ReadonlySet<string>): Point[] | null => {
+    if (pts.length < 3) return null
+    const end = pts.at(-1)!, a = pts.at(-2)!, before = pts.at(-3)!
+    const axis = a.y === end.y && a.x !== end.x ? 'x' : a.x === end.x && a.y !== end.y ? 'y' : undefined
+    if (!axis) return null
+    const cross = axis === 'x' ? 'y' : 'x'
+    if (before[axis] !== a[axis] || before[cross] === a[cross] || !throughNode([a, end], skip)) return null
+    const lanes: number[] = []
+    for (const node of nodes) {
+      chargeWork?.(1)
+      if (skip.has(node.id) || !segmentThroughShape(a, end, node)) continue
+      chargeWork?.(2) // two actual boundary candidates
+      lanes.push(node[cross] - THROUGH_LANE_GAP, node[cross] + (cross === 'x' ? node.width : node.height) + THROUGH_LANE_GAP)
+    }
+    lanes.sort((p, q) => { chargeWork?.(1); return Math.abs(p - a[cross]) - Math.abs(q - a[cross]) })
+    const toward = end[axis] + Math.sign(a[axis] - end[axis]) * Math.min(THROUGH_LANE_GAP, Math.abs(a[axis] - end[axis]) / 2)
+    for (const lane of lanes) {
+      chargeWork?.(2 * pts.length + 12) // slice/spread references, three Point records and terminal checks
+      const bend = { ...a, [cross]: lane }, approach = { ...end, [axis]: toward, [cross]: lane }, stub = { ...end, [axis]: toward }
+      const trial = simplifyPolyline([...pts.slice(0, -2), bend, approach, stub, end])
+      // Prefix/terminal directions must stay the actual original rays.
+      const sameRay = (port: Point, oldNext: Point, next: Point): boolean =>
+        oldNext.x === port.x && next.x === port.x && Math.sign(oldNext.y - port.y) === Math.sign(next.y - port.y)
+        || oldNext.y === port.y && next.y === port.y && Math.sign(oldNext.x - port.x) === Math.sign(next.x - port.x)
+      if (!sameRay(pts[0]!, pts[1]!, trial[1]!) || !sameRay(end, a, trial.at(-2)!)) continue
+      if (!throughNode(trial, noSkip) && routeClearOfNodes(trial, nodes, skip, chargeWork) && clearHeaders(trial) && simpleOrthogonal(trial)) return trial
     }
     return null
   }
@@ -163,7 +244,12 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
     // Off-outline endpoints are reanchorOffOutlineEndpoints' job; this pass only
     // relocates the interior of an otherwise port-exact route.
     if (!onShapeOutline(source, edge.points[0]!) || !onShapeOutline(target, edge.points[edge.points.length - 1]!)) continue
-    const route = shiftInteriorSegment(edge.points, skip) ?? bracketOverBand(edge.points, skip)
+    let route = shiftInteriorSegment(edge.points, skip) ?? bracketOverBand(edge.points, skip)
+      ?? detourTerminalSegment(edge.points, skip)
+    if (!route) {
+      chargeWork?.(edge.points.length) // reverse-domain reference initialization
+      route = detourTerminalSegment(edge.points.toReversed(), skip)?.reverse() ?? null
+    }
     if (!route) continue // never-worse: no clean detour found, leave as-is
     const savedCert = edge.routeCertificate
     edge.points = route
