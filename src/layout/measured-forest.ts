@@ -78,7 +78,14 @@ export function layoutMeasuredForest(input: MeasuredGraph): AgenticLayout | unde
       const end = horizontal
         ? { x: target.x + (reverse ? to.width : 0), y: target.y + to.height / 2 }
         : { x: target.x + to.width / 2, y: target.y + (reverse ? to.height : 0) }
-      const mid = horizontal ? (start.x + end.x) / 2 : (start.y + end.y) / 2
+      let mid = horizontal ? (start.x + end.x) / 2 : (start.y + end.y) / 2
+      // Unequal main-axis sizes center faces inside their depth bands. An
+      // individual face midpoint can therefore enter a taller sibling box.
+      // Keep existing clear band-gap bends exact; move only an out-of-gap bend.
+      const band = depth[edge.source]!
+      const exit = padding + (reverse ? mainExtent - (bandStart[band]! + bands[band]!) : bandStart[band]! + bands[band]!)
+      const entry = padding + (reverse ? mainExtent - bandStart[band + 1]! : bandStart[band + 1]!)
+      if (mid <= Math.min(exit, entry) || mid >= Math.max(exit, entry)) mid = exit + (entry - exit) / 2
       return { points: horizontal
         ? [start, { x: mid, y: start.y }, { x: mid, y: end.y }, end]
         : [start, { x: start.x, y: mid }, { x: end.x, y: mid }, end] }
