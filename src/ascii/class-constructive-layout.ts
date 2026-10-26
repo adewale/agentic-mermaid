@@ -66,6 +66,7 @@ const describe = (value: readonly string[] | undefined): Text => {
   const width = Math.max(0, ...lines.map(visualWidth))
   return { lines, width, height: lines.length, cells: width * lines.length, extra: lines.reduce((sum, line) => sum + Math.max(0, line.length - visualWidth(line)), 0) }
 }
+export const classLinkFooterText = (id: string, href: string): string => `link ${id}: ${href}`
 const overlap = (a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }) => a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y
 /** Validate actual compact geometry before any paint. Only strict perpendicular
  * interior crossings are legal between unrelated authored paths. */
@@ -177,7 +178,6 @@ export function prepareClassConstruction(
   )
   let order = 0
   const cardItem = (original: Card): Item & { original: Card } => {
-    requireValue(!original.cls?.isInterface && !original.cls?.href, 'interface/href fallback surface requires its owning realization')
     const sections = original.sections,
       lines = sections?.flat() ?? original.lines ?? [],
       contentWidth = Math.max(6, 4 + Math.max(0, ...lines.map(visualWidth))),
@@ -277,11 +277,15 @@ export function prepareClassConstruction(
     aux = end + 2
     return { relation, source, target, inner, outer, sourceLane, targetLane, aux: end, count, central, fromText, toText }
   })
+  // The canonical painter appends one blank row and the measured text rows
+  // per link, before applying the title offset. Reserve that same inert footer.
+  const footers = classes.flatMap(item => (item.original.cls?.href ? [describe([classLinkFooterText(item.id, item.original.cls.href)])] : []))
+  const footerRows = footers.reduce((sum, text) => sum + 1 + text.height, 0)
   const title = describe(titleLines),
     offset = title.height ? title.height + 1 : 0,
-    width = Math.max(right, title.width, ...routes.map(route => (horizontal ? route.aux + 1 : route.outer + 1))),
+    width = Math.max(right, title.width, ...footers.map(text => text.width), ...routes.map(route => (horizontal ? route.aux + 1 : route.outer + 1))),
     bodyHeight = Math.max(bottom, ...routes.map(route => (horizontal ? route.outer + 1 : route.aux + 1))),
-    height = bodyHeight + offset,
+    height = bodyHeight + footerRows + offset,
     pathPoints = routes.reduce((sum, route) => sum + route.count, 0)
   requireValue(
     [width, height, pathPoints].every(value => Number.isSafeInteger(value) && value >= 0),
@@ -322,13 +326,23 @@ export function prepareClassConstruction(
     }
     for (const label of textBounds(route)) if (label.text.height) span(label.x, label.y, label.text.width, label.text.height)
   }
+  let footerY = bodyHeight
+  for (const text of footers) {
+    footerY++
+    span(0, footerY, text.width, text.height)
+    footerY += text.height
+  }
   for (let row = 0; row < title.height; row++) widths[row] = Math.ceil((width + title.width) / 2)
   const outputUpper =
     widths.reduce((sum, width) => sum + width, Math.max(0, height - 1)) +
-    [...classes.flatMap(item => item.original.sections?.flat() ?? []), ...notes.flatMap(note => note.lines ?? []), ...frames.flatMap(frame => frame.labelLines), ...titleLines, ...routes.flatMap(route => [...route.central.lines, ...route.fromText.lines, ...route.toText.lines])].reduce(
-      (sum, line) => sum + Math.max(0, line.length - visualWidth(line)),
-      0,
-    )
+    [
+      ...classes.flatMap(item => item.original.sections?.flat() ?? []),
+      ...notes.flatMap(note => note.lines ?? []),
+      ...frames.flatMap(frame => frame.labelLines),
+      ...titleLines,
+      ...footers.flatMap(text => text.lines),
+      ...routes.flatMap(route => [...route.central.lines, ...route.fromText.lines, ...route.toText.lines]),
+    ].reduce((sum, line) => sum + Math.max(0, line.length - visualWidth(line)), 0)
   requireValue(outputUpper <= LIMITS.maxOutputCodeUnits, 'encoded output ceiling')
   let frameContacts = 0,
     planningWork = 3
@@ -371,17 +385,18 @@ export function prepareClassConstruction(
   const headerCells = frames.reduce((sum, frame) => sum + describe(frame.labelLines.map(line => ' ' + line + ' ')).cells, 0),
     headerRows = frames.reduce((sum, frame) => sum + frame.labelLines.length, 0)
   const nodeText = classes.reduce((sum, item) => sum + (item.original.sections ?? []).reduce((rows, section) => rows + section.reduce((cells, line) => cells + describe([line]).cells, 0), 0), 0) + notes.reduce((sum, note) => sum + describe(note.lines).cells, 0)
-  const textVisual = nodeText + external + headerCells + title.cells,
-    physical = nodeArea + pathPoints + external + perimeters + headerCells + title.cells
-  const allocationUpper = nodeArea + 3 * relations.length + headerRows + title.height,
-    emptyUpper = nodeArea + routes.reduce((sum, route) => sum + route.central.height + route.fromText.height + route.toText.height, 0) + headerRows + title.height
+  const footerCells = footers.reduce((sum, text) => sum + text.cells, 0)
+  const textVisual = nodeText + external + headerCells + title.cells + footerCells,
+    physical = nodeArea + pathPoints + external + perimeters + headerCells + title.cells + footerCells
+  const allocationUpper = nodeArea + 3 * relations.length + headerRows + title.height + footers.length,
+    emptyUpper = nodeArea + footerRows + routes.reduce((sum, route) => sum + route.central.height + route.fromText.height + route.toText.height, 0) + headerRows + title.height
   const identityUpper = 4 * identities + identities * identities + members * (identities + 1) + 2 * relations.length
   const baselineUpper = widths.reduce((sum, width) => sum + width, 0) + height + identityUpper + 2 * declarations + allocationUpper + emptyUpper + 18 * textVisual + 5 * physical + 2 * compartmentArea + 6 * portCount
   const producerUpper = (title.height ? 6 + 16 * relations.length : 3 + 9 * relations.length) + planningWork
   const certificationUpper = baselineUpper + 2 * pathPoints + 2 * crossings + frameContacts + producerUpper + 11 + 22 * relations.length
   // A conservative estimate is not a pass. The unchanged final live-cell
   // certifier enforces its actual 1M counter; no budget is restarted or enlarged.
-  const report = { width, height, outputUpper, pathPoints, certificationUpper, baselineUpper, planningWork, layoutWork, frameContacts, nodeArea, perimeters, external, crossings, identities, declarations, compartments, ports: portCount }
+  const report = { width, height, outputUpper, pathPoints, certificationUpper, baselineUpper, planningWork, layoutWork, frameContacts, nodeArea, perimeters, external, crossings, identities, declarations, compartments, ports: portCount, footerCells }
   for (const item of all) Object.assign(item.original, { x: item.x, y: item.y, width: item.width, height: item.height })
   return { horizontal, side, nodes, frames: frameItems, routes, endBand, relations, report }
 }

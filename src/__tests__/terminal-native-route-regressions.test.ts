@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test'
-import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
+import { AsciiWidthError, renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
+import { renderMermaidWithActions } from '../agent/index.ts'
 import { terminalDocumentOf, type TerminalDocument, type TerminalRegion } from '../ascii/terminal-document.ts'
 import { convertToAsciiGraph } from '../ascii/converter.ts'
 import { createMapping } from '../ascii/grid.ts'
@@ -10,10 +11,7 @@ import { contactSheetScenarios } from '../../eval/visual-rubric/scenarios.ts'
 import { readFileSync } from 'node:fs'
 import { parseAsciiGoldenFixture } from '../../scripts/ascii-golden-fixture.ts'
 
-// The Class1 hub/parallel/self-route counterexample retains authored
-// endpoint roles and labels survive even when the compact shafts collide.
-test.each([false, true].flatMap(useAscii => (['none', 'ansi16', 'html'] as const).map(colorMode => [useAscii, colorMode] as const)))('Class dense relationships retain certified owned ink (ASCII=%s, %s)', (useAscii, colorMode) => {
-  const source = `classDiagram
+const denseClassSource = `classDiagram
 direction TB
 class \`ns:Domain\`["Card 1-0 WWW 👩‍💻"] {
   +String value0
@@ -71,6 +69,11 @@ class \`C9\`["Card 1-9 WWWWWWWWW 👩‍💻"] {
 \`C9\` ..> \`C9\` : edge 18 xxxxxxxxxxxx
 note for \`ns:Domain\` "owned note 1<br/>second line"
 note "free note 1"`
+
+// The Class1 hub/parallel/self-route counterexample retains authored
+// endpoint roles and labels survive even when the compact shafts collide.
+test.each([false, true].flatMap(useAscii => (['none', 'ansi16', 'html'] as const).map(colorMode => [useAscii, colorMode] as const)))('Class dense relationships retain certified owned ink (ASCII=%s, %s)', (useAscii, colorMode) => {
+  const source = denseClassSource
   const result = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode, layoutSafety: 'strict' })
   expect(result.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [], budget: { exhausted: false, maxOperations: 1_000_000, maxOutputCodeUnits: 2_000_000 } })
   const doc = terminalDocumentOf(result)!, regions = doc.regions(), edges = regions.filter(region => region.kind === 'edge')
@@ -108,6 +111,67 @@ test.each([false, true])('Class safe compact association preserves its reviewed 
   const doc = terminalDocumentOf(result)!, edge = doc.regions().find(region => region.kind === 'edge')!
   expect(hasOwnedRoute(doc, edge)).toBe(true)
   expect(edge).toMatchObject({ from: 'Student', to: 'Course', projectedText: 'enrolls' })
+})
+
+test.each([false, true])('Class recovery keeps hyperlink footers and inert actions (ASCII=%s)', useAscii => {
+  const href = 'https://example.com/docs?x=1&y=2'
+  const source = `${denseClassSource}\nclick \`ns:Domain\` href "${href}" "API reference"`
+  const result = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none', layoutSafety: 'strict' })
+  expect(result.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [] })
+  expect(result.text).toContain(`link ns:Domain: ${href}`)
+  const doc = terminalDocumentOf(result)!
+  expect(doc.regions().filter(region => region.kind === 'edge')).toHaveLength(20)
+  expect([...doc.entries()].filter(([, , cell]) => cell.glyph === '&').every(([, , cell]) => cell.owners.some(owner => owner.kind === 'node' && owner.id === 'ns:Domain'))).toBe(true)
+  const artifact = renderMermaidWithActions(source, { format: 'ascii', options: { useAscii, colorMode: 'none', layoutSafety: 'strict' } })
+  expect(artifact.actionSurface.actions[0]).toMatchObject({ target: 'ns:Domain', href, tooltip: 'API reference', security: 'safe', executable: false })
+  const unsafe = renderMermaidWithActions('classDiagram\nclass A\nclick A href "javascript:alert(1)"', { format: 'ascii', options: { useAscii, colorMode: 'none' } })
+  expect(unsafe.output).not.toContain('javascript:')
+  expect(unsafe.actionSurface.actions[0]).toMatchObject({ target: 'A', href: 'javascript:alert(1)', security: 'unsafe', executable: false })
+})
+
+test('Class recovery includes complete hyperlink footers in its width limit', () => {
+  const href = `https://example.com/${'long'.repeat(200)}`
+  const source = `${denseClassSource}\nclick \`ns:Domain\` href "${href}"`
+  for (const field of ['targetWidth', 'maxWidth'] as const) {
+    let caught: unknown
+    try { renderMermaidASCIIWithReceipt(source, { colorMode: 'none', [field]: 400 }) } catch (error) { caught = error }
+    expect(caught).toBeInstanceOf(AsciiWidthError)
+    expect(caught).toMatchObject({ code: 'ASCII_TARGET_WIDTH_IMPOSSIBLE', requestedWidth: 400, family: 'class' })
+  }
+})
+
+test.each(['TB', 'BT', 'LR', 'RL'].flatMap(direction => [false, true].map(useAscii => [direction, useAscii] as const)))('Class unboxed interfaces use their actual lollipop surface (%s, ASCII=%s)', (direction, useAscii) => {
+  const name = 'Interface 👩‍💻'
+  const result = renderMermaidASCIIWithReceipt(`classDiagram
+direction ${direction}
+namespace Outer {
+  class A["Carrier 👩‍💻"]
+}
+class interface0["Authored interface0"]
+A --() \`${name}\`
+A --() \`${name}\``, { useAscii, colorMode: 'none', layoutSafety: 'strict' })
+  expect(result.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [] })
+  const doc = terminalDocumentOf(result)!, regions = doc.regions(), edges = regions.filter(region => region.kind === 'edge')
+  expect(edges).toHaveLength(2)
+  expect(new Set(edges.map(edge => edge.to)).size).toBe(2)
+  expect(regions.find(region => region.id === 'interface0')?.projectedText).toBe('Authored interface0')
+  expect(regions.find(region => region.id === 'A')?.parentId).toBe('Outer')
+  for (const edge of edges) {
+    expect(edge.from).toBe('A')
+    expect(edge.to).not.toBe('interface0')
+    const node = regions.find(region => region.kind === 'node' && region.id === edge.to)!, port = edge.ports!.find(port => port.end === 'end')!, cell = doc.cell(port.x, port.y)!
+    expect(node.projectedText).toBe(name)
+    expect(node.canvasColStart).toBe(port.x)
+    expect(node.canvasColEnd).toBe(port.x + cell.width)
+    expect(node.canvasRow).toBe(port.y)
+    expect(node.rowSpan ?? 1).toBe(1)
+    expect(cell.marker?.shape).toBe('lollipop')
+    expect(cell.owners).toContainEqual(expect.objectContaining({ id: node.id, kind: 'node' }))
+    expect(cell.owners).toContainEqual(expect.objectContaining({ id: edge.id, kind: 'edge' }))
+    expect(hasOwnedRoute(doc, edge)).toBe(true)
+    expect(visibleEndpointMarkers(doc, edge).map(marker => marker.shape)).toEqual(['lollipop'])
+  }
+  expect(() => doc.assertMarkers()).not.toThrow()
 })
 
 test.each([false, true])('retains an unroutable dense relationship as an owned, explicitly degraded summary (ASCII=%s)', useAscii => {

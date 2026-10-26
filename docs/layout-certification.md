@@ -78,10 +78,13 @@ Full correspondence with authored source remains the family renderer's contract.
 Class keeps a valid compact layout. If allocation fails or its actual contacts
 are invalid, bounded recovery reserves separate routes, endpoint labels and
 namespace crossings before painting. It keeps text upright in all four layout
-directions and preserves authored identities, markers and note targets. Recovery
-for unboxed lollipop interfaces and hyperlink footers remains limited; unsupported recovery or an
-exhausted final check cannot become a passed certificate. Operation and output
-limits are unchanged.
+directions and preserves authored identities, markers and note targets. Unboxed
+interfaces keep their captions and publish the actual owned lollipop as their
+physical surface. Hyperlink footer rows and their complete text extents are
+reserved before recovery is painted; safe links stay inert and unsafe actions
+remain source-only under the existing security policy. Both representations
+still use the same final operation and output limits. An unfinished check cannot
+become a passed certificate.
 
 ## Priority and pass budgets
 

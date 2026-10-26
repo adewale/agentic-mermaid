@@ -1,4 +1,4 @@
-import {prepareClassConstruction,compactClassRoutesDecision,type ClassConstruction} from './class-constructive-layout.ts'
+import { prepareClassConstruction, compactClassRoutesDecision, classLinkFooterText, type ClassConstruction } from './class-constructive-layout.ts'
 // Class layout keeps integer cards, endpoint demand and label rectangles
 // authoritative before emitting owned terminal primitives.
 import { classRelationshipLineStyle, parseClassDiagram } from '../class/parser.ts'
@@ -225,7 +225,7 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
         for (const child of children) if ('members' in child) settle(child.id)
         const allocated: Array<PlacedClass | PlacedNamespace> = []
         for (const child of children.sort((a, b) => a.y - b.y || a.x - b.x || compareCodePointStrings(a.id, b.id))) {
-          const separation = (other: PlacedClass | PlacedNamespace) => routingGapPromoted && !('members' in child) && !('members' in other) ? Math.max(frameClearance, minimumRoutingGap) : frameClearance
+          const separation = (other: PlacedClass | PlacedNamespace) => (routingGapPromoted && !('members' in child) && !('members' in other) ? Math.max(frameClearance, minimumRoutingGap) : frameClearance)
           for (;;) {
             const blockers = allocated.filter(other => child.x < other.x + other.width + separation(other) && other.x < child.x + child.width + separation(other) && child.y < other.y + other.height + separation(other) && other.y < child.y + child.height + separation(other))
             if (!blockers.length) break
@@ -247,7 +247,11 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
       const boxes = [...placed.values(), ...namespaces]
       const dx = Math.max(0, -Math.min(0, ...boxes.map(box => box.x)))
       const dy = Math.max(0, -Math.min(0, ...boxes.map(box => box.y)))
-      if (dx || dy) for (const box of boxes) { box.x += dx; box.y += dy }
+      if (dx || dy)
+        for (const box of boxes) {
+          box.x += dx
+          box.y += dy
+        }
     }
   }
   const allocateNotes = () => {
@@ -279,7 +283,7 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
       const previous = faceSizes.get(id) ?? { width: 0, height: 0 }
       faceSizes.set(id, { width: Math.max(previous.width, size.width), height: Math.max(previous.height, size.height) })
       const box = byId.get(id)
-      if (!box || box.width >= size.width && box.height >= size.height) continue
+      if (!box || (box.width >= size.width && box.height >= size.height)) continue
       const card = sizes.get(id)
       if (card) {
         card.width = Math.max(card.width, size.width)
@@ -289,18 +293,20 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
     }
     if (!changed && !routingGapPromoted) {
       const deficient = (a: TerminalBox, b: TerminalBox): boolean => {
-        const first = demand.get(a.id), second = demand.get(b.id)
+        const first = demand.get(a.id),
+          second = demand.get(b.id)
         if (!first || !second) return false
-        const verticalGap = b.y - a.y - a.height, horizontalGap = b.x - a.x - a.width
-        return first.B > 0 && second.T > 0 && verticalGap >= 0 && verticalGap < minimumRoutingGap && a.x < b.x + b.width && b.x < a.x + a.width
-          || first.R > 0 && second.L > 0 && horizontalGap >= 0 && horizontalGap < minimumRoutingGap && a.y < b.y + b.height && b.y < a.y + a.height
+        const verticalGap = b.y - a.y - a.height,
+          horizontalGap = b.x - a.x - a.width
+        return (first.B > 0 && second.T > 0 && verticalGap >= 0 && verticalGap < minimumRoutingGap && a.x < b.x + b.width && b.x < a.x + a.width) || (first.R > 0 && second.L > 0 && horizontalGap >= 0 && horizontalGap < minimumRoutingGap && a.y < b.y + b.height && b.y < a.y + a.height)
       }
-      for (let first = 0; first < boxes.length && !routingGapPromoted; first++) for (let second = first + 1; second < boxes.length; second++) {
-        if (!deficient(boxes[first]!, boxes[second]!) && !deficient(boxes[second]!, boxes[first]!)) continue
-        routingGapPromoted = true
-        changed = true
-        break
-      }
+      for (let first = 0; first < boxes.length && !routingGapPromoted; first++)
+        for (let second = first + 1; second < boxes.length; second++) {
+          if (!deficient(boxes[first]!, boxes[second]!) && !deficient(boxes[second]!, boxes[first]!)) continue
+          routingGapPromoted = true
+          changed = true
+          break
+        }
     }
     if (!changed) break
     if (pass === maximumGrowths) throw new Error('Terminal face capacity did not stabilize within its incident demand')
@@ -310,12 +316,18 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
   }
   // Select one complete layout before painting. An invalid compact route is
   // not published and never consumes/restarts a certification budget.
-  let routes: BoxRoute[] = [], construction: ClassConstruction | undefined
-  const allRelations = [...relations, ...noteRelations], boxes = [...placed.values(), ...noteBoxes]
+  let routes: BoxRoute[] = [],
+    construction: ClassConstruction | undefined
+  const allRelations = [...relations, ...noteRelations],
+    boxes = [...placed.values(), ...noteBoxes]
   let compactIssue: string | undefined
   try {
-    routes = allocateBoxRoutes(boxes, allRelations, direction,
-      namespaces.map(box => ({ ...box, container: true, headerHeight: box.labelLines.length })))
+    routes = allocateBoxRoutes(
+      boxes,
+      allRelations,
+      direction,
+      namespaces.map(box => ({ ...box, container: true, headerHeight: box.labelLines.length })),
+    )
     const decision = compactClassRoutesDecision(routes, boxes, namespaces, namespaceByClass)
     // UNKNOWN preserves the original compact drawing for the one final certifier.
     if (decision.status === 'invalid') compactIssue = decision.reason
@@ -362,13 +374,39 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
   }
   for (const box of placed.values()) {
     const owner = doc.element({ id: box.id, kind: 'node', parent: namespaceByClass.has(box.id) ? { id: namespaceByClass.get(box.id)!, kind: 'cluster' } : undefined })
-    doc.region(owner, { x: box.x, y: box.y, width: box.width, height: box.height })
     if (box.cls.isInterface) {
+      doc.resize(box.x + box.width, box.y + box.height) // Preserve the caption's allocated canvas, independently of its physical surface.
+      // An unboxed interface's visible surface is its lollipop, not the
+      // invisible rectangle used to pack its caption. Keep that caption and
+      // every authored endpoint unchanged, and attribute only admitted ink.
+      const route = routes.find(route => route.relation.from === box.id || route.relation.to === box.id)
+      const relation = route && relationshipById.get(route.relation.id)
+      const start = route?.relation.from === box.id
+      const port = route && (start ? route.source : route.target)
+      const enabled = relation && (relation.markerAt === 'both' || relation.markerAt === (start ? 'from' : 'to'))
+      const expected = relation && port && enabled ? classMarker((start ? relation.fromType : relation.toType) ?? relation.type, port.side, ascii) : undefined
+      const cell = port && doc.cell(port.x, port.y)
+      if (
+        route &&
+        port &&
+        expected?.shape === 'lollipop' &&
+        cell?.kind === 'marker' &&
+        cell.head === port.x &&
+        cell.marker?.shape === expected.shape &&
+        cell.marker.direction === expected.direction &&
+        cell.owners.some(candidate => candidate.kind === 'edge' && candidate.id === route.relation.id) &&
+        cell.owners.every(candidate => candidate.kind !== 'edge' || candidate.id === route.relation.id)
+      ) {
+        const surface = { x: port.x, y: port.y, width: cell.width, height: 1 }
+        doc.region(owner, surface)
+        doc.attributeWithin(owner, surface)
+      } else doc.region(owner, { x: box.x, y: box.y, width: box.width, height: box.height }) // Missing ink still fails the unchanged final checks.
       const lines = box.sections[0] ?? []
       const top = box.y + Math.floor((box.height - lines.length) / 2)
       lines.forEach((line, index) => doc.text(box.x + Math.floor((box.width - visualWidth(line)) / 2), top + index, line, { owner }))
       continue
     }
+    doc.region(owner, { x: box.x, y: box.y, width: box.width, height: box.height })
     doc.fill(box.x, box.y, box.width, box.height, { owner, kind: 'surface' })
     const card = drawMultiBox(box.sections, ascii, 1, { width: box.width, height: box.height })
     const style = Object.assign({}, diagram.classDefs.get('default'), ...(box.cls.className ?? '').split(/\s+/).map(name => diagram.classDefs.get(name)), box.cls.inlineStyle)
@@ -392,7 +430,7 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
     frame(box, owner, true)
     doc.textBlock(box.x + 2, box.y + 1, box.lines, { owner })
   }
-  for (const cls of diagram.classes) if (cls.href) doc.text(0, doc.height + 1, `link ${cls.id}: ${cls.href}`, { owner: { id: cls.id, kind: 'node' }, role: 'text' })
+  for (const cls of diagram.classes) if (cls.href) doc.text(0, doc.height + 1, classLinkFooterText(cls.id, cls.href), { owner: { id: cls.id, kind: 'node' }, role: 'text' })
   if (diagram.title) {
     const lines = wrapText(displayText(normalizeBrTags(diagram.title)), targetWidth),
       titled = new TerminalDocument(Math.max(doc.width, ...lines.map(visualWidth)), doc.height + lines.length + 1)
