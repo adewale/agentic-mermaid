@@ -24,7 +24,10 @@ async function renderer() {
   }
   if (artifact.kind === 'global') { globalThis.self ??= globalThis; await import(pathToFileURL(artifact.module)); if (typeof globalThis[artifact.global] !== 'function') throw Error('Public global API absent: ' + artifact.global); return source => globalThis[artifact.global](source) }
   if (config.adapter === 'mermaid') {
-    const domRequire = createRequire(resolve(process.env.MERMAID_REFERENCE_DIR ?? resolve(job.harnessRoot, '../mermaid-reference'), 'package.json')), { JSDOM } = domRequire('jsdom'), dom = new JSDOM('<!doctype html><body>')
+    const reference = process.env.MERMAID_REFERENCE_DIR ?? resolve(job.harnessRoot, '../mermaid-reference'), domRequire = createRequire(resolve(reference, 'package.json'))
+    let JSDOM
+    try { ({ JSDOM } = domRequire('jsdom')) } catch (error) { throw Error(`Mermaid's Node adapter needs jsdom from the pinned Mermaid reference at ${reference}; run \`bun run reference:mermaid\` in the Agentic checkout or set MERMAID_REFERENCE_DIR (${String(error).split('\n')[0]})`) }
+    const dom = new JSDOM('<!doctype html><body>')
     for (const key of ['window', 'document', 'navigator', 'HTMLElement', 'SVGElement', 'Element', 'Node', 'Option']) Object.defineProperty(globalThis, key, { configurable: true, value: dom.window[key] })
     cleanups.push(() => dom.window.close())
   }

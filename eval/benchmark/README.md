@@ -38,10 +38,10 @@ explicit in each report. It does not claim to execute every source diagnostic.
 `portable:build` remains an alias for `build`. `portable` retains the legacy
 source-mode runner, whose identity requires committed source.
 
-Whole-worker CPU and peak RSS need GNU time. `/usr/bin/time` is used by default
-only when it is GNU time; macOS ships BSD time, so install `gnu-time` and pass
-`--observer "$(command -v gtime)"`. Without an observer these values are recorded
-as unavailable, not zero.
+Whole-worker CPU and peak RSS need GNU time. By default Trident uses
+`/usr/bin/time` when it is GNU time, otherwise `gtime` on `PATH`: macOS ships BSD
+time, so install `gnu-time`. `--observer` names another GNU time. Without one these
+values are recorded as unavailable, not zero.
 
 Read existing fidelity evidence without acquiring or rendering tools:
 
@@ -89,6 +89,12 @@ The containing checkout is detected only when its root package is named
 `AM_BENCH_REPOSITORY_ROOT` remains an alias for `TRIDENT_AGENTIC_ROOT`. `bench`
 remains a legacy alias for `agentic`. Existing root `bench:*` shortcuts retain
 their suite IDs and options.
+
+Mermaid's Node lane renders through jsdom from the pinned Mermaid reference
+install. Run `bun run reference:mermaid` once in that checkout, or set
+`MERMAID_REFERENCE_DIR`; otherwise each Mermaid Node observation is blocked with
+that instruction. Community CLI resource diagnostics use `--startup-observer`,
+or the default GNU time above.
 
 Full source-adapter tests and typechecking still require the Agentic checkout;
 they are not a standalone-package promise:
