@@ -11,7 +11,6 @@ import type { AnyPort, Point, PositionedEdge, PositionedGraph, PositionedGroup, 
 import { EDGE_FORMS, renderEdgeLine } from './helpers/edge-vocabulary.ts'
 import { gen } from '../../eval/overlap-audit/generators.ts'
 import { renderMermaidSVG, renderMermaidSVGWithReceipt } from '../index.ts'
-import { scanSvgStartTags } from '../svg-structure.ts'
 import { labelRect } from '../route-contracts.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'

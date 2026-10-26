@@ -4,7 +4,7 @@ import { graphEdgeTextBlock } from '../graph-text.ts'
 import { clipEdgeToShape } from '../shape-clipping.ts'
 import { LABEL_PILL_PADDING, labelRect } from '../shared/edge-label-geometry.ts'
 import { type LaneContext, setRoutePoints, opposite } from './route-geometry.ts'
-export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode>, groupMap: ReadonlyMap<string, PositionedGroup>, ctx: Pick<LaneContext, 'nodes' | 'edges' | 'style'>): (edge: PositionedEdge) => PortSide | null {
+export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode>, groupMap: ReadonlyMap<string, PositionedGroup>, ctx: Pick<LaneContext, 'nodes' | 'edges' | 'style' | 'routeChannelGeometry'>): (edge: PositionedEdge) => PortSide | null {
   const style = ctx.style
 
   // ---- Self-loop arc routing (plan §State 6; upstream #6336/#6049) --------

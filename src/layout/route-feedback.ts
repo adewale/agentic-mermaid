@@ -14,7 +14,7 @@ import { directLaneBlockers, findLabelSlot, countRouteCrossings, routeAddsCrossi
  * immediately. Only existing channel geometry is reused, so every kept
  * segment was already proven by ELK; the one NEW segment is lane-proved.
  */
-export function tightenOuterFeedback(edge: PositionedEdge, ctx: LaneContext): boolean {
+export function tightenOuterFeedback(edge: PositionedEdge, ctx: LaneContext, nodeMap: ReadonlyMap<string, PositionedNode>): boolean {
     const points = simplifyPolyline(edge.points)
     if (points.length < 4) return false
     const graphAxis = ctx.axis
