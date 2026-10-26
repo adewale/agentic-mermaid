@@ -865,17 +865,42 @@ export class TerminalDocument {
     if (owners.length === 1 && (!old || old.owners === owners) && incomingOwners === owners) {
       return this.contribution(old, owners[0]!, 0) | this.contribution(incoming, owners[0]!, mask)
     }
+    // Every owner of two equally directed uniform strokes retains that same
+    // mask. Keep the scalar proof instead of expanding each shared trunk cell.
+    if (old && old[strokeContributors] === old.owners && typeof old[strokeContributions] === 'number') {
+      this.reserveStrokeProvenance(1)
+      const next = incoming[strokeContributors] === undefined ? mask : incoming[strokeContributors] === incoming.owners ? incoming[strokeContributions] : undefined
+      if (next === old[strokeContributions]) return next
+    }
     this.reserveStrokeProvenance(owners.length + 1) // retained array slots/header BEFORE allocation
     const masks: number[] = []
+    // Admitted owner sets share canonical key order. Walk each source once,
+    // retaining its own directions rather than rescanning it for every owner.
+    const previousOwners = old && old[strokeContributors] === old.owners ? old.owners : emptyOwners
+    const nextOwners = incoming[strokeContributors] === undefined || incoming[strokeContributors] === incoming.owners ? incomingOwners : emptyOwners
+    const previousMasks = old?.[strokeContributions],
+      nextMasks = incoming[strokeContributions]
+    let previousIndex = 0,
+      nextIndex = 0
     for (const owner of owners) {
       this.reserveStrokeProvenance(1)
-      const previous = old ? this.contribution(old, owner, 0) : 0
-      const next = incomingOwners.some(candidate => {
+      const key = ownerKey(owner)
+      let previous = 0,
+        next = 0
+      if (previousIndex < previousOwners.length) {
         this.reserveStrokeProvenance(1)
-        return ownerKey(candidate) === ownerKey(owner)
-      })
-        ? this.contribution(incoming, owner, mask)
-        : 0
+        if (ownerKey(previousOwners[previousIndex]!) === key) {
+          previous = typeof previousMasks === 'number' ? previousMasks : (previousMasks?.[previousIndex] ?? 0)
+          previousIndex++
+        }
+      }
+      if (nextIndex < nextOwners.length) {
+        this.reserveStrokeProvenance(1)
+        if (ownerKey(nextOwners[nextIndex]!) === key) {
+          next = incoming[strokeContributors] === undefined ? mask : typeof nextMasks === 'number' ? nextMasks : (nextMasks?.[nextIndex] ?? 0)
+          nextIndex++
+        }
+      }
       masks.push(previous | next)
     }
     return Object.freeze(masks)
