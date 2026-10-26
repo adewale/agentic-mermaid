@@ -76,6 +76,9 @@ export function layoutArchitectureDiagram(
   const groupText = new Map(diagram.groups.map(group => [group.id, roleBlock(group.label, 'group')]))
   const edgeText = diagram.edges.map(edge => edge.label === undefined ? undefined : roleBlock(edge.label, 'edge'))
   const graph = architectureToMermaidGraph(diagram)
+  const requestedHeaderMinimum = options.architecture?.visual?.groupHeaderHeight
+  if (requestedHeaderMinimum !== undefined && (!Number.isFinite(requestedHeaderMinimum) || requestedHeaderMinimum <= 0)) throw new RangeError('Invalid Architecture group-header minimum')
+  const reservedHeaderPadding = requestedHeaderMinimum === undefined ? undefined : Math.max(GROUP_EDGE_PAD, typography.groupPaddingY)
   const junctionDiameter = 2 * (typography.junctionOuterRadius ?? DEFAULT_ARCHITECTURE_VISUAL.junctionOuterRadius)
   for (const [id, block] of serviceText) graph.nodes.get(id)!.label = block.text
   const iconTextBlocks = new Map(diagram.services.filter(service => service.iconText !== undefined).map(service => [service.id, preparePixelText(service.iconText!, {
@@ -89,6 +92,7 @@ export function layoutArchitectureDiagram(
   }
   const prepareGroup = (group: typeof graph.subgraphs[number]): void => {
     group.label = groupText.get(group.id)!.text
+    if (requestedHeaderMinimum !== undefined) group.headerMinHeight = requestedHeaderMinimum
     group.children.forEach(prepareGroup)
   }
   graph.subgraphs.forEach(prepareGroup)
@@ -206,7 +210,7 @@ export function layoutArchitectureDiagram(
     group.labelBlock = groupText.get(group.id)
     group.iconFallbackBlock = architectureIconFallbackBlock(group.icon, typography.iconSize ?? DEFAULT_ARCHITECTURE_VISUAL.iconSize)
   }
-  expandGroupBounds(groups, services, junctions, diagram.alignments.length > 0)
+  expandGroupBounds(groups, services, junctions, diagram.alignments.length > 0, reservedHeaderPadding)
   let legalSlots: (() => boolean) | undefined
   const sideConstraintsChanged = applyArchitectureSideConstraints(
     diagram,
@@ -220,11 +224,12 @@ export function layoutArchitectureDiagram(
     serviceBounds,
     junctionBounds,
     nativePlacement ? validate => { legalSlots = validate } : undefined,
+    reservedHeaderPadding,
   )
   if (sideConstraintsChanged) {
     // Port constraints can reorder a child or a whole nested group. Refit once
     // more before resolving `{group}` anchors and route obstacles.
-    expandGroupBounds(groups, services, junctions, true)
+    expandGroupBounds(groups, services, junctions, true, reservedHeaderPadding)
   }
 
   const routeEdges = () => diagram.edges.map((edge) =>
@@ -323,6 +328,10 @@ export function layoutArchitectureDiagram(
   const headerFailures = edges.flatMap(edge => headers
     .filter(header => !routeClearsObstacles(edge.points, [header]))
     .map(header => `edge ${edge.source.id}->${edge.target.id}: crosses group ${header.id} header`))
+  if (reservedHeaderPadding !== undefined) for (const group of flatGroups.values()) {
+    const children = [...group.children, ...services.filter(service => service.parentId === group.id), ...junctions.filter(junction => junction.parentId === group.id)]
+    for (const child of children) if (child.y < group.y + group.headerHeight! + reservedHeaderPadding) headerFailures.push(`group ${group.id}: child ${child.id} lacks reserved header clearance`)
+  }
   if (headerFailures.length) throw new LayoutCertificationError([{ strategy: 'architecture-final-headers', violations: headerFailures }])
   return {
     width,
@@ -499,6 +508,7 @@ function applyArchitectureSideConstraints(
   positionedServices: Map<string, Bounds>,
   positionedJunctions: Map<string, Bounds>,
   retainLegality?: (validate: () => boolean) => void,
+  reservedHeaderPadding?: number,
 ): boolean {
   let changed = false
   const unitKey = (kind: ArchitectureChildRef['kind'], id: string): string => `${kind}:${id}`
@@ -702,7 +712,7 @@ function applyArchitectureSideConstraints(
     }
     // A nested reorder can enlarge its container; refresh before a parent-level
     // constraint uses that group as one sibling unit.
-    expandGroupBounds(roots, services, junctions, true)
+    expandGroupBounds(roots, services, junctions, true, reservedHeaderPadding)
   }
 
   // A child reorder can enlarge its parent into a formerly clear sibling (for
@@ -775,14 +785,17 @@ function applyArchitectureSideConstraints(
       }
       placed.push(root)
     }
-    expandGroupBounds(roots, services, junctions, true)
+    expandGroupBounds(roots, services, junctions, true, reservedHeaderPadding)
   }
   // Native optional slot trials reuse exactly the authored constraints and
   // sibling geometry already owned by this pass. No trial refits groups.
   retainLegality?.(() => constraints.every(({ axis, before, after }) => {
     const a = unitBounds(before)!, b = unitBounds(after)!
     return a[axis] + (axis === 'x' ? a.width : a.height) + spacing <= b[axis] + ROUTE_EPSILON
-  }) && contexts.every(context => {
+  }) && (reservedHeaderPadding === undefined || [...groups.values()].every(group => siblingRefs(group.id).every(ref => {
+    const child = unitBounds(unitKey(ref.kind, ref.id))
+    return child === undefined || child.y >= group.y + group.headerHeight! + reservedHeaderPadding
+  }))) && contexts.every(context => {
     const bounds = siblingRefs(context.parentId).map(ref => unitBounds(unitKey(ref.kind, ref.id))).filter((bound): bound is Bounds => bound !== undefined)
     return bounds.every((bound, index) => bounds.slice(index + 1).every(other => !overlaps(bound, other)))
   }))
@@ -817,8 +830,9 @@ function expandGroupBounds(
   services: PositionedArchitectureService[],
   junctions: PositionedArchitectureJunction[],
   refitAfterAlignment: boolean,
+  reservedHeaderPadding?: number,
 ): void {
-  for (const group of groups) expandSingleGroup(group, services, junctions, refitAfterAlignment)
+  for (const group of groups) expandSingleGroup(group, services, junctions, refitAfterAlignment, reservedHeaderPadding)
 }
 
 function expandSingleGroup(
@@ -826,9 +840,10 @@ function expandSingleGroup(
   services: PositionedArchitectureService[],
   junctions: PositionedArchitectureJunction[],
   refitAfterAlignment: boolean,
+  reservedHeaderPadding?: number,
 ): Bounds {
   const childBounds: Bounds[] = []
-  for (const child of group.children) childBounds.push(expandSingleGroup(child, services, junctions, refitAfterAlignment))
+  for (const child of group.children) childBounds.push(expandSingleGroup(child, services, junctions, refitAfterAlignment, reservedHeaderPadding))
   for (const service of services) {
     if (service.parentId === group.id) childBounds.push(service)
   }
@@ -845,7 +860,8 @@ function expandSingleGroup(
   // group border (#90). The graph engine already reserves the header strip, so
   // the padded top never rises above group.y and the header stays clear.
   const minX = Math.min(group.x, ...childBounds.map(child => child.x - GROUP_EDGE_PAD))
-  const minY = Math.min(group.y, ...childBounds.map(child => child.y - GROUP_EDGE_PAD))
+  const topPadding = reservedHeaderPadding === undefined ? GROUP_EDGE_PAD : group.headerHeight! + reservedHeaderPadding
+  const minY = Math.min(group.y, ...childBounds.map(child => child.y - topPadding))
   const maxX = Math.max(group.x + group.width, ...childBounds.map(child => child.x + child.width + GROUP_EDGE_PAD))
   const maxY = refitAfterAlignment
     ? Math.max(group.y + 48, ...childBounds.map(child => child.y + child.height + GROUP_EDGE_PAD))

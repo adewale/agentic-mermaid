@@ -162,6 +162,8 @@ export interface MermaidSubgraph {
    *  when something comes first (an architecture group's icon). Defaults to
    *  the style's group label padding. */
   titleOffset?: number
+  /** @internal Family projection request; measured text can require more. */
+  headerMinHeight?: number
 }
 
 // ============================================================================
@@ -465,6 +467,8 @@ export interface PositionedGroup {
   /** Authored direct leaf ownership, retained independently of geometry. */
   nodeIds?: string[]
   headerHeight?: number
+  /** @internal Retained family placement request; absent on ordinary graphs. */
+  headerMinHeight?: number
   labelBlock?: PixelTextBlock
   id: string
   label: string

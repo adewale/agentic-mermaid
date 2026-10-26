@@ -82,7 +82,7 @@ function placeNativeGraphCandidate(
   bindings: AgenticGraphBindings,
   placementOnly = false,
 ): PositionedGraph {
-  const { edgeSelectorIndices, graphEdgeMarkerPaintRegions, DEFAULTS, LABEL_PILL_PADDING, measureRenderStage, graphTextBlock, resolveLabelContent, groupTitleWidth, estimateNodeSize, resolveNodeInlineStyle, resolveEdgeInlineStyle, resolveClassInlineStyle, containsNonFiniteNumber, finishGraphGeometry } = bindings
+  const { edgeSelectorIndices, graphEdgeMarkerPaintRegions, DEFAULTS, LABEL_PILL_PADDING, measureRenderStage, graphTextBlock, resolveLabelContent, groupTitleWidth, groupHeaderHeight, estimateNodeSize, resolveNodeInlineStyle, resolveEdgeInlineStyle, resolveClassInlineStyle, containsNonFiniteNumber, finishGraphGeometry } = bindings
   if (options.preserveSubgraphChildOrder) bindings.unsupported('family-specific graph geometry')
   const opts = { ...DEFAULTS, ...options }
   const groupSources: MermaidSubgraph[] = []
@@ -92,8 +92,7 @@ function placeNativeGraphCandidate(
     const membership = new Map<string, { parent: number; direction: Direction }>()
     const visit = (source: MermaidSubgraph, parent: number | undefined, inherited: Direction): void => {
       const index = groups.length, direction = source.direction ?? inherited
-      const block = graphTextBlock(resolveLabelContent(source.label, source.labelContent), style, 'group')
-      const header = source.concurrencyRegion ? 0 : style.groupHeaderFontSize + 16 + block.height - block.lineHeight
+      const header = groupHeaderHeight(source, style)
       const divider = source.concurrencyRegion ? (options.stateVisual?.dividerMargin ?? 0) : 0
       groupIndices.set(source.id, index); groupSources.push(source)
       groups.push({ id: source.id, parent, direction, minWidth: groupTitleWidth(source, style), headerHeight: header, padding: {
@@ -231,6 +230,7 @@ function placeNativeGraphCandidate(
     const frame: PositionedGroup = {
       id: source.id, label: source.label, ...(source.labelContent ? { labelContent: source.labelContent } : {}),
       ...geometry.groups![index]!, children: [], ...(source.concurrencyRegion ? { concurrencyRegion: true as const } : {}),
+      ...(source.headerMinHeight === undefined ? {} : { headerMinHeight: source.headerMinHeight }),
       ...(source.stateComposite ? { inlineStyle: resolveClassInlineStyle(source.id, graph) } : {}),
     }
     // Family rendering consumes the measured strip without generic cleanup.

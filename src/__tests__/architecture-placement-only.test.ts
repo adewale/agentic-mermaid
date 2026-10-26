@@ -166,3 +166,99 @@ for (const [name, backend] of backends) for (const [from, to] of [['R', 'L'], ['
     else expect(rendered.receipt.layoutDecisions).toBeUndefined()
   })
 }
+
+
+// Explicit height is a requested minimum; the omission path stays separate.
+for (const backend of ['elk', 'agentic'] as const) for (const fixture of [
+  { name: 'one-line band', minimum: 36, source: 'architecture-beta\ngroup g(cloud)[Group]\nservice a(server)[A] in g\nservice b(server)[B]\na:R-->L:b' },
+  { name: 'multiline measured minimum', minimum: 10, source: 'architecture-beta\ngroup g(cloud)["One<br/>Two<br/>Three<br/>Four"]\nservice a(server)[A] in g\nservice b(server)[B]\na:R-->L:b' },
+  { name: 'nested title and normal exit', minimum: 64, source: 'architecture-beta\ntitle Visible Architecture\ngroup outer(cloud)[Outer]\ngroup inner(server)[Inner] in outer\nservice a(server)[A] in inner\nservice b(server)[B]\na:T-->B:b' },
+  { name: 'empty measured footprint', minimum: 96, source: 'architecture-beta\ngroup empty(cloud)[Empty Group]\ngroup app(server)[Application]\nservice a(server)[A] in app\nservice b(database)[B]\na:R-->L:b' },
+]) {
+  test(`explicit Architecture header minimum reserves actual geometry: ${backend}/${fixture.name}`, () => {
+    const options: RenderOptions = { graphLayout: { backend, fallback: 'none' }, architecture: { visual: { groupHeaderHeight: fixture.minimum } } }
+    const model = parseArchitectureDiagram(toMermaidLines(fixture.source))
+    const placed = layoutArchitectureDiagram(model, options, architectureLayoutMetrics(DEFAULT_ARCHITECTURE_VISUAL))
+    const groups = placed.groups.flatMap(group => [group, ...group.children])
+    const rendered = renderMermaidSVGWithReceipt(fixture.source, options)
+    const tags = scanSvgStartTags(rendered.svg).map(tag => Object.fromEntries(tag.attributes.map(attr => [attr.name, attr.value])))
+    const bands = tags.filter(tag => tag.class === 'architecture-group-band'), titles = tags.filter(tag => tag.class === 'architecture-group-label')
+    expect(bands).toHaveLength(groups.length)
+    for (const [index, group] of groups.entries()) {
+      const height = group.headerHeight!
+      expect(height).toBeGreaterThanOrEqual(fixture.minimum)
+      expect(height).toBeGreaterThanOrEqual(group.labelBlock!.height + 8)
+      expect(Number(bands[index]!.d!.match(/ V([-\d.]+)/)![1])).toBeCloseTo(group.y + height, 5)
+      expect(Number(titles[index]!.y)).toBeCloseTo(group.y + height / 2, 5)
+      const children = [...group.children, ...placed.services.filter(service => service.parentId === group.id), ...placed.junctions.filter(junction => junction.parentId === group.id)]
+      for (const child of children) expect(child.y).toBeGreaterThanOrEqual(group.y + height + 18)
+      if (children.length === 0) {
+        expect(group.width).toBeGreaterThanOrEqual(36 + group.labelBlock!.width + 12)
+        expect(group.height).toBeGreaterThanOrEqual(height)
+      }
+      expect(group.y + height).toBeLessThanOrEqual(placed.height)
+    }
+    const items = new Map([...placed.services, ...placed.junctions].map(item => [item.id, item]))
+    for (const edge of placed.edges) {
+      expect(edge.obstacleFree).toBe(true)
+      for (const [endpoint, port, next] of [[edge.source, edge.points[0]!, edge.points[1]!], [edge.target, edge.points.at(-1)!, edge.points.at(-2)!]] as const) {
+        const box = items.get(endpoint.id)!
+        expect(port.x).toBe(endpoint.side === 'L' ? box.x : endpoint.side === 'R' ? box.x + box.width : box.x + box.width / 2)
+        expect(port.y).toBe(endpoint.side === 'T' ? box.y : endpoint.side === 'B' ? box.y + box.height : box.y + box.height / 2)
+        const outward = endpoint.side === 'L' ? next.x < port.x && next.y === port.y
+          : endpoint.side === 'R' ? next.x > port.x && next.y === port.y
+          : endpoint.side === 'T' ? next.y < port.y && next.x === port.x : next.y > port.y && next.x === port.x
+        expect(outward).toBe(true)
+      }
+      for (const group of groups) for (let index = 1; index < edge.points.length; index++) {
+        const a = edge.points[index - 1]!, b = edge.points[index]!
+        expect(Math.max(a.x, b.x) > group.x && Math.min(a.x, b.x) < group.x + group.width
+          && Math.max(a.y, b.y) > group.y && Math.min(a.y, b.y) < group.y + group.headerHeight!).toBe(false)
+      }
+    }
+    const edges = tags.filter(tag => tag.class === 'architecture-edge')
+    expect(edges).toHaveLength(model.edges.length)
+    for (const [index, edge] of model.edges.entries()) {
+      expect(edges[index]!['data-from']).toBe(edge.source.id)
+      expect(edges[index]!['data-to']).toBe(edge.target.id)
+      expect(edges[index]!['data-from-side']).toBe(edge.source.side)
+      expect(edges[index]!['data-to-side']).toBe(edge.target.side)
+      expect(edges[index]!['marker-end']).toBeDefined()
+    }
+  })
+}
+
+
+for (const backend of ['elk', 'agentic'] as const) {
+  test(`explicit Architecture header minima stay isolated across repeated requests: ${backend}`, () => {
+    const source = 'architecture-beta\ngroup g(cloud)[Group]\nservice a(server)[A] in g\nservice b(server)[B]\na:R-->L:b'
+    const render = (minimum?: number) => renderMermaidSVGWithReceipt(source, { graphLayout: { backend, fallback: 'none' }, ...(minimum === undefined ? {} : { architecture: { visual: { groupHeaderHeight: minimum } } }) }).svg
+    const omitted = render(), first = render(36), higher = render(64), repeated = render(36), omittedAgain = render()
+    expect(repeated).toBe(first)
+    expect(omittedAgain).toBe(omitted)
+    expect(first).not.toBe(omitted)
+    expect(higher).not.toBe(first)
+    const bandHeight = (svg: string) => {
+      const path = scanSvgStartTags(svg).map(tag => Object.fromEntries(tag.attributes.map(attr => [attr.name, attr.value]))).find(tag => tag.class === 'architecture-group-band')!.d!
+      const values = /^M[-\d.]+,([-\d.]+) H[-\d.]+ V([-\d.]+)/.exec(path)!
+      return Number(values[2]) - Number(values[1])
+    }
+    expect(bandHeight(first)).toBe(36)
+    expect(bandHeight(higher)).toBe(64)
+    expect(bandHeight(omittedAgain)).toBe(28)
+  })
+
+  test(`an explicit standalone empty Architecture group reserves its actual title and frame: ${backend}`, () => {
+    const svg = renderMermaidSVGWithReceipt('architecture-beta\ngroup empty(cloud)[Empty Group]', { graphLayout: { backend, fallback: 'none' }, architecture: { visual: { groupHeaderHeight: 96 } } }).svg
+    const tags = scanSvgStartTags(svg).map(tag => Object.fromEntries(tag.attributes.map(attr => [attr.name, attr.value])))
+    const frame = tags.find(tag => tag.class === 'architecture-group-frame')!, band = tags.find(tag => tag.class === 'architecture-group-band')!, title = tags.find(tag => tag.class === 'architecture-group-label')!, canvas = tags[0]!
+    const values = /^M[-\d.]+,([-\d.]+) H[-\d.]+ V([-\d.]+)/.exec(band.d!)!
+    const height = Number(values[2]) - Number(values[1])
+    expect(height).toBe(96)
+    expect(Number(frame.width)).toBeGreaterThan(36 + Number(title.textLength))
+    expect(Number(frame.height)).toBeGreaterThanOrEqual(height)
+    expect(Number(title.y)).toBe(Number(frame.y) + height / 2)
+    expect(Number(title.x) + Number(title.textLength)).toBeLessThan(Number(canvas.width))
+    expect(Number(title.y) + Number(title['font-size'])).toBeLessThan(Number(canvas.height))
+  })
+}

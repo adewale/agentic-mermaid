@@ -139,7 +139,7 @@ const TEXT_TRANSFORM_SCHEMA = {
 } as const satisfies JsonSchemaNode
 
 const ARCHITECTURE_VISUAL_SCHEMA_PROPERTIES = {
-  groupHeaderHeight: positiveNumberSchema('Architecture group-header height.'),
+  groupHeaderHeight: positiveNumberSchema('Requested minimum Architecture group-header height; expands to fit measured title text.'),
   groupFontSize: positiveNumberSchema('Architecture group-label font size.'),
   groupFontWeight: fontWeightSchema('Architecture group-label font weight.'),
   groupLetterSpacing: numberSchema('Architecture group-label letter spacing.'),

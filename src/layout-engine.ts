@@ -949,11 +949,25 @@ function usesSeparateHierarchy(graph: MermaidGraph, opts: Pick<ElkConversionOpti
 
 /** The width a titled group needs so its header title stays inside the frame.
  * A group with nothing in it is laid out without one: it has no frame to hold
- * the title, which is drawn from where the group sits. */
-function groupTitleWidth(sg: Pick<MermaidSubgraph, 'label' | 'labelContent' | 'concurrencyRegion' | 'titleOffset' | 'nodeIds' | 'children'>, style: ResolvedRenderStyle): number {
-  if (!sg.label || sg.concurrencyRegion || (sg.nodeIds.length === 0 && sg.children.length === 0)) return 0
+ * the title, which is drawn from where the group sits. An explicit family
+ * minimum additionally reserves that empty group's actual title footprint. */
+function groupTitleWidth(sg: Pick<MermaidSubgraph, 'label' | 'labelContent' | 'concurrencyRegion' | 'titleOffset' | 'nodeIds' | 'children' | 'headerMinHeight'>, style: ResolvedRenderStyle): number {
+  if (!sg.label || sg.concurrencyRegion || (sg.headerMinHeight === undefined && sg.nodeIds.length === 0 && sg.children.length === 0)) return 0
   const width = graphTextBlock(resolveLabelContent(sg.label, sg.labelContent), style, 'group').width
   return Math.ceil((sg.titleOffset ?? style.groupLabelPaddingX) + width + style.groupLabelPaddingX)
+}
+
+/** One measured strip is shared by both placement producers and retention. */
+function groupHeaderHeight(
+  group: Pick<MermaidSubgraph, 'label' | 'labelContent' | 'concurrencyRegion' | 'headerMinHeight'>,
+  style: ResolvedRenderStyle,
+  block = graphTextBlock(resolveLabelContent(group.label, group.labelContent), style, 'group'),
+): number {
+  if (group.concurrencyRegion) return 0
+  const measured = style.groupHeaderFontSize + 16 + block.height - block.lineHeight
+  if (group.headerMinHeight === undefined) return measured
+  if (!Number.isFinite(group.headerMinHeight) || group.headerMinHeight <= 0) throw new RangeError('Invalid internal group header minimum')
+  return Math.max(measured, group.headerMinHeight)
 }
 
 /**
@@ -979,15 +993,14 @@ function subgraphToElk(
 ): ElkGraphNode {
   // Concurrency regions draw no header band of their own, so they reserve
   // only the plain padding at the top (plan §State 2c).
-  const groupBlock = graphTextBlock(resolveLabelContent(sg.label, sg.labelContent), style, 'group')
-  const groupHeaderHeight = sg.concurrencyRegion ? 0 : style.groupHeaderFontSize + 16 + groupBlock.height - groupBlock.lineHeight
+  const measuredHeaderHeight = groupHeaderHeight(sg, style)
   const dividerMargin = sg.concurrencyRegion ? (opts.stateVisual?.dividerMargin ?? 0) : 0
   // Effective direction of THIS scope — drives direction-dependent node
   // sizing (fork/join bars) for direct children.
   const effectiveDirection = sg.direction ?? inheritedDirection
   const layoutOptions: LayoutOptions = {
     'elk.algorithm': 'layered',
-    'elk.padding': `[top=${groupHeaderHeight + style.groupPaddingY + dividerMargin},left=${style.groupPaddingX + dividerMargin},bottom=${style.groupPaddingY + dividerMargin},right=${style.groupPaddingX + dividerMargin}]`,
+    'elk.padding': `[top=${measuredHeaderHeight + style.groupPaddingY + dividerMargin},left=${style.groupPaddingX + dividerMargin},bottom=${style.groupPaddingY + dividerMargin},right=${style.groupPaddingX + dividerMargin}]`,
     'elk.edgeRouting': 'ORTHOGONAL',
     'elk.contentAlignment': 'H_CENTER V_CENTER',
     'elk.spacing.edgeEdge': '12',
@@ -1021,6 +1034,10 @@ function subgraphToElk(
     labels: sg.label ? [{ text: sg.label }] : undefined,
     children: [],
     edges: [],
+    ...(sg.headerMinHeight !== undefined && sg.nodeIds.length === 0 && sg.children.length === 0 ? {
+      width: Math.max(titleWidth, 2 * style.groupPaddingX),
+      height: measuredHeaderHeight + 2 * style.groupPaddingY,
+    } : {}),
   }
 
   // Add hierarchical ports for cross-hierarchy edges (when using SEPARATE)
@@ -1030,7 +1047,7 @@ function subgraphToElk(
     // traverses only one boundary. Keep that interior section off the title-
     // bearing north face. An authored group endpoint uses the group itself,
     // so its legitimate exterior north-face contact is unaffected.
-    const avoidHeader = groupHeaderHeight > 0
+    const avoidHeader = measuredHeaderHeight > 0
     const flow = layoutFlow(graph.direction)
     elkNode.ports = ports.map(port => {
       const preferred = port.direction === 'in' ? flow.targetSide : flow.sourceSide
@@ -1495,7 +1512,7 @@ function retainGraphText(positioned: Pick<PositionedGraph, 'nodes' | 'edges' | '
   for (const edge of positioned.edges) if (edge.label !== undefined) edge.labelBlock ??= graphTextBlock(resolveLabelContent(edge.label, edge.labelContent), style, 'edge')
   const group = (value: PositionedGroup): void => {
     value.labelBlock ??= graphTextBlock(resolveLabelContent(value.label, value.labelContent), style, 'group')
-    value.headerHeight = value.concurrencyRegion ? 0 : style.groupHeaderFontSize + 16 + value.labelBlock.height - value.labelBlock.lineHeight
+    value.headerHeight = groupHeaderHeight(value, style, value.labelBlock)
     value.children.forEach(group)
   }
   positioned.groups.forEach(group)
@@ -1779,6 +1796,7 @@ function extractNodesAndGroups(
         width,
         height,
         children: childGroups,
+        ...(mermaidSg?.headerMinHeight === undefined ? {} : { headerMinHeight: mermaidSg.headerMinHeight }),
         ...(mermaidSg?.concurrencyRegion ? { concurrencyRegion: true as const } : {}),
         ...(paint ? { inlineStyle: paint } : {}),
       })
@@ -1999,6 +2017,7 @@ export type AgenticGraphBindings = {
   graphTextBlock: typeof graphTextBlock
   resolveLabelContent: typeof resolveLabelContent
   groupTitleWidth: typeof groupTitleWidth
+  groupHeaderHeight: typeof groupHeaderHeight
   estimateNodeSize: typeof estimateNodeSize
   resolveNodeInlineStyle: typeof resolveNodeInlineStyle
   resolveEdgeInlineStyle: typeof resolveEdgeInlineStyle
@@ -2010,7 +2029,7 @@ export type AgenticGraphBindings = {
 const agenticGraphBindings: AgenticGraphBindings = {
   edgeSelectorIndices, graphEdgeMarkerPaintRegions,
   customTextMeasurementActive, certifyCandidate, retainSelection, countEdgeCrossings, countOpposingRouteOverlaps, countParallelRouteOverlaps, measureLabelConflicts,
-  DEFAULTS, LABEL_PILL_PADDING, measureRenderStage, graphTextBlock, resolveLabelContent, groupTitleWidth, estimateNodeSize, resolveNodeInlineStyle, resolveEdgeInlineStyle, resolveClassInlineStyle, containsNonFiniteNumber, finishGraphGeometry,
+  DEFAULTS, LABEL_PILL_PADDING, measureRenderStage, graphTextBlock, resolveLabelContent, groupTitleWidth, groupHeaderHeight, estimateNodeSize, resolveNodeInlineStyle, resolveEdgeInlineStyle, resolveClassInlineStyle, containsNonFiniteNumber, finishGraphGeometry,
   unsupported: reason => { throw new GraphLayoutUnsupportedError(reason) },
 }
 
