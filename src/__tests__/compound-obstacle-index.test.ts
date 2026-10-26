@@ -1,3 +1,4 @@
+import { createOwnedCompoundObstacleIndexFactory, isCompoundObstacleIndexFor } from '../layout/compound-obstacle-index.ts'
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
 import { createCompoundObstacleIndex, createCompoundPeerGuard } from '../layout/compound-obstacle-index.ts'
@@ -149,4 +150,68 @@ describe('compound exact peer lane guards', () => {
     expect(work.pairs).toBeGreaterThan(0)
     expect(() => createCompoundPeerGuard(peers, { ...budget(), arcs: 0 }, fail)).toThrow('visibility-arc limit')
   })
+})
+
+describe('boundary-owned immutable lane data', () => {
+const boxes = (delta=0) => Array.from({length:45},(_,i)=>Object.freeze({x:(i%9)*31+delta,y:Math.floor(i/9)*37+delta,width:20,height:24}))
+const budget = (arcs=1e7) => ({pairs:1e7,arcs,swaps:1e7})
+const fail = (reason:string):never=>{throw new Error(reason)}
+const samples = [-1,0,1,19,20,24,31,64,127.49999999999999,128,158,192,255,256,512]
+for (const delta of [0,.01,.5,1,7,127,128,1e17]) test('fresh exact point/segment/projection semantics '+delta,()=>{
+ const work=budget(), owned=createOwnedCompoundObstacleIndexFactory(work,fail)
+ const first=boxes(), firstView=owned(first), changed=boxes(delta), current=owned(changed), fresh=createCompoundObstacleIndex(changed,budget(),fail)
+ expect(isCompoundObstacleIndexFor(current,changed)).toBe(true)
+ expect(isCompoundObstacleIndexFor(current,first)).toBe(false)
+ for(const x of samples)for(const y of samples){
+  expect(current.containsPoint(x,y)).toBe(fresh.containsPoint(x,y))
+  expect(current.entersSegment(x,y,x,y+33)).toBe(fresh.entersSegment(x,y,x,y+33))
+  expect(current.entersSegment(x,y,x+33,y)).toBe(fresh.entersSegment(x,y,x+33,y))
+  const a={left:0,right:0,top:0,bottom:0},b={...a},bounds={x:-256,y:-256,width:1024,height:1024}
+  current.projectPoint(x,y,bounds,a);fresh.projectPoint(x,y,bounds,b);expect(a).toEqual(b)
+ }
+ const original=createCompoundObstacleIndex(first,budget(),fail)
+ for(const x of samples)for(const y of samples)expect(firstView.containsPoint(x,y)).toBe(original.containsPoint(x,y))
+})
+for(const kind of ['small','unsafe','wide','reordered','zero','negative-zero','count'])test('exact fallback/ordinal boundary '+kind,()=>{
+ const base=boxes(),work=budget(),owned=createOwnedCompoundObstacleIndexFactory(work,fail);owned(base)
+ const changed=kind==='small'?base.slice(0,3):kind==='unsafe'?base.map(b=>({...b,x:1e100})):kind==='wide'?base.map(b=>({...b,width:1e8})):kind==='reordered'?[...base].reverse():kind==='zero'?base.map(b=>({...b,width:0,height:0})):kind==='negative-zero'?base.map(b=>({...b,x:-0,width:0})):base.slice(1)
+ const a=owned(changed),b=createCompoundObstacleIndex(changed,budget(),fail)
+ for(const x of samples)for(const y of samples){expect(a.containsPoint(x,y)).toBe(b.containsPoint(x,y));expect(a.entersSegment(x,y,x,y+64)).toBe(b.entersSegment(x,y,x,y+64))}
+})
+test('same memberships retain current exact rectangles and old views',()=>{
+ const owned=createOwnedCompoundObstacleIndexFactory(budget(),fail),a=boxes(),b=a.map(r=>({...r,x:r.x+1,width:r.width-2}))
+ const old=owned(a),now=owned(b)
+ expect(old.containsPoint(.5,1)).toBe(true);expect(now.containsPoint(.5,1)).toBe(false)
+ expect(isCompoundObstacleIndexFor(now,b)).toBe(true)
+ now.containsPoint=()=>true
+ expect(isCompoundObstacleIndexFor(now,b)).toBe(false)
+ expect(old.containsPoint(.5,1)).toBe(true)
+})
+test('repeated endpoint inflation scopes fit original physical arc capacity',()=>{
+ const sets=Array.from({length:12},(_,i)=>boxes().map((b,j)=>j===i?{...b,x:b.x+.1,width:b.width-.2}:b))
+ const limited=budget(2400),owned=createOwnedCompoundObstacleIndexFactory(limited,fail)
+ for(const b of sets)expect(owned(b).containsPoint(1,1)).toBe(true)
+ expect(limited.arcs).toBeGreaterThanOrEqual(0)
+ const legacy=budget(2400)
+ expect(()=>{for(const b of sets)createCompoundObstacleIndex(b,legacy,fail)}).toThrow('visibility-arc limit')
+})
+test('failed update never mutates already returned query authority',()=>{
+ const work=budget(),owned=createOwnedCompoundObstacleIndexFactory(work,fail),a=boxes(),old=owned(a)
+ work.arcs=1
+ expect(()=>owned(boxes(128))).toThrow('visibility-arc limit')
+ work.arcs=1e7;work.pairs=1e7
+ expect(old.containsPoint(1,1)).toBe(true)
+ const b=boxes(.01),now=owned(b)
+ expect(isCompoundObstacleIndexFor(now,b)).toBe(true)
+ expect(now.containsPoint(1,1)).toBe(true)
+})
+test('comparison-budget exception propagates without stale publication',()=>{
+ const work=budget(),owned=createOwnedCompoundObstacleIndexFactory(work,fail),a=boxes(),old=owned(a)
+ work.pairs=1
+ expect(()=>owned(boxes(.01))).toThrow('obstacle-work limit')
+ work.pairs=1e7
+ expect(old.containsPoint(1,1)).toBe(true)
+ expect(owned(boxes(128)).containsPoint(1,1)).toBe(false)
+})
+
 })

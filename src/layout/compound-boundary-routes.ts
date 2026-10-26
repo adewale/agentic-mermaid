@@ -1,3 +1,9 @@
+import { classMarkerPiecesOverlap } from './measured-marker-overlap.ts'
+import { seatMeasuredMarkers } from './compound-marker-seating.ts'
+import { createOwnedCompoundObstacleIndexFactory } from './compound-obstacle-index.ts'
+import { proposeRetainedLabelChannel, compactProvedPath } from './compound-portal-channel.ts'
+import { proposeOuterChannel } from './compound-outer-channel.ts'
+import { createPeerGeometryOwner, type PeerGeometryOwner, type PeerLease } from './compound-peer-geometry.ts'
 import type { AgenticLayout, MeasuredGraph } from './agentic-layered-core.ts'
 import type { ChannelWork } from './channel-tracks.ts'
 import type { Direction, Point } from '../types.ts'
@@ -6,7 +12,7 @@ import { simplifyOrthogonal, type RoutingBox, type Terminal } from './compound-v
 import { createEndpointSparseVisibilityGraph, createSparseAdjacencyStoragePool, createSparseQueryWorkspacePool, createSparseVisibilityGraph, type SparseQueryWorkspacePool } from './compound-sparse-visibility.ts'
 import { createLazyVisibilityGrid } from './compound-lazy-visibility.ts'
 import { routeAncestorBoundaryConnection, type AncestorBoundaryPlan } from './ancestor-boundary-routes.ts'
-import { createCompoundObstacleIndex, createCompoundPeerGuard, type CompoundObstacleQueries } from './compound-obstacle-index.ts'
+import { createCompoundObstacleIndex, type CompoundObstacleQueries } from './compound-obstacle-index.ts'
 
 const inflate = (box: RoutingBox, margin: number): RoutingBox => ({ x: box.x - margin, y: box.y - margin, width: box.width + 2 * margin, height: box.height + 2 * margin })
 const onSegment = (point: Point, a: Point, b: Point): boolean => (a.x === b.x ? Math.abs(point.x - a.x) < 1e-7 : Math.abs(point.y - a.y) < 1e-7)
@@ -315,6 +321,7 @@ export function createBoundaryContactValidator(
  * retain the original directional checks against every visible peer. */
 export function assertFinalBoundaryContacts(
   input: MeasuredGraph, placed: AgenticLayout, rescued: ReadonlySet<number>, work: ChannelWork, fail: (reason: string) => never,
+  currentSceneProven?: ReadonlySet<number>,
 ): void {
   const charge = (amount = 1): void => {
     work.pairs -= amount
@@ -337,7 +344,7 @@ export function assertFinalBoundaryContacts(
   let bounds: (ContactRouteBounds | undefined)[] | undefined
   if (visibleSegments >= 32) {
     let largest = 0
-    for (const index of rescued) { charge(); largest = Math.max(largest, routes[index]!.points.length - 1) }
+    for (const index of rescued) { charge();if(currentSceneProven){charge();if(routes[index]!.orthogonal&&input.edges[index]!.visible!==false&&currentSceneProven.has(index))continue} largest = Math.max(largest, routes[index]!.points.length - 1) }
     const possibleSubtraction = (3 * largest + 1) * visibleSegments
     const preparationWork = 9 * visiblePoints + visibleCount + 2 * routes.length + 8 * visibleCount
     if (Number.isSafeInteger(possibleSubtraction) && possibleSubtraction > preparationWork) {
@@ -358,11 +365,13 @@ export function assertFinalBoundaryContacts(
   for (const index of rescued) {
     const route = routes[index]!, points = route.points
     const symmetric = route.orthogonal && input.edges[index]!.visible !== false
+    if(currentSceneProven){charge();if(symmetric&&currentSceneProven.has(index))continue}
     let peerSegments = 0
     for (let other = 0; other < routes.length; other++) {
       charge()
       const peer = routes[other]!
-      peer.style = input.edges[other]!.visible === false || symmetric && peer.covered ? 'invisible' : 'solid'
+      if(currentSceneProven)charge()
+      peer.style = input.edges[other]!.visible === false || symmetric && (peer.covered || peer.orthogonal && currentSceneProven?.has(other)) ? 'invisible' : 'solid'
       if (bounds && other !== index && peer.style !== 'invisible' && separatedContactBounds(bounds[index], bounds[other], charge)) peer.style = 'invisible'
       if (other !== index && peer.style !== 'invisible') peerSegments += Math.max(0, peer.points.length - 1)
     }
@@ -402,12 +411,20 @@ export function routeCrossHierarchy(
     work.arcs -= amount
     if (work.arcs < 0) fail('agentic local cross-hierarchy visibility-arc limit')
   }, fail)
+  const widthProof = (input as MeasuredGraph & { maximumEdgeStrokeWidth?: number }).maximumEdgeStrokeWidth
+  let markerPaint = false
+  if(widthProof!==undefined)for(const edge of input.edges){if(--work.pairs<0)fail('agentic marker metadata work limit');if(edge.markerPaint?.start?.length||edge.markerPaint?.end?.length){markerPaint=true;break}}
   const clearance = Math.max(8, input.edgeSpacing ?? 6)
   const nodes = placed.nodes.map((point, index): RoutingBox => ({ ...point, width: input.nodes[index]!.width, height: input.nodes[index]!.height }))
   const subjects = [...nodes, ...frames]
   const completed = new Set<number>()
   const rescued = new Set<number>()
+  let solidIndexFactory: ReturnType<typeof createOwnedCompoundObstacleIndexFactory> | undefined
+  let peerOwner: PeerGeometryOwner | undefined
+  let markerCurrentProofs: Set<number> | undefined
   for (const [index, endpoints] of lifted) {
+    let peerLease: PeerLease | undefined
+    let publishPeer = false
     let graphs: { retire: () => void }[] | undefined
     const keepGraph = <T extends { retire: () => void }>(graph: T): T => {
       graphs ??= []
@@ -440,6 +457,8 @@ export function routeCrossHierarchy(
         else if (groups[group]!.padding.top > 0) obstacles.push(inflate({ ...frame, height: ancestorPlan || leafCount > 64 ? (headerGroups[group]!.headerHeight ?? headerGroups[group]!.padding.top) : groups[group]!.padding.top }, Math.max(2, (input.edgeSpacing ?? 6) / 2)))
       }
       const solidObstacles = [...obstacles]
+      let ownReservedLabel: RoutingBox | undefined
+      if (edge.label && --work.arcs < 0) fail('agentic local cross-hierarchy visibility-arc limit')
       for (let other = 0; other < placed.edges.length; other++) {
         if (--work.pairs < 0) fail('agentic local cross-hierarchy obstacle-work limit')
         const route = placed.edges[other]!, measured = input.edges[other]!
@@ -447,6 +466,7 @@ export function routeCrossHierarchy(
           const label = inflate({ x: route.labelPosition.x - measured.label.width / 2, y: route.labelPosition.y - measured.label.height / 2, width: measured.label.width, height: measured.label.height }, 2)
           obstacles.push(label)
           solidObstacles.push(label)
+          if (other === index) ownReservedLabel = label
         }
         if (other === index || measured.visible === false || ancestorPlan?.connections.has(other)) continue
         for (let cursor = 1; cursor < route.points.length; cursor++) {
@@ -456,7 +476,7 @@ export function routeCrossHierarchy(
         }
       }
       let solidIndex: CompoundObstacleQueries | undefined
-      const solidQueries = () => solidIndex ??= createCompoundObstacleIndex(solidObstacles, work, fail)
+      const solidQueries = () => solidIndex ??= (solidIndexFactory ??= createOwnedCompoundObstacleIndexFactory(work, fail))(solidObstacles)
       const host = endpoints.host, frame = host < 0 ? undefined : frames[host], pad = host < 0 ? undefined : headerGroups[host]!.padding
       const bounds = frame && pad ? { x: frame.x + pad.left, y: frame.y + pad.top, width: frame.width - pad.left - pad.right, height: frame.height - pad.top - pad.bottom }
         : { x: 0, y: 0, width: placed.width, height: placed.height }
@@ -563,6 +583,11 @@ export function routeCrossHierarchy(
             return false
           }, true, solidQueries) !== undefined
         }
+        let legacyDirect: (()=>void)|undefined
+        if(widthProof!==undefined&&!points){
+          work.arcs-=32 // retained wrapper header/captures BEFORE allocation
+          if(work.arcs<0)fail('agentic local cross-hierarchy visibility-arc limit')
+          legacyDirect=()=>{
         if (!points && !edge.label) {
           const starts = terminals(subjects[edge.source]!, directions[owners[edge.source]! + 1]!, true, clearance)
           const ends = terminals(subjects[edge.target]!, directions[owners[edge.target]! + 1]!, false, clearance)
@@ -585,6 +610,31 @@ export function routeCrossHierarchy(
           }
         } else if (!points && crossingSource) directCorridor(bounds, solidObstacles, sources, routeStart, endpointFrames(edge.source), clearance, work, probes, fail, finish, true, solidQueries)
         else if (!points) finish([routeStart])
+          }
+        }else if(widthProof===undefined){
+        if (!points && !edge.label) {
+          const starts = terminals(subjects[edge.source]!, directions[owners[edge.source]! + 1]!, true, clearance)
+          const ends = terminals(subjects[edge.target]!, directions[owners[edge.target]! + 1]!, false, clearance)
+          const borders = [...endpointFrames(edge.source), ...endpointFrames(edge.target)]
+          for (let fraction = 0; fraction < 3 && !points && probes.candidates > 0; fraction++) for (let side = 0; side < 4 && !points && probes.candidates > 0; side++) {
+            const target = ends[side * 3 + fraction]!
+            let clear = true
+            for (const box of solidObstacles) {
+              if (probes.pairs-- <= 0) { clear = false; break }
+              if (--work.pairs < 0) fail('agentic local cross-hierarchy direct-pair limit')
+              if (segmentEntersMeasuredBox(target.stub, target.port, box)) { clear = false; break }
+            }
+            if (!clear) continue
+            directCorridor(bounds, solidObstacles, starts, target.stub, borders, clearance, work, probes, fail, first => {
+              const candidate = simplifyOrthogonal([...first, target.port])
+              const accepted = accept(candidate)
+              if (accepted) { points = accepted; return true }
+              return false
+            }, true, solidQueries)
+          }
+        } else if (!points && crossingSource) directCorridor(bounds, solidObstacles, sources, routeStart, endpointFrames(edge.source), clearance, work, probes, fail, finish, true, solidQueries)
+        else if (!points) finish([routeStart])
+        }
         if (!points) try {
           const sparseTerminals = (endpoint: number, source: boolean): Terminal[] => {
             let degree = 0, ordinal = 0, leadSegments = 0
@@ -639,16 +689,20 @@ export function routeCrossHierarchy(
             }
             return roots
           }
+          let constructiveAccept=accept
+          if(widthProof!==undefined){
+            work.arcs-=4
+            if(work.arcs<0)fail('agentic local cross-hierarchy visibility-arc limit')
+            constructiveAccept=path=>accept(compactProvedPath(path,work,fail))
+          }
           const starts = edge.label && !crossingSource ? [] : sparseTerminals(edge.source, true)
           const ends = edge.label && !crossingTarget ? [] : sparseTerminals(edge.target, false)
-          work.pairs -= routePoints + routes.length
-          if (work.pairs < 0) fail('agentic local cross-hierarchy crossing-work limit')
-          const peerShafts = routes.flatMap((route, other) => {
-            if (other === index || route.style === 'invisible') return []
-            const path = simplifyOrthogonal(route.points)
-            return path.slice(1).map((point, cursor) => [path[cursor]!, point] as const)
-          })
-          const canTraverse = createCompoundPeerGuard(peerShafts, work, fail)
+          // Revisions own geometry, never search results. Seed only at the first
+          // sparse request; all earlier completed routes are already in routes.
+          peerOwner ??= createPeerGeometryOwner(routes, index, placed.width, placed.height, work, reserveExpanded, fail)
+          peerLease = peerOwner.acquire(index)
+          const peerShafts = peerOwner.rails
+          const canTraverse = peerLease.guard
           const hasEligibleRoot = (roots: readonly Terminal[]): boolean => {
             const inside = (point: Point): boolean => point.x >= bounds.x && point.x <= bounds.x + bounds.width
               && point.y >= bounds.y && point.y <= bounds.y + bounds.height
@@ -674,20 +728,42 @@ export function routeCrossHierarchy(
             }
           }
           if (!edge.label) {
+            if (widthProof !== undefined) {
+            work.pairs -= 2 // Explicit measured stroke proof preparation
+            if (work.pairs < 0) fail('agentic local cross-hierarchy obstacle-work limit')
+            peerOwner.enterQuery(peerLease)
+            try { points = proposeOuterChannel(bounds, solidObstacles, starts, ends, peerShafts, solidQueries(), work, reserveExpanded, fail, canTraverse, constructiveAccept, Math.max(.5, widthProof)) }
+            finally { peerOwner.leaveQuery(peerLease) }
+            }
+            if(widthProof!==undefined){work.pairs-=2;if(work.pairs<0)fail('agentic local cross-hierarchy crossing-work limit')}
+            if(!points&&legacyDirect)legacyDirect()
             const search = (interiorChannels: boolean): void => {
               const graph = keepGraph(createSparseVisibilityGraph(bounds, solidObstacles, [...starts, ...ends], [routeStart, routeEnd], clearance, work, expansionLimit - expanded, corridorFail, reserveExpanded, interiorChannels, solidQueries, sparseWorkspaces(), peerShafts, sparseAdjacencies()))
-              for (const target of ends) {
+              try { for (const target of ends) {
                 if (points) break
-                if (!solidQueries().entersSegment(target.stub.x, target.stub.y, target.port.x, target.port.y)) attempt(() => { graph.route(starts, target.stub, first => {
-                  const accepted = accept(simplifyOrthogonal([...first, target.port]))
-                  if (accepted) { points = accepted; return true }
-                  return false
-                }, canTraverse) })
-              }
+                if (!solidQueries().entersSegment(target.stub.x, target.stub.y, target.port.x, target.port.y)) attempt(() => {
+                  peerOwner!.enterQuery(peerLease!)
+                  try { graph.route(starts, target.stub, first => {
+                    const accepted = accept(simplifyOrthogonal([...first, target.port]))
+                    if (accepted) { points = accepted; return true }
+                    return false
+                  }, canTraverse) } finally { peerOwner!.leaveQuery(peerLease!) }
+                })
+              } } finally { graph.retire() }
             }
-            search(false)
+            if (!points) search(false)
             if (!points && decline === 'cross-hierarchy route has no bounded clear corridor') search(true)
           } else {
+            if (widthProof !== undefined && !crossingSource && crossingTarget && ownReservedLabel) {
+              work.pairs -= 2 // Explicit measured stroke proof preparation
+              if (work.pairs < 0) fail('agentic local cross-hierarchy obstacle-work limit')
+              peerOwner.enterQuery(peerLease)
+              try { points = proposeRetainedLabelChannel(routeCore, subjects[edge.source]!, raw.labelPosition!, ownReservedLabel, bounds, solidObstacles, ends, peerShafts, solidQueries(), work, clearance, Math.max(.5, widthProof), reserveExpanded, fail, canTraverse, constructiveAccept) }
+              finally { peerOwner.leaveQuery(peerLease) }
+            }
+            if(widthProof!==undefined){work.pairs-=2;if(work.pairs<0)fail('agentic local cross-hierarchy crossing-work limit')}
+            if(!points&&legacyDirect)legacyDirect()
+            if (!points) {
             const frameFor = (endpoint: number): RoutingBox => owners[endpoint]! < 0 ? subjects[endpoint]! : frames[owners[endpoint]!]!
             type Suffixes = { roots: readonly Terminal[]; interiorChannels: boolean; late?: boolean; graph?: ReturnType<typeof createEndpointSparseVisibilityGraph>; paths: Point[][]; complete: boolean }
             const ordinary: Suffixes = { roots: ends, interiorChannels: false, paths: [], complete: false }
@@ -715,13 +791,15 @@ export function routeCrossHierarchy(
               }
               const selected = attempt(() => {
                 target.graph ??= keepGraph(createEndpointSparseVisibilityGraph(bounds, frameFor(edge.target), solidObstacles, target.roots, routeEnd, clearance, work, expansionLimit - expanded, corridorFail, reserveExpanded, target.interiorChannels, solidQueries, sparseWorkspaces(), peerShafts, sparseAdjacencies()))
-                target.graph.route(target.roots, routeEnd, last => {
+                peerOwner!.enterQuery(peerLease!)
+                try { target.graph.route(target.roots, routeEnd, last => {
                   if (target.late && --work.arcs < 0) fail('agentic local cross-hierarchy visibility-arc limit')
                   target.paths.push(last)
                   return join(last)
-                }, canTraverse)
+                }, canTraverse) } finally { peerOwner!.leaveQuery(peerLease!) }
               })
               if (!selected && decline === 'cross-hierarchy route has no bounded clear corridor') target.complete = true
+              if (target.complete || selected) target.graph?.retire()
               return selected
             }
             const searchSource = (roots: readonly Terminal[], interiorChannels: boolean, visit: (path: Point[]) => boolean): boolean => {
@@ -731,7 +809,9 @@ export function routeCrossHierarchy(
               }
               return attempt(() => {
                 const graph = keepGraph(createEndpointSparseVisibilityGraph(bounds, frameFor(edge.source), solidObstacles, roots, routeStart, clearance, work, expansionLimit - expanded, corridorFail, reserveExpanded, interiorChannels, solidQueries, sparseWorkspaces(), peerShafts, sparseAdjacencies()))
-                graph.route(roots, routeStart, visit, canTraverse)
+                peerOwner!.enterQuery(peerLease!)
+                try { graph.route(roots, routeStart, visit, canTraverse) }
+                finally { try { peerOwner!.leaveQuery(peerLease!) } finally { graph.retire() } }
               })
             }
             const ordinarySource = (first: Point[]): boolean => { sourcePaths.push(first); return finishSparse(first) }
@@ -758,6 +838,7 @@ export function routeCrossHierarchy(
               if (!points && crossingSource) searchSource(lateTerminals(edge.source, true), false,
                 first => finishSparse(first) || crossingTarget && (finishSparse(first, guided) || finishSparse(first, late!)))
             }
+            }
           }
         } catch (error) {
           if (!(error instanceof BoundaryRouteDecline)) throw error
@@ -772,9 +853,16 @@ export function routeCrossHierarchy(
       if (routePoints > 2048) fail('agentic local cross-hierarchy route-point limit')
       placed.edges[index] = { ...raw, points: finalPoints }
       completed.add(index)
+      publishPeer = true
     } finally {
-      if (graphs) for (const graph of graphs) graph.retire()
+      // Old source/target/guided graphs and nested callbacks end BEFORE release.
+      try { if (graphs) for (const graph of graphs) graph.retire() }
+      finally { peerLease?.release() }
     }
+    // Publish EVERY successful lifted occurrence once the owner exists,
+    // including primary/direct successes with no sparse lease of their own.
+    if (publishPeer && peerOwner) peerOwner.publish(index, placed.edges[index]!.points,
+      input.edges[index]!.visible !== false && !ancestorPlan?.connections.has(index))
   }
   if (ancestorPlan?.connections.size) {
     const finalized = new Set<number>()
@@ -830,11 +918,123 @@ export function routeCrossHierarchy(
       rescued.add(index)
     }
   }
-  if (rescued.size) assertFinalBoundaryContacts(input, placed, rescued, work, fail)
+  // Marker seating runs after ALL old graph/query leases and before final
+  // pair closure. It includes primary/local routes, not only boundary rescues.
+  if (markerPaint) {
+    work.arcs -= 13
+    if (work.arcs<0) fail('agentic marker full-proof capacity limit')
+    const charge = (amount = 1): void => { work.pairs -= amount; if (work.pairs < 0) fail('agentic marker full-proof work limit') }
+    markerCurrentProofs=new Set<number>()
+    reserveExpanded(4)
+    let labelCount=0
+    for(let index=0;index<input.edges.length;index++){if(--work.pairs<0)fail('agentic marker full-proof work limit');if(input.edges[index]!.label&&placed.edges[index]!.labelPosition)labelCount++}
+    work.arcs-=2*(nodes.length+frames.length+labelCount)+3
+    if(work.arcs<0)fail('agentic marker full-proof capacity limit')
+    const seatingObstacles:RoutingBox[]=[],seatingBounds={x:0,y:0,width:placed.width,height:placed.height}
+    for(let node=0;node<nodes.length;node++){if(--work.pairs<0)fail('agentic marker full-proof work limit');const b=nodes[node]!,m=(input.nodes[node]!.paintStrokeWidth??0)/2;seatingObstacles.push({x:b.x-m,y:b.y-m,width:b.width+2*m,height:b.height+2*m})}
+    for(let group=0;group<frames.length;group++){if(--work.pairs<0)fail('agentic marker full-proof work limit');const b=frames[group]!,m=(input.groups![group]!.paintStrokeWidth??0)/2,h=headerGroups[group]!.headerHeight??headerGroups[group]!.padding.top;seatingObstacles.push({x:b.x-m,y:b.y-m,width:b.width+2*m,height:h+2*m})}
+    for(let index=0;index<input.edges.length;index++){if(--work.pairs<0)fail('agentic marker full-proof work limit');const l=input.edges[index]!.label,p=placed.edges[index]!.labelPosition;if(l&&p)seatingObstacles.push({x:p.x-l.width/2-2,y:p.y-l.height/2-2,width:l.width+4,height:l.height+4})}
+    const proofBox: RoutingBox = {x:0,y:0,width:0,height:0}
+    const paintRectangle = [{kind:'polygon' as const,points:[{x:0,y:0},{x:0,y:0},{x:0,y:0},{x:0,y:0}]}]
+    seatMeasuredMarkers(input.edges, placed.edges, subjects, work, reserveExpanded, fail, (index, candidate) => {
+      const edge = input.edges[index]!, old = placed.edges[index]!
+      if (selfContact(candidate, work, fail)) return false
+      for (let cursor = 0; cursor < candidate.length; cursor++) {
+        charge(); const point = candidate[cursor]!
+        if (!Number.isFinite(point.x) || !Number.isFinite(point.y) || cursor && point.x !== candidate[cursor-1]!.x && point.y !== candidate[cursor-1]!.y) return false
+      }
+      for (let role = 0; role < 2; role++) {
+        charge(8)
+        const source = role === 0, box = subjects[source ? edge.source : edge.target]!
+        const p = source ? candidate[0]! : candidate.at(-1)!, q = source ? candidate[1]! : candidate.at(-2)!
+        const a = source ? old.points[0]! : old.points.at(-1)!, b = source ? old.points[1]! : old.points.at(-2)!
+        if (Math.sign(q.x-p.x) !== Math.sign(b.x-a.x) || Math.sign(q.y-p.y) !== Math.sign(b.y-a.y)
+          || Math.abs(q.x-p.x)+Math.abs(q.y-p.y) < Math.min(clearance,Math.abs(b.x-a.x)+Math.abs(b.y-a.y))) return false
+        if (p.x < box.x || p.x > box.x+box.width || p.y < box.y || p.y > box.y+box.height) return false
+        if (!(Math.abs(p.x-box.x)<1e-7 && q.y===p.y && q.x<p.x || Math.abs(p.x-box.x-box.width)<1e-7 && q.y===p.y && q.x>p.x
+          || Math.abs(p.y-box.y)<1e-7 && q.x===p.x && q.y<p.y || Math.abs(p.y-box.y-box.height)<1e-7 && q.x===p.x && q.y>p.y)) return false
+      }
+      if (edge.label && !candidate.some((p, cursor) => { charge(); return cursor > 0 && onSegment(old.labelPosition!, candidate[cursor-1]!, p) })) return false
+      const halfWidth = (widthProof ?? 1)/2
+      for (let cursor=1;cursor<candidate.length;cursor++) {
+        const a=candidate[cursor-1]!, b=candidate[cursor]!
+        for (let node=0;node<nodes.length;node++) { charge(5); const box=nodes[node]!,incident=node===edge.source&&cursor===1||node===edge.target&&cursor===candidate.length-1,margin=incident?0:halfWidth+(input.nodes[node]!.paintStrokeWidth??0)/2
+          proofBox.x=box.x-margin;proofBox.y=box.y-margin;proofBox.width=box.width+2*margin;proofBox.height=box.height+2*margin
+          if (segmentEntersMeasuredBox(a,b,proofBox)) return false
+        }
+        for (let group=0;group<frames.length;group++) { charge(5); const box=frames[group]!, height=headerGroups[group]!.headerHeight ?? headerGroups[group]!.padding.top
+          proofBox.x=box.x-halfWidth;proofBox.y=box.y-halfWidth;proofBox.width=box.width+2*halfWidth;proofBox.height=height+2*halfWidth
+          if (height>0 && segmentEntersMeasuredBox(a,b,proofBox)) return false
+        }
+        for (let other=0;other<input.edges.length;other++) { charge(); const label=input.edges[other]!.label, center=placed.edges[other]!.labelPosition
+          if (!label || !center) continue
+          if (other===index && onSegment(center,a,b)) continue
+          charge(4);proofBox.x=center.x-label.width/2-2;proofBox.y=center.y-label.height/2-2;proofBox.width=label.width+4;proofBox.height=label.height+4
+          if (segmentEntersMeasuredBox(a,b,proofBox)) return false
+        }
+      }
+      // Original exact contact scorer on CURRENT peers; selected metadata is
+      // reserved and scanned before proof, with unchanged coefficient three.
+      work.arcs -= 2*placed.edges.length+1
+      if (work.arcs<0) fail('agentic marker full-proof capacity limit')
+      let segments=0
+      const routes=placed.edges.map((route,other)=>{charge();if(other!==index&&input.edges[other]!.visible!==false)segments+=Math.max(0,route.points.length-1);return {...route,style:input.edges[other]!.visible===false?'invisible':'solid'}})
+      charge(3*(candidate.length-1)*segments+candidate.length+segments)
+      return scoreMeasuredRouteCrossings(candidate,index,routes,input)!==undefined
+    }, index => {
+      // Called only AFTER the same accepted array is committed. Every successful
+      // marker/yield full proof saw ALL then-current finalized visible routes.
+      // At the last change of either finite orthogonal visible pair member,
+      // that proof therefore saw both final geometries. No negative result or
+      // pre-marker candidate proof is promoted into this call-local ledger.
+      charge(2)
+      if(!markerCurrentProofs!.has(index)){if(--work.arcs<0)fail('agentic marker full-proof capacity limit');markerCurrentProofs!.add(index)}
+      if(!rescued.has(index)){work.arcs--;if(work.arcs<0)fail('agentic marker full-proof capacity limit');rescued.add(index)}
+    }, (index,source,pieces,bounds) => {
+      work.arcs--
+      if(work.arcs<0)fail('agentic marker full-proof capacity limit')
+      const markerBoxClear=(x:number,y:number,width:number,height:number):boolean=>{
+        charge(5)
+        if(bounds.maxX<=x || bounds.minX>=x+width || bounds.maxY<=y || bounds.minY>=y+height)return true
+        charge(8)
+        const p=paintRectangle[0]!.points
+        p[0]!.x=x;p[0]!.y=y;p[1]!.x=x+width;p[1]!.y=y;p[2]!.x=x+width;p[2]!.y=y+height;p[3]!.x=x;p[3]!.y=y+height
+        return !classMarkerPiecesOverlap(pieces,paintRectangle,charge)
+      }
+      const own=source?input.edges[index]!.source:input.edges[index]!.target
+      for(let node=0;node<nodes.length;node++){charge();if(node===own)continue;const box=nodes[node]!,half=(input.nodes[node]!.paintStrokeWidth??0)/2
+        if(!markerBoxClear(box.x-half,box.y-half,box.width+2*half,box.height+2*half))return false}
+      for(let group=0;group<frames.length;group++){charge();const box=frames[group]!,height=headerGroups[group]!.headerHeight??headerGroups[group]!.padding.top,half=(input.groups![group]!.paintStrokeWidth??0)/2
+        if(height>0&&!markerBoxClear(box.x-half,box.y-half,box.width+2*half,height+2*half))return false}
+      for(let other=0;other<input.edges.length;other++){charge();const label=input.edges[other]!.label,center=placed.edges[other]!.labelPosition
+        if(label&&center&&!markerBoxClear(center.x-label.width/2-2,center.y-label.height/2-2,label.width+4,label.height+4))return false}
+      return true
+    }, widthProof, input.maximumEdgeBendRadius??0, {bounds:seatingBounds,obstacles:seatingObstacles})
+  }
+  if (rescued.size) assertFinalBoundaryContacts(input, placed, rescued, work, fail, markerCurrentProofs)
   const boundaryRoutes = [...lifted.keys()]
   if (ancestorPlan?.connections.size) {
     for (const index of ancestorPlan.connections.keys()) if (!lifted.has(index)) boundaryRoutes.push(index)
     boundaryRoutes.sort((left, right) => left - right)
+  }
+  // Native shortening must not revise any newly certified primary/local
+  // marker seat after its full combined-path proof and label reservation.
+  if(markerPaint){
+    let added=false
+    for(const index of rescued){work.pairs-=boundaryRoutes.length+1;if(work.pairs<0)fail('agentic marker full-proof work limit')
+      if(boundaryRoutes.includes(index))continue
+      if(--work.arcs<0)fail('agentic marker full-proof capacity limit')
+      boundaryRoutes.push(index);added=true
+    }
+    if(added)boundaryRoutes.sort((a,b)=>{if(--work.pairs<0)fail('agentic marker full-proof work limit');return a-b})
+  }
+  if(markerPaint){
+    work.arcs-=input.edges.length+1;work.pairs-=input.edges.length
+    if(work.arcs<0)fail('agentic marker full-proof capacity limit')
+    if(work.pairs<0)fail('agentic marker full-proof work limit')
+    const protectedRoutes=new Array<number>(input.edges.length)
+    for(let index=0;index<input.edges.length;index++)protectedRoutes[index]=index
+    return {...placed,expandedVertices:expanded,boundaryRoutes:protectedRoutes}
   }
   return { ...placed, expandedVertices: expanded, boundaryRoutes }
 }

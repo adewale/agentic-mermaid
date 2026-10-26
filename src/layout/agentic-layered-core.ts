@@ -1,3 +1,4 @@
+import { assertMarkerPaint, type MarkerPaint } from './compound-marker-seating.ts'
 import { refinePrivateChainOrder } from './chain-insertion-order.ts'
 import { minimumSpanRanks, privateRankSpan, MAX_MEASURED_RANKS as MAX_RANKS } from './minimum-span-ranks.ts'
 import { compactMeasuredLoops } from './compact-measured-loops.ts'
@@ -10,23 +11,27 @@ import { assignChannelTracks, type ChannelStep, type ChannelWork } from './chann
 
 export interface MeasuredGraph {
   /** Ordered partitions are local to a sibling scope; omitted values use zero. */
-  nodes: readonly { id: string; width: number; height: number; parent?: number; partition?: number; modelOrder?: number }[]
+  nodes: readonly { id: string; width: number; height: number; paintStrokeWidth?: number; parent?: number; partition?: number; modelOrder?: number }[]
   /** Edges may address a frame at nodes.length + its group index. */
   groups?: readonly {
     id: string; parent?: number; partition?: number; modelOrder?: number; direction?: Direction; minWidth: number
     /** Measured painted header strip, excluding blank content padding. */
+    paintStrokeWidth?: number
     headerHeight?: number
     padding: { top: number; right: number; bottom: number; left: number }
   }[]
   /** Label dimensions include the occupied painted body. Its own shaft is
    * masked by that body; foreign routes must stay outside it. Loop expansion
    * reserves additional space beside the arc instead of masking its shaft. */
-  edges: readonly { source: number; target: number; minSpan: number; short?: true; boundaryMarker?: { inset: number; height: number }; visible?: boolean; label?: { width: number; height: number } }[]
+  edges: readonly { source: number; target: number; minSpan: number; short?: true; boundaryMarker?: { inset: number; height: number }; markerPaint?: MarkerPaint; visible?: boolean; label?: { width: number; height: number } }[]
   direction: Direction
   padding: number
   nodeSpacing: number
   layerSpacing: number
   edgeSpacing?: number
+  /** Actual maximum painted edge stroke, supplied by the producer. Absence keeps legacy routing. */
+  maximumEdgeStrokeWidth?: number
+  maximumEdgeBendRadius?: number
   /** Private source-port separation constraints introduced by loop expansion. */
   loopPorts?: readonly (readonly [number, number])[]
   /** Adapter permits confluent routing only for compatible plain fans. */
@@ -99,6 +104,11 @@ export function layoutLayeredGraph(
     throw new TypeError('Measured graph spacing must be finite and nonnegative')
   }
   if (input.edgeSpacing !== undefined && !finiteSize(input.edgeSpacing, true)) throw new TypeError('Measured edge spacing must be finite and positive')
+  if (input.maximumEdgeStrokeWidth !== undefined && !finiteSize(input.maximumEdgeStrokeWidth, true)) throw new TypeError('Measured maximum edge stroke width must be finite and positive')
+  if (input.maximumEdgeBendRadius !== undefined && !finiteSize(input.maximumEdgeBendRadius,false)) throw new TypeError('Invalid measured edge bend radius')
+  for (const node of input.nodes) if (node.paintStrokeWidth !== undefined && !finiteSize(node.paintStrokeWidth,true)) throw new TypeError('Invalid measured node paint stroke')
+  for (const group of input.groups ?? []) if (group.paintStrokeWidth !== undefined && !finiteSize(group.paintStrokeWidth,true)) throw new TypeError('Invalid measured group paint stroke')
+  for (const edge of input.edges) if (edge.markerPaint !== undefined) assertMarkerPaint(edge.markerPaint)
   if (!['TD', 'TB', 'BT', 'LR', 'RL'].includes(input.direction)) throw new TypeError('Invalid measured graph direction')
   if (input.groups?.length) {
     if (nodes.length + input.groups.length > MAX_NODES) unsupported('agentic local compound-size limit')

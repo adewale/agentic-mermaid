@@ -1,3 +1,4 @@
+import { buildClassEndpointMarkerTemplates } from './marker-measurement.ts'
 import { resolveDiagramColors } from '../color-resolver.ts'
 import { connectorMarkerPaintRegions } from '../scene/bounds.ts'
 import { connector } from '../scene/marks.ts'
@@ -630,21 +631,27 @@ export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions
         const block = rel.label ? classTextBlock(resolveLabelContent(rel.label, rel.labelContent), style, 'edge') : undefined
         return block?.lineBlocks.some(line => line.runs.some(run => run.text.trim())) ? { width: block.width + 8, height: block.height + 6 } : undefined
       })
+      const markerTemplates = buildClassEndpointMarkerTemplates(diagram.relationships, style)
+      const markerNodeStrokes = diagram.classes.map(cls => {
+        const local = { ...(cls.className ? checkedAuthoredStyle(diagram.classDefs.get(cls.className), `classDef ${cls.className}`) : {}), ...checkedAuthoredStyle(cls.inlineStyle, `style ${cls.id}`) }
+        const parsed = Number.parseFloat(local['stroke-width'] ?? '')
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : style.nodeLineWidth
+      })
       const placed = measureRenderStage('agentic', () =>
         layoutAgenticGraph({
-          nodes: diagram.classes.map(cls => ({ id: cls.id, width: classSizes.get(cls.id)!.width, height: classSizes.get(cls.id)!.height, ...(membership.has(cls.id) ? { parent: membership.get(cls.id)! } : {}) })),
-          groups,
+          nodes: diagram.classes.map((cls,index) => ({ id: cls.id, width: classSizes.get(cls.id)!.width, height: classSizes.get(cls.id)!.height, paintStrokeWidth: markerNodeStrokes[index], ...(membership.has(cls.id) ? { parent: membership.get(cls.id)! } : {}) })),
+          groups: groups.map(group => ({...group,paintStrokeWidth:style.groupLineWidth})),
           edges: diagram.relationships.map((rel, index) => {
             const source = indices.get(rel.from),
               target = indices.get(rel.to)
             if (source === undefined || target === undefined) throw new Error('Class relationship references an undeclared card')
-            return { source, target, minSpan: 1, ...(labels[index] ? { label: labels[index] } : {}) }
+            return { source, target, minSpan: 1, markerPaint: markerTemplates[index], ...(labels[index] ? { label: labels[index] } : {}) }
           }),
           direction: diagram.direction ?? 'TB',
           padding: CLS.padding,
           nodeSpacing: options.nodeSpacing ?? CLS.nodeSpacing,
           layerSpacing: options.layerSpacing ?? CLS.layerSpacing,
-          edgeSpacing: Math.max(6, style.lineWidth + 4),
+          edgeSpacing: Math.max(6, style.lineWidth + 4), maximumEdgeStrokeWidth: style.lineWidth, maximumEdgeBendRadius: style.edgeBendRadius,
         }),
       )
       if (placed.nodes.length !== diagram.classes.length || (placed.groups?.length ?? 0) !== namespaces.length || placed.edges.length !== diagram.relationships.length) {

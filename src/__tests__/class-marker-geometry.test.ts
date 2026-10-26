@@ -1,3 +1,9 @@
+import { seatMeasuredMarkers, assertMarkerPaint, writtenParallelSupportsOverlap } from '../layout/compound-marker-seating.ts'
+import { buildClassEndpointMarkerTemplates } from '../class/marker-measurement.ts'
+import { classMarkerPiecesOverlap } from '../layout/measured-marker-overlap.ts'
+import { classMarkerPieces, classMarkerResources } from '../class/relationship-paint.ts'
+import { formatSvgNumber } from '../shared/svg-number.ts'
+
 import { describe, expect, test } from 'bun:test'
 
 import { lowerClassScene } from '../class/renderer.ts'
@@ -352,4 +358,143 @@ E -- F`)
       }
     })
   }
+})
+
+describe('measured endpoint marker placement', () => {
+const fail=(reason:string):never=>{throw new Error(reason)},budget=()=>({pairs:1000000,arcs:65536,swaps:1000000}),style={lineWidth:1,edgeStrokeColor:'#333'} as any
+const resources=classMarkerResources(style),aggregate=resources.find(m=>m.id==='cls-aggregation')!,inherit=resources.find(m=>m.id==='cls-inherit')!
+const templates=[{start:classMarkerPieces(aggregate,{x:0,y:0},{x:1,y:0},'start',1)},{start:classMarkerPieces(inherit,{x:0,y:0},{x:1,y:0},'start',1)}]
+const shape=(type:string,role:'start'|'end'='start',width=1)=>buildClassEndpointMarkerTemplates([{from:'A',to:'B',type,markerAt:role==='start'?'from':'to'} as any],{...style,lineWidth:width})[0]!
+
+test('a nearby opaque inheritance hides earlier aggregation with exact canonical pieces',()=>{
+ const earlier=classMarkerPieces(aggregate,{x:100,y:20},{x:-1,y:0},'start',1)
+ const later=classMarkerPieces(inherit,{x:100,y:24},{x:-1,y:0},'start',1)
+ expect(classMarkerPiecesOverlap(earlier,later)).toBe(true)
+})
+for(const start of [true,false])test(`template role ${start} retains canonical marker orientation and units`,()=>{
+ const rel={from:'A',to:'B',type:'inheritance',markerAt:start?'from':'to'} as any
+ const bank=buildClassEndpointMarkerTemplates([rel],{...style,lineWidth:3})[0]!
+ const template=start?bank.start!:bank.end!
+ const expected=classMarkerPieces(inherit,{x:0,y:0},{x:start?1:-1,y:0},start?'start':'end',3)
+ expect(template).toEqual(expected);assertMarkerPaint(bank)
+})
+for(const transpose of [false,true])for(const sign of [-1,1])test(`primary/local marker reseating reflection ${transpose}/${sign}`,()=>{
+ const point=(x:number,y:number)=>transpose?{x:y,y:x*sign}:{x:x*sign,y}
+ const a=point(100,20),b=point(120,20),q=point(120,80),t=point(150,80)
+ const c=point(100,24),d=point(130,24),r=point(130,90),u=point(150,90)
+ const box=transpose?{x:0,y:sign===1?80:-100,width:100,height:20}:{x:sign===1?80:-100,y:0,width:20,height:100}
+ const routes=[{points:[a,b,q,t]},{points:[c,d,r,u]}],before=structuredClone(routes),work=budget();let changed:number[]=[];let allocated=0
+ seatMeasuredMarkers(templates.map(markerPaint=>({source:0,target:1,markerPaint})),routes,[box,box],work,n=>allocated+=n,fail,(_i,p)=>p.every((v,i)=>!i||v.x===p[i-1]!.x||v.y===p[i-1]!.y),i=>changed.push(i))
+ expect(changed).toEqual([1]);expect(routes[0]).toEqual(before[0]);expect(routes[1]!.points.slice(2)).toEqual(before[1]!.points.slice(2));expect(allocated).toBeGreaterThan(2)
+ const p=routes[1]!.points[0]!,s=routes[1]!.points[1]!,normal={x:Math.sign(s.x-p.x),y:Math.sign(s.y-p.y)}
+ const actual=classMarkerPieces(inherit,p,normal,'start',1),old=classMarkerPieces(aggregate,a,{x:Math.sign(b.x-a.x),y:Math.sign(b.y-a.y)},'start',1)
+ expect(classMarkerPiecesOverlap(old,actual)).toBe(false)
+})
+test('exact AABB overlap does not veto nonoverlapping actual glyph pieces',()=>{
+ const a=[{kind:'polygon' as const,points:[{x:0,y:0},{x:2,y:0},{x:0,y:2}]}],b=[{kind:'polygon' as const,points:[{x:2,y:2},{x:2,y:1.5},{x:1.5,y:2}]}]
+ expect(classMarkerPiecesOverlap(a,b)).toBe(false)
+})
+test('complete path rejection is respected, with immutable input points and no refund',()=>{
+ const routes=[{points:[{x:100,y:20},{x:120,y:20},{x:120,y:80}]},{points:[{x:100,y:24},{x:130,y:24},{x:130,y:90}]}],old=structuredClone(routes),work=budget();let attempts=0
+ expect(()=>seatMeasuredMarkers(templates.map(markerPaint=>({source:0,target:1,markerPaint})),routes,[{x:80,y:0,width:20,height:100},{x:110,y:80,width:30,height:20}],work,()=>{},fail,()=>{attempts++;return false},()=>{})).toThrow('No physically clear measured marker seat')
+ expect(attempts).toBeGreaterThan(0);expect(routes).toEqual(old);expect(work.arcs).toBeLessThan(65536)
+})
+test('resource failures preserve exact thrown identity before capacity allocations',()=>{
+ const error=new Error('fixed pool'),work=budget();work.arcs=0;let points=0
+ expect(()=>seatMeasuredMarkers([],[],[],work,n=>points+=n,()=>{throw error},()=>true,()=>{})).toThrow(error);expect(points).toBe(0)
+})
+test('absent marker metadata keeps every route reference unchanged',()=>{
+ const routes=[{points:[{x:0,y:0},{x:1,y:0}]}],before=routes[0]!.points
+ seatMeasuredMarkers([{source:0,target:1}],routes,[],budget(),()=>{},fail,()=>{throw new Error('no candidate')},()=>{})
+ expect(routes[0]!.points).toBe(before)
+})
+for(const value of [{start:[{kind:'circle',cx:0,cy:0,r:NaN}]},{start:[{kind:'polygon',points:[{x:0,y:0},{x:2,y:0},{x:1,y:1},{x:2,y:2},{x:0,y:2}]}]}])test('invalid marker metadata fails rather than weakening proof',()=>expect(()=>assertMarkerPaint(value as any)).toThrow())
+test('resolved-width mutation changes actual measured marker bank/cache authority',()=>{
+ const one=shape('inheritance','start',1),three=shape('inheritance','start',3)
+ expect(JSON.stringify(one)).not.toBe(JSON.stringify(three));assertMarkerPaint(one);assertMarkerPaint(three)
+})
+test('normalizing an already-reserved opposite endpoint requires exact actual writer spelling',()=>{
+ const routes=[{points:[{x:100,y:20},{x:150,y:20},{x:150,y:.12345678}]},{points:[{x:100,y:24},{x:160,y:24},{x:160,y:.12345674}]}],work=budget();let accepted=0
+ expect(()=>seatMeasuredMarkers(templates.map(markerPaint=>({source:0,target:1,markerPaint})),routes,[{x:80,y:0,width:20,height:100},{x:140,y:-10,width:40,height:10.12345678}],work,()=>{},fail,()=>{accepted++;return true},()=>{})).toThrow('No physically clear measured marker seat')
+ expect(accepted).toBe(0)
+})
+test('an actual paint-surface rejection can trigger seating even without a peer marker',()=>{
+ const routes=[{points:[{x:100,y:20},{x:130,y:20},{x:130,y:100}]}],work=budget();let moved=0
+ seatMeasuredMarkers([{source:0,target:1,markerPaint:templates[0]}],routes,[{x:80,y:0,width:20,height:100},{x:120,y:100,width:20,height:20}],work,()=>{},fail,()=>true,()=>moved++,(_i,_source,_pieces,bounds)=>bounds.minY>=40)
+ expect(moved).toBe(1);expect(routes[0]!.points[0]!.y).toBeGreaterThan(40)
+})
+
+})
+describe('marker versus foreign internal carrier', () => {
+const fail=(m:string):never=>{throw new Error(m)},work=()=>({pairs:1000000,arcs:65536,swaps:1000000})
+const resource=classMarkerResources({lineWidth:1} as any).find(m=>m.id==='cls-inherit')!,marker={end:classMarkerPieces(resource,{x:0,y:0},{x:-1,y:0},'end',1)}
+const fixture=()=>({
+ edges:[{source:1,target:0,markerPaint:marker},{source:2,target:3}],
+ routes:[{points:[{x:200,y:180},{x:220,y:180},{x:220,y:140},{x:60,y:140},{x:60,y:80}]},{points:[{x:0,y:20},{x:8,y:20},{x:8,y:60},{x:20,y:60},{x:20,y:88},{x:120,y:88},{x:120,y:120},{x:140,y:120},{x:140,y:128}]}],
+ boxes:[{x:40,y:40,width:40,height:40},{x:160,y:160,width:40,height:40},{x:-20,y:10,width:20,height:20},{x:130,y:128,width:20,height:20}],
+ bounds:{x:-30,y:0,width:270,height:240}
+})
+const check=(routes:any[])=>{
+ const path=routes[0].points,p=path.at(-1),q=path.at(-2),pieces=classMarkerPieces(resource,p,{x:p.x-q.x,y:p.y-q.y},'end',1)
+ for(const [a,b] of routes[1].points.slice(1).map((p:any,i:number)=>[routes[1].points[i],p])){
+  const l=Math.hypot(b.x-a.x,b.y-a.y);if(!l)continue
+  const nx=-(b.y-a.y)/l*.5,ny=(b.x-a.x)/l*.5
+  expect(classMarkerPiecesOverlap(pieces,[{kind:'polygon',points:[{x:a.x+nx,y:a.y+ny},{x:b.x+nx,y:b.y+ny},{x:b.x-nx,y:b.y-ny},{x:a.x-nx,y:a.y-ny}]}])).toBe(false)
+ }
+}
+test('same-source foreign ink never inherits the marker owner exemption',()=>{
+ const f=fixture();f.edges[1]!.source=1;const old=structuredClone(f.routes),changes:number[]=[]
+ seatMeasuredMarkers(f.edges,f.routes,f.boxes,work(),()=>{},fail,()=>true,i=>changes.push(i),undefined,1,0,{bounds:f.bounds,obstacles:f.boxes})
+ expect(changes).toEqual([1]);expect(f.routes[0]).toEqual(old[0]);expect(f.routes[1]!.points[0]).toEqual(old[1]!.points[0]);expect(f.routes[1]!.points.at(-1)).toEqual(old[1]!.points.at(-1));check(f.routes)
+})
+for(const transpose of [false,true])for(const sx of [-1,1])for(const sy of [-1,1])test(`internal carrier yield reflection ${transpose}/${sx}/${sy}`,()=>{
+ const f=fixture(),p=(v:any)=>transpose?{x:v.y*sy,y:v.x*sx}:{x:v.x*sx,y:v.y*sy},box=(r:any)=>{const a=p(r),b=p({x:r.x+r.width,y:r.y+r.height});return{x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),width:Math.abs(a.x-b.x),height:Math.abs(a.y-b.y)}}
+ const routes=f.routes.map(r=>({points:r.points.map(p)})),old=structuredClone(routes),changes:number[]=[]
+ seatMeasuredMarkers(f.edges,routes,f.boxes.map(box),work(),()=>{},fail,(_i,path)=>path.every((v,i)=>!i||v.x===path[i-1]!.x||v.y===path[i-1]!.y),i=>changes.push(i),undefined,1,0,{bounds:box(f.bounds),obstacles:f.boxes.map(box)})
+ expect(changes).toEqual([1]);expect(routes[0]).toEqual(old[0]);expect(routes[1]!.points.slice(0,4)).toEqual(old[1]!.points.slice(0,4));expect(routes[1]!.points.slice(6)).toEqual(old[1]!.points.slice(6))
+})
+test('label spine is protected rather than moved to clear another owner glyph',()=>{
+ const f=fixture();const edges:any=f.edges,routes:any=f.routes;edges[1].label={width:20,height:10};routes[1].labelPosition={x:60,y:88};const before=structuredClone(routes[1])
+ expect(()=>seatMeasuredMarkers(edges,routes,f.boxes,work(),()=>{},fail,()=>true,()=>{},undefined,1,0,{bounds:f.bounds,obstacles:f.boxes})).toThrow('No physically clear measured marker seat')
+ expect(routes[1]).toEqual(before)
+})
+test('terminal run is never slid as a forced-conflict internal track',()=>{
+ const f=fixture();f.routes[1]!.points=[{x:0,y:88},{x:120,y:88},{x:120,y:128}];const old=structuredClone(f.routes[1])
+ expect(()=>seatMeasuredMarkers(f.edges,f.routes,f.boxes,work(),()=>{},fail,()=>true,()=>{},undefined,1,0,{bounds:f.bounds,obstacles:f.boxes})).toThrow('No physically clear measured marker seat')
+ expect(f.routes[1]).toEqual(old)
+})
+test('yield and endpoint shapes share at most eight actual whole-path proposals',()=>{
+ const f=fixture();let accepted=0
+ expect(()=>seatMeasuredMarkers(f.edges,f.routes,f.boxes,work(),()=>{},fail,()=>{accepted++;return false},()=>{},undefined,1,0,{bounds:f.bounds,obstacles:f.boxes})).toThrow('No physically clear measured marker seat')
+ expect(accepted).toBeGreaterThan(0);expect(accepted).toBeLessThanOrEqual(8)
+})
+test('failed full proof never publishes a candidate track or refunds spent work',()=>{
+ const f=fixture(),before=structuredClone(f.routes),budget=work()
+ expect(()=>seatMeasuredMarkers(f.edges,f.routes,f.boxes,budget,()=>{},fail,()=>false,()=>{throw Error('published rejected candidate')},undefined,1,0,{bounds:f.bounds,obstacles:f.boxes})).toThrow()
+ expect(f.routes).toEqual(before);expect(budget.pairs).toBeLessThan(1000000);expect(budget.arcs).toBeLessThan(65536)
+})
+
+})
+describe('actual written parallel support', () => {
+const point=(x:number,y:number)=>({x,y}),check=(a:any,b:any,c:any,d:any,w=1)=>writtenParallelSupportsOverlap(a,b,c,d,w,Number(formatSvgNumber(w)),()=>{},()=>{})
+for(const transpose of[false,true])test(`actual width1 .74346 shared support reflection ${transpose}`,()=>{
+ const p=(x:number,y:number)=>transpose?point(y,x):point(x,y)
+ expect(check(p(1804.82254011,900.5),p(1804.82254011,929.5625),p(1805.566,915.5),p(1805.566,960.5))).toBe(true)
+})
+test('zero-measure touch and actual written width contact remain permitted',()=>{
+ expect(check(point(0,0),point(0,10),point(1,2),point(1,8))).toBe(false)
+ expect(check(point(.00000000000000001,0),point(.00000000000000001,10),point(1.0000000000000002,2),point(1.0000000000000002,8))).toBe(false)
+ expect(check(point(0,0),point(0,10),point(.25,10),point(.25,20))).toBe(false)
+})
+test('proper perpendicular crossing is not forbidden parallel ink',()=>expect(check(point(0,5),point(10,5),point(5,0),point(5,10))).toBe(false))
+test('longitudinal written endpoint collapse is tested after canonical spelling',()=>{
+ expect(check(point(0,0),point(0,1000.1234567891),point(.5,1000.1234567890999),point(.5,1001))).toBe(false)
+ expect(check(point(0,0),point(0,1000.1234567890999),point(.5,1000.1234567891),point(.5,1001))).toBe(true)
+})
+test('far support requires no formatting capacity; exact narrow work fails before strings',()=>{
+ let slots=0
+ expect(writtenParallelSupportsOverlap(point(0,0),point(0,10),point(20,0),point(20,10),1,1,()=>{},n=>slots+=n)).toBe(false);expect(slots).toBe(0)
+ const error=new Error('original capacity');expect(()=>writtenParallelSupportsOverlap(point(0,0),point(0,10),point(.75,0),point(.75,10),1,1,()=>{},()=>{throw error})).toThrow(error)
+})
+
 })

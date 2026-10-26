@@ -1,3 +1,5 @@
+import { proposePortalChannel } from '../layout/compound-portal-channel.ts'
+import { createPeerGeometryOwner } from '../layout/compound-peer-geometry.ts'
 import { describe, expect, test } from 'bun:test'
 import { layoutAgenticGraph, type MeasuredGraph } from '../layout/agentic-layered.ts'
 import { layoutLayeredGraph } from '../layout/agentic-layered-core.ts'
@@ -1173,4 +1175,31 @@ describe('owned measured layered layout', () => {
     expect(() => layoutAgenticGraph(measured({ edges: [{ source: 0, target: 99, minSpan: 1 }] }))).toThrow(TypeError)
     expect(() => layoutAgenticGraph(measured({ nodes: [{ id: 'bad', width: NaN, height: 20 }], edges: [] }))).toThrow(TypeError)
   })
+})
+
+
+describe('bounded complete boundary connectors', () => {
+ const fail=(reason:string):never=>{throw new Error(reason)},budget=()=>({pairs:1_000_000,arcs:65536,swaps:1_000_000})
+ for(const transpose of [false,true])for(const xs of [-1,1])for(const ys of [-1,1])test(`retains real normal leads in reflection ${transpose}/${xs}/${ys}`,()=>{
+  const p=(x:number,y:number)=>transpose?{x:y*ys,y:x*xs}:{x:x*xs,y:y*ys}
+  const r=(x:number,y:number,w:number,h:number)=>{const a=p(x,y),b=p(x+w,y+h);return{x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),width:Math.abs(b.x-a.x),height:Math.abs(b.y-a.y)}}
+  const bounds=r(0,0,100,100),boxes=[r(80,12,12,8),r(62,64,16,16)],source={port:p(80,20),stub:p(80,28),penalty:0},target={port:p(70,80),stub:p(70,88),penalty:0},work=budget();let allocated=0
+  const result=proposePortalChannel(bounds,boxes,source,[target],[],createCompoundObstacleIndex(boxes,work,fail),work,n=>allocated+=n,fail,()=>true,path=>path)
+  expect(result).toBeDefined();expect(result![0]).toEqual(source.port);expect(result!.at(-1)).toEqual(target.port);expect(result!.length).toBe(6);expect(allocated).toBe(6)
+  expect(result![1]!.x===result![0]!.x||result![1]!.y===result![0]!.y).toBe(true)
+ })
+ test('rejects every complete candidate without mutating terminals or refunding work',()=>{
+  const roots=[{port:{x:80,y:20},stub:{x:80,y:28},penalty:0},{port:{x:70,y:80},stub:{x:70,y:88},penalty:0}],before=structuredClone(roots),work=budget();let candidates=0
+  const result=proposePortalChannel({x:0,y:0,width:100,height:100},[{x:80,y:12,width:12,height:8},{x:62,y:64,width:16,height:16}],roots[0]!,roots.slice(1),[],createCompoundObstacleIndex([],work,fail),work,()=>{},fail,()=>true,()=>{candidates++;return undefined})
+  expect(result).toBeUndefined();expect(candidates).toBeGreaterThan(0);expect(candidates).toBeLessThanOrEqual(8);expect(roots).toEqual(before);expect(work.arcs).toBeLessThan(65536)
+ })
+ test('published peer revisions invalidate released predicates and preserve active leases',()=>{
+  const work=budget(),routes=[{style:'solid',points:[{x:0,y:0},{x:10,y:0}]},{style:'solid',points:[{x:50,y:0},{x:60,y:0}]}]
+  const owner=createPeerGeometryOwner(routes,0,100,100,work,()=>{},fail),old=owner.acquire(0)
+  owner.enterQuery(old)
+  expect(()=>owner.publish(0,routes[0]!.points,true)).toThrow('leased')
+  expect(()=>old.release()).toThrow('active query')
+  owner.leaveQuery(old);old.release();owner.publish(0,[{x:0,y:5},{x:10,y:5}],true)
+  expect(()=>old.guard({x:5,y:0},{x:5,y:10},2,2)).toThrow('Stale')
+ })
 })

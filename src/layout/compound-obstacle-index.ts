@@ -33,7 +33,7 @@ export function isCompoundObstacleIndexFor(queries: CompoundObstacleQueries | un
 /** One immutable, internally owned rectangle scope. The inclusive lane index
  * is only a broad phase; every candidate keeps the original strict predicate.
  * Index metadata capacity uses arcs, comparisons use pairs, without refunds. */
-export function createCompoundObstacleIndex(boxes: readonly Readonly<RoutingBox>[], work: ChannelWork, fail: (reason: string) => never): CompoundObstacleQueries {
+function createIndexView(boxes: readonly Readonly<RoutingBox>[], work: ChannelWork, fail: (reason: string) => never, selected?: {x: NodeLaneIndex | null; y: NodeLaneIndex | null}): CompoundObstacleQueries {
   const charge = (amount = 1): void => {
     work.pairs -= amount
     if (work.pairs < 0) fail('agentic local cross-hierarchy obstacle-work limit')
@@ -45,7 +45,7 @@ export function createCompoundObstacleIndex(boxes: readonly Readonly<RoutingBox>
       if (work.arcs < 0) fail('agentic local cross-hierarchy visibility-arc limit')
     }
   }
-  const xIndex = buildNodeLaneIndex(boxes, 'x', 0, chargeIndex), yIndex = buildNodeLaneIndex(boxes, 'y', 0, chargeIndex)
+  const xIndex = selected ? selected.x : buildNodeLaneIndex(boxes, 'x', 0, chargeIndex), yIndex = selected ? selected.y : buildNodeLaneIndex(boxes, 'y', 0, chargeIndex)
   const cell = (index: NodeLaneIndex | null, coordinate: number, beforeComparison?: () => void): number | null => {
     if (!index) return null
     beforeComparison?.()
@@ -184,5 +184,54 @@ export function createCompoundPeerGuard(
       if (blocked(a, b, c, d, arrival, axis)) return false
     }
     return true
+  }
+}
+
+/** Build exact queries for one immutable rectangle scope. */
+export function createCompoundObstacleIndex(boxes: readonly Readonly<RoutingBox>[], work: ChannelWork, fail: (reason: string) => never): CompoundObstacleQueries {
+  return createIndexView(boxes, work, fail)
+}
+
+/** Boundary-call only: immutable DATA reuse, never query or route-proof reuse.
+ * Caller supplies exclusively owned numeric rectangles frozen for this call.
+ * Old query views close their own arrays; publication never changes them. */
+export function createOwnedCompoundObstacleIndexFactory(work: ChannelWork, fail: (reason: string) => never): (boxes: readonly Readonly<RoutingBox>[]) => CompoundObstacleQueries {
+  // Reserve before creating the factory's closures/holder.
+  work.arcs -= 8
+  if (work.arcs < 0) fail('agentic local cross-hierarchy visibility-arc limit')
+  const charge = (amount: number): void => { work.pairs -= amount; if (work.pairs < 0) fail('agentic local cross-hierarchy obstacle-work limit') }
+  const reserve = (amount: number): void => { work.arcs -= amount; if (work.arcs < 0) fail('agentic local cross-hierarchy visibility-arc limit') }
+  // Factory closure, retained prior context and its accounting closures.
+  let prior: { boxes: readonly Readonly<RoutingBox>[]; x: NodeLaneIndex | null; y: NodeLaneIndex | null } | undefined
+  const originalCharge = (amount: number, kind: 'capacity' | 'work'): void => kind === 'capacity' ? reserve(amount) : charge(amount)
+  return boxes => {
+    // Pay before the axis closure, selected pair and context are allocated.
+    reserve(7)
+    const axis = (cross: 'x' | 'y'): NodeLaneIndex | null => {
+      charge(3)
+      const old = prior?.[cross]
+      if (old && prior!.boxes.length === boxes.length) {
+        let equal = true
+        for (let ordinal = 0; ordinal < boxes.length; ordinal++) {
+          // Exact original Float64 bounds/floors, including signed zero.
+          // Two bound-computation blocks plus one equality block.
+          charge(3)
+          const a = prior!.boxes[ordinal]!, b = boxes[ordinal]!
+          const alo = a[cross] - 0, ahi = a[cross] + (cross === 'x' ? a.width : a.height) + 0
+          const blo = b[cross] - 0, bhi = b[cross] + (cross === 'x' ? b.width : b.height) + 0
+          if (!Object.is(Math.floor(alo / 128), Math.floor(blo / 128)) || !Object.is(Math.floor(ahi / 128), Math.floor(bhi / 128))) { equal = false; break }
+        }
+        if (equal) return old
+      }
+      return buildNodeLaneIndex(boxes, cross, 0, originalCharge)
+    }
+    // One ephemeral axis closure, selected-index pair and prior context.
+    // A failed second axis keeps all actual first-axis work/capacity spent.
+    const x = axis('x'), y = axis('y')
+    const selected = { x, y }
+    const view = createIndexView(boxes, work, fail, selected)
+    charge(1)
+    prior = { boxes, x, y }
+    return view
   }
 }

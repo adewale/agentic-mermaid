@@ -1,3 +1,4 @@
+
 import { describe, expect, spyOn, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { releaseBenchCases } from '../../eval/shared/release-bench-cases.ts'
@@ -1078,3 +1079,23 @@ describe('ELK Class measured marker face capacity', () => {
     expect(work.exhausted).toBe(false)
   })
 })
+
+test('strict Native completes dense compound relationships with distinct visible markers', () => {
+ const source = "---\ntitle: Class compact 33\n---\nclassDiagram\ndirection TB\nnamespace Root {\n  class `ns:Domain`[\"Card 33-0 WWW 👩‍💻\"] {\n    +String value0\n    +step0()\n  }\n  class `class-namespace:Domain`[\"Card 33-1 WWWWWWWWW\"] {\n    +String value1\n    +step1()\n  }\n  class `__interface_0`[\"Card 33-2 W\"] {\n    +String value2\n    +step2()\n  }\n  class `C3`[\"Card 33-3  👩‍💻\"] {\n    +String value3\n  }\n  class `C4`[\"Card 33-4 WWWW\"] {\n    +String value4\n    +step4()\n  }\n  class `C5`[\"Card 33-5 WWWWWWWWWWWW\"] {\n    +String value5\n  }\n  class `C6`[\"Card 33-6 WWWWWWWWWW 👩‍💻\"] {\n    +String value6\n    +step6()\n  }\n  class `C7`[\"Card 33-7 WWWWWWWWWWWW\"] {\n    +String value7\n  }\n  class `C8`[\"Card 33-8 \"] {\n    +String value8\n  }\n  class `C9`[\"Card 33-9 WWWWWWWWWW 👩‍💻\"] {\n    +String value9\n  }\n  class `C10`[\"Card 33-10 WWWWWWWWW\"] {\n    +String value10\n    +step10()\n  }\n  namespace Domain {\n    class `C11`[\"Card 33-11 WWW\"] {\n      +String value11\n    }\n    class `C12`[\"Card 33-12 WWWWWWWW 👩‍💻\"] {\n      +String value12\n    }\n    class `C13`[\"Card 33-13 \"] {\n      +String value13\n    }\n    class `C14`[\"Card 33-14 WWWWWWWWWWWW\"] {\n      +String value14\n      +step14()\n    }\n    class `C15`[\"Card 33-15 WWWWWWW 👩‍💻\"] {\n      +String value15\n      +step15()\n    }\n    class `C16`[\"Card 33-16 WWWWWWW\"] {\n      +String value16\n    }\n    class `C17`[\"Card 33-17 WWWWWWW\"] {\n      +String value17\n      +step17()\n    }\n    class `C18`[\"Card 33-18 WWWWWWW 👩‍💻\"] {\n      +String value18\n    }\n    class `C19`[\"Card 33-19 WWWWWWWWWWWW\"] {\n      +String value19\n    }\n    class `C20`[\"Card 33-20 WW\"] {\n      +String value20\n      +step20()\n    }\n    class `C21`[\"Card 33-21 WWWW 👩‍💻\"] {\n      +String value21\n    }\n    class `C22`[\"Card 33-22 WWWW\"] {\n      +String value22\n    }\n  }\n}\n`ns:Domain` \"1..*\" *-- `class-namespace:Domain` : edge 0 xxxxxxxx\n`ns:Domain` \"0..1\" ..> `__interface_0`\n`ns:Domain` \"1..*\" o-- `C3` : edge 2 xxxxxxxxxxxx\n`ns:Domain` \"1\" *-- `C4`\n`ns:Domain` \"1..*\" -- `C5` : edge 4 xxxxx\n`ns:Domain` \"1..*\" --> `C6`\n`ns:Domain` \"1\" <|-- `C7`\n`ns:Domain` \"0..1\" ..> `C8`\n`ns:Domain` \"*\" -- `C9` : edge 8 xxxxxxxxxxxx\n`ns:Domain` \"0..1\" *-- `C10`\n`ns:Domain` \"1\" --> `C11`\n`ns:Domain` \"0..1\" ..|> `C12`\n`ns:Domain` \"0..1\" --> `C13` : edge 12 xxxxxxxxxxxxxxx\n`ns:Domain` \"1\" ..|> `C14` : edge 13 x\n`ns:Domain` \"*\" ..|> `C15`\n`ns:Domain` \"1\" ..> `C16` : edge 15 xxxxxxxxxxxxxxxx\n`ns:Domain` \"0..1\" o-- `C17`\n`ns:Domain` \"*\" <|-- `C18`\n`ns:Domain` \"1\" *-- `C19` : edge 18 xxxxxxx\n`ns:Domain` \"0..1\" -- `C20`\n`ns:Domain` \"1\" ..|> `C21`\n`ns:Domain` \"*\" -- `C22`\n`class-namespace:Domain` \"0..1\" ..> `C22`\n`__interface_0` \"*\" ..|> `C22` : edge 23 xxxxxxxxxxxxxxxxxxxxxx\n`C3` \"*\" ..> `C22` : edge 24 \n`C4` \"1..*\" ..|> `C22` : edge 25 xxxxxxxxxxxxxxxxxxxx\n`C5` \"1..*\" -- `C22` : edge 26 xxxxxxxx\n`C6` \"1\" -- `C22` : edge 27 xxxxx\n`C7` \"0..1\" *-- `C22` : edge 28 xxxxxxxxxxxxxxxxxxxx\n`C8` \"*\" -- `C22`\n`C9` \"0..1\" ..> `C22` : edge 30 xxxx\n`C10` \"1\" ..> `C22` : edge 31 xxxxxxxxxxxxxxxxxxx\n`C11` \"1..*\" *-- `C22` : edge 32 xxxxxxxx\n`C12` \"0..1\" ..> `C22`\n`C13` \"1..*\" o-- `C22` : edge 34 xxxxxxxxxxxx\n`C14` \"1\" *-- `C22`\n`C15` \"1..*\" -- `C22` : edge 36 xxxxx\n`C16` \"1..*\" --> `C22`\n`C17` \"1\" <|-- `C22`\n`C18` \"0..1\" ..> `C22`\n`C19` \"*\" -- `C22` : edge 40 xxxxxxxxxxxx\n`C20` \"0..1\" *-- `C22`\n`C21` \"1\" --> `C22`\n`C22` \"0..1\" ..|> `C22`\nnote for `ns:Domain` \"owned note 33<br/>second line\"\nnote \"free note 33\"\n"
+ const options = { class: { hierarchicalNamespaces: true }, graphLayout: { backend: 'agentic' as const, fallback: 'none' as const } }
+ const model = parseClassDiagram(toMermaidLines(source.slice(source.indexOf('classDiagram')))), before = structuredClone(model)
+ const positioned = layoutClassDiagram(model, options)
+ expect(model).toEqual(before)
+ expect(positioned.classes.map(c => [c.id,c.label,c.attributes,c.methods])).toEqual(model.classes.map(c => [c.id,c.label,c.attributes,c.methods]))
+ expect(positioned.relationships.map(r => [r.from,r.to,r.type,r.markerAt,r.fromCardinality,r.toCardinality,r.label])).toEqual(model.relationships.map(r => [r.from,r.to,r.type,r.markerAt,r.fromCardinality,r.toCardinality,r.label]))
+ expect(positioned.classes).toHaveLength(23)
+ expect(positioned.relationships).toHaveLength(44)
+ expect(positioned.namespaces).toHaveLength(2)
+ expect(positioned.notes).toHaveLength(2)
+ const rendered = renderMermaidSVGWithReceipt(source,options)
+ expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+ expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({selected:'agentic',role:'primary'})])
+ expect(rendered.svg).toContain('owned note 33')
+ expect(rendered.svg).toContain('free note 33')
+})
+

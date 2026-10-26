@@ -140,6 +140,11 @@ export function layoutCompoundGraph(
   // Every cross-scope edge participated at its lowest common scope. The
   // family owns boundary routing; omitting that work must not omit the edge's
   // placement influence as the previous filtered retry did.
-  if ((!lifted.size && !ancestorPlan) || input.placementOnly) return result
+  let markerPaint = false
+  if (input.maximumEdgeStrokeWidth !== undefined) for (const edge of input.edges) {
+    if (--routingWork.pairs<0) unsupported('agentic marker metadata work limit')
+    if (edge.markerPaint?.start?.length || edge.markerPaint?.end?.length) { markerPaint=true;break }
+  }
+  if ((!lifted.size && !ancestorPlan && !markerPaint) || input.placementOnly) return result
   return routeCrossHierarchy(input, result, owners, lifted, scopes.map(scope => scope.direction), routingWork, expansionLimit, unsupported, ancestorPlan)
 }

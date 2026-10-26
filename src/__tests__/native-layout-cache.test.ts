@@ -1,3 +1,4 @@
+import { layoutAgenticGraph } from '../layout/agentic-layered.ts'
 import { describe, expect, test } from 'bun:test'
 import { resolve } from 'node:path'
 import { readFileSync } from 'node:fs'
@@ -137,4 +138,29 @@ describe('native measured geometry reuse', () => {
     expect(child.exitCode).toBe(0)
     expect(child.stdout.toString().trim()).toBe(setting === '0' ? '2' : '1')
   })
+})
+
+describe('measured physical metadata dependencies', () => {
+const base=()=>({nodes:[{id:'A',width:20,height:20,paintStrokeWidth:1},{id:'B',width:20,height:20,paintStrokeWidth:1}],edges:[{source:0,target:1,minSpan:1,markerPaint:{start:[{kind:'circle' as const,cx:6,cy:0,r:3}]}}],direction:'TD' as const,padding:4,nodeSpacing:4,layerSpacing:8})
+for(const kind of ['marker','node','group'])test(`measured admission rejects invalid ${kind} physical metadata`,()=>{
+ const input:any=base()
+ if(kind==='marker')input.edges[0].markerPaint.start[0].r=NaN
+ if(kind==='node')input.nodes[0].paintStrokeWidth=Infinity
+ if(kind==='group')input.groups=[{id:'G',minWidth:20,padding:{top:10,right:5,bottom:5,left:5},paintStrokeWidth:0}]
+ expect(()=>layoutAgenticGraph(input)).toThrow(TypeError)
+})
+test('full measured cache owns marker and node/group physical metadata edits and cloned results',()=>{
+ let calls=0
+ const cached=createMeasuredLayoutCache((input:any)=>{calls++;return {topology:'layered' as const,width:input.edges[0].markerPaint.start[0].r,height:input.nodes[0].paintStrokeWidth,nodes:[{x:0,y:0},{x:1,y:1}],edges:[{points:[{x:0,y:0},{x:1,y:0}]}]}})
+ const input:any=base(),first=cached(input);first.edges[0]!.points[0]!.x=999
+ expect(cached(input).edges[0]!.points[0]!.x).toBe(0);expect(calls).toBe(1)
+ input.edges[0].markerPaint.start[0].r=4;expect(cached(input).width).toBe(4);expect(calls).toBe(2)
+ input.nodes[0].paintStrokeWidth=8;expect(cached(input).height).toBe(8);expect(calls).toBe(3)
+ input.groups=[{id:'G',paintStrokeWidth:2}];cached(input);expect(calls).toBe(4)
+ input.groups[0].paintStrokeWidth=3;cached(input);expect(calls).toBe(5)
+})
+test('actual rounded-carrier metadata is admitted only as finite nonnegative geometry',()=>{
+ for(const value of [NaN,Infinity,-1])expect(()=>layoutAgenticGraph({...base(),maximumEdgeBendRadius:value})).toThrow(TypeError)
+})
+
 })
