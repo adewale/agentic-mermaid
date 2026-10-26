@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { communityCoreWorkloads, normalizeCommunityOutput, runCommunityCli } from './community.ts'
+import { defaultTimeObserver, isGnuTime } from '../portable/time-observer.ts'
 import type { CommunityArtifact, PreparedCommunity } from './community-types.ts'
 import type { BenchmarkObservation, UnifiedRunOptions, UnifiedSuiteResult, UnifiedWorkload } from './types.ts'
 
@@ -141,11 +142,11 @@ interface ResourceObserver {
   provenance?: unknown
 }
 function resourceObserver(configured?: string, provenance?: string): ResourceObserver {
-  const path = resolve(configured ?? '/usr/bin/time')
+  const path = configured ? resolve(configured) : (defaultTimeObserver() ?? '/usr/bin/time')
   try {
-    if (!existsSync(path)) throw Error('GNU /usr/bin/time is unavailable')
+    if (!existsSync(path)) throw Error(configured ? 'Configured GNU time observer does not exist' : 'GNU /usr/bin/time is unavailable and no GNU gtime is on PATH')
+    if (!isGnuTime(path)) throw Error(`External time observer is not GNU time: ${path}; install GNU time (gtime on macOS) or pass --startup-observer`)
     const version = execFileSync(path, ['--version'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
-    if (!/GNU\s+Time/i.test(version)) throw Error('External time observer is not GNU time')
     return { path: realpathSync(path), version, sha256: digest(path), bytes: statSync(path).size, locale: { LC_ALL: process.env.LC_ALL ?? null, LC_NUMERIC: process.env.LC_NUMERIC ?? null, LANG: process.env.LANG ?? null }, ...(provenance ? { provenance: { file: resolve(provenance), value: read(provenance) } } : {}) }
   } catch (error) {
     return { path, version: null, error: String(error) }
@@ -449,7 +450,7 @@ export async function runCommunityCliSuite(options: UnifiedRunOptions): Promise<
     for (const file of ['community-prepared.json', 'community-inputs.json', 'community-result.json']) if (!existsSync(join(source, file))) throw Error(`Completed community prerequisite is absent: ${join(source, file)}`)
     const prerequisite = read(join(source, 'community-result.json'))
     if (prerequisite.id !== 'community' || typeof prerequisite.finishedAt !== 'string' || !Array.isArray(prerequisite.observations)) throw Error('Community prerequisite has no completed suite envelope')
-    const result = await runCommunityCliCohort({ run: source, out: options.out, target: options.root, packageRoot: options.packageRoot ?? options.root, rounds: options.rounds, outputs: options.communityOutputs })
+    const result = await runCommunityCliCohort({ run: source, out: options.out, target: options.root, packageRoot: options.packageRoot ?? options.root, rounds: options.rounds, outputs: options.communityOutputs, observerExecutable: communityObserver(options) })
     envelope = {
       id: 'community-cli',
       status: result.status as UnifiedSuiteResult['status'],
@@ -475,10 +476,13 @@ export async function runCommunityCliSuite(options: UnifiedRunOptions): Promise<
 }
 export { ranksFor as rankCommunityCliObservations, resourceDiagnostic as runCommunityResourceDiagnostic, resourceObserver as observeCommunityResourceTool, resourceRanksFor as rankCommunityCliResources }
 
+/** The GNU time a community update configured for whole-process resources. */
+export const communityObserver = (options: Pick<UnifiedRunOptions, 'observerExecutable' | 'portableObserver'>) => options.observerExecutable ?? options.portableObserver
+
 /** The cache binds the same public CLI variants and observer as timed execution. */
-export function communityCliCacheIdentity(options: Pick<Options, 'target' | 'packageRoot'>, prepared: PreparedCommunity[]) {
+export function communityCliCacheIdentity(options: Pick<Options, 'target' | 'packageRoot' | 'observerExecutable'>, prepared: PreparedCommunity[]) {
   return {
-    observer: resourceObserver(),
+    observer: resourceObserver(options.observerExecutable),
     candidates: candidateVariants(options as Options, prepared).map(variant => {
       try {
         return { variant: variant.variant, identity: admittedIdentity(variant.prepared.artifact!) }

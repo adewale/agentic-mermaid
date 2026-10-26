@@ -9,7 +9,7 @@ import { assertBenchmarkExecutionAllowed } from '../ci-policy.ts'
 import { captureInstalledDependencyClosure } from '../portable/artifact-dependencies.ts'
 import { communityCoreWorkloads, prepareCommunity, rankCommunityObservations, runCommunitySuite, selectCommunityProjects, verifyFrozenBrowserEngine, verifyProvidedCommunityArtifact } from './community.ts'
 import { type PreparedCommunityBrowser, prepareCommunityBrowsers } from './community-browser.ts'
-import { communityCliCacheIdentity, runCommunityCliSuite } from './community-cli.ts'
+import { communityCliCacheIdentity, communityObserver, runCommunityCliSuite } from './community-cli.ts'
 import { communityProtocolIdentity } from './community-protocol-identity.ts'
 import type { CommunityNode, PreparedCommunity } from './community-types.ts'
 import { activateProjectRecord, findProjectRecord, inspectCurrentProjectRecords, type ProjectBenchmarkIdentity, type ProjectBenchmarkRecord, publishProjectRecord, stableValue } from '../portable/project-records.ts'
@@ -97,7 +97,7 @@ function protocolContext(options: UnifiedRunOptions, inputs: unknown) {
       python: binary('python3'),
       driver: process.versions,
       browser: binary(browserPath),
-      observer: communityCliCacheIdentity({ target: options.root, packageRoot: options.packageRoot ?? options.root }, []).observer,
+      observer: communityCliCacheIdentity({ target: options.root, packageRoot: options.packageRoot ?? options.root, observerExecutable: communityObserver(options) }, []).observer,
       environment: Object.fromEntries(['NODE_OPTIONS', 'BUN_OPTIONS', 'NODE_ENV', 'TZ', 'LANG', 'LC_ALL', 'LC_NUMERIC', 'AGENTIC_MERMAID_EXPERIMENTS'].map(name => [name, process.env[name] ?? null])),
       cpuLimit: existsSync('/sys/fs/cgroup/cpu.max') ? readFileSync('/sys/fs/cgroup/cpu.max', 'utf8').trim() : null,
       memoryLimit: existsSync('/sys/fs/cgroup/memory.max') ? readFileSync('/sys/fs/cgroup/memory.max', 'utf8').trim() : null,
@@ -284,7 +284,7 @@ async function runProjectUpdatesUnlocked(options: UnifiedRunOptions, settings: {
       JSON.stringify({
         project: entry.node.id,
         protocol: { context, adapter: entry.node.benchmark ?? null, outputs: entry.node.outputs, browserQualifier: browser.browser?.files?.find(file => file.path === browser.browser?.qualificationHelper)?.sha256 ?? null },
-        artifact: { package: packageIdentity(entry), browser: browser.browser ?? null, browserStatus: browser.browserStatus, cli: communityCliCacheIdentity({ target: options.root, packageRoot: options.packageRoot ?? options.root }, [entry]) },
+        artifact: { package: packageIdentity(entry), browser: browser.browser ?? null, browserStatus: browser.browserStatus, cli: communityCliCacheIdentity({ target: options.root, packageRoot: options.packageRoot ?? options.root, observerExecutable: communityObserver(options) }, [entry]) },
         measurement: contextValue.measurement,
       }),
     )
@@ -325,7 +325,7 @@ async function runProjectUpdatesUnlocked(options: UnifiedRunOptions, settings: {
         // Recheck the admitted artifact after clocks, before publishing a reusable record.
         if (stableValue(packageIdentity(item.entry)) !== stableValue((item.identity.artifact as any).package)) throw Error('Project artifact changed during measurement')
         verifyFrozenBrowserEngine(item.browser)
-        if (stableValue(communityCliCacheIdentity({ target: options.root, packageRoot: options.packageRoot ?? options.root }, [item.entry])) !== stableValue((item.identity.artifact as any).cli)) throw Error('Project CLI artifact changed during measurement')
+        if (stableValue(communityCliCacheIdentity({ target: options.root, packageRoot: options.packageRoot ?? options.root, observerExecutable: communityObserver(options) }, [item.entry])) !== stableValue((item.identity.artifact as any).cli)) throw Error('Project CLI artifact changed during measurement')
         const observations = [...community.observations, ...cli.observations]
         const resultStatus = [community.status, cli.status].includes('failed') ? 'failed' : [community.status, cli.status].includes('blocked') ? 'blocked' : status(observations)
         return {

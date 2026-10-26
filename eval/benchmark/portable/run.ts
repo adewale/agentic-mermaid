@@ -14,6 +14,7 @@ import { portableMarkdown, portableSummary } from './report.ts'
 import type { BenchmarkObservation } from './observation.ts'
 import type { UsageEvidence } from './costs.ts'
 import { assertBenchmarkToolVersion } from '../tool-versions.ts'
+import { defaultTimeObserver } from './time-observer.ts'
 
 export interface PortableOptions {
   project: string
@@ -84,7 +85,7 @@ export function parsePortableOptions(argv: string[]): PortableOptions {
     preparationConcurrency: integer('--preparation-concurrency', 8),
     maximumControlSpread: decimal('--maximum-control-spread', 0.25),
     cohorts,
-    observer: values.has('--observer') ? resolve(values.get('--observer')!) : defaultObserver(),
+    observer: values.has('--observer') ? resolve(values.get('--observer')!) : defaultTimeObserver(),
     usage: values.has('--usage') ? resolve(values.get('--usage')!) : undefined,
     cpuHourUsd: values.has('--cpu-hour-usd') ? decimal('--cpu-hour-usd', 0) : undefined,
     force: values.has('--force'),
@@ -95,18 +96,8 @@ export function parsePortableOptions(argv: string[]): PortableOptions {
 const now = () => new Date().toISOString()
 const writeJson = (file: string, value: unknown) => writeFileSync(file, JSON.stringify(value, null, 2) + '\n', { flag: 'wx' })
 const jsonValue = <T>(value: T): T => JSON.parse(JSON.stringify(value))
-// BSD /usr/bin/time (macOS) is not GNU time; only an explicit --observer must be GNU.
-function defaultObserver() {
-  if (!existsSync('/usr/bin/time')) return undefined
-  try {
-    return /GNU\s*Time/i.test(execFileSync('/usr/bin/time', ['--version'], { encoding: 'utf8', timeout: 10_000, stdio: ['ignore', 'pipe', 'ignore'] })) ? '/usr/bin/time' : undefined
-  } catch {
-    return undefined
-  }
-}
-
 function observerIdentity(path?: string) {
-  if (!path) return { status: 'unavailable', path: null, detail: 'GNU time not configured; current API snapshots still execute' }
+  if (!path) return { status: 'unavailable', path: null, detail: 'No GNU time configured or found (/usr/bin/time, gtime on PATH); current API snapshots still execute' }
   const version = execFileSync(path, ['--version'], { encoding: 'utf8', timeout: 10_000 }).trim()
   if (!/GNU\s*Time/i.test(version)) throw Error('Resource observer must be GNU time')
   return { status: 'available', path, version, sha256: byteDigest(path) }

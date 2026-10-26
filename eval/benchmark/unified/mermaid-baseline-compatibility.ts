@@ -10,6 +10,7 @@ import { captureInstalledDependencyClosure } from '../portable/artifact-dependen
 import { byteDigest } from '../portable/artifacts.ts'
 import { portableCases } from '../portable/cohorts.ts'
 import { median, quantile } from '../portable/statistics.ts'
+import { defaultTimeObserver } from '../portable/time-observer.ts'
 import { assertBenchmarkToolVersion } from '../tool-versions.ts'
 import { deliveredArtifactIdentity, executableIdentity } from './benchmark-context.ts'
 import { baselineMeasurementContext } from './baseline-measurement-context.ts'
@@ -199,7 +200,7 @@ export async function runMermaidBaselineCompatibility(options: MermaidBaselineCo
   }
   const out = options.out
   mkdirSync(out, { recursive: true })
-  const observer = options.observerExecutable ?? options.portableObserver ?? '/usr/bin/time'
+  const observer = options.observerExecutable ?? options.portableObserver ?? defaultTimeObserver() ?? '/usr/bin/time'
   const observerIdentity = executableIdentity(observer)
   const plan = { schemaVersion: 1, protocol, pin, settings, bindings: bindings.length, uniqueInputs: cases.length, cases, targets: targetList, unavailableTargets, retainedOriginalAssertions: original }
   if (options.parserPlan) {

@@ -5,6 +5,7 @@ import { join, relative, resolve } from 'node:path'
 import { assertBenchmarkExecutionAllowed } from '../ci-policy.ts'
 import { artifactIdentity, resolveArtifact } from '../portable/artifacts.ts'
 import { captureInstalledDependencyClosure } from '../portable/artifact-dependencies.ts'
+import { defaultTimeObserver } from '../portable/time-observer.ts'
 import { benchmarkContext, deliveredArtifactIdentity, executableIdentity } from './benchmark-context.ts'
 import { committedDataIdentity } from './committed-data-identity.ts'
 import { ENTRY_STARTUP_PRODUCERS, type EntryStartupOptions, prepareEntryStartup, runEntryStartupSuite } from './entry-startup.ts'
@@ -91,7 +92,7 @@ export async function runRetainedEntryStartupSuite(options: RetainedCampaignOpti
       project: project.id,
       nodeExecutable: node,
       bunExecutable: options.bunExecutable ?? 'bun',
-      observerExecutable: options.observerExecutable ?? options.portableObserver ?? '/usr/bin/time',
+      observerExecutable: options.observerExecutable ?? options.portableObserver ?? defaultTimeObserver() ?? '/usr/bin/time',
       executable: browser,
       nativeExecutable: project.adapter === 'agentic' ? options.nativeExecutable : undefined,
     }

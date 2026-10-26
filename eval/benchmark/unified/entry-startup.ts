@@ -4,6 +4,7 @@ import { join, resolve } from 'node:path'
 import { StringDecoder } from 'node:string_decoder'
 import { fileURLToPath } from 'node:url'
 import { assertBenchmarkExecutionAllowed } from '../ci-policy.ts'
+import { defaultTimeObserver } from '../portable/time-observer.ts'
 import { assertInvocationReceipt } from './invocation-receipt.ts'
 import { qualifyOutput } from './qualification.ts'
 import { requiredFamilyWorkloads } from './required-family-cases.ts'
@@ -143,7 +144,7 @@ export async function prepareEntryStartup(options: EntryStartupOptions): Promise
   for (const [name, executable] of [['node', options.nodeExecutable ?? 'node'], ['bun', options.bunExecutable ?? 'bun']]) {
     try { const result = await runStartupChild(executable!, ['--version'], { cwd: packageRoot }); if (result.code !== 0) throw Error(result.stderr); runtimes.push({ name: name!, executable: executable!, version: result.stdout.trim() }) } catch (error) { gaps.push(`${name} unavailable: ${String(error)}`) }
   }
-  const observerExecutable = options.observerExecutable ?? options.portableObserver ?? '/usr/bin/time'
+  const observerExecutable = options.observerExecutable ?? options.portableObserver ?? defaultTimeObserver() ?? '/usr/bin/time'
   let observer = { executable: observerExecutable, available: false, version: '' }
   try { const result = await runStartupChild(observerExecutable, ['--version'], { cwd: packageRoot }); observer = { executable: observerExecutable, available: result.code === 0 && /GNU [Tt]ime/.test(result.stdout + result.stderr), version: (result.stdout + result.stderr).trim() } } catch {}
   const surfaces = options.surfaces ?? ['library', 'cli', 'mcp', 'browser']
