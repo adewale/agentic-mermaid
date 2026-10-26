@@ -7,6 +7,7 @@ import { inspectScenePaintGeometry, paintPrimitiveSource, scenePrimitiveMatrix, 
 import type { Geometry, SceneDoc, SceneOwner, ScenePoint, SceneTransform, MarkerDescriptor } from './ir.ts'
 import { composeMatrices, inverseMatrix, transformMatrix, transformPoint } from './transforms.ts'
 import { formatSvgNumber, formatSvgNumericAttribute } from '../shared/svg-number.ts'
+import { markerPaintPieces, type MarkerPaintPiece } from './marker-paint-pieces.ts'
 
 export interface PaintViewport { readonly x: number; readonly y: number; readonly width: number; readonly height: number }
 export interface PaintCertificationIssue {
@@ -355,6 +356,14 @@ function markerHasInk(marker: MarkerDescriptor | undefined, witnesses: readonly 
   return false
 }
 
+interface MarkerPieceSource {
+  readonly marker: MarkerDescriptor
+  readonly anchor: ScenePoint
+  readonly tangent: ScenePoint
+  readonly position: 'start' | 'end'
+  readonly width: number
+}
+
 export interface MarkerPolygonProof {
   readonly hull: readonly ScenePoint[]
   readonly strokeWitnesses: readonly ScenePoint[]
@@ -364,6 +373,7 @@ export interface MarkerPolygonProof {
   readonly stroke: 'visible' | 'absent' | 'unknown'
   readonly innerStroke: number | undefined
   readonly padding: number | undefined
+  readonly paintPieceSource?: MarkerPieceSource
 }
 
 /** A sufficient emitted-ink proof, deliberately smaller than marker support.
@@ -473,7 +483,123 @@ export function prepareMarkerPolygonInk(scene: Pick<NativePaintHeader, 'colors'>
       if ((a.x !== b.x || a.y !== b.y) && (b.x !== c.x || b.y !== c.y) && unclipped(b)) strokeWitnesses.push(hull[i]!)
     }
   }
-  return { hull, fill, stroke, fillColor, strokeColor, innerStroke, strokeWitnesses, padding: region.padding }
+  // The all-piece proof is constructed only after the old padded fast paths
+  // fail. This request-local descriptor carries the already-proved mapping.
+  const paintPieceSource =
+    marker.overflow === 'visible' &&
+    (marker.orient === undefined || marker.orient === 'auto' || marker.orient === 'auto-start-reverse') &&
+    fill !== 'unknown' &&
+    stroke !== 'unknown' &&
+    opacity === 1 &&
+    (marker.geometry.kind === 'polygon' || paint.fill === 'none' || fillColor?.[3] === 0) &&
+    !paint.strokeDasharray &&
+    (paint.strokeLinecap === undefined || paint.strokeLinecap === 'butt') &&
+    (paint.strokeLinejoin === undefined || paint.strokeLinejoin === 'miter') &&
+    (paint.strokeMiterlimit === undefined || Number(paint.strokeMiterlimit) === 4)
+      ? { marker, anchor: first, tangent, position, width }
+      : undefined
+  if (paintPieceSource && !work()) return undefined
+  return { hull, fill, stroke, fillColor, strokeColor, innerStroke, strokeWitnesses, padding: region.padding, ...(paintPieceSource ? { paintPieceSource } : {}) }
+}
+
+
+function measuredMarkerPaintPieces(source: MarkerPieceSource, work: () => boolean): readonly MarkerPaintPiece[] | undefined {
+  const geometry = source.marker.geometry!
+  if (geometry.kind !== 'polygon' && geometry.kind !== 'polyline') return undefined
+  const points = geometry.points,
+    joins = geometry.kind === 'polygon' ? points.length : points.length - 2
+  for (let join = 0; join < joins; join++) {
+    for (let i = 0; i < 8; i++) if (!work()) return undefined
+    const i = geometry.kind === 'polygon' ? join : join + 1
+    const a = points[(i + points.length - 1) % points.length]!,
+      b = points[i]!,
+      c = points[(i + 1) % points.length]!
+    const ax = b.x - a.x,
+      ay = b.y - a.y,
+      bx = c.x - b.x,
+      by = c.y - b.y
+    const an = Math.hypot(ax, ay),
+      bn = Math.hypot(bx, by),
+      dot = (ax / an) * (bx / bn) + (ay / an) * (by / bn)
+    // Miter ratio squared is2/(1+dot). Keep it strictly below limit4,
+    // rejecting the numerically ambiguous cutoff rather than beveling ink.
+    if (!(an > 0) || !(bn > 0) || !Number.isFinite(dot) || dot <= -0.875 + 128 * Number.EPSILON) return undefined
+  }
+  const stopped = {}
+  let pieces: readonly MarkerPaintPiece[]
+  try {
+    pieces = markerPaintPieces(source.marker, source.anchor, source.tangent, source.position, source.width, () => {
+      if (!work()) throw stopped
+    })
+  } catch (error) {
+    if (error === stopped) return undefined
+    throw error
+  }
+  for (const piece of pieces) {
+    if (!work() || piece.kind !== 'polygon' || piece.points.length < 3) return undefined
+    let area = 0
+    for (let i = 0; i < piece.points.length; i++) {
+      if (!work()) return undefined
+      const p = piece.points[i]!,
+        q = piece.points[(i + 1) % piece.points.length]!
+      if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) return undefined
+      area += (p.x - piece.points[0]!.x) * (q.y - piece.points[0]!.y) - (p.y - piece.points[0]!.y) * (q.x - piece.points[0]!.x)
+    }
+    if (!Number.isFinite(area) || area === 0) return undefined
+  }
+  return pieces
+}
+
+/** All early paint must separate from ALL later paint, including its outline.
+ * A positive numerical margin only declines near-contact proof; it never
+ * turns overlapping ink into a separator. No opaque witness is added here. */
+function separatedMarkerPaintPieces(left: readonly MarkerPaintPiece[], right: readonly MarkerPaintPiece[], work: () => boolean): boolean {
+  for (const a of left)
+    for (const b of right) {
+      if (!work() || a.kind !== 'polygon' || b.kind !== 'polygon') return false
+      let separated = false
+      for (const polygon of [a.points, b.points]) {
+        for (let i = 0; i < polygon.length; i++) {
+          if (!work()) return false
+          const p = polygon[i]!,
+            q = polygon[(i + 1) % polygon.length]!,
+            dx = p.y - q.y,
+            dy = q.x - p.x,
+            norm = Math.hypot(dx, dy)
+          if (!(norm > 0) || !Number.isFinite(norm)) continue
+          const nx = dx / norm,
+            ny = dy / norm,
+            origin = a.points[0]!
+          let lo = Infinity,
+            hi = -Infinity,
+            low = Infinity,
+            high = -Infinity,
+            magnitude = 1
+          for (const v of a.points) {
+            if (!work()) return false
+            const projection = (v.x - origin.x) * nx + (v.y - origin.y) * ny
+            lo = Math.min(lo, projection)
+            hi = Math.max(hi, projection)
+            magnitude = Math.max(magnitude, Math.abs(v.x), Math.abs(v.y))
+          }
+          for (const v of b.points) {
+            if (!work()) return false
+            const projection = (v.x - origin.x) * nx + (v.y - origin.y) * ny
+            low = Math.min(low, projection)
+            high = Math.max(high, projection)
+            magnitude = Math.max(magnitude, Math.abs(v.x), Math.abs(v.y))
+          }
+          const margin = 1e-8 + 128 * Number.EPSILON * magnitude
+          if (Number.isFinite(lo + hi + low + high) && (hi + margin < low || high + margin < lo)) {
+            separated = true
+            break
+          }
+        }
+        if (separated) break
+      }
+      if (!separated) return false
+    }
+  return true
 }
 
 /** Strict half-plane distance proves a real stroke point lies in opaque fill,
@@ -516,6 +642,17 @@ export function compareMarkerStrokeInk(earlier: MarkerPolygonProof | undefined, 
       for (const p of hull) { if (!work()) return 'unknown'; const v = (p.x - a.x) * nx + (p.y - a.y) * ny; low = Math.min(low, v); high = Math.max(high, v) }
       if (hi + earlier.padding * norm < low || high < lo - earlier.padding * norm) return 'clear'
     }
+  }
+  if (earlier.paintPieceSource && later.paintPieceSource) {
+    const stopped = {}
+    const paid = (): boolean => { if (!work()) throw stopped; return true }
+    try {
+      const a = measuredMarkerPaintPieces(earlier.paintPieceSource, paid)
+      if (a) {
+        const b = measuredMarkerPaintPieces(later.paintPieceSource, paid)
+        if (b && separatedMarkerPaintPieces(a, b, paid)) return 'clear'
+      }
+    } catch (error) { if (error === stopped) return 'unknown'; throw error }
   }
   if (earlier.stroke !== 'visible' || later.fill !== 'opaque' || later.innerStroke === undefined) return 'unknown'
   // An identical opaque color can intentionally merge strokes and fill. It is

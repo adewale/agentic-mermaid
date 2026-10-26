@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test'
 import * as marks from '../scene/marks.ts'
 import { readFileSync } from 'node:fs'
 import { connectorMarkerPaintRegions, nodePaintBounds } from '../scene/bounds.ts'
-import { certifyNativePaint, certifyScenePaint } from '../scene/paint-certification.ts'
+import { certifyNativePaint, certifyScenePaint, prepareMarkerPolygonInk, compareMarkerStrokeInk } from '../scene/paint-certification.ts'
 import type { Geometry, MarkPaint, SceneDoc, SceneNode, SceneTransform, MarkerDescriptor } from '../scene/ir.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 import { getFamily, knownBuiltinFamilies } from '../agent/families.ts'
@@ -1094,5 +1094,90 @@ test.each(['foreign', 'owned', 'separated', 'nonpainting', 'transparent', 'same-
       expect(proof.issues.some(issue => issue.code === 'MARKER_OCCLUDED' || issue.code === 'TEXT_OCCLUDED')).toBe(false)
       if (mode === 'owned-repaint') expect(proof.issues).toHaveLength(1)
     }
+  }
+})
+
+test.each(['clear', 'later-stroke', 'round-join', 'affine', 'clipped', 'unknown-width', 'filled-open'] as const)('marker paint-piece separation preserves %s', mode => {
+  // Literal final Class37 resource/pose pair, with no family/id exemption.
+  // Independent emitted-piece readback gives0.241519px minimum all-ink gap.
+  const earlier: MarkerDescriptor = {
+    id: 'open-resource',
+    shape: 'open-arrow',
+    orient: 'auto-start-reverse',
+    overflow: mode === 'clipped' ? 'hidden' : 'visible',
+    size: { width: 8, height: 6 },
+    ref: { x: 8, y: 3 },
+    geometry: {
+      kind: 'polyline',
+      points: [
+        { x: 0, y: 0 },
+        { x: 8, y: 3 },
+        { x: 0, y: 6 },
+      ],
+    },
+    paint: { fill: mode === 'filled-open' ? '#111' : 'none', stroke: '#111', strokeWidth: mode === 'unknown-width' ? 'var(--host)' : '1.5', ...(mode === 'round-join' ? { strokeLinejoin: 'round' as const } : {}) },
+  }
+  const later: MarkerDescriptor = {
+    id: 'filled-resource',
+    shape: 'arrow',
+    orient: 'auto-start-reverse',
+    overflow: 'visible',
+    size: { width: 12, height: 10 },
+    ref: { x: 12, y: 5 },
+    geometry: {
+      kind: 'polygon',
+      points: [
+        { x: 0, y: 0 },
+        { x: 12, y: 5 },
+        { x: 0, y: 10 },
+      ],
+    },
+    paint: { fill: '#fff', stroke: mode === 'later-stroke' ? '#fff' : '#111', strokeWidth: mode === 'later-stroke' ? '20' : '1.5' },
+  }
+  const context = { positioned: { width: 280, height: 750 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => ({
+    ...scene([]),
+    width: 280,
+    height: 750,
+    parts: [
+      factory.documentOpen({ id: 'root', width: 280, height: 750, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="280" height="750">'),
+      factory.definitions({ id: 'resources' }, `<defs>${serializeMarkerResource(earlier)}${serializeMarkerResource(later)}</defs>`),
+      factory.connector({
+        id: 'earlier',
+        role: 'edge',
+        owner: { id: 'earlier', role: 'edge' },
+        endpoints: { from: 'A', to: 'B' },
+        lineStyle: 'solid',
+        geometry: { kind: 'line', x1: 196, y1: 705.9, x2: 196, y2: 645.9 },
+        paint: { stroke: '#111', strokeWidth: '1' },
+        stroke: { opacity: 0 },
+        markers: { end: earlier },
+        ...(mode === 'affine' ? { transform: { kind: 'matrix' as const, a: 1, b: 0, c: 0, d: 1, e: 0.001, f: 0 } } : {}),
+      }),
+      factory.connector({ id: 'later', role: 'edge', owner: { id: 'later', role: 'edge' }, endpoints: { from: 'C', to: 'D' }, lineStyle: 'solid', geometry: { kind: 'line', x1: 204, y1: 645.9, x2: 204, y2: 699.9 }, paint: { stroke: '#111', strokeWidth: '1' }, stroke: { opacity: 0 }, markers: { start: later } }),
+      factory.documentClose(),
+    ],
+  })
+  const drawing = drawNative(producer, context, 'flowchart')
+  expect(drawing.svg).toContain('marker-end="url(#open-resource)"')
+  expect(drawing.svg).toContain('marker-start="url(#filled-resource)"')
+  if (mode === 'clear') {
+    const connectors = producer(marks, context).parts.filter((node): node is Extract<SceneNode, { kind: 'connector' }> => node.kind === 'connector')
+    const first = prepareMarkerPolygonInk({ colors: context.colors }, connectors[0]!, earlier, 'end', () => true)
+    const second = prepareMarkerPolygonInk({ colors: context.colors }, connectors[1]!, later, 'start', () => true)
+    let completeWork = 0
+    expect(compareMarkerStrokeInk(first, second, () => { completeWork++; return true })).toBe('clear')
+    let remaining = completeWork - 1, stopped = false
+    expect(compareMarkerStrokeInk(first, second, () => {
+      if (stopped) throw new Error('geometry work continued after exhaustion')
+      if (--remaining < 0) { stopped = true; return false }
+      return true
+    })).toBe('unknown')
+    expect(stopped).toBe(true)
+  }
+  for (const proof of [certifyScenePaint(producer(marks, context)), certifyNativePaint(drawing.header, drawing.paint)]) {
+    expect(proof.status).toBe(['clear', 'round-join'].includes(mode) ? 'passed' : 'unverified')
+    if (['clear', 'round-join'].includes(mode)) expect(proof.issues).toEqual([])
+    else expect(proof.issues.some(issue => issue.code === 'POTENTIAL_OCCLUSION' || issue.code === 'UNMEASURED_PAINT')).toBe(true)
   }
 })
