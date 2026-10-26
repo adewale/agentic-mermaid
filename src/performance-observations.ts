@@ -2,7 +2,7 @@
  * symbol is deliberately not a render option or a package export. Collect on
  * an untimed replay; ordinary renders allocate no observation records. */
 export type PerformanceCacheOwner = 'elk-layout' | 'positioned-layout' | 'svg-inspection'
-  | 'positioned-scene' | 'native-drawing' | 'paint-certification' | 'backend-registry'
+  | 'positioned-scene' | 'native-drawing' | 'paint-certification' | 'backend-registry' | 'capability-decision'
 export type PerformanceObservation =
   | { readonly version: 1; readonly kind: 'scope'; readonly owner: 'graphical' }
   | { readonly version: 1; readonly kind: 'cache'; readonly owner: PerformanceCacheOwner
