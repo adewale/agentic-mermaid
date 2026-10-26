@@ -57,3 +57,24 @@ align row a b`))
     } finally { values.mockRestore(); producer.mockRestore() }
   })
 })
+
+
+test.each(['elk', 'agentic'] as const)('propagates a cross-axis gap through its complete %s component', backend => {
+  const source = 'architecture-beta\nservice a(server)[Same]\nservice b(server)[Same]\nservice c(server)[Same]\nservice d(server)[Same]\nalign row a b\nalign row c d\nalign column a d'
+  const model = parseArchitectureDiagram(toMermaidLines(source)), original = structuredClone(model)
+  const native = graphLayout.layoutNativeGraphPlacementSync, elk = graphLayout.layoutElkGraphPlacementSync
+  const stack = (placed: ReturnType<typeof native>) => ({ ...placed, nodes: placed.nodes.map((node, index) => ({ ...node, x: 40, y: 40 + index * (node.height + 20) })) })
+  const nativeProducer = spyOn(graphLayout, 'layoutNativeGraphPlacementSync').mockImplementation((graph, options) => stack(native(graph, options)))
+  const elkProducer = spyOn(graphLayout, 'layoutElkGraphPlacementSync').mockImplementation((graph, options) => stack(elk(graph, options)))
+  try {
+    const placed = layoutArchitectureDiagram(model, { graphLayout: { backend, fallback: 'none' }, nodeSpacing: 20 })
+    const byId = new Map(placed.services.map(item => [item.id, item]))
+    const cy = (id: string) => { const item = byId.get(id)!; return item.y + item.height / 2 }
+    const cx = (id: string) => { const item = byId.get(id)!; return item.x + item.width / 2 }
+    expect(cy('a')).toBe(cy('b')); expect(cy('c')).toBe(cy('d')); expect(cx('a')).toBe(cx('d'))
+    for (const [index, item] of placed.services.entries()) for (const other of placed.services.slice(index + 1)) expect(item.x < other.x + other.width && other.x < item.x + item.width && item.y < other.y + other.height && other.y < item.y + item.height).toBe(false)
+    expect(model).toEqual(original)
+    expect(backend === 'elk' ? elkProducer : nativeProducer).toHaveBeenCalledTimes(1)
+    expect(backend === 'elk' ? nativeProducer : elkProducer).not.toHaveBeenCalled()
+  } finally { nativeProducer.mockRestore(); elkProducer.mockRestore() }
+})

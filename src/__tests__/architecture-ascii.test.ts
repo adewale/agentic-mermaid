@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { renderMermaidASCII, renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { terminalDocumentOf, type TerminalDocument, type TerminalRegion } from '../ascii/terminal-document.ts'
 import { visualWidth } from '../ascii/width.ts'
+import { AsciiWidthError } from '../ascii/width-error.ts'
 
 function connectedOwnedInk(doc: TerminalDocument, edge: TerminalRegion): boolean {
   const [start, end] = edge.ports ?? []
@@ -42,9 +43,22 @@ describe('renderMermaidASCII – architecture diagrams', () => {
           expect(doc.cell(port.x + dx, port.y + dy)?.owners.some(owner => owner.id === port.nodeId && owner.kind === 'node')).toBe(true)
         }
       }
+      for (const match of source.matchAll(/^\s*align (row|column) ([\w -]+)$/gm)) {
+        const values = match[2]!.trim().split(/\s+/).map(id => {
+          const node = doc.regions().find(region => region.kind === 'node' && region.id === id)!
+          return match[1] === 'row' ? node.canvasRow + ((node.rowSpan ?? 1) - 1) / 2 : (node.canvasColStart + node.canvasColEnd - 1) / 2
+        })
+        // Integer-cell boxes can differ in parity; rounding may cost half a cell.
+        expect(Math.max(...values) - Math.min(...values), `${backend}/${index}/${match[0]}`).toBeLessThanOrEqual(0.5)
+      }
       expect(doc.diagnostics).toEqual([])
       expect(rendered.receipt.layoutCertification?.status).toBe('passed')
     }
+  })
+
+  it('refuses aligned geometry that cannot fit the caller cell width', () => {
+    const source = corpus.find(entry => entry.family === 'architecture' && entry.index === 3)!.source
+    expect(() => renderMermaidASCIIWithReceipt(source, { maxWidth: 24, colorMode: 'none' })).toThrow(AsciiWidthError)
   })
 
   it.each([false, true])('keeps reciprocal container contacts on real frame ink beside wide headers (ASCII=%s)', useAscii => {
