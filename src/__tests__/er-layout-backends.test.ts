@@ -7,8 +7,8 @@ import { layoutErDiagram } from '../er/layout.ts'
 import { parseErDiagram } from '../er/parser.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
 import { withRenderStageObserver } from '../render-stages.ts'
-import { releaseBenchCases } from '../../eval/benchmark/release-bench-cases.ts'
-import { missingSvgLabels } from '../../eval/benchmark/release-bench-fidelity.ts'
+import { releaseBenchCases } from '../../eval/shared/release-bench-cases.ts'
+import { missingSvgLabels } from './helpers/svg-labels.ts'
 
 const native = { graphLayout: { backend: 'agentic' as const } }
 const compoundFixture = readFileSync(new URL('../../eval/layout-compare/fixtures/er-compound-backends.mmd', import.meta.url), 'utf8')

@@ -1,6 +1,6 @@
 // Render a portable local HTML index of peer-bench's retained SVG files.
 // SVGs remain external image resources; peer markup is never inserted as HTML.
-// bun run eval/benchmark/peer-gallery.ts --report /tmp/layout-community/results.json \
+// bun run eval/layout-compare/peer-gallery.ts --report /tmp/layout-community/results.json \
 //   --svg-dir /tmp/layout-community/svg --out /tmp/layout-community/gallery.html
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'

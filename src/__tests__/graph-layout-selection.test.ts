@@ -16,7 +16,7 @@ import { renderMermaidSVGWithReceipt, GraphLayoutUnsupportedError } from '../ind
 import { withRenderStageObserver } from '../render-stages.ts'
 import { resolveRenderRequest, validateSerializableRenderOptions } from '../render-contract.ts'
 import { captureCli } from './helpers/cli-capture.ts'
-import { flowchartMultigraph, releaseBenchCases } from '../../eval/benchmark/release-bench-cases.ts'
+import { flowchartMultigraph, releaseBenchCases } from '../../eval/shared/release-bench-cases.ts'
 import { generatedFlowchartSamples } from '../../eval/layout-compare/generated.ts'
 
 const SOURCE = 'flowchart TD\n A[Start] --> B[Finish]'

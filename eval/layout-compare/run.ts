@@ -29,7 +29,7 @@ import { compareCodePointStrings } from '../../src/shared/deterministic-order.ts
 import { namespaceSvgIds } from '../../src/renderer.ts'
 import { attemptApi, failureCode, type ApiFailure } from './outcomes.ts'
 import { generatedFlowchartSamples, type GeneratedFlowchartRange, type GeneratedFlowchartKind } from './generated.ts'
-import { releaseBenchCases } from '../benchmark/release-bench-cases.ts'
+import { releaseBenchCases } from '../shared/release-bench-cases.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const CORPUS_PATH = join(ROOT, 'eval', 'mermaid-docs-corpus', 'corpus.json')
