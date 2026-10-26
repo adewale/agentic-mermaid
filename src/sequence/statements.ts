@@ -44,7 +44,11 @@ function scanStatementLines<T>(lines: readonly string[], statement: (raw: string
   let inAccessibilityDescription = false
   for (const [lineNumber, physicalLine] of lines.entries()) {
     let lineOffset = 0
+    const blankLine = !physicalLine.trim()
     const pushStatement = (raw: string, start: number): void => {
+      // Separators have no statement of their own. Preserve physical blank
+      // lines without turning empty separator segments into new ones.
+      if (!raw.trim() && !blankLine) return
       const column = lineOffset + start
       statements.push(statement(raw, lineNumber, column))
     }
