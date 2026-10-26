@@ -1,0 +1,168 @@
+$ tsup && bun run build:browser && bun run build:browser:lazy
+CLI Building entry: {"index":"src/index.ts","svg":"src/svg.ts","svg-styles":"src/svg-styles.ts","agent":"src/agent/index.ts","agent-core":"src/agent/core.ts","am":"src/cli/am-bin.ts","agentic-mermaid-mcp":"src/mcp/mcp-bin.ts","elk-constructor":"src/elk-constructor.ts"}
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.1
+CLI Using tsup config: /workspace/agentic-selected-followups/tsup.config.ts
+CLI Target: es2022
+CLI Cleaning output folder
+ESM Build start
+DTS Build start
+ESM dist/jsonl-RPJY6YWO.js          881.00 B
+ESM dist/cli-QROI7WU2.js            70.06 KB
+ESM dist/server-QGW3INJB.js         146.15 KB
+ESM dist/chunk-HS7AFE5Z.js          1.39 KB
+ESM dist/index.js                   6.75 KB
+ESM dist/svg-styles.js              273.00 B
+ESM dist/svg.js                     82.17 KB
+ESM dist/agent.js                   7.46 KB
+ESM dist/agent-core.js              7.26 KB
+ESM dist/chunk-PEX7APBB.js          13.67 KB
+ESM dist/mcp-cli-EABRUYH4.js        227.00 B
+ESM dist/chunk-Q3R7ICHI.js          143.26 KB
+ESM dist/chunk-MHRLVIII.js          287.55 KB
+ESM dist/am.js                      471.00 B
+ESM dist/chunk-GF7OTJTZ.js          12.97 KB
+ESM dist/chunk-JW4IWCIL.js          33.74 KB
+ESM dist/chunk-3LGLPG33.js          1.40 KB
+ESM dist/chunk-WTEIPDVF.js          2.96 KB
+ESM dist/agentic-mermaid-mcp.js     226.00 B
+ESM dist/chunk-WP4T3QBU.js          4.44 KB
+ESM dist/chunk-SVPFLFIV.js          42.71 KB
+ESM dist/chunk-7PPW2BMO.js          454.00 B
+ESM dist/elk-constructor.js         162.00 B
+ESM dist/chunk-VUFVLGTH.js          150.00 B
+ESM dist/chunk-E7H6V2T4.js          1009.90 KB
+ESM dist/chunk-WUXZKASX.js          1.18 MB
+ESM dist/jsonl-RPJY6YWO.js.map      3.34 KB
+ESM dist/cli-QROI7WU2.js.map        156.53 KB
+ESM dist/index.js.map               71.00 B
+ESM dist/chunk-HS7AFE5Z.js.map      6.17 KB
+ESM dist/svg-styles.js.map          71.00 B
+ESM dist/agent.js.map               71.00 B
+ESM dist/agent-core.js.map          71.00 B
+ESM dist/server-QGW3INJB.js.map     359.37 KB
+ESM dist/chunk-PEX7APBB.js.map      63.80 KB
+ESM dist/mcp-cli-EABRUYH4.js.map    71.00 B
+ESM dist/svg.js.map                 183.89 KB
+ESM dist/am.js.map                  1.40 KB
+ESM dist/chunk-JW4IWCIL.js.map      49.12 KB
+ESM dist/chunk-3LGLPG33.js.map      5.79 KB
+ESM dist/chunk-GF7OTJTZ.js.map      109.78 KB
+ESM dist/agentic-mermaid-mcp.js.map 356.00 B
+ESM dist/chunk-WTEIPDVF.js.map      13.95 KB
+ESM dist/chunk-WP4T3QBU.js.map      11.75 KB
+ESM dist/chunk-SVPFLFIV.js.map      249.28 KB
+ESM dist/chunk-7PPW2BMO.js.map      1.83 KB
+ESM dist/elk-constructor.js.map     772.00 B
+ESM dist/chunk-VUFVLGTH.js.map      71.00 B
+ESM dist/chunk-Q3R7ICHI.js.map      581.08 KB
+ESM dist/chunk-MHRLVIII.js.map      1.04 MB
+ESM dist/chunk-E7H6V2T4.js.map      3.32 MB
+ESM dist/chunk-WUXZKASX.js.map      5.10 MB
+ESM ⚡️ Build success in 1024ms
+Export "SceneRole" of module "src/scene/roles.ts" was reexported through module "src/scene/ir.ts" while both modules are dependencies of each other and will end up in different chunks by current Rollup settings. This scenario is not well supported at the moment as it will produce a circular dependency between chunks and will likely lead to broken execution order.
+Either change the import in "src/scene/external-scene.ts" to point directly to the exporting module or reconfigure "output.manualChunks" to ensure these modules end up in the same chunk.
+Export "SceneRole" of module "src/scene/roles.ts" was reexported through module "src/scene/ir.ts" while both modules are dependencies of each other and will end up in different chunks by current Rollup settings. This scenario is not well supported at the moment as it will produce a circular dependency between chunks and will likely lead to broken execution order.
+Either change the import in "src/terminal-style.ts" to point directly to the exporting module or reconfigure "output.manualChunks" to ensure these modules end up in the same chunk.
+DTS ⚡️ Build success in 28578ms
+DTS dist/svg.d.ts                          644.00 B
+DTS dist/agent.d.ts                        18.30 KB
+DTS dist/agent-core.d.ts                   50.33 KB
+DTS dist/index.d.ts                        11.92 KB
+DTS dist/svg-styles.d.ts                   124.00 B
+DTS dist/index-C_0OWEvs.d.ts               55.59 KB
+DTS dist/paint-certification-Tv3CcILl.d.ts 273.23 KB
+DTS dist/svg-styles-p0aSouZE.d.ts          33.10 KB
+$ tsup --config tsup.browser.config.ts
+CLI Building entry: {"browser":"src/index.ts"}
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.1
+CLI Using tsup config: /workspace/agentic-selected-followups/tsup.browser.config.ts
+CLI Target: es2022
+IIFE Build start
+IIFE dist/browser.global.js 3.90 MB
+IIFE ⚡️ Build success in 673ms
+$ bun run scripts/build/clean-browser-lazy.ts && bun run generate:browser-families && tsup --config tsup.browser-lazy.config.ts
+$ bun run scripts/build/generate-browser-family-catalog.ts
+generated browser family catalog (23 families)
+CLI Building entry: {"browser-lazy/index":"src/browser-lazy.ts"}
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.1
+CLI Using tsup config: /workspace/agentic-selected-followups/tsup.browser-lazy.config.ts
+CLI Target: es2022
+ESM Build start
+DTS Build start
+ESM dist/browser-lazy/chunks/chunk-4FW3FDGD.js                231.00 B
+ESM dist/browser-lazy/index.js                                3.98 KB
+ESM dist/browser-lazy/chunks/chunk-EMH4QCMV.js                394.00 B
+ESM dist/browser-lazy/chunks/chunk-LARLEMQ5.js                114.08 KB
+ESM dist/browser-lazy/chunks/chunk-YB72YAOD.js                4.57 KB
+ESM dist/browser-lazy/chunks/chunk-77AK7C6U.js                8.81 KB
+ESM dist/browser-lazy/chunks/treemap-EYLHJQZU.js              18.14 KB
+ESM dist/browser-lazy/chunks/chunk-5LNJFXIY.js                47.68 KB
+ESM dist/browser-lazy/chunks/chunk-WDPK6XKW.js                789.00 B
+ESM dist/browser-lazy/chunks/chunk-JI42QVDF.js                428.00 B
+ESM dist/browser-lazy/chunks/chunk-ES26OW5X.js                1.41 KB
+ESM dist/browser-lazy/chunks/chunk-CML5DD2S.js                3.62 KB
+ESM dist/browser-lazy/chunks/chunk-7K4MREJD.js                1.83 KB
+ESM dist/browser-lazy/chunks/chunk-55NOFEI7.js                1.71 KB
+ESM dist/browser-lazy/chunks/chunk-SY3OHV67.js                3.38 KB
+ESM dist/browser-lazy/chunks/chunk-LABUUSPD.js                1.77 KB
+ESM dist/browser-lazy/chunks/chunk-ZDLDYL2N.js                272.00 B
+ESM dist/browser-lazy/chunks/chunk-HZAX4MLD.js                11.98 KB
+ESM dist/browser-lazy/chunks/chunk-42KFAMGD.js                2.86 KB
+ESM dist/browser-lazy/chunks/chunk-4ZR63DKZ.js                9.68 KB
+ESM dist/browser-lazy/chunks/chunk-BUJ4ASKG.js                6.82 KB
+ESM dist/browser-lazy/chunks/chunk-IXDYND44.js                460.00 B
+ESM dist/browser-lazy/chunks/chunk-FPA33U2D.js                109.45 KB
+ESM dist/browser-lazy/chunks/builtin-backends-ZTM6RCND.js     40.11 KB
+ESM dist/browser-lazy/chunks/sankey-OFQUYJMF.js               25.53 KB
+ESM dist/browser-lazy/chunks/c4-SOFZ2QT2.js                   70.29 KB
+ESM dist/browser-lazy/chunks/render-core-X4EQHLA2.js          40.01 KB
+ESM dist/browser-lazy/chunks/chunk-VSH2KZIJ.js                53.00 B
+ESM dist/browser-lazy/chunks/journey-FYQHNO4G.js              36.29 KB
+ESM dist/browser-lazy/chunks/pie-XO3HJPBP.js                  23.06 KB
+ESM dist/browser-lazy/chunks/radar-OXNJKVPU.js                30.99 KB
+ESM dist/browser-lazy/chunks/xychart-Y3PNXKEL.js              53.20 KB
+ESM dist/browser-lazy/chunks/chunk-DWJV5NB4.js                389.00 B
+ESM dist/browser-lazy/chunks/chunk-4EU2CSGD.js                1.81 KB
+ESM dist/browser-lazy/chunks/gantt-2SMTA77P.js                48.78 KB
+ESM dist/browser-lazy/chunks/architecture-LN53YK22.js         53.59 KB
+ESM dist/browser-lazy/chunks/quadrant-MPQFA5UB.js             28.91 KB
+ESM dist/browser-lazy/chunks/mindmap-XW5B5A2D.js              20.24 KB
+ESM dist/browser-lazy/chunks/ishikawa-4HGFXGFL.js             9.58 KB
+ESM dist/browser-lazy/chunks/gitgraph-KIDO3WW7.js             26.87 KB
+ESM dist/browser-lazy/chunks/state-4MCILYIT.js                8.24 KB
+ESM dist/browser-lazy/chunks/block-7HZ7F4H5.js                34.02 KB
+ESM dist/browser-lazy/chunks/chunk-CJ3LF3MX.js                11.89 KB
+ESM dist/browser-lazy/chunks/chunk-UCDDUNX7.js                1.12 KB
+ESM dist/browser-lazy/chunks/flowchart-SEIDBNOP.js            6.21 KB
+ESM dist/browser-lazy/chunks/chunk-IT25LQ4L.js                58.44 KB
+ESM dist/browser-lazy/chunks/sequence-LZ2EM2PF.js             75.88 KB
+ESM dist/browser-lazy/chunks/timeline-BSHYOYT4.js             23.38 KB
+ESM dist/browser-lazy/chunks/chunk-NTD4ADQU.js                8.03 KB
+ESM dist/browser-lazy/chunks/class-R7SH2ZSQ.js                60.98 KB
+ESM dist/browser-lazy/chunks/chunk-AVDYNOWB.js                965.00 B
+ESM dist/browser-lazy/chunks/chunk-NARGOOTK.js                207.00 B
+ESM dist/browser-lazy/chunks/chunk-WHJR6XGJ.js                44.99 KB
+ESM dist/browser-lazy/chunks/er-SR3F6K7E.js                   53.31 KB
+ESM dist/browser-lazy/chunks/chunk-2CIUY42N.js                53.03 KB
+ESM dist/browser-lazy/chunks/chunk-DVDW7GQO.js                34.09 KB
+ESM dist/browser-lazy/chunks/chunk-GJIZBK2R.js                127.00 B
+ESM dist/browser-lazy/chunks/chunk-WDRMLTBY.js                142.09 KB
+ESM dist/browser-lazy/chunks/chunk-XOQFAIPE.js                387.00 B
+ESM dist/browser-lazy/chunks/chunk-456NCZSB.js                268.00 B
+ESM dist/browser-lazy/chunks/chunk-I6VE56S7.js                400.00 B
+ESM dist/browser-lazy/chunks/chunk-OFRMKQA6.js                181.00 B
+ESM dist/browser-lazy/chunks/decode-3I2L2ONI.js               39.79 KB
+ESM dist/browser-lazy/chunks/kanban-OMJCOPSM.js               14.83 KB
+ESM dist/browser-lazy/chunks/chunk-VED6AIIT.js                1.03 KB
+ESM dist/browser-lazy/chunks/chunk-K73UWFZY.js                1.57 KB
+ESM dist/browser-lazy/chunks/chunk-GZH7QP6G.js                916.00 B
+ESM dist/browser-lazy/chunks/packet-QGHEWBBW.js               8.94 KB
+ESM dist/browser-lazy/chunks/requirement-KS4WGJKT.js          26.61 KB
+ESM dist/browser-lazy/chunks/mermaid-yaml-runtime-Y5LVL2LX.js 98.96 KB
+ESM dist/browser-lazy/chunks/elk.bundled-GLTDADZH.js          1.41 MB
+ESM ⚡️ Build success in 989ms
+DTS ⚡️ Build success in 9895ms
+DTS dist/browser-lazy/index.d.ts 47.67 KB

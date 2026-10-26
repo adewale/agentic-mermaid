@@ -1,0 +1,208 @@
+$ bun test --timeout 30000 eval/mermaid-modern-compat/semantic.test.ts eval/mermaid-modern-compat/native-operations.test.ts eval/mermaid-modern-compat/grammar-regressions.test.ts
+bun test v1.4.2 (744846f84)
+
+eval/mermaid-modern-compat/native-operations.test.ts:
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > flowchart: canonical operations retain operand values and order [1171.69ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > state: canonical operations retain operand values and order [45.29ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > sequence: canonical operations retain operand values and order [33.32ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > timeline: canonical operations retain operand values and order [17.79ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > class: canonical operations retain operand values and order [65.69ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > er: canonical operations retain operand values and order [25.04ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > journey: canonical operations retain operand values and order [17.42ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > architecture: canonical operations retain operand values and order [89.61ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > xychart: canonical operations retain operand values and order [37.34ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > pie: canonical operations retain operand values and order [28.93ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > quadrant: canonical operations retain operand values and order [28.40ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > gantt: canonical operations retain operand values and order [24.55ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > mindmap: canonical operations retain operand values and order [37.94ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > gitgraph: canonical operations retain operand values and order [45.71ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > radar: canonical operations retain operand values and order [45.05ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > sankey: canonical operations retain operand values and order [39.84ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > c4: canonical operations retain operand values and order [25.47ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > packet: canonical operations retain operand values and order [29.77ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > kanban: canonical operations retain operand values and order [21.37ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > requirement: canonical operations retain operand values and order [24.42ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > treemap: canonical operations retain operand values and order [32.39ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > ishikawa: canonical operations retain operand values and order [24.13ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > block: canonical operations retain operand values and order [280.17ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > packet: accepted pinned corpus and representative citizenship sources retain semantic values and ordered writes [318.31ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > kanban: accepted pinned corpus and representative citizenship sources retain semantic values and ordered writes [607.03ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > requirement: accepted pinned corpus and representative citizenship sources retain semantic values and ordered writes [148.14ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > block: accepted pinned corpus and representative citizenship sources retain semantic values and ordered writes [363.24ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > treemap: accepted pinned corpus and representative citizenship sources retain semantic values and ordered writes [391.96ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > ishikawa: accepted pinned corpus and representative citizenship sources retain semantic values and ordered writes [269.58ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > packet retains meaningful values and parentage across native writes and independent reference results [8.86ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > packet retains meaningful values and parentage across native writes and independent reference results [8.97ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > kanban retains meaningful values and parentage across native writes and independent reference results [16.12ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > requirement retains meaningful values and parentage across native writes and independent reference results [11.12ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > treemap retains meaningful values and parentage across native writes and independent reference results [8.25ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > ishikawa retains meaningful values and parentage across native writes and independent reference results [14.85ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > ishikawa retains meaningful values and parentage across native writes and independent reference results [13.44ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > block retains meaningful values and parentage across native writes and independent reference results [10.95ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > block retains meaningful values and parentage across native writes and independent reference results [10.51ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > Block retains authored generated-looking composite IDs while normalizing actual anonymous allocation [10.14ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > C4 C4Container retains declaration parentage, text slots and relationship marker sides [16.78ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > C4 C4Deployment retains declaration parentage, text slots and relationship marker sides [14.30ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > C4 repeated interaction writes remain ordered when the reference getter upserts pairs [11.88ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > Flowchart retains class append order around edge creation [21.88ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > Flowchart retains authored named-edge identifiers in actual link operands [20.45ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > Class preserves one-ended marker sides in relationship creation order [51.61ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > Class preserves dashed diamond and lollipop shafts independently of marker kinds [383.35ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > Class interface write projection retains repeated labels separately from authored generated-looking classes [63.21ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > State expands recorded document operands without losing nested parent scope [41.32ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > Sequence preserves explicit and inline activation order [19.39ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > Sequence retains ordinary, open, bidirectional and half-arrow marker sides [25.04ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > Mindmap attachment and quoted delimiters retain logical parent identities [18.52ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > Radar keyed curve writes retain axis references while resolving authored entry order [12.46ms]
+(pass) actual native builder operations agree with the pinned modern reference in declared scopes > Git keeps authored generated-looking IDs distinct from automatic identities, including parents and heads [33.84ms]
+
+eval/mermaid-modern-compat/grammar-regressions.test.ts:
+(pass) Class preserves authored method strings that Mermaid HTML sanitization consumes [1022.83ms]
+(pass) Quadrant single axis keeps a quoted delimiter inside its label [61.30ms]
+(pass) Quadrant separates axes only outside quoted text [33.90ms]
+(pass) Quadrant preserves the visible arrow of a trailing axis delimiter [37.35ms]
+(pass) Flowchart anonymous link-like group title writes a safe identity [97.76ms]
+(pass) State reserved endpoint retains its transition label [70.39ms]
+(pass) State descriptions retain literal quotes [46.58ms]
+(pass) State block notes retain colons as text [58.22ms]
+(pass) State classed transition retains a following independent state [50.44ms]
+(pass) Class inline members retain literal braces [94.91ms]
+(pass) Class namespace membership survives literal brace-bearing members [92.17ms]
+(pass) Class member text before a closing brace retains the following declaration [110.76ms]
+(pass) Class mixes block-only colon members with inline literal braces [164.53ms]
+(pass) XY axis titles retain digits as text [66.38ms]
+(pass) Gantt colon metadata retains lexical separation [16.23ms]
+(pass) Mindmap preserves rounded label with another opener [53.06ms]
+(pass) Mindmap preserves rounded label with a hexagon opener [29.56ms]
+(pass) Mindmap preserves anonymous cloud label [28.12ms]
+(pass) Mindmap preserves literal comment marker inside a shaped label [27.14ms]
+(pass) Mindmap preserves cloud label containing literal unmatched quotes [28.66ms]
+(pass) Mindmap anonymous multiline Markdown retains identities, formatting and child membership [41.59ms]
+(pass) Flowchart distinct group identities retain labels and membership: flowchart TD
+A_B_2[Important]
+subgraph A_B[Explicit]
+C
+end
+subgraph "A--B"
+D
+end [31.60ms]
+(pass) Flowchart distinct group identities retain labels and membership: flowchart TD
+subgraph "A<br>B"
+X
+end
+subgraph "A\nB"
+Y
+end [38.64ms]
+(pass) Flowchart distinct group identities retain labels and membership: flowchart TD
+subgraph "A--B"
+X
+end
+subgraph "A#45;#45;B"
+Y
+end [29.07ms]
+(pass) strict writer: C4 bare final label [22.52ms]
+(pass) strict writer: C4 literal dollar label [11.71ms]
+(pass) strict writer: C4 comma-delimited dollar text [11.38ms]
+(pass) strict writer: ER numeric entity after an empty block [23.88ms]
+(pass) strict writer: Journey literal unknown entity [15.49ms]
+(pass) strict writer: Journey encoded comment and actor delimiter remain text [15.29ms]
+(pass) strict writer: Journey encoded keyword remains task text [11.44ms]
+(pass) strict writer: Timeline escaped break cannot introduce a section [20.62ms]
+(pass) strict writer: Flowchart style token text remains literal across directives [28.16ms]
+(pass) strict writer: Journey original HTML entity actor [13.51ms]
+(pass) strict writer: Treemap empty wrapper [79.75ms]
+(pass) strict writer: Treemap nonempty original wrapper control [24.51ms]
+(pass) supported blank YAML keeps its verbatim wrapper: "\n" [18.12ms]
+(pass) supported blank YAML keeps its verbatim wrapper: " \t\n" [14.50ms]
+(pass) supported blank YAML keeps its verbatim wrapper: "\r\n" [15.40ms]
+(pass) supported blank YAML keeps its verbatim wrapper: "\r" [14.65ms]
+(pass) ER original numeric identities, endpoints and attributes survive strict writing [17.18ms]
+(pass) ambiguous source refuses instead of inventing a portable interpretation: C4Context
+System(s, "S", $tadb"cyl&inder") [2.14ms]
+(pass) ambiguous source refuses instead of inventing a portable interpretation: C4Context
+Person_Ext(customerA,b2 $link="https://github.com/mermaidjs") [0.59ms]
+(pass) ambiguous source refuses instead of inventing a portable interpretation: sequenceDiagram
+participant :@ [0.84ms]
+(pass) ambiguous source refuses instead of inventing a portable interpretation: sequenceDiagram
+      participant title:C@{ "type" : "control" }
+      C->C: test [1.34ms]
+(pass) ambiguous source refuses instead of inventing a portable interpretation: graph TD;style S background:#aaa;
+style T b] &   n4ackground:#bbb,border:1px solid red; [3.71ms]
+(pass) orphan Timeline events cannot invent a period: timeline section a: v [11.57ms]
+(pass) orphan Timeline events cannot invent a period: timeline
+    section abc-123    task1: event1
+      task2: event2: event3
+           : event4: #ev#ent2# : event5 [8.42ms]
+(pass) orphan Timeline events cannot invent a period: timeline
+      title ;my;title;
+      section ;a;bc-123;
+     section abc-456 ;ta;sk1;: ;ev;ent1; : ;ev;ent2; : ;ev;e3; [8.62ms]
+
+eval/mermaid-modern-compat/semantic.test.ts:
+(pass) Flowchart block-scalar labels from the pinned parser spec render without losing their lines [701.55ms]
+(pass) Sequence spaced participant metadata retains the actor types through editing [87.25ms]
+(pass) Class punctuation and Unicode names retain their endpoints after typed edits [191.23ms]
+(pass) Architecture compact edges retain sides and boundary identity [179.50ms]
+(pass) GitGraph can pick the same merge relative to different parents [96.66ms]
+(pass) Ellipse vertices retain their shape and text after an unrelated edit [71.29ms]
+(pass) Architecture literal icons retain STRING escapes and stay independent of labels [89.87ms]
+(pass) Sequence parallel overlays retain their distinct kind, branches and editable messages [74.00ms]
+(pass) upstream repeated subgraph identity, members and first title survive public parsing [30.27ms]
+(pass) typed edits retain the repeated subgraph members in layout and SVG [168.71ms]
+(pass) class assignments accumulate in author order and survive typed rename, serialization and SVG [24.29ms]
+(pass) XY writer preserves the official title, axes, values and point labels: Different Colors in xyChart [90.74ms]
+(pass) XY writer preserves the official title, axes, values and point labels: Smallest AI models scoring above 60% on MMLU [49.24ms]
+(pass) Class writer preserves the marked endpoint: <-- [46.98ms]
+(pass) Class writer preserves the marked endpoint: --|> [50.77ms]
+(pass) Flowchart writer preserves typed shape metadata and named-edge identity in valid Mermaid [26.94ms]
+(pass) Mindmap writer preserves quoted delimiter labels, identities, shapes and parentage [24.13ms]
+(pass) Quadrant writer preserves reserved axis text and declared point values in the real grammar [648.54ms]
+(pass) Timeline text fields remain text across keyword, separator and directive contexts [52.09ms]
+(pass) Sequence spaced actor tokens retain identities through declarations, editing and rendering [109.52ms]
+(pass) Canonical wrappers diagnose consumed configuration failures and preserve authored color text [70.96ms]
+(pass) Gantt calendar formats and preserved comments export without changing dates or tick text [183.63ms]
+(pass) C4 empty boundaries export without fabricated children or changed layout [76.53ms]
+(pass) C4 known argument values compile to complete tokens while retaining containment and relationships [131.34ms]
+(pass) Gantt task text cannot introduce keyword or date tokens or change dependency dates [105.14ms]
+(pass) Block quoted payloads preserve formatting, literal entities, identity and containment [194.66ms]
+(pass) Journey literal text is independent of statement tokens and actor separators [54.60ms]
+(pass) Ishikawa keyword-like labels remain text without changing cause ownership [27.78ms]
+(pass) Treemap quoted text retains hierarchy and quantities through delimiter escapes [37.24ms]
+(pass) Floating State annotations retain independent identities and scope beside connected states [135.33ms]
+(pass) Mindmap escaped labels retain anonymous identities, formatting and nested ownership [61.98ms]
+(pass) independent authored label census: flowchart LR [12.14ms]
+(pass) independent authored label census: sequenceDiagram [8.08ms]
+(pass) independent authored label census: classDiagram [21.17ms]
+(pass) independent authored label census: erDiagram [13.23ms]
+(pass) independent authored label census: stateDiagram-v2 [14.15ms]
+(pass) independent label surfaces: flowchart [70.57ms]
+(pass) independent label surfaces: state [65.81ms]
+(pass) independent label surfaces: sequence [25.20ms]
+(pass) independent label surfaces: timeline [17.70ms]
+(pass) independent label surfaces: class [62.91ms]
+(pass) independent label surfaces: er [32.82ms]
+(pass) independent label surfaces: journey [30.04ms]
+(pass) independent label surfaces: architecture [46.01ms]
+(pass) independent label surfaces: xychart [41.02ms]
+(pass) independent label surfaces: pie [27.85ms]
+(pass) independent label surfaces: quadrant [31.40ms]
+(pass) independent label surfaces: gantt [23.11ms]
+(pass) independent label surfaces: mindmap [28.35ms]
+(pass) independent label surfaces: gitgraph [27.68ms]
+(pass) independent label surfaces: radar [19.74ms]
+(pass) independent label surfaces: sankey [58.68ms]
+(pass) independent label surfaces: c4 [28.76ms]
+(pass) independent label surfaces: packet [25.34ms]
+(pass) independent label surfaces: kanban [23.45ms]
+(pass) independent label surfaces: requirement [40.73ms]
+(pass) independent label surfaces: treemap [15.14ms]
+(pass) independent label surfaces: ishikawa [19.87ms]
+(pass) independent label surfaces: block [16.07ms]
+(pass) generated sequence edits retain boxes, activation, properties and punctuation [2495.11ms]
+(pass) recognized Sequence messages survive semantic read-back throughout the official corpus [816.21ms]
+Modern semantic assertions: 61/61; diagnostic probes: 7; /workspace/agentic-selected-followups/eval/mermaid-modern-compat/output/semantic-gate.json
+
+ 163 pass
+ 0 fail
+ 4553 expect() calls
+Ran 163 tests across 3 files. [16.55s]

@@ -1,0 +1,39 @@
+{
+  "date": "2026-10-26",
+  "head": "2eb645f93b67aed95a9546df122ca29a1636f90d",
+  "prBase": "18017376db3168579b26cc9ecf01f8526e00146e",
+  "correctnessOnlyBaseline": "fd9ed706334d61ae22a68a2f65b4426b9249966d",
+  "preFormattingBaseline": "98f19638d489badb278e3aa694b7f5a0c5234a5f",
+  "numericModuleComponentHead": "a21e116f31df34748a2c27cc1162262c8d3b6309",
+  "syntaxOracle": "Mermaid 12.2.0",
+  "runtime": "Bun 1.4.2",
+  "tests": {
+    "owning": 655,
+    "modern": 163,
+    "failures": 0
+  },
+  "outputIdentity": {
+    "comparisons": 5710,
+    "differences": 0,
+    "modes": 10,
+    "inputs": 571
+  },
+  "freshLayouts": {
+    "comparisons": 288,
+    "differences": 0,
+    "elkCache": false,
+    "coldStartup": false
+  },
+  "package": {
+    "files": 219,
+    "sha256": "cfd82c7f81c6fcdfe2a30931563be77ab3d602e94fa1e941e56441e104338219"
+  },
+  "ci": {
+    "run": 40248274631,
+    "checkout": "fb1b81ce74f865accfde1e5dd77231a4c4b4ac5a",
+    "tree": "ae007ff1015a55f18738fce1b4dfc179e9e86a07",
+    "status": "semantic and red-green passed; remaining lanes queued at evidence creation",
+    "redGreenAssertionFailures": 15
+  },
+  "visualEvidenceCommit": "fecc37cc20284ce3c45c6e811767cda8b9a7b633"
+}

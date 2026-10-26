@@ -1,0 +1,19 @@
+$ bun run eval/benchmark/micro-bench.ts --baseline "98f19638d489badb278e3aa694b7f5a0c5234a5f" --filter "^render:svg-(flow5|state80|class80|seq20|flow5-hand-drawn|flow5-watercolor)\$" --samples "31" --min-sample-ms "40" --max-case-ms "8000" --warmup-ms "1000" --rounds "5" --elk-cache on --json /tmp/svg-attribute-cache-final.json
+round 1/5: candidate (a21e116f31df)
+round 1/5: baseline (98f19638d489)
+round 2/5: baseline (98f19638d489)
+round 2/5: candidate (a21e116f31df)
+round 3/5: candidate (a21e116f31df)
+round 3/5: baseline (98f19638d489)
+round 4/5: baseline (98f19638d489)
+round 4/5: candidate (a21e116f31df)
+round 5/5: candidate (a21e116f31df)
+round 5/5: baseline (98f19638d489)
+
+case                         candidate  ±    baseline  ratio
+render:svg-flow5               1.96 ms   8%   1.88 ms  1.04×
+render:svg-seq20               4.09 ms   6%   4.41 ms  0.97×
+render:svg-class80            30.78 ms   6%  30.20 ms  0.99×
+render:svg-state80            22.65 ms   9%  23.67 ms  1.01×
+render:svg-flow5-hand-drawn    5.18 ms  11%   5.14 ms  1.10×
+render:svg-flow5-watercolor    4.15 ms   9%   4.26 ms  0.98×

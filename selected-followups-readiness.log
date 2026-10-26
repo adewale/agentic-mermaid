@@ -1,0 +1,12 @@
+PR hygiene signals (comparing against 18017376db3168579b26cc9ecf01f8526e00146e)
+=============================================
+
+⚠  Large diff: 644 lines changed. Consider splitting into smaller PRs.
+✓  Test files modified: 10
+✓  Commits: 22
+✓  No obvious secrets in diff
+✓  No debug statements detected
+✓  No UI files changed
+
+Review these heuristic matches; they do not establish correctness or CI completion.
+Use docs/testing-strategy.md#contract-review-and-completion before reporting readiness.

@@ -1,0 +1,2 @@
+$ bun run scripts/build/browser-lazy-report.ts
+browser lazy build verified: 5565 B initial gzip; 6 families budget the shared on-demand ELK transfer; 17 family graphs exclude it
