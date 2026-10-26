@@ -351,7 +351,38 @@ function sourceLiterals(body: ts.Node, source: ts.SourceFile, checker: ts.TypeCh
       const name = ts.isIdentifier(node.expression) ? node.expression.text : ts.isPropertyAccessExpression(node.expression) ? node.expression.name.text : ''
       const argument = name === 'render' ? 1 : ['parse', 'fromText', 'draw', 'getDiagramFromText', 'preprocessDiagram', 'detectType'].includes(name) ? 0 : undefined
       const json = ts.isPropertyAccessExpression(node.expression) && node.expression.expression.getText(source) === 'JSON'
-      if (argument !== undefined && !json) {
+      const symbol = checker.getSymbolAtLocation(node.expression)
+      const declaration = symbol?.valueDeclaration ?? symbol?.declarations?.[0]
+      const local = declaration && !ts.isImportSpecifier(declaration) && !ts.isImportClause(declaration) && !ts.isNamespaceImport(declaration)
+      // Resolve a local callee before interpreting an API spelling: a helper
+      // named parse/render can consume another argument or transform its input.
+      if (local) {
+        const helper = ts.isFunctionDeclaration(declaration) ? declaration
+          : ts.isVariableDeclaration(declaration) && ts.isVariableDeclarationList(declaration.parent)
+            && declaration.parent.flags & ts.NodeFlags.Const && declaration.initializer
+            && (ts.isArrowFunction(declaration.initializer) || ts.isFunctionExpression(declaration.initializer)) ? declaration.initializer : undefined
+        // A reassigned function declaration no longer identifies the called
+        // body. Never recover witnesses from that obsolete implementation.
+        if (helper && (written.has(symbol!) || dynamicScope)) unresolved = true
+        else if (helper?.body && !calls.has(helper)) {
+          const parametersAreImmutable = helper.parameters.every(parameter => ts.isIdentifier(parameter.name)
+            && !parameter.dotDotDotToken && !written.has(checker.getSymbolAtLocation(parameter.name)!)
+            && (!parameter.initializer || stringTerm(parameter.initializer)))
+          const call = parametersAreImmutable ? wrappedCall(helper.body) : undefined
+          const bound = new Map(parameters)
+          for (let index = 0; index < helper.parameters.length; index++) {
+            const parameter = helper.parameters[index]!
+            if (!ts.isIdentifier(parameter.name) || parameter.dotDotDotToken) continue
+            const parameterSymbol = checker.getSymbolAtLocation(parameter.name)
+            // Only a transparent call path permits argument substitution.
+            // Other helpers expose their own closed literals, while their
+            // mutable parameters remain unknown.
+            if (parameterSymbol) bound.set(parameterSymbol, call ? node.arguments[index] ? evaluate(node.arguments[index]!, parameters) : parameter.initializer ? evaluate(parameter.initializer, bound) : undefined : undefined)
+          }
+          const next = new Set(calls); next.add(helper)
+          visit(call ?? helper.body, bound, next)
+        } else if (!helper?.body && argument !== undefined) unresolved = true
+      } else if (argument !== undefined && !json) {
         const value = node.arguments[argument] ? evaluate(node.arguments[argument]!, parameters) : undefined
         if (value === undefined) {
           unresolved = true
@@ -365,33 +396,6 @@ function sourceLiterals(body: ts.Node, source: ts.SourceFile, checker: ts.TypeCh
           if (node.arguments[argument]) origin(node.arguments[argument]!)
         }
         else values.add(value)
-      } else if (ts.isIdentifier(node.expression)) {
-        // Follow the source file's bound helper, never its name or an
-        // assertion's string literal. Parameter values are immutable strings;
-        // no upstream callback or helper is executed.
-        const declaration = checker.getSymbolAtLocation(node.expression)?.valueDeclaration
-        const helper = declaration && ts.isFunctionDeclaration(declaration) ? declaration
-          : declaration && ts.isVariableDeclaration(declaration) && ts.isVariableDeclarationList(declaration.parent)
-            && declaration.parent.flags & ts.NodeFlags.Const && declaration.initializer
-            && (ts.isArrowFunction(declaration.initializer) || ts.isFunctionExpression(declaration.initializer)) ? declaration.initializer : undefined
-        const parametersAreImmutable = helper?.parameters.every(parameter => ts.isIdentifier(parameter.name)
-          && !parameter.dotDotDotToken && !written.has(checker.getSymbolAtLocation(parameter.name)!)
-          && (!parameter.initializer || stringTerm(parameter.initializer))) && !dynamicScope
-        const call = helper?.body && parametersAreImmutable ? wrappedCall(helper.body) : undefined
-        if (helper?.body && !calls.has(helper)) {
-          const bound = new Map(parameters)
-          for (let index = 0; index < helper.parameters.length; index++) {
-            const parameter = helper.parameters[index]!
-            if (!ts.isIdentifier(parameter.name) || parameter.dotDotDotToken) continue
-            const symbol = checker.getSymbolAtLocation(parameter.name)
-            // Only a transparent call path permits argument substitution.
-            // Other helpers expose their own closed literals, while their
-            // mutable parameters remain unknown.
-            if (symbol) bound.set(symbol, call ? node.arguments[index] ? evaluate(node.arguments[index]!, parameters) : parameter.initializer ? evaluate(parameter.initializer, bound) : undefined : undefined)
-          }
-          const next = new Set(calls); next.add(helper)
-          visit(call ?? helper.body, bound, next)
-        }
       }
     }
     ts.forEachChild(node, child => visit(child, parameters, calls))
