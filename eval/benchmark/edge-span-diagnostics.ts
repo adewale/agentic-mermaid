@@ -1,5 +1,6 @@
 // Source diagnostics only. Never use these instrumented time/heap observations
 // as packaged benchmark results or allocated-byte/instantaneous-peak evidence.
+import { assertBenchmarkExecutionAllowed } from './ci-policy.ts'
 import { createHash } from 'node:crypto'
 import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
@@ -114,7 +115,7 @@ return {ok:true, value}; } catch(error) {return {ok:false,error:{name:error?.nam
     limitations: 'Evaluator-only source transform. Time and heap snapshots include instrumentation and concurrent build contention; no latency, allocated-byte or instantaneous peak claim. Failed inputs remain enrolled.',
     revision: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
     dirty: execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim(),
-    harness: ['edge-span-diagnostics.ts', 'edge-span-diagnostics-transform.ts', 'edge-span-diagnostics-collector.ts', 'edge-span-diagnostics.test.ts'].map(file => ({ file, sha256: sha(readFileSync(join(import.meta.dir, file))) })),
+    harness: ['edge-span-diagnostics.ts', 'edge-span-diagnostics-transform.ts', 'edge-span-diagnostics-collector.ts', 'tests/edge-span-diagnostics.test.ts'].map(file => ({ file, sha256: sha(readFileSync(join(import.meta.dir, file))) })),
     bundles: ['plain.mjs', 'instrumented.mjs'].map(file => ({ file, sha256: sha(readFileSync(join(out, file))) })),
     sourceTransforms: transforms.map(({ before: _before, after: _after, ...record }) => ({ ...record, patchSha256: sha(readFileSync(join(patchDir, basename(record.path) + '.patch'))) })),
     inputs: inputs.map(input => ({ id: input.id, family: input.family, mode: input.mode, sha256: sha(input.source ?? JSON.stringify(input.input)) })),
@@ -122,4 +123,7 @@ return {ok:true, value}; } catch(error) {return {ok:false,error:{name:error?.nam
   writeFileSync(join(out, 'report.json'), JSON.stringify(report, null, 2) + '\n')
   if (report.issues.length) throw new Error('Diagnostic characterization failed; see retained report')
 }
-if (import.meta.main) await runDiagnostics(resolve(process.argv[2] ?? '/tmp/edge-span-diagnostics'))
+if (import.meta.main) {
+  assertBenchmarkExecutionAllowed()
+  await runDiagnostics(resolve(process.argv[2] ?? '/tmp/edge-span-diagnostics'))
+}

@@ -2,13 +2,13 @@
 import { expect, test } from 'bun:test'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { cacheProbeLayers, instrumentCacheSource } from '../../eval/benchmark/cache-churn-source.ts'
-import { cacheProbeEvent, cacheProbeSnapshot, cacheObservationSnapshot, withCacheProbeObservations } from '../../eval/benchmark/cache-probe-state.ts'
-import { WeightedLru } from '../experimental/weighted-lru.ts'
-import { runtimeDifferentialPlans, differentialArgs } from '../../eval/benchmark/layout-runtime-differential.ts'
-import { layoutCacheEnvironment, layoutRenderOptions } from '../../eval/benchmark/release-bench-fidelity.ts'
-import { measureLayoutComparisons, report, type Input, type MeasurementWorker } from '../../eval/benchmark/release-bench.ts'
-import { churnRatios } from '../../eval/benchmark/layout-cache-churn.ts'
+import { cacheProbeLayers, instrumentCacheSource } from '../cache-churn-source.ts'
+import { cacheProbeEvent, cacheProbeSnapshot, cacheObservationSnapshot, withCacheProbeObservations } from '../cache-probe-state.ts'
+import { WeightedLru } from '../../../src/experimental/weighted-lru.ts'
+import { runtimeDifferentialPlans, differentialArgs } from '../layout-runtime-differential.ts'
+import { layoutCacheEnvironment, layoutRenderOptions } from '../release-bench-fidelity.ts'
+import { measureLayoutComparisons, report, type Input, type MeasurementWorker } from '../release-bench.ts'
+import { churnRatios } from '../layout-cache-churn.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
 import { useTestChildren } from './helpers/test-child.ts'
 
@@ -110,7 +110,7 @@ test('cache memory summaries preserve a missing/failed round instead of filling 
 })
 
 test('private cache counters retain weighted eviction behavior and fail closed on source drift', () => {
-  const original = readFileSync(new URL('../experimental/weighted-lru.ts', import.meta.url), 'utf8')
+  const original = readFileSync(new URL('../../../src/experimental/weighted-lru.ts', import.meta.url), 'utf8')
   const transformed = instrumentCacheSource(original, false, '/unused/diagnostic-state.ts')
   const script = new Bun.Transpiler({ loader: 'ts' }).transformSync(transformed.replace(/^import[^\n]*\n/, '').replace('export class WeightedLru', 'class WeightedLru'))
   const events: string[] = []
@@ -141,7 +141,7 @@ test('private cache counters retain weighted eviction behavior and fail closed o
 })
 
 test('ELK churn counters bind the actual owner residency policy rather than the old key budget', () => {
-  const source = readFileSync(new URL('../elk-instance.ts', import.meta.url), 'utf8')
+  const source = readFileSync(new URL('../../../src/elk-instance.ts', import.meta.url), 'utf8')
   expect(cacheProbeLayers(source)['weighted:64:8388608']).toContain('estimated residency')
   expect(cacheProbeLayers(source)['weighted:64:1048576']).toBeUndefined()
   expect(() => cacheProbeLayers(source.replace('const ELK_CACHE_MAX_RESIDENCY = 8 * 1024 * 1024', 'const ELK_CACHE_MAX_RESIDENCY = 1024 * 1024'))).toThrow('owner or residency policy')
@@ -176,7 +176,7 @@ test('canonical cache replay stays separate from private cardinality and restore
 
 
 test('native private cache instrumentation preserves updates and weighted eviction', () => {
-  const original = readFileSync(new URL('../layout/agentic-producer-core.ts', import.meta.url), 'utf8')
+  const original = readFileSync(new URL('../../../src/layout/agentic-producer-core.ts', import.meta.url), 'utf8')
   const transformed = instrumentCacheSource(original, true, '/unused/diagnostic-state.ts')
   const compile = (source: string) => {
     const declaration = source.match(/class NativeResults<T> \{[\s\S]*?\n\}/)?.[0]
@@ -204,8 +204,8 @@ test('native private cache instrumentation preserves updates and weighted evicti
 })
 
 test.each([
-  ['weighted', '../experimental/weighted-lru.ts', false],
-  ['native', '../layout/agentic-producer-core.ts', true],
+  ['weighted', '../../../src/experimental/weighted-lru.ts', false],
+  ['native', '../../../src/layout/agentic-producer-core.ts', true],
 ] as const)('private %s cache source probes reject missing, duplicated and stale anchors', (_name, path, native) => {
   const source = readFileSync(new URL(path, import.meta.url), 'utf8')
   const anchor = 'const found = this.#entries.get(key)'

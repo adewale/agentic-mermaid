@@ -1,3 +1,4 @@
+import { assertBenchmarkExecutionAllowed } from './ci-policy.ts'
 // Direct native-to-native comparison. Reuses release workers/scheduling/gates;
 // --baseline on release-bench.ts instead compares an older default ELK path.
 import { createHash } from 'node:crypto'
@@ -153,4 +154,7 @@ function main() {
   }
 }
 
-if (import.meta.main) main()
+if (import.meta.main) {
+  assertBenchmarkExecutionAllowed()
+  main()
+}

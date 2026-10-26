@@ -1,3 +1,4 @@
+import { assertBenchmarkExecutionAllowed } from './ci-policy.ts'
 // Separate bounded memory/churn experiment; never a renderer timing benchmark.
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
@@ -107,4 +108,7 @@ function main() {
   } catch (error) { save('failed', { ok: false, error: String(error) }); throw error }
 }
 
-if (import.meta.main) main()
+if (import.meta.main) {
+  assertBenchmarkExecutionAllowed()
+  main()
+}

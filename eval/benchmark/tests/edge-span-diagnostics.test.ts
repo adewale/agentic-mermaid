@@ -1,13 +1,13 @@
 import { expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { diagnosticInputs } from './edge-span-diagnostics.ts'
-import { instrumentExpansionSource, instrumentedModules } from './edge-span-diagnostics-transform.ts'
-import { begin, expansion, normalized, end, summarizeExpansionTrace, withExpansionTrace } from './edge-span-diagnostics-collector.ts'
+import { diagnosticInputs } from '../edge-span-diagnostics.ts'
+import { instrumentExpansionSource, instrumentedModules } from '../edge-span-diagnostics-transform.ts'
+import { begin, expansion, normalized, end, summarizeExpansionTrace, withExpansionTrace } from '../edge-span-diagnostics-collector.ts'
 
 test('all owned transforms are exact, replayable and fail on source drift', () => {
   for (const name of instrumentedModules) {
-    const path = join(import.meta.dir, '../../src/layout', name), source = readFileSync(path, 'utf8')
+    const path = join(import.meta.dir, '../../../src/layout', name), source = readFileSync(path, 'utf8')
     const record = instrumentExpansionSource(path, source, '/unpublished/evaluator.ts')
     expect(record.originalSha256).not.toBe(record.transformedSha256)
     expect(record.after).toContain('/unpublished/evaluator.ts')
@@ -60,7 +60,7 @@ test('exclusive work subtracts shared identities and does not confuse optional r
 
 
 test('route-emission transform preserves placement-only branching and reports its skipped points', () => {
-  const path = join(import.meta.dir, '../../src/layout/agentic-layered-core.ts'), source = readFileSync(path, 'utf8')
+  const path = join(import.meta.dir, '../../../src/layout/agentic-layered-core.ts'), source = readFileSync(path, 'utf8')
   const record = instrumentExpansionSource(path, source, '/unpublished/evaluator.ts')
   const declaration = '  const positionedEdges = input.placementOnly && !input.cycleOriented && !input.loopPorts?.length'
   expect(record.after.split(declaration).length).toBe(2)

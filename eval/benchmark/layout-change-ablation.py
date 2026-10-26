@@ -255,4 +255,6 @@ def main():
 
 
 if __name__ == '__main__':
+    from ci_policy import assert_benchmark_execution_allowed
+    assert_benchmark_execution_allowed()
     main()

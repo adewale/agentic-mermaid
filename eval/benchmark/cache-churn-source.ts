@@ -1,3 +1,4 @@
+import { assertBenchmarkExecutionAllowed } from './ci-policy.ts'
 // Build-only instrumentation stays in the evaluator. Production sources and
 // public globals/API remain unchanged. Never use these bundles for timings.
 import { createHash } from 'node:crypto'
@@ -132,4 +133,7 @@ async function main() {
   } catch (error) { save('failed', { ok: false, error: String(error) }); throw error }
 }
 
-if (import.meta.main) await main()
+if (import.meta.main) {
+  assertBenchmarkExecutionAllowed()
+  await main()
+}

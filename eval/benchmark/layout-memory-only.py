@@ -230,7 +230,11 @@ def main():
     r = sub.add_parser('run')
     r.add_argument('--plan', required=True)
     args = parser.parse_args()
-    return declare(args) if args.command == 'declare' else run(args)
+    if args.command == 'run':
+        from ci_policy import assert_benchmark_execution_allowed
+        assert_benchmark_execution_allowed()
+        return run(args)
+    return declare(args)
 
 
 if __name__ == '__main__':

@@ -1,3 +1,4 @@
+import './ci-policy-enforce.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
 // This evaluator-only alias is resolved by the diagnostic source bundler.

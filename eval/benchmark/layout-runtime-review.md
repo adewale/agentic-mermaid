@@ -1,20 +1,28 @@
-The registered `Release benchmark` workflow has an optional `layout-runtime-review` dispatch input. Its default release/publication path is unchanged. Select the review input and supply `baseline-ref` as the full immutable commit for the **integrated** native23 checkpoint. The review calls a separate reusable workflow and uploads evidence even when measurements fail. Do not dispatch until the candidate artifact and baseline commit are final.
+# Local layout runtime review
 
-```bash
-gh workflow run release-benchmark.yml --ref YOUR_FINAL_BRANCH -f layout-runtime-review=true -f baseline-ref=YOUR_INTEGRATED23_FULL_SHA
-```
+Benchmarks run only in an explicitly owned local session. CI, scheduled jobs and
+hosted manual workflows are excluded by the benchmark package policy; the former
+release and layout-runtime-review workflows have been removed. Existing hosted
+reports retain their historical meaning and are not new qualification evidence.
+Static SVG/PNG backend review artifacts remain available in ordinary CI.
 
-Add `-f layout-cache-churn=true` to request the separate memory/churn diagnosis. The review runs serial campaigns with both cache policies. Each campaign keeps three fresh rounds,25 timed repetitions and one480000ms shared deadline. It preserves the historical27 population, including the edit workflow. The three Architecture16/32/32-large-junction workloads run as a separately named supplement and remain outside that historical denominator.
+Build the candidate and immutable integrated native23 baseline before measuring,
+record both revisions and their package/lock/JavaScript hashes, and run from the
+repository root. Do not run competing builds, tests or measurement workers.
+Generate the historical27 input envelope with
+`bun run eval/benchmark/layout-review-population.ts`; retain its complete output.
+The direct driver below accepts that envelope through `--inputs`.
 
-Alternatively, dispatch `-f layout-runtime-campaign=release`, `differential`,
-`architecture` or `churn` against the same frozen branch head. Each selection
-runs on its own hosted runner and still processes both cache policies serially
-with the same populations, controls and bounds. This permits independent
-campaigns to run concurrently without competing workers on a measurement host.
-The default `all` retains the original full serial review. Explicit `churn`
-selects that campaign without requiring the optional all-review churn flag.
-Every job records its package/lock/JS hashes before measurement; check those
-identities across jobs, and retain the job-specific environment and A/A results.
+The local release canary uses `eval/benchmark/release-bench.ts` with
+`--candidate /path/to/built-package --layout-modes elk,agentic,agentic-with-elk
+--layout-cache off --layout-reference batched --rounds 3 --reps 25
+--budget-ms 480000 --case "$(bun run eval/benchmark/layout-review-population.ts --case-list)"
+--out /path/to/fresh-results`. Repeat with `normal` and a separate fresh directory.
+Both cache policies retain their fixed populations, controls and per-policy
+shared bounds. The Architecture supplement uses the separately generated
+`--architecture-supplementary --case-list` selection and remains outside the
+historical27 denominator. Run optional churn using the local command below;
+there is no hosted-CI override. Retain all failed, timed-out and unlaunched rows.
 
 The direct runtime driver compares native23 to an independent native23 A/A and native24, plus candidate ELK to native24. It uses existing release workers, batched mixed-workload timing, independent matched memory, quality reruns, gates and failure handling. It does not reinterpret `release-bench --baseline`, which compares an older default ELK path. Extra fallback and current-main ELK arms are optional and must be declared before launch; they share the same480000ms deadline.
 
