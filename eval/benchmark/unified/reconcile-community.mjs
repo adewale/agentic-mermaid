@@ -4,6 +4,7 @@ import { resolve, join, dirname } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
+import { readBenchmarkDocument } from '../portable/project-records.ts'
 
 const read = file => JSON.parse(readFileSync(file, 'utf8'))
 const canonical = value =>
@@ -47,10 +48,10 @@ function verifyFiles(files, reason) {
 }
 function sourceEnvelope(root) {
   const directory = join(root, 'community'),
-    result = read(join(directory, 'community-result.json')),
+    result = readBenchmarkDocument(join(directory, 'community-result.json')),
     ranks = read(join(directory, 'community-ranks.json')),
     evidence = read(join(directory, 'community-evidence.json'))
-  const ledger = read(join(root, 'report.json')),
+  const ledger = readBenchmarkDocument(join(root, 'report.json')),
     invocation = read(join(root, 'invocation.json')),
     inputs = read(join(directory, 'community-inputs.json'))
   requireThat(result.id === 'community' && result.finishedAt && ledger.finishedAt && result.finishedAt === ranks.finishedAt && result.finishedAt === evidence.finishedAt, 'Unfinished or inconsistent source ledger')
@@ -176,8 +177,8 @@ function cliIdentity(variant) {
   return { variantOf: variant.variantOf, variant: variant.variant, prepared: { node: variant.prepared.node, artifact: without(variant.prepared.artifact, ['detail']) }, identity: variant.identity, error: variant.error ?? null }
 }
 function reconcileCli(baseRoot, repairRoot, destination, communityManifest, cliApi, communityPrepared) {
-  const base = read(join(baseRoot, 'community-cli-result.json')),
-    correction = read(join(repairRoot, 'community-cli-result.json'))
+  const base = readBenchmarkDocument(join(baseRoot, 'community-cli-result.json')),
+    correction = readBenchmarkDocument(join(repairRoot, 'community-cli-result.json'))
   requireThat(base.id === 'community-cli' && correction.id === 'community-cli' && base.finishedAt && correction.finishedAt && base.rounds === 3 && correction.rounds === 3, 'CLI repair is incomplete or not three rounds')
   equal(correction.evidence.outputSelection, ['svg'], 'CLI correction must be SVG-only')
   equal(base.evidence.cohort, correction.evidence.cohort, 'CLI literal fixed core changed')

@@ -30,15 +30,18 @@ await build({
     },
   ],
 })
-writeFileSync(join(out, 'package.json'), JSON.stringify({ name: '@agentic-mermaid/portable-benchmark-artifact', version: '0.1.0', private: true, type: 'module', engines: { node: '>=24' }, dependencies: {} }, null, 2) + '\n', { flag: 'wx' })
+writeFileSync(join(out, 'package.json'), JSON.stringify({ name: 'trident-benchmark-kit', version: '0.1.0', private: true, type: 'module', engines: { node: '>=24' }, dependencies: {} }, null, 2) + '\n', { flag: 'wx' })
 let sourceRevision: string | null = null
+let sourceDirty: boolean | null = null
 try {
-  sourceRevision = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: portableDirectory, encoding: 'utf8' }).trim()
+  sourceDirty = Boolean(execFileSync('git', ['status', '--porcelain', '--', '.'], { cwd: join(portableDirectory, '..'), encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim())
+  if (!sourceDirty) sourceRevision = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: portableDirectory, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 } catch {}
 const manifest = {
   protocol: 'compiled-portable-harness-v1',
   builtAt: new Date().toISOString(),
   sourceRevision,
+  sourceDirty,
   files: ['run.mjs', 'worker.mjs', 'execution.mjs', 'package.json'].map(path => ({ path, sha256: byteDigest(join(out, path)) })),
   runtimeDependencies: 'Node24 plus the explicitly supplied target artifact; no product source, Git, npm installation or harness node_modules required.',
 }

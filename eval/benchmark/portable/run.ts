@@ -1,3 +1,4 @@
+import { gzipSync } from 'node:zlib'
 import { execFileSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync, openSync, closeSync, unlinkSync } from 'node:fs'
@@ -6,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { portableCases, PORTABLE_COHORT_PROTOCOL, type PortableCohort } from './cohorts.ts'
 import { environmentIdentity } from './environment.ts'
 import { artifactIdentity, byteDigest, harnessIdentity, portableDirectory, readJson, resolveArtifact } from './artifacts.ts'
-import { activateProjectRecord, findProjectRecord, inspectCurrentProjectRecords, publishProjectRecord, stableValue, type ProjectBenchmarkIdentity, type ProjectBenchmarkRecord } from './project-records.ts'
+import { activateProjectRecord, findProjectRecord, inspectCurrentProjectRecords, publishProjectRecord, writeProjectBenchmarkRecord, stableValue, type ProjectBenchmarkIdentity, type ProjectBenchmarkRecord } from './project-records.ts'
 import { assertPortableRunning, PortableCancelled, resetPortableCancellation, measurePortableProject, terminatePortableWorkers } from './execution.ts'
 import { PORTABLE_MEASUREMENT_PROTOCOL, type PortableArtifact, type PortableJob, type PortableWorkerResult, type Replica } from './protocol.ts'
 import { portableMarkdown, portableSummary } from './report.ts'
@@ -144,6 +145,10 @@ export async function runPortable(options: PortableOptions) {
     artifact: artifactIdentity(artifact),
     measurement: { sampling: Object.fromEntries(Object.entries(sampling).filter(([key]) => key !== 'maximumControlSpread')), environment: environmentIdentity(options.node), observer: observerIdentity(options.observer) },
   })
+  const assertIdentityStable = () => {
+    if (stableValue(artifactIdentity(artifact)) !== stableValue(identity.artifact) || stableValue(environmentIdentity(options.node)) !== stableValue((identity.measurement as any).environment) || stableValue(observerIdentity(options.observer)) !== stableValue((identity.measurement as any).observer))
+      throw Error('Artifact/runtime/resource observer changed; no completed record is activated or published')
+  }
   mkdirSync(options.out, { recursive: true })
   mkdirSync(options.records, { recursive: true })
   const lock = join(options.records, 'portable-campaign.lock'),
@@ -157,32 +162,30 @@ export async function runPortable(options: PortableOptions) {
     let record: ProjectBenchmarkRecord
     if (retained) {
       // The owning result payload must still agree with the immutable record.
-      const owningResults = readJson(join(retained.evidenceDirectory, 'results.json'))
-      if (stableValue(owningResults) !== stableValue((retained.provenance as { results: unknown }).results)) throw Error('Retained worker results differ from the immutable project record')
-      const owning = readJson(join(retained.evidenceDirectory, 'observations.json'))
-      if (stableValue(owning) !== stableValue(retained.observations)) throw Error('Retained raw observation envelope differs from its record')
+      const resultFile = join(retained.evidenceDirectory, 'results.json'), observationFile = join(retained.evidenceDirectory, 'observations.json')
+      if (existsSync(resultFile) && stableValue(readJson(resultFile)) !== stableValue((retained.provenance as { results: unknown }).results)) throw Error('Retained worker results differ from the immutable project record')
+      if (existsSync(observationFile) && stableValue(readJson(observationFile)) !== stableValue(retained.observations)) throw Error('Retained raw observation envelope differs from its record')
+      assertIdentityStable()
+      await new Promise<void>(resolve => setImmediate(resolve))
+      assertPortableRunning()
       activateProjectRecord(options.records, retained)
       record = retained
     } else {
       const startedAt = now(),
         id = randomUUID(),
-        directory = join(options.out, 'attempts', id),
-        raw = join(directory, 'raw')
+        directory = join(options.out, 'attempts', id)
       writeFileSync(join(options.out, 'report.json'), JSON.stringify({ status: 'running', project: options.project, startedAt, pendingAttempt: id, previousRecordRetained: true }) + '\n')
-      mkdirSync(raw, { recursive: true })
+      mkdirSync(directory, { recursive: true })
       mkdirSync(join(directory, 'svg'))
       writeJson(join(directory, 'invocation.json'), { options, artifact, sampling, identity, startedAt })
       const results: PortableWorkerResult[] = []
       const retain = (result: PortableWorkerResult) => {
         results.push(result)
-        appendFileSync(join(directory, 'samples.jsonl'), JSON.stringify({ ...result, qualification: result.qualification ? { accepted: result.qualification.accepted, passed: result.qualification.passed, semanticComplete: result.qualification.semanticComplete, scope: result.qualification.scope } : null }) + '\n')
+        appendFileSync(join(directory, 'workers.jsonl.gz'), gzipSync(Buffer.from(JSON.stringify(result) + '\n')))
       }
       await measurePortableProject(artifact, testCases, options, directory, retain)
-      if (stableValue(artifactIdentity(artifact)) !== stableValue(identity.artifact) || stableValue(environmentIdentity(options.node)) !== stableValue((identity.measurement as any).environment) || stableValue(observerIdentity(options.observer)) !== stableValue((identity.measurement as any).observer))
-        throw Error('Artifact/runtime/resource observer changed during measurement; evidence retained without publishing a reusable record')
+      assertIdentityStable()
       const actualObservations = observations(options.project, results)
-      writeJson(join(directory, 'results.json'), results)
-      writeJson(join(directory, 'observations.json'), actualObservations)
       const finishedAt = now()
       record = {
         schemaVersion: 1,
@@ -192,16 +195,23 @@ export async function runPortable(options: PortableOptions) {
         finishedAt,
         status: results.some(result => result.status === 'failed') ? 'failed' : results.some(result => result.status === 'partial' || result.status === 'blocked') ? 'blocked' : 'passed',
         evidenceDirectory: directory,
-        evidenceFiles: listFiles(directory),
+        evidenceFiles: [...listFiles(directory).filter(file => !['workers.jsonl.gz', 'invocation.json'].includes(file)), 'result.json.gz'],
         observations: actualObservations,
         gaps: [...new Set(results.flatMap(result => result.qualification?.unmeasuredScopes.filter(scope => !scope.startsWith('Repeated passing')) ?? []))],
-        provenance: { workerProtocol: PORTABLE_MEASUREMENT_PROTOCOL, sampler: sampling, artifact, results: jsonValue(results) },
+        provenance: { workerProtocol: PORTABLE_MEASUREMENT_PROTOCOL, sampler: sampling, artifact, results },
       }
+      const payloadFile = join(directory, 'result.json.gz')
+      writeProjectBenchmarkRecord(payloadFile, record)
+      // Let queued cancellation signals run after compression, before publication.
+      await new Promise<void>(resolve => setImmediate(resolve))
       assertPortableRunning()
-      publishProjectRecord(options.records, record)
+      publishProjectRecord(options.records, record, { payloadFile })
       published = true
+      rmSync(join(directory, 'workers.jsonl.gz'), { force: true })
+      rmSync(join(directory, 'invocation.json'), { force: true })
     }
-    const results = readJson(join(record.evidenceDirectory, 'results.json')) as PortableWorkerResult[]
+    const results = (record.provenance as { results: PortableWorkerResult[] }).results
+    if (!Array.isArray(results)) throw Error('Retained portable record has no worker results')
     const summary = portableSummary(testCases, results, { ...options, usage: options.usage ? (readJson(options.usage) as UsageEvidence) : undefined })
     const report = {
       schemaVersion: 1,

@@ -1,13 +1,13 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { assertBenchmarkExecutionAllowed } from '../ci-policy.ts'
 import { assertBenchmarkSetVersions, canonicalBenchmarkTool } from '../tool-versions.ts'
 import type { BenchmarkObservation } from '../unified/types.ts'
 import { fidelityCoreProjects } from './selection.ts'
-import { stableValue } from '../unified/project-records.ts'
+import { readBenchmarkDocument, readBenchmarkResult, writeBenchmarkDocument, stableValue } from '../portable/project-records.ts'
 import { compareFidelityCriteria, completeCriterionLedger, planFidelityCriteria } from './ledger.ts'
 
-const read = (path: string) => JSON.parse(readFileSync(path, 'utf8'))
+const read = readBenchmarkDocument
 const html = (value: unknown) => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
 export interface FidelityReportOptions { core: string; community?: string; out: string }
 
@@ -62,7 +62,7 @@ export function writeFidelityComparison(options: FidelityReportOptions) {
   }).sort((a,b) => b.cells[1]!.passed - a.cells[1]!.passed || a.cells[1]!.failed - b.cells[1]!.failed || a.project.localeCompare(b.project))
   const measuredWindow = (lane: string, source: any) => {
     const directories = [...new Set<string>((source.artifacts ?? []).filter((path: string) => /(?:fidelity-cases|artifact-alias)\.json$/.test(path)).map((path: string) => dirname(path)))]
-    const measurements = directories.map(directory => { const result = read(join(directory, 'result.json')); return { project: result.observations[0]?.metrics?.implementation, startedAt: result.startedAt, finishedAt: result.finishedAt, evidenceDirectory: directory } })
+    const measurements = directories.map(directory => { const result = readBenchmarkResult(join(directory, 'result.json')); return { project: result.observations[0]?.metrics?.implementation, startedAt: result.startedAt, finishedAt: result.finishedAt, evidenceDirectory: directory } })
     return { lane, measurements, compositionWindow: { startedAt: source.startedAt, finishedAt: source.finishedAt }, scope: measurements.length ? 'Original owning immutable result dates; top-level campaign times are composition, including cache reuse' : 'Owning measurement dates unavailable; top-level campaign dates are composition only' }
   }
   const report = { generatedAt: new Date().toISOString(), sourceReports: options, measurementWindows: [measuredWindow('core', core), ...(community ? [measuredWindow('community', community)] : [])], sourcePin: core.sourcePin, referenceBackend: core.addon, versions, declaredCaseCount: caseIds.length, authoredFamilyCount: new Set(core.cases.map((value: any) => value.family)).size, comparison, rows, capabilityReviews: reviewed.reviews, boundaries: community?.boundaries ?? [], gaps: [...new Set([...(core.gaps ?? []), ...(community?.gaps ?? [])])], scope: 'Ordering is measured independent paint criteria on one actual reference-qualified denominator, not overall fidelity or speed. Native APIs, admission and painted output remain separate. Reference-unqualified criteria remain explicit; the reference is not assumed perfect. Aliases are attributed, never extra independent votes.' }
@@ -73,9 +73,9 @@ export function writeFidelityComparison(options: FidelityReportOptions) {
   const families = rows[0]?.families.map(value => value.family) ?? []
   const heatmap = `<table><caption>Paint by family: passed/qualified, with failed and unavailable counts. No timing inference.</caption><thead><tr><th>Implementation</th>${families.map(value => `<th>${html(value)}${core.cases.some((item: any) => item.family === value && item.required) ? '' : ' (supplement)'}</th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr data-project="${html(row.project)}"><th>${html(row.project)}</th>${row.families.map(cell => `<td data-pct="${cell.total ? cell.passed/cell.total : 0}" style="background:hsl(150 30% ${cell.total ? 98-28*cell.passed/cell.total : 98}%)">${cell.passed}/${cell.total}<small>${cell.failed}F ${cell.unavailable}U</small></td>`).join('')}</tr>`).join('')}</tbody></table>`
   mkdirSync(options.out, { recursive: true })
-  writeFileSync(join(options.out,'comparison.json'),JSON.stringify(report,null,2)+'\n')
+  writeBenchmarkDocument(join(options.out, 'comparison.json'), report)
   writeFileSync(join(options.out,'comparison.md'),lines.join('\n')+'\n')
-  writeFileSync(join(options.out,'index.html'),`<!doctype html><meta charset="utf-8"><title>Independent Mermaid fidelity</title><style>${style}</style><h1>Independent Mermaid fidelity</h1><p>${html(report.scope)}</p><p>${report.declaredCaseCount} cases; ${comparison.rawPopulation} declared criteria; ${comparison.calibratedPopulation} baseline-qualified; ${comparison.reviewRequired.length} reference criteria requiring review.</p><label>Filter implementation <input id="filter" type="search"></label>${table}<h2>Family evidence</h2>${heatmap}<h2>Review limits</h2><p>Native unavailable means no reviewed public-model projection, not a failed diagram. Reference qualification is observational; raw reference failures remain in the JSON. Layout is each renderer’s own. No pixel-equivalence, full typography or overall quality claim.</p><p><a href="comparison.json">Complete criterion and missing-evidence ledger</a></p><script>document.querySelector('#filter').addEventListener('input',e=>document.querySelectorAll('[data-project]').forEach(r=>r.hidden=!r.dataset.project.toLowerCase().includes(e.target.value.toLowerCase())))</script>`)
+  writeFileSync(join(options.out,'index.html'),`<!doctype html><meta charset="utf-8"><title>Independent Mermaid fidelity</title><style>${style}</style><h1>Independent Mermaid fidelity</h1><p>${html(report.scope)}</p><p>${report.declaredCaseCount} cases; ${comparison.rawPopulation} declared criteria; ${comparison.calibratedPopulation} baseline-qualified; ${comparison.reviewRequired.length} reference criteria requiring review.</p><label>Filter implementation <input id="filter" type="search"></label>${table}<h2>Family evidence</h2>${heatmap}<h2>Review limits</h2><p>Native unavailable means no reviewed public-model projection, not a failed diagram. Reference qualification is observational; raw reference failures remain in the JSON. Layout is each renderer’s own. No pixel-equivalence, full typography or overall quality claim.</p><p><a href="comparison.json.gz">Complete criterion and missing-evidence ledger (gzip JSON)</a></p><script>document.querySelector('#filter').addEventListener('input',e=>document.querySelectorAll('[data-project]').forEach(r=>r.hidden=!r.dataset.project.toLowerCase().includes(e.target.value.toLowerCase())))</script>`)
   return report
 }
 

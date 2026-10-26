@@ -1,12 +1,17 @@
 {
-  "name": "@agentic-mermaid/benchmarks",
+  "name": "trident",
   "private": true,
   "type": "module",
-  "description": "Local Mermaid benchmark campaigns and evidence reporting",
+  "description": "Trident: local Mermaid artifact benchmarks and retained evidence",
   "scripts": {
     "test": "bun run commands.ts test",
     "typecheck": "bun run commands.ts typecheck",
     "lint": "bun run commands.ts lint",
+    "run": "bun run commands.ts run",
+    "build": "bun run commands.ts build",
+    "agentic": "bun run commands.ts agentic",
+    "fidelity:report": "bun run commands.ts fidelity:report",
+    "export": "bun run commands.ts export",
     "bench": "bun run commands.ts bench",
     "community": "bun run commands.ts community",
     "prs": "bun run commands.ts prs",
@@ -16,7 +21,7 @@
   },
   "engines": {
     "bun": ">=1.4.0",
-    "node": ">=22"
+    "node": ">=24"
   },
   "dependencies": {
     "@resvg/resvg-js": "2.6.2",

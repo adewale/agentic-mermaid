@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Plot recorded fidelity comparisons; never invoke engines or acquire artifacts."""
 import argparse
-import json
+import sys
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from evidence import read_document
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -13,7 +15,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--report', required=True, type=Path)
 parser.add_argument('--out', required=True, type=Path)
 args = parser.parse_args()
-data = json.loads(args.report.read_text())
+data = read_document(args.report)
 args.out.mkdir(parents=True, exist_ok=True)
 rows = data['rows']
 colors = {'passed': '#178050', 'failed': '#bd3748', 'unavailable': '#b4bac2'}

@@ -1,3 +1,4 @@
+import { readBenchmarkDocument } from '../portable/project-records.ts'
 import { expect, test } from 'bun:test'
 import { createHash } from 'node:crypto'
 import { mkdtempSync, writeFileSync, rmSync, unlinkSync, readFileSync } from 'node:fs'
@@ -47,7 +48,7 @@ test('project selection precedes admission and returned SVG cannot forge observe
     writeFileSync(catalog, JSON.stringify({ nodes: [peer.node, excluded.node] })); writeFileSync(prepared, JSON.stringify([peer, excluded]))
     const result = await runCommunityFidelitySuite({ root: process.cwd(), harnessRoot: process.cwd(), out, profile: 'full', rounds: 1, fidelityDiagnostic: true, fidelityCaseIds: ['meaning:family:flowchart'], communityProjects: [peer.node.id], communityBrowserPreparedFile: prepared, communityCatalogFile: catalog, communityFidelityPng: 'none' })
     expect(result.observations.every(row => row.metrics?.implementation === peer.node.id)).toBe(true)
-    const report = JSON.parse(readFileSync(join(out, 'community-fidelity-report.json'), 'utf8'))
+    const report = readBenchmarkDocument(join(out, 'community-fidelity-report.json'))
     expect(report.boundaries.find((row: any) => row.project === excluded.node.id).status).toBe('not-selected')
     const receipt = JSON.parse(readFileSync(result.artifacts!.find(path => path.endsWith('community-fidelity-cases.json'))!, 'utf8'))
     expect(receipt.initialized).toBe(true)

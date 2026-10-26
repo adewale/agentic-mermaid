@@ -4,6 +4,7 @@ import { calibrate, median, summarize } from './statistics.ts'
 import { modelCost, processCpuCost, type UsageEvidence } from './costs.ts'
 
 export function portableSummary(cases: PortableCase[], results: PortableWorkerResult[], settings: { rounds: number; samples: number; coldSamples: number; maximumControlSpread: number; cpuHourUsd?: number; usage?: UsageEvidence }) {
+  if (new Set(results.map(result => result.protocol)).size > 1) throw Error('Cannot combine different portable measurement protocols')
   const tracks: Track[] = ['first-use', 'warm-repeat', 'warm-new-source', 'warm-label-edit']
   const rows = cases.flatMap(testCase =>
     tracks

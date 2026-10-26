@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from 'bun:test'
 import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { portableSummary } from '../portable/report.ts'
@@ -72,6 +72,7 @@ test('prepared fresh processes execute first-use API windows serially', async ()
   expect(results.every(result => result.apiWindow && result.tracks['first-use']?.length === 1)).toBe(true)
   expect(BigInt(results[1]!.apiWindow!.startNs) >= BigInt(results[0]!.apiWindow!.endNs)).toBe(true)
   expect(results.every(result => result.tracks['first-use']![0]! >= 18)).toBe(true)
+  expect(readdirSync(directory)).toEqual(['api'])
 }, 30_000)
 
 function workerFixture(body: string) {
@@ -152,6 +153,7 @@ test('duplicated fresh-process identities cannot replace missing samples', () =>
           results.push({ protocol: 'portable-svg-processes-v1', caseId: 'identity-grid', family: 'flowchart', mode, round, replica, sample, status: 'passed', importMs: 1, tracks: mode === 'cold' ? { 'first-use': [1] } : { 'warm-repeat': Array(31).fill(1), 'warm-new-source': Array(31).fill(1) }, outputBytes: 40, qualification: { accepted: true, passed: true, semanticComplete: true, checks: [], unmeasuredScopes: [], scope: 'fixture declared criteria' }, prelude: [], runtime: { executable: '/fixture/node', node: '24', platform: 'linux', arch: 'x64' } })
   const settings = { rounds: 5, samples: 31, coldSamples: 20, maximumControlSpread: 0.25 }
   expect(portableSummary(cases, results, settings).status).toBe('measured')
+  expect(() => portableSummary(cases, [{ ...results[0]!, protocol: 'portable-svg-processes-v2' }, ...results.slice(1)], settings)).toThrow('protocol')
   const first = results.find(result => result.mode === 'cold')!
   const missing = results.findIndex(result => result.mode === 'cold' && result.sample === 19)
   results[missing] = { ...first }
@@ -159,4 +161,60 @@ test('duplicated fresh-process identities cannot replace missing samples', () =>
   expect(incomplete.status).toBe('uncalibrated')
   expect(incomplete.cases[0]!.acceptanceMatches).toBe(false)
   expect(incomplete.cases[0]!.semanticComplete).toBe(false)
+})
+
+
+test('dedicated result pipe retains large Unicode errors despite renderer stdout noise', async () => {
+  const f = workerFixture('export function render(){console.log("unrelated renderer output");throw Error("λ漢".repeat(40000)+"error-end")}')
+  const result = await runSerialJob(f.job('cold'), f.node)
+  expect(result.status).toBe('failed')
+  const payload = JSON.stringify(result)
+  expect(payload).toContain('λ漢λ漢')
+  expect(payload).toContain('error-end')
+  expect(payload).not.toContain('\ufffd')
+  expect(readdirSync(f.directory).sort()).toEqual(['index.mjs', 'package.json'])
+})
+
+test('resource counters use a terminal observer frame without per-worker files', async () => {
+  const f = workerFixture('export function render(){return {svg:good}}')
+  const observer = join(f.directory, 'observer.mjs')
+  writeFileSync(observer, `#!/usr/bin/env node
+import{spawn}from'node:child_process';const args=process.argv.slice(2),at=args.indexOf('--')+1;const child=spawn(args[at],args.slice(at+1),{stdio:['inherit','inherit','inherit','inherit']});child.once('close',code=>{process.stderr.write('renderer diagnostic\\nTRIDENT_RESOURCE 0.25 0.5 2048\\n');process.exitCode=code??1})`)
+  chmodSync(observer, 0o755)
+  const result = await runSerialJob(f.job('memory'), f.node, observer)
+  expect(result.resource).toMatchObject({ userSeconds: .25, systemSeconds: .5, peakRssBytes: 2097152 })
+  expect(readdirSync(f.directory).sort()).toEqual(['index.mjs', 'observer.mjs', 'package.json'])
+  writeFileSync(observer, readFileSync(observer, 'utf8').replace('0.25 0.5 2048', 'NaN 0.5 2048'))
+  await expect(runSerialJob(f.job('memory', 'bad-observer'), f.node, observer)).rejects.toThrow('GNU time')
+})
+
+test('an import failure retains its terminal blocked payload without first-use credit', async () => {
+  const f = workerFixture('throw Error("backend-unavailable-at-import")')
+  await expect(runFirstUseBatch([f.job('cold')], f.node, 1)).rejects.toThrow('blocked before readiness')
+  const evidence = JSON.parse(readFileSync(join(f.directory, 'cold.json.failure.json'), 'utf8'))
+  expect(evidence.result.status).toBe('blocked')
+  expect(evidence.result.error).toContain('backend-unavailable-at-import')
+  expect(evidence.result.apiWindow).toBeUndefined()
+  expect(evidence.result.tracks).toEqual({})
+})
+
+test('a later cold worker cleanup failure does not lose earlier completed worker evidence', async () => {
+  const f = workerFixture('export function render(source){if(source.includes("cleanup-failure"))setImmediate(()=>{process.exitCode=1});return {svg:good}}')
+  const first = f.job('cold', 'first'), second = { ...f.job('cold', 'second'), sample: 1, testCase: { ...f.job('cold').testCase, source: 'flowchart LR\nA[Visible]\n%% cleanup-failure' } }
+  const retained: PortableWorkerResult[] = []
+  await expect(runFirstUseBatch([first, second], f.node, 2, result => retained.push(result))).rejects.toThrow('lifecycle')
+  expect(retained).toHaveLength(1)
+  expect(retained[0]).toMatchObject({ sample: 0, status: 'partial' })
+  expect(retained[0]!.tracks['first-use']).toHaveLength(1)
+  expect(existsSync(join(f.directory, 'second.json.failure.json'))).toBe(true)
+})
+
+test('unserializable jobs are rejected before any serial or batch worker can be left alive', async () => {
+  const f = workerFixture('export function render(){return {svg:good}}')
+  const invalid = { ...f.job('cold'), testCase: { ...f.job('cold').testCase, renderOptions: { invalid: 1n } } }
+  await expect(runSerialJob(invalid as any, f.node)).rejects.toThrow()
+  expect(() => resetPortableCancellation()).not.toThrow()
+  await expect(runFirstUseBatch([f.job('cold', 'valid'), invalid as any], f.node, 2)).rejects.toThrow()
+  expect(() => resetPortableCancellation()).not.toThrow()
+  expect(readdirSync(f.directory).sort()).toEqual(['index.mjs', 'package.json'])
 })
