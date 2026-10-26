@@ -51,6 +51,38 @@ function crossesInterior(a: Point, b: Point, box: Box): boolean {
 }
 
 describe('owned measured layered layout', () => {
+  test.each(['TD', 'BT', 'LR', 'RL'] as const)('projects terminal leads from the same fractional node borders in %s', direction => {
+    const horizontal = direction === 'LR' || direction === 'RL', reverse = direction === 'BT' || direction === 'RL'
+    const input = measured({ direction, padding: 40.123456789, nodes: [
+      { id: 'a', width: 104.194, height: 36.900000000000006 },
+      { id: 'b', width: 72.742, height: 43.287 },
+      { id: 'c', width: 91.658, height: 36.900000000000006 },
+      { id: 'd', width: 80.082, height: 29.713 },
+    ], edges: [{ source: 0, target: 2, minSpan: 1 }, { source: 1, target: 2, minSpan: 1 }, { source: 1, target: 3, minSpan: 1 }] })
+    const original = structuredClone(input)
+    const output = layoutLayeredGraph(input, () => undefined, reason => { throw new GraphLayoutUnsupportedError(reason) })
+    expect(input).toEqual(original)
+    const target = { ...input.nodes[2]!, ...output.nodes[2]! }, crossSize = horizontal ? target.height : target.width
+    const clamp = (horizontal ? target.y : target.x) + crossSize - Math.min(8, crossSize / 6)
+    const clampedRoute = output.edges[1]!.points
+    expect(horizontal ? clampedRoute.at(-1)!.y : clampedRoute.at(-1)!.x).toBe(clamp)
+    expect(horizontal ? clampedRoute.at(-2)!.y : clampedRoute.at(-2)!.x).toBe(clamp)
+    for (const [index, route] of output.edges.entries()) {
+      const edge = input.edges[index]!
+      for (const source of [true, false]) {
+        const id = source ? edge.source : edge.target, box = { ...input.nodes[id]!, ...output.nodes[id]! }
+        const endpoint = source ? route.points[0]! : route.points.at(-1)!, lead = source ? route.points[1]! : route.points.at(-2)!
+        const high = source !== reverse, face = horizontal ? box.x + (high ? box.width : 0) : box.y + (high ? box.height : 0)
+        expect(horizontal ? endpoint.x : endpoint.y).toBe(face)
+        expect(horizontal ? endpoint.y : endpoint.x).toBe(horizontal ? lead.y : lead.x)
+        expect((horizontal ? lead.x - endpoint.x : lead.y - endpoint.y) * (high ? 1 : -1)).toBeGreaterThan(0)
+      }
+      for (let segment = 1; segment < route.points.length; segment++) {
+        const a = route.points[segment - 1]!, b = route.points[segment]!
+        expect(a.x === b.x || a.y === b.y).toBe(true)
+      }
+    }
+  })
   test('sparse compound visibility preserves terminal leads around an overlapping obstacle union', () => {
     const bounds = { x: 0, y: 0, width: 220, height: 160 }
     const obstacles = [{ x: 0, y: 50, width: 20, height: 40 },

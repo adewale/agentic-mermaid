@@ -708,6 +708,25 @@ export function layoutLayeredGraph(
     return horizontal ? { x: orientedMain, y: padding + crossValue } : { x: padding + crossValue, y: orientedMain }
   }
 
+  // Node origins are the border authority used by the shape writer. Project
+  // terminal faces from those same values instead of reassociating center/half
+  // arithmetic, and carry each chosen cross coordinate through its lead.
+  const positionedNodes = nodes.map((node, index) => {
+    const center = point(cross[index]!, main[index]!)
+    return { x: center.x - node.width / 2, y: center.y - node.height / 2 }
+  })
+  const portCross = (value: number, index: number): number => {
+    const width = vertices[index]!.crossSize, margin = Math.min(8, width / 6)
+    const origin = horizontal ? positionedNodes[index]!.y : positionedNodes[index]!.x
+    if (value === cross[index]! - width / 2 + margin) return origin + margin
+    if (value === cross[index]! + width / 2 - margin) return origin + width - margin
+    return padding + value
+  }
+  const portMain = (index: number, source: boolean): number => {
+    const node = positionedNodes[index]!, size = nodes[index]!
+    return horizontal ? node.x + (source !== reverse ? size.width : 0) : node.y + (source !== reverse ? size.height : 0)
+  }
+
   // Cycle selection and loop compaction still depend on temporary route
   // geometry. Ordinary acyclic placement needs channels/gaps but no point
   // arrays: the family will build the actual side-constrained routes.
@@ -715,8 +734,10 @@ export function layoutLayeredGraph(
     ? edges.map(() => ({ points: [] as Point[] })) : edges.map((_, edgeIndex) => {
     const chain = chains[edgeIndex]!
     const points: Point[] = []
-    const append = (crossValue: number, mainValue: number): void => {
+    const append = (crossValue: number, mainValue: number, projectedCross?: number, projectedMain?: number): void => {
       const next = point(crossValue, mainValue)
+      if (projectedCross !== undefined) { if (horizontal) next.y = projectedCross; else next.x = projectedCross }
+      if (projectedMain !== undefined) { if (horizontal) next.x = projectedMain; else next.y = projectedMain }
       const last = points.at(-1)
       if (last?.x === next.x && last.y === next.y) return
       const previous = points.at(-2)
@@ -732,14 +753,16 @@ export function layoutLayeredGraph(
       const endMain = main[to]! - vertices[to]!.mainSize / 2
       const bandEnd = main[from]! + bandHeights[vertices[from]!.rank]! / 2
       const gapMain = bandEnd + step.offset
-      append(startCross, startMain)
-      append(startCross, gapMain)
-      append(step.targetEscape ?? endCross, gapMain)
+      const startProjectedCross = from < nodes.length ? portCross(startCross, from) : undefined
+      const endProjectedCross = to < nodes.length ? portCross(endCross, to) : undefined
+      append(startCross, startMain, startProjectedCross, from < nodes.length ? portMain(from, true) : undefined)
+      append(startCross, gapMain, startProjectedCross)
+      append(step.targetEscape ?? endCross, gapMain, step.targetEscape === undefined ? endProjectedCross : undefined)
       if (step.targetEscape !== undefined) {
         append(step.targetEscape, bandEnd + step.targetExit!)
-        append(endCross, bandEnd + step.targetExit!)
+        append(endCross, bandEnd + step.targetExit!, endProjectedCross)
       }
-      append(endCross, endMain)
+      append(endCross, endMain, endProjectedCross, to < nodes.length ? portMain(to, false) : undefined)
     }
     const labelIndex = labelVertices[edgeIndex]
     const labelPosition = labelIndex === undefined ? undefined : point(cross[labelIndex]!, main[labelIndex]!)
@@ -750,10 +773,7 @@ export function layoutLayeredGraph(
     expandedVertices: vertices.length,
     width: 2 * padding + (horizontal ? mainExtent : crossExtent),
     height: 2 * padding + (horizontal ? crossExtent : mainExtent),
-    nodes: nodes.map((node, index) => {
-      const center = point(cross[index]!, main[index]!)
-      return { x: center.x - node.width / 2, y: center.y - node.height / 2 }
-    }),
+    nodes: positionedNodes,
     edges: positionedEdges,
   }
 }
