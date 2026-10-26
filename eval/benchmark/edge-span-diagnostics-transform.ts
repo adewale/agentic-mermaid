@@ -31,7 +31,7 @@ export function instrumentExpansionSource(path: string, source: string, collecto
     replace('        best = alternative; bestScore = value;', '        __event(__frame, "candidate-selected", { crossings: value, bends, area })\n        best = alternative; bestScore = value;')
     replace('      if (!(error instanceof OptionalOrderDecline)) throw error', '      if (!(error instanceof OptionalOrderDecline)) throw error\n      __event(__frame, "candidate-declined", { reason: String(error) })')
   } else if (path.endsWith('agentic-compound-core.ts')) {
-    replace('): AgenticLayout {\n  const groups = input.groups!', '): AgenticLayout {\n  const __frame = __begin("compound", input, { routingWork }); try {\n  const groups = input.groups!')
+    replace('): AgenticLayout {\n  let groups = input.groups!', '): AgenticLayout {\n  const __frame = __begin("compound", input, { routingWork }); try {\n  let groups = input.groups!')
     replace('    const placed = layout(flat)', '    __event(__frame, "scope", { scope, nodes: nodes.length, edges: edges.length, direction })\n    const placed = layout(flat)')
     replace('  return routeCrossHierarchy(input, result,', '  __phase(__frame, "boundary-routing", { liftedEdges: lifted.size, selectedExpandedVertices: expandedVertices })\n  return routeCrossHierarchy(input, result,')
   } else if (path.endsWith('agentic-producer-core.ts')) {
