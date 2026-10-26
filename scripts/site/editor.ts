@@ -36,42 +36,26 @@ async function readFile(relativePath: string): Promise<string> {
   return relativePath.startsWith('html/') ? contents.replace(/<!--[\s\S]*?-->/g, '') : contents
 }
 
-async function readSharedBrowserFile(relativePath: string): Promise<string> {
-  return Bun.file(new URL(`../../shared/browser/${relativePath}`, import.meta.url)).text()
-}
-
 async function readCssFiles(fontPrefix: string, hosted: boolean): Promise<string> {
-  const order = [
-    'css/variables.css',
-    'css/topbar.css',
-    'css/panels.css',
-    'css/code-editor.css',
-    'css/preview.css',
-    ...(hosted ? ['css/runtime-recovery.css'] : []),
-    'css/config-panel.css',
-    'css/color-picker.css',
-    'css/font-picker.css',
-    'css/export.css',
-    'css/affordances.css',
-    'css/diagram-tools.css',
-    'css/misc.css',
-  ]
+  const order = ['css/variables.css', 'css/topbar.css', 'css/panels.css', 'css/code-editor.css', 'css/preview.css', ...(hosted ? ['css/runtime-recovery.css'] : []), 'css/config-panel.css', 'css/color-picker.css', 'css/font-picker.css', 'css/export.css', 'css/affordances.css', 'css/diagram-tools.css', 'css/misc.css']
   const parts = await Promise.all(order.map(f => readFile(f)))
   const result = await Bun.build({
     entrypoints: ['editor-css'],
     target: 'browser',
     minify: true,
-    plugins: [{
-      name: 'editor-css',
-      setup(build) {
-        build.onResolve({ filter: /^editor-css$/ }, () => ({ path: 'editor.css', namespace: 'editor-css' }))
-        build.onLoad({ filter: /.*/, namespace: 'editor-css' }, () => ({ contents: parts.join('\n\n'), loader: 'css' }))
+    plugins: [
+      {
+        name: 'editor-css',
+        setup(build) {
+          build.onResolve({ filter: /^editor-css$/ }, () => ({ path: 'editor.css', namespace: 'editor-css' }))
+          build.onLoad({ filter: /.*/, namespace: 'editor-css' }, () => ({ contents: parts.join('\n\n'), loader: 'css' }))
+        },
       },
-    }],
+    ],
   })
   if (!result.success) throw new AggregateError(result.logs, 'Editor stylesheet bundle failed')
   // Keep resource URLs under the existing host policy, outside CSS bundling.
-  return hostedFontFaceCss(fontPrefix) + '\n' + await result.outputs[0]!.text()
+  return hostedFontFaceCss(fontPrefix) + '\n' + (await result.outputs[0]!.text())
 }
 
 function editorExamplesDataJs(): string {
@@ -94,63 +78,19 @@ function editorFontDataJs(): string {
   return `var EDITOR_PRESET_FONTS = ${JSON.stringify([...hosted, ...system])};`
 }
 
-async function readJsFiles(hosted: boolean): Promise<string> {
-  const order = [
-    'js/helpers.js',
-    'js/state.js',
-    'js/elements.js',
-    'js/sharing.js',
-    ...(hosted ? ['js/runtime-recovery.js'] : []),
-    'js/rendering.js',
-    'js/motion.js',
-    'js/zoom.js',
-    'js/c4-navigation.js',
-    'js/diagram-tools.js',
-    'js/pan.js',
-    'js/editor-helpers.js',
-    'js/examples.js',
-    'js/config-panel.js',
-    'js/color-picker.js',
-    'js/font-picker.js',
-    'js/tabs.js',
-    'js/buttons.js',
-    'js/export.js',
-    'js/resize.js',
-    'js/toast.js',
-    'js/dark-mode.js',
-    'js/init.js',
-  ]
-  const [copyFeedback, ...parts] = await Promise.all([
-    readSharedBrowserFile('copy-feedback.js'),
-    ...order.map(f => readFile(f)),
-  ])
-  // Minify the ordered application together. Its own scope prevents shortened
-  // names colliding with the separately bundled renderer. Leave the generated
-  // catalog data outside that private scope for the site data contract.
-  const source = [copyFeedback, ...parts].join('\n\n')
+async function readJsFiles(): Promise<string> {
   const result = await Bun.build({
-    entrypoints: ['editor-app'],
+    entrypoints: [join(editorDir, 'js/entry.js')],
     target: 'browser',
     format: 'iife',
     minify: true,
-    plugins: [{
-      name: 'editor-app',
-      setup(build) {
-        build.onResolve({ filter: /^editor-app$/ }, () => ({ path: 'entry.js', namespace: 'editor-app' }))
-        build.onLoad({ filter: /.*/, namespace: 'editor-app' }, () => ({ contents: source, loader: 'js' }))
-      },
-    }],
   })
   if (!result.success) throw new AggregateError(result.logs, 'Editor application bundle failed')
   return [editorExamplesDataJs(), editorFamilyDataJs(), editorFontDataJs(), await result.outputs[0]!.text()].join('\n')
 }
 
 function escapeHtmlAttr(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
+  return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
 /** Full looks only — palette-only styles ARE the themes and already have the
@@ -158,12 +98,14 @@ function escapeHtmlAttr(value: string): string {
  *  palette, and render-option precedence stacks them (theme colors win). */
 function styleItemsHtml(): string {
   const looks = knownStyleDescriptors().filter(descriptor => descriptor.kind === 'look')
-  return looks.map((descriptor) => {
-    const key = descriptor.inputName
-    const label = descriptor.displayLabel
-    const hint = descriptor.spec.blurb ? `${label}: ${descriptor.spec.blurb}` : label
-    return `<button class="theme-dropdown-item${descriptor.isDefault ? ' active' : ''}" type="button" role="option" aria-selected="${descriptor.isDefault ? 'true' : 'false'}" data-style="${key}" title="${escapeHtmlAttr(hint)}" aria-label="${escapeHtmlAttr(hint)}">${label}</button>`
-  }).join('\n      ')
+  return looks
+    .map(descriptor => {
+      const key = descriptor.inputName
+      const label = descriptor.displayLabel
+      const hint = descriptor.spec.blurb ? `${label}: ${descriptor.spec.blurb}` : label
+      return `<button class="theme-dropdown-item${descriptor.isDefault ? ' active' : ''}" type="button" role="option" aria-selected="${descriptor.isDefault ? 'true' : 'false'}" data-style="${key}" title="${escapeHtmlAttr(hint)}" aria-label="${escapeHtmlAttr(hint)}">${label}</button>`
+    })
+    .join('\n      ')
 }
 
 function themeItemsHtml(): string {
@@ -183,28 +125,25 @@ function themeItemsHtml(): string {
 
 function pngScaleItemsHtml(): string {
   const scales = Array.from(new Set([1, PNG_DEFAULT_SCALE, 4])).sort((left, right) => left - right)
-  return scales.map(scale => {
-    const active = scale === PNG_DEFAULT_SCALE
-    return `<button class="size-pill${active ? ' active' : ''}" type="button" data-scale="${scale}" aria-pressed="${active ? 'true' : 'false'}">${scale}&times;</button>`
-  }).join('\n          ')
+  return scales
+    .map(scale => {
+      const active = scale === PNG_DEFAULT_SCALE
+      return `<button class="size-pill${active ? ' active' : ''}" type="button" data-scale="${scale}" aria-pressed="${active ? 'true' : 'false'}">${scale}&times;</button>`
+    })
+    .join('\n          ')
 }
 
-async function readHtmlPartials(themeItems: string, hosted: boolean): Promise<{
+async function readHtmlPartials(
+  themeItems: string,
+  hosted: boolean,
+): Promise<{
   topbar: string
   leftPanel: string
   rightPanel: string
 }> {
-  const [topbar, leftPanel, rightPanel] = await Promise.all([
-    readFile('html/topbar.html'),
-    readFile('html/left-panel.html'),
-    readFile('html/right-panel.html'),
-  ])
+  const [topbar, leftPanel, rightPanel] = await Promise.all([readFile('html/topbar.html'), readFile('html/left-panel.html'), readFile('html/right-panel.html')])
   return {
-    topbar: topbar
-      .replace('{{THEME_ITEMS}}', themeItems)
-      .replace('{{STYLE_ITEMS}}', styleItemsHtml())
-      .replace('{{PNG_DEFAULT_SCALE}}', String(PNG_DEFAULT_SCALE))
-      .replace('{{PNG_SCALE_ITEMS}}', pngScaleItemsHtml()),
+    topbar: topbar.replace('{{THEME_ITEMS}}', themeItems).replace('{{STYLE_ITEMS}}', styleItemsHtml()).replace('{{PNG_DEFAULT_SCALE}}', String(PNG_DEFAULT_SCALE)).replace('{{PNG_SCALE_ITEMS}}', pngScaleItemsHtml()),
     leftPanel,
     rightPanel: rightPanel.replace('{{RUNTIME_RECOVERY}}', hosted ? await readFile('html/runtime-recovery.html') : ''),
   }
@@ -219,18 +158,24 @@ async function generateEditorHtml(): Promise<string> {
   if (runtimeDirectory) {
     const workerBuild = await Bun.build({
       entrypoints: [fileURLToPath(new URL('../../src/browser-preview-worker.ts', import.meta.url))],
-      target: 'browser', format: 'esm', minify: true, splitting: true,
-      outdir: runtimeDirectory, naming: { entry: '[name]-[hash].js', chunk: 'chunk-[hash].js' },
-      plugins: [{
-        name: 'hosted-worker-dependencies',
-        setup(build) {
-          build.onResolve({ filter: /(?:^|\/)families\.ts$/ }, args => {
-            const original = fileURLToPath(new URL('../../src/agent/families.ts', import.meta.url))
-            return join(args.resolveDir, args.path) === original ? { path: fileURLToPath(new URL('../../src/agent/family-registry.ts', import.meta.url)) } : undefined
-          })
-          build.onResolve({ filter: /(?:^|\/)elk-constructor\.ts$/ }, () => ({ path: fileURLToPath(new URL('../../src/elk-constructor.lazy.ts', import.meta.url)) }))
+      target: 'browser',
+      format: 'esm',
+      minify: true,
+      splitting: true,
+      outdir: runtimeDirectory,
+      naming: { entry: '[name]-[hash].js', chunk: 'chunk-[hash].js' },
+      plugins: [
+        {
+          name: 'hosted-worker-dependencies',
+          setup(build) {
+            build.onResolve({ filter: /(?:^|\/)families\.ts$/ }, args => {
+              const original = fileURLToPath(new URL('../../src/agent/families.ts', import.meta.url))
+              return join(args.resolveDir, args.path) === original ? { path: fileURLToPath(new URL('../../src/agent/family-registry.ts', import.meta.url)) } : undefined
+            })
+            build.onResolve({ filter: /(?:^|\/)elk-constructor\.ts$/ }, () => ({ path: fileURLToPath(new URL('../../src/elk-constructor.lazy.ts', import.meta.url)) }))
+          },
         },
-      }],
+      ],
     })
     const workerEntry = workerBuild.outputs.find(output => output.kind === 'entry-point')
     if (!workerBuild.success || !workerEntry) throw new AggregateError(workerBuild.logs, 'Preview worker build failed')
@@ -241,22 +186,26 @@ async function generateEditorHtml(): Promise<string> {
     target: 'browser',
     format: 'esm',
     minify: true,
-    ...(runtimeDirectory ? {
-      define: { AM_PREVIEW_WORKER_URL: JSON.stringify(workerUrl) },
-      splitting: true,
-      outdir: runtimeDirectory,
-      naming: { entry: '[name]-[hash].js', chunk: 'chunk-[hash].js' },
-    } : {
-      plugins: [{
-        name: 'standalone-worker-families',
-        setup(build) {
-          build.onResolve({ filter: /(?:^|\/)verified-loaders\.ts$/ }, args => {
-            const original = fileURLToPath(new URL('../../src/browser-lazy/generated/verified-loaders.ts', import.meta.url))
-            return join(args.resolveDir, args.path) === original ? { path: fileURLToPath(new URL('../../src/browser-preview-eager-families.ts', import.meta.url)) } : undefined
-          })
-        },
-      }],
-    }),
+    ...(runtimeDirectory
+      ? {
+          define: { AM_PREVIEW_WORKER_URL: JSON.stringify(workerUrl) },
+          splitting: true,
+          outdir: runtimeDirectory,
+          naming: { entry: '[name]-[hash].js', chunk: 'chunk-[hash].js' },
+        }
+      : {
+          plugins: [
+            {
+              name: 'standalone-worker-families',
+              setup(build) {
+                build.onResolve({ filter: /(?:^|\/)verified-loaders\.ts$/ }, args => {
+                  const original = fileURLToPath(new URL('../../src/browser-lazy/generated/verified-loaders.ts', import.meta.url))
+                  return join(args.resolveDir, args.path) === original ? { path: fileURLToPath(new URL('../../src/browser-preview-eager-families.ts', import.meta.url)) } : undefined
+                })
+              },
+            },
+          ],
+        }),
   })
   if (!buildResult.success) {
     console.error('Bundle failed:', buildResult.logs)
@@ -276,11 +225,7 @@ async function generateEditorHtml(): Promise<string> {
 
   const themeItems = themeItemsHtml()
 
-  const [css, appJs, html] = await Promise.all([
-    readCssFiles(fontPrefix, Boolean(runtimeDirectory)),
-    readJsFiles(Boolean(runtimeDirectory)),
-    readHtmlPartials(themeItems, Boolean(runtimeDirectory)),
-  ])
+  const [css, appJs, html] = await Promise.all([readCssFiles(fontPrefix, Boolean(runtimeDirectory)), readJsFiles(), readHtmlPartials(themeItems, Boolean(runtimeDirectory))])
 
   // The standalone runtime is also the worker source; keep app DOM code separate.
   return `<!DOCTYPE html>

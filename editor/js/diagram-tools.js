@@ -1,46 +1,19 @@
-// Preview-only inspection never becomes the canonical SVG export. Board
-// wrapping, in contrast, is an explicit render option retained in its receipt.
-var diagramTools = document.createElement('div');
-diagramTools.className = 'diagram-tools';
-diagramTools.hidden = true;
-var kanbanWrapLabel = document.createElement('label');
-kanbanWrapLabel.hidden = true;
-var kanbanWrap = document.createElement('input');
-kanbanWrap.type = 'checkbox';
-kanbanWrap.id = 'kanban-wrap';
-kanbanWrapLabel.append(kanbanWrap, document.createTextNode('Wrap board to preview width'));
-var kanbanWrapNote = document.createElement('span');
-kanbanWrapNote.textContent = 'Exports use this width.';
-kanbanWrapNote.id = 'kanban-wrap-note';
-kanbanWrap.setAttribute('aria-describedby', kanbanWrapNote.id);
-var packetFieldLabel = document.createElement('label');
-packetFieldLabel.textContent = 'Packet field ';
-packetFieldLabel.htmlFor = 'packet-field-select';
-var packetFieldSelect = document.createElement('select');
-packetFieldSelect.id = 'packet-field-select';
-packetFieldSelect.setAttribute('aria-describedby', 'packet-field-details');
-var packetFieldDetails = document.createElement('output');
-packetFieldDetails.id = 'packet-field-details';
-packetFieldDetails.setAttribute('role', 'status');
-packetFieldDetails.setAttribute('aria-live', 'polite');
-diagramTools.append(kanbanWrapLabel, kanbanWrapNote, packetFieldLabel, packetFieldSelect, packetFieldDetails);
-document.querySelector('.preview-footer').prepend(diagramTools);
-var packetFields = new Map();
-var packetSelectedField = '';
-var diagramToolsSource = '';
-var diagramToolsFamily = '';
-var kanbanPreviousWidth;
-var kanbanPreviousZoom;
-var kanbanPendingZoom;
-var kanbanResizeFrame = 0;
+import { ui } from './context.js';
+import { activeCanvasFormat, currentEditorSource, hasCurrentVerifiedSvgArtifact, scheduleRender } from './rendering.js';
+import { applyZoom } from './zoom.js';
+import { previewBody, previewInner } from './elements.js';
+import { state } from './state.js';
+export var diagramTools, kanbanWrapLabel, kanbanWrap, kanbanWrapNote, packetFieldLabel, packetFieldSelect, packetFieldDetails, packetFields, packetSelectedField, diagramToolsSource, diagramToolsFamily, kanbanPreviousWidth, kanbanPreviousZoom, kanbanPendingZoom, kanbanResizeFrame;
 
-function packetFieldDescription(field) {
+
+export function packetFieldDescription(field) {
   return field.label + ': bits ' + field.start + '–' + field.end + ' (' + (field.end - field.start + 1) + ' bits); '
     + 'byte offsets ' + Math.floor(field.start / 8) + '–' + Math.floor(field.end / 8)
     + ', starting at bit ' + (field.start % 8) + ' of the first byte. Offsets are zero-based.';
 }
 
-function inspectPacketField(id) {
+
+export function inspectPacketField(id) {
   var field = packetFields.get(id);
   packetSelectedField = field ? id : '';
   packetFieldSelect.value = packetSelectedField;
@@ -53,11 +26,12 @@ function inspectPacketField(id) {
   });
 }
 
-function refreshDiagramTools() {
+
+export function refreshDiagramTools() {
   var available = hasCurrentVerifiedSvgArtifact();
   if (available) {
     diagramToolsSource = currentEditorSource();
-    var execution = lastRenderedSvgArtifact.receipt.executionDecision;
+    var execution = ui.lastRenderedSvgArtifact.receipt.executionDecision;
     diagramToolsFamily = execution ? execution.family.id.split(':').pop() : '';
   } else if (diagramToolsSource !== currentEditorSource()) {
     diagramToolsFamily = '';
@@ -108,7 +82,8 @@ function refreshDiagramTools() {
   inspectPacketField(packetSelectedField);
 }
 
-function updateKanbanPreviewWidth() {
+
+export function updateKanbanPreviewWidth() {
   if (!kanbanWrap.checked || diagramToolsFamily !== 'kanban') return;
   var width = Math.max(208, Math.floor(previewBody.clientWidth - 32));
   state.config = state.config || {};
@@ -117,6 +92,76 @@ function updateKanbanPreviewWidth() {
   state.config.kanban = Object.assign({}, current, { maxWidth: width });
   scheduleRender(0);
 }
+
+export function initialize() {
+// Preview-only inspection never becomes the canonical SVG export. Board
+// wrapping, in contrast, is an explicit render option retained in its receipt.
+diagramTools = document.createElement('div');
+
+diagramTools.className = 'diagram-tools';
+
+diagramTools.hidden = true;
+
+kanbanWrapLabel = document.createElement('label');
+
+kanbanWrapLabel.hidden = true;
+
+kanbanWrap = document.createElement('input');
+
+kanbanWrap.type = 'checkbox';
+
+kanbanWrap.id = 'kanban-wrap';
+
+kanbanWrapLabel.append(kanbanWrap, document.createTextNode('Wrap board to preview width'));
+
+kanbanWrapNote = document.createElement('span');
+
+kanbanWrapNote.textContent = 'Exports use this width.';
+
+kanbanWrapNote.id = 'kanban-wrap-note';
+
+kanbanWrap.setAttribute('aria-describedby', kanbanWrapNote.id);
+
+packetFieldLabel = document.createElement('label');
+
+packetFieldLabel.textContent = 'Packet field ';
+
+packetFieldLabel.htmlFor = 'packet-field-select';
+
+packetFieldSelect = document.createElement('select');
+
+packetFieldSelect.id = 'packet-field-select';
+
+packetFieldSelect.setAttribute('aria-describedby', 'packet-field-details');
+
+packetFieldDetails = document.createElement('output');
+
+packetFieldDetails.id = 'packet-field-details';
+
+packetFieldDetails.setAttribute('role', 'status');
+
+packetFieldDetails.setAttribute('aria-live', 'polite');
+
+diagramTools.append(kanbanWrapLabel, kanbanWrapNote, packetFieldLabel, packetFieldSelect, packetFieldDetails);
+
+document.querySelector('.preview-footer').prepend(diagramTools);
+
+packetFields = new Map();
+
+packetSelectedField = '';
+
+diagramToolsSource = '';
+
+diagramToolsFamily = '';
+
+kanbanPreviousWidth = undefined;
+
+kanbanPreviousZoom = undefined;
+
+kanbanPendingZoom = undefined;
+
+kanbanResizeFrame = 0;
+
 
 kanbanWrap.addEventListener('change', function() {
   if (kanbanWrap.checked) {
@@ -135,6 +180,7 @@ kanbanWrap.addEventListener('change', function() {
   }
   refreshDiagramTools();
 });
+
 if (typeof ResizeObserver === 'function') new ResizeObserver(function() {
   // ResizeObserver only schedules work. Rendering inside its delivery would
   // change the observed layout again before the browser completes the frame.
@@ -144,7 +190,9 @@ if (typeof ResizeObserver === 'function') new ResizeObserver(function() {
     updateKanbanPreviewWidth();
   });
 }).observe(previewBody);
+
 packetFieldSelect.addEventListener('change', function() { inspectPacketField(packetFieldSelect.value); });
+
 ['click', 'focusin', 'keydown'].forEach(function(type) {
   previewInner.addEventListener(type, function(event) {
     if (!hasCurrentVerifiedSvgArtifact() || !(event.target instanceof Element)) return;
@@ -155,5 +203,7 @@ packetFieldSelect.addEventListener('change', function() { inspectPacketField(pac
     inspectPacketField(fragment.getAttribute('data-field-id'));
   });
 });
+
 // Format switches and the blank-canvas action do not render a new artifact.
 new MutationObserver(function() { refreshDiagramTools(); }).observe(previewInner, { childList: true, attributes: true, attributeFilter: ['hidden'] });
+}

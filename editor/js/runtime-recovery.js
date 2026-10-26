@@ -1,7 +1,16 @@
-var reloadEditorButton = document.getElementById('reload-editor');
+import { ui } from './context.js';
+import { editor, runtimeRecovery } from './elements.js';
+import { currentEditorShareState, encodeSourceCompressed } from './sharing.js';
+import { showToast } from './toast.js';
+export var reloadEditorButton;
+
+export function initialize() {
+reloadEditorButton = document.getElementById('reload-editor');
+
 window.addEventListener('mermaid-runtime-status', function(event) {
   if (runtimeRecovery) runtimeRecovery.hidden = event.detail !== false;
 });
+
 if (reloadEditorButton) reloadEditorButton.addEventListener('click', async function() {
   reloadEditorButton.disabled = true;
   try {
@@ -16,7 +25,7 @@ if (reloadEditorButton) reloadEditorButton.addEventListener('click', async funct
       var snapshot = JSON.stringify(currentEditorShareState());
       var encoded = await encodeSourceCompressed(snapshot);
       if (snapshot !== JSON.stringify(currentEditorShareState())) continue;
-      ++hashUpdateToken;
+      ++ui.hashUpdateToken;
       window.history.replaceState(null, '', window.location.pathname + '#' + encoded);
       window.location.reload();
       return;
@@ -26,3 +35,4 @@ if (reloadEditorButton) reloadEditorButton.addEventListener('click', async funct
     reloadEditorButton.disabled = false;
   }
 });
+}
