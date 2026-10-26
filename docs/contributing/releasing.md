@@ -203,9 +203,9 @@ benchmark workflow has been removed, including its publication dependency.
 
 For the full suite catalog, project-level incremental updates, invocation
 coverage and report generation, see the
-[benchmark runner](../../eval/benchmark/unified/README.md). The
-[benchmark package boundary](../../eval/benchmark/README.md) documents local
-checks and the remaining Agentic Mermaid adapters needed for extraction.
+[Trident runner](https://github.com/adewale/trident/blob/main/unified/README.md). The
+[Trident README](https://github.com/adewale/trident/blob/main/README.md) documents local checks and the Agentic Mermaid
+adapters, and [`eval/trident`](../../eval/trident/README.md) documents the pinned launcher.
 
 ### Optional visual review
 

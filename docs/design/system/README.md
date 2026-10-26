@@ -55,7 +55,7 @@ produced *by* the system.
 - [`chart-honesty.md`](./chart-honesty.md) — what every family owes its reader (legible, contained, drawn-or-reported, style-invariant text; distinguishable peers; proportional quantities), measured on the rasterized output and bound to the registry.
 - [`layout-guarantees-and-robustness.md`](./layout-guarantees-and-robustness.md) — literature + industry synthesis: which invariants we can guarantee by construction vs. only optimize-and-certify, and the path to fuzz-robustness.
 - [`source-preservation-ladder.md`](./source-preservation-ladder.md) — the structured\|opaque family-adoption contract (L0–L4).
-- [`performance results`](../../../eval/benchmark/RESULTS.md) — fixed-baseline findings, tradeoffs, measurement limits and reproduction.
+- [`performance results`](https://github.com/adewale/trident/blob/main/RESULTS.md) — fixed-baseline findings, tradeoffs, measurement limits and reproduction.
 
 > These design docs are co-located here in `design/system/`; per-family notes live in
 > [`../families/`](../families/README.md).

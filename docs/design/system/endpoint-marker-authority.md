@@ -257,7 +257,7 @@ warm timings. Memory runs are separate from latency measurements.
 For reproduction, run the full benchmark with:
 
 ```sh
-bun run eval/benchmark/release-bench.ts \
+bun run bench:release \
   --baseline BASE_CHECKOUT --candidate HEAD_CHECKOUT \
   --rounds 3 --reps 5 --out OUT_DIR
 ```

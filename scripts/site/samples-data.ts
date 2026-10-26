@@ -2,7 +2,7 @@
  * Sample definitions for the Agentic Mermaid visual test suite.
  *
  * Shared by:
- *   - eval/benchmark/sample-bench.ts — runs performance benchmarks in Bun
+ *   - Trident's sample-bench.ts (`bun run bench:samples`) — runs performance benchmarks in Bun
  *   - eval/overlap-audit/ and eval/ugly-detector/ — layout / aesthetic audits
  *
  * Every supported feature, shape, edge type, block construct, and theme

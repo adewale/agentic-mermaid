@@ -20,7 +20,6 @@
     "dist",
     "website/public",
     "website/src/generated",
-    "eval/mermaid-upstream-suite-bench/upstream-*/**",
-    "eval/benchmark/**"
+    "eval/mermaid-upstream-suite-bench/upstream-*/**"
   ]
 }

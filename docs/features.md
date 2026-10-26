@@ -143,7 +143,7 @@ endpoint is a convenience surface rather than a REST render API.
   artifacts are present.
 - **Corpus gates** — pinned Mermaid documentation and MermaidSeqBench corpora,
   gated in CI; their manifests, rather than this prose, own current counts.
-- **Benchmarks** — `eval/benchmark/RESULTS.md` (measured vs mmdc, termaid).
+- **Benchmarks** — [Trident `RESULTS.md`](https://github.com/adewale/trident/blob/main/RESULTS.md) (measured vs mmdc, termaid).
 - **Agent-usage validation** — `eval/agent-usage/` scenarios,
   anti-pattern linter, sandbox trace instrumentation, and stored Code Mode eval runner.
 - **Unit, browser/e2e, typecheck, build, binary-build, eval, and lint gates**

@@ -59,7 +59,7 @@ competitiveness. Neither a partial adapter nor label-only numerical summaries
 qualify the complete Pele cohort. No upstream source is modified.
 
 The Node peer pin comes from the shared active policy at
-`eval/benchmark/tool-versions.json`, read through `tool-versions.ts`. This
+Trident's [`tool-versions.json`](https://github.com/adewale/trident/blob/main/tool-versions.json), read through `tool-versions.ts`. This
 adapter observes that policy's audited 1.9.0 release. The peer registry retains
 the shared policy expression; the adapter's explicit audited metadata stays
 separate. A future shared-policy upgrade must

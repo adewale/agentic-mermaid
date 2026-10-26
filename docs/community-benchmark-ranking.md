@@ -140,9 +140,9 @@ paint and typography/accessibility review, larger feature combinations, and
 whole-browser/native/GPU memory, leak slopes and deployed costs. Terminal/parser
 and editor tools retain their own invocation/cost lanes, not invented SVG scores.
 
-See the [suite overview](../eval/benchmark/OVERVIEW.md),
-[fidelity guide](../eval/benchmark/fidelity/README.md), and
-[assessment](../eval/benchmark/ASSESSMENT.md). The read-only report exports a
+See the [suite overview](https://github.com/adewale/trident/blob/main/OVERVIEW.md),
+[fidelity guide](https://github.com/adewale/trident/blob/main/fidelity/README.md), and
+[assessment](https://github.com/adewale/trident/blob/main/ASSESSMENT.md). The read-only report exports a
 searchable HTML comparison, separate-dimension bars, a full family heatmap and
 a reference-qualification chart. Generated reports and actual SVG/PNG evidence
 remain outside Git. Local report:
@@ -230,14 +230,14 @@ proved better Mermaid fidelity. The original-assertion projection covers only
 **99 of 3,995** inventoried declarations. Full feature combinations, independently
 reviewed community paint/meaning, whole-browser/native/GPU memory, leak slopes,
 concurrency and deployed costs remain incomplete. See the
-[assessment](../eval/benchmark/ASSESSMENT.md) and
-[overview](../eval/benchmark/OVERVIEW.md).
+[assessment](https://github.com/adewale/trident/blob/main/ASSESSMENT.md) and
+[overview](https://github.com/adewale/trident/blob/main/OVERVIEW.md).
 
 Current tables, JSON and 14 standalone SVG charts:
 `/workspace/mermaid-unified-2026-10-25/continuation/mermaid-baseline/current-report`.
 The separate full historical baseline rank is in
 `/workspace/mermaid-unified-2026-10-25/continuation/mermaid-baseline-retained/historical-community`.
-The [baseline guide](../eval/benchmark/visualizations/MERMAID-BASELINE.md) gives
+The [baseline guide](https://github.com/adewale/trident/blob/main/visualizations/MERMAID-BASELINE.md) gives
 collection, update and read-only report commands. An exact repeat reused all six new browser/Node records, with zero new measurement
 attempt directories or record files. Original IDs, raw observations and dates
 were preserved; reports do not create measurements.

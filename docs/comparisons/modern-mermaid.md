@@ -243,10 +243,10 @@ pnpm lint   # expected failure at the inspected revision
 cd ../agentic-mermaid
 bun install --frozen-lockfile --ignore-scripts
 bun run build:browser
-bun eval/modern-mermaid/run.mjs ../modern-mermaid ../modern-mermaid-evidence
-bun eval/modern-mermaid/summarize.mjs ../modern-mermaid-evidence
+bun run bench --profile full --suites modern-editor --modern-editor-root ../modern-mermaid --out ../modern-mermaid-evidence
+bun eval/modern-mermaid/summarize.mjs ../modern-mermaid-evidence/modern-editor
 bun run website
-bun eval/benchmark/editor-preview-bench.ts --site website/public --out ../agentic-editor-evidence
+bun run bench --profile full --suites editor-preview --out ../agentic-editor-evidence
 ```
 
 The runner writes `inventory.json`, `report.json`, `summary.json`, image exports
