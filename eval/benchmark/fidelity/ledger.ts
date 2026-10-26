@@ -1,6 +1,7 @@
 import type { BenchmarkObservation } from '../unified/types.ts'
 import { assessMeaning, type AuthoredFidelityCase } from './meaning.ts'
 import { plannedPaintCriteria } from './paint.ts'
+import { plannedQuantitativeCriteria } from './paint-values.ts'
 
 export interface FidelityCriterionPlan { caseId: string; family: string; required: boolean; surface: string; criterion: string }
 const key = (item: Pick<FidelityCriterionPlan, 'caseId' | 'surface' | 'criterion'>) => JSON.stringify([item.caseId, item.surface, item.criterion])
@@ -21,7 +22,7 @@ export function planFidelityCriteria(cases: readonly AuthoredFidelityCase[]): Fi
     for (const item of assessMeaning(testCase).checks) add('native-public-api', item.criterion)
     for (const [index] of (testCase.prelude ?? []).entries()) { add('native-public-api', 'prelude-' + index); add('browser-public-api', 'prelude-' + index) }
     add('browser-public-api', 'public-svg-admission'); add('browser-public-api', 'standalone-svg-and-labels')
-    for (const criterion of plannedPaintCriteria(testCase)) add('browser-owned-ink', criterion)
+    for (const criterion of [...plannedPaintCriteria(testCase), ...plannedQuantitativeCriteria(testCase)]) add('browser-owned-ink', criterion)
   }
   return result
 }
