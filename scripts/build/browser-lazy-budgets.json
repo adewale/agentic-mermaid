@@ -29,7 +29,7 @@
       "requests": 32,
       "raw": 617000,
       "gzip": 198000,
-      "brotli": 173000
+      "brotli": 173500
     },
     "class": {
       "requests": 37,
@@ -71,7 +71,7 @@
       "requests": 34,
       "raw": 622000,
       "gzip": 201000,
-      "brotli": 176500
+      "brotli": 177000
     },
     "gantt": {
       "requests": 32,
@@ -82,7 +82,7 @@
     "mindmap": {
       "requests": 32,
       "raw": 621000,
-      "gzip": 202500,
+      "gzip": 203000,
       "brotli": 186000
     },
     "gitgraph": {
@@ -119,7 +119,7 @@
       "requests": 34,
       "raw": 595000,
       "gzip": 195500,
-      "brotli": 173000
+      "brotli": 173500
     },
     "requirement": {
       "requests": 30,
@@ -137,7 +137,7 @@
       "requests": 31,
       "raw": 586500,
       "gzip": 191500,
-      "brotli": 169500
+      "brotli": 170000
     },
     "block": {
       "requests": 30,
