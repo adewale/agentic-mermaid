@@ -81,6 +81,46 @@ function ratios(report: PerformanceReport, numerator: string, denominator: strin
 
 export interface PerformanceScope { phase: PeerPhase; consumer: PeerConsumer }
 
+export interface RegressionCellRequest extends PerformanceScope { workload: string; metric: Metric }
+
+/** Shared arithmetic for declared cells, not population or diagnostic admission.
+ * Callers retain their own scope/quality checks; unavailable cells are never dropped. */
+export function regressionCells(candidate: PerformanceReport, controls: readonly PerformanceReport[], requests: readonly RegressionCellRequest[]) {
+  const policy = PERFORMANCE_POLICY
+  const keys = new Set<string>()
+  for (const request of requests) {
+    const id = JSON.stringify([request.workload, request.phase, request.consumer, request.metric])
+    if (!request.workload || !(PEER_PHASES as readonly string[]).includes(request.phase) || !(PEER_CONSUMERS as readonly string[]).includes(request.consumer)
+      || !Object.prototype.hasOwnProperty.call(policy.targets, request.metric) || keys.has(id)) throw new Error('Unknown or duplicate regression cell request')
+    keys.add(id)
+  }
+  const validControls = controls.length >= policy.minimumControlRuns && new Set(controls.map(r => r.runId)).size === controls.length && controls.every(r =>
+    r.status === 'completed' && r.config.rounds >= policy.minimumRounds && fingerprint(r) === fingerprint(candidate) && r.tracks?.contractVersion === policy.version &&
+    JSON.stringify(r.tracks?.cohort) === JSON.stringify(policy.cohort) && new Set(r.tracks.observations.map(key)).size === r.tracks.observations.length &&
+    /^[a-f0-9]{64}$/.test(r.pins.find(p => p.peer === 'agentic')?.identity?.sha256 ?? '') &&
+    r.pins.find(p => p.peer === 'agentic')?.identity?.sha256 === r.pins.find(p => p.peer === 'agentic-baseline')?.identity?.sha256 &&
+    r.pins.find(p => p.peer === 'agentic')?.identity?.sha256 === candidate.pins.find(p => p.peer === 'agentic-baseline')?.identity?.sha256) &&
+    candidate.config.rounds >= policy.minimumRounds && !!candidate.environment.hostname &&
+    /^[a-f0-9]{40}$/.test(String(candidate.tracksConfig?.harnessRevision ?? '')) && candidate.tracksConfig?.harnessDirty === false &&
+    (candidate.tracksConfig?.samples ?? 0) >= policy.minimumTailCallsPerRound &&
+    (candidate.tracksConfig?.allocationSamples ?? 0) >= policy.minimumAllocationSamplesPerRound
+  const calibrationReason = validControls ? undefined : 'Need at least two distinct completed same-runner/contract/policy A/A reports, each ≥5 rounds, using the exact comparison baseline archive'
+  const expectedControls = controls.reduce((sum, r) => sum + r.config.rounds, 0)
+  const cells: Array<{ gate: NumericGate; controlSpread: number; improvementFloor: number | undefined }> = []
+  for (const { workload, phase, consumer, metric } of requests) {
+    const controlRatios = validControls ? controls.flatMap(r => ratios(r, 'agentic', 'agentic-baseline', workload, phase, consumer, metric) ?? []) : []
+    const spread = controlRatios.length ? Math.max(...controlRatios.map(r => Math.max(r, 1 / r))) : Infinity
+    const calibrated = validControls && candidate.config.rounds >= policy.minimumRounds && controlRatios.length === expectedControls && spread <= policy.maximumControlSpread[metric]
+    const budget = calibrated ? Math.max(policy.targets[metric], spread * policy.calibrationMargin) : undefined
+    const result = ratios(candidate, 'agentic', 'agentic-baseline', workload, phase, consumer, metric)
+    const ratio = result ? median(result) : undefined
+    const reason = calibrationReason ?? (!calibrated ? 'Insufficient per-call/allocation observations or A/A spread exceeds the predeclared noise ceiling' : ratio === undefined ? 'Missing, failed or zero-denominator metric' : undefined)
+    const gate: NumericGate = { workload, phase, consumer, metric, status: !calibrated ? 'uncalibrated' : ratio === undefined ? 'unavailable' : ratio <= budget! ? 'pass' : 'fail', blocking: calibrated, ratio, target: policy.targets[metric], budget, controls: controlRatios, ...(reason ? { reason } : {}) }
+    cells.push({ gate, controlSpread: spread, improvementFloor: calibrated ? 1 / (spread * policy.calibrationMargin) : undefined })
+  }
+  return { calibration: { validControls, reason: calibrationReason }, expectedControls, cells }
+}
+
 /** Fail-closed completeness/semantic checks, separate from noisy numeric gates. */
 export function performanceScorecard(candidate: PerformanceReport, controls: readonly PerformanceReport[], scope?: PerformanceScope) {
   const policy = PERFORMANCE_POLICY
@@ -148,28 +188,19 @@ export function performanceScorecard(candidate: PerformanceReport, controls: rea
   }
   check('Required A/A observations complete without errors', controlFailures.length === 0 && controls.length >= policy.minimumControlRuns, controlFailures.join(', '))
 
-  const validControls = controls.length >= policy.minimumControlRuns && new Set(controls.map(r => r.runId)).size === controls.length && controls.every(r =>
-    r.status === 'completed' && r.config.rounds >= policy.minimumRounds && fingerprint(r) === fingerprint(candidate) && r.tracks?.contractVersion === policy.version &&
-    JSON.stringify(r.tracks?.cohort) === JSON.stringify(policy.cohort) && new Set(r.tracks.observations.map(key)).size === r.tracks.observations.length &&
-    /^[a-f0-9]{64}$/.test(r.pins.find(p => p.peer === 'agentic')?.identity?.sha256 ?? '') &&
-    r.pins.find(p => p.peer === 'agentic')?.identity?.sha256 === r.pins.find(p => p.peer === 'agentic-baseline')?.identity?.sha256 &&
-    r.pins.find(p => p.peer === 'agentic')?.identity?.sha256 === candidate.pins.find(p => p.peer === 'agentic-baseline')?.identity?.sha256) &&
-    candidate.config.rounds >= policy.minimumRounds && !!candidate.environment.hostname &&
-    /^[a-f0-9]{40}$/.test(String(candidate.tracksConfig?.harnessRevision ?? '')) && candidate.tracksConfig?.harnessDirty === false &&
-    (candidate.tracksConfig?.samples ?? 0) >= policy.minimumTailCallsPerRound &&
-    (candidate.tracksConfig?.allocationSamples ?? 0) >= policy.minimumAllocationSamplesPerRound
-  const calibrationReason = validControls ? undefined : 'Need at least two distinct completed same-runner/contract/policy A/A reports, each ≥5 rounds, using the exact comparison baseline archive'
-  const gates: NumericGate[] = []
+  const requests: RegressionCellRequest[] = []
   for (const workload of [...policy.fullAgenticCoverage, ...policy.scaling]) for (const phase of phases) for (const consumer of consumers) for (const metric of ['p50', 'p95', 'allocation'] as const) {
-    const controlRatios = validControls ? controls.flatMap(r => ratios(r, 'agentic', 'agentic-baseline', workload, phase, consumer, metric) ?? []) : []
-    const expectedControls = controls.reduce((sum, r) => sum + r.config.rounds, 0)
-    const spread = controlRatios.length ? Math.max(...controlRatios.map(r => Math.max(r, 1 / r))) : Infinity
-    const calibrated = validControls && candidate.config.rounds >= policy.minimumRounds && controlRatios.length === expectedControls && spread <= policy.maximumControlSpread[metric]
-    const budget = calibrated ? Math.max(policy.targets[metric], spread * policy.calibrationMargin) : undefined
-    const result = ratios(candidate, 'agentic', 'agentic-baseline', workload, phase, consumer, metric)
-    const ratio = result ? median(result) : undefined
-    const reason = calibrationReason ?? (!calibrated ? 'Insufficient per-call/allocation observations or A/A spread exceeds the predeclared noise ceiling' : ratio === undefined ? 'Missing, failed or zero-denominator metric' : undefined)
-    gates.push({ workload, phase, consumer, metric, status: !calibrated ? 'uncalibrated' : ratio === undefined ? 'unavailable' : ratio <= budget! ? 'pass' : 'fail', blocking: calibrated, ratio, target: policy.targets[metric], budget, controls: controlRatios, ...(reason ? { reason } : {}) })
+    requests.push({ workload, phase: phase as PeerPhase, consumer: consumer as PeerConsumer, metric })
+  }
+  const regression = regressionCells(candidate, controls, requests)
+  const { validControls, reason: calibrationReason } = regression.calibration
+  const expectedControls = regression.expectedControls
+  const gates: NumericGate[] = []
+  for (const { gate, controlSpread: spread } of regression.cells) {
+    const { workload, phase, consumer, metric } = gate
+    const calibrated = gate.blocking
+    const reason = gate.reason
+    gates.push(gate)
     if (consumer === 'receipt-json-utf8' || !(policy.cohort as readonly string[]).includes(workload)) continue
     for (const peer of policy.competitivePeers) {
       const paired = ratios(candidate, 'agentic', peer, workload, phase, consumer, metric)
