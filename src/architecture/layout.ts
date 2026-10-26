@@ -938,7 +938,8 @@ const ROUTE_EPSILON = 0.001
 /** The family renderer uses this retained measured band verbatim. */
 function architectureHeaderObstacle(group: PositionedArchitectureGroup): RouteObstacle | undefined {
   const height = group.headerHeight
-  if (height === undefined || !Number.isFinite(height) || height < 0 || height > group.height) {
+  // The writer uses the retained band height independently of its frame.
+  if (height === undefined || !Number.isFinite(height) || height < 0) {
     throw new LayoutCertificationError([{ strategy: 'architecture-final-headers', violations: [`group ${group.id}: missing or invalid measured header height`] }])
   }
   return height > 0 ? { id: group.id, kind: 'group-header', x: group.x, y: group.y, width: group.width, height } : undefined

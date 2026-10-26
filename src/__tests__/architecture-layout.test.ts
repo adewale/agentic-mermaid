@@ -456,3 +456,33 @@ it.each(['agentic', 'elk'] as const)('keeps %s item-side shafts outside their ow
   expect(edge.points[1]).toEqual({ x: 116, y: 152 })
   expect(edge.points.at(-2)).toEqual({ x: 116, y: 104 })
 })
+
+
+it('retains the measured header band when an empty Architecture group has no frame height', () => {
+  const source = 'architecture-beta\ngroup edge(cloud)[Edge]\ngroup app(server)[Application]\nservice api(server)[Public API] in app\njunction bus in app\nservice db(database)[Primary DB]\napi:R --> L:db\napi:B -["async fan-out"]-> T:bus'
+  const rendered = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'elk' } })
+  // This authored empty group keeps its actual zero-sized placement. The
+  // writer uses the retained 28px measurement independently of the frame.
+  expect(rendered.svg).toContain('class="architecture-group-frame" x="40" y="40" width="0" height="0"')
+  expect(rendered.svg).toContain('class="architecture-group-band" d="M40,40 H40 V68 H40 Z"')
+  const edgeTags = [...rendered.svg.matchAll(/<polyline\b[^>]*class="architecture-edge"[^>]*>/g)].map(match => match[0])
+  expect(edgeTags.length).toBe(2)
+  expect(edgeTags[0]).toContain('data-from="api" data-to="db"')
+  expect(edgeTags[0]).toContain('data-from-side="R" data-to-side="L"')
+  expect(edgeTags[1]).toContain('data-from="api" data-to="bus"')
+  expect(edgeTags[1]).toContain('data-from-side="B" data-to-side="T"')
+  for (const [edgeIndex, tag] of edgeTags.entries()) {
+    expect(tag).toContain('marker-end="url(')
+    const points = /points="([^"]+)"/.exec(tag)![1]!.split(' ').map(value => value.split(',').map(Number))
+    expect(points).toEqual(edgeIndex === 0
+      ? [[191.971, 146], [337.278, 146], [337.278, 158], [482.585, 158]]
+      : [[123.9855, 170], [123.9855, 190], [390.585, 190], [390.585, 206]])
+    // The actual nonempty Application band remains x38..420.585, y76..104;
+    // neither emitted route enters it. The empty band's open interior is empty.
+    for (let index = 1; index < points.length; index++) {
+      const a = points[index - 1]!, b = points[index]!
+      expect(Math.max(a[0]!, b[0]!) > 38 && Math.min(a[0]!, b[0]!) < 420.585
+        && Math.max(a[1]!, b[1]!) > 76 && Math.min(a[1]!, b[1]!) < 104).toBe(false)
+    }
+  }
+})
