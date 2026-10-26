@@ -22,6 +22,15 @@ and mesh100 cases measure larger-input behavior without altering the seven-case
 cohort. Unsupported, lost-label and error observations remain explicit for every
 peer, round, phase and consumer; third-party receipt APIs are not invented.
 
+An explicit `--sequence300 --workloads seq300 --tracks ...` adds the supplementary
+stress input from `releaseBenchCases()` case
+`sequence:20-participants-300-messages`, including its canonical SVG label list.
+It reuses the same workers and consumed SVG/receipt clocks. The default fourteen
+inputs and fixed seven-case cohort do not change; this input is not a replacement
+for Sequence20 or a complete scorecard by itself. Its release case ID and literal
+source/labels enter the existing track-input fingerprint, and reproduction retains
+the opt-in flag. Warm-new-source renames its participant IDs; label-edit keeps them.
+
 `--tracks all` separates:
 
 - **First use:** 21 individually timed first renders, three allocation probes

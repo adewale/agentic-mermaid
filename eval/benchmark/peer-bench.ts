@@ -13,6 +13,7 @@ import './ci-policy-enforce.ts'
 // --tracks all|first-use,warm-new-source,exact-repeat,label-edit opts into
 // consumed SVG/complete receipts and per-call p50/p95 rather than legacy batches.
 // --track-schedule peer-block-v1|paired-cold-ordinal-v1 declares first-use launch order.
+// --sequence300 --workloads seq300 adds the canonical release stress input to consumed tracks.
 // --aa adds an independently installed identical agentic-baseline; alternatively
 // --baseline-tarball PATH --baseline-sha256 DIGEST installs a pinned baseline.
 // Durable reports default to bench-report/peer-report.{json,md}; adjacent JSONL
@@ -23,7 +24,7 @@ import './ci-policy-enforce.ts'
 //
 // Advisory only: it replaces the dated hand-run tables in docs/comparison.md
 // with a re-runnable command. The qualification wrapper can run consumed tracks
-// in CI with separate calibrated gates. `agentic` is the
+// locally with separate calibrated gates. `agentic` is the
 // local `dist/` (run `bun run build` first). Registry peers are installed at
 // the exact version pinned below into
 // node_modules/.cache/agentic-mermaid-peers/<name>@<version>/, with install
@@ -529,7 +530,7 @@ interface ProcessRecord {
 const UNSUPPORTED = /Invalid mermaid header|No diagram type detected|UnknownDiagramError|Unrecognized Mermaid header|(?:unsupported|inventory-only) in Agentic Mermaid|unsupported diagram|diagram type is not supported/i
 
 function parseArgs(argv: readonly string[]): Map<string, string> {
-  const flags = new Set(['quick', 'child', 'corpus', 'aa'])
+  const flags = new Set(['quick', 'child', 'corpus', 'aa', 'sequence300'])
   const valued = new Set(['peers', 'workloads', 'rounds', 'json', 'markdown', 'agentic-npm', 'job', 'out', 'candidate-tarball', 'candidate-sha256', 'elk-cache', 'tracks', 'track-consumers', 'track-schedule', 'baseline-tarball', 'baseline-sha256', 'runtime-source'])
   const options = new Map<string, string>()
   for (let i = 0; i < argv.length; i++) {
@@ -892,11 +893,12 @@ async function main(): Promise<void> {
   // A runtime path keeps the worker bundle from walking src/ through the
   // cases' lazy imports (and emitting its native assets); workers get sources
   // from the job file.
+  const sequence300 = args.has('sequence300') ? (await import('./peer-sequence300-input.ts')).sequence300StudyInput(args) : undefined
   const { MICRO_WORKLOADS } = (await import(pathToFileURL(join(ROOT, 'eval/benchmark/micro-bench-cases.ts')).href)) as typeof import('./micro-bench-cases.ts')
   const inventory = args.has('corpus') ? ((await import(pathToFileURL(join(ROOT, 'eval/shared/official-fences.ts')).href)).officialCorpusInventory() as ReturnType<typeof import('../shared/official-fences.ts').officialCorpusInventory>) : undefined
-  const sources: Record<string, string> = inventory ? Object.fromEntries(inventory.occurrences.map(input => [input.id, input.source])) : MICRO_WORKLOADS
-  const expectedLabels: Record<string, readonly string[]> = inventory ? Object.fromEntries(inventory.occurrences.map(input => [input.id, []])) : EXPECTED_LABELS
-  const available: Record<Output, readonly string[]> = inventory ? { svg: Object.keys(sources), terminal: Object.keys(sources) } : WORKLOADS
+  const sources: Record<string, string> = inventory ? Object.fromEntries(inventory.occurrences.map(input => [input.id, input.source])) : sequence300 ? { ...MICRO_WORKLOADS, seq300: sequence300.source } : MICRO_WORKLOADS
+  const expectedLabels: Record<string, readonly string[]> = inventory ? Object.fromEntries(inventory.occurrences.map(input => [input.id, []])) : sequence300 ? { ...EXPECTED_LABELS, seq300: sequence300.expected } : EXPECTED_LABELS
+  const available: Record<Output, readonly string[]> = inventory ? { svg: Object.keys(sources), terminal: Object.keys(sources) } : sequence300 ? { ...WORKLOADS, svg: [...WORKLOADS.svg, 'seq300'] } : WORKLOADS
   const rounds = Number(args.get('rounds') ?? 3)
   if (!Number.isSafeInteger(rounds) || rounds < 1) throw new Error('--rounds must be a positive integer')
   const elkCache = (args.get('elk-cache') ?? 'off') as 'on' | 'off'
@@ -999,7 +1001,7 @@ async function main(): Promise<void> {
     const trackSettings = { coldSamples: args.has('quick') ? 3 : 21, warmCalls: args.has('quick') ? 3 : 20, warmupMs: args.has('quick') ? 0 : 1000, samples: args.has('quick') ? 3 : 201, allocationSamples: 3, maxCaseMs: args.has('quick') ? timing.maxCaseMs : 180_000 }
     const tracks: PeerTrackReport = { schemaVersion: 1, contractVersion: 'semantic-peer-v1', cohort: PEER_FROZEN_COHORT, phases, consumers, scaling, observations: [] }
     const trackWorkloads = [...workloads.svg, ...scaling]
-    const trackInputs = Object.fromEntries(trackWorkloads.map(id => [id, { source: trackSources[id], expected: trackExpected[id] }]))
+    const trackInputs = Object.fromEntries(trackWorkloads.map(id => [id, { source: trackSources[id], expected: trackExpected[id], ...(sequence300?.id === id ? { releaseCaseId: sequence300.releaseCaseId } : {}) }]))
     const harnessRevision = git(['rev-parse', 'HEAD'])
     // Semantic adapters also import geometry/color helpers from src.
     const harnessDirty = git(['status', '--porcelain', '--untracked-files=no']).length > 0 || git(['status', '--porcelain', '--', 'src', 'eval']).length > 0
@@ -1088,6 +1090,7 @@ async function main(): Promise<void> {
     out.push(`- Runtimes: Node ${nodeVersion} (Node workers), Bun ${process.versions.bun ?? 'n/a'} (orchestrator)`)
     const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`
     const command = ['bun run bench:peers', '--peers', quote(peers.map(peer => peer.id).join(',')), '--workloads', quote(selected.join(',')), '--rounds', String(rounds), '--elk-cache', elkCache, ...(phases.length ? ['--tracks', quote(phases.join(',')), '--track-consumers', quote(consumers.join(',')), '--track-schedule', trackSchedule] : []), ...(args.has('aa') ? ['--aa'] : []), ...(args.has('baseline-tarball') ? ['--baseline-tarball', quote(resolve(args.get('baseline-tarball')!)), '--baseline-sha256', args.get('baseline-sha256')!] : []), ...(args.has('quick') ? ['--quick'] : []), ...(inventory ? ['--corpus'] : []), ...(npmVersion ? ['--agentic-npm', quote(npmVersion)] : []), ...(args.has('candidate-tarball') ? ['--candidate-tarball', quote(resolve(args.get('candidate-tarball')!)), '--candidate-sha256', args.get('candidate-sha256')!] : [])]
+    if (sequence300) command.push(...sequence300.reproductionArgs)
     out.push('- Reproduce:', '', '```sh', command.join(' '), '```')
     out.push(`- Policy: ELK cache ${elkCache}; built-in Scene assertions off; Node --expose-gc and final untimed GC; APL environment ${JSON.stringify(policy.aplEnvironment)}`)
     if (inventory)

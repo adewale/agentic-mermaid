@@ -7,6 +7,8 @@ import { consumePeerOutput, finalizeTrackObservation, emptyTrackObservation, ins
 import * as protocol from '../peer-tracks.ts'
 import { measurePeerTrack } from '../peer-track-worker.ts'
 import { coldTrackGroups, combineColdTrackRows, pairedColdTrackSchedule } from '../peer-track-schedule.ts'
+import { sequence300StudyInput } from '../peer-sequence300-input.ts'
+import { releaseBenchCases } from '../release-bench-cases.ts'
 import { useTestChildren } from './helpers/test-child.ts'
 
 const runChild = useTestChildren(10_000)
@@ -40,6 +42,42 @@ async function captureVariantStreams(phase: 'warm-new-source' | 'label-edit', ca
 }
 
 describe('maintained consumed peer protocol', () => {
+  test('explicit Sequence300 stress selection reuses canonical source and labels without entering default cohorts', async () => {
+    expect(sequence300StudyInput(new Map())).toBeUndefined()
+    for (const args of [
+      [['sequence300', 'true']],
+      [['sequence300', 'true'], ['tracks', 'warm-new-source']],
+      [['sequence300', 'true'], ['tracks', 'warm-new-source'], ['workloads', 'seq20']],
+      [['sequence300', 'true'], ['tracks', 'warm-new-source'], ['workloads', 'seq300'], ['corpus', 'true']],
+    ]) expect(() => sequence300StudyInput(new Map(args as [string, string][]))).toThrow('--sequence300 requires')
+    const study = sequence300StudyInput(new Map([['sequence300', 'true'], ['tracks', 'warm-new-source'], ['workloads', 'seq20,seq300']]))!
+    const canonical = releaseBenchCases().find(input => input.id === 'sequence:20-participants-300-messages')!
+    expect(study.source).toBe(canonical.source)
+    expect(study.expected).toBe(canonical.expectedSvgLabels!)
+    expect(study.releaseCaseId).toBe(canonical.id)
+    expect(study.reproductionArgs).toEqual(['--sequence300'])
+    expect(study.expected).toHaveLength(300)
+    expect(study.expected.at(-1)).toBe('message 299')
+    const pairs = [...study.source.matchAll(/(P\d+)->>(P\d+):/g)]
+    expect(pairs).toHaveLength(300)
+    const nodes = [...new Set(pairs.flatMap(pair => [pair[1]!, pair[2]!]))]
+    expect(nodes).toHaveLength(20)
+    expect(protocol.PEER_EXPECTED_LABELS).not.toHaveProperty('seq300')
+    expect(protocol.PEER_FROZEN_COHORT).not.toContain('seq300')
+    const edit = peerTrackVariant(study, 'label-edit', 2)
+    expect(edit.source).toContain('P0->>P1: q2')
+    expect(edit.expected[0]).toBe('q2')
+    const fresh = peerTrackVariant(study, 'warm-new-source', 3)
+    expect(fresh.source).toContain('v3_P0->>v3_P1: q3')
+    expect(fresh.source).not.toMatch(/\bP\d+\b/)
+    const rendered = `<svg>${nodes.map(id => `<g data-id="${id}"/>`).join('')}${pairs.map(pair => `<path d="M0 0L10 10" data-from="${pair[1]}" data-to="${pair[2]}"/>`).join('')}</svg>`
+    expect(inspectPeerSemantics(rendered, study, true).ok).toBe(true)
+    expect(inspectPeerSemantics(rendered.replaceAll('data-to="P1"', 'data-to="P0"'), study, true).ok).toBe(false)
+    const child = await runChild(process.execPath, [resolve(import.meta.dir, '../peer-bench.ts'), '--sequence300', '--workloads', 'seq300', '--tracks', 'warm-new-source', '--peers', 'not-a-real-peer'], { cwd: resolve(import.meta.dir, '../../..') })
+    expect(child.status).toBe(1)
+    expect(child.stderr).toContain('Unknown peer not-a-real-peer')
+    expect(child.stdout).toBe('')
+  })
   test('records only known runtime selectors while preserving explicit empty experiments', () => {
     expect(peerExecutionEnvironment({})).toEqual({ experiments: null, nodeOptions: null, bunOptions: null, nodeEnv: null, timezone: null })
     const policy = peerExecutionEnvironment({ AGENTIC_MERMAID_EXPERIMENTS: '', NODE_OPTIONS: '--max-old-space-size=4096', UNRELATED_SECRET: 'must-not-appear' })

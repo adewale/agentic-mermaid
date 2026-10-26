@@ -87,7 +87,7 @@ export function peerTrackVariant(input: TrackInput, phase: PeerPhase, variant: n
     expected = input.expected.map(item => item === previous ? label : item)
   }
   if (source === input.source) throw new Error(`Label edit did not change ${input.id}`)
-  if (phase === 'warm-new-source' && /^(?:flow5|tree\d+|mesh\d+|seq20|class80|er40|state80)$/.test(input.id)) {
+  if (phase === 'warm-new-source' && /^(?:flow5|tree\d+|mesh\d+|seq20|seq300|class80|er40|state80)$/.test(input.id)) {
     const rename = (text: string) => text.replace(/\b(?:[A-E]|n\d+|P\d+|C\d+|E\d+|S\d+)\b/g, id => `${prefixes.identity}${variant}_${id}`)
     source = rename(source)
     expected = expected.map(rename)
@@ -103,7 +103,7 @@ function authoredRelations(input: TrackInput): Array<[string, string]> | undefin
   const text = '(?:\\[[^\\]\\n]*\\]|\\{[^}\\n]*\\})?'
   let pattern: RegExp
   if (/^(flow5|tree\d+|mesh\d+)$/.test(input.id)) pattern = new RegExp(`${id}${text}\\s*-->\\s*(?:\\|[^|]*\\|\\s*)?${id}`, 'g')
-  else if (input.id === 'seq20') pattern = new RegExp(`${id}->>${id}`, 'g')
+  else if (input.id === 'seq20' || input.id === 'seq300') pattern = new RegExp(`${id}->>${id}`, 'g')
   else if (input.id === 'class80') pattern = new RegExp(`${id}\\s*<\\|--\\s*${id}`, 'g')
   else if (input.id === 'er40') pattern = new RegExp(`${id}\\s*\\|\\|--o\\{\\s*${id}`, 'g')
   else if (input.id === 'state80') pattern = new RegExp(`${id}\\s*-->\\s*${id}`, 'g')
