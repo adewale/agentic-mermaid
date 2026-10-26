@@ -213,6 +213,72 @@ test('repeated private native drawings preserve receipts, policy and final secur
   expect(child.status).toBe(0)
 }, 30_000)
 
+test('a producer changed between drawing and certification cannot publish a retained artifact', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import assert from 'node:assert/strict'
+    import { renderMermaidSVGWithReceipt } from './src/index.ts'
+    import { getFamily } from './src/agent/families.ts'
+    import { inheritNativeDrawing, nativeDrawingOf, sceneLowering } from './src/scene/drawing.ts'
+    import { withRenderStageObserver } from './src/render-stages.ts'
+    const lower = getFamily('sequence').lowerScene
+    const original = nativeDrawingOf(lower)
+    const originalSource = sceneLowering(original)
+    let customCalls = 0
+    const customSource = sceneLowering((factory, context) => { customCalls++; return original(factory, context) })
+    const source = 'sequenceDiagram\\n ProducerA->>ProducerB: ownership interval'
+    const events = []
+    const symbol = Symbol.for('agentic-mermaid.performance-observer.v1')
+    globalThis[symbol] = event => events.push(event)
+    const render = callback => {
+      const start = events.length
+      const result = callback()
+      return { result, events: events.slice(start) }
+    }
+    const warm = render(() => renderMermaidSVGWithReceipt(source))
+    let changed = false
+    const raced = render(() => withRenderStageObserver(sample => {
+      if (!changed && sample.stage === 'drawing') {
+        changed = true
+        inheritNativeDrawing(customSource, lower)
+      }
+    }, () => renderMermaidSVGWithReceipt(source)))
+    assert.equal(changed, true)
+    assert.equal(customCalls, 0, 'the interval render must finish with its captured producer')
+    assert.deepEqual(raced.result, warm.result)
+    const changedProducer = render(() => renderMermaidSVGWithReceipt(source))
+    assert.equal(customCalls, 1, 'the installed replacement must construct its own drawing')
+    assert.deepEqual(changedProducer.result, warm.result)
+    inheritNativeDrawing(originalSource, lower)
+    const restoredMiss = render(() => renderMermaidSVGWithReceipt(source))
+    assert.equal(restoredMiss.events.filter(event => event.owner === 'native-drawing' && event.detail === 'positioned-owner').length, 0,
+      'the interval render must not publish after its producer changes')
+    const restoredHit = render(() => renderMermaidSVGWithReceipt(source))
+    assert.equal(restoredHit.events.filter(event => event.owner === 'native-drawing' && event.detail === 'positioned-owner').length, 1)
+    let switchedOnHit = false
+    globalThis[symbol] = event => {
+      events.push(event)
+      if (!switchedOnHit && event.owner === 'native-drawing' && event.detail === 'positioned-owner') {
+        switchedOnHit = true
+        inheritNativeDrawing(customSource, lower)
+      }
+    }
+    const callsBeforeHitRace = customCalls
+    const hitRace = render(() => renderMermaidSVGWithReceipt(source))
+    assert.equal(switchedOnHit, true)
+    assert.equal(customCalls, callsBeforeHitRace + 1, 'a producer changed by the hit observer must construct its own drawing')
+    assert.ok(hitRace.events.some(event => event.owner === 'native-drawing' && event.outcome === 'bypass' && event.reason === 'changed-producer'))
+    inheritNativeDrawing(originalSource, lower)
+    assert.ok(warm.events.some(event => event.owner === 'svg-inspection' && event.detail === 'final-security'))
+    for (const [name, sample] of Object.entries({ raced, changedProducer, restoredMiss, restoredHit, hitRace })) {
+      assert.deepEqual(sample.result, warm.result)
+      assert.equal(sample.events.filter(event => event.owner === 'svg-inspection' && event.detail === 'final-security').length, 1, name)
+    }
+    delete globalThis[symbol]
+  `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '1' } })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+}, 30_000)
+
 
 test('family ownership follows constructed identities and backend ownership follows successful original enrollment', async () => {
   for (const mode of ['original', 'changed-before-enrollment', 'failed-enrollment']) {
