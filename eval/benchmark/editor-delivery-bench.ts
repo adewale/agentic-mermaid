@@ -1,3 +1,4 @@
+import './ci-policy-enforce.ts'
 // Advisory delivery diagnostic: measure the actual requested graph at each
 // interaction boundary, including work inside the persistent module worker.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'

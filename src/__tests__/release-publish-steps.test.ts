@@ -15,7 +15,6 @@ const temp = useTempDirs()
 
 const REPO = join(import.meta.dir, '..', '..')
 const workflow = parseYaml(readFileSync(join(REPO, '.github', 'workflows', 'publish.yml'), 'utf8'))
-const benchmarkWorkflow = parseYaml(readFileSync(join(REPO, '.github', 'workflows', 'release-benchmark.yml'), 'utf8'))
 const ciWorkflow = parseYaml(readFileSync(join(REPO, '.github', 'workflows', 'ci.yml'), 'utf8'))
 
 interface Step { name?: string; run?: string; env?: Record<string, string> }
@@ -68,78 +67,6 @@ function tarball(dir: string, packageJson: Record<string, unknown>, extra: Recor
 const sha256 = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex')
 const sriSha512 = (bytes: Buffer) => `sha512-${createHash('sha512').update(bytes).digest('base64')}`
 
-describe('release benchmark: explicitly requested evidence scope', () => {
-  const guard = step('benchmark', 'Validate and record requested evidence scope', benchmarkWorkflow)
-  test.each(['', 'all', 'fixed'])('records %s scope without claiming skipped qualification', scope => {
-    const dir = tempDir(), result = execute(guard, dir, { EVIDENCE_SCOPE: scope, FIXED_BASELINE_SHA: '1'.repeat(40) })
-    expect(result.status).toBe(0)
-    const requested = scope || 'all', receipt = JSON.parse(readFileSync(join(dir, 'bench-report/evidence-scope.json'), 'utf8'))
-    expect(receipt.requestedScope).toBe(requested)
-    expect(receipt.fullQualificationRequested).toBe(requested === 'all')
-    expect(receipt.skippedLanes.length).toBe(requested === 'fixed' ? 3 : 0)
-  })
-  test.each([{ scope: 'fixed', sha: '' }, { scope: 'fixed', sha: 'main' }, { scope: 'unknown', sha: '1'.repeat(40) }])('rejects an invalid scope request before candidate work', ({ scope, sha }) => {
-    const dir = tempDir(), result = execute(guard, dir, { EVIDENCE_SCOPE: scope, FIXED_BASELINE_SHA: sha })
-    expect(result.status).not.toBe(0)
-    expect(existsSync(join(dir, 'bench-report/evidence-scope.json'))).toBe(false)
-  })
-  test.each(['', 'verified-publication'])('records independent verified candidate provenance for %s', artifact => {
-    const dir = tempDir(), bytes = Buffer.from('verified original archive'), checkout = '1'.repeat(40), workflowRevision = '2'.repeat(40)
-    mkdirSync(join(dir, 'release-artifact'))
-    writeFileSync(join(dir, 'release-artifact/package.tgz'), bytes)
-    stub(dir, 'git', `printf '%s\\n' '${checkout}'`)
-    const result = execute(step('benchmark', 'Record verified candidate provenance', benchmarkWorkflow), dir, {
-      GITHUB_SHA: checkout, GITHUB_WORKFLOW_SHA: workflowRevision, GITHUB_WORKFLOW_REF: 'owner/repo/.github/workflows/release-benchmark.yml@main', CANDIDATE_ARTIFACT: artifact,
-    })
-    expect(result.status).toBe(0)
-    expect(JSON.parse(readFileSync(join(dir, 'bench-report/candidate-provenance.json'), 'utf8'))).toMatchObject({ checkoutRevision: checkout, eventRevision: checkout, workflowRevision,
-      packageSha256: createHash('sha256').update(bytes).digest('hex'), packageIntegrity: sriSha512(bytes), candidateArtifact: artifact,
-      artifactOrigin: artifact ? 'provided verified publication artifact' : 'built in this job' })
-  })
-})
-
-describe('release benchmark: baseline identity across workflow retries', () => {
-  const resolve = step('benchmark', 'Restore and resolve the immutable benchmark baseline', benchmarkWorkflow)
-  function restore(options: { attempt?: string; artifact?: boolean; downloadFails?: boolean } = {}) {
-    const dir = tempDir()
-    writeFileSync(join(dir, 'baseline.json'), JSON.stringify({ requested: 'latest', version: '0.4.1', integrity: sriSha512(Buffer.from('original')) }))
-    stub(dir, 'gh', `
-      if [ "$1" = api ]; then
-        ${options.artifact ? 'echo 123' : ':'}
-      else
-        ${options.downloadFails ? 'exit 1' : 'cp "$MOCK_ROOT/baseline.json" benchmark-baseline/baseline.json'}
-      fi
-    `)
-    stub(dir, 'npm', `echo queried >> "$MOCK_ROOT/npm-calls"\nprintf '%s' '{"version":"0.4.2","dist.integrity":"${sriSha512(Buffer.from('new'))}"}'`)
-    // Execute the real resolver, replacing only the workflow's Bun launcher.
-    stub(dir, 'bun', `shift\nexec '${process.execPath}' '${join(REPO, 'eval/benchmark/release-baseline.ts')}' "$2" "$3"`)
-    const result = execute(resolve, dir, { BASELINE: 'latest', GITHUB_REPOSITORY: 'owner/repo', GITHUB_RUN_ID: '1', GITHUB_RUN_ATTEMPT: options.attempt ?? '2', BASELINE_ARTIFACT: 'release-benchmark-baseline-1' })
-    return { result, dir, queries: lines(join(dir, 'npm-calls')) }
-  }
-
-  test('restores the original version without querying a changed latest tag', () => {
-    const { result, dir, queries } = restore({ artifact: true })
-    expect(result.status).toBe(0)
-    expect(queries).toEqual([])
-    expect(JSON.parse(readFileSync(join(dir, 'benchmark-baseline/baseline.json'), 'utf8')).version).toBe('0.4.1')
-  })
-
-  test('a missing or failed restore cannot silently choose a new mutable baseline', () => {
-    for (const options of [{}, { artifact: true, downloadFails: true }]) {
-      const { result, queries } = restore(options)
-      expect(result.status).not.toBe(0)
-      expect(queries).toEqual([])
-    }
-  })
-
-  test('the initial attempt resolves and persists the baseline before measuring', () => {
-    const { result, dir, queries } = restore({ attempt: '1' })
-    expect(result.status).toBe(0)
-    expect(queries).toEqual(['queried'])
-    expect(JSON.parse(readFileSync(join(dir, 'benchmark-baseline/baseline.json'), 'utf8')).version).toBe('0.4.2')
-  })
-})
-
 describe('release gate: exact-SHA canonical CI attestation', () => {
   const gate = step('release-gate', 'Require successful canonical CI for the exact release commit')
   const SHA = '0123456789abcdef0123456789abcdef01234567'
@@ -173,7 +100,6 @@ describe('release gate: exact-SHA canonical CI attestation', () => {
 describe.each([
   ['publish', 'Verify the transferred tarball digest', workflow],
   ['publish-mcp', 'Verify the tarball and extract registry metadata', workflow],
-  ['benchmark', 'Verify the candidate artifact identity', benchmarkWorkflow],
 ])('%s job: transferred artifact verification', (job, name, source) => {
   const verify = step(job, name, source)
 

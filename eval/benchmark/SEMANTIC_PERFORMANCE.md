@@ -10,7 +10,7 @@ competitiveness or the original 20% time / 30% allocation goals.
 ## Populations and tracks
 
 The immutable historical anchor remains
-`a9d1551da27ddab542a1ae96329464ad65725448`. The existing fixed-baseline workflow
+`a9d1551da27ddab542a1ae96329464ad65725448`. The local fixed-baseline runner
 and complete release inventory remain available; the anchor is not advanced to
 make a gate pass. Its known unsupported families remain failures in its own A/A
 coverage report.
@@ -49,9 +49,9 @@ Warm tracks prime at least 20 real calls and 1,000 ms of elapsed warmup, then
 record 201 individual call durations and three independent V8 allocation
 probes. The 180-second measurement budget accommodates the complete population
 on fresh large meshes; it does not change renderer resource limits. The worker
-no-progress cap remains 300 seconds, the report watchdog 90 minutes and the job
-watchdog 300 minutes. A completed indexed-consumer report must contain its whole
-declared timing population; deadline truncation cannot qualify a different
+no-progress cap remains 300 seconds, and the report watchdog remains 90 minutes.
+A completed indexed-consumer report must contain its whole declared timing
+population; deadline truncation cannot qualify a different
 source population on one side.
 Actual warmup calls, elapsed time and completion are retained per observation.
 A failed or incomplete warmup remains an error; it cannot supply a numeric pass.
@@ -106,7 +106,7 @@ completeness; they cannot disable an otherwise adverse numeric gate.
 Before any benchmark worker, warmup, import measurement or browser launch,
 the shared acquisition owner (`release-baseline.ts`) derives an exact runtime
 closure from the frozen source `bun.lock`. `--runtime-source` selects that source
-directory; the Git-baseline workflow supplies its immutable baseline worktree,
+directory; a Git-baseline campaign supplies its immutable baseline worktree,
 and standalone archive commands default to the current root. The Node
 `--baseline` directory mode also defaults to that directory's lock when present.
 Both Agentic archives install with the same exact temporary root overrides,
@@ -176,7 +176,7 @@ fresh complete controls must qualify any candidate under this new fingerprint.
 
 ## Immutable historical anchors
 
-Publication's default previous-npm-release comparison explicitly selects
+The local previous-npm-release comparison explicitly selects
 `normalized-npm-compound` in both the Node and advisory browser commands. The
 original exact-version npm archive is retained and its locked SHA-512 integrity,
 installed name and version are checked before reading its declared roots/ranges.
@@ -197,7 +197,7 @@ equality of embedded dependency versions. Its scorecard remains advisory and
 compound. This mode requires a locked npm baseline; Git/tarball current-main
 comparisons and all semantic calibration retain strict full-graph equality.
 
-The fixed historical workflow explicitly uses `historical-compound` runtime
+The local fixed historical campaign explicitly uses `historical-compound` runtime
 comparison. Baseline and candidate each install under their own frozen source
 policy; the shared dependency versions, SHA-512 integrities and dependency
 edges must still match exactly. Only package closures reachable from declared
@@ -212,13 +212,12 @@ Original shipped archive bytes and package manifests remain immutable; install
 overrides belong only to temporary consumers. Default validation and timing
 behavior remain unchanged.
 
-On-demand `evidence-scope: fixed` requires `fixed-baseline-sha` and retains
-candidate build, pack and provenance, then runs the original five-round fixed
-A/A, comparisons, peers and profiles. It explicitly skips the current-baseline
-Node comparisons, browser scorecard and semantic matrix. Scope receipts record
-those skipped lanes; this run cannot claim full qualification. The default
-`all` scope retains every lane. Prior reports keep their original harness and
-archive identities; controls are never reused across harness revisions.
+A local campaign restricted to the fixed historical baseline retains candidate
+build, pack and provenance, then runs the original five-round fixed A/A,
+comparisons, peers and profiles. Record any skipped current-baseline Node
+comparisons, browser scorecard or semantic matrix explicitly; such a run cannot
+claim full qualification. Prior reports keep their original harness and archive
+identities; controls are never reused across harness revisions.
 
 ## Actual cache hits and fallbacks
 
@@ -242,7 +241,7 @@ observed diagnostic replay to qualify. Uninstrumented peers/baselines remain
 successful observed replay means zero observed fallbacks at the instrumented
 owners; this is not universal coverage of font/parser/routing fallbacks.
 
-## Reproduction and CI
+## Local reproduction
 
 Build and verify both archives before timing, retaining source/dependency locks.
 Then run each cache policy on an otherwise idle host:
@@ -260,38 +259,38 @@ checks protocol plumbing only. `bench:peers --tracks all --aa` exposes the same
 maintained protocol directly. `performance-gates.ts --candidate <report> --controls
 <aa1>,<aa2> --out <prefix>` regenerates scorecards from retained data.
 
-The Release benchmark workflow has separate cache-off/on calibration jobs. Each
-downloads the exact verified candidate, records and packs its immutable main
-comparison revision, and serially runs both controls before the candidate.
-Controls, runtime locks, raw calls, semantic limitations, actual cache/fallback
-events, interrupted status and both scorecards upload even after failure.
-Source unit CI exercises fail-closed decisions with controlled observations.
-This integration does not revive the recipe interpreter or change native/ELK
-selection policy. The original early installed-State window and PNG allocation
-controls remain separate release evidence and are not replaced by these tracks.
+Run cache-off and cache-on calibration as separate local campaigns. Keep the
+exact verified candidate and baseline archives, both independent controls,
+resolved runtime locks, raw calls, semantic limitations and interrupted status.
+Benchmark runners and their controller tests are excluded from CI. Use
+`bun run bench:test` for the controlled decision tests; normal source correctness
+checks continue to run in product CI. The original early installed-State window
+and PNG allocation controls remain separate evidence and are not replaced by
+these tracks.
 
+## Complete local campaign execution
 
-## Complete campaign execution
-
-The release workflow builds the pinned main baseline once, then runs one
-phase/consumer combination per runner in each cache lane (16 shards total).
-Each shard retains all14 Agentic workloads, the fixed seven-case peer cohort,
-and both doubled-size scaling cases. It runs its own two independent A/A
-reports and A/B report serially. Its ratios and seven-case means never cross
-runner boundaries. The90-minute report and300-minute job watchdogs, rounds,
-numeric thresholds and historical anchor remain unchanged. Warm populations
-are now201 calls; cold timing remains21 independent first-render workers.
+Build and pack the pinned main baseline once, then run each phase/consumer
+combination separately in each cache lane (16 runs total). Every run retains all
+14 Agentic workloads, the fixed seven-case peer cohort and both doubled-size
+scaling cases. Run its two independent A/A reports and A/B report serially on the
+same otherwise idle host. Its ratios and seven-case means never cross host
+boundaries. The 90-minute report and 300-second worker no-progress watchdogs,
+rounds, numeric thresholds and historical anchor remain unchanged. Warm
+populations contain 201 calls; cold timing retains 21 independent first-render
+workers. No hosted job schedules or executes these campaigns.
 
 `qualify-peer-performance.ts --phase <phase> --consumer <consumer>` emits
-`scopeComplete`, but leaves global `complete` false. A shard cannot declare
-full performance qualification. `aggregate-semantic-performance.ts` requires
-all16 scoped evidence directories; it recomputes the decisions from each
-candidate and both controls, requires matching archive bytes, peer pins,
+`scopeComplete`, but leaves global `complete` false. One phase/consumer run cannot
+declare full performance qualification. `aggregate-semantic-performance.ts`
+requires all 16 scoped evidence directories; it recomputes the decisions from
+each candidate and both controls, requires matching archive bytes, peer pins,
 harness revision, authored inputs and execution settings, and preserves each
-runner's provenance. Missing, duplicate, interrupted or incompatible evidence
+host's provenance. Missing, duplicate, interrupted or incompatible evidence
 fails closed. No numeric ratios are pooled across hosts. All adverse and
 uncalibrated decisions remain in the aggregate JSON.
 
-Artifacts retain attempt numbers. Duplicate shards are rejected rather than
-silently selecting a favorable attempt. A complete campaign uses a fresh
-workflow run; partial controls from an interrupted run are not resumed.
+Artifacts retain attempt numbers. Duplicate runs for the same scope are rejected
+rather than silently selecting a favorable attempt. A complete campaign uses a
+fresh campaign directory; partial controls from an interrupted campaign are not
+resumed.

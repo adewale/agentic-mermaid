@@ -2,9 +2,9 @@ import { describe, expect, spyOn, test } from 'bun:test'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { consumePeerOutput, finalizeTrackObservation, emptyTrackObservation, inspectPeerSemantics, parsePeerTracks, peerTrackVariant, peerRuntimeDependencyGraph, percentile, peerExecutionEnvironment } from '../../eval/benchmark/peer-tracks.ts'
-import * as protocol from '../../eval/benchmark/peer-tracks.ts'
-import { measurePeerTrack } from '../../eval/benchmark/peer-track-worker.ts'
+import { consumePeerOutput, finalizeTrackObservation, emptyTrackObservation, inspectPeerSemantics, parsePeerTracks, peerTrackVariant, peerRuntimeDependencyGraph, percentile, peerExecutionEnvironment } from '../peer-tracks.ts'
+import * as protocol from '../peer-tracks.ts'
+import { measurePeerTrack } from '../peer-track-worker.ts'
 import { useTestChildren } from './helpers/test-child.ts'
 
 const runChild = useTestChildren(10_000)
@@ -265,7 +265,7 @@ describe('maintained consumed peer protocol', () => {
   })
   test('bundled worker resolves harness XML parser and retains raw individual calls', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'peer-track-owner-'))
-    const root = resolve(import.meta.dir, '../..')
+    const root = resolve(import.meta.dir, '../../..')
     try {
       const bundle = join(dir, 'worker.mjs'), entry = join(dir, 'renderer.mjs'), job = join(dir, 'job.json'), out = join(dir, 'out.jsonl')
       const built = await runChild(process.execPath, ['build', join(root, 'eval/benchmark/peer-bench.ts'), '--target=node', '--format=esm', '--outfile', bundle], { cwd: root })

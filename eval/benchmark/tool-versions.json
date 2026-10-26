@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "aliases": {
+    "bezel": "crabtalk/bezel",
+    "beautiful-mermaid": "lukilabs/beautiful-mermaid"
+  },
+  "tools": {
+    "obsidianmd/pele": {
+      "registry": "npm",
+      "package": "pele",
+      "version": "1.9.0"
+    },
+    "mermaid-js/mermaid": {
+      "registry": "npm",
+      "package": "mermaid",
+      "version": "12.2.0"
+    },
+    "@mermaid-js/mermaid-zenuml": {
+      "registry": "npm",
+      "package": "@mermaid-js/mermaid-zenuml",
+      "version": "1.0.1"
+    }
+  }
+}

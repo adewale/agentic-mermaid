@@ -78,15 +78,27 @@ function snapshot(db, includeConfig = false) {
 }
 
 for await (const line of createInterface({ input: process.stdin, crlfDelay: Infinity })) {
+  let timing, parseOk;
   try {
-    const { source } = JSON.parse(line);
-    // The public parser resets per-diagram configuration and applies frontmatter
-    // and init directives. getDiagramFromText alone strips wrappers without
-    // applying their config, which would incorrectly reject configured GitGraph.
+    const { source, apiBenchmark } = JSON.parse(line);
+    if (apiBenchmark) {
+      const samples = Number(apiBenchmark.samples ?? 3);
+      if (!Number.isSafeInteger(samples) || samples < 1 || samples > 100) throw new Error('Invalid API benchmark samples');
+      const attempt = async () => { try { const value = await mermaid.parse(source); return value === false ? { ok: false, error: 'Public parser returned false' } : { ok: true }; } catch (error) { return { ok: false, error: String(error?.message ?? error).slice(0, 3000) }; } };
+      const firstStart = performance.now(); let result = await attempt(); const firstMs = performance.now() - firstStart;
+      await attempt();
+      const samplesMs = [];
+      for (let sample = 0; sample < samples; sample++) { const started = performance.now(); result = await attempt(); samplesMs.push(performance.now() - started); }
+      timing = { firstMs, samplesMs, boundary: 'public mermaid.parse attempts, including rejected sources; DB projection and IPC excluded' };
+      parseOk = result.ok;
+      if (!parseOk) { writeSync(1, wire({ ok: false, parseOk: false, error: result.error, timing })); continue; }
+    }
+    // Public parse applies per-diagram/frontmatter configuration before the DB
+    // view. Benchmark timing remains opt-in and ordinary oracle calls unchanged.
     await mermaid.parse(source);
     const diagram = await mermaid.mermaidAPI.getDiagramFromText(source);
-    writeSync(1, wire({ ok: true, type: diagram.type, snapshot: snapshot(diagram.db, diagram.type === 'gantt') }));
+    writeSync(1, wire({ ok: true, type: diagram.type, snapshot: snapshot(diagram.db, diagram.type === 'gantt'), ...(timing ? { parseOk: true, timing } : {}) }));
   } catch (error) {
-    writeSync(1, wire({ ok: false, error: String(error?.message ?? error).slice(0, 3000) }));
+    writeSync(1, wire({ ok: false, error: String(error?.message ?? error).slice(0, 3000), ...(parseOk === undefined ? {} : { parseOk }), ...(timing ? { timing } : {}) }));
   }
 }

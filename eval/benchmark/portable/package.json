@@ -1,0 +1,19 @@
+{
+  "name": "@agentic-mermaid/portable-benchmarks",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "bench": "node run.ts",
+    "build": "node build.ts"
+  },
+  "dependencies": {
+    "saxes": "6.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.1"
+  }
+}

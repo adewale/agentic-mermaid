@@ -1,3 +1,4 @@
+import './ci-policy-enforce.ts'
 // Peer benchmark: the same workloads in agentic-mermaid's built package and in
 // the browserless peers from eval/fork-graph, each timed in fresh processes.
 //
@@ -61,6 +62,7 @@ import type { PeerTrackObservation, PeerTrackReport } from './peer-tracks.ts'
 import { measurePeerTrack } from './peer-track-worker.ts'
 import type { TrackJob } from './peer-track-worker.ts'
 import { frozenRuntimePolicy, installAgenticRuntime, installedNpmPackagePin, inspectAgenticRuntime, assertMatchedAgenticRuntimes, type RuntimePolicy, type RuntimeReceipt } from './release-baseline.ts'
+import { assertBenchmarkSetVersions, assertBenchmarkToolVersion, benchmarkToolPins } from './tool-versions.ts'
 
 type WorkloadId = string
 type Output = 'svg' | 'terminal'
@@ -127,7 +129,7 @@ const PEERS: readonly Peer[] = [
     svg: beautifulApi.svg,
     terminal: { ...beautifulApi.terminal, subpath: './ascii', api: `zombie-mermaid/ascii ${beautifulApi.terminal.api}` },
   },
-  { id: 'pele', source: { registry: 'npm', name: 'pele', version: '1.6.0' }, runtime: 'node', svg: { subpath: '.', api: 'render(source).svg', make: m => source => m.render(source).svg }, note: 'returns { svg, ... }; only .svg is read' },
+  { id: 'pele', source: { registry: 'npm', name: 'pele', version: benchmarkToolPins['obsidianmd/pele'].version }, runtime: 'node', svg: { subpath: '.', api: 'render(source).svg', make: m => source => m.render(source).svg }, note: 'returns { svg, ... }; only .svg is read' },
   {
     id: 'sketch',
     source: { registry: 'git', repo: 'https://github.com/Gaurav-Gosain/tuios', commit: '880e652ee56b1607cc454847a359703d7cdc88e6', module: 'sketch' },
@@ -577,6 +579,7 @@ function packageEntry(root: string, subpath: string): string {
 }
 
 function installNpm(name: string, version: string): { root: string; integrity: string; engines?: string; installedLocks: string[] } {
+  assertBenchmarkToolVersion(name, version, 'Node peer acquisition')
   const prefix = join(CACHE, `${name}@${version}`)
   const root = join(prefix, 'node_modules', name)
   const installed = () => {
@@ -977,6 +980,12 @@ async function main(): Promise<void> {
       return entry
     })
     assertMatchedAgenticRuntimes(prepared.flatMap(entry => entry.runtime ? [entry.runtime] : []))
+    const toolVersions = assertBenchmarkSetVersions(prepared.filter(entry => !entry.error).map(entry => ({
+      tool: entry.peer.id.startsWith('agentic') ? 'agentic-mermaid' : entry.peer.source.registry === 'npm' || entry.peer.source.registry === 'pypi' ? entry.peer.source.name : entry.peer.id,
+      version: entry.version,
+      source: `Node peer ${entry.peer.id}`,
+      ...(entry.peer.id.startsWith('agentic') && entry.peer.id !== 'agentic' ? { variant: entry.peer.id } : {}),
+    })))
     const warnings = prepared.flatMap(entry => entry.warnings)
     for (const warning of warnings) console.error(`warning: ${warning}`)
     for (const entry of prepared.filter(entry => entry.error)) console.error(`${entry.peer.id}: ${entry.error}`)
@@ -1168,7 +1177,7 @@ async function main(): Promise<void> {
       const summary: Record<Output, Record<string, Record<string, unknown>>> = { svg: {}, terminal: {} }
       for (const { prepared: entry, output } of jobs) summary[output][entry.peer.id] = Object.fromEntries(workloads[output].map(id => [id, { ...cell(entry.peer.id, output, id), ...(output === 'svg' && entry.peer.id !== 'agentic' ? { ratioToAgentic: ratio(entry.peer.id, id) } : {}) }]))
       const report = {
-        ...metadata, status: 'completed', finishedAt: new Date().toISOString(),
+        ...metadata, status: 'completed', finishedAt: new Date().toISOString(), toolVersions,
         environment: { hostname: hostname(), node: nodeVersion, bun: process.versions.bun, platform: process.platform, arch: process.arch, osRelease: release(), cpu: cpus()[0]?.model, logicalCpus: cpus().length, totalMemBytes: totalmem(), loadAverageStart: startLoad, loadAverageEnd: loadavg() },
         config: { rounds, timing, minSamples: MIN_SAMPLES, workloads: phases.length ? { svg: trackWorkloads, terminal: [] } : workloads, peers: phases.length ? prepared.map(entry => ({ peer: entry.peer.id, output: 'svg' })) : jobs.map(job => ({ peer: job.prepared.peer.id, output: job.output })) },
         pins: prepared.map(entry => ({ peer: entry.peer.id, source: entry.peer.source, label: entry.label, ...(entry.integrity ? { integrity: entry.integrity } : {}), ...(entry.identity ? { identity: entry.identity } : {}), ...(entry.dependencyLocks ? { dependencyLocks: entry.dependencyLocks } : {}), ...(entry.runtime ? { runtime: entry.runtime } : {}), ...(entry.runtimeDependencySha256 ? { runtimeDependencySha256: entry.runtimeDependencySha256 } : {}), ...(entry.error ? { error: entry.error } : {}), svg: entry.peer.svg?.api, terminal: entry.peer.terminal?.api })),

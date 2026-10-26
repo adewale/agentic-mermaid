@@ -4,19 +4,19 @@ import { describe, expect, test } from 'bun:test'
 import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { createHash } from 'node:crypto'
-import { report, type EngineRun, type Group, type Input } from '../../eval/benchmark/release-bench.ts'
-import { browserDiagnosticsOptions, browserScorecard, renderPass, type BrowserSample } from '../../eval/benchmark/release-browser-bench.ts'
-import { browserMemoryDiagnostics, sharedMemoryInputs } from '../../eval/benchmark/browser-memory.ts'
-import { bezelEngine } from '../../eval/benchmark/bezel.ts'
+import { report, type EngineRun, type Group, type Input } from '../release-bench.ts'
+import { browserDiagnosticsOptions, browserScorecard, renderPass, type BrowserSample } from '../release-browser-bench.ts'
+import { browserMemoryDiagnostics, sharedMemoryInputs } from '../browser-memory.ts'
+import { bezelEngine } from '../bezel.ts'
 import type { Page } from 'playwright'
-import { browserPerformanceOptions, configureAgenticEngines } from '../../eval/benchmark/browser-config.ts'
-import type { Engine } from '../../eval/benchmark/release-browser-bench.ts'
-import { missingSvgLabels, renderAgentEdit, agentEditCase } from '../../eval/benchmark/release-bench-fidelity.ts'
-import * as api from '../agent/index.ts'
+import { browserPerformanceOptions, configureAgenticEngines } from '../browser-config.ts'
+import type { Engine } from '../release-browser-bench.ts'
+import { missingSvgLabels, renderAgentEdit, agentEditCase } from '../release-bench-fidelity.ts'
+import * as api from '../../../src/agent/index.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
 import { useTestChildren } from './helpers/test-child.ts'
-import { linuxRssHighWater } from '../../eval/benchmark/release-memory.ts'
-import { frozenRuntimePolicy, installedNpmPackagePin, inspectAgenticRuntime, assertMatchedAgenticRuntimes, assertHistoricalAgenticRuntimes, assertNormalizedNpmRuntimes, type RuntimeReceipt } from '../../eval/benchmark/release-baseline.ts'
+import { linuxRssHighWater } from '../release-memory.ts'
+import { frozenRuntimePolicy, installedNpmPackagePin, inspectAgenticRuntime, assertMatchedAgenticRuntimes, assertHistoricalAgenticRuntimes, assertNormalizedNpmRuntimes, type RuntimeReceipt } from '../release-baseline.ts'
 
 const temp = useTempDirs()
 const runChild = useTestChildren(10_000)
@@ -406,7 +406,7 @@ test('baseline resolution survives a changed latest tag across CLI retries', asy
   const integrity = 'sha512-YWJjZA=='
   writeFileSync(registry, JSON.stringify({ version: '0.4.1', 'dist.integrity': integrity }))
   const invoke = async () => {
-    const proc = Bun.spawn([process.execPath, join(import.meta.dir, '../../eval/benchmark/release-baseline.ts'), 'latest', lock], {
+    const proc = Bun.spawn([process.execPath, join(import.meta.dir, '../release-baseline.ts'), 'latest', lock], {
       env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, FAKE_REGISTRY: registry },
       stdout: 'ignore', stderr: 'pipe', timeout: 10_000, killSignal: 'SIGKILL',
     })
@@ -463,7 +463,7 @@ test('archive acquisition pins the frozen runtime closure without changing shipp
     return Response.json({ name, versions, 'dist-tags': { latest: Object.keys(versions).at(-1) } })
   } })
   try {
-    const child = await runChild(process.execPath, [join(import.meta.dir, '../../eval/benchmark/release-baseline.ts'), '--install', archive.path,
+    const child = await runChild(process.execPath, [join(import.meta.dir, '../release-baseline.ts'), '--install', archive.path,
       '--prefix', prefix, '--runtime-source', source, '--out', evidence, '--label', 'candidate', '--expected-integrity', archive.integrity], {
       env: { ...process.env, npm_config_registry: `http://127.0.0.1:${registry.port}`, npm_config_cache: join(dir, 'npm-cache') },
     })
@@ -487,7 +487,7 @@ test('archive acquisition pins the frozen runtime closure without changing shipp
     const localRange = await pack('agentic-mermaid', '0.0.6', { yaml: 'file:/must-not-read-local-package' })
     const aliasRange = await pack('agentic-mermaid', '0.0.7', { yaml: 'npm:yaml@2.9.0' })
     const leadingZero = await pack('agentic-mermaid', '0.0.8', { yaml: '02.9.0' })
-    const strictLegacy = await runChild(process.execPath, [join(import.meta.dir, '../../eval/benchmark/release-baseline.ts'), '--install', legacy.path,
+    const strictLegacy = await runChild(process.execPath, [join(import.meta.dir, '../release-baseline.ts'), '--install', legacy.path,
       '--prefix', join(dir, 'strict-legacy'), '--runtime-source', source, '--out', join(evidence, 'strict-legacy'), '--expected-integrity', legacy.integrity], {
       env: { ...process.env, npm_config_registry: `http://127.0.0.1:${registry.port}`, npm_config_cache: join(dir, 'npm-cache') },
     })
@@ -498,7 +498,7 @@ test('archive acquisition pins the frozen runtime closure without changing shipp
       const acquired = installNormalizedNpmBaseline(${JSON.stringify({ requested: 'latest', version, integrity })},
         ${JSON.stringify(join(dir, label))}, frozenRuntimePolicy(${JSON.stringify(source)}), ${JSON.stringify(join(evidence, label))}, 'baseline')
       console.log(JSON.stringify(acquired))
-    `], { cwd: join(import.meta.dir, '../..'), env: { ...process.env, npm_config_registry: `http://127.0.0.1:${registry.port}`, npm_config_cache: join(dir, 'npm-cache') } })
+    `], { cwd: join(import.meta.dir, '../../..'), env: { ...process.env, npm_config_registry: `http://127.0.0.1:${registry.port}`, npm_config_cache: join(dir, 'npm-cache') } })
     const normalized = await normalize('0.0.2', legacy.integrity, 'normalized-legacy')
     expect({ status: normalized.status, stderr: normalized.stderr }).toEqual({ status: 0, stderr: '' })
     const legacyReceipt = JSON.parse(normalized.stdout).runtime as RuntimeReceipt
@@ -545,7 +545,7 @@ test('archive acquisition pins the frozen runtime closure without changing shipp
       ['release-bench.ts', ['--baseline-npm', 'latest', '--baseline-lock', incompatibleLock]],
       ['release-browser-bench.ts', ['--baseline-lock', incompatibleLock, '--executable', '/must-not-launch-chromium']],
     ] as const) {
-      const rejected = await runChild(process.execPath, [join(import.meta.dir, '../../eval/benchmark', entry), '--candidate-tarball', archive.path,
+      const rejected = await runChild(process.execPath, [join(import.meta.dir, '..', entry), '--candidate-tarball', archive.path,
         '--candidate-sha256', createHash('sha256').update(readFileSync(archive.path)).digest('hex'), '--runtime-source', source,
         '--runtime-comparison', 'normalized-npm-compound', '--out', evidence, ...baselineFlags], {
         env: { ...process.env, npm_config_registry: `http://127.0.0.1:${registry.port}`, npm_config_cache: join(dir, 'npm-cache') },
@@ -579,7 +579,7 @@ test('archive acquisition pins the frozen runtime closure without changing shipp
       ['peer-bench.ts', ['--peers', 'agentic', '--workloads', 'flow5', '--json', join(evidence, 'peer.json'), '--markdown', join(evidence, 'peer.md')]],
     ] as const) {
       const report = join(evidence, entry), flags = entry === 'peer-bench.ts' ? [] : ['--out', report]
-      const failed = await runChild(process.execPath, [join(import.meta.dir, '../../eval/benchmark', entry), '--candidate-tarball', archive.path,
+      const failed = await runChild(process.execPath, [join(import.meta.dir, '..', entry), '--candidate-tarball', archive.path,
         '--candidate-sha256', sha256, '--runtime-source', source, ...flags, ...extra], {
         env: { ...process.env, npm_config_registry: `http://127.0.0.1:${registry.port}`, npm_config_cache: join(dir, 'npm-cache') },
       })
@@ -596,7 +596,7 @@ test('archive acquisition pins the frozen runtime closure without changing shipp
     const extraRuntime = await pack('runtime-extra', '1.0.0')
     const badCandidate = await pack('agentic-mermaid', '0.0.1', { ...dependencies, 'runtime-extra': '^1.0.0' })
     const qualificationOut = join(evidence, 'qualification'), candidateSha = createHash('sha256').update(readFileSync(badCandidate.path)).digest('hex')
-    const failed = await runChild(process.execPath, [join(import.meta.dir, '../../eval/benchmark/qualify-peer-performance.ts'),
+    const failed = await runChild(process.execPath, [join(import.meta.dir, '../qualify-peer-performance.ts'),
       '--baseline-tarball', archive.path, '--baseline-sha256', sha256, '--candidate-tarball', badCandidate.path, '--candidate-sha256', candidateSha,
       '--runtime-source', source, '--out', qualificationOut, '--quick', '--rounds', '1'], {
       env: { ...process.env, npm_config_registry: `http://127.0.0.1:${registry.port}`, npm_config_cache: join(dir, 'npm-cache') },
@@ -613,7 +613,7 @@ test('archive acquisition pins the frozen runtime closure without changing shipp
     writeFileSync(join(candidateSource, 'bun.lock'), JSON.stringify({ packages: { ...frozen.packages, 'runtime-extra': ['runtime-extra@1.0.0', '', {}, extraRuntime.integrity] } }))
     yamlPin.integrity = yaml.integrity
     writeFileSync(installed, JSON.stringify(lock))
-    const historical = await runChild(process.execPath, [join(import.meta.dir, '../../eval/benchmark/release-baseline.ts'), '--install', badCandidate.path,
+    const historical = await runChild(process.execPath, [join(import.meta.dir, '../release-baseline.ts'), '--install', badCandidate.path,
       '--prefix', join(dir, 'historical-consumer'), '--runtime-source', candidateSource, '--out', historicalOut, '--label', 'candidate',
       '--expected-integrity', badCandidate.integrity, '--compare-root', join(prefix, 'node_modules/agentic-mermaid'), '--compare-runtime-source', source,
       '--runtime-comparison', 'historical-compound'], {
@@ -629,7 +629,7 @@ test('archive acquisition pins the frozen runtime closure without changing shipp
 
 test('normalized npm mode cannot weaken a Git or tarball comparison', async () => {
   for (const [entry, required] of [['release-bench.ts', '--baseline-npm'], ['release-browser-bench.ts', '--baseline-lock']] as const) {
-    const rejected = await runChild(process.execPath, [join(import.meta.dir, '../../eval/benchmark', entry), '--runtime-comparison', 'normalized-npm-compound',
+    const rejected = await runChild(process.execPath, [join(import.meta.dir, '..', entry), '--runtime-comparison', 'normalized-npm-compound',
       '--baseline-tarball', '/must-not-read-baseline.tgz', '--baseline-sha256', '0'.repeat(64)])
     expect(rejected.status).not.toBe(0)
     expect(rejected.stderr).toContain(`Normalized npm comparison requires ${required}`)
@@ -673,7 +673,7 @@ test('directory runtime drift is rejected before the release worker or timing st
     mkdirSync(join(source, 'node_modules', name!), { recursive: true })
     writeFileSync(join(source, 'node_modules', name!, 'package.json'), JSON.stringify({ name, version }))
   }
-  const child = await runChild(process.execPath, [join(import.meta.dir, '../../eval/benchmark/release-bench.ts'), '--baseline', source, '--candidate', source, '--case', 'flowchart:tree-300', '--out', out])
+  const child = await runChild(process.execPath, [join(import.meta.dir, '../release-bench.ts'), '--baseline', source, '--candidate', source, '--case', 'flowchart:tree-300', '--out', out])
   expect(child.status).not.toBe(0)
   expect(child.stderr).toContain('runtime dependency elkjs@0.11.1 differs from frozen version/integrity 0.11.0')
   expect(existsSync(workerCalled)).toBe(false)
@@ -740,8 +740,8 @@ test.each([
     workloads: [{ id: 'owned-text', source: 'fixture', expected: ['Keep'] }],
   }))
   writeFileSync(out, '')
-  const child = await runChild('node', ['--expose-gc', join(import.meta.dir, '../../eval/benchmark/peer-bench.ts'), '--child', '--job', job, '--out', out], {
-    cwd: join(import.meta.dir, '../..'),
+  const child = await runChild('node', ['--expose-gc', join(import.meta.dir, '../peer-bench.ts'), '--child', '--job', job, '--out', out], {
+    cwd: join(import.meta.dir, '../../..'),
   })
   expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
   const observations = readFileSync(out, 'utf8').trim().split('\n').map(line => JSON.parse(line))
@@ -770,7 +770,7 @@ test('release memory worker separates post-GC heap and phased resident-memory ob
     }
   `)
   writeFileSync(job, JSON.stringify({ entry, mode: 'memory', reps: 1, inputs: [input('fixture')] }))
-  const child = await runChild('node', ['--expose-gc', join(import.meta.dir, '../../eval/benchmark/release-bench-worker.ts'), job, out])
+  const child = await runChild('node', ['--expose-gc', join(import.meta.dir, '../release-bench-worker.ts'), job, out])
   expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
   const memory = JSON.parse(readFileSync(out, 'utf8'))
   expect(memory.settledHeapBytes).toBeGreaterThan(0)
@@ -808,10 +808,10 @@ test('peer artifact mismatch fails before installation and retains explicit inco
   const bin = temp.dir(), npm = join(bin, 'npm'), installed = join(dir, 'npm-called')
   writeFileSync(npm, '#!/bin/sh\n: > "$INSTALL_RECEIPT"\nexit 99\n')
   chmodSync(npm, 0o755)
-  const invoke = () => runChild(process.execPath, [join(import.meta.dir, '../../eval/benchmark/peer-bench.ts'),
+  const invoke = () => runChild(process.execPath, [join(import.meta.dir, '../peer-bench.ts'),
     '--peers', 'agentic', '--workloads', 'flow5', '--candidate-tarball', tarball,
     '--candidate-sha256', '0'.repeat(64), '--elk-cache', 'on', '--json', reportPath, '--markdown', join(dir, 'report.md'),
-  ], { cwd: join(import.meta.dir, '../..'), env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, INSTALL_RECEIPT: installed, APL_NO_CENTER: '1' } })
+  ], { cwd: join(import.meta.dir, '../../..'), env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, INSTALL_RECEIPT: installed, APL_NO_CENTER: '1' } })
   expect((await invoke()).status).not.toBe(0)
   expect(existsSync(installed)).toBe(false)
   const report = JSON.parse(readFileSync(reportPath, 'utf8'))
@@ -830,7 +830,7 @@ test('peer artifact mismatch fails before installation and retains explicit inco
 test('failed editor benchmark reruns invalidate a previous completed report', async () => {
   const out = temp.dir(), site = temp.dir(), report = join(out, 'editor-preview.json')
   writeFileSync(report, JSON.stringify({ status: 'completed', samples: ['stale-run'] }))
-  const proc = Bun.spawn([process.execPath, join(import.meta.dir, '../../eval/benchmark/editor-preview-bench.ts'), '--site', site, '--out', out, '--executable', join(site, 'nonexistent-chromium')], {
+  const proc = Bun.spawn([process.execPath, join(import.meta.dir, '../editor-preview-bench.ts'), '--site', site, '--out', out, '--executable', join(site, 'nonexistent-chromium')], {
     stdout: 'ignore', stderr: 'ignore', timeout: 10_000, killSignal: 'SIGKILL',
   })
   expect(await proc.exited).not.toBe(0)

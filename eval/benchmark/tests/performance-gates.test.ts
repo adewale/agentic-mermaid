@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
-import { PERFORMANCE_POLICY as policy, performanceScorecard, type PerformanceReport, type PerformanceScope } from '../../eval/benchmark/performance-gates.ts'
-import * as campaignGates from '../../eval/benchmark/performance-gates.ts'
-import type { SemanticPerformanceShard } from '../../eval/benchmark/performance-gates.ts'
+import { PERFORMANCE_POLICY as policy, performanceScorecard, type PerformanceReport, type PerformanceScope } from '../performance-gates.ts'
+import * as campaignGates from '../performance-gates.ts'
+import type { SemanticPerformanceShard } from '../performance-gates.ts'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -35,7 +35,7 @@ function campaign(): SemanticPerformanceShard[] {
 
 describe('complete semantic campaign aggregation', () => {
   test('large raw call inventories do not alter decisions or the original evidence', async () => {
-    const cli = await import('../../eval/benchmark/aggregate-semantic-performance.ts').catch(() => undefined)
+    const cli = await import('../aggregate-semantic-performance.ts').catch(() => undefined)
     expect(typeof cli?.readPerformanceReport).toBe('function')
     if (!cli) return
     const { readPerformanceReport } = cli

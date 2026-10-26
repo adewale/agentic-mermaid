@@ -1,3 +1,4 @@
+import './ci-policy-enforce.ts'
 /**
  * Performance benchmark for Agentic Mermaid.
  *

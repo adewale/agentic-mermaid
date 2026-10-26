@@ -1,5 +1,10 @@
 # Performance evidence and reproduction
 
+These dated observations retain their original provenance. Hosted benchmark
+workflows and publication timing gates have since been removed; any Actions
+recipes below are historical. Use the [local benchmark package](README.md) and
+[unified runner](unified/README.md) for current commands.
+
 PR #433's private recipe interpreter has been removed in favor of current
 main's native typed drawing path; see the [disposition](../../docs/project/0.5-svg-pipeline.md).
 The completed pre-removal campaign at `7035cdf0ea68725fc9958f455ebfb5ae3b0ce6c3`

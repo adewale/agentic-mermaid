@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { reviewedUpstreamCases } from '../../eval/mermaid-upstream-suite-bench/cases.ts'
 import { asArchitecture, asC4, asClass, asEr, asFlowchart, asGantt, asGitGraph, asJourney, asMindmap, asPie, asQuadrant, asRadar, asSankey, asSequence, asState, asTimeline, asXyChart, layoutMermaid, parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { countStructuralElements, isDrop } from '../agent/structural-count.ts'
 import type { DiagramKind, ParsedDiagram, ValidDiagram } from '../agent/types.ts'
@@ -39,18 +40,7 @@ interface Exclusion {
 }
 
 const ROOT = process.cwd()
-const cases = JSON.parse(readFileSync(join(ROOT, 'eval/mermaid-upstream-suite-bench/cases.json'), 'utf8')) as BenchCase[]
-// Keep the historical harvest intact while asserting the repaired public reading.
-for (const entry of cases) {
-  // The harvested recovery case uses fill, which pinned Quadrant rejects.
-  // Keep its native reading and source, without admitting a typed style.
-  if (entry.id === 'quadrant-upstream-should-be-able-to-handle-constructor-as-a-classname') entry.assertions.expectStructured = false
-  if (entry.id === 'flowchart-upstream-should-handle-text-in-ellipse-vertices') entry.assertions.labelsContain = ['this is an ellipse', 'B']
-  if (entry.id === 'sequence-upstream-it-should-handle-par-over-statements') {
-    entry.assertions.expectStructured = true
-    entry.assertions.labelsContain = ['Alice', 'Bob', 'Alice note', 'Bob note', 'Message', 'Parallel overlap']
-  }
-}
+const cases: BenchCase[] = reviewedUpstreamCases(ROOT)
 const exclusions = JSON.parse(readFileSync(join(ROOT, 'eval/mermaid-upstream-suite-bench/exclusions.json'), 'utf8')) as Exclusion[]
 const narrowerByFamily: Record<DiagramKind, (d: ParsedDiagram) => ValidDiagram | null> = {
   packet: asPacket,

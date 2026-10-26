@@ -1,5 +1,7 @@
+import './ci-policy-enforce.ts'
+import { benchmarkToolPins } from './tool-versions.ts'
 // Everyday entry to the existing exact-artifact browser scorecard. Keep the
-// implementation shared with publication CI; only warm-up policy differs.
+// implementation shared with the local release browser suite; warm-up differs.
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
@@ -11,7 +13,7 @@ import { PERFORMANCE_EXPERIMENTS } from '../../src/experimental-performance.ts'
 function main() {
   const args = process.argv.slice(2)
   if (args.includes('--help')) {
-    console.log('bun run bench:dave [--out DIR] [--rounds N] [--case ID,...] [--executable CHROMIUM] [--features NAME,...] [--bezel-dir DIR]\nBuilds and packs this checkout, then renders every official syntax fence with AM, Pele 1.6.0 and Mermaid 12.2.0. Add the verified Rust/WASM wrapper directory to include Bezel. Three rounds, 30 warm-up attempts. Results are advisory; no diagrams are excluded from coverage. Use release-browser-bench.ts directly for baseline tarballs, pinned Dart wrappers and separate memory diagnostics.')
+    console.log(`bun run bench:dave [--out DIR] [--rounds N] [--case ID,...] [--executable CHROMIUM] [--features NAME,...] [--bezel-dir DIR]\nBuilds and packs this checkout, then renders every official syntax fence with AM, Pele ${benchmarkToolPins['obsidianmd/pele'].version} and Mermaid 12.2.0. Add the verified Rust/WASM wrapper directory to include Bezel. Three rounds, 30 warm-up attempts. Results are advisory; no diagrams are excluded from coverage. Use release-browser-bench.ts directly for baseline tarballs, pinned Dart wrappers and separate memory diagnostics.`)
     return
   }
   // Validate options before the build or any network work.

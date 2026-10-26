@@ -1,4 +1,5 @@
 // Run with Bun; all outputs belong outside the source tree. No peer code is patched.
+import '../benchmark/ci-policy-enforce.ts'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'

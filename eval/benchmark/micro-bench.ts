@@ -1,3 +1,4 @@
+import './ci-policy-enforce.ts'
 // Hotspot micro-benchmarks: per-stage timings of the warm render pipeline.
 //
 //   bun run bench:micro                          # every case, Bun on source

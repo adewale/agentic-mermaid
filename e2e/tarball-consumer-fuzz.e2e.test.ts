@@ -218,6 +218,13 @@ console.log(JSON.stringify(entries.map(entry => Object.hasOwn(entry, 'TUFTE_STYL
     expect({ status: runtime.status, stderr: runtime.stderr }).toEqual({ status: 0, stderr: '' })
     expect(JSON.parse(runtime.stdout)).toEqual([false, false, false])
   }, RUN_TIMEOUT_MS)
+  test('ships public API documentation without benchmark reports or benchmark tooling', () => {
+    expect(haveConsumer).toBe(true)
+    expect(existsSync(join(packageDir, 'docs/api.md'))).toBe(true)
+    for (const path of ['docs/community-benchmark-ranking.md', 'eval/benchmark', 'bench-report']) {
+      expect({ path, shipped: existsSync(join(packageDir, path)) }).toEqual({ path, shipped: false })
+    }
+  })
 
   test('published documentation entry points have no broken relative links', () => {
     expect(haveConsumer).toBe(true)

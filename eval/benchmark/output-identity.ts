@@ -1,3 +1,4 @@
+import './ci-policy-enforce.ts'
 // Output identity across revisions: render the official syntax examples, the
 // docs corpus, the release scaling cases and the micro-benchmark workloads in
 // several output modes at two revisions, and report every output that differs.

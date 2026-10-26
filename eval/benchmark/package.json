@@ -1,0 +1,35 @@
+{
+  "name": "@agentic-mermaid/benchmarks",
+  "private": true,
+  "type": "module",
+  "description": "Local Mermaid benchmark campaigns and evidence reporting",
+  "scripts": {
+    "test": "bun run commands.ts test",
+    "typecheck": "bun run commands.ts typecheck",
+    "lint": "bun run commands.ts lint",
+    "bench": "bun run commands.ts bench",
+    "community": "bun run commands.ts community",
+    "prs": "bun run commands.ts prs",
+    "community:update": "bun run commands.ts community:update",
+    "portable": "bun run commands.ts portable",
+    "portable:build": "bun run commands.ts portable:build"
+  },
+  "engines": {
+    "bun": ">=1.4.0",
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@resvg/resvg-js": "2.6.2",
+    "entities": "7.0.1",
+    "esbuild": "0.28.1",
+    "playwright": "1.58.2",
+    "saxes": "6.0.0",
+    "yaml": "2.9.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.5",
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "@types/bun": "1.3.9",
+    "typescript": "5.9.3"
+  }
+}
