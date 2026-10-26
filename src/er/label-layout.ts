@@ -6,31 +6,47 @@ import type { ResolvedRenderStyle } from '../styles.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import { resolveLabelContent } from '../shared/display-text.ts'
 import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
+import { visitTypedPathSegments } from '../scene/bounds.ts'
 import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
+import { erCardinalityInk, type ErGeometryWork } from './cardinality-geometry.ts'
 
 export function erRelationshipBlock(rel: Pick<PositionedErRelationship, 'label' | 'identifying' | 'labelContent'>, style: ResolvedRenderStyle, styleFace?: Readonly<InternalStyleFace>): PixelTextBlock {
   const role = resolveRoleStyle(styleFace, 'relationship', { category: rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })
   return preparePixelText(resolveLabelContent(rel.label, rel.labelContent), { transform: role?.textTransform ?? style.edgeTextTransform, fontSize: role?.fontSize ?? style.edgeLabelFontSize, fontWeight: role?.fontWeight ?? style.edgeLabelFontWeight, letterSpacing: role?.letterSpacing ?? style.edgeLetterSpacing })
 }
 
-/** Final native labels belong to the exact artifact returned by family layout.
+/** Completed ER labels belong to the exact artifact returned by family layout.
  * The producer reservation is only a preference; the final center is resolved
  * after every route/frame/title transform with the request's actual style. */
-export function finalizeErRelationshipLabels(diagram: PositionedErDiagram, style: ResolvedRenderStyle, styleFace?: Readonly<InternalStyleFace>): void {
-  if (diagram.labelPlacement !== 'shaft-aware') return
-  const positions = separateRelationshipLabels(diagram, style, styleFace)
+export function finalizeErRelationshipLabels(diagram: PositionedErDiagram, style: ResolvedRenderStyle, styleFace?: Readonly<InternalStyleFace>, work?: ErGeometryWork): PositionedErRelationship[] {
+  const failed: PositionedErRelationship[] = []
+  const positions = placeRelationshipLabels(diagram, style, styleFace, work ?? { operations: 0 }, true, failed)
   for (const rel of diagram.relationships) {
     const center = positions.get(rel)
     if (center) rel.finalLabelPosition = { ...center }
     else delete rel.finalLabelPosition
   }
+  return failed
+}
+
+/** Exact same caption policy, evaluated before a route candidate commits. */
+export function erCandidateCaptionClear(diagram: PositionedErDiagram, index: number, points: Point[], style: ResolvedRenderStyle, styleFace: Readonly<InternalStyleFace> | undefined, work: ErGeometryWork): boolean {
+  const original = diagram.relationships[index]!
+  if (!original.label) return true
+  work.operations += diagram.relationships.length + points.length * 2 + 2
+  if (work.operations > 400_000) throw new ErLabelWorkLimitError()
+  const candidate = { ...original, points }
+  const width = Math.max(diagram.width, ...points.map(p => p.x + 40)), height = Math.max(diagram.height, ...points.map(p => p.y + 40))
+  const copy = { ...diagram, width, height, relationships: diagram.relationships.map((rel, i) => i === index ? candidate : rel) }
+  const failed: PositionedErRelationship[] = []
+  placeRelationshipLabels(copy, style, styleFace, work, true, failed)
+  return !failed.includes(candidate)
 }
 
 /** Projection and drawing consume the same final coordinates. Programmatic
  * diagrams without a completed native layout can still use the search helper
  * with their actual style; final coordinates are not reusable proof objects. */
 export function retainedErRelationshipLabels(diagram: PositionedErDiagram): Map<PositionedErRelationship, Point> | undefined {
-  if (diagram.labelPlacement !== 'shaft-aware') return undefined
   const positions = new Map<PositionedErRelationship, Point>()
   for (const rel of diagram.relationships) {
     if (!rel.label || rel.points.length < 2) continue
@@ -51,16 +67,31 @@ export function separateRelationshipLabels(
   diagram: PositionedErDiagram,
   style: ResolvedRenderStyle,
   styleFace?: Readonly<InternalStyleFace>,
+  work: ErGeometryWork = { operations: 0 },
 ): Map<PositionedErRelationship, { x: number; y: number }> {
+  return placeRelationshipLabels(diagram, style, styleFace, work, diagram.labelPlacement === 'shaft-aware')
+}
+
+function placeRelationshipLabels(diagram: PositionedErDiagram, style: ResolvedRenderStyle, styleFace: Readonly<InternalStyleFace> | undefined, work: ErGeometryWork, shaftAware: boolean, failed?: PositionedErRelationship[]): Map<PositionedErRelationship, { x: number; y: number }> {
   interface Box { x0: number; y0: number; x1: number; y1: number }
   const out = new Map<PositionedErRelationship, { x: number; y: number }>()
+  const charge = (count = 1) => { work.operations += count; if (work.operations > 400_000) throw new ErLabelWorkLimitError() }
   if (!diagram.relationships.some(rel => rel.label && rel.points.length > 1)) return out
-  const shaftAware = diagram.labelPlacement === 'shaft-aware'
   const intersects = (a: Box, b: Box): boolean =>
     Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > 0.5 && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 0.5
   const entityBoxes: Box[] = [
-    ...diagram.entities.map(e => ({ x0: e.x, y0: e.y, x1: e.x + e.width, y1: e.y + e.height })),
-    ...diagram.groups.map(g => ({ x0: g.x, y0: g.y, x1: g.x + g.width, y1: g.y + g.headerHeight })),
+    ...diagram.entities.map(e => {
+      const authored = Number.parseFloat(e.inlineStyle?.['stroke-width'] ?? '')
+      const half = (Number.isFinite(authored) && authored > 0 ? authored : style.nodeLineWidth) / 2
+      return { x0: e.x - half, y0: e.y - half, x1: e.x + e.width + half, y1: e.y + e.height + half }
+    }),
+    ...diagram.groups.flatMap(g => [
+      { x0: g.x, y0: g.y, x1: g.x + g.width, y1: g.y + g.headerHeight },
+      { x0: g.x - .75, y0: g.y - .75, x1: g.x + .75, y1: g.y + g.height + .75 },
+      { x0: g.x + g.width - .75, y0: g.y - .75, x1: g.x + g.width + .75, y1: g.y + g.height + .75 },
+      { x0: g.x - .75, y0: g.y - .75, x1: g.x + g.width + .75, y1: g.y + .75 },
+      { x0: g.x - .75, y0: g.y + g.height - .75, x1: g.x + g.width + .75, y1: g.y + g.height + .75 },
+    ]),
   ]
   // Crow's-foot/cardinality glyphs occupy a small zone around every route
   // endpoint. Treat those zones as reserved so a displaced relationship label
@@ -68,29 +99,42 @@ export function separateRelationshipLabels(
   const endpointBoxes: Box[] = diagram.relationships.flatMap(relationship => {
     if (relationship.points.length === 0) return []
     const endpoints = [relationship.points[0]!, relationship.points[relationship.points.length - 1]!]
-    return endpoints.map(point => ({ x0: point.x - 18, y0: point.y - 18, x1: point.x + 18, y1: point.y + 18 }))
+    const legacy = endpoints.map(point => ({ x0: point.x - 18, y0: point.y - 18, x1: point.x + 18, y1: point.y + 18 }))
+    if (relationship.points.length < 2) return legacy
+    const pieces = [erCardinalityInk(endpoints[0]!, relationship.points[1]!, relationship.cardinality1, style.lineWidth),
+      erCardinalityInk(endpoints[1]!, relationship.points.at(-2)!, relationship.cardinality2, style.lineWidth)]
+    charge(2)
+    // Preserve the existing readability zones and additionally reserve every
+    // emitted glyph piece, including circles beyond the old 18px square.
+    return [...legacy, ...pieces.flatMap(piece => piece ?? [])]
   })
   const placed: Box[] = []
-  let searchWork = 0
-  const charge = (count = 1) => { searchWork += count; if (searchWork > 400_000) throw new ErLabelWorkLimitError() }
   charge(entityBoxes.length + endpointBoxes.length)
-  // Only the selected native producer opts into this policy. ELK, including
-  // explicit fallback, keeps its existing final label algorithm. Use the visible
-  // rounded projection with a tolerance allowance as a placement heuristic;
-  // depth-limited flattening does not certify a universal error bound. Final
-  // paint certification remains responsible for proving actual clearance.
+  // Completed producer artifacts use final foreign-shaft separation. The
+  // standalone helper preserves its legacy policy for unfinished diagrams.
+  // Actual emitted path bounds keep occupied text clear of curve ink.
   const shafts = shaftAware ? diagram.relationships.flatMap(owner => {
     if (owner.points.length < 2) return []
     const roleStyle = resolveRoleStyle(styleFace, 'relationship', { category: owner.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })
     const radius = roleStyle?.bendRadius ?? style.edgeBendRadius, width = roleStyle?.lineWidth ?? style.lineWidth
     if (width <= 0) return []
     const rounded = radius > 0 && owner.points.length > 2
-    const points = rounded ? projectRoundedConnectorPath(owner.points, radius, { metric: 'manhattan', precision: 3 }).geometry.points : owner.points
-    // Keep thin visible strokes wider than the box-intersection tolerance.
+    // Exact emitted curve bounds replace the old flattened approximation.
     const padding = Math.max(.5, width / 2) + (rounded ? .5 : 0)
-    return points.slice(1).map((b, index) => {
+    if (rounded) {
+      charge(owner.points.length)
+      const geometry = projectRoundedConnectorPath(owner.points, radius, { metric: 'manhattan' }).geometry
+      const pieces: Array<{ owner: PositionedErRelationship; box: Box }> = []
+      if (!visitTypedPathSegments(geometry.d, part => {
+        charge()
+        pieces.push({ owner, box: { x0: part.bounds.x0 - padding, y0: part.bounds.y0 - padding, x1: part.bounds.x1 + padding, y1: part.bounds.y1 + padding } })
+        return true
+      }, () => { charge(); return true })) throw new ErLabelWorkLimitError()
+      return pieces
+    }
+    return owner.points.slice(1).map((b, index) => {
       charge()
-      const a = points[index]!
+      const a = owner.points[index]!
       return { owner, box: { x0: Math.min(a.x, b.x) - padding, y0: Math.min(a.y, b.y) - padding, x1: Math.max(a.x, b.x) + padding, y1: Math.max(a.y, b.y) + padding } }
     })
   }) : []
@@ -196,8 +240,9 @@ export function separateRelationshipLabels(
         if (cursor < hi) consider(cursor, hi)
         walked += length
       }
-      if (best && !collides(boxAt(best.point.x, best.point.y))) { chosen = best.point; chosenBox = boxAt(chosen.x, chosen.y) }
+      if (best && !collides(boxAt(best.point.x, best.point.y))) { chosen = best.point; chosenBox = boxAt(chosen.x, chosen.y); needsSlot = false }
     }
+    if (needsSlot && failed) { charge(); failed.push(rel) }
     placed.push(chosenBox)
     out.set(rel, chosen)
   }

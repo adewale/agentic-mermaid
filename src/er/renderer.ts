@@ -1,6 +1,7 @@
 export { ErLabelWorkLimitError } from './errors.ts'
 import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import { prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
+import { erCardinalityPieces, erLabelPillGeometry } from './cardinality-geometry.ts'
 import { erHeaderBlock, erRelationshipBlock, erAttributeBlocks, erGroupBlock, erEmptyAttributeBlock } from './layout.ts'
 import type { PositionedErDiagram, PositionedErEntity, PositionedErRelationship, PositionedErGroup, ErAttribute, Cardinality } from './types.ts'
 import type { RenderContext, Point } from '../types.ts'
@@ -13,7 +14,7 @@ import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { breakLineTags, escapeAttr, escapeDisplayAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
 import { sanitizeDisplayLines } from '../shared/text-controls.ts'
 import { topRoundedRectPath } from '../scene/svg-writer.ts'
-import type { Geometry, MarkAttributes, MarkPaint, SceneOwner } from '../scene/ir.ts'
+import type { MarkAttributes, MarkPaint, SceneOwner } from '../scene/ir.ts'
 import { hashId } from '../scene/seed.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
@@ -44,12 +45,6 @@ const ER_FONT = {
   attrSize: 11,
   keySize: 9,
 } as const
-
-/** One piece of a compound glyph: its geometry and its own paint. */
-interface ShapePiece {
-  geometry: Geometry
-  paint: MarkPaint
-}
 
 /**
  * Render a positioned ER diagram as an SVG string.
@@ -479,7 +474,6 @@ function renderRelationshipLine<T>(
   if (bendRadius > 0 && rel.points.length > 2) {
     const projection = projectRoundedConnectorPath(rel.points, bendRadius, {
       metric: 'manhattan',
-      precision: 3,
     })
     return marks.connector({
       id: sceneId,
@@ -528,13 +522,10 @@ function renderRelationshipLabel<T>(
   const displayLabel = metrics.text
 
   // Background pill for readability
-  const bgW = metrics.width + 8
-  const bgH = metrics.height + 6
-
   const pill = marks.shape({
     id: `${sceneId}:bg`,
     role: 'chrome',
-    geometry: { kind: 'rect', x: mid.x - bgW / 2, y: mid.y - bgH / 2, width: bgW, height: bgH, rx: 2, ry: 2 },
+    geometry: erLabelPillGeometry(metrics, mid),
     paint: { fill: 'var(--bg)', stroke: 'var(--_inner-stroke)', strokeWidth: '0.5' },
     channels,
   })
@@ -606,7 +597,7 @@ function crowsFootMark<T>(
     stroke: style.edgeStrokeColor ?? 'var(--_line)',
     strokeWidth: String(style.lineWidth + 0.25),
   }
-  const pieces = renderCrowsFoot(point, toward, cardinality, paint)
+  const pieces = erCardinalityPieces(point, toward, cardinality, paint)
   return marks.shape({
     id: sceneId,
     role: 'cardinality',
@@ -622,115 +613,6 @@ function crowsFootMark<T>(
  * `point` is the endpoint, `toward` gives the direction the line comes from;
  * `stroke` paints the glyph's lines.
  */
-function renderCrowsFoot(
-  point: { x: number; y: number },
-  toward: { x: number; y: number },
-  cardinality: Cardinality,
-  stroke: MarkPaint,
-): ShapePiece[] {
-  const pieces: ShapePiece[] = []
-
-  // Calculate direction from toward → point (unit vector)
-  const dx = point.x - toward.x
-  const dy = point.y - toward.y
-  const len = Math.sqrt(dx * dx + dy * dy)
-  if (len === 0) return []
-  const ux = dx / len
-  const uy = dy / len
-
-  // Perpendicular direction
-  const px = -uy
-  const py = ux
-
-  if (cardinality === 'parent') {
-    const at = (back: number, side: number) => ({ x: point.x - ux * back + px * side, y: point.y - uy * back + py * side })
-    return [{ geometry: { kind: 'polygon', points: [at(0, 0), at(6, 4), at(12, 0), at(6, -4)] }, paint: { fill: 'var(--bg)', ...stroke } }]
-  }
-
-  // Marker sits 4px from the endpoint, extending 12px back along the edge
-  const tipX = point.x - ux * 4
-  const tipY = point.y - uy * 4
-  const backX = point.x - ux * 16
-  const backY = point.y - uy * 16
-
-  // Primitive vocabulary follows upstream's erMarkers reference exactly:
-  //   one        = tick + tick        zero-one  = tick + circle
-  //   many       = crow's foot + tick zero-many = crow's foot + circle
-  // A tick is a perpendicular line; the circle marks the "zero" minimum.
-  // Before this correction 'zero-one' drew TWO ticks (reading as "one and
-  // only one" plus a circle) and 'many' drew no tick (one-or-more was
-  // indistinguishable from a bare many).
-  const hasCrowsFoot = cardinality === 'many' || cardinality === 'zero-many'
-  const hasCircle = cardinality === 'zero-one' || cardinality === 'zero-many'
-
-  /** Draw one tick (perpendicular line) centered on (cx, cy). */
-  const pushTickAt = (cx: number, cy: number): void => {
-    const halfW = 6
-    const x1 = cx + px * halfW
-    const y1 = cy + py * halfW
-    const x2 = cx - px * halfW
-    const y2 = cy - py * halfW
-    pieces.push({ geometry: { kind: 'line', x1, y1, x2, y2 }, paint: stroke })
-  }
-
-  if (cardinality === 'one') {
-    // Two ticks: one and only one. (The second tick keeps the historical
-    // two-step arithmetic — (tip - 4u), not (point - 8u) — so existing `||`
-    // markers stay byte-identical.)
-    pushTickAt(tipX, tipY)
-    pushTickAt(tipX - ux * 4, tipY - uy * 4)
-  } else if (cardinality === 'zero-one') {
-    // ONE tick at the tip; the circle behind it carries the "zero" minimum.
-    pushTickAt(tipX, tipY)
-  }
-
-  // Crow's foot (three lines fanning out from tip)
-  if (hasCrowsFoot) {
-    const fanW = 7
-    // Center line
-    const cfTipX = tipX
-    const cfTipY = tipY
-    // Three lines from tip to back, fanning out
-    const topX1 = cfTipX + px * fanW
-    const topY1 = cfTipY + py * fanW
-    pieces.push({
-      // Top fan line
-      geometry: { kind: 'line', x1: topX1, y1: topY1, x2: backX, y2: backY },
-      paint: stroke,
-    })
-    pieces.push({
-      // Center line
-      geometry: { kind: 'line', x1: cfTipX, y1: cfTipY, x2: backX, y2: backY },
-      paint: stroke,
-    })
-    const botX1 = cfTipX - px * fanW
-    const botY1 = cfTipY - py * fanW
-    pieces.push({
-      // Bottom fan line
-      geometry: { kind: 'line', x1: botX1, y1: botY1, x2: backX, y2: backY },
-      paint: stroke,
-    })
-    // One-or-more: the "one" tick behind the foot (where zero-many's circle
-    // sits), so `}|` and `}o` stay distinguishable at a glance.
-    if (cardinality === 'many') {
-      pushTickAt(point.x - ux * 20, point.y - uy * 20)
-    }
-  }
-
-  // Circle (for zero variants)
-  if (hasCircle) {
-    const circleOffset = hasCrowsFoot ? 20 : 12
-    const circleX = point.x - ux * circleOffset
-    const circleY = point.y - uy * circleOffset
-    pieces.push({
-      geometry: { kind: 'circle', cx: circleX, cy: circleY, r: 4 },
-      paint: { fill: 'var(--bg)', ...stroke },
-    })
-  }
-
-  return pieces
-}
-
 /** Compute the arc-length midpoint of a polyline path.
  *  Walks along each segment, finds the point at exactly 50% of total path length.
  *  This ensures the label sits ON the path even for orthogonal routes with bends,
