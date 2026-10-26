@@ -86,8 +86,8 @@ export function layoutCompoundGraph(
     const members = children[scope]!, local = new Map(members.map((id, index) => [id, index]))
     const nodes = members.map(id => {
       if (id < leafCount) {
-        const { id: identity, width, height, partition, modelOrder } = input.nodes[id]!
-        return { id: identity, width, height, partition, modelOrder }
+        const { id: identity, width, height, partition, modelOrder, minimumPortSpacing } = input.nodes[id]!
+        return { id: identity, width, height, partition, modelOrder, ...(minimumPortSpacing!==undefined?{minimumPortSpacing}:{}) }
       }
       const child = place(id - leafCount + 1, direction)
       return { id: groups[id - leafCount]!.id, width: child.width, height: child.height, partition: groups[id - leafCount]!.partition, modelOrder: groups[id - leafCount]!.modelOrder }

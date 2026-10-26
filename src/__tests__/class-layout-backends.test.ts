@@ -1024,8 +1024,34 @@ describe('Class marker meaning before producer selection', () => {
   })
 })
 
-import { classElkMarkerMinimums } from '../class/marker-port-capacity.ts'
+import { classElkMarkerMinimums, classNativeMarkerMinimums } from '../class/marker-port-capacity.ts'
 import type { PositionedClassDiagram, PositionedClassRelationship } from '../class/types.ts'
+
+describe('Native Class premeasured marker capacity',()=>{
+  const cards=[{id:'A'},{id:'B'},{id:'I',isInterface:true}]
+  const rels=[{from:'A',to:'B'},{from:'A',to:'A'},{from:'I',to:'B'}]
+  const templates=[{start:[{kind:'polygon' as const,points:[{x:0,y:-2},{x:6,y:0},{x:0,y:3}]}]},{},{start:[{kind:'circle' as const,cx:0,cy:0,r:100}]}]
+  test.each([1,2])('counts all roles and both loop ends with actual stroke %s before one placement',width=>{
+    const before=structuredClone({cards,rels,templates}),work=classMarkerAdmission.createClassMarkerAdmissionWork()
+    const minima=classNativeMarkerMinimums(cards,rels,templates,width,'LR',work)
+    // Three A incidences, including both loop ends. Literal template occupies
+    // [-2,3]; adding one shaft width gives pitch6 (or7), four uniform gaps.
+    expect(minima.get('A')).toEqual({width:0,height:width===1?24:28,portSpacing:width===1?6:7})
+    expect(minima.has('B')).toBe(false);expect(minima.has('I')).toBe(false)
+    expect({cards,rels,templates}).toEqual(before)
+    expect(work.operations).toBeGreaterThan(0);expect(work.exhausted).toBe(false)
+  })
+  test.each(['TB','BT','LR','RL'] as const)('reserves only the actual primary-face cross dimension for %s',direction=>{
+    const minimum=classNativeMarkerMinimums(cards,rels,templates,1,direction,classMarkerAdmission.createClassMarkerAdmissionWork()).get('A')!
+    expect(minimum).toEqual({width:direction==='LR'||direction==='RL'?0:24,height:direction==='LR'||direction==='RL'?24:0,portSpacing:6})
+  })
+  test('never resets spent shared admission work or grows a markerless card',()=>{
+    const work=classMarkerAdmission.createClassMarkerAdmissionWork();work.exhausted=true
+    expect(()=>classNativeMarkerMinimums(cards,rels,templates,1,'TB',work)).toThrow()
+    expect(work.exhausted).toBe(true)
+    expect(classNativeMarkerMinimums(cards,rels,[{},{},{}],1,'TB',classMarkerAdmission.createClassMarkerAdmissionWork()).size).toBe(0)
+  })
+})
 
 describe('ELK Class measured marker face capacity', () => {
   const card = (id: string, x: number, y: number, height: number) => ({ id, label: id, attributes: [], methods: [], x, y, width: 120, height, headerHeight: 32.9, attrHeight: 8, methodHeight: height - 40.9 })

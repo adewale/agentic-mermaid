@@ -1,3 +1,4 @@
+import { formatSvgNumber } from '../shared/svg-number.ts'
 import { classMarkerPiecesOverlap } from './measured-marker-overlap.ts'
 import { seatMeasuredMarkers } from './compound-marker-seating.ts'
 import { createOwnedCompoundObstacleIndexFactory } from './compound-obstacle-index.ts'
@@ -379,6 +380,180 @@ export function assertFinalBoundaryContacts(
     if (scoreMeasuredRouteCrossings(points, index, routes, input) === undefined) fail('cross-hierarchy routes have an uncertified shared contact')
     if (symmetric) route.covered = true
   }
+}
+
+/** Every old query lease has ended. Positive entries belong only to complete
+ * CURRENT paths; no negative search certificate is reused. */
+function seatFinalMeasuredMarkers(
+  input: MeasuredGraph, placed: AgenticLayout, nodes: readonly RoutingBox[],
+  frames: readonly RoutingBox[], subjects: readonly RoutingBox[], headerGroups: NonNullable<MeasuredGraph['groups']>,
+  work: ChannelWork, reserveExpanded: (amount: number) => void, fail: (reason: string) => never,
+  rescued: Set<number>, clearance: number, widthProof: number, proveAll = false,
+): Set<number> {
+    work.arcs -= 13
+    if (work.arcs<0) fail('agentic marker full-proof capacity limit')
+    const charge = (amount = 1): void => { work.pairs -= amount; if (work.pairs < 0) fail('agentic marker full-proof work limit') }
+    const markerCurrentProofs=new Set<number>()
+    reserveExpanded(4)
+    let labelCount=0
+    for(let index=0;index<input.edges.length;index++){if(--work.pairs<0)fail('agentic marker full-proof work limit');if(input.edges[index]!.label&&placed.edges[index]!.labelPosition)labelCount++}
+    work.arcs-=2*(nodes.length+frames.length+labelCount)+3
+    if(work.arcs<0)fail('agentic marker full-proof capacity limit')
+    const seatingObstacles:RoutingBox[]=[],seatingBounds={x:0,y:0,width:placed.width,height:placed.height}
+    for(let node=0;node<nodes.length;node++){if(--work.pairs<0)fail('agentic marker full-proof work limit');const b=nodes[node]!,m=(input.nodes[node]!.paintStrokeWidth??0)/2;seatingObstacles.push({x:b.x-m,y:b.y-m,width:b.width+2*m,height:b.height+2*m})}
+    for(let group=0;group<frames.length;group++){if(--work.pairs<0)fail('agentic marker full-proof work limit');const b=frames[group]!,m=(input.groups![group]!.paintStrokeWidth??0)/2,h=headerGroups[group]!.headerHeight??headerGroups[group]!.padding.top;seatingObstacles.push({x:b.x-m,y:b.y-m,width:b.width+2*m,height:h+2*m})}
+    for(let index=0;index<input.edges.length;index++){if(--work.pairs<0)fail('agentic marker full-proof work limit');const l=input.edges[index]!.label,p=placed.edges[index]!.labelPosition;if(l&&p)seatingObstacles.push({x:p.x-l.width/2-2,y:p.y-l.height/2-2,width:l.width+4,height:l.height+4})}
+    const proofBox: RoutingBox = {x:0,y:0,width:0,height:0}
+    const paintRectangle = [{kind:'polygon' as const,points:[{x:0,y:0},{x:0,y:0},{x:0,y:0},{x:0,y:0}]}]
+    const validate = (index: number, candidate: Point[]): boolean => {
+      const edge = input.edges[index]!, old = placed.edges[index]!
+      if (selfContact(candidate, work, fail)) return false
+      for (let cursor = 0; cursor < candidate.length; cursor++) {
+        charge(); const point = candidate[cursor]!
+        if (!Number.isFinite(point.x) || !Number.isFinite(point.y) || cursor && point.x !== candidate[cursor-1]!.x && point.y !== candidate[cursor-1]!.y) return false
+      }
+      for (let role = 0; role < 2; role++) {
+        charge(8)
+        const source = role === 0, box = subjects[source ? edge.source : edge.target]!
+        const p = source ? candidate[0]! : candidate.at(-1)!, q = source ? candidate[1]! : candidate.at(-2)!
+        const a = source ? old.points[0]! : old.points.at(-1)!, b = source ? old.points[1]! : old.points.at(-2)!
+        if (Math.sign(q.x-p.x) !== Math.sign(b.x-a.x) || Math.sign(q.y-p.y) !== Math.sign(b.y-a.y)
+          || Math.abs(q.x-p.x)+Math.abs(q.y-p.y) < Math.min(clearance,Math.abs(b.x-a.x)+Math.abs(b.y-a.y))) return false
+        if (p.x < box.x || p.x > box.x+box.width || p.y < box.y || p.y > box.y+box.height) return false
+        if (!(Math.abs(p.x-box.x)<1e-7 && q.y===p.y && q.x<p.x || Math.abs(p.x-box.x-box.width)<1e-7 && q.y===p.y && q.x>p.x
+          || Math.abs(p.y-box.y)<1e-7 && q.x===p.x && q.y<p.y || Math.abs(p.y-box.y-box.height)<1e-7 && q.x===p.x && q.y>p.y)) return false
+      }
+      let labelOnOldShaft = false
+      if(edge.label){
+        if(!old.labelPosition)return false
+        for(let cursor=1;cursor<old.points.length;cursor++){charge();if(onSegment(old.labelPosition,old.points[cursor-1]!,old.points[cursor]!)){labelOnOldShaft=true;break}}
+        if(edge.source!==edge.target || labelOnOldShaft){
+          let retained=false
+          for(let cursor=1;cursor<candidate.length;cursor++){charge();if(onSegment(old.labelPosition,candidate[cursor-1]!,candidate[cursor]!)){retained=true;break}}
+          if(!retained)return false
+        }
+      }
+      const halfWidth = (widthProof ?? 1)/2
+      for (let cursor=1;cursor<candidate.length;cursor++) {
+        const a=candidate[cursor-1]!, b=candidate[cursor]!
+        for (let node=0;node<nodes.length;node++) { charge(5); const box=nodes[node]!,incident=node===edge.source&&cursor===1||node===edge.target&&cursor===candidate.length-1,margin=incident?0:halfWidth+(input.nodes[node]!.paintStrokeWidth??0)/2
+          proofBox.x=box.x-margin;proofBox.y=box.y-margin;proofBox.width=box.width+2*margin;proofBox.height=box.height+2*margin
+          if (segmentEntersMeasuredBox(a,b,proofBox)) return false
+        }
+        for (let group=0;group<frames.length;group++) { charge(5); const box=frames[group]!, height=headerGroups[group]!.headerHeight ?? headerGroups[group]!.padding.top
+          proofBox.x=box.x-halfWidth;proofBox.y=box.y-halfWidth;proofBox.width=box.width+2*halfWidth;proofBox.height=height+2*halfWidth
+          if (height>0 && segmentEntersMeasuredBox(a,b,proofBox)) return false
+        }
+        for (let other=0;other<input.edges.length;other++) { charge(); const label=input.edges[other]!.label, center=placed.edges[other]!.labelPosition
+          if (!label || !center) continue
+          if (other===index && labelOnOldShaft && onSegment(center,a,b)) continue
+          charge(4);proofBox.x=center.x-label.width/2-2;proofBox.y=center.y-label.height/2-2;proofBox.width=label.width+4;proofBox.height=label.height+4
+          if (segmentEntersMeasuredBox(a,b,proofBox)) return false
+        }
+      }
+      // Original exact contact scorer on CURRENT peers; selected metadata is
+      // reserved and scanned before proof, with unchanged coefficient three.
+      work.arcs -= 2*placed.edges.length+1
+      if (work.arcs<0) fail('agentic marker full-proof capacity limit')
+      let segments=0
+      const routes=placed.edges.map((route,other)=>{charge();if(other!==index&&input.edges[other]!.visible!==false)segments+=Math.max(0,route.points.length-1);return {...route,style:input.edges[other]!.visible===false?'invisible':'solid'}})
+      charge(3*(candidate.length-1)*segments+candidate.length+segments)
+      return scoreMeasuredRouteCrossings(candidate,index,routes,input)!==undefined
+    }
+    seatMeasuredMarkers(input.edges, placed.edges, subjects, work, reserveExpanded, fail, validate, index => {
+      // Called only AFTER the same accepted array is committed. Every successful
+      // marker/yield full proof saw ALL then-current finalized visible routes.
+      // At the last change of either finite orthogonal visible pair member,
+      // that proof therefore saw both final geometries. No negative result or
+      // pre-marker candidate proof is promoted into this call-local ledger.
+      charge(2)
+      if(!markerCurrentProofs!.has(index)){if(--work.arcs<0)fail('agentic marker full-proof capacity limit');markerCurrentProofs!.add(index)}
+      if(!rescued.has(index)){work.arcs--;if(work.arcs<0)fail('agentic marker full-proof capacity limit');rescued.add(index)}
+    }, (index,source,pieces,bounds) => {
+      work.arcs--
+      if(work.arcs<0)fail('agentic marker full-proof capacity limit')
+      const markerBoxClear=(x:number,y:number,width:number,height:number):boolean=>{
+        charge(5)
+        if(bounds.maxX<=x || bounds.minX>=x+width || bounds.maxY<=y || bounds.minY>=y+height)return true
+        charge(8)
+        const p=paintRectangle[0]!.points
+        p[0]!.x=x;p[0]!.y=y;p[1]!.x=x+width;p[1]!.y=y;p[2]!.x=x+width;p[2]!.y=y+height;p[3]!.x=x;p[3]!.y=y+height
+        return !classMarkerPiecesOverlap(pieces,paintRectangle,charge)
+      }
+      const own=source?input.edges[index]!.source:input.edges[index]!.target
+      for(let node=0;node<nodes.length;node++){charge();if(node===own)continue;const box=nodes[node]!,half=(input.nodes[node]!.paintStrokeWidth??0)/2
+        if(!markerBoxClear(box.x-half,box.y-half,box.width+2*half,box.height+2*half))return false}
+      for(let group=0;group<frames.length;group++){charge();const box=frames[group]!,height=headerGroups[group]!.headerHeight??headerGroups[group]!.padding.top,half=(input.groups![group]!.paintStrokeWidth??0)/2
+        if(height>0&&!markerBoxClear(box.x-half,box.y-half,box.width+2*half,height+2*half))return false}
+      for(let other=0;other<input.edges.length;other++){charge();const label=input.edges[other]!.label,center=placed.edges[other]!.labelPosition
+        if(label&&center&&!markerBoxClear(center.x-label.width/2-2,center.y-label.height/2-2,label.width+4,label.height+4))return false}
+      return true
+    }, widthProof, input.maximumEdgeBendRadius??0, {bounds:seatingBounds,obstacles:seatingObstacles})
+    if(proveAll)for(let index=0;index<placed.edges.length;index++){
+      charge(2)
+      if(markerCurrentProofs.has(index))continue
+      if(!validate(index,placed.edges[index]!.points))fail('Measured final route violates its owned path or contact reservation')
+      if(--work.arcs<0)fail('agentic marker full-proof capacity limit')
+      markerCurrentProofs.add(index)
+    }
+    return markerCurrentProofs
+}
+
+/** Flat producers need the same complete marker/path closure. The caller passes
+ * the RAW producer's original request ledger. No hierarchy search is repeated. */
+export function finalizeFlatMeasuredMarkers(input: MeasuredGraph, placed: AgenticLayout, work: ChannelWork, expansionLimit: number, fail: (reason: string) => never): AgenticLayout {
+  if(input.placementOnly || input.groups?.length || input.maximumEdgeStrokeWidth===undefined)return placed
+  let marker=false
+  for(const edge of input.edges){if(--work.pairs<0)fail('agentic marker metadata work limit');if(edge.markerPaint?.start?.length||edge.markerPaint?.end?.length){marker=true;break}}
+  if(!marker)return placed
+  const count=input.nodes.length, edges=input.edges.length
+  // Body records + both reference arrays, two empty frame views, the set and
+  // its slots, and the retained point-reservation closure: reserve before work.
+  work.arcs-=3*count+edges+7;work.pairs-=2*count+edges+4
+  if(work.arcs<0)fail('agentic flat marker metadata capacity limit')
+  if(work.pairs<0)fail('agentic flat marker metadata work limit')
+  let expanded=placed.expandedVertices??0
+  const reserveExpanded=(amount:number):void=>{
+    if(!Number.isSafeInteger(amount)||amount<0)throw new TypeError('Invalid measured marker point reservation')
+    if(expanded+amount>expansionLimit)fail('agentic local cross-hierarchy visibility-expansion limit')
+    expanded+=amount
+  }
+  const nodes=placed.nodes.map((point,index):RoutingBox=>({...point,width:input.nodes[index]!.width,height:input.nodes[index]!.height})),subjects=[...nodes]
+  const frames:RoutingBox[]=[],headerGroups:NonNullable<MeasuredGraph['groups']>=[],rescued=new Set<number>()
+  for(let index=0;index<edges;index++)rescued.add(index)
+  // Forest producers may retain duplicate/monotone subdivision vertices.
+  // Compact that identical ink before interpreting actual terminal tangents;
+  // reversals survive and still fail the complete self-contact proof.
+  for(const route of placed.edges){if(--work.pairs<0)fail('agentic flat marker path work limit');compactProvedPath(route.points,work,fail)}
+  // Cyclic reflection can express a border as extent-(extent-side), while
+  // its node uses origin+size. Restore the node's exact raw side only when the
+  // actual SVG spelling is IDENTICAL; this never moves an emitted endpoint.
+  for(let index=0;index<edges;index++)for(let role=0;role<2;role++){
+    work.pairs-=20
+    if(work.pairs<0)fail('agentic flat marker endpoint work limit')
+    const route=placed.edges[index]!.points,edge=input.edges[index]!,source=role===0
+    if(route.length<2)continue
+    const p=source?route[0]!:route.at(-1)!,q=source?route[1]!:route.at(-2)!,box=subjects[source?edge.source:edge.target]!
+    if(p.x===q.x&&p.y!==q.y){
+      const side=q.y>p.y?box.y+box.height:box.y
+      if(formatSvgNumber(p.y)===formatSvgNumber(side))p.y=side
+    }else if(p.y===q.y&&p.x!==q.x){
+      const side=q.x>p.x?box.x+box.width:box.x
+      if(formatSvgNumber(p.x)===formatSvgNumber(side))p.x=side
+    }
+  }
+  const proofs=seatFinalMeasuredMarkers(input,placed,nodes,frames,subjects,headerGroups,work,reserveExpanded,fail,rescued,Math.max(8,input.edgeSpacing??6),input.maximumEdgeStrokeWidth,true)
+  work.arcs-=2*edges+2 // final route records, reference array and map callback
+  if(work.arcs<0)fail('agentic marker full-proof capacity limit')
+  assertFinalBoundaryContacts(input,placed,rescued,work,fail,proofs)
+  // Every current carrier participates in marker proofs, including an
+  // unchanged route. The original shortening must preserve all of them.
+  work.arcs-=edges+2;work.pairs-=edges
+  if(work.arcs<0)fail('agentic marker full-proof capacity limit')
+  if(work.pairs<0)fail('agentic marker full-proof work limit')
+  const boundaryRoutes:number[]=[]
+  for(let index=0;index<edges;index++)boundaryRoutes.push(index)
+  return {...placed,expandedVertices:expanded,boundaryRoutes}
 }
 
 export function routeCrossHierarchy(
@@ -920,97 +1095,7 @@ export function routeCrossHierarchy(
   }
   // Marker seating runs after ALL old graph/query leases and before final
   // pair closure. It includes primary/local routes, not only boundary rescues.
-  if (markerPaint) {
-    work.arcs -= 13
-    if (work.arcs<0) fail('agentic marker full-proof capacity limit')
-    const charge = (amount = 1): void => { work.pairs -= amount; if (work.pairs < 0) fail('agentic marker full-proof work limit') }
-    markerCurrentProofs=new Set<number>()
-    reserveExpanded(4)
-    let labelCount=0
-    for(let index=0;index<input.edges.length;index++){if(--work.pairs<0)fail('agentic marker full-proof work limit');if(input.edges[index]!.label&&placed.edges[index]!.labelPosition)labelCount++}
-    work.arcs-=2*(nodes.length+frames.length+labelCount)+3
-    if(work.arcs<0)fail('agentic marker full-proof capacity limit')
-    const seatingObstacles:RoutingBox[]=[],seatingBounds={x:0,y:0,width:placed.width,height:placed.height}
-    for(let node=0;node<nodes.length;node++){if(--work.pairs<0)fail('agentic marker full-proof work limit');const b=nodes[node]!,m=(input.nodes[node]!.paintStrokeWidth??0)/2;seatingObstacles.push({x:b.x-m,y:b.y-m,width:b.width+2*m,height:b.height+2*m})}
-    for(let group=0;group<frames.length;group++){if(--work.pairs<0)fail('agentic marker full-proof work limit');const b=frames[group]!,m=(input.groups![group]!.paintStrokeWidth??0)/2,h=headerGroups[group]!.headerHeight??headerGroups[group]!.padding.top;seatingObstacles.push({x:b.x-m,y:b.y-m,width:b.width+2*m,height:h+2*m})}
-    for(let index=0;index<input.edges.length;index++){if(--work.pairs<0)fail('agentic marker full-proof work limit');const l=input.edges[index]!.label,p=placed.edges[index]!.labelPosition;if(l&&p)seatingObstacles.push({x:p.x-l.width/2-2,y:p.y-l.height/2-2,width:l.width+4,height:l.height+4})}
-    const proofBox: RoutingBox = {x:0,y:0,width:0,height:0}
-    const paintRectangle = [{kind:'polygon' as const,points:[{x:0,y:0},{x:0,y:0},{x:0,y:0},{x:0,y:0}]}]
-    seatMeasuredMarkers(input.edges, placed.edges, subjects, work, reserveExpanded, fail, (index, candidate) => {
-      const edge = input.edges[index]!, old = placed.edges[index]!
-      if (selfContact(candidate, work, fail)) return false
-      for (let cursor = 0; cursor < candidate.length; cursor++) {
-        charge(); const point = candidate[cursor]!
-        if (!Number.isFinite(point.x) || !Number.isFinite(point.y) || cursor && point.x !== candidate[cursor-1]!.x && point.y !== candidate[cursor-1]!.y) return false
-      }
-      for (let role = 0; role < 2; role++) {
-        charge(8)
-        const source = role === 0, box = subjects[source ? edge.source : edge.target]!
-        const p = source ? candidate[0]! : candidate.at(-1)!, q = source ? candidate[1]! : candidate.at(-2)!
-        const a = source ? old.points[0]! : old.points.at(-1)!, b = source ? old.points[1]! : old.points.at(-2)!
-        if (Math.sign(q.x-p.x) !== Math.sign(b.x-a.x) || Math.sign(q.y-p.y) !== Math.sign(b.y-a.y)
-          || Math.abs(q.x-p.x)+Math.abs(q.y-p.y) < Math.min(clearance,Math.abs(b.x-a.x)+Math.abs(b.y-a.y))) return false
-        if (p.x < box.x || p.x > box.x+box.width || p.y < box.y || p.y > box.y+box.height) return false
-        if (!(Math.abs(p.x-box.x)<1e-7 && q.y===p.y && q.x<p.x || Math.abs(p.x-box.x-box.width)<1e-7 && q.y===p.y && q.x>p.x
-          || Math.abs(p.y-box.y)<1e-7 && q.x===p.x && q.y<p.y || Math.abs(p.y-box.y-box.height)<1e-7 && q.x===p.x && q.y>p.y)) return false
-      }
-      if (edge.label && !candidate.some((p, cursor) => { charge(); return cursor > 0 && onSegment(old.labelPosition!, candidate[cursor-1]!, p) })) return false
-      const halfWidth = (widthProof ?? 1)/2
-      for (let cursor=1;cursor<candidate.length;cursor++) {
-        const a=candidate[cursor-1]!, b=candidate[cursor]!
-        for (let node=0;node<nodes.length;node++) { charge(5); const box=nodes[node]!,incident=node===edge.source&&cursor===1||node===edge.target&&cursor===candidate.length-1,margin=incident?0:halfWidth+(input.nodes[node]!.paintStrokeWidth??0)/2
-          proofBox.x=box.x-margin;proofBox.y=box.y-margin;proofBox.width=box.width+2*margin;proofBox.height=box.height+2*margin
-          if (segmentEntersMeasuredBox(a,b,proofBox)) return false
-        }
-        for (let group=0;group<frames.length;group++) { charge(5); const box=frames[group]!, height=headerGroups[group]!.headerHeight ?? headerGroups[group]!.padding.top
-          proofBox.x=box.x-halfWidth;proofBox.y=box.y-halfWidth;proofBox.width=box.width+2*halfWidth;proofBox.height=height+2*halfWidth
-          if (height>0 && segmentEntersMeasuredBox(a,b,proofBox)) return false
-        }
-        for (let other=0;other<input.edges.length;other++) { charge(); const label=input.edges[other]!.label, center=placed.edges[other]!.labelPosition
-          if (!label || !center) continue
-          if (other===index && onSegment(center,a,b)) continue
-          charge(4);proofBox.x=center.x-label.width/2-2;proofBox.y=center.y-label.height/2-2;proofBox.width=label.width+4;proofBox.height=label.height+4
-          if (segmentEntersMeasuredBox(a,b,proofBox)) return false
-        }
-      }
-      // Original exact contact scorer on CURRENT peers; selected metadata is
-      // reserved and scanned before proof, with unchanged coefficient three.
-      work.arcs -= 2*placed.edges.length+1
-      if (work.arcs<0) fail('agentic marker full-proof capacity limit')
-      let segments=0
-      const routes=placed.edges.map((route,other)=>{charge();if(other!==index&&input.edges[other]!.visible!==false)segments+=Math.max(0,route.points.length-1);return {...route,style:input.edges[other]!.visible===false?'invisible':'solid'}})
-      charge(3*(candidate.length-1)*segments+candidate.length+segments)
-      return scoreMeasuredRouteCrossings(candidate,index,routes,input)!==undefined
-    }, index => {
-      // Called only AFTER the same accepted array is committed. Every successful
-      // marker/yield full proof saw ALL then-current finalized visible routes.
-      // At the last change of either finite orthogonal visible pair member,
-      // that proof therefore saw both final geometries. No negative result or
-      // pre-marker candidate proof is promoted into this call-local ledger.
-      charge(2)
-      if(!markerCurrentProofs!.has(index)){if(--work.arcs<0)fail('agentic marker full-proof capacity limit');markerCurrentProofs!.add(index)}
-      if(!rescued.has(index)){work.arcs--;if(work.arcs<0)fail('agentic marker full-proof capacity limit');rescued.add(index)}
-    }, (index,source,pieces,bounds) => {
-      work.arcs--
-      if(work.arcs<0)fail('agentic marker full-proof capacity limit')
-      const markerBoxClear=(x:number,y:number,width:number,height:number):boolean=>{
-        charge(5)
-        if(bounds.maxX<=x || bounds.minX>=x+width || bounds.maxY<=y || bounds.minY>=y+height)return true
-        charge(8)
-        const p=paintRectangle[0]!.points
-        p[0]!.x=x;p[0]!.y=y;p[1]!.x=x+width;p[1]!.y=y;p[2]!.x=x+width;p[2]!.y=y+height;p[3]!.x=x;p[3]!.y=y+height
-        return !classMarkerPiecesOverlap(pieces,paintRectangle,charge)
-      }
-      const own=source?input.edges[index]!.source:input.edges[index]!.target
-      for(let node=0;node<nodes.length;node++){charge();if(node===own)continue;const box=nodes[node]!,half=(input.nodes[node]!.paintStrokeWidth??0)/2
-        if(!markerBoxClear(box.x-half,box.y-half,box.width+2*half,box.height+2*half))return false}
-      for(let group=0;group<frames.length;group++){charge();const box=frames[group]!,height=headerGroups[group]!.headerHeight??headerGroups[group]!.padding.top,half=(input.groups![group]!.paintStrokeWidth??0)/2
-        if(height>0&&!markerBoxClear(box.x-half,box.y-half,box.width+2*half,height+2*half))return false}
-      for(let other=0;other<input.edges.length;other++){charge();const label=input.edges[other]!.label,center=placed.edges[other]!.labelPosition
-        if(label&&center&&!markerBoxClear(center.x-label.width/2-2,center.y-label.height/2-2,label.width+4,label.height+4))return false}
-      return true
-    }, widthProof, input.maximumEdgeBendRadius??0, {bounds:seatingBounds,obstacles:seatingObstacles})
-  }
+  if(markerPaint)markerCurrentProofs=seatFinalMeasuredMarkers(input,placed,nodes,frames,subjects,headerGroups,work,reserveExpanded,fail,rescued,clearance,widthProof!)
   if (rescued.size) assertFinalBoundaryContacts(input, placed, rescued, work, fail, markerCurrentProofs)
   const boundaryRoutes = [...lifted.keys()]
   if (ancestorPlan?.connections.size) {

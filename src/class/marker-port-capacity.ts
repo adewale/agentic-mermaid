@@ -1,3 +1,5 @@
+import type { Direction } from '../types.ts'
+import type { MarkerPaint } from '../layout/compound-marker-seating.ts'
 import { LayoutCertificationError } from '../layout/certification-error.ts'
 import { formatSvgNumber, formatSvgNumericAttribute } from '../shared/svg-number.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
@@ -161,6 +163,43 @@ export function classElkMarkerMinimums(diagram: PositionedClassDiagram, style: R
       else minWidth = Math.max(minWidth, extent)
     }
     if (minWidth > card.width || minHeight > card.height) result.set(id, { width: minWidth, height: minHeight })
+  }
+  return result
+}
+
+/** Native has no authored port side. Reserve one conservative common pitch
+ * for EVERY endpoint incidence on the primary faces before its single placement (a loop counts
+ * twice). This proposes capacity, never substitutes for final actual ink proof. */
+export function classNativeMarkerMinimums(
+  cards: readonly { id: string; isInterface?: boolean }[],
+  relationships: readonly { from: string; to: string }[],
+  templates: readonly MarkerPaint[], strokeWidth: number, direction: Direction,
+  ledger: ClassMarkerAdmissionWork,
+): ReadonlyMap<string, ClassCardMinimum & { portSpacing: number }> {
+  const pay=(units=1):void=>{for(let unit=0;unit<units;unit++)if(!chargeClassMarkerAdmissionWork(ledger))throw new LayoutCertificationError([{strategy:'class-native-marker-capacity',violations:['Class marker capacity work limit']}])}
+  pay(3)
+  const incidents=new Map<string,{count:number;low:number;high:number;marked:boolean}>(),result=new Map<string,ClassCardMinimum & { portSpacing: number }>()
+  for(const card of cards){pay(5);if(!card.isInterface)incidents.set(card.id,{count:0,low:-strokeWidth/2,high:strokeWidth/2,marked:false})}
+  for(let index=0;index<relationships.length;index++)for(let role=0;role<2;role++){
+    pay(8)
+    const rel=relationships[index]!,entry=incidents.get(role===0?rel.from:rel.to)
+    if(!entry)continue
+    entry.count++
+    const pieces=role===0?templates[index]?.start:templates[index]?.end
+    if(!pieces?.length)continue
+    entry.marked=true
+    for(const piece of pieces){
+      pay()
+      if(piece.kind==='circle'){pay(4);entry.low=Math.min(entry.low,piece.cy-piece.r);entry.high=Math.max(entry.high,piece.cy+piece.r)}
+      else for(const point of piece.points){pay(3);entry.low=Math.min(entry.low,point.y);entry.high=Math.max(entry.high,point.y)}
+    }
+  }
+  for(const [id,entry]of incidents){
+    pay(7)
+    if(!entry.marked)continue
+    const portSpacing=entry.high-entry.low+strokeWidth,extent=Math.ceil((entry.count+1)*portSpacing)
+    if(!Number.isSafeInteger(extent)||extent<=0)throw new LayoutCertificationError([{strategy:'class-native-marker-capacity',violations:['Nonfinite Class marker face reservation']}])
+    pay(4);result.set(id,{width:direction==='LR'||direction==='RL'?0:extent,height:direction==='LR'||direction==='RL'?extent:0,portSpacing})
   }
   return result
 }

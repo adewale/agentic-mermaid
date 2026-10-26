@@ -1,10 +1,12 @@
+import { finalizeFlatMeasuredMarkers } from './compound-boundary-routes.ts'
+import type { ChannelWork } from './channel-tracks.ts'
 import type { LayoutCertificationCandidate } from './certification.ts'
 import { GraphLayoutUnsupportedError, LayoutCertificationError } from './backend.ts'
 import type { Direction, MermaidGraph, MermaidSubgraph, PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup } from '../types.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
 import type { AgenticGraphBindings, AgenticGraphOptions } from '../layout-engine.ts'
 import type { AgenticLayout, MeasuredGraph } from './agentic-layered-core.ts'
-import { layoutLayeredGraph as layoutRawGraph } from './agentic-layered-core.ts'
+import { MAX_EXPANDED_VERTICES, layoutLayeredGraph as layoutRawGraph } from './agentic-layered-core.ts'
 import { shortenMeasuredRoutes } from './shorten-measured-routes.ts'
 export { improveArchitectureSiblingSlots } from './architecture-sibling-slots.ts'
 
@@ -69,9 +71,10 @@ export function createMeasuredLayoutCache(compute: (input: MeasuredGraph) => Age
   }
 }
 
-export function layoutLayeredGraph(input: MeasuredGraph, forest: (input: MeasuredGraph) => AgenticLayout | undefined, unsupported: (reason: string) => never): AgenticLayout {
-  const placed = layoutRawGraph(input, forest, unsupported)
-  return input.placementOnly ? placed : shortenMeasuredRoutes(input, placed)
+export function layoutLayeredGraph(input: MeasuredGraph, forest: (input: MeasuredGraph) => AgenticLayout | undefined, unsupported: (reason: string) => never, routingWork: ChannelWork = { pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 }): AgenticLayout {
+  const placed = layoutRawGraph(input, forest, unsupported, routingWork)
+  const final = input.placementOnly ? placed : finalizeFlatMeasuredMarkers(input, placed, routingWork, MAX_EXPANDED_VERTICES, unsupported)
+  return input.placementOnly ? final : shortenMeasuredRoutes(input, final)
 }
 
 /** Native-only preparation and projection are fetched with the selected solver.

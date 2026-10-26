@@ -7,9 +7,9 @@ import { type DisplayTextInput, prepareDisplayText, resolveLabelContent } from '
 import { type PixelTextBlock, preparePixelText } from '../shared/prepared-text.ts'
 import { repairClassAnnotationSeats } from './annotation-seats.ts'
 import { classInterfaceMarker } from './interface-occurrences.ts'
-import { assertClassMarkerMeaning, type ClassMarkerAdmissionWork, createClassMarkerAdmissionWork } from './marker-admission.ts'
+import { assertClassMarkerMeaning, chargeClassMarkerAdmissionWork, type ClassMarkerAdmissionWork, createClassMarkerAdmissionWork } from './marker-admission.ts'
 import { buildClassEndpointMarkerTemplates } from './marker-measurement.ts'
-import { classElkMarkerMinimums } from './marker-port-capacity.ts'
+import { classElkMarkerMinimums, classNativeMarkerMinimums } from './marker-port-capacity.ts'
 import { classMarkerHeaderInsets, classOwnedSurfaceViolations, repairClassHeaderRoutes, repairClassNoteSeats } from './owned-surfaces.ts'
 import { classEndpointTextCandidates } from './relationship-paint.ts'
 import { memberToString } from './text.ts'
@@ -619,6 +619,19 @@ export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions
         return block?.lineBlocks.some(line => line.runs.some(run => run.text.trim())) ? { width: block.width + 8, height: block.height + 6 } : undefined
       })
       const markerTemplates = buildClassEndpointMarkerTemplates(diagram.relationships, style)
+      // One Native placement, using copied minima. Extra vertical reservation
+      // is blank last-compartment space; authored text measurements stay fixed.
+      const nativeMinimums = inkWork ? classNativeMarkerMinimums(diagram.classes, diagram.relationships, markerTemplates, style.lineWidth, diagram.direction??'TB', inkWork) : undefined
+      const chargeNativeSize=(units:number):void=>{for(let unit=0;unit<units;unit++)if(!chargeClassMarkerAdmissionWork(inkWork!))throw new LayoutCertificationError([{strategy:'class-native-marker-capacity',violations:['Class marker capacity work limit']}])}
+      let nativeClassSizes = classSizes
+      for(const [id,minimum] of nativeMinimums ?? []){
+        chargeNativeSize(5)
+        const old=classSizes.get(id)!,height=Math.max(old.height,minimum.height),width=Math.max(old.width,minimum.width)
+        if(height===old.height&&width===old.width)continue
+        if(nativeClassSizes===classSizes){chargeNativeSize(classSizes.size+1);nativeClassSizes=new Map(classSizes)}
+        chargeNativeSize(3)
+        nativeClassSizes.set(id,{...old,width,height,methodHeight:old.methodHeight+(height-old.height)})
+      }
       const markerNodeStrokes = diagram.classes.map(cls => {
         const local = { ...(cls.className ? checkedAuthoredStyle(diagram.classDefs.get(cls.className), `classDef ${cls.className}`) : {}), ...checkedAuthoredStyle(cls.inlineStyle, `style ${cls.id}`) }
         const parsed = Number.parseFloat(local['stroke-width'] ?? '')
@@ -626,7 +639,7 @@ export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions
       })
       const placed = measureRenderStage('agentic', () =>
         layoutAgenticGraph({
-          nodes: diagram.classes.map((cls, index) => ({ id: cls.id, width: classSizes.get(cls.id)!.width, height: classSizes.get(cls.id)!.height, paintStrokeWidth: markerNodeStrokes[index], ...(membership.has(cls.id) ? { parent: membership.get(cls.id)! } : {}) })),
+          nodes: diagram.classes.map((cls, index) => ({ id: cls.id, width: nativeClassSizes.get(cls.id)!.width, height: nativeClassSizes.get(cls.id)!.height, paintStrokeWidth: markerNodeStrokes[index], ...(!cls.isInterface && (paintBackendId===undefined||paintBackendId==='backend:default') ? {paintCornerRadius:style.cornerRadius??0} : {}), ...(nativeMinimums?.has(cls.id) ? { minimumPortSpacing: nativeMinimums.get(cls.id)!.portSpacing } : {}), ...(membership.has(cls.id) ? { parent: membership.get(cls.id)! } : {}) })),
           groups: groups.map(group => ({ ...group, paintStrokeWidth: style.groupLineWidth })),
           edges: diagram.relationships.map((rel, index) => {
             const source = indices.get(rel.from),
@@ -650,7 +663,7 @@ export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions
         width: placed.width,
         height: placed.height,
         nodes: [
-          ...placed.nodes.map((node, index) => ({ ...node, id: diagram.classes[index]!.id, width: classSizes.get(diagram.classes[index]!.id)!.width, height: classSizes.get(diagram.classes[index]!.id)!.height })),
+          ...placed.nodes.map((node, index) => ({ ...node, id: diagram.classes[index]!.id, width: nativeClassSizes.get(diagram.classes[index]!.id)!.width, height: nativeClassSizes.get(diagram.classes[index]!.id)!.height })),
           ...namespaces.map((info, index) => ({ ...placed.groups![index]!, id: NS_PREFIX + info.path, namespacePath: info.path })),
         ],
         routes: new Map(
@@ -664,7 +677,7 @@ export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions
           ]),
         ),
       }
-      return finishClassLayout(extractClassLayout(geometry, diagram, classSizes, style, hierarchicalNamespaces), diagram, style, markerAdmission, inkWork)
+      return finishClassLayout(extractClassLayout(geometry, diagram, nativeClassSizes, style, hierarchicalNamespaces), diagram, style, markerAdmission, inkWork)
     },
     () => {
       // Wrapped namespace headers retain the existing bounded ELK sizing loop.

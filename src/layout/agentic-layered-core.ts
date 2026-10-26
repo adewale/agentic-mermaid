@@ -11,7 +11,7 @@ import { assignChannelTracks, type ChannelStep, type ChannelWork } from './chann
 
 export interface MeasuredGraph {
   /** Ordered partitions are local to a sibling scope; omitted values use zero. */
-  nodes: readonly { id: string; width: number; height: number; paintStrokeWidth?: number; parent?: number; partition?: number; modelOrder?: number }[]
+  nodes: readonly { id: string; width: number; height: number; paintStrokeWidth?: number; paintCornerRadius?: number; /** Producer-reserved primary port pitch; final paint proofs remain required. */ minimumPortSpacing?: number; parent?: number; partition?: number; modelOrder?: number }[]
   /** Edges may address a frame at nodes.length + its group index. */
   groups?: readonly {
     id: string; parent?: number; partition?: number; modelOrder?: number; direction?: Direction; minWidth: number
@@ -73,7 +73,7 @@ interface Vertex {
 // These are local solver bounds, not a replacement for request admission.
 const MAX_NODES = 4096
 const MAX_EDGES = 16384
-const MAX_EXPANDED_VERTICES = 32768
+export const MAX_EXPANDED_VERTICES = 32768
 const SWEEP_PAIRS = 4
 const LABEL_GAP = 8
 
@@ -107,6 +107,8 @@ export function layoutLayeredGraph(
   if (input.maximumEdgeStrokeWidth !== undefined && !finiteSize(input.maximumEdgeStrokeWidth, true)) throw new TypeError('Measured maximum edge stroke width must be finite and positive')
   if (input.maximumEdgeBendRadius !== undefined && !finiteSize(input.maximumEdgeBendRadius,false)) throw new TypeError('Invalid measured edge bend radius')
   for (const node of input.nodes) if (node.paintStrokeWidth !== undefined && !finiteSize(node.paintStrokeWidth,true)) throw new TypeError('Invalid measured node paint stroke')
+  for (const node of input.nodes) if (node.paintCornerRadius !== undefined && !finiteSize(node.paintCornerRadius,false)) throw new TypeError('Invalid measured node corner radius')
+  for (const node of input.nodes) if (node.minimumPortSpacing !== undefined && !finiteSize(node.minimumPortSpacing,true)) throw new TypeError('Invalid measured node port spacing')
   for (const group of input.groups ?? []) if (group.paintStrokeWidth !== undefined && !finiteSize(group.paintStrokeWidth,true)) throw new TypeError('Invalid measured group paint stroke')
   for (const edge of input.edges) if (edge.markerPaint !== undefined) assertMarkerPaint(edge.markerPaint)
   if (!['TD', 'TB', 'BT', 'LR', 'RL'].includes(input.direction)) throw new TypeError('Invalid measured graph direction')
@@ -675,7 +677,8 @@ export function layoutLayeredGraph(
       // lane instead of adding a jog merely to reach a uniformly spaced port.
       // Dense sides retain the existing proportional spread; loop pairs keep
       // their separately proved attachment separation.
-      const margin = Math.min(8, width / 6), separation = 8
+      if(nodes[nodeIndex]!.minimumPortSpacing!==undefined){routingWork.pairs-=3;if(routingWork.pairs<0)unsupported('agentic node port-spacing work limit')}
+      const margin = Math.min(8, width / 6), separation = Math.max(8,nodes[nodeIndex]!.minimumPortSpacing??8)
       if (!pairs?.length && width - 2 * margin >= (peers.length - 1) * separation) {
         const left = cross[nodeIndex]! - width / 2 + margin, right = cross[nodeIndex]! + width / 2 - margin
         const positions = peers.map((edge, slot) => {
