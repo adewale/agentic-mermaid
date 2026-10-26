@@ -63,8 +63,25 @@ Receipt evaluation remains lazy under `report`: text-only callers do not pay
 for a certificate. Strict callers require it before receiving output. The scan
 has explicit operation, output-size and issue limits. Native representation
 choices, such as replacing a continuous curve with cells, are reported
-separately from cell-layout correctness. Full authored semantic parity and
-complete route-connectivity proof are outside this cell certificate.
+separately from cell-layout correctness. Unrelated edge shafts may share cells
+as straight perpendicular crossings; declared bundles retain their intentional
+joins. The checker uses each owner's painted direction, so a merged junction
+cannot lend one route another route's stroke.
+
+Explicitly connected routes prove a path through their final visible owned
+stroke and marker cells. An internally allocated immutable path can witness
+that proof, but every point is checked again after composition. Missing, stale
+or ambiguous witnesses use the same bounded traversal and cumulative budget.
+Other routes retain endpoint and marker checks without a complete path proof.
+Full correspondence with authored source remains the family renderer's contract.
+
+Class keeps a valid compact layout. If allocation fails or its actual contacts
+are invalid, bounded recovery reserves separate routes, endpoint labels and
+namespace crossings before painting. It keeps text upright in all four layout
+directions and preserves authored identities, markers and note targets. Recovery
+for unboxed lollipop interfaces and hyperlink footers remains limited; unsupported recovery or an
+exhausted final check cannot become a passed certificate. Operation and output
+limits are unchanged.
 
 ## Priority and pass budgets
 

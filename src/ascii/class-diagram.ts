@@ -1,3 +1,4 @@
+import {prepareClassConstruction,compactClassRoutesDecision,type ClassConstruction} from './class-constructive-layout.ts'
 // Class layout keeps integer cards, endpoint demand and label rectangles
 // authoritative before emitting owned terminal primitives.
 import { classRelationshipLineStyle, parseClassDiagram } from '../class/parser.ts'
@@ -7,7 +8,7 @@ import { displayText, normalizeBrTags } from '../multiline-utils.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { type DisplayTextInput, resolveLabelContent } from '../shared/display-text.ts'
 import { checkAllClassLikeAuthoredStyles } from '../shared/style-props.ts'
-import { allocateBoxRoutes, BOX_ROUTE_APPROACH_DISTANCE, type BoxRelation, type BoxSide, boxFaceDemands, boxFaceSizes, classLikePaint, paintBoxRoute, paintBoxText, reverseBoxes, type TerminalBox } from './class-like-layout.ts'
+import { allocateBoxRoutes, allocateConstructiveClassRoutes, TerminalBoxRouteUnavailable, type BoxRoute, BOX_ROUTE_APPROACH_DISTANCE, type BoxRelation, type BoxSide, boxFaceDemands, boxFaceSizes, classLikePaint, paintBoxRoute, paintBoxText, reverseBoxes, type TerminalBox } from './class-like-layout.ts'
 import { drawMultiBox } from './draw.ts'
 import { terminalIds } from './identity.ts'
 import { serializeTerminalArtifact, type TerminalArtifact, terminalArtifact } from './terminal-artifact.ts'
@@ -307,13 +308,28 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
     // would accumulate offsets and leave frame/header/note geometry stale.
     allocateCards()
   }
-  const routes = allocateBoxRoutes(
-    [...placed.values(), ...noteBoxes],
-    [...relations, ...noteRelations],
-    direction,
-    namespaces.map(box => ({ ...box, container: true, headerHeight: box.labelLines.length })),
-  )
+  // Select one complete layout before painting. An invalid compact route is
+  // not published and never consumes/restarts a certification budget.
+  let routes: BoxRoute[] = [], construction: ClassConstruction | undefined
+  const allRelations = [...relations, ...noteRelations], boxes = [...placed.values(), ...noteBoxes]
+  let compactIssue: string | undefined
+  try {
+    routes = allocateBoxRoutes(boxes, allRelations, direction,
+      namespaces.map(box => ({ ...box, container: true, headerHeight: box.labelLines.length })))
+    const decision = compactClassRoutesDecision(routes, boxes, namespaces, namespaceByClass)
+    // UNKNOWN preserves the original compact drawing for the one final certifier.
+    if (decision.status === 'invalid') compactIssue = decision.reason
+  } catch (error) {
+    if (!(error instanceof TerminalBoxRouteUnavailable)) throw error
+    compactIssue = error.message
+  }
+  if (compactIssue) {
+    const titleLines = diagram.title ? wrapText(displayText(normalizeBrTags(diagram.title)), targetWidth) : []
+    construction = prepareClassConstruction(placed, namespaces, noteBoxes, namespaceByClass, allRelations, direction, titleLines, targetWidth, relations.length)
+    routes = allocateConstructiveClassRoutes(construction)
+  }
   const doc = new TerminalDocument()
+  if (construction) doc.reserveTerminalPathWitnessWork(construction.report.planningWork)
   const ascii = config.useAscii
   const frame = (box: TerminalBox, owner: TerminalOwner, opaque = false) => paintTerminalFrame(doc, box, owner, ascii, opaque)
   for (const box of namespaces.sort((a, b) => a.depth - b.depth || compareCodePointStrings(a.id, b.id))) {
@@ -324,13 +340,13 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
   for (const route of routes) {
     const rel = relationshipById.get(route.relation.id)
     if (!rel) {
-      const owner = { id: route.relation.id, kind: 'edge' as const, from: route.relation.from, to: route.relation.to }
+      const owner = { id: route.relation.id, kind: 'edge' as const, route: 'connected' as const, from: route.relation.from, to: route.relation.to }
       paintBoxRoute(doc, route, owner, ascii)
       doc.expectMarkers(owner, 'start', [])
       doc.expectMarkers(owner, 'end', [])
       continue
     }
-    const owner = doc.element({ id: route.relation.id, kind: 'edge', from: rel.from, to: rel.to })
+    const owner = doc.element({ id: route.relation.id, kind: 'edge', route: 'connected', from: rel.from, to: rel.to })
     paintBoxRoute(doc, route, owner, ascii, classRelationshipLineStyle(rel) === 'dashed')
     for (const [end, port, type, enabled] of [
       ['start', route.source, rel.fromType ?? rel.type, rel.markerAt === 'from' || rel.markerAt === 'both'],
@@ -382,9 +398,9 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
       titled = new TerminalDocument(Math.max(doc.width, ...lines.map(visualWidth)), doc.height + lines.length + 1)
     titled.scope({ id: 'title', kind: 'label' }, () => lines.forEach((line, row) => titled.text(Math.floor((titled.width - visualWidth(line)) / 2), row, line)))
     titled.overlay(doc, 0, lines.length + 1)
-    return terminalArtifact(titled, { colorMode, theme })
+    return terminalArtifact(titled, { colorMode, theme, ...(construction ? { trimEnd: true } : {}) })
   }
-  return terminalArtifact(doc, { colorMode, theme })
+  return terminalArtifact(doc, { colorMode, theme, ...(construction ? { trimEnd: true } : {}) })
 }
 
 /** Compatibility string entry point; native dispatch retains the drawing. */

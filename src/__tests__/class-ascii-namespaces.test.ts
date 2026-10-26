@@ -50,6 +50,14 @@ describe('Class terminal namespace frames (B05/CL4)', () => {
       }
       const edges = regions.filter(region => region.kind === 'edge')
       expect(edges).toHaveLength(({ 13: 45, 33: 44, 37: 34, 38: 25 }[ordinal]!) + 1)
+      const authored = [...namespacePackingCases[ordinal]!.matchAll(/^`([^`]+)`(?: "([^"]*)")? ([.*o<|>\-]+)(?: "([^"]*)")? `([^`]+)`(?: : (.*))?$/gm)]
+      expect(authored).toHaveLength(edges.length - 1)
+      for (const [index, relation] of authored.entries()) {
+        const id = `relationship:${index}`
+        expect(edges.find(edge => edge.id === id)).toMatchObject({ from: relation[1], to: relation[5] })
+        for (const [suffix, text] of [['from', relation[2]], ['to', relation[4]]] as const) if (text) expect(regions.find(region => region.id === `${id}:${suffix}-cardinality`)?.projectedText).toBe(text)
+        if (relation[6]) expect(edges.find(edge => edge.id === id)?.projectedText).toBe(relation[6].trim())
+      }
       expect(regions.filter(region => region.kind === 'node')).toHaveLength(({ 13: 23, 33: 23, 37: 18, 38: 17 }[ordinal]!) + 2)
       const notes = regions.filter(region => region.annotationTarget?.id === hub.id)
       expect(notes).toHaveLength(1)

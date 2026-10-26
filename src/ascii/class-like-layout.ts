@@ -1,3 +1,4 @@
+import {materializeClassConstruction,type ClassConstruction} from './class-constructive-layout.ts'
 import type { Direction as DiagramDirection } from '../types.ts'
 import type { Direction, GridCoord } from './types.ts'
 import { Up, Down, Left, Right, gridKey } from './types.ts'
@@ -23,6 +24,7 @@ export interface BoxRelation {
 }
 export interface BoxPort extends Readonly<GridCoord> { readonly side: BoxSide }
 export interface BoxText extends Readonly<TerminalBounds> { readonly lines: readonly string[]; readonly text: MeasuredTerminalText }
+export class TerminalBoxRouteUnavailable extends Error {}
 const allocatedRoute = Symbol('allocated terminal box route')
 const allocatedRoutes = new WeakSet<object>()
 export interface BoxRoute {
@@ -211,7 +213,7 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
       for (const key of removedRoutes) occupied.set(key, blocker)
     }
     for (const [key, previous] of removed) occupied.set(key, previous)
-    if (!middle) throw new Error(`No feasible terminal route for ${relation.id}; move the related cards or reduce their label footprint`)
+    if (!middle) throw new TerminalBoxRouteUnavailable(`No feasible terminal route for ${relation.id}; move the related cards or reduce their label footprint`)
     const approach = (port: BoxPort) => Array.from({ length: BOX_ROUTE_APPROACH_DISTANCE }, (_, step) => step === 0 ? port : ({ x: port.x + delta[port.side].x * step, y: port.y + delta[port.side].y * step }))
     const points = [...approach(source), ...middle, ...approach(target).reverse()]
     for (const point of points) { const key = gridKey(point); routeCells.add(key); occupied.set(key, blocker) }
@@ -253,3 +255,6 @@ export function classLikePaint(doc: TerminalDocument, family: 'class' | 'er', id
   }
   return paint
 }
+
+/** Only the admitted construction may bypass heuristic search; final routes use the canonical seal/WeakSet allocator. */
+export function allocateConstructiveClassRoutes(plan:ClassConstruction):BoxRoute[]{return materializeClassConstruction(plan,sealRoute)}

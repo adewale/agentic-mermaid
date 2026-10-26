@@ -4,6 +4,14 @@ import type { TerminalDocument, TerminalLineStyle, TerminalOwner, TerminalPort, 
 import { snapshotTerminalPort } from './terminal-document.ts'
 
 const allocated = new WeakSet<object>()
+interface PathAdmission { readonly route: TerminalRoute; readonly owner: TerminalOwner; readonly width: number; readonly height: number }
+const pathAdmissions = new WeakMap<object, Readonly<PathAdmission>>()
+/** Runtime authority, not a structural TypeScript brand. */
+export function terminalPathAdmission(token: unknown): Readonly<PathAdmission> | undefined {
+  if (!token || typeof token !== 'object') return undefined
+  const admission = pathAdmissions.get(token)
+  return admission && allocated.has(admission.route) ? admission : undefined
+}
 declare const routeBrand: unique symbol
 export interface TerminalRoute {
   readonly [routeBrand]: true
@@ -60,5 +68,13 @@ export function paintTerminalRoute(document: TerminalDocument, route: TerminalRo
   const strokes = [...directions.values()].map(point => ({ ...point, role: (point.mask & 10) && (point.mask & 5) ? 'corner' as const : 'line' as const }))
   if (!document.strokeBatch(strokes, { owner, ascii, style })) return false
   document.port(owner, route.source); document.port(owner, route.target)
+  // Exact-port witnesses are optional; other conventions retain connected BFS.
+  const first = route.points[0], last = route.points.at(-1)
+  if (owner.route === 'connected' && first?.x === route.source.x && first.y === route.source.y && last?.x === route.target.x && last.y === route.target.y) {
+    document.reserveTerminalPathWitnessWork(3) // token, immutable admission record, WeakMap entry: before allocation
+    const token = Object.freeze({})
+    pathAdmissions.set(token, Object.freeze({ route, owner, width: document.width, height: document.height }))
+    document.registerTerminalPathWitness(owner, token)
+  }
   return true
 }
