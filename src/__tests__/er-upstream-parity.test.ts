@@ -215,7 +215,7 @@ describe('ER comments against pinned Mermaid', () => {
   ])('%j reads as Mermaid reads it', expectParity)
 
   // A typed attribute is written on a block line of its own, so it cannot
-  // carry a trailing comment Mermaid would reject, or a `}`, which would end
+  // carry a trailing comment Mermaid would reject, or an unquoted `}`, which would end
   // the block when the line is read back.
   test.each(['int x %% c', 'int x}'])('a typed attribute cannot carry %j', text => {
     const parsed = parseRegisteredMermaid('erDiagram\n  A')
@@ -347,6 +347,8 @@ describe('typed ER attributes are written as Mermaid reads them', () => {
     ['A { string `geo.accuracy` PK "the comment" }', ['string', 'geo.accuracy', ['PK'], 'the comment']],
     ['A { `my.type` address }', ['my.type', 'address', [], '']],
     ['A { `my.type`? `geo.accuracy` UK "literal `ticks`" }', ['my.type?', 'geo.accuracy', ['UK'], 'literal `ticks`']],
+    ['A { string `geo}accuracy` PK "literal `ticks` }" }', ['string', 'geo}accuracy', ['PK'], 'literal `ticks` }']],
+    ['A { `my}type`? `geo{accuracy` UK "literal `ticks` }" }', ['my}type?', 'geo{accuracy', ['UK'], 'literal `ticks` }']],
   ])('%j', async (body, expected) => {
     const parsed = parseRegisteredMermaid(`erDiagram\n  ${body}`)
     if (!parsed.ok) throw new Error('fixture rejected')
@@ -358,6 +360,34 @@ describe('typed ER attributes are written as Mermaid reads them', () => {
     const attributes = json === undefined ? 'rejected' : (JSON.parse(json) as { getEntities: Array<[string, { attributes: Plain[] }]> }).getEntities
       .flatMap(([, entity]) => entity.attributes.map(attribute => [attribute.type, attribute.name, attribute.keys, attribute.comment]))
     expect({ source, attributes }).toEqual({ source, attributes: [expected] })
+  })
+
+  test('quoted attribute braces remain text through mutation, export and both projections', async () => {
+    const parsed = parseRegisteredMermaid('erDiagram\n  A\n  B')
+    if (!parsed.ok) throw new Error('fixture rejected')
+    const added = mutate(parsed.value, { kind: 'add_attribute', entity: 'A', text: '`my}type`? `geo{accuracy` UK "literal `ticks` }"' })
+    expect(added.ok).toBe(true)
+    if (!added.ok) throw new Error('quoted attribute refused')
+    const following = mutate(added.value, { kind: 'add_attribute', entity: 'A', text: 'int next PK' })
+    if (!following.ok) throw new Error('following attribute refused')
+    const source = serializeMermaid(following.value)
+    const expected = [
+      { id: 'A', attributes: [{ type: 'my}type?', name: 'geo{accuracy', keys: ['UK' as const], comment: 'literal `ticks` }' }, { type: 'int', name: 'next', keys: ['PK' as const], comment: '' }] },
+      { id: 'B', attributes: [] },
+    ]
+    const read = (text: string) => parseErDiagram(normalizeMermaidSource(text).familyLines).entities.map(entity => ({
+      id: entity.id, attributes: entity.attributes.map(attribute => ({ ...attribute, comment: attribute.comment ?? '' })),
+    }))
+    expect(read(source)).toEqual(expected)
+    const reopened = parseRegisteredMermaid(source)
+    if (!reopened.ok) throw new Error('export rejected')
+    expect(read(serializeMermaid(reopened.value))).toEqual(expected)
+    expect(await upstream.project(source, diagram => [...diagram.db.getEntities()].map(([id, entity]) => ({ id, attributes: entity.attributes })))).toEqual({ ok: true, value: expected })
+    const svg = renderMermaidSVG(following.value), terminal = renderMermaidASCII(source, { colorMode: 'none' })
+    for (const text of ['my}type?', 'geo{accuracy', 'literal `ticks` }', 'next']) {
+      expect(svg).toContain(`>${escapeXml(text)}</text>`)
+      expect(terminal).toContain(text)
+    }
   })
 })
 

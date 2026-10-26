@@ -336,12 +336,20 @@ export function erNameNeedsQuotes(id: string): boolean {
 }
 
 /** Offset of the `}` that ends an attribute block in `text`, or -1: the
- * first one outside a quoted comment. */
+ * first one outside an attribute word or comment's quoting. */
 function erBlockEndAt(text: string): number {
-  let quoted = false
+  let comment = false
   for (let index = 0; index < text.length; index++) {
-    if (text[index] === '"') quoted = !quoted
-    else if (text[index] === '}' && !quoted) return index
+    const char = text[index]
+    if (comment) {
+      if (char === '"') comment = false
+    } else if (char === '"') comment = true
+    else if (char === '`' && (index === 0 || /\s/.test(text[index - 1]!))) {
+      // Only a complete word owns this quote. A literal tick in a generous
+      // field cannot borrow a later word or comment's closing tick.
+      const end = text.indexOf('`', index + 1)
+      if (end > index + 1 && !/\s/.test(text.slice(index + 1, end))) index = end
+    } else if (char === '}') return index
   }
   return -1
 }
@@ -943,8 +951,8 @@ function ensureEntity(entityMap: Map<string, ErEntity>, id: string): ErEntity {
  * Parse one attribute written as text, without its trailing `%%` comment
  * (hasErTrailingComment); one that still has one is none. It reads as an
  * attribute block reads it: by Mermaid's attribute grammar, else in the
- * generous form (readGenerousErAttribute). A `}` outside the comment would
- * end the block, so no attribute holds one.
+ * generous form (readGenerousErAttribute). A `}` outside a quoted word or
+ * comment ends the block, so no unquoted field holds one.
  */
 export function parseErAttribute(line: string): ErAttribute | null {
   if (trailingCommentStart(line) >= 0 || erBlockEndAt(line) >= 0) return null
