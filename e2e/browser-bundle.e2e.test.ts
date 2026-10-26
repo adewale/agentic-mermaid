@@ -1,4 +1,4 @@
-import { releaseBenchCases } from '../eval/benchmark/release-bench-cases.ts'
+import { releaseBenchCases } from '../eval/shared/release-bench-cases.ts'
 /**
  * Browser bundle contract (BUILD-30).
  *
