@@ -584,14 +584,14 @@ describe('async family-loaded browser renderer', () => {
     })
   }
   test.each(['native', 'cross-scope', 'large-cross-scope', 'frame-endpoint', 'compound', 'local-limit', 'refined-cycle'])('native graph placement fetches ELK only for an actual fallback (%s)', async mode => {
-    const fallback = mode === 'compound' || mode === 'local-limit'
+    const fallback = mode === 'local-limit'
     const page = await browser.newPage()
     const requests: string[] = []
     page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))
     const source = mode === 'refined-cycle' ? readFileSync(join(REPO, 'eval/layout-compare/fixtures/cyclic-labelled-15.mmd'), 'utf8')
       : mode === 'large-cross-scope' ? releaseBenchCases().find(input => input.id === 'flowchart:subgraphs-12x8')!.source
       : mode === 'frame-endpoint' ? 'flowchart TD\nsubgraph Outer\n subgraph Inner\n  A["x#hearts;y"] --> B\n end\nend\nOutside --> Inner'
-      // Keep the compound fallback beyond the unchanged private-rank limit.
+      // Ancestor-frame contacts stay native without materializing private ranks.
       : mode === 'compound' ? `---\ntitle: Deferred providers\n---\nflowchart LR\nsubgraph Outer\n A["x#hearts;y"]\nend\nOuter ${'-'.repeat(2049)}> A`
       : `flowchart TD\n${mode === 'cross-scope' ? 'Outside --> A\nsubgraph G[Group]\n' : ''}A["x#hearts;y"] ${mode === 'local-limit' ? '-'.repeat(2050) + '>' : '-->'} B${mode === 'cross-scope' ? '\nend' : ''}`
     const options = {
