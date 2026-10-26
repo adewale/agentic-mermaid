@@ -12,6 +12,7 @@ export class WeightedLru<K, V> {
     this.entries.delete(key); this.entries.set(key, found)
     return found.value
   }
+  oldestValue(): V | undefined { return this.entries.values().next().value?.value }
   canFit(key: K, weight: number): boolean {
     const prior = this.entries.get(key)
     return Number.isFinite(weight) && weight >= 0 && this.entries.size + (prior ? 0 : 1) <= this.maxEntries && this.weight - (prior?.weight ?? 0) + weight <= this.maxWeight
