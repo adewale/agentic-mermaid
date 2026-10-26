@@ -1,0 +1,29 @@
+name: PR512 frozen final qualification against main3ae
+on:
+  push:
+    branches: [codex/pr512-7dd5-evidence-20261026]
+permissions:
+  contents: read
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Dispatch complete semantic and original-corpus qualification once
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh api repos/adewale/agentic-mermaid/git/ref/heads/codex/pr512-7dd5-qualification-20261026 --jq .object.sha)" = 7dd5f58ef4232234db0d3e7d2536e6485e36dca2
+          gh api --method POST repos/adewale/agentic-mermaid/actions/workflows/release-benchmark.yml/dispatches --input - <<'JSON'
+          {"ref":"codex/pr512-7dd5-qualification-20261026","inputs":{"evidence-scope":"all","baseline-ref":"3ae2c6842ce3868e5c4e3fb7131a6d39d3844a1e","fixed-baseline-sha":"2cff725d219c75b75593b1d3e9bacd74cba7a08e"}}
+          JSON
+      - name: Dispatch exact frozen-head CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --method POST repos/adewale/agentic-mermaid/actions/workflows/ci.yml/dispatches --input - <<'JSON'
+          {"ref":"codex/pr512-7dd5-qualification-20261026"}
+          JSON
