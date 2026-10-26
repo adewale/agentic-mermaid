@@ -119,7 +119,7 @@
       "requests": 34,
       "raw": 595000,
       "gzip": 195500,
-      "brotli": 173000
+      "brotli": 173500
     },
     "requirement": {
       "requests": 30,

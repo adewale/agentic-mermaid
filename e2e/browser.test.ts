@@ -337,11 +337,11 @@ it('standalone editor stays within its single-renderer payload budget', async ()
   const html = new Uint8Array(await Bun.file(join(ROOT, 'editor.html')).arrayBuffer())
   // Paired Bun 1.4.2 builds against merged PR512 c394219c (Bun gzip level 9):
   // raw 4,426,949 → 4,427,844; gzip 1,333,752 → 1,334,065.
-  // Linked drawing retention adds 895 B raw / 313 B gzip.
-  // Keep 656 B raw / 435 B gzip headroom.
+  // Linked drawing retention and producer revalidation measure 4,428,732 B
+  // raw / 1,334,238 B gzip with Bun 1.4.2. Keep 268 B / 262 B headroom.
   // One renderer still serves the main/worker realms; the single-engine and
   // relative payload gates also apply.
-  expect(html.byteLength).toBeLessThanOrEqual(4_428_500)
+  expect(html.byteLength).toBeLessThanOrEqual(4_429_000)
   expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_334_500)
 })
 
