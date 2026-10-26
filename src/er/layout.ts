@@ -1,5 +1,5 @@
 import { erCardinalityEnvelope, erCardinalityInk, erLabelPillInk, type ErGeometryWork } from './cardinality-geometry.ts'
-import { ErRouteWorkLimitError, ErRouteGeometryError } from './errors.ts'
+import { ErLabelWorkLimitError, ErRouteWorkLimitError, ErRouteGeometryError } from './errors.ts'
 export { ErRouteWorkLimitError, ErRouteGeometryError } from './errors.ts'
 import { resolveLabelContent, type DisplayTextInput } from '../shared/display-text.ts'
 import { assertErDiagramWork, DIAGRAM_WORK_LIMITS } from '../shared/diagram-limits.ts'
@@ -27,6 +27,7 @@ import { elkLayoutSync } from '../elk-instance.ts'
 import { directionToElk } from '../layout/direction.ts'
 import { layoutAgenticGraph } from '../layout/agentic-layered.ts'
 import { runMeasuredGraphBackend } from '../layout/measured-backend.ts'
+import { LayoutCertificationError } from '../layout/certification-error.ts'
 import { measureRenderStage } from '../render-stages.ts'
 import { checkedAuthoredStyle } from '../shared/style-props.ts'
 import { configSpacing } from '../shared/config-spacing.ts'
@@ -1082,13 +1083,25 @@ export function layoutErDiagram(
   assertErDiagramWork(diagram)
   const style = resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace)
   const work: ErGeometryWork = { operations: 0 }
+  // Selection belongs to the complete family artifact. Only an explicitly
+  // requested fallback may translate these known ER candidate refusals into
+  // the shared selector's typed rejection; strict Native retains its errors.
+  const nativeCandidate = (produce: () => PositionedErDiagram): PositionedErDiagram => {
+    try { return produce() } catch (error) {
+      if (options.graphLayout?.backend !== 'agentic' || options.graphLayout.fallback !== 'elk'
+        || !(error instanceof ErRouteGeometryError || error instanceof ErRouteWorkLimitError || error instanceof ErLabelWorkLimitError)) throw error
+      const rejected = new LayoutCertificationError([{ strategy: 'er-final-geometry', violations: [error.message] }])
+      rejected.cause = error
+      throw rejected
+    }
+  }
   if (diagram.entities.length === 0) {
     const empty = (): PositionedErDiagram => withErTitle({ width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, entities: [], relationships: [], groups: [] }, diagram.title, style)
     const frames = () => diagram.groups.length ? finishErGeometry(withErTitle(prepareErText(layoutErGroupsOnly(diagram, style, styleFace, work), style, styleFace), diagram.title, style), style, styleFace, work) : empty()
-    return runMeasuredGraphBackend(options, frames, frames)
+    return runMeasuredGraphBackend(options, () => nativeCandidate(frames), () => { erCharge(work, 0); return frames() }, true)
   }
   const entitySizes = measureErEntities(diagram, style)
-  const result = runMeasuredGraphBackend<ErPlacement>(options, () => {
+  const nativePlacement = (): ErPlacement => {
     const indices = new Map(diagram.entities.map((entity, index) => [entity.id, index]))
     const groupIds = new Set(diagram.groups.map(group => group.id))
     const subjects = new Set([...indices.keys(), ...groupIds])
@@ -1130,16 +1143,22 @@ export function layoutErDiagram(
       routes: new Map(placed.edges.map((route, index) => [edges[index]!.relationshipIndex, route.points])),
       labelPositions: new Map(placed.edges.flatMap((route, index) => route.labelPosition
         ? [[edges[index]!.relationshipIndex, { ...route.labelPosition }] as const] : [])) }
-  }, () => {
+  }
+  const elkPlacement = (): ErPlacement => {
+    // A fallback is not a fresh request or a fresh geometry-work allowance.
+    erCharge(work, 0)
     const { elkGraph } = buildErElkGraph(diagram, options, entitySizes, styleFace)
     const placed = elkLayoutSync(elkGraph)
     return { width: placed.width, height: placed.height, entities: placed.children ?? [], routes: new Map((placed.edges ?? []).map(edge => {
       const section = edge.sections?.[0]
       return [Number(edge.id.slice(1)), section ? [section.startPoint, ...(section.bendPoints ?? []), section.endPoint] : []]
     })) }
-  })
-  const positioned = withErTitle(prepareErText(extractErLayout(result, diagram, entitySizes, style, styleFace, work), style, styleFace), diagram.title, style)
-  return finishErGeometry(positioned, style, styleFace, work)
+  }
+  const finish = (placement: ErPlacement): PositionedErDiagram => {
+    const positioned = withErTitle(prepareErText(extractErLayout(placement, diagram, entitySizes, style, styleFace, work), style, styleFace), diagram.title, style)
+    return finishErGeometry(positioned, style, styleFace, work)
+  }
+  return runMeasuredGraphBackend(options, () => nativeCandidate(() => finish(nativePlacement())), () => finish(elkPlacement()), true)
 }
 
 /** The diagram's title takes a band above everything the layout placed. */

@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, spyOn, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
 import { layoutMermaidWithReceipt, parseRegisteredMermaid } from '../agent/core.ts'
@@ -9,6 +9,11 @@ import { toMermaidLines } from '../mermaid-source.ts'
 import { withRenderStageObserver } from '../render-stages.ts'
 import { releaseBenchCases } from '../../eval/shared/release-bench-cases.ts'
 import { missingSvgLabels } from './helpers/svg-labels.ts'
+
+import * as agenticProducer from '../layout/agentic-layered.ts'
+import * as elkProducer from '../elk-instance.ts'
+import * as erLabels from '../er/label-layout.ts'
+import { ErRouteGeometryError } from '../er/errors.ts'
 
 const native = { graphLayout: { backend: 'agentic' as const } }
 const compoundFixture = readFileSync(new URL('../../eval/layout-compare/fixtures/er-compound-backends.mmd', import.meta.url), 'utf8')
@@ -311,4 +316,55 @@ test.each([...['TB', 'BT', 'LR', 'RL'].flatMap(direction => ['agentic', 'elk'].m
     for (let earlier = 0; earlier < pillIndex; earlier++) expect(overlaps(pill, pills[earlier]!)).toBe(false)
   }
 
+})
+
+
+describe('ER final candidate backend ownership', () => {
+  test('rejects actual incomplete native geometry before selecting a requested ELK fallback, sharing final work', () => {
+    const source = 'erDiagram\nFALLBACK_OWNER_A ||--o{ FALLBACK_OWNER_B : late final geometry'
+    const model = parseErDiagram(toMermaidLines(source)), originalNative = agenticProducer.layoutAgenticGraph, originalFinalize = erLabels.finalizeErRelationshipLabels
+    const finalizations: Array<{ work: NonNullable<Parameters<typeof originalFinalize>[3]>; operations: number }> = []
+    const producer = spyOn(agenticProducer, 'layoutAgenticGraph').mockImplementation(input => {
+      const placed = originalNative(input)
+      // A finite but incomplete returned candidate reaches real ER final
+      // admission. The producer itself has not thrown a capability error.
+      return { ...placed, edges: placed.edges.map(edge => ({ ...edge, points: [{ ...edge.points[0]! }] })) }
+    })
+    const elk = spyOn(elkProducer, 'elkLayoutSync')
+    const finish = spyOn(erLabels, 'finalizeErRelationshipLabels').mockImplementation((diagram, style, face, work) => {
+      if (work) finalizations.push({ work, operations: work.operations })
+      return originalFinalize(diagram, style, face, work)
+    })
+    try {
+      expect(() => layoutErDiagram(model, { graphLayout: { backend: 'agentic', fallback: 'none' } })).toThrow(ErRouteGeometryError)
+      expect(elk).not.toHaveBeenCalled()
+      finalizations.length = 0
+      const rendered = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'agentic', fallback: 'elk' } })
+      expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ requested: 'agentic', selected: 'elk', fallback: 'elk', attempts: [expect.objectContaining({ backend: 'agentic', outcome: 'candidate-rejected' }), { backend: 'elk', outcome: 'selected' }] })])
+      expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+      expect(rendered.svg).toContain('data-from="FALLBACK_OWNER_A"')
+      expect(rendered.svg).toContain('data-to="FALLBACK_OWNER_B"')
+      expect(rendered.svg).toContain('late final geometry')
+      expect(producer).toHaveBeenCalledTimes(2)
+      expect(elk).toHaveBeenCalledTimes(1)
+      expect(finalizations.length).toBeGreaterThanOrEqual(2)
+      // One per-request debit object survives the fallback. ELK observes the
+      // operations already spent finishing the rejected Native candidate.
+      expect(finalizations.every(entry => entry.work === finalizations[0]!.work)).toBe(true)
+      expect(finalizations.at(-1)!.operations).toBeGreaterThan(finalizations[0]!.operations)
+    } finally { finish.mockRestore(); elk.mockRestore(); producer.mockRestore() }
+  })
+
+  test('propagates an unexpected late finalizer error without invoking ELK', () => {
+    const model = parseErDiagram(toMermaidLines('erDiagram\nUNEXPECTED_OWNER_A ||--|| UNEXPECTED_OWNER_B : unexpected final error'))
+    const unexpected = new Error('ER_ROUTE_BLOCKED: unexpected host failure is not a typed candidate refusal')
+    const elk = spyOn(elkProducer, 'elkLayoutSync')
+    const finish = spyOn(erLabels, 'finalizeErRelationshipLabels').mockImplementation(() => { throw unexpected })
+    try {
+      let caught: unknown
+      try { layoutErDiagram(model, { graphLayout: { backend: 'agentic', fallback: 'elk' } }) } catch (error) { caught = error }
+      expect(caught).toBe(unexpected)
+      expect(elk).not.toHaveBeenCalled()
+    } finally { finish.mockRestore(); elk.mockRestore() }
+  })
 })
