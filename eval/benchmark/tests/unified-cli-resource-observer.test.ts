@@ -1,8 +1,10 @@
 import { expect, test } from 'bun:test'
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { observeCommunityResourceTool, rankCommunityCliResources, runCommunityResourceDiagnostic } from '../unified/community-cli.ts'
+import { communityCliCacheIdentity, observeCommunityResourceTool, rankCommunityCliResources, runCommunityCliSuite, runCommunityResourceDiagnostic } from '../unified/community-cli.ts'
+import { communityCoreWorkloads } from '../unified/community.ts'
+import { readBenchmarkDocument } from '../portable/project-records.ts'
 
 test('explicit observer identity is bound and invalid artifacts retain actual resource costs without qualifying', () => {
   const directory = mkdtempSync(join(tmpdir(), 'am-resource-observer-'))
@@ -31,6 +33,27 @@ test('explicit observer identity is bound and invalid artifacts retain actual re
     expect(result.samplesMs).toBeUndefined()
     expect(result.metrics).toMatchObject({ userCpuMs: 0, systemCpuMs: 0, cpuBelowResolution: true, totalCpuUpperBoundMs: 20, peakRssBytes: 1234 * 1024 })
     expect(rankCommunityCliResources([variant], [result], [workload])[0]?.qualified).toBe(false)
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('a configured observer is the one community updates bind and run, not the host default', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'am-configured-observer-'))
+  try {
+    const observer = join(directory, 'gtime')
+    writeFileSync(observer, `#!${process.execPath}\nconsole.log('fixture (GNU Time) configured')`)
+    chmodSync(observer, 0o755)
+    const identity = communityCliCacheIdentity({ target: process.cwd(), packageRoot: process.cwd(), observerExecutable: observer }, [])
+    expect(identity.observer).toMatchObject({ path: realpathSync(observer), version: 'fixture (GNU Time) configured' })
+    expect(communityCliCacheIdentity({ target: process.cwd(), packageRoot: process.cwd(), observerExecutable: join(directory, 'other') }, []).observer).not.toEqual(identity.observer)
+    const community = join(directory, 'community')
+    mkdirSync(community)
+    writeFileSync(join(community, 'community-prepared.json'), JSON.stringify([{ node: { id: 'owner/api', roles: [], outputs: ['svg'], benchmark: { adapter: 'published-extra', outputs: ['svg'] } }, artifact: { kind: 'node', version: '1.0' } }]))
+    writeFileSync(join(community, 'community-inputs.json'), JSON.stringify({ workloads: communityCoreWorkloads() }))
+    writeFileSync(join(community, 'community-result.json'), JSON.stringify({ id: 'community', finishedAt: 'done', observations: [] }))
+    await runCommunityCliSuite({ out: join(directory, 'community-cli'), root: process.cwd(), profile: 'smoke', rounds: 1, observerExecutable: observer })
+    expect(readBenchmarkDocument(join(directory, 'community-cli', 'community-cli-result.json')).evidence.resourceObserver).toEqual(identity.observer)
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }

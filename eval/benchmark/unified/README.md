@@ -71,12 +71,25 @@ the separate output-identity source comparison. Those are different identities.
 
 Each output directory contains:
 
-- `report.json` and `report.md`: suite selection, prerequisites, execution status,
-  exact commands, wall times, test scores, declared policies and remaining gaps.
-- `coverage.json` and `coverage.csv`: observed surface/family/operation/format/mode cells. Missing
-  cells are unmeasured; fixture enrollment does not prove feature completeness.
-- `observations.csv`: per-observation runtime, implementation, status, samples and metrics.
+- `report.json`: a small verified reference to `report.json.gz`, which contains
+  suite selection, prerequisites, execution status, commands, wall times, test
+  scores, declared policies and gaps. Keep both files when copying a report.
+- `report.md`: the readable campaign summary.
+- Optional `--export-tables` outputs: `coverage.json`, `coverage.csv` and
+  `observations.csv`. These contain observed surface/family/operation cells and
+  per-observation metrics. Missing cells are unmeasured; enrollment does not
+  establish feature completeness.
 - One directory per suite, with complete process logs and native suite artifacts.
+
+Decode existing compressed, reference or legacy JSON without starting a campaign:
+
+```sh
+node eval/benchmark/commands.ts export --input /evidence/run/report.json \
+  --out /tmp/report-full.json
+```
+
+Omit `--out` to write JSON to stdout for tools such as `jq`. File exports require
+a fresh output path; exporting does not rewrite the original evidence.
 
 The runner discovers package `bench:*` entries and excludes its own wrappers to
 avoid recursion. Other real executable diagnostics have explicit adapters;

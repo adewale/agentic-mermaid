@@ -9,6 +9,7 @@ import { build } from 'esbuild'
 import { chromium } from 'playwright'
 import { extraBrowserEntry } from './community-extra-adapters.mjs'
 import type { CommunityArtifact, PreparedCommunity } from './community-types.ts'
+import { familySupportRow, familySupportWorkloads, unsupportedFamilyRow } from './family-support.ts'
 import type { BenchmarkObservation, BenchmarkStatus, UnifiedRunOptions, UnifiedSuiteResult, UnifiedWorkload } from './types.ts'
 
 type BrowserKind = 'beautiful' | 'pele' | 'mermaid' | 'function' | 'ondine' | 'franken' | 'merman' | 'extra'
@@ -39,7 +40,6 @@ export interface PreparedCommunityBrowser extends PreparedCommunity {
 }
 const digest = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex')
 const safe = (id: string): string => encodeURIComponent(id)
-const unsupported = /unsupported (?:diagram|family)|diagram (?:type|family).*(?:not supported|unsupported)|unknown diagram|unrecognized mermaid header|no diagram type detected|invalid mermaid header|not implemented.*(?:family|diagram)/i
 /** Seal executable/browser assets, not source-tree inputs or node_modules.
  * Delivery totals still use only observed requests, never this overapproximation. */
 function browserFiles(engine: CommunityBrowserEngine): { path: string; sha256: string }[] {
@@ -318,6 +318,7 @@ export async function runCommunityBrowserSuite(prepared: readonly PreparedCommun
     })
     if (peer.browserStatus === 'blocked') gaps.push(`${peer.node.id}: ${peer.browserDetail ?? 'Browser preparation required'} (${workloads.length} corpus cases unmeasured)`)
   }
+  const familyProbes = new Map<string, Map<string, BenchmarkObservation>>()
   const engines = prepared
     .filter(peer => peer.browserStatus === 'prepared' && peer.browser)
     .flatMap(peer => [peer, ...(peer.browser!.additionalOutputs ?? []).map(output => ({ ...peer, browser: { ...peer.browser!, output, additionalOutputs: undefined } }))])
@@ -451,7 +452,17 @@ export async function runCommunityBrowserSuite(prepared: readonly PreparedCommun
           samplesMs: [performance.now() - importStart],
           metrics: { implementation: peer.node.id, browser: browser.version(), version: engine.version, artifactSha256: engine.artifactSha256, cache: 'public-default-repeats' },
         })
-        for (const workload of roundWorkloads) {
+        // Probe each family once, before its corpus; a rejected canonical source skips that family.
+        const supportKey = `${peer.node.id}\n${engine.output ?? 'svg'}`,
+          probes = familyProbes.has(supportKey) ? [] : familySupportWorkloads(roundWorkloads),
+          rejected = familyProbes.get(supportKey) ?? new Map<string, BenchmarkObservation>()
+        familyProbes.set(supportKey, rejected)
+        for (const workload of [...probes, ...roundWorkloads]) {
+          const probe = probes.includes(workload)
+          if (!probe && rejected.has(workload.family)) {
+            record.samples.push(unsupportedFamilyRow(row(peer, workload, workload.features.includes('core-graph-batch') ? 'core-api-repeat' : (options.communityCoverageOnce ?? true) ? 'feature-corpus-qualification' : 'feature-corpus-attempt', 'unsupported', { metrics: { round } }), rejected.get(workload.family)!))
+            continue
+          }
           try {
             const pending = page.evaluate(
               async ({ source, expected, id, core, output, coverageOnly }) => {
@@ -545,7 +556,7 @@ export async function runCommunityBrowserSuite(prepared: readonly PreparedCommun
                 timer = setTimeout(() => reject(new Error('Browser API workload exceeded 30s')), 30_000)
               }),
             ]).finally(() => clearTimeout(timer))
-            const status = measured.status === 'ok' ? 'passed' : measured.status === 'error' && unsupported.test(measured.error ?? '') ? 'unsupported' : 'failed'
+            const status = measured.status === 'ok' ? 'passed' : 'failed'
             const observation = row(peer, workload, workload.features.includes('core-graph-batch') ? 'core-api-repeat' : (options.communityCoverageOnce ?? true) ? 'feature-corpus-qualification' : 'feature-corpus-attempt', status, {
               ...(measured.samples ? { samplesMs: measured.samples } : {}),
               ...(measured.bytes === undefined ? {} : { bytes: measured.bytes }),
@@ -553,6 +564,7 @@ export async function runCommunityBrowserSuite(prepared: readonly PreparedCommun
               detail: measured.error,
               metrics: {
                 round,
+                rejected: measured.status === 'error',
                 firstMs: measured.firstMs ?? null,
                 iterations: measured.iterations ?? null,
                 version: engine.version,
@@ -561,7 +573,11 @@ export async function runCommunityBrowserSuite(prepared: readonly PreparedCommun
                 cache: 'public-default-repeats',
               },
             })
-            record.samples.push(observation)
+            if (!probe) record.samples.push(observation)
+            else {
+              record.samples.push(familySupportRow(observation))
+              if (familySupportRow(observation).status === 'unsupported') rejected.set(workload.family, observation)
+            }
           } catch (error) {
             record.samples.push(row(peer, workload, workload.features.includes('core-graph-batch') ? 'core-api-repeat' : (options.communityCoverageOnce ?? true) ? 'feature-corpus-qualification' : 'feature-corpus-attempt', 'failed', { detail: String(error), metrics: { round } }))
             throw error

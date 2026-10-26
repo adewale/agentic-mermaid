@@ -6,6 +6,7 @@ export { isRenderedSourceEcho } from './qualification-visible-source.ts'
 
 import { inspectSvgText, SVG_NAMESPACE, type SvgInspectionElement } from './svg-text-inspection.ts'
 import type { UnifiedWorkload } from './types.ts'
+import { mermaidOracleDirectory, mermaidUpstreamDirectory } from '../portable/mermaid-oracle.ts'
 
 export const SVG_QUALIFICATION_PROTOCOL = 'svg-xml-namespaced-authored-text-v3'
 
@@ -177,17 +178,18 @@ export interface ReferenceLabelEnrichment {
 
 /** Acquire label expectations before any performance clock starts. Reference
  * getter projections preserve their paths in the companion admission evidence.
- * A missing reference stays a visible gap rather than a fabricated oracle. */
+ * Without the pinned reference this refuses, rather than passing cases unchecked. */
 export async function withReferenceLabels(workloads: readonly UnifiedWorkload[], options: { root: string; referenceDir?: string; upstreamDir?: string }): Promise<ReferenceLabelEnrichment> {
   const gaps: string[] = []
   const { admitCurrentReference, startModernReference } = await import('../../mermaid-modern-compat/reference.ts')
-  const upstream = options.upstreamDir ?? process.env.MERMAID_UPSTREAM_DIR ?? resolve(options.root, '../mermaid')
-  const referenceDir = options.referenceDir ?? process.env.MERMAID_REFERENCE_DIR ?? resolve(options.root, '../mermaid-reference')
+  const upstream = options.upstreamDir ?? mermaidUpstreamDirectory()
+  const referenceDir = options.referenceDir ?? mermaidOracleDirectory()
   let provenance: unknown
   try {
     provenance = admitCurrentReference(upstream, referenceDir)
   } catch (error) {
-    return { workloads: workloads.map(workload => ({ ...workload })), gaps: [`Independent label admission unavailable: ${String(error)}`] }
+    // Measuring without the pinned labels would pass cases unchecked; refuse instead.
+    throw Error(`Reference labels need the pinned Mermaid source checkout at ${upstream} and oracle at ${referenceDir}; run \`bun run reference:mermaid\` in the Agentic checkout. ${String(error)}`)
   }
   const { referenceLabels, censusDisplayText } = await import('../../mermaid-modern-compat/label-census.ts')
   const reference = startModernReference(referenceDir)

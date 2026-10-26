@@ -24,7 +24,10 @@ async function renderer() {
   }
   if (artifact.kind === 'global') { globalThis.self ??= globalThis; await import(pathToFileURL(artifact.module)); if (typeof globalThis[artifact.global] !== 'function') throw Error('Public global API absent: ' + artifact.global); return source => globalThis[artifact.global](source) }
   if (config.adapter === 'mermaid') {
-    const domRequire = createRequire(resolve(process.env.MERMAID_REFERENCE_DIR ?? resolve(job.harnessRoot, '../mermaid-reference'), 'package.json')), { JSDOM } = domRequire('jsdom'), dom = new JSDOM('<!doctype html><body>')
+    const reference = process.env.MERMAID_REFERENCE_DIR ?? resolve(job.harnessRoot, '../mermaid-reference'), domRequire = createRequire(resolve(reference, 'package.json'))
+    let JSDOM
+    try { ({ JSDOM } = domRequire('jsdom')) } catch (error) { throw Error(`Mermaid's Node adapter needs jsdom from the pinned Mermaid reference at ${reference}; run \`bun run reference:mermaid\` in the Agentic checkout or set MERMAID_REFERENCE_DIR (${String(error).split('\n')[0]})`) }
+    const dom = new JSDOM('<!doctype html><body>')
     for (const key of ['window', 'document', 'navigator', 'HTMLElement', 'SVGElement', 'Element', 'Node', 'Option']) Object.defineProperty(globalThis, key, { configurable: true, value: dom.window[key] })
     cleanups.push(() => dom.window.close())
   }
@@ -205,7 +208,7 @@ try {
       }
       qualify(sink, workload); globalThis.__communitySink = sink
       emit({ runtime: process.versions.bun ? 'Bun ' + process.versions.bun : 'Node ' + process.versions.node, surface: extraApi?.surface, apiBoundary: extraApi?.boundary, id: workload.id, family: workload.family, status: 'passed', samplesMs: samples, medianMs: median(samples), firstMs, bytes, iterations, qualification, ...parserReturn(sink), ...(output === 'diagnostics' ? { diagnosticsCount: diagnosticHelpers.diagnosticSummary(sink).errorCount, diagnosticAccepted: diagnosticHelpers.diagnosticSummary(sink).accepted, diagnosticStatusScope: core ? 'independently-valid-core-admission' : 'operation-completion-without-positive-feature-oracle' } : {}) })
-    } catch (error) { emit({ runtime: process.versions.bun ? 'Bun ' + process.versions.bun : 'Node ' + process.versions.node, surface: extraApi?.surface, apiBoundary: extraApi?.boundary, id: workload.id, family: workload.family, status: !error.qualification && /unsupported|unknown.*diagram|invalid.*header|not.*supported|MERMAN_UNSUPPORTED/i.test(String(error)) ? 'unsupported' : 'failed', firstMs: firstMs ?? performance.now() - firstStart, detail: String(error) }) }
+    } catch (error) { emit({ runtime: process.versions.bun ? 'Bun ' + process.versions.bun : 'Node ' + process.versions.node, surface: extraApi?.surface, apiBoundary: extraApi?.boundary, id: workload.id, family: workload.family, status: 'failed', rejected: !error.qualification, firstMs: firstMs ?? performance.now() - firstStart, detail: String(error) }) }
   }
   const memory = { rssBytes: process.memoryUsage().rss, peakRssBytes: process.resourceUsage().maxRSS * 1024 }
   for (const close of cleanups.reverse()) await close()

@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { assertBenchmarkExecutionAllowed } from '../ci-policy.ts'
+import { readBenchmarkDocument } from '../portable/project-records.ts'
 import { prepareCommunity } from './community.ts'
 import { prepareCommunityBrowsers } from './community-browser.ts'
 import type { CommunityArtifact } from './community-types.ts'
@@ -29,7 +30,7 @@ function targetIdentity(options: ReturnType<typeof parseOptions>): TargetIdentit
 }
 function originalTarget(directory: string): TargetIdentity {
   const invocation = JSON.parse(readFileSync(join(directory, 'invocation.json'), 'utf8')),
-    report = JSON.parse(readFileSync(join(directory, 'report.json'), 'utf8'))
+    report = readBenchmarkDocument(join(directory, 'report.json'))
   const revisions = new Set<string>()
   const visit = (value: unknown) => {
     if (value && typeof value === 'object')

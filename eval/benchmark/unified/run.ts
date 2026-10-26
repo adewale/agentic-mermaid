@@ -1,3 +1,4 @@
+import { readBenchmarkDocument, readBenchmarkResult, writeBenchmarkDocument } from '../portable/project-records.ts'
 import { execFileSync, spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { createWriteStream, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
@@ -22,9 +23,10 @@ export interface RunnerOptions extends SuiteOptions {
   timeoutMs: number
   list: boolean
   allowIncomplete: boolean
+  exportTables?: boolean
 }
 export function parseOptions(argv: string[]): RunnerOptions {
-  const flags = new Set(['--list', '--allow-incomplete', '--community-force', '--benchmark-force'])
+  const flags = new Set(['--list', '--allow-incomplete', '--community-force', '--benchmark-force', '--export-tables'])
   const allowed = new Set([
     'profile',
     'suites',
@@ -137,6 +139,7 @@ export function parseOptions(argv: string[]): RunnerOptions {
     selected,
     list: options.has('list'),
     allowIncomplete: options.has('allow-incomplete'),
+    exportTables: options.has('export-tables'),
     executable: path('executable'),
     site: path('site'),
     ownershipSite: path('ownership-site'),
@@ -250,7 +253,7 @@ function declaredReports(directory: string, notBefore: number) {
     if (!statSync(file).isFile() || statSync(file).mtimeMs < notBefore - 1) continue
     artifacts.push(file)
     try {
-      const value = readJson(file)
+      const value = readBenchmarkDocument(file)
       if (!value || typeof value !== 'object' || Array.isArray(value)) continue
       toolVersions.push(...owningToolVersions(value, file))
       const checks = Array.isArray(value.checks) ? value.checks.filter((check: any) => check.ok === false) : []
@@ -364,6 +367,7 @@ export async function runUnified(options: RunnerOptions): Promise<UnifiedReport>
   const selected = new Set(options.selected ?? catalog.filter(suite => suite.automatic !== false && (options.profile === 'full' || suite.smoke)).map(suite => suite.id))
   const report: UnifiedReport = {
     schemaVersion: 1,
+    exports: { tables: Boolean(options.exportTables) },
     machine: {
       platform: process.platform,
       arch: process.arch,
@@ -444,7 +448,7 @@ export async function runUnified(options: RunnerOptions): Promise<UnifiedReport>
     Object.assign(execution, { elapsedMs: run.elapsedMs, exitCode: run.code, signal: run.signal, timedOut: run.timedOut })
     execution.status = run.code === 0 && !run.timedOut && !run.launchError && !run.cancelledSignal ? 'passed' : 'failed'
     if (suite.kind === 'internal' && existsSync(internalResult)) {
-      const result = readJson(internalResult) as UnifiedSuiteResult
+      const result = readBenchmarkResult(internalResult)
       if (!Array.isArray(result.observations) || !Array.isArray(result.gaps)) throw new Error(`${suite.id} returned an invalid result envelope`)
       execution.result = result
       if (execution.status === 'passed' || run.code === 2) execution.status = result.status
@@ -500,11 +504,11 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
     try {
       admitSelectedArtifacts(options)
       const result = await runInternal(argv[1], options)
-      writeFileSync(options.resultPath, JSON.stringify(result, null, 2) + '\n')
+      writeBenchmarkDocument(options.resultPath, result)
       process.exitCode = result.status === 'failed' ? 1 : result.status === 'blocked' ? 2 : 0
     } catch (error) {
       const result: UnifiedSuiteResult = { id: argv[1], status: 'failed', startedAt: now(), finishedAt: now(), observations: [], gaps: [String(error)] }
-      writeFileSync(options.resultPath, JSON.stringify(result, null, 2) + '\n')
+      writeBenchmarkDocument(options.resultPath, result)
       console.error(error)
       process.exitCode = 1
     }
@@ -512,7 +516,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   }
   if (argv.includes('--help')) {
     console.log(
-      'bun run bench [--profile smoke|full] [--list] [--suites ID,...] [--out DIR] [--rounds N]\n  --target CHECKOUT --package-root INSTALLED_PACKAGE\n  --candidate-tarball FILE --candidate-sha256 HEX\n  --baseline DIRECTORY | --baseline-npm SELECTOR; --baseline-ref GIT_REF\n  --baseline-tarball FILE --baseline-sha256 HEX | --baseline-lock FILE\n  --site WEBSITE_PUBLIC --ownership-site FROZEN_ORIGINAL_CANDIDATE_DIR --executable CHROMIUM --bezel-dir VERIFIED_WRAPPER\n  --mermaid-dir PINNED_SOURCE --reference-dir INDEPENDENT_INSTALL\n  --upstream-runner-root ORIGINAL_VITEST_KIT --zenuml-root PINNED_REFERENCE_ADDON\n  --community-browser-prepared FROZEN_BROWSER_MANIFEST\n  --community-artifacts PEER_ADAPTER_MANIFEST --projects OWNER/PROJECT,...\n  --benchmark-records DIR --benchmark-force\n  --benchmark-resume-attempt COMPLETED_ATTEMPT_DIR (one project and retained suite)\n  --startup-samples N --startup-surfaces library,cli,mcp,browser\n  --node-executable NODE --bun-executable BUN --startup-observer GNU_TIME --native-executable AM\n  --live-provider anthropic|openai-compatible --live-model MODEL\n  --timeout-ms N --allow-incomplete\nSmoke enrolls every family in bounded adapters; full selects every maintained suite, including Dave, current-reference tests and historical imported corpora. Missing prerequisites remain blocked. Exit: 0 complete, 1 failed, 2 incomplete. --allow-incomplete permits blocked suites but never failures.',
+      'bun run bench [--profile smoke|full] [--list] [--suites ID,...] [--out DIR] [--rounds N]\n  --target CHECKOUT --package-root INSTALLED_PACKAGE\n  --candidate-tarball FILE --candidate-sha256 HEX\n  --baseline DIRECTORY | --baseline-npm SELECTOR; --baseline-ref GIT_REF\n  --baseline-tarball FILE --baseline-sha256 HEX | --baseline-lock FILE\n  --site WEBSITE_PUBLIC --ownership-site FROZEN_ORIGINAL_CANDIDATE_DIR --executable CHROMIUM --bezel-dir VERIFIED_WRAPPER\n  --mermaid-dir PINNED_SOURCE --reference-dir INDEPENDENT_INSTALL\n  --upstream-runner-root ORIGINAL_VITEST_KIT --zenuml-root PINNED_REFERENCE_ADDON\n  --community-browser-prepared FROZEN_BROWSER_MANIFEST\n  --community-artifacts PEER_ADAPTER_MANIFEST --projects OWNER/PROJECT,...\n  --benchmark-records DIR --benchmark-force\n  --benchmark-resume-attempt COMPLETED_ATTEMPT_DIR (one project and retained suite)\n  --startup-samples N --startup-surfaces library,cli,mcp,browser\n  --node-executable NODE --bun-executable BUN --startup-observer GNU_TIME --native-executable AM\n  --live-provider anthropic|openai-compatible --live-model MODEL\n  --timeout-ms N --allow-incomplete --export-tables\nSmoke enrolls every family in bounded adapters; full selects every maintained suite, including Dave, current-reference tests and historical imported corpora. Missing prerequisites remain blocked. Exit: 0 complete, 1 failed, 2 incomplete. --allow-incomplete permits blocked suites but never failures.',
     )
     return
   }

@@ -1,5 +1,6 @@
+import { readBenchmarkDocument } from '../portable/project-records.ts'
 import { expect, test } from 'bun:test'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { projectReportView } from '../unified/project-report-view.ts'
@@ -52,6 +53,7 @@ test('legacy project metadata is attributed consistently in coverage and exporte
   const raw = fixture()
   raw.observations = [{ ...raw.observations[0]!, metrics: { project: 'obsidianmd/pele' } }]
   raw.toolVersions = [{ tool: 'obsidianmd/pele', version: '1.9.0', source: 'owning artifact fixture' }]
+  expect(coverageRows([fixture().observations[1]!])[0]!.implementation).toBe('unattributed')
   expect(coverageRows(raw.observations)[0]!.implementation).toBe('obsidianmd/pele')
   const out = mkdtempSync(join(tmpdir(), 'project-report-view-'))
   try {
@@ -69,6 +71,11 @@ test('legacy project metadata is attributed consistently in coverage and exporte
       policy: 'Authored report consumer control',
       suites: [{ id: raw.id, title: raw.id, source: 'fixture', policy: 'local-only', target: 'candidate', status: 'passed', selected: true, prerequisites: [], result: raw }],
     }
+    writeUnifiedReport(out, report)
+    expect(existsSync(join(out, 'observations.csv'))).toBe(false)
+    expect(existsSync(join(out, 'coverage.json'))).toBe(false)
+    expect(readBenchmarkDocument(join(out, 'report.json')).suites[0].result.observations[0].metrics.project).toBe('obsidianmd/pele')
+    report.exports = { tables: true }
     writeUnifiedReport(out, report)
     expect(readFileSync(join(out, 'coverage.csv'), 'utf8')).toContain('"entry-startup","obsidianmd/pele"')
     expect(readFileSync(join(out, 'observations.csv'), 'utf8')).toContain('"entry-startup","obsidianmd/pele"')

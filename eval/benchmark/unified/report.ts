@@ -1,4 +1,5 @@
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readBenchmarkDocument, readProjectBenchmarkRecord, writeBenchmarkDocument } from '../portable/project-records.ts'
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import type { BenchmarkObservation, BenchmarkStatus, UnifiedSuiteResult } from './types.ts'
 import { assertBenchmarkSetVersions, canonicalBenchmarkTool, type BenchmarkToolVersion } from '../tool-versions.ts'
@@ -40,6 +41,7 @@ export interface UnifiedReport {
   status: 'running' | 'passed' | 'failed' | 'incomplete'
   policy: string
   suites: SuiteExecution[]
+  exports?: { tables: boolean }
 }
 const escape = (value: unknown): string =>
   String(value ?? '')
@@ -47,7 +49,7 @@ const escape = (value: unknown): string =>
     .replaceAll('\n', ' ')
 const number = (value: number | undefined): string => (value === undefined ? '—' : value.toFixed(1))
 
-const implementationOf = (row: BenchmarkObservation): string => (typeof row.metrics?.implementation === 'string' && row.metrics.implementation.trim() ? row.metrics.implementation : typeof row.metrics?.project === 'string' && row.metrics.project.trim() ? row.metrics.project : 'agentic-mermaid')
+const implementationOf = (row: BenchmarkObservation): string => (typeof row.metrics?.implementation === 'string' && row.metrics.implementation.trim() ? row.metrics.implementation : typeof row.metrics?.project === 'string' && row.metrics.project.trim() ? row.metrics.project : 'unattributed')
 
 /** Rows are enrollment/execution evidence, not a guessed feature percentage. */
 export function coverageRows(observations: readonly BenchmarkObservation[]) {
@@ -71,9 +73,10 @@ export function writeUnifiedReport(out: string, report: UnifiedReport): void {
     for (const support of (result.artifacts ?? []).filter(path => path.endsWith('/required-family-support.json'))) {
       const owning = JSON.parse(readFileSync(support, 'utf8'))
       const identityFile = join(dirname(support), 'identity.json')
-      const identity = JSON.parse(readFileSync(identityFile, 'utf8'))
+      const canonicalFile = join(dirname(support), 'result.json.gz')
+      const identity = existsSync(identityFile) ? readBenchmarkDocument(identityFile) : readProjectBenchmarkRecord(canonicalFile).identity
       if (identity.project !== owning.project || identity.lane !== 'required-family-admission') throw Error('Family version receipt differs from its owning project/lane')
-      declared.push({ tool: identity.project, version: identity.artifact?.packageMetadata?.version ?? identity.artifact?.artifact?.version, source: identityFile })
+      declared.push({ tool: identity.project, version: identity.artifact?.packageMetadata?.version ?? identity.artifact?.artifact?.version, source: existsSync(identityFile) ? identityFile : canonicalFile })
     }
     claims.push(...declared)
     for (const row of result.observations) {
@@ -87,21 +90,25 @@ export function writeUnifiedReport(out: string, report: UnifiedReport): void {
   }
   assertBenchmarkSetVersions(claims)
   const coverage = coverageRows(observations)
-  writeFileSync(join(out, 'report.json'), JSON.stringify(report, null, 2) + '\n')
-  writeFileSync(join(out, 'coverage.json'), JSON.stringify({ scope: 'Executed observations only; a missing cell is unmeasured, never an inferred pass.', rows: coverage }, null, 2) + '\n')
-  const csv = (values: unknown[]) => values.map(value => `"${String(value ?? '').replaceAll('"', '""')}"`).join(',')
-  const coverageCsv = [
-    ['suite', 'implementation', 'surface', 'runtime', 'family', 'operation', 'format', 'mode', 'cases', 'passed', 'failed', 'unsupported', 'blocked', 'not_applicable', 'skipped'],
-    ...coverage.map(row => [row.suite, row.implementation, row.surface, row.runtime, row.family, row.operation, row.format, row.mode, row.cases, row.statuses.passed ?? 0, row.statuses.failed ?? 0, row.statuses.unsupported ?? 0, row.statuses.blocked ?? 0, row.statuses['not-applicable'] ?? 0, row.statuses.skipped ?? 0]),
-  ]
-  writeFileSync(join(out, 'coverage.csv'), coverageCsv.map(csv).join('\n') + '\n')
-  const observationCsv = [
-    ['suite', 'implementation', 'surface', 'runtime', 'family', 'case_id', 'operation', 'format', 'mode', 'status', 'samples_ms', 'bytes', 'metrics', 'findings', 'detail'],
-    ...observations.map(row => [row.suite, implementationOf(row), row.surface, row.runtime, row.family, row.caseId, row.operation, row.format, row.mode, row.status, JSON.stringify(row.samplesMs ?? []), row.bytes, JSON.stringify(row.metrics ?? {}), JSON.stringify(row.findings ?? []), row.detail]),
-  ]
-  writeFileSync(join(out, 'observations.csv'), observationCsv.map(csv).join('\n') + '\n')
+  writeBenchmarkDocument(join(out, 'report.json'), report)
+  if (report.exports?.tables) {
+    writeFileSync(join(out, 'coverage.json'), JSON.stringify({ scope: 'Executed observations only; a missing cell is unmeasured, never an inferred pass.', rows: coverage }, null, 2) + '\n')
+    const csv = (values: unknown[]) => values.map(value => `"${String(value ?? '').replaceAll('"', '""')}"`).join(',')
+    const coverageCsv = [
+      ['suite', 'implementation', 'surface', 'runtime', 'family', 'operation', 'format', 'mode', 'cases', 'passed', 'failed', 'unsupported', 'blocked', 'not_applicable', 'skipped'],
+      ...coverage.map(row => [row.suite, row.implementation, row.surface, row.runtime, row.family, row.operation, row.format, row.mode, row.cases, row.statuses.passed ?? 0, row.statuses.failed ?? 0, row.statuses.unsupported ?? 0, row.statuses.blocked ?? 0, row.statuses['not-applicable'] ?? 0, row.statuses.skipped ?? 0]),
+    ]
+    writeFileSync(join(out, 'coverage.csv'), coverageCsv.map(csv).join('\n') + '\n')
+    const observationCsv = [
+      ['suite', 'implementation', 'surface', 'runtime', 'family', 'case_id', 'operation', 'format', 'mode', 'status', 'samples_ms', 'bytes', 'metrics', 'findings', 'detail'],
+      ...observations.map(row => [row.suite, implementationOf(row), row.surface, row.runtime, row.family, row.caseId, row.operation, row.format, row.mode, row.status, JSON.stringify(row.samplesMs ?? []), row.bytes, JSON.stringify(row.metrics ?? {}), JSON.stringify(row.findings ?? []), row.detail]),
+    ]
+    writeFileSync(join(out, 'observations.csv'), observationCsv.map(csv).join('\n') + '\n')
+  } else {
+    for (const file of ['coverage.json', 'coverage.csv', 'observations.csv']) rmSync(join(out, file), { force: true })
+  }
   const lines = [
-    '# Unified Agentic Mermaid benchmark',
+    '# Trident benchmark campaign',
     '',
     `Status: **${report.status}**. Profile: **${report.profile}**; rounds requested: ${report.rounds}.`,
     '',

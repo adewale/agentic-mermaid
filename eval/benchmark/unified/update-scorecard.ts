@@ -1,7 +1,8 @@
+import { readBenchmarkDocument } from '../portable/project-records.ts'
 /** The user-requested maintained Markdown snapshot. Raw artifacts stay ignored. */
 
 import { execFileSync } from 'node:child_process'
-import { existsSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs'
+import { existsSync, realpathSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import type { BenchmarkObservation } from './types.ts'
 
@@ -108,21 +109,21 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
   for (const directory of selection.suiteRuns ?? []) validationArgs.push('--suite-run', directory)
   const admission = JSON.parse(execFileSync(process.env.PYTHON_BINARY ?? 'python3', validationArgs, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 16 * 1024 * 1024 }))
   if (admission.protocol !== 'unified-report-selection-v1') throw Error('Unknown shared report-selection admission protocol')
-  const ledger = JSON.parse(readFileSync(join(run, 'report.json'), 'utf8'))
+  const ledger = readBenchmarkDocument(join(run, 'report.json'))
   const communityRoot = admission.communityDirectory as string
   const ranksFile = find(communityRoot, 'community-ranks.json'),
     resultsFile = find(communityRoot, 'community-result.json')
   if (!ranksFile || !resultsFile) throw Error('Completed community ranks/result artifacts are required; incomplete runs cannot erase the maintained snapshot')
-  const scores = JSON.parse(readFileSync(ranksFile, 'utf8')) as { startedAt: string; rounds: number; ranks: Rank[]; familyRanks?: Rank[]; catalogNodes: number; comparatorNodes: number; artifacts: { node: { id: string; benchmark?: unknown }; artifact?: { version: string }; error?: string }[]; gaps: string[] }
-  const results = JSON.parse(readFileSync(resultsFile, 'utf8')) as { startedAt: string; finishedAt: string; observations: BenchmarkObservation[]; gaps: string[] }
+  const scores = readBenchmarkDocument(ranksFile) as { startedAt: string; rounds: number; ranks: Rank[]; familyRanks?: Rank[]; catalogNodes: number; comparatorNodes: number; artifacts: { node: { id: string; benchmark?: unknown }; artifact?: { version: string }; error?: string }[]; gaps: string[] }
+  const results = readBenchmarkDocument(resultsFile) as { startedAt: string; finishedAt: string; observations: BenchmarkObservation[]; gaps: string[] }
   if (results.startedAt !== scores.startedAt || !Number.isFinite(Date.parse(results.finishedAt)) || Date.parse(results.finishedAt) < Date.parse(scores.startedAt)) throw Error('Community ranks and result must belong to the same completed run')
   const cliFile = admission.cliSupplement ? join(admission.cliSupplement.directory, 'ranks.json') : join(dirname(ranksFile), '../community-cli/ranks.json')
   let cli: any
   if (existsSync(cliFile)) {
-    cli = JSON.parse(readFileSync(cliFile, 'utf8'))
+    cli = readBenchmarkDocument(cliFile)
     const rawFile = join(dirname(cliFile), 'community-cli-result.json'),
-      raw = JSON.parse(readFileSync(rawFile, 'utf8'))
-    const originalInputs = JSON.parse(readFileSync(join(dirname(ranksFile), 'community-inputs.json'), 'utf8')).workloads.filter((w: any) => w.features.includes('core-graph-batch'))
+      raw = readBenchmarkDocument(rawFile)
+    const originalInputs = readBenchmarkDocument(join(dirname(ranksFile), 'community-inputs.json')).workloads.filter((w: any) => w.features.includes('core-graph-batch'))
     if (
       !cli.finishedAt ||
       cli.finishedAt !== raw.finishedAt ||
@@ -138,7 +139,7 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
     scores.ranks = [...scores.ranks.filter(r => r.surface !== 'cli:end-to-end'), ...cli.ranks]
     scores.familyRanks = [...(scores.familyRanks ?? []).filter(r => r.surface !== 'cli:end-to-end'), ...(admission.cliSupplement?.familyRanks ?? [])]
     if (admission.cliSupplement?.resourceCorrection) {
-      const resources = JSON.parse(readFileSync(join(admission.cliSupplement.resourceCorrection.directory, 'ranks.json'), 'utf8'))
+      const resources = readBenchmarkDocument(join(admission.cliSupplement.resourceCorrection.directory, 'ranks.json'))
       cli.resourceRanks = resources.resourceRanks
       cli.evidence.resourceObserver = resources.evidence.resourceObserver
     }
@@ -261,7 +262,7 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
   )
   const coverage = new Map<string, BenchmarkObservation[]>()
   const featureIds = new Set<string>(
-    JSON.parse(readFileSync(join(dirname(ranksFile), 'community-inputs.json'), 'utf8'))
+    readBenchmarkDocument(join(dirname(ranksFile), 'community-inputs.json'))
       .workloads.filter((w: any) => !w.features.includes('core-graph-batch'))
       .map((w: any) => w.id),
   )
@@ -373,7 +374,7 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
     )
   }
   if (reference) {
-    const result = JSON.parse(readFileSync(reference, 'utf8')) as { observations: BenchmarkObservation[]; gaps: string[] },
+    const result = readBenchmarkDocument(reference) as { observations: BenchmarkObservation[]; gaps: string[] },
       engines = [...new Set(result.observations.map(r => String(r.metrics?.implementation)))]
     const caseIds = [...new Set(result.observations.map(r => r.caseId))],
       rounds = [...new Set(result.observations.map(r => Number(r.metrics?.round)))],
@@ -408,7 +409,7 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
     )
   } else lines.push('Not present in the selected run; this is an explicit gap, not a passing score.')
   const originalInvocation = ledger.suites.find((suite: any) => suite.id === 'invocation')?.result
-  const invocationResult = selection.invocationCorrection ? JSON.parse(readFileSync(selection.invocationCorrection, 'utf8')) : originalInvocation
+  const invocationResult = selection.invocationCorrection ? readBenchmarkDocument(selection.invocationCorrection) : originalInvocation
   lines.push(
     '',
     '## Agentic invocation outcomes',
@@ -426,7 +427,7 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
   for (const [key, rows] of invocationGroups) lines.push(`| ${key} | ${['passed', 'failed', 'blocked', 'unsupported', 'not-applicable', 'skipped'].map(status => rows.filter(row => row.status === status).length).join(' | ')} |`)
   const familyEvidence = find(join(run, 'family'), 'family-feature-coverage.json')
   if (familyEvidence) {
-    const family = JSON.parse(readFileSync(familyEvidence, 'utf8')) as { familyCoverage: { family: string; inputs: number; passed: number; failed: number; advertisedOperations: string[]; observedOperations: string[]; unexercisedOperations: string[] }[] }
+    const family = readBenchmarkDocument(familyEvidence) as { familyCoverage: { family: string; inputs: number; passed: number; failed: number; advertisedOperations: string[]; observedOperations: string[]; unexercisedOperations: string[] }[] }
     const advertised = family.familyCoverage.reduce((n, f) => n + f.advertisedOperations.length, 0),
       observed = family.familyCoverage.reduce((n, f) => n + f.observedOperations.length, 0)
     lines.push(
@@ -455,7 +456,7 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
     lines.push('', '## ' + campaignLabel, '')
     const prFile = campaignDirectory ? ['pr-ranks.json', 'rankings.json', 'report.json', 'campaign.json'].map(n => join(campaignDirectory, n)).find(existsSync) : undefined
     if (prFile) {
-      const pr = JSON.parse(readFileSync(prFile, 'utf8')) as {
+      const pr = readBenchmarkDocument(prFile) as {
         frozenAt?: string
         selectedCoreMetrics?: string[]
         apiOnly?: boolean
@@ -526,7 +527,7 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
           const entry = r.coverage?.find(c => c.suite === suite)
           if (!entry?.resultPath || !existsSync(entry.resultPath)) return undefined
           const correction = admission.familyCorrection?.targets.find((target: any) => realpathSync(target.originalResultPath) === realpathSync(entry.resultPath))
-          return JSON.parse(readFileSync(correction?.correctedResultPath ?? entry.resultPath, 'utf8')) as { observations: BenchmarkObservation[] }
+          return readBenchmarkDocument(correction?.correctedResultPath ?? entry.resultPath) as { observations: BenchmarkObservation[] }
         }
         const count = (suite: string) => {
           const result = load(suite)
@@ -562,8 +563,8 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
   }
   if (admission.currentRun && selection.currentRun) {
     const current = admission.currentRun
-    const dave = JSON.parse(readFileSync(join(selection.currentRun, 'dave/browser-report.json'), 'utf8'))
-    const reference = JSON.parse(readFileSync(current.reference.resultFile, 'utf8')) as { observations: BenchmarkObservation[] }
+    const dave = readBenchmarkDocument(join(selection.currentRun, 'dave/browser-report.json'))
+    const reference = readBenchmarkDocument(current.reference.resultFile) as { observations: BenchmarkObservation[] }
     lines.push(
       '',
       '## Separate current-main Dave and parser evidence',
@@ -684,7 +685,7 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
       '| Dave engine | Accepted / identical occurrences | Median full attempt cost, ms |',
       '|---|---:|---:|',
     )
-    const dave = JSON.parse(readFileSync(latest.daveFile, 'utf8'))
+    const dave = readBenchmarkDocument(latest.daveFile)
     for (const engine of dave.engines) lines.push(`| ${escape(engine.label)} | ${engine.accepted} / ${engine.population} | ${number(median(engine.attemptMs))} |`)
     lines.push('', '| Dave matched comparator | Identical shared-qualified occurrences | Candidate / comparator median ratio |', '|---|---:|---:|')
     for (const row of dave.matched ?? []) lines.push(`| ${escape(row.comparator)} | ${row.inputIds?.length ?? 'N/A'} | ${number(row.medianRatio, 3)}× |`)
@@ -695,7 +696,7 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
       '| Parser | Portable criteria passed / scored in each round | Eligible positive cases |',
       '|---|---|---:|',
     )
-    const reference = JSON.parse(readFileSync(latest.referenceScore.resultFile, 'utf8')) as { observations: BenchmarkObservation[] }
+    const reference = readBenchmarkDocument(latest.referenceScore.resultFile) as { observations: BenchmarkObservation[] }
     const rounds = [...new Set(reference.observations.map(row => Number(row.metrics?.round)))].sort()
     const engines = [...new Set(reference.observations.map(row => String(row.metrics?.implementation)))]
     const cases = [...new Set(reference.observations.map(row => row.caseId))]

@@ -6,11 +6,12 @@ import { assertBenchmarkExecutionAllowed } from './ci-policy.ts'
 assertBenchmarkExecutionAllowed()
 
 // Kept deliberately independent of Agentic source and the parent harness runtime.
-const job = JSON.parse(readFileSync(process.argv[2], 'utf8'))
+const transport = process.argv[2]
+const job = transport === '--ipc' ? await new Promise(resolve => process.once('message', message => { if (message?.phase !== 'job') throw Error('Invalid worker job message'); resolve(message.job) })) : transport === '--stdio' ? JSON.parse(readFileSync(0, 'utf8')) : JSON.parse(readFileSync(transport, 'utf8'))
 const started = process.hrtime.bigint()
 const clock = () => Number(process.hrtime.bigint()) / 1e6
 const runtime = { executable: process.execPath, node: process.versions.node, platform: process.platform, arch: process.arch }
-const result = { protocol: 'portable-svg-processes-v1', caseId: job.testCase.id, family: job.testCase.family, mode: job.mode, round: job.round, replica: job.replica, sample: job.sample, status: 'blocked', importMs: 0, tracks: {}, iterations: {}, outputBytes: 0, qualification: null, prelude: [], runtime }
+const result = { protocol: 'portable-svg-processes-v3', caseId: job.testCase.id, family: job.testCase.family, mode: job.mode, round: job.round, replica: job.replica, sample: job.sample, status: 'blocked', importMs: 0, tracks: {}, iterations: {}, outputBytes: 0, qualification: null, prelude: [], runtime }
 const errorText = error => error instanceof Error ? String(error.stack ?? error) : String(error)
 const thenable = value => value && typeof value.then === 'function'
 function collect() { if (global.gc) { global.gc(); global.gc() } }
@@ -65,7 +66,13 @@ try {
     result.prelude.push({ source: prelude.source, expectedAccepted: prelude.accept, actualAccepted, passed: prelude.accept === actualAccepted })
   }
   let retained
-  if (job.mode === 'baseline') {
+  if (job.mode === 'probe') {
+    // Family support only: one untimed call, accepted or rejected; checks belong to measured cases.
+    const probe = await invoke(testCase.source, testCase.renderOptions)
+    result.status = probe.error ? 'unsupported' : 'passed'
+    result.outputBytes = probe.bytes
+    if (probe.error) result.error = probe.error
+  } else if (job.mode === 'baseline') {
     collect()
     const before = process.memoryUsage()
     collect()
@@ -144,6 +151,7 @@ try {
     retained = await invoke(testCase.source, testCase.renderOptions)
   }
   if (retained) {
+    if (retained.error) result.error ??= retained.error
     if (job.mode !== 'memory') result.outputBytes = retained.bytes
     let model
     if (!retained.error && typeof api.parse === 'function') { try { model = api.parse(testCase.source); if (thenable(model)) model = await model } catch {} }
@@ -162,6 +170,7 @@ if (result.qualification && !result.qualification.checks.some(check => check.sta
   result.qualification.checks = result.qualification.checks.map(check => ({ ...check, expected: null, actual: null }))
   result.qualification.unmeasuredScopes.push('Repeated passing check payloads omitted; authored expectations and representative SVG/model evidence are retained with the run. Failed checks retain their full payloads.')
 }
-writeFileSync(job.resultFile, JSON.stringify(result) + '\n', { flag: 'wx' })
 process.exitCode = result.status === 'blocked' ? 2 : 0
-if (process.connected) process.disconnect()
+if (transport === '--ipc') { process.send({ phase: 'result', result }, error => { if (error) process.exitCode = 1; if (process.connected) process.disconnect() }) }
+else if (transport === '--stdio') writeFileSync(3, JSON.stringify(result) + '\n')
+else writeFileSync(job.resultFile, JSON.stringify(result) + '\n', { flag: 'wx' })

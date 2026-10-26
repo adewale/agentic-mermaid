@@ -54,11 +54,11 @@ export function harnessIdentity(directory = portableDirectory) {
   if (existsSync(manifest)) {
     const data = readJson(manifest) as { protocol: string; files: { path: string; sha256: string }[] }
     if (data.protocol !== 'compiled-portable-harness-v1' || !['worker.mjs', 'execution.mjs', 'run.mjs'].every(path => data.files.some(file => file.path === path))) throw Error('Invalid compiled harness manifest')
-    for (const file of data.files) if (!['worker.mjs', 'execution.mjs', 'run.mjs', 'package.json'].includes(file.path) || byteDigest(join(directory, file.path)) !== file.sha256) throw Error('Compiled harness bytes differ from their shipped identity')
+    for (const file of data.files) if (!['worker.mjs', 'execution.mjs', 'run.mjs', 'mermaid-oracle-worker.mjs', 'package.json'].includes(file.path) || byteDigest(join(directory, file.path)) !== file.sha256) throw Error('Compiled harness bytes differ from their shipped identity')
     return { kind: 'compiled-measurement-artifacts', files: data.files.filter(file => ['worker.mjs', 'execution.mjs'].includes(file.path)) }
   }
   const root = execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: directory, encoding: 'utf8' }).trim()
-  const paths = ['worker.mjs', 'execution.ts', 'cohorts.ts', 'fidelity.ts', 'protocol.ts', 'ci-policy.ts'].map(name => relative(root, join(directory, name)))
+  const paths = ['worker.mjs', 'execution.ts', 'cohorts.ts', 'fidelity.ts', 'protocol.ts', 'ci-policy.ts', 'mermaid-oracle.ts'].map(name => relative(root, join(directory, name)))
   if (execFileSync('git', ['status', '--porcelain', '--', ...paths], { cwd: root, encoding: 'utf8' }).trim()) throw Error('Commit measured protocol files before collecting or reusing timings; use the compiled harness outside Git')
   const objects = execFileSync('git', ['ls-tree', '-r', 'HEAD', '--', ...paths], { cwd: root, encoding: 'utf8' })
     .trim()

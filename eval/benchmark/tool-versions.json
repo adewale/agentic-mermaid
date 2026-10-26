@@ -4,6 +4,13 @@
     "bezel": "crabtalk/bezel",
     "beautiful-mermaid": "lukilabs/beautiful-mermaid"
   },
+  "mermaidOracle": {
+    "tool": "mermaid-js/mermaid",
+    "dependencies": {
+      "@mermaid-js/parser": "2.0.1",
+      "jsdom": "26.1.0"
+    }
+  },
   "tools": {
     "obsidianmd/pele": {
       "registry": "npm",

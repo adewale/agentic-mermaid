@@ -1,3 +1,4 @@
+import { writeBenchmarkDocument } from '../portable/project-records.ts'
 import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
@@ -10,6 +11,8 @@ import { type CatalogArtifactAdmission, createCatalogEligibility } from './catal
 import { assertCommunityNotInterrupted, trackCommunityProcess } from './community-process.ts'
 import type { CommunityArtifact, CommunityNode, CommunityWorkerJob, PreparedCommunity } from './community-types.ts'
 import { readWorkerRows } from './community-worker-evidence.ts'
+import { familySupportRow, familySupportWorkloads, rejectsSource, unsupportedFamilyRow } from './family-support.ts'
+import { assertMermaidOracle, assertOracleAgrees, MERMAID_ORACLE_PIN } from '../portable/mermaid-oracle.ts'
 import { qualifyOutput, svgQualificationProvenance, withReferenceLabels } from './qualification.ts'
 import type { BenchmarkObservation, UnifiedRunOptions, UnifiedSuiteResult, UnifiedWorkload } from './types.ts'
 import { getWorkloadEvidence, unifiedWorkloads } from './workloads.ts'
@@ -377,12 +380,14 @@ function runCli(prepared: PreparedCommunity, output: string, workload: UnifiedWo
   if (child.status !== 0) {
     row.status = 'failed'
     row.detail = child.error?.message ?? child.stderr?.toString().slice(0, 1500)
+    row.metrics = { ...row.metrics, rejected: true }
     return row
   }
   const fileOutput = (binding?.args ?? artifact.args)?.some(arg => arg.includes('{output}'))
   if (fileOutput && !existsSync(destination)) {
     row.status = 'failed'
     row.detail = 'CLI exited successfully without producing its declared output file'
+    row.metrics = { ...row.metrics, rejected: true }
     return row
   }
   const value = fileOutput ? readFileSync(destination) : child.stdout
@@ -436,6 +441,7 @@ async function nodeRound(prepared: PreparedCommunity, output: string, workloads:
     bytes?: number
     qualification?: string
     diagnosticsCount?: number
+    rejected?: boolean
   }
   type DiagnosticControl = { id: string; source: string; expectedAccepted: false; actualAccepted: boolean | null; status: 'passed' | 'failed'; detail?: string; qualificationError?: string }
   type Raw = {
@@ -645,6 +651,7 @@ async function nodeRound(prepared: PreparedCommunity, output: string, workloads:
       peakProcessRssBytes: raw?.peakRssBytes ?? null,
       qualification: result.qualification ?? 'unavailable',
       diagnosticsCount: result.diagnosticsCount ?? null,
+      rejected: result.rejected ?? null,
       accepted: result.diagnosticAccepted ?? null,
       diagnosticAdmissionFailed: result.diagnosticAdmissionFailed ?? raw?.diagnosticAdmissionFailed ?? null,
       parserAdmissionFailed: result.parserAdmissionFailed ?? raw?.parserAdmissionFailed ?? null,
@@ -862,6 +869,8 @@ export async function runCommunitySuite(options: UnifiedRunOptions): Promise<Uni
   const enriched = frozenInputs ? undefined : await withReferenceLabels(driverWorkloads, { root: options.harnessRoot ?? options.root })
   gaps.push(...(frozenInputs?.gaps ?? enriched!.gaps))
   const workloads = frozenInputs?.workloads ?? [...communityCoreWorkloads(), ...enriched!.workloads]
+  // Every family probe must be valid Mermaid by the pinned oracle before any tool runs it.
+  const familyProbeTypes = await assertOracleAgrees(assertMermaidOracle(), familySupportWorkloads(workloads).map(probe => ({ id: probe.id, source: probe.source, accept: true })))
   writeFileSync(
     join(options.out, 'community-inputs.json'),
     JSON.stringify(
@@ -937,6 +946,7 @@ export async function runCommunitySuite(options: UnifiedRunOptions): Promise<Uni
     }
   }
   const runnable = prepared.filter(p => p.artifact && !aliasPlan.aliases.has(p.node.id))
+  const familyProbes = new Map<string, Map<string, BenchmarkObservation>>()
   for (let round = 1; round <= options.rounds; round++)
     for (const entry of round % 2 ? runnable : [...runnable].reverse()) {
       assertCommunityNotInterrupted()
@@ -957,19 +967,37 @@ export async function runCommunitySuite(options: UnifiedRunOptions): Promise<Uni
             })
           continue
         }
-        if (entry.artifact!.kind === 'cli') {
-          // CLI image format support must be declared by the prepared command; no stale-file success.
-          if (entry.artifact!.format && entry.artifact!.format !== output && !entry.artifact!.outputBindings?.[output]) {
-            const detail = `Prepared CLI supports ${entry.artifact!.format}; declared ${output} output has no command binding`
-            gaps.push(`${entry.node.id}: ${detail}`)
-            for (const workload of selectedWorkloads) observations.push({ ...envelope(entry.node, output, workload, round), surface: 'cli:end-to-end', runtime: entry.artifact!.runtime ?? 'native', status: 'blocked', detail })
-            continue
-          }
-          for (const workload of selectedWorkloads) observations.push(runCli(entry, output, workload, round, options.out))
-        } else if (entry.artifact!.kind === 'jsonl-worker' || entry.artifact!.kind === 'python') {
-          const { runExternalCommunity } = await import('./community-external.ts')
-          observations.push(...(await runExternalCommunity(entry, selectedWorkloads, output, round, options)))
-        } else observations.push(...(await nodeRound(entry, output, selectedWorkloads, round, options)))
+        // CLI image format support must be declared by the prepared command; no stale-file success.
+        if (entry.artifact!.kind === 'cli' && entry.artifact!.format && entry.artifact!.format !== output && !entry.artifact!.outputBindings?.[output]) {
+          const detail = `Prepared CLI supports ${entry.artifact!.format}; declared ${output} output has no command binding`
+          gaps.push(`${entry.node.id}: ${detail}`)
+          for (const workload of selectedWorkloads) observations.push({ ...envelope(entry.node, output, workload, round), surface: 'cli:end-to-end', runtime: entry.artifact!.runtime ?? 'native', status: 'blocked', detail })
+          continue
+        }
+        const measure = async (list: UnifiedWorkload[], measureOptions = options): Promise<BenchmarkObservation[]> =>
+          entry.artifact!.kind === 'cli'
+            ? list.map(workload => runCli(entry, output, workload, round, measureOptions.out))
+            : entry.artifact!.kind === 'jsonl-worker' || entry.artifact!.kind === 'python'
+              ? (await import('./community-external.ts')).runExternalCommunity(entry, list, output, round, measureOptions)
+              : nodeRound(entry, output, list, round, measureOptions)
+        // Probe each family once, before its corpus; a rejected canonical source skips that family.
+        const supportKey = `${entry.node.id}\n${output}`
+        if (!familyProbes.has(supportKey)) {
+          const probes = familySupportWorkloads(selectedWorkloads),
+            ids = new Set(probes.map(probe => probe.id)),
+            probeOut = join(options.out, 'family-support')
+          mkdirSync(probeOut, { recursive: true })
+          const rows = probes.length ? (await measure(probes, { ...options, out: probeOut })).filter(row => ids.has(row.caseId)) : []
+          observations.push(...rows.map(familySupportRow))
+          familyProbes.set(supportKey, new Map(rows.filter(rejectsSource).map(row => [row.family, row])))
+        }
+        const rejected = familyProbes.get(supportKey)!
+        for (const workload of selectedWorkloads.filter(workload => rejected.has(workload.family))) {
+          const core = workload.features.includes('core-graph-batch'),
+            base = envelope(entry.node, output, workload, round)
+          observations.push(unsupportedFamilyRow({ ...base, mode: core ? (entry.artifact!.kind === 'cli' ? 'fresh-process' : base.mode) : 'feature-corpus-qualification' }, rejected.get(workload.family)!))
+        }
+        observations.push(...(await measure(selectedWorkloads.filter(workload => !rejected.has(workload.family)))))
       }
     }
   for (const [implementation, alias] of aliasPlan.aliases) {
@@ -1040,6 +1068,7 @@ export async function runCommunitySuite(options: UnifiedRunOptions): Promise<Uni
     scope: outputSelection ? 'partial-output-lane; omitted output observations were not executed' : 'all-bound-outputs',
     qualificationProtocol: options.communityQualificationProtocol ?? null,
     svgQualification: svgQualificationProvenance(),
+    mermaidOracle: { pin: MERMAID_ORACLE_PIN, familyProbeTypes },
     profile: options.profile,
     rounds: options.rounds,
     coverageOnce: options.communityCoverageOnce ?? true,
@@ -1095,7 +1124,7 @@ export async function runCommunitySuite(options: UnifiedRunOptions): Promise<Uni
     gaps,
     artifacts: ['community-prepared.json', 'community-inputs.json', 'community-ranks.json', 'community-alias-proof.json', 'community-identity-rechecks.json', 'community-evidence.json'],
   }
-  writeFileSync(join(options.out, 'community-result.json'), JSON.stringify(result, null, 2))
+  writeBenchmarkDocument(join(options.out, 'community-result.json'), result)
   return result
 }
 

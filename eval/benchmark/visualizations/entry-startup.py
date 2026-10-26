@@ -23,6 +23,7 @@ import sys
 from textwrap import fill
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from evidence import read_document
 from tool_versions import DEFAULT_MANIFEST, assert_tool_versions, canonical_tool, read_tool_versions
 
 
@@ -41,7 +42,7 @@ def finite(value):
 
 
 def load(path):
-    return json.loads(Path(path).read_text())
+    return read_document(path)
 
 
 def save(path, value):
@@ -90,6 +91,8 @@ def startup_identity_file(file):
         directory = load(file.parent / "cache.json").get("evidenceDirectory")
         if directory:
             identity = Path(directory) / "identity.json"
+    if not identity.is_file() and (identity.parent / 'result.json.gz').is_file():
+        return identity.parent / 'result.json.gz'
     return identity
 
 
@@ -133,6 +136,7 @@ def version_claims(startup, required_files, upstream_files, dave_file, manifest)
                 raise ValueError("Missing owning startup artifact version receipt: " + str(identity_file))
             continue
         identity = load(identity_file)
+        identity = identity.get('identity', identity)
         if canonical_tool(identity.get("project"), manifest) != canonical_tool(project, manifest):
             raise ValueError("Owning startup identity names a different selected project: " + str(identity_file))
         version, name = artifact_package(identity)
@@ -148,10 +152,13 @@ def version_claims(startup, required_files, upstream_files, dave_file, manifest)
                 support_file = file.parent / support_file
             if support_file.name != "required-family-support.json":
                 continue
-            identity_file = support_file.parent / "identity.json"
+            identity_file = support_file.parent / 'identity.json'
+            if not identity_file.is_file():
+                identity_file = support_file.parent / 'result.json.gz'
             if not support_file.is_file() or not identity_file.is_file():
                 raise ValueError("Missing owning required-family artifact receipt: " + str(identity_file))
             support, identity = load(support_file), load(identity_file)
+            identity = identity.get('identity', identity)
             owner = canonical_tool(identity.get("project"), manifest)
             if canonical_tool(support.get("project"), manifest) != owner:
                 raise ValueError("Required-family support and identity name different projects: " + str(support_file))
