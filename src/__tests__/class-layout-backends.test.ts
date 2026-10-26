@@ -1,15 +1,15 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, spyOn, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
-import { renderMermaidSVGWithReceipt } from '../index.ts'
-import { layoutMermaidWithReceipt, parseRegisteredMermaid } from '../agent/core.ts'
-import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
-import { layoutClassDiagram } from '../class/layout.ts'
-import { parseClassDiagram } from '../class/parser.ts'
-import { toMermaidLines } from '../mermaid-source.ts'
 import { releaseBenchCases } from '../../eval/benchmark/release-bench-cases.ts'
 import { missingSvgLabels } from '../../eval/benchmark/release-bench-fidelity.ts'
-import { withRenderStageObserver } from '../render-stages.ts'
+import { layoutMermaidWithReceipt, parseRegisteredMermaid } from '../agent/core.ts'
+import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
 import { renderMermaidASCII } from '../ascii/index.ts'
+import { CLASS_STYLE_DEFAULTS, layoutClassDiagram } from '../class/layout.ts'
+import { parseClassDiagram } from '../class/parser.ts'
+import { renderMermaidSVGWithReceipt } from '../index.ts'
+import { toMermaidLines } from '../mermaid-source.ts'
+import { withRenderStageObserver } from '../render-stages.ts'
 
 const native = { graphLayout: { backend: 'agentic' as const } }
 const fixture = readFileSync(new URL('../../eval/layout-compare/fixtures/class-backends.mmd', import.meta.url), 'utf8')
@@ -18,12 +18,15 @@ const compoundFixture = readFileSync(new URL('../../eval/layout-compare/fixtures
 describe('Class layout backends', () => {
   test.each(['TB', 'BT', 'LR', 'RL'])('retains member compartments, notes, cardinalities and relationship meaning in %s', direction => {
     const source = fixture.replace('direction LR', `direction ${direction}`)
-    const model = parseClassDiagram(toMermaidLines(source)), original = structuredClone(model)
+    const model = parseClassDiagram(toMermaidLines(source)),
+      original = structuredClone(model)
     const placed = layoutClassDiagram(model, native)
     expect(model).toEqual(original)
     expect(layoutClassDiagram(model, native)).toEqual(placed)
     expect(placed.classes.map(cls => [cls.id, cls.label, cls.annotation, cls.attributes, cls.methods])).toEqual(model.classes.map(cls => [cls.id, cls.label, cls.annotation, cls.attributes, cls.methods]))
-    expect(placed.relationships.map(({ from, to, type, fromType, toType, markerAt, lineStyle, fromCardinality, toCardinality, label }) => ({ from, to, type, fromType, toType, markerAt, lineStyle, fromCardinality, toCardinality, label }))).toEqual(model.relationships.map(({ from, to, type, fromType, toType, markerAt, lineStyle, fromCardinality, toCardinality, label }) => ({ from, to, type, fromType, toType, markerAt, lineStyle, fromCardinality, toCardinality, label })))
+    expect(placed.relationships.map(({ from, to, type, fromType, toType, markerAt, lineStyle, fromCardinality, toCardinality, label }) => ({ from, to, type, fromType, toType, markerAt, lineStyle, fromCardinality, toCardinality, label }))).toEqual(
+      model.relationships.map(({ from, to, type, fromType, toType, markerAt, lineStyle, fromCardinality, toCardinality, label }) => ({ from, to, type, fromType, toType, markerAt, lineStyle, fromCardinality, toCardinality, label })),
+    )
     expect(placed.notes.map(note => [note.for, note.text])).toEqual(model.notes.map(note => [note.for, note.text]))
     for (const relation of placed.relationships) {
       expect(relation.points.length).toBeGreaterThanOrEqual(2)
@@ -38,9 +41,14 @@ describe('Class layout backends', () => {
   })
 
   test('uses the selected producer across source/parsed/layout/PNG surfaces and retains explicit ELK bytes', () => {
-    const options = { ...native, nodeSpacing: 51 }, stages: string[] = [], parsed = parseRegisteredMermaid(fixture)
+    const options = { ...native, nodeSpacing: 51 },
+      stages: string[] = [],
+      parsed = parseRegisteredMermaid(fixture)
     if (!parsed.ok) throw new Error('fixture must parse')
-    const result = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(fixture, options))
+    const result = withRenderStageObserver(
+      sample => stages.push(sample.stage),
+      () => renderMermaidSVGWithReceipt(fixture, options),
+    )
     expect(stages).toContain('agentic')
     expect(stages).not.toContain('elk')
     expect(renderMermaidSVGWithReceipt(parsed.value, options).svg).toBe(result.svg)
@@ -51,18 +59,35 @@ describe('Class layout backends', () => {
     expect(renderMermaidSVGWithReceipt(fixture, { graphLayout: { backend: 'elk' } }).svg).toBe(renderMermaidSVGWithReceipt(fixture).svg)
   })
 
-  test.each([
-    ['lollipop', 'classDiagram\nConsumer --() API : uses'],
-    ['authored prefix and edge', 'classDiagram\nclass `ns:Authored`\nclass B\n`ns:Authored` --> B'],
-    ['authored prefix and note', 'classDiagram\nclass `ns:Domain`["Authored card"]\nnote for `ns:Domain` "owned note"'],
-    ['namespace collision', 'classDiagram\nnamespace Domain {\nclass `ns:Domain`["Authored card"]\nclass `ns:Domain#1`\nclass B\n}\n`ns:Domain` --> B : relation\nnote for `ns:Domain` "owned note"'],
-    ['nested namespace collision', 'classDiagram\nnamespace Outer {\nnamespace Domain {\nclass `ns:Outer.Domain`["Nested card"]\nclass `ns:Outer.Domain#1`\nclass B\n}\n}\n`ns:Outer.Domain` --> B : relation\nnote for `ns:Outer.Domain` "owned note"'],
-  ].flatMap(([name, source]) => (['elk', 'agentic'] as const).map(backend => ({ name, source: source!, backend }))))('retains $name with $backend', ({ source, backend }) => {
+  test.each(
+    [
+      ['lollipop', 'classDiagram\nConsumer --() API : uses'],
+      ['authored prefix and edge', 'classDiagram\nclass `ns:Authored`\nclass B\n`ns:Authored` --> B'],
+      ['authored prefix and note', 'classDiagram\nclass `ns:Domain`["Authored card"]\nnote for `ns:Domain` "owned note"'],
+      ['namespace collision', 'classDiagram\nnamespace Domain {\nclass `ns:Domain`["Authored card"]\nclass `ns:Domain#1`\nclass B\n}\n`ns:Domain` --> B : relation\nnote for `ns:Domain` "owned note"'],
+      ['nested namespace collision', 'classDiagram\nnamespace Outer {\nnamespace Domain {\nclass `ns:Outer.Domain`["Nested card"]\nclass `ns:Outer.Domain#1`\nclass B\n}\n}\n`ns:Outer.Domain` --> B : relation\nnote for `ns:Outer.Domain` "owned note"'],
+    ].flatMap(([name, source]) => (['elk', 'agentic'] as const).map(backend => ({ name, source: source!, backend }))),
+  )('retains $name with $backend', ({ source, backend }) => {
     const options = { graphLayout: { backend, fallback: 'none' as const } }
-    const parsed = parseClassDiagram(toMermaidLines(source)), placed = layoutClassDiagram(parsed, options)
+    const parsed = parseClassDiagram(toMermaidLines(source)),
+      placed = layoutClassDiagram(parsed, options)
     expect(placed.classes.map(cls => [cls.id, cls.label, cls.isInterface])).toEqual(parsed.classes.map(cls => [cls.id, cls.label, cls.isInterface || undefined]))
     expect(placed.namespaces.map(ns => ns.id)).toEqual(source.includes('namespace Outer') ? ['Outer', 'Outer.Domain'] : source.includes('namespace Domain') ? ['Domain'] : [])
     expect(placed.notes.map(note => [note.for, note.text])).toEqual(parsed.notes.map(note => [note.for, note.text]))
+    // Independent literal note core: a passing receipt must not hide a shaft
+    // through the filled rectangle inside the note's two-pixel rounded corners.
+    for (const note of placed.notes)
+      for (const rel of placed.relationships)
+        for (let i = 1; i < rel.points.length; i++) {
+          const a = rel.points[i - 1]!,
+            b = rel.points[i]!,
+            left = note.x + 2,
+            right = note.x + note.width - 2,
+            top = note.y + 2,
+            bottom = note.y + note.height - 2
+          const crosses = a.x === b.x ? a.x > left && a.x < right && Math.max(a.y, b.y) > top && Math.min(a.y, b.y) < bottom : a.y === b.y ? a.y > top && a.y < bottom && Math.max(a.x, b.x) > left && Math.min(a.x, b.x) < right : false
+          expect(crosses, `${rel.from}->${rel.to} crosses the owned note for ${note.for}`).toBe(false)
+        }
     const result = renderMermaidSVGWithReceipt(source, options)
     expect(result.receipt.layoutCertification?.status).toBe('passed')
     for (const cls of parsed.classes.filter(cls => !cls.isInterface)) expect(result.svg).toContain(cls.label)
@@ -72,31 +97,35 @@ describe('Class layout backends', () => {
 
   test.each(['TB', 'BT', 'LR', 'RL'])('retains independent namespace frames, members and labels in %s', direction => {
     const source = compoundFixture.replace('direction TB', `direction ${direction}`)
-    const model = parseClassDiagram(toMermaidLines(source)), original = structuredClone(model)
+    const model = parseClassDiagram(toMermaidLines(source)),
+      original = structuredClone(model)
     const placed = layoutClassDiagram(model, native)
     expect(model).toEqual(original)
     expect(layoutClassDiagram(model, native)).toEqual(placed)
-    expect(placed.classes.map(cls => [cls.id, cls.label, cls.attributes, cls.methods, cls.annotation, Boolean(cls.isInterface)]))
-      .toEqual(model.classes.map(cls => [cls.id, cls.label, cls.attributes, cls.methods, cls.annotation, Boolean(cls.isInterface)]))
+    expect(placed.classes.map(cls => [cls.id, cls.label, cls.attributes, cls.methods, cls.annotation, Boolean(cls.isInterface)])).toEqual(model.classes.map(cls => [cls.id, cls.label, cls.attributes, cls.methods, cls.annotation, Boolean(cls.isInterface)]))
     expect(placed.classes.map(cls => cls.id)).toContain('class-namespace:Platform')
     expect(placed.namespaces.map(ns => [ns.id, ns.parentId])).toEqual([
-      ['Platform', undefined], ['Platform.Domain', 'Platform'], ['Audit', undefined],
+      ['Platform', undefined],
+      ['Platform.Domain', 'Platform'],
+      ['Audit', undefined],
     ])
-    expect(placed.relationships.map(rel => [rel.from, rel.to, rel.type, rel.label, rel.fromCardinality, rel.toCardinality]))
-      .toEqual(model.relationships.map(rel => [rel.from, rel.to, rel.type, rel.label, rel.fromCardinality, rel.toCardinality]))
+    expect(placed.relationships.map(rel => [rel.from, rel.to, rel.type, rel.label, rel.fromCardinality, rel.toCardinality])).toEqual(model.relationships.map(rel => [rel.from, rel.to, rel.type, rel.label, rel.fromCardinality, rel.toCardinality]))
     const boxes = new Map([...placed.classes, ...placed.namespaces].map(box => [box.id, box]))
     for (const frame of placed.namespaces) {
       for (const id of [...frame.classIds, ...placed.namespaces.filter(child => child.parentId === frame.id).map(child => child.id)]) {
         const child = boxes.get(id)!
-        expect(child.x).toBeGreaterThanOrEqual(frame.x - .01)
-        expect(child.y).toBeGreaterThanOrEqual(frame.y + frame.headerHeight - .01)
-        expect(child.x + child.width).toBeLessThanOrEqual(frame.x + frame.width + .01)
-        expect(child.y + child.height).toBeLessThanOrEqual(frame.y + frame.height + .01)
+        expect(child.x).toBeGreaterThanOrEqual(frame.x - 0.01)
+        expect(child.y).toBeGreaterThanOrEqual(frame.y + frame.headerHeight - 0.01)
+        expect(child.x + child.width).toBeLessThanOrEqual(frame.x + frame.width + 0.01)
+        expect(child.y + child.height).toBeLessThanOrEqual(frame.y + frame.height + 0.01)
       }
     }
     const stages: string[] = []
     const options = { ...native, nodeSpacing: 53 }
-    const result = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(source, options))
+    const result = withRenderStageObserver(
+      sample => stages.push(sample.stage),
+      () => renderMermaidSVGWithReceipt(source, options),
+    )
     expect(stages).not.toContain('elk')
     const reference = renderMermaidSVGWithReceipt(source, { ...options, graphLayout: { backend: 'elk' } })
     expect(reference.receipt.layoutCertification?.status).toBe('passed')
@@ -127,7 +156,10 @@ describe('Class layout backends', () => {
   test('routes cross-namespace relationships while retaining native empty diagrams', () => {
     const grouped = 'classDiagram\nnamespace Left {\nclass A\n}\nnamespace Right {\nclass B\n}\nA --> B'
     const stages: string[] = []
-    const result = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(grouped, native))
+    const result = withRenderStageObserver(
+      sample => stages.push(sample.stage),
+      () => renderMermaidSVGWithReceipt(grouped, native),
+    )
     expect(stages).not.toContain('elk')
     expect(result.receipt.layoutCertification?.status).toBe('passed')
     expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic' })])
@@ -141,14 +173,35 @@ describe('Class layout backends', () => {
     }
   })
 
-  test.each([
-    { name: 'literal siblings', declarations: 'namespace `Domain.Left`["Left namespace"] {\nclass `ns:Domain.Left`["Left card"]\n}\nnamespace `Domain.Right`["Right namespace"] {\nclass `class-namespace:Domain.Right`["Right card"]\n}',
-      groups: [['Domain.Left', undefined, ['ns:Domain.Left']], ['Domain.Right', undefined, ['class-namespace:Domain.Right']]] },
-    { name: 'literal parent', declarations: 'namespace `Domain.Root`["Left namespace"] {\nclass `ns:Domain.Left`["Left card"]\nnamespace Child["Right namespace"] {\nclass `class-namespace:Domain.Right`["Right card"]\n}\n}',
-      groups: [['Domain.Root', undefined, ['ns:Domain.Left']], ['Domain.Root.Child', 'Domain.Root', ['class-namespace:Domain.Right']]] },
-    { name: 'literal and syntactic siblings', declarations: 'namespace `Domain.Left`["Left namespace"] {\nclass `ns:Domain.Left`["Left card"]\n}\nnamespace Domain {\nnamespace Right["Right namespace"] {\nclass `class-namespace:Domain.Right`["Right card"]\n}\n}',
-      groups: [['Domain.Left', undefined, ['ns:Domain.Left']], ['Domain', undefined, []], ['Domain.Right', 'Domain', ['class-namespace:Domain.Right']]] },
-  ].flatMap(example => (['elk', 'agentic'] as const).map(backend => ({ ...example, backend }))))('routes $name without inventing ancestors with $backend', ({ declarations, groups, backend }) => {
+  test.each(
+    [
+      {
+        name: 'literal siblings',
+        declarations: 'namespace `Domain.Left`["Left namespace"] {\nclass `ns:Domain.Left`["Left card"]\n}\nnamespace `Domain.Right`["Right namespace"] {\nclass `class-namespace:Domain.Right`["Right card"]\n}',
+        groups: [
+          ['Domain.Left', undefined, ['ns:Domain.Left']],
+          ['Domain.Right', undefined, ['class-namespace:Domain.Right']],
+        ],
+      },
+      {
+        name: 'literal parent',
+        declarations: 'namespace `Domain.Root`["Left namespace"] {\nclass `ns:Domain.Left`["Left card"]\nnamespace Child["Right namespace"] {\nclass `class-namespace:Domain.Right`["Right card"]\n}\n}',
+        groups: [
+          ['Domain.Root', undefined, ['ns:Domain.Left']],
+          ['Domain.Root.Child', 'Domain.Root', ['class-namespace:Domain.Right']],
+        ],
+      },
+      {
+        name: 'literal and syntactic siblings',
+        declarations: 'namespace `Domain.Left`["Left namespace"] {\nclass `ns:Domain.Left`["Left card"]\n}\nnamespace Domain {\nnamespace Right["Right namespace"] {\nclass `class-namespace:Domain.Right`["Right card"]\n}\n}',
+        groups: [
+          ['Domain.Left', undefined, ['ns:Domain.Left']],
+          ['Domain', undefined, []],
+          ['Domain.Right', 'Domain', ['class-namespace:Domain.Right']],
+        ],
+      },
+    ].flatMap(example => (['elk', 'agentic'] as const).map(backend => ({ ...example, backend }))),
+  )('routes $name without inventing ancestors with $backend', ({ declarations, groups, backend }) => {
     const source = `classDiagram\n${declarations}\n\`ns:Domain.Left\` "1" --> "many" \`class-namespace:Domain.Right\` : first relation\n\`ns:Domain.Left\` -- \`class-namespace:Domain.Right\` : parallel relation`
     const options = { graphLayout: { backend, fallback: 'none' as const } }
     const placed = layoutClassDiagram(parseClassDiagram(toMermaidLines(source)), options)
@@ -162,8 +215,14 @@ describe('Class layout backends', () => {
     const shafts = rendered.svg.match(/<polyline\b[^>]*class="class-relationship"[^>]*>/g) ?? []
     expect(shafts).toHaveLength(2)
     for (const shaft of shafts) {
-      const coordinates = shaft.match(/\bpoints="([^"]+)"/)![1]!.split(' ').map(pair => pair.split(',').map(Number))
-      for (const [id, point] of [['ns:Domain.Left', coordinates[0]!], ['class-namespace:Domain.Right', coordinates.at(-1)!]] as const) {
+      const coordinates = shaft
+        .match(/\bpoints="([^"]+)"/)![1]!
+        .split(' ')
+        .map(pair => pair.split(',').map(Number))
+      for (const [id, point] of [
+        ['ns:Domain.Left', coordinates[0]!],
+        ['class-namespace:Domain.Right', coordinates.at(-1)!],
+      ] as const) {
         const box = placed.classes.find(cls => cls.id === id)!
         const [x, y] = point
         expect(x!).toBeGreaterThanOrEqual(box.x - 0.01)
@@ -208,26 +267,32 @@ A *-- C
 B ..|> D : translates request payload
 B ..|> E
 C ..|> F : sends a notification payload`
-    const model = parseClassDiagram(toMermaidLines(source)), placed = layoutClassDiagram(model, native)
+    const model = parseClassDiagram(toMermaidLines(source)),
+      placed = layoutClassDiagram(model, native)
     expect(placed.relationships.map(rel => [rel.from, rel.to, rel.label])).toEqual(model.relationships.map(rel => [rel.from, rel.to, rel.label]))
     for (const relation of placed.relationships) {
       const points = relation.points
-      for (const [id, endpoint, next] of [[relation.from, points[0]!, points[1]!], [relation.to, points.at(-1)!, points.at(-2)!]] as const) {
+      for (const [id, endpoint, next] of [
+        [relation.from, points[0]!, points[1]!],
+        [relation.to, points.at(-1)!, points.at(-2)!],
+      ] as const) {
         const box = placed.classes.find(cls => cls.id === id)!
-        const outward = Math.abs(endpoint.x - box.x) < 1e-7 && next.y === endpoint.y && next.x < endpoint.x
-          || Math.abs(endpoint.x - box.x - box.width) < 1e-7 && next.y === endpoint.y && next.x > endpoint.x
-          || Math.abs(endpoint.y - box.y) < 1e-7 && next.x === endpoint.x && next.y < endpoint.y
-          || Math.abs(endpoint.y - box.y - box.height) < 1e-7 && next.x === endpoint.x && next.y > endpoint.y
+        const outward =
+          (Math.abs(endpoint.x - box.x) < 1e-7 && next.y === endpoint.y && next.x < endpoint.x) ||
+          (Math.abs(endpoint.x - box.x - box.width) < 1e-7 && next.y === endpoint.y && next.x > endpoint.x) ||
+          (Math.abs(endpoint.y - box.y) < 1e-7 && next.x === endpoint.x && next.y < endpoint.y) ||
+          (Math.abs(endpoint.y - box.y - box.height) < 1e-7 && next.x === endpoint.x && next.y > endpoint.y)
         expect(outward).toBe(true)
         expect(Math.abs(next.x - endpoint.x) + Math.abs(next.y - endpoint.y)).toBeGreaterThanOrEqual(8)
       }
       for (let i = 1; i < points.length; i++) {
-        const a = points[i - 1]!, b = points[i]!
+        const a = points[i - 1]!,
+          b = points[i]!
         expect(a.x === b.x || a.y === b.y).toBe(true)
         for (let j = i + 2; j < points.length; j++) {
-          const c = points[j - 1]!, d = points[j]!
-          const meets = Math.max(Math.min(a.x, b.x), Math.min(c.x, d.x)) <= Math.min(Math.max(a.x, b.x), Math.max(c.x, d.x))
-            && Math.max(Math.min(a.y, b.y), Math.min(c.y, d.y)) <= Math.min(Math.max(a.y, b.y), Math.max(c.y, d.y))
+          const c = points[j - 1]!,
+            d = points[j]!
+          const meets = Math.max(Math.min(a.x, b.x), Math.min(c.x, d.x)) <= Math.min(Math.max(a.x, b.x), Math.max(c.x, d.x)) && Math.max(Math.min(a.y, b.y), Math.min(c.y, d.y)) <= Math.min(Math.max(a.y, b.y), Math.max(c.y, d.y))
           expect(meets).toBe(false)
         }
       }
@@ -347,7 +412,8 @@ note for \`ns:Domain\` "owned note 37<br/>second line"
 note "free note 37"
 `
     const options = { graphLayout: { backend: 'agentic' as const, fallback: 'none' as const } }
-    const model = parseClassDiagram(toMermaidLines(source)), original = structuredClone(model)
+    const model = parseClassDiagram(toMermaidLines(source)),
+      original = structuredClone(model)
     const placed = layoutClassDiagram(model, options)
     expect(model).toEqual(original)
     expect(layoutClassDiagram(model, options)).toEqual(placed)
@@ -358,22 +424,28 @@ note "free note 37"
     const boxes = new Map<string, { x: number; y: number; width: number; height: number }>()
     const attributes = (tag: string) => Object.fromEntries([...tag.matchAll(/([\w-]+)="([^"]*)"/g)].map(match => [match[1]!, match[2]!]))
     for (const match of rendered.svg.matchAll(/<g\b[^>]*class="class-node"[^>]*>\s*(<rect\b[^>]*>)/g)) {
-      const parent = attributes(match[0]!.slice(0, match[0]!.indexOf('>') + 1)), box = attributes(match[1]!)
+      const parent = attributes(match[0]!.slice(0, match[0]!.indexOf('>') + 1)),
+        box = attributes(match[1]!)
       boxes.set(parent['data-id']!, { x: Number(box.x), y: Number(box.y), width: Number(box.width), height: Number(box.height) })
     }
     const shafts = [...rendered.svg.matchAll(/<polyline\b[^>]*class="class-relationship"[^>]*>/g)]
     expect(shafts).toHaveLength(model.relationships.length)
     for (const match of shafts) {
-      const shaft = attributes(match[0]), points = shaft.points!.split(/\s+/).map(pair => pair.split(',').map(Number))
-      for (const [id, endpoint, next] of [[shaft['data-from']!, points[0]!, points[1]!], [shaft['data-to']!, points.at(-1)!, points.at(-2)!]] as const) {
-        const box = boxes.get(id)!, [x, y] = endpoint, [nx, ny] = next
+      const shaft = attributes(match[0]),
+        points = shaft.points!.split(/\s+/).map(pair => pair.split(',').map(Number))
+      for (const [id, endpoint, next] of [
+        [shaft['data-from']!, points[0]!, points[1]!],
+        [shaft['data-to']!, points.at(-1)!, points.at(-2)!],
+      ] as const) {
+        const box = boxes.get(id)!,
+          [x, y] = endpoint,
+          [nx, ny] = next
         expect(box).toBeDefined()
         expect(x!).toBeGreaterThanOrEqual(box.x - 1e-7)
         expect(x!).toBeLessThanOrEqual(box.x + box.width + 1e-7)
         expect(y!).toBeGreaterThanOrEqual(box.y - 1e-7)
         expect(y!).toBeLessThanOrEqual(box.y + box.height + 1e-7)
-        expect(Math.abs(x! - box.x) < 1e-7 && ny === y && nx! < x! || Math.abs(x! - box.x - box.width) < 1e-7 && ny === y && nx! > x!
-          || Math.abs(y! - box.y) < 1e-7 && nx === x && ny! < y! || Math.abs(y! - box.y - box.height) < 1e-7 && nx === x && ny! > y!).toBe(true)
+        expect((Math.abs(x! - box.x) < 1e-7 && ny === y && nx! < x!) || (Math.abs(x! - box.x - box.width) < 1e-7 && ny === y && nx! > x!) || (Math.abs(y! - box.y) < 1e-7 && nx === x && ny! < y!) || (Math.abs(y! - box.y - box.height) < 1e-7 && nx === x && ny! > y!)).toBe(true)
         expect(Math.abs(nx! - x!) + Math.abs(ny! - y!)).toBeGreaterThanOrEqual(8)
       }
     }
@@ -396,27 +468,32 @@ note "free note 37"
         expect(frame.width).toBeGreaterThan(0)
         expect(frame.height).toBeGreaterThanOrEqual(frame.headerHeight)
       }
-      if (hierarchicalNamespaces) for (const inner of placed.namespaces.filter(frame => frame.parentId !== undefined)) {
-        const outer = placed.namespaces.find(frame => frame.id === inner.parentId)!
-        expect(inner!.x).toBeGreaterThanOrEqual(outer!.x)
-        expect(inner!.y).toBeGreaterThanOrEqual(outer!.y + outer!.headerHeight)
-        expect(inner!.x + inner!.width).toBeLessThanOrEqual(outer!.x + outer!.width)
-        expect(inner!.y + inner!.height).toBeLessThanOrEqual(outer!.y + outer!.height)
-      }
+      if (hierarchicalNamespaces)
+        for (const inner of placed.namespaces.filter(frame => frame.parentId !== undefined)) {
+          const outer = placed.namespaces.find(frame => frame.id === inner.parentId)!
+          expect(inner!.x).toBeGreaterThanOrEqual(outer!.x)
+          expect(inner!.y).toBeGreaterThanOrEqual(outer!.y + outer!.headerHeight)
+          expect(inner!.x + inner!.width).toBeLessThanOrEqual(outer!.x + outer!.width)
+          expect(inner!.y + inner!.height).toBeLessThanOrEqual(outer!.y + outer!.height)
+        }
       const result = renderMermaidSVGWithReceipt(source, options)
       expect(result.receipt.layoutCertification?.status).toBe('passed')
       expect(result.svg.match(/class="namespace"/g)).toHaveLength(4)
       expect(result.svg).not.toContain('class="class-node"')
       for (const label of ['Outer empty label', 'Inner empty label', 'Leaf empty label', 'Standalone empty label', 'Empty frame note']) expect(result.svg).toContain(label)
-      if (backend === 'default' && hierarchicalNamespaces) for (const useAscii of [true, false]) {
-        const terminal = renderMermaidASCII(`---\ntitle: Empty namespace title\n---\n${source}`, { useAscii })
-        expect(terminal).toContain('Empty namespace title')
-        for (const label of ['Outer empty label', 'Inner empty label', 'Leaf empty label', 'Standalone empty label', 'Empty frame note']) expect(terminal).toContain(label)
-      }
+      if (backend === 'default' && hierarchicalNamespaces)
+        for (const useAscii of [true, false]) {
+          const terminal = renderMermaidASCII(`---\ntitle: Empty namespace title\n---\n${source}`, { useAscii })
+          expect(terminal).toContain('Empty namespace title')
+          for (const label of ['Outer empty label', 'Inner empty label', 'Leaf empty label', 'Standalone empty label', 'Empty frame note']) expect(terminal).toContain(label)
+        }
       const publicLayout = layoutMermaidWithReceipt(source, options).layout
       expect(publicLayout.nodes).toEqual([])
       expect(publicLayout.groups.map(group => [group.id, group.parentId, group.members])).toEqual([
-        ['Outer', undefined, []], ['Outer.Inner', hierarchicalNamespaces ? 'Outer' : undefined, []], ['Outer.Inner.Leaf', hierarchicalNamespaces ? 'Outer.Inner' : undefined, []], ['Empty', undefined, []],
+        ['Outer', undefined, []],
+        ['Outer.Inner', hierarchicalNamespaces ? 'Outer' : undefined, []],
+        ['Outer.Inner.Leaf', hierarchicalNamespaces ? 'Outer.Inner' : undefined, []],
+        ['Empty', undefined, []],
       ])
     }
   })
@@ -443,4 +520,221 @@ note "free note 37"
       expect(renderMermaidASCII('classDiagram', { useAscii })).toBe('')
     }
   })
+})
+
+import { classCarrierEntersMarker, classMarkerEntersBox, classNewMiterEntersMarker, classSegmentEntersBox, repairClassHeaderRoutes } from '../class/owned-surfaces.ts'
+import { classMarkerPieces } from '../class/relationship-paint.ts'
+import * as elk from '../elk-instance.ts'
+import { resolveRenderStyle } from '../styles.ts'
+
+describe('complete Class owned surfaces', () => {
+  const inside = (a: any, b: any, r: any) => (a.x === b.x ? a.x > r.x && a.x < r.x + r.width && Math.max(a.y, b.y) > r.y && Math.min(a.y, b.y) < r.y + r.height : a.y === b.y ? a.y > r.y && a.y < r.y + r.height && Math.max(a.x, b.x) > r.x && Math.min(a.x, b.x) < r.x + r.width : false)
+  function fixed(graph: any, kind: string) {
+    const children = graph.children.map((c: any) => ({ ...c })),
+      g = children.find((c: any) => c.children),
+      byId = new Map<string, any>(children.map((c: any) => [c.id, c]))
+    let points: any[]
+    if (kind === 'note') {
+      for (const [id, x] of [
+        ['S', 40],
+        ['T', 500],
+        ['U', 644],
+      ] as const)
+        Object.assign(byId.get(id), { x, y: 100 })
+      const s: any = byId.get('S'),
+        t: any = byId.get('T')
+      points = [
+        { x: s.x + s.width, y: s.y + s.height / 2 },
+        { x: t.x, y: t.y + t.height / 2 },
+      ]
+    } else if (kind === 'horizontal') {
+      Object.assign(g, { x: 240, y: 40, width: 280, height: 240 })
+      g.children = g.children.map((c: any) => ({ ...c, x: 60, y: 80 }))
+      const a: any = byId.get('A'),
+        b: any = byId.get('B')
+      Object.assign(a, { x: 40, y: 40 })
+      Object.assign(b, { x: 640, y: 40 })
+      points = [
+        { x: a.x + a.width, y: a.y + a.height / 2 },
+        { x: b.x, y: b.y + b.height / 2 },
+      ]
+    } else {
+      Object.assign(g, { x: 40, y: 40, width: 300, height: 240 })
+      const top = kind === 'marker' ? Number(/top=([\d.]+)/.exec(g.layoutOptions['elk.padding'])![1]) : 80
+      g.children = g.children.map((c: any) => ({ ...c, x: 100, y: top }))
+      const a = g.children[0],
+        b: any = byId.get('B')
+      Object.assign(b, { x: 500, y: 40 })
+      const start = { x: 40 + a.x + a.width / 2, y: 40 + a.y }
+      points = kind === 'marker' ? [start, { x: start.x, y: 69 }, { x: 480, y: 69 }, { x: 480, y: 140 }, { x: b.x + b.width / 2, y: 140 }, { x: b.x + b.width / 2, y: b.y + b.height }] : [start, { x: start.x, y: 20 }, { x: b.x + b.width / 2, y: 20 }, { x: b.x + b.width / 2, y: b.y }]
+    }
+    return { ...graph, width: 850, height: 320, children, edges: graph.edges.map((e: any) => ({ ...e, sections: [{ id: 'section', startPoint: points[0], bendPoints: points.slice(1, -1), endPoint: points.at(-1) }] })) }
+  }
+  for (const kind of ['note', 'vertical', 'horizontal', 'marker'])
+    test(`complete Class owned surfaces: ${kind}`, () => {
+      const source =
+        kind === 'note'
+          ? 'classDiagram\ndirection LR\nclass S\nclass T\nclass U\nS --> T\nnote for T "owned note"'
+          : kind === 'horizontal'
+            ? 'classDiagram\ndirection LR\nnamespace G {\nclass C\n}\nclass A\nclass B\nA --> B'
+            : `classDiagram\ndirection BT\nnamespace G {\nclass A\n}\nclass B\nA ${kind === 'marker' ? '<|--' : '-->'} B`
+      const model = parseClassDiagram(toMermaidLines(source)),
+        before = structuredClone(model),
+        calls: any[] = []
+      const spy = spyOn(elk, 'elkLayoutSync').mockImplementation((graph: any) => {
+        calls.push(structuredClone(graph))
+        return fixed(graph, kind)
+      })
+      try {
+        const p = layoutClassDiagram(model, { graphLayout: { backend: 'elk', fallback: 'none' } })
+        expect(model).toEqual(before)
+        expect(p.relationships).toHaveLength(1)
+        expect(p.relationships[0]!.from).toBe(kind === 'note' ? 'S' : 'A')
+        expect(p.relationships[0]!.to).toBe(kind === 'note' ? 'T' : 'B')
+        const points = p.relationships[0]!.points
+        for (const h of p.namespaces) for (let i = 1; i < points.length; i++) expect(inside(points[i - 1], points[i], { ...h, height: h.headerHeight })).toBe(false)
+        for (const note of p.notes) for (let i = 1; i < points.length; i++) expect(inside(points[i - 1], points[i], { x: note.x + 2, y: note.y + 2, width: note.width - 4, height: note.height - 4 })).toBe(false)
+        if (kind === 'note') {
+          expect(points).toEqual([
+            { x: 160, y: 124.45 },
+            { x: 500, y: 124.45 },
+          ])
+          expect(p.notes[0]!.for).toBe('T')
+          expect(p.notes[0]!.targetX).toBeDefined()
+        }
+        if (kind === 'marker') {
+          const a = p.classes.find((c: any) => c.id === 'A')!,
+            g = p.namespaces[0]!
+          // Actual triangle vertices extend12px along the outgoing normal, plus.75px stroke.
+          expect(a.y - 12.75).toBeGreaterThanOrEqual(g.y + g.headerHeight)
+          expect(calls.length).toBeLessThanOrEqual(3)
+        }
+      } finally {
+        spy.mockRestore()
+      }
+    })
+})
+
+test('header detour cannot cross the preserved source prefix', () => {
+  const points = [
+      { x: 30, y: 55 },
+      { x: 45, y: 55 },
+      { x: 45, y: 30 },
+      { x: 55, y: 30 },
+      { x: 55, y: 70 },
+    ],
+    diagram: any = {
+      width: 100,
+      height: 100,
+      classes: [
+        { id: 'S', x: 20, y: 50, width: 10, height: 10 },
+        { id: 'T', x: 50, y: 70, width: 10, height: 10 },
+      ],
+      namespaces: [{ id: 'G', x: 50, y: 50, width: 10, height: 40, headerHeight: 10, classIds: ['T'] }],
+      notes: [],
+      relationships: [{ from: 'S', to: 'T', type: 'link-solid', markerAt: 'none', points: structuredClone(points) }],
+    }
+  repairClassHeaderRoutes(diagram, resolveRenderStyle({}, CLASS_STYLE_DEFAULTS))
+  const route = diagram.relationships[0].points
+  expect(route.slice(0, 4)).toEqual(points.slice(0, 4))
+  expect(route.at(-1)).toEqual({ x: 55, y: 70 })
+  // Literal independent crossing witness: no later V may enter the unchanged
+  // first H's strict interior(30,45) at y55. The old left detour crossed x42.
+  expect(route.some((p: any, i: number) => i > 1 && p.x === route[i - 1].x && p.x > 30 && p.x < 45 && Math.min(p.y, route[i - 1].y) < 55 && Math.max(p.y, route[i - 1].y) > 55)).toBe(false)
+})
+test('canonical triangle empty AABB corner is clear, real fill/base stroke is occupied', () => {
+  const descriptor: any = {
+    id: 'triangle',
+    shape: 'triangle',
+    orient: 'auto',
+    geometry: {
+      kind: 'polygon',
+      points: [
+        { x: 0, y: 0 },
+        { x: 12, y: 5 },
+        { x: 0, y: 10 },
+      ],
+    },
+    paint: { fill: '#fff', stroke: '#000', strokeWidth: '1.5' },
+  }
+  const pieces = classMarkerPieces(descriptor, { x: 0, y: 0 }, { x: 1, y: 0 }, 'end', 1)
+  expect(classMarkerEntersBox(pieces, { x: 11, y: -28, width: 30, height: 29 })).toBe(false)
+  expect(classMarkerEntersBox(pieces, { x: 1, y: 3, width: 1, height: 2 })).toBe(true)
+  expect(classMarkerEntersBox(pieces, { x: -0.5, y: 3, width: 0.25, height: 2 })).toBe(true)
+})
+test('serialized rectangle faces use exact decimal equality, not a clearance epsilon', () => {
+  const box = { x: 398.529, y: 100, width: 135.33, height: 50 }
+  expect(classSegmentEntersBox({ x: 533.859, y: 110 }, { x: 540, y: 110 }, box)).toBe(false)
+  expect(classSegmentEntersBox({ x: 533.8589, y: 110 }, { x: 533.8589, y: 120 }, box)).toBe(true)
+  expect(classSegmentEntersBox({ x: 533.859, y: 110 }, { x: 533.859, y: 120 }, box)).toBe(false)
+})
+
+test('new orthogonal miter ink includes the corner outside both butt strips', async () => {
+  const pieces: any = [
+      {
+        kind: 'polygon',
+        points: [
+          { x: 10.2, y: -0.3 },
+          { x: 10.3, y: -0.3 },
+          { x: 10.3, y: -0.2 },
+          { x: 10.2, y: -0.2 },
+        ],
+      },
+    ],
+    route = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 10, y: 10 },
+    ]
+  expect(classCarrierEntersMarker(route[0]!, route[1]!, pieces, 1)).toBe(false)
+  expect(classCarrierEntersMarker(route[1]!, route[2]!, pieces, 1)).toBe(false)
+  expect(classNewMiterEntersMarker(route, [], pieces, 1)).toBe(true)
+  expect(classNewMiterEntersMarker(route, route, pieces, 1)).toBe(false)
+})
+
+test('rounded header detour cannot cut through a foreign card and uses the opposite lane', async () => {
+  const { projectRoundedConnectorPath } = await import('../scene/connector-geometry.ts')
+  const diagram: any = {
+    width: 300,
+    height: 450,
+    classes: [
+      { id: 'S', x: 90, y: 80, width: 20, height: 20 },
+      { id: 'T', x: 90, y: 360, width: 20, height: 20 },
+      { id: 'foreign', x: 90, y: 235, width: 5, height: 5 },
+    ],
+    namespaces: [{ id: 'G', x: 50, y: 250, width: 100, height: 100, headerHeight: 60, classIds: [] }],
+    notes: [],
+    relationships: [
+      {
+        from: 'S',
+        to: 'T',
+        type: 'link-solid',
+        markerAt: 'none',
+        points: [
+          { x: 100, y: 100 },
+          { x: 100, y: 360 },
+        ],
+      },
+    ],
+  }
+  // Old left Q: start(100,221), control(100,246), end(75,246).
+  // Its Bernstein midpoint(93.75,239.75) is strictly inside foreign.
+  expect(93.75 > 90 && 93.75 < 95 && 239.75 > 235 && 239.75 < 240).toBe(true)
+  const style = resolveRenderStyle({ styleFace: { edge: { bendRadius: 25 } } }, CLASS_STYLE_DEFAULTS)
+  repairClassHeaderRoutes(diagram, style)
+  const route = diagram.relationships[0].points,
+    projection = projectRoundedConnectorPath(route, 25, { metric: 'manhattan', precision: 3 })
+  const d = (projection.geometry as any).d
+  let start: any
+  for (const m of d.matchAll(/([MLQ])([^MLQ]+)/g)) {
+    const v = m[2]!.trim().split(/[ ,]+/).map(Number)
+    if (m[1] === 'Q') {
+      const point = { x: (start.x + 2 * v[0]! + v[2]!) / 4, y: (start.y + 2 * v[1]! + v[3]!) / 4 }
+      expect(point.x > 90 && point.x < 95 && point.y > 235 && point.y < 240).toBe(false)
+      start = { x: v[2], y: v[3] }
+    } else start = { x: v[0], y: v[1] }
+  }
+  expect(route.some((p: any) => p.x > 150)).toBe(true)
+  expect(route[0]).toEqual({ x: 100, y: 100 })
+  expect(route.at(-1)).toEqual({ x: 100, y: 360 })
 })
