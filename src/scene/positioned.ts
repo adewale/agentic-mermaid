@@ -4,7 +4,7 @@ import { drawNative, type NativeDrawing } from './native-drawing.ts'
 import type { FamilyLayoutResult } from '../agent/families.ts'
 import type { ResolvedRenderRequest } from '../render-contract.ts'
 import { resolvedFamilyRenderContextOf, resolvedRenderExecutionPlanOf } from '../render-contract.ts'
-import { retainedFamilyProjection } from '../positioning.ts'
+import { positionedForNativeProducer, retainedFamilyProjection } from '../positioning.ts'
 import { withTextMeasurementExecution } from '../text-measurement-profile.ts'
 import { admitFamilyScene } from './admission.ts'
 import { sceneAssertionsEnabled } from './assertions.ts'
@@ -69,7 +69,7 @@ export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: Fa
   const colors = request.output === 'png' && request.appearance.colors.embedFontImport !== false
     ? { ...request.appearance.colors, embedFontImport: false } : request.appearance.colors
   const drawing = withTextMeasurementExecution(plan.textMeasurement, () => drawNative(producer!,
-    { positioned: layout.positioned, colors, resolved: resolvedFamilyRenderContextOf(request) }, plan.family.id, request.appearance.styled ? request.appearance.style : undefined))
+    { positioned: positionedForNativeProducer(layout, producer!), colors, resolved: resolvedFamilyRenderContextOf(request) }, plan.family.id, request.appearance.styled ? request.appearance.style : undefined))
   requests.set(request, { drawing })
   return drawing
 }

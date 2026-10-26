@@ -3,6 +3,83 @@ import { useTestChildren } from './helpers/test-child.ts'
 
 const runChild = useTestChildren(20_000)
 
+test('family ownership follows constructed identities and backend ownership follows successful original enrollment', async () => {
+  for (const mode of ['original', 'changed-before-enrollment', 'failed-enrollment']) {
+    const child = await runChild(process.execPath, ['-e', `
+      import assert from 'node:assert/strict'
+      import { isOwnedFamily } from './src/experimental/owned-family.ts'
+      import { DefaultBackend, isOriginalEnrolledDefaultBackend, registerBackend, registerBuiltInBackend } from './src/scene/backend.ts'
+      const mode = ${JSON.stringify(mode)}
+      const fail = () => { throw new Error('backend query touched a proxy') }
+      const proxy = new Proxy(DefaultBackend, { get: fail, getOwnPropertyDescriptor: fail, ownKeys: fail, isExtensible: fail })
+      assert.equal(isOriginalEnrolledDefaultBackend(undefined), false)
+      assert.equal(isOriginalEnrolledDefaultBackend(DefaultBackend), false)
+      assert.equal(isOriginalEnrolledDefaultBackend(proxy), false)
+      if (mode === 'changed-before-enrollment') DefaultBackend.drawNode = () => { throw new Error('unexpected rendering') }
+      if (mode === 'failed-enrollment') {
+        registerBackend({ ...DefaultBackend, id: 'backend:default' }, { compatibility: { core: '^0.4.0', scene: '^2.0.0' } })
+        assert.throws(() => registerBuiltInBackend(DefaultBackend), { name: 'ExtensionCollisionError' })
+        assert.equal(Object.isFrozen(DefaultBackend), true)
+        assert.equal(isOriginalEnrolledDefaultBackend(DefaultBackend), false)
+      } else {
+        registerBuiltInBackend(DefaultBackend)
+        assert.equal(Object.isFrozen(DefaultBackend), true)
+        assert.equal(isOriginalEnrolledDefaultBackend(DefaultBackend), mode === 'original')
+      }
+      assert.equal(isOriginalEnrolledDefaultBackend(undefined), false)
+      assert.equal(isOriginalEnrolledDefaultBackend(proxy), false)
+      assert.equal(isOriginalEnrolledDefaultBackend({ ...DefaultBackend }), false)
+      if (mode === 'original') {
+        const { getFamily, replaceFamilyForTest } = await import('./src/agent/families.ts')
+        const { createBrowserFamilyDescriptor } = await import('./src/browser-lazy/family.ts')
+        const original = getFamily('sequence')
+        assert.equal(Object.isFrozen(original), true)
+        assert.equal(isOwnedFamily(original), true)
+        assert.equal(Reflect.set(original, 'layout', () => undefined), false)
+        assert.equal(isOwnedFamily(Object.freeze({ ...original })), false)
+        const fail = () => { throw new Error('unowned family query touched a proxy') }
+        const familyProxy = new Proxy(original, { get: fail, getOwnPropertyDescriptor: fail, ownKeys: fail, isExtensible: fail, getPrototypeOf: fail })
+        for (const unowned of [familyProxy, {}, Object.freeze({ id: undefined }), undefined]) {
+          assert.equal(isOwnedFamily(unowned), false)
+        }
+        let idReads = 0, layoutReads = 0
+        const data = new Proxy({ ...original }, { get(target, key, receiver) {
+          if (key === 'id') idReads++
+          return Reflect.get(target, key, receiver)
+        } })
+        const hooks = { get layout() { layoutReads++; return original.layout }, projectPositioned: original.projectPositioned, lowerScene: original.lowerScene }
+        const browser = createBrowserFamilyDescriptor(data, hooks)
+        assert.equal(idReads, 1)
+        assert.equal(layoutReads, 1)
+        assert.equal(isOwnedFamily(data), false)
+        assert.equal(isOwnedFamily(browser), true)
+        assert.equal(Object.isFrozen(browser), true)
+        assert.equal(Reflect.set(browser, 'layout', () => undefined), false)
+        Object.defineProperty(hooks, 'layout', { get: fail })
+        assert.equal(browser.layout, original.layout)
+        assert.equal(isOwnedFamily(browser), true)
+        assert.equal(idReads, 1)
+        assert.equal(layoutReads, 1)
+        let replacementReads = 0
+        const restore = replaceFamilyForTest('sequence', { ...original, get layout() { replacementReads++; return original.layout } })
+        try {
+          const replacement = getFamily('sequence')
+          assert.equal(Object.isFrozen(replacement), true)
+          assert.equal(isOwnedFamily(replacement), false)
+          assert.equal(replacement.layout, original.layout)
+          assert.equal(replacementReads, 1)
+        } finally { restore() }
+        assert.equal(getFamily('sequence'), original)
+        assert.equal(isOwnedFamily(original), true)
+      }
+      console.log('immutable enrollment proof passed')
+    `], { cwd: `${import.meta.dir}/../..` })
+    expect(child.stderr).toBe('')
+    expect(child.status).toBe(0)
+    expect(child.stdout).toContain('immutable enrollment proof passed')
+  }
+})
+
 for (const family of ['flowchart', 'state'] as const) {
   test(`native ${family} geometry stays isolated across private/public/PNG order and replacement hooks`, async () => {
     const child = await runChild(process.execPath, ['-e', `

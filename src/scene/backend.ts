@@ -151,6 +151,7 @@ export const DefaultBackend: StyleBackend = {
 
 const OWNED_DEFAULT_RENDERERS = new WeakSet<StyleBackend['render']>([DefaultBackend.render])
 const ORIGINAL_DEFAULT_FIELDS = Object.getOwnPropertyDescriptors(DefaultBackend)
+let enrolledOriginalDefault: StyleBackend | undefined
 
 /** Only our unchanged own-data implementation may reuse the private fixture.
  * Check identity first so custom backends and Proxies observe no new reads. */
@@ -166,6 +167,11 @@ function hasOriginalDefaultImplementation(backend: StyleBackend): boolean {
 /** A replacement method must use the checked backend path. */
 export function isBuiltinDefaultBackend(backend: StyleBackend): boolean {
   return backend === DefaultBackend && OWNED_DEFAULT_RENDERERS.has(backend.render)
+}
+
+/** Match the original implementation after enrollment wrapped and froze it. */
+export function isOriginalEnrolledDefaultBackend(backend: unknown): boolean {
+  return enrolledOriginalDefault !== undefined && backend === enrolledOriginalDefault
 }
 
 const CORE_BACKEND_VERSION = '1.0.0'
@@ -456,6 +462,7 @@ export function registerBuiltInBackend(backend: StyleBackend): void {
     })
     BACKEND_CONFORMANCE.set(id, conformance.report)
     BACKEND_INPUT_NAMES.set(inputName, id)
+    if (originalDefault) enrolledOriginalDefault = frozen
     selectionSnapshot = undefined
   } finally {
     backendConformanceCandidate = null
