@@ -1,6 +1,7 @@
+export { BLOCK_OP_SCHEMAS, BLOCK_OP_KINDS } from '../block/ops.ts'
 import { appendNativeAccessibilityLines, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { readAuthoredGrammarAccessibility } from '../shared/grammar-text.ts'
-import { formatUnknownOpMessage } from './unknown-op.ts'
+import { unknownOpMessage } from './mutation-ops.ts'
 import { parseBlockDiagram } from '../block/parser.ts'
 import type { Block, BlockBody, BlockInput, BlockMutationOp } from '../block/types.ts'
 import type { Accessibility, LayoutWarning, MutationError, Result, VerifyOptions } from './types.ts'
@@ -231,7 +232,7 @@ export function mutateBlock(body: BlockBody, op: BlockMutationOp): Result<BlockB
         break
       }
       default:
-        throw new Error(formatUnknownOpMessage('block', op, BLOCK_OP_KINDS.join(', ')))
+        throw new Error(unknownOpMessage('block', op))
     }
     const identities = new Set<string>()
     for (const { node } of blockEntries(next)) {
@@ -269,21 +270,3 @@ export function blockUnsupportedSyntaxWarnings(source: string): LayoutWarning[] 
   } catch { /* Native syntax failures are diagnosed by the render path. */ }
   return warnings
 }
-const str = (required = true) => ({ type: 'string' as const, required }),
-  num = (required = true) => ({ type: 'number' as const, required }),
-  obj = () => ({ type: 'object-or-null' as const, required: true }),
-  nullable = () => ({ type: 'string-or-null' as const, required: true })
-export const BLOCK_OP_SCHEMAS = {
-  set_columns: { fields: { columns: num(), parentId: str(false) } },
-  add_block: { fields: { block: obj(), parentId: str(false), index: num(false) } },
-  update_block: { fields: { id: str(), changes: obj() } },
-  rename_block: { fields: { from: str(), to: str() } },
-  remove_block: { fields: { id: str(), cascade: { type: 'boolean' as const, required: false } } },
-  move_block: { fields: { id: str(), parentId: str(false), index: num(false) } },
-  add_edge: { fields: { from: str(), to: str(), label: str(false), style: { type: 'enum' as const, values: ['solid', 'dotted', 'thick'], required: false }, arrowStart: str(false), arrowEnd: str(false) } },
-  remove_edge: { fields: { id: str() } },
-  define_class: { fields: { name: str(), style: str() } },
-  set_node_class: { fields: { id: str(), className: nullable() } },
-  set_node_style: { fields: { id: str(), style: nullable() } },
-}
-export const BLOCK_OP_KINDS = Object.freeze(Object.keys(BLOCK_OP_SCHEMAS))

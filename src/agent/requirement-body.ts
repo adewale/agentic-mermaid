@@ -1,4 +1,5 @@
-import { formatUnknownOpMessage } from './unknown-op.ts'
+export { REQUIREMENT_OP_SCHEMAS, REQUIREMENT_OP_KINDS } from '../requirement/ops.ts'
+import { unknownOpMessage } from './mutation-ops.ts'
 import { parseRequirementDiagram, type RequirementStyleDirective } from '../requirement/parser.ts'
 import { RequirementType, Relationships, RiskLevel, VerifyType } from '../requirement/db.ts'
 import type { RequirementBody, RequirementMutationOp, Requirement, RequirementElement } from '../requirement/types.ts'
@@ -230,7 +231,7 @@ export function mutateRequirement(body: RequirementBody, op: RequirementMutation
         break
       }
       default:
-        throw new Error(formatUnknownOpMessage('requirement', op, REQUIREMENT_OP_KINDS.join(', ')))
+        throw new Error(unknownOpMessage('requirement', op))
     }
     const reparsed = parseRequirementDiagram(cleanupMermaidSource(renderRequirement(next)).authoredPayloadText)
     reparsed.relations.forEach((edge, i) => {
@@ -253,20 +254,3 @@ export function verifyRequirement(body: RequirementBody, opts: VerifyOptions): L
   for (const e of body.relations) if (!ids.has(e.src) || !ids.has(e.dst)) warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax: 'undeclared endpoint', message: `Relation ${e.id} references an undeclared endpoint` })
   return warnings
 }
-const str = (required = true) => ({ type: 'string' as const, required }),
-  obj = () => ({ type: 'object-or-null' as const, required: true })
-export const REQUIREMENT_OP_SCHEMAS = {
-  set_direction: { fields: { direction: { type: 'enum' as const, values: ['TB', 'BT', 'LR', 'RL'], required: true } } },
-  add_requirement: { fields: { requirement: obj() } },
-  update_requirement: { fields: { id: str(), changes: obj() } },
-  add_element: { fields: { element: obj() } },
-  update_element: { fields: { id: str(), changes: obj() } },
-  rename_node: { fields: { from: str(), to: str() } },
-  remove_node: { fields: { id: str(), cascade: { type: 'boolean' as const, required: false } } },
-  add_relation: { fields: { relation: obj() } },
-  remove_relation: { fields: { id: str() } },
-  define_class: { fields: { name: str(), style: str() } },
-  set_node_class: { fields: { id: str(), className: { type: 'string-or-null' as const, required: true } } },
-  set_node_style: { fields: { id: str(), style: { type: 'string-or-null' as const, required: true } } },
-}
-export const REQUIREMENT_OP_KINDS = Object.freeze(Object.keys(REQUIREMENT_OP_SCHEMAS))

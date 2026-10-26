@@ -1,8 +1,8 @@
+import { evaluateBrowserScript } from './browser-script-harness.ts'
+import { editorModuleScript } from './helpers/editor-module-harness.ts'
 import { describe, expect, test } from 'bun:test'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
-const source = readFileSync(join(import.meta.dir, '..', '..', 'editor', 'js', 'helpers.js'), 'utf8')
+const source = await editorModuleScript('helpers.js')
 
 type Popup = {
   _closingTimer?: ReturnType<typeof setTimeout> | null
@@ -25,7 +25,7 @@ type PopupHelpers = {
 }
 
 function loadPopupHelpers(): PopupHelpers {
-  return new Function(`${source}; return { clearPopupClosing, setPopupVisibility };`)() as PopupHelpers
+  return evaluateBrowserScript<PopupHelpers>(source, {}, '{ clearPopupClosing, setPopupVisibility }')
 }
 
 function popup(initialClasses: string[] = []): Popup {

@@ -71,7 +71,6 @@ const SHAPE_TEXT_OR_GROUP: readonly SceneMarkKind[] = ['shape', 'text', 'group']
 const CONNECTOR_OR_GROUP: readonly SceneMarkKind[] = ['connector', 'group']
 const DOCUMENT: readonly SceneMarkKind[] = ['document']
 const TEXT_OR_GROUP: readonly SceneMarkKind[] = ['text', 'group']
-const TEXT_OR_DOCUMENT: readonly SceneMarkKind[] = ['text', 'document']
 const PRELUDE: readonly SceneMarkKind[] = ['document']
 
 type BehavioralTraitOptions = Partial<Pick<SceneRoleTraits,

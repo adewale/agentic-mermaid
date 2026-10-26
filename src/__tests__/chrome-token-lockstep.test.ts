@@ -1,3 +1,4 @@
+import { editorModuleScript } from './helpers/editor-module-harness.ts'
 /**
  * Chrome token lockstep — the editor app shell and the public site are meant to
  * share one brand system. Three source files each carry the values and, until
@@ -21,7 +22,7 @@ import { evaluateBrowserScript } from './browser-script-harness.ts'
 const REPO = join(import.meta.dir, '..', '..')
 const siteCss = readFileSync(join(REPO, 'website/source/assets/styles.css'), 'utf8')
 const editorCss = readFileSync(join(REPO, 'editor/css/variables.css'), 'utf8')
-const renderingJs = readFileSync(join(REPO, 'editor/js/rendering.js'), 'utf8')
+const renderingJs = await editorModuleScript('rendering.js')
 
 /** First `--name: <hex>` declaration in a block of CSS text. */
 function cssHex(css: string, name: string): string {

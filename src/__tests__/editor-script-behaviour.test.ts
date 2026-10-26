@@ -1,5 +1,6 @@
+import { editorModuleScript } from './helpers/editor-module-harness.ts'
 /**
- * Behavioural contracts for the Editor's classic scripts, executed in-process
+ * Behavioural contracts for the Editor's modules, executed in-process
  * through browser-script-harness.ts. Each test drives the shipped script via
  * its real entry points (render-option resolution, the advanced-options Apply
  * button, the PNG export adapter boundary, the verify panel, storage access)
@@ -9,8 +10,6 @@
  * this suite covers export admission and failure-tolerant storage behavior.
  */
 import { describe, expect, test } from 'bun:test'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { BROWSER_EDITOR_ADAPTER } from '../browser.ts'
 import { resolveEditorRenderOptions } from '../editor-render-options.ts'
 import { PNG_DEFAULT_SCALE } from '../png-contract.ts'
@@ -20,9 +19,8 @@ import { verifyNoExternalRefs } from '../output-security.ts'
 import { WARNING_TIER } from '../agent/types.ts'
 import { evaluateBrowserScript, FakeDocument, type FakeElement } from './browser-script-harness.ts'
 
-const ROOT = join(import.meta.dir, '..', '..')
-const EDITOR_JS = join(ROOT, 'editor', 'js')
-const editorScript = (name: string) => readFileSync(join(EDITOR_JS, name), 'utf8')
+const moduleScripts = new Map(await Promise.all(['font-picker.js', 'config-panel.js', 'export.js', 'helpers.js', 'rendering.js', 'sharing.js'].map(async name => [name, await editorModuleScript(name)] as const)))
+const editorScript = (name: string) => moduleScripts.get(name)!
 
 describe('editor render-option boundary', () => {
   const dependencies = {

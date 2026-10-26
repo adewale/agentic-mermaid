@@ -1,3 +1,5 @@
+import { editorModuleScript } from './helpers/editor-module-harness.ts'
+import { evaluateBrowserScript } from './browser-script-harness.ts'
 // Property fuzz for the browser Editor's untrusted-input codec (editor/js/sharing.js).
 // Share links and localStorage/sessionStorage drafts are attacker-controllable: a
 // recipient opens a URL someone else authored. The codec's contract is that ANY input
@@ -7,15 +9,12 @@
 // covers example-based limits; this closes the generated-input gap. Seed pinned globally
 // (fc-seed.preload.ts); run AM_FC_SEED=random to hunt fresh counterexamples.
 import { describe, expect, it } from 'bun:test'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { SHARED_RENDER_OPTION_FIELDS } from '../render-contract.ts'
 
-const ROOT = join(import.meta.dir, '..', '..')
-const sharingSource = readFileSync(join(ROOT, 'editor/js/sharing.js'), 'utf8')
+const sharingSource = await editorModuleScript('sharing.js')
 
 const NUM_RUNS = 300
 const EDITOR_OWNED = new Set(['embedFontImport', 'security'])
@@ -49,33 +48,20 @@ function sharingHarness() {
       knownStyleDescriptors: () => [{ kind: 'look', inputName: 'hand-drawn' }],
     },
   }
-  // editorPaletteInput is a cross-file global in the real editor; stub it so getHashSource's
+  // editorPaletteInput is an imported palette resolver; stub it so getHashSource's
   // palette-import branch is exercised without a ReferenceError.
   const editorPaletteInput = (value: unknown) => (typeof value === 'string' && value ? value : null)
-  const factory = new Function(
-    'window', 'localStorage', 'sessionStorage', 'editor', 'state', 'document', 'showToast',
-    'editorPaletteInput',
-    'CompressionStream', 'DecompressionStream', 'Blob', 'Response', 'TextEncoder', 'TextDecoder',
-    'Uint8Array', 'URLSearchParams', 'btoa', 'atob', 'setTimeout', 'clearTimeout',
-    'hasCurrentVerifiedSvgArtifact', 'DEFAULT_EDITOR_PALETTE',
-    `${sharingSource}\nreturn {
-      decodeSource, encodeSourceCompressed, updateHash, getHashSource,
-      sanitizeEditorConfig, readEditorDraft, saveEditorDraft, discardEditorDraft,
-      get hashDecodeFailure() { return hashDecodeFailure; },
-      MAX_SHARE_DECODED_BYTES, MAX_SHARE_ENCODED_BYTES, DRAFT_STORAGE_KEY,
-    };`,
-  )
-  const api = factory(
+  const api = evaluateBrowserScript<any>(sharingSource, {
     window, localStorage, sessionStorage, editor, state,
-    { getElementById() { return null } },
-    (m: string) => toasts.push(m),
-    editorPaletteInput,
-    globalThis.CompressionStream, globalThis.DecompressionStream, globalThis.Blob, globalThis.Response,
-    globalThis.TextEncoder, globalThis.TextDecoder, globalThis.Uint8Array, globalThis.URLSearchParams,
-    globalThis.btoa, globalThis.atob, globalThis.setTimeout, globalThis.clearTimeout,
-    () => true,
-    'paper',
-  )
+    document: { getElementById() { return null } },
+    showToast: (message: string) => toasts.push(message),
+    editorPaletteInput, hasCurrentVerifiedSvgArtifact: () => true, DEFAULT_EDITOR_PALETTE: 'paper',
+  }, `{
+    decodeSource, encodeSourceCompressed, updateHash, getHashSource,
+    sanitizeEditorConfig, readEditorDraft, saveEditorDraft, discardEditorDraft,
+    get hashDecodeFailure() { return hashDecodeFailure; },
+    MAX_SHARE_DECODED_BYTES, MAX_SHARE_ENCODED_BYTES, DRAFT_STORAGE_KEY,
+  }`)
   return { api, localStorage, sessionStorage, editor, state, toasts, replacedUrls, window }
 }
 
