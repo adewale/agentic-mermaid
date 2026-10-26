@@ -4,7 +4,7 @@ import { fcParameters } from './helpers/fc-parameters.ts'
 import { buildRoutePortHints, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { applyRouteContracts, auditRouteContracts, classifyRoutes, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, recertifyReroutedEdge, shapePorts, simplifyPolyline, separateEdgeLabelPills } from '../route-contracts.ts'
-import { assessLayout, countEdgeCrossings, hardViolations, measureRubricMetrics, onShapeOutline } from '../layout-rubric.ts'
+import { assessLayout, countEdgeCrossings, countParallelRouteOverlaps, hardViolations, measureRubricMetrics, onShapeOutline } from '../layout-rubric.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { layoutMermaid, parseRegisteredMermaid as agentParse, verifyMermaid } from '../agent/index.ts'
 import type { AnyPort, Point, PositionedEdge, PositionedGraph, PositionedGroup, PositionedNode } from '../types.ts'
@@ -1190,23 +1190,35 @@ describe('duplicate parallel edges (fast-check counterexample, pinned)', () => {
     expect(maxSep).toBeLessThan(1)
   })
 
-  it('separates mixed labeled and unlabeled duplicate lanes before route certification', () => {
-    const source = [
+  const mixedDuplicateCases = [
+    { name: 'fan-out', source: [
       'flowchart TD',
       '  A["ok"]', '  B["ok"]', '  C["ok"]', '  D["ok"]', '  E{"rendered"}', '  F["ok"]', '  G["ok"]',
       '  A --> B', '  A --> C', '  A --> D', '  A --> E', '  E --> F', '  A --> G', '  E -->|no| F',
-    ].join('\n')
-    const graph = parseMermaid(source)
+    ].join('\n'), from: 'E', to: 'F' },
+    { name: 'feedback loop', source: [
+      'flowchart TD', 'A["ok"]', 'B{"rendered"}', 'C["ok"]', 'D["ok"]', 'E{"ok"}',
+      'A --> B', 'A --> C', 'B --> D', 'C --> E', 'B -->|retry| A', 'B -->|no| D',
+    ].join('\n'), from: 'B', to: 'D' },
+  ]
+  for (const direction of ['TD', 'BT', 'LR', 'RL']) it.each(mixedDuplicateCases)(`separates mixed labeled and unlabeled duplicate lanes before route certification: ${direction} $name`, ({ source, from, to }) => {
+    const graph = parseMermaid(source.replace('flowchart TD', `flowchart ${direction}`))
     const positioned = layoutGraphSync(graph)
     expect(positioned.nodes.map(node => node.id).sort()).toEqual([...graph.nodes.keys()].sort())
     expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
     const dups = positioned.edges
-      .filter(e => e.source === 'E' && e.target === 'F')
+      .filter(e => e.source === from && e.target === to)
       .sort((a, b) => (a.edgeIndex ?? 0) - (b.edgeIndex ?? 0))
     expect(dups.length).toBe(2)
     expect(JSON.stringify(dups[0]!.points)).not.toBe(JSON.stringify(dups[1]!.points))
+    expect(countParallelRouteOverlaps(dups)).toBe(0)
+    for (const edge of dups) {
+      expect(onShapeOutline(positioned.nodes.find(node => node.id === from)!, edge.points[0]!)).toBe(true)
+      expect(onShapeOutline(positioned.nodes.find(node => node.id === to)!, edge.points.at(-1)!)).toBe(true)
+    }
     expect(dups.find(e => e.label)?.routeCertificate?.invariant).toBe('bundle')
     expect(auditRouteContracts(positioned, graph).filter(f => f.code === 'ROUTE_LABEL_ON_SHARED_TRUNK')).toEqual([])
+    expect(assessLayout(graph, positioned).metrics.labelConflicts).toBe(0)
   })
 
   // When a duplicate pair feeds a hub that is cross-axis OFFSET from the source

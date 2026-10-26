@@ -178,9 +178,9 @@ export function applySymmetricParallelEdgeLanes(
  *    parallel instead of overlapping.
  *
  * Scoped to the rare duplicate-pair case: only UNLABELED, forward, side-to-side
- * pairs between PORT_EXACT shapes outside any group. Labeled parallel pairs are
- * owned by `applySymmetricParallelEdgeLanes` (they need outer lanes for their
- * labels); everything else is left to the certifying route contracts.
+ * pairs between PORT_EXACT shapes outside any group. Mixed labeled/unlabeled
+ * duplicates use private lanes below. Fully labeled pairs are owned by
+ * `applySymmetricParallelEdgeLanes`; other cases remain with route certification.
  */
 function parallelLaneProposalAllowed(edges: PositionedEdge[], proposed: Array<{ edge: PositionedEdge; points: Point[] }>, options?: { allowCrossingsForOverlap: boolean }): boolean {
   const points = new Map(proposed.map(candidate => [candidate.edge, candidate.points]))
@@ -207,6 +207,7 @@ export function applyParallelDuplicateLanes(
   groups: PositionedGroup[],
   graph: MermaidGraph,
   bundled: Set<PositionedEdge>,
+  style: LabelMetricsStyle,
 ): void {
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
   const f = layoutFlow(graph.direction)
@@ -287,17 +288,19 @@ export function applyParallelDuplicateLanes(
     byDirectedPair.get(key)!.push(edge)
   }
 
-  const separateMixedPair = (bucket: PositionedEdge[], back: boolean): boolean => {
-    if (bucket.length < 2) return false
-    if (!bucket.some(edge => edge.label) || !bucket.some(edge => !edge.label)) return false
-    if (!bucket.some(edge => edge.label && bucket.some(other => !other.label && routesShareCollinearRun(edge, other)))) return false
+  const separateMixedPair = (bucket: PositionedEdge[], back: boolean, fromTarget = false): boolean => {
     bucket.sort((a, b) => (a.edgeIndex ?? 0) - (b.edgeIndex ?? 0))
     const source = nodeMap.get(bucket[0]!.source)!
     const target = nodeMap.get(bucket[0]!.target)!
     const exitMain = exitSide(source, back)
     const entryMain = entrySide(target, back)
     const k = bucket.length
-    const sep = Math.min(TARGET_SEP, (Math.min(crossSize(source), crossSize(target)) - 2 * MARGIN) / (k - 1))
+    // A private shaft must also clear its neighbor's painted label pill.
+    const labelGap = Math.max(...bucket.filter(edge => edge.label).map(edge => {
+      const box = labelBoxAt(edge, { x: 0, y: 0 }, style)
+      return Math.max(box.width, box.height) / 2 + 2
+    }))
+    const sep = Math.min(Math.max(TARGET_SEP, labelGap), (Math.min(crossSize(source), crossSize(target)) - 2 * MARGIN) / (k - 1))
     if (sep < 4) return false
     const sourceCenter = source[f.cross] + crossSize(source) / 2
     const targetCenter = target[f.cross] + crossSize(target) / 2
@@ -307,13 +310,14 @@ export function applyParallelDuplicateLanes(
     for (let i = 0; i < k; i++) {
       const sCross = sourceCenter + (i - (k - 1) / 2) * sep
       const tCross = targetCenter + (i - (k - 1) / 2) * sep
-      let jog = exitMain + (back ? -1 : 1) * f.sign * (BASE_GAP + i * sep)
+      const sign = (back ? -1 : 1) * f.sign
+      let jog = fromTarget ? entryMain - sign * (BASE_GAP + i * sep) : exitMain + sign * (BASE_GAP + i * sep)
       const lo = Math.min(exitMain, entryMain), hi = Math.max(exitMain, entryMain)
       if (jog <= lo + 4 || jog >= hi - 4) jog = (exitMain + entryMain) / 2
       lanes.push({ edge: bucket[i]!, sCross, tCross })
       col.push(jog)
     }
-    if (lanes[0]!.tCross - lanes[0]!.sCross > 0) col.reverse()
+    if ((lanes[0]!.tCross - lanes[0]!.sCross > 0) !== fromTarget) col.reverse()
 
     const proposed: Array<{ edge: PositionedEdge; points: Point[] }> = []
     for (let i = 0; i < k; i++) {
@@ -349,11 +353,15 @@ export function applyParallelDuplicateLanes(
   }
 
   for (const bucket of byDirectedPair.values()) {
+    if (bucket.length < 2 || !bucket.some(edge => edge.label) || !bucket.some(edge => !edge.label)) continue
+    if (!bucket.some(edge => edge.label && bucket.some(other => !other.label && routesShareCollinearRun(edge, other)))) continue
     const source = nodeMap.get(bucket[0]!.source)
     const target = nodeMap.get(bucket[0]!.target)
     if (!source || !target) continue
     const back = !((entrySide(target, false) - exitSide(source, false)) * f.sign > BASE_GAP)
-    separateMixedPair(bucket, back)
+    // A feedback route can block the source-side jog while leaving the target
+    // approach clear. Try the mirrored corridor under the same route budgets.
+    if (!separateMixedPair(bucket, back)) separateMixedPair(bucket, back, true)
   }
 
   const fwdByTarget = new Map<string, PositionedEdge[]>()

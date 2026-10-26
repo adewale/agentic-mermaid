@@ -33,6 +33,9 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 - Kanban edits retain keyword-like column and task IDs such as `kanban` and
   `kanban-board` in Mermaid-readable source, preserving labels and membership.
+- Mixed labelled and unlabelled parallel edges can use a clear target-side
+  corridor when a feedback loop blocks the source-side jog. Lane spacing also
+  accounts for painted labels, so the pill does not hide the neighbouring shaft.
 - A copied or stale `bundle` route certificate can no longer hide a hitch.
   Exemptions remain bound to the routes constructed by the shared-trunk,
   symmetric-convergence and parallel-lane producers.
