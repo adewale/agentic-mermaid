@@ -1036,7 +1036,14 @@ test.each(['covered', 'separate', 'aabb-corner', 'coincident', 'different-coinci
   const drawing = drawNative(producer, context, 'flowchart')
   expect(drawing.svg).toContain('marker-start')
   if (mode === 'string-marker-units') expect(drawing.svg).toContain('stroke-width=" 1.004000000000001px "')
-  const expected = ['covered', 'different-coincident', 'same-owner-cover', 'unemitted-opacity', 'overlay-repaint', 'early-open-covered', 'string-marker-units', 'vertex-only-cover', 'partial-restoration'].includes(mode) ? 'failed' : ['unknown-fill', 'affine', 'clipped', 'later-restoration', 'same-color', 'thick-outline', 'unmeasured-restoration', 'no-closing-stroke', 'no-earlier-stroke'].includes(mode) ? 'unverified' : 'passed'
+  if (mode === 'transparent-fill' || mode === 'late-open') {
+    // The narrower opaque-fill loss API still proves no opaque fill loss.
+    // The complete semantic pair has overlapping visible strokes, so the
+    // scene's stronger all-paint separation contract must retain uncertainty.
+    const connectors = producer(marks, context).parts.filter((node): node is Extract<SceneNode, { kind: 'connector' }> => node.kind === 'connector')
+    expect(compareMarkerStrokeInk(prepareMarkerPolygonInk({ colors: context.colors }, connectors[0]!, first, 'start', () => true), prepareMarkerPolygonInk({ colors: context.colors }, connectors[1]!, later, 'start', () => true), () => true)).toBe('clear')
+  }
+  const expected = ['covered', 'different-coincident', 'same-owner-cover', 'unemitted-opacity', 'overlay-repaint', 'early-open-covered', 'string-marker-units', 'vertex-only-cover', 'partial-restoration'].includes(mode) ? 'failed' : ['unknown-fill', 'affine', 'clipped', 'later-restoration', 'same-color', 'thick-outline', 'unmeasured-restoration', 'no-closing-stroke', 'no-earlier-stroke', 'transparent-fill', 'late-open'].includes(mode) ? 'unverified' : 'passed'
   for (const proof of [certifyScenePaint(producer(marks, context)), certifyNativePaint(drawing.header, drawing.paint)]) {
     expect(proof.status).toBe(expected)
     if (expected === 'failed') expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'MARKER_OCCLUDED', id: mode === 'overlay-repaint' ? 'overlay:earlier' : 'earlier', by: mode === 'overlay-repaint' ? 'overlay:later' : 'later' }))
@@ -1179,5 +1186,40 @@ test.each(['clear', 'later-stroke', 'round-join', 'affine', 'clipped', 'unknown-
     expect(proof.status).toBe(['clear', 'round-join'].includes(mode) ? 'passed' : 'unverified')
     if (['clear', 'round-join'].includes(mode)) expect(proof.issues).toEqual([])
     else expect(proof.issues.some(issue => issue.code === 'POTENTIAL_OCCLUSION' || issue.code === 'UNMEASURED_PAINT')).toBe(true)
+  }
+})
+
+test.each(['overlap', 'separated', 'empty', 'sharing', 'unknown'] as const)('stroke-only semantic marker pairs retain %s paint evidence', mode => {
+  // Literal returned Native14 resources and contacts. Its lower diamond stroke
+  // and later open arrow intersect near(2091.9712,163.7273); neither same RGB
+  // nor the arrow's absent fill proves two distinct marker meanings visible.
+  const resources = classMarkerResources({ lineWidth: 1, edgeStrokeColor: '#47474a' } as any)
+  const earlier = { ...resources.find(marker => marker.id === 'cls-aggregation')!, id: 'earlier-resource' }
+  const later: MarkerDescriptor = mode === 'sharing' ? earlier : {
+    ...resources.find(marker => marker.id === 'cls-arrow')!, id: 'later-resource',
+    paint: { fill: 'none', stroke: mode === 'empty' ? 'none' : '#47474a', strokeWidth: '1.5', ...(mode === 'unknown' ? { strokeLinecap: 'round' as const } : {}) },
+  }
+  const context = { positioned: { width: 2300, height: 300 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
+  const sharing = mode === 'sharing', y = mode === 'separated' ? 186.9 : 166.9
+  const producer: DrawingProducer = factory => ({
+    ...scene([]), width: 2300, height: 300,
+    parts: [
+      factory.documentOpen({ id: 'root', width: 2300, height: 300, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="2300" height="300">'),
+      factory.definitions({ id: 'resources' }, `<defs>${serializeMarkerResource(earlier)}${sharing ? '' : serializeMarkerResource(later)}</defs>`),
+      factory.connector({ id: 'earlier', role: 'relationship', owner: { id: 'earlier', role: 'relationship' }, endpoints: { from: 'A', to: 'B' }, lineStyle: 'solid', geometry: { kind: 'line', x1: 2098.968, y1: 158.9, x2: 2083.968, y2: 158.9 }, paint: { stroke: '#939395', strokeWidth: '1' }, stroke: { opacity: 0 }, markers: { start: earlier } }),
+      factory.connector({ id: 'later', role: 'relationship', owner: { id: 'later', role: 'relationship' }, endpoints: { from: 'C', to: 'D' }, lineStyle: 'solid', geometry: sharing ? { kind: 'line', x1: 2098.968, y1: 158.9, x2: 2083.968, y2: 158.9 } : { kind: 'line', x1: 2083.968, y1: y, x2: 2098.968, y2: y }, paint: { stroke: '#939395', strokeWidth: '1' }, stroke: { opacity: 0 }, markers: sharing ? { start: later } : { end: later } }),
+      factory.documentClose(),
+    ],
+  })
+  const drawing = drawNative(producer, context, 'class')
+  expect(drawing.svg).toContain(sharing ? 'marker-start="url(#earlier-resource)"' : 'marker-end="url(#later-resource)"')
+  for (const proof of [certifyScenePaint(producer(marks, context)), certifyNativePaint(drawing.header, drawing.paint)]) {
+    const clear = mode === 'separated' || mode === 'empty' || sharing
+    expect(proof.status).toBe(clear ? 'passed' : 'unverified')
+    if (clear) expect(proof.issues).toEqual([])
+    else {
+      expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', id: 'earlier', by: 'later' }))
+      expect(proof.issues.some(issue => issue.code === 'MARKER_OCCLUDED')).toBe(false)
+    }
   }
 })

@@ -602,6 +602,25 @@ function separatedMarkerPaintPieces(left: readonly MarkerPaintPiece[], right: re
   return true
 }
 
+/** All painted pieces must separate even when the later marker has no fill.
+ * This proof supplies no lost-ink witness or shared-color exemption. */
+function compareMarkerPaintSeparation(earlier: MarkerPolygonProof | undefined, later: MarkerPolygonProof | undefined, work: () => boolean): 'clear' | 'unknown' | 'exhausted' {
+  if (!work()) return 'exhausted'
+  const empty = (proof: MarkerPolygonProof | undefined): boolean => proof?.fill === 'absent' && proof.stroke === 'absent' && (proof.fillColor?.[3] === 0 || proof.paintPieceSource?.marker.paint?.fill === 'none')
+  if (empty(earlier) || empty(later)) return 'clear'
+  if (!earlier?.paintPieceSource || !later?.paintPieceSource) return 'unknown'
+  const stopped = {}
+  const paid = (): boolean => { if (!work()) throw stopped; return true }
+  try {
+    const a = measuredMarkerPaintPieces(earlier.paintPieceSource, paid)
+    if (a) {
+      const b = measuredMarkerPaintPieces(later.paintPieceSource, paid)
+      if (b && separatedMarkerPaintPieces(a, b, paid)) return 'clear'
+    }
+  } catch (error) { if (error === stopped) return 'exhausted'; throw error }
+  return 'unknown'
+}
+
 /** Strict half-plane distance proves a real stroke point lies in opaque fill,
  * away from its own outline. Conservative hull padding proves separation only.
  */
@@ -644,15 +663,9 @@ export function compareMarkerStrokeInk(earlier: MarkerPolygonProof | undefined, 
     }
   }
   if (earlier.paintPieceSource && later.paintPieceSource) {
-    const stopped = {}
-    const paid = (): boolean => { if (!work()) throw stopped; return true }
-    try {
-      const a = measuredMarkerPaintPieces(earlier.paintPieceSource, paid)
-      if (a) {
-        const b = measuredMarkerPaintPieces(later.paintPieceSource, paid)
-        if (b && separatedMarkerPaintPieces(a, b, paid)) return 'clear'
-      }
-    } catch (error) { if (error === stopped) return 'unknown'; throw error }
+    const separation = compareMarkerPaintSeparation(earlier, later, work)
+    if (separation === 'clear') return 'clear'
+    if (separation === 'exhausted') return 'unknown'
   }
   if (earlier.stroke !== 'visible' || later.fill !== 'opaque' || later.innerStroke === undefined) return 'unknown'
   // An identical opaque color can intentionally merge strokes and fill. It is
@@ -959,12 +972,15 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
     if (!earlier.semantic || earlier.primitive.visibility === 'conditional') continue
     for (const later of lastMarkers.values()) {
       if (!work()) break
-      if (!later.semantic || !later.mayFill || later.primitive.visibility === 'conditional' || later.primitive.order <= earlier.primitive.order
+      if (!later.semantic || later.primitive.visibility === 'conditional' || later.primitive.order <= earlier.primitive.order
         || earlier.anchor.x === later.anchor.x && earlier.anchor.y === later.anchor.y && earlier.repaint === later.repaint || !overlaps(earlier.bounds, later.bounds)) continue
       if (++pairs > MAX_OCCLUSION_PAIRS) { exhausted = true; break }
       let startWitness = 0, result: 'covered' | 'clear' | 'unknown' = 'unknown'
       while (!exhausted) {
-        const proof = compareMarkerStrokeInk(earlier.strokeProof, later.strokeProof, work, startWitness)
+        let proof = later.mayFill
+          ? compareMarkerStrokeInk(earlier.strokeProof, later.strokeProof, work, startWitness)
+          : compareMarkerPaintSeparation(earlier.strokeProof, later.strokeProof, work)
+        if (proof === 'exhausted') proof = 'unknown'
         if (typeof proof === 'string') { result = proof; break }
         // A still-later primitive might restore this particular stroke point.
         // Continue through the finite evidence under the SAME charged budget;
