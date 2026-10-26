@@ -241,7 +241,7 @@ function collectLaneBlockers(
       // No text measurement or cached group geometry in a lane proof. If the
       // retained band is absent, the whole frame remains a conservative block.
       const height = group.concurrencyRegion ? 0 : group.headerHeight ?? group.height
-      const invalid = !Number.isFinite(height) || height < 0 || height > group.height
+      const invalid = !Number.isFinite(height) || height < 0
       const crossLo = axis.cross === 'x' ? group.x : group.y
       const crossHi = crossLo + (axis.cross === 'x' ? group.width : height)
       const headerLo = axis.main === 'x' ? group.x : group.y

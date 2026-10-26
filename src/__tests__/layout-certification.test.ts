@@ -1,9 +1,9 @@
 import { measureLabelConflicts } from '../layout/label-conflicts.ts'
 import { countEdgeCrossings, countOpposingRouteOverlaps, countParallelRouteOverlaps } from '../layout-rubric.ts'
 import { refineOwnedLayoutCandidate as refineNative, certifyOwnedLayoutCandidate as certifyNative } from '../layout/agentic-producer-core.ts'
-import '../index.ts'
+import { renderMermaidSVGWithReceipt } from '../index.ts'
 import { describe, expect, test } from 'bun:test'
-import { certifyCandidate, positionedGeometryViolations, retainSelection, certifyLayoutCandidates, certifyLayoutWithRouteAlternative, LayoutCertificationError, MAX_LAYOUT_CANDIDATES } from '../layout/certification.ts'
+import { certifyCandidate, positionedGeometryViolations, positionedHeaderRouteViolations, retainSelection, certifyLayoutCandidates, certifyLayoutWithRouteAlternative, LayoutCertificationError, MAX_LAYOUT_CANDIDATES } from '../layout/certification.ts'
 import { LayoutMetricBudgetError } from '../layout/pass.ts'
 import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
 import { DeferredDependencyError, GraphLayoutUnsupportedError } from '../layout/backend.ts'
@@ -16,7 +16,7 @@ import { resolveRenderStyle } from '../styles.ts'
 import { positionedToRenderedLayout } from '../agent/layout-to-rendered.ts'
 import { graphTextBlock } from '../graph-text.ts'
 import { assessLayout, hardViolations } from '../layout-rubric.ts'
-import { invalidEndpointApproaches } from '../route-contracts.ts'
+import { invalidEndpointApproaches, laneContextFor, directLaneBlockers } from '../route-contracts.ts'
 import type { MermaidGraph, PositionedGraph, PositionedGroup } from '../types.ts'
 
 const source = 'flowchart LR\nA -- first --> B\nB -- second --> A'
@@ -727,5 +727,150 @@ describe('group headers gate completed candidate consumers', () => {
       () => ({ strategy: 'without-generic-bundling', produce: () => crossesHeader }))
     expect(chosen).toBe(positioned)
     expect(chosen.certification?.preference?.routing?.preference.reason).toBe('alternative-invalid')
+  })
+})
+
+describe('retained header bands are independent of frame height', () => {
+  const style = resolveRenderStyle()
+  const rows = [
+    {
+      name: 'zero-width band above zero frame',
+      width: 0,
+      frame: 0,
+      height: 28,
+      points: [
+        [80, 20],
+        [80, 90],
+      ],
+      expected: 'clear',
+    },
+    {
+      name: 'positive-width full band beyond frame',
+      width: 100,
+      frame: 0,
+      height: 28,
+      points: [
+        [80, 50],
+        [80, 60],
+      ],
+      expected: 'cross',
+    },
+    {
+      name: 'below full retained band',
+      width: 100,
+      frame: 1,
+      height: 28,
+      points: [
+        [80, 69],
+        [80, 90],
+      ],
+      expected: 'clear',
+    },
+    {
+      name: 'exact lower boundary',
+      width: 100,
+      frame: 1,
+      height: 28,
+      points: [
+        [30, 68],
+        [130, 68],
+      ],
+      expected: 'clear',
+    },
+    {
+      name: 'missing height uses actual text fallback',
+      width: 100,
+      frame: 0,
+      height: undefined,
+      points: [
+        [80, 50],
+        [80, 60],
+      ],
+      expected: 'cross',
+    },
+    {
+      name: 'negative retained height',
+      width: 100,
+      frame: 0,
+      height: -1,
+      points: [
+        [80, 69],
+        [80, 90],
+      ],
+      expected: 'invalid',
+    },
+    {
+      name: 'nonfinite retained height',
+      width: 100,
+      frame: 0,
+      height: NaN,
+      points: [
+        [80, 69],
+        [80, 90],
+      ],
+      expected: 'invalid',
+    },
+    {
+      name: 'infinite retained height',
+      width: 100,
+      frame: 0,
+      height: Infinity,
+      points: [
+        [80, 69],
+        [80, 90],
+      ],
+      expected: 'invalid',
+    },
+  ]
+  for (const row of rows)
+    test('final band: ' + row.name, () => {
+      const group = { id: 'g', label: 'Group', x: 30, y: 40, width: row.width, height: row.frame, headerHeight: row.height, children: [] },
+        edge = { source: 'src', target: 'dst', style: 'solid' as const, hasArrowStart: false, hasArrowEnd: true, points: row.points.map(([x, y]) => ({ x: x!, y: y! })) }
+      const findings = positionedHeaderRouteViolations({ width: 200, height: 240, nodes: [], groups: [group], edges: [edge] }, style)
+      expect(findings).toEqual(row.expected === 'clear' ? [] : row.expected === 'invalid' ? ['group-header g: invalid retained height'] : ['group-header g: edge src->dst segment 1 enters reserved band'])
+    })
+  for (const row of [
+    { name: 'inside measured band beyond frame', height: 28, frame: 0, lo: 50, hi: 60, block: true },
+    { name: 'below measured band beyond frame', height: 28, frame: 1, lo: 69, hi: 90, block: false },
+    { name: 'missing height conservatively reserves whole frame', height: undefined, frame: 160, lo: 100, hi: 120, block: true },
+    { name: 'negative height conservative', height: -1, frame: 0, lo: 100, hi: 120, block: true },
+    { name: 'nonfinite height conservative', height: NaN, frame: 0, lo: 100, hi: 120, block: true },
+    { name: 'infinite height conservative', height: Infinity, frame: 0, lo: 100, hi: 120, block: true },
+  ])
+    test('lane band: ' + row.name, () => {
+      const edge = {
+          source: 'src',
+          target: 'dst',
+          style: 'solid' as const,
+          hasArrowStart: false,
+          hasArrowEnd: true,
+          points: [
+            { x: 80, y: row.lo },
+            { x: 80, y: row.hi },
+          ],
+        },
+        group = { id: 'g', label: 'Group', x: 30, y: 40, width: 100, height: row.frame, headerHeight: row.height, children: [] }
+      const { ctx } = laneContextFor([], [edge], 'TB', style, [group])
+      expect(directLaneBlockers(edge, 80, row.lo, row.hi, ctx)).toEqual(row.block ? [{ kind: 'group-header', id: 'g' }] : [])
+    })
+  test('public empty golden group retains authored identity and its zero-area band', () => {
+    const source = 'graph LR\nsubgraph one\nend\nA --> B\n'
+    const rendered = renderMermaidSVGWithReceipt(source, { embedFontImport: false })
+    expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+    expect(rendered.svg).toContain('data-id="one"')
+    expect(rendered.svg).toContain('data-id="A"')
+    expect(rendered.svg).toContain('data-id="B"')
+    expect(rendered.svg).toContain('data-from="A" data-to="B"')
+    expect(rendered.svg).toContain('marker-end=')
+    const group = /<g\b[^>]*data-id="one"[^>]*>([\s\S]*?)<\/g>/.exec(rendered.svg)![1]!
+    const rect = /<rect\b[^>]*>/.exec(group)![0]
+    expect(rect).toContain('width="0"')
+    expect(rect).toContain('height="0"')
+    const path = /<path\b[^>]*d="([^"]+)"/.exec(group)![1]!,
+      n = path.match(/[-+]?(?:\d*\.\d+|\d+\.?\d*)(?:[eE][-+]?\d+)?/g)!.map(Number)
+    expect(n).toHaveLength(5)
+    expect(n[0]).toBe(n[2])
+    expect(n[2]).toBe(n[4])
+    expect(n[3]! - n[1]!).toBe(28)
   })
 })

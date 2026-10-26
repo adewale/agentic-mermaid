@@ -217,7 +217,7 @@ export function positionedHeaderRouteViolations(positioned: PositionedGraph, sty
     if (!group.concurrencyRegion) {
       const block = group.labelBlock ?? graphTextBlock(resolveLabelContent(group.label, group.labelContent), style, 'group')
       const height = group.headerHeight ?? style.groupHeaderFontSize + 16 + block.height - block.lineHeight
-      if (!Number.isFinite(height) || height < 0 || height > group.height) failures.push(`group-header ${group.id}: invalid retained height`)
+      if (!Number.isFinite(height) || height < 0) failures.push(`group-header ${group.id}: invalid retained height`)
       else if (height > 0 && group.width > 0) for (const edge of positioned.edges) {
         if (edge.style === 'invisible') continue
         for (let index = 1; index < edge.points.length; index++) if (enters(edge.points[index - 1]!, edge.points[index]!, group, height)) {
