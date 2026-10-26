@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { cpus } from 'node:os'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
-import { assertBenchmarkExecutionAllowed } from '../benchmark/ci-policy.ts'
+import { assertTridentBenchmarkAllowed } from '../shared/trident-policy.ts'
 import { categoricalPalette, categoricalPaletteWithDiagnostics } from '../../src/shared/categorical-palette.ts'
 import { BUILTIN_PALETTE_DEFINITIONS } from '../../src/palette-catalog.ts'
 
@@ -104,7 +104,7 @@ function assertCleanWorktree(): void {
 }
 
 function record(): void {
-  assertBenchmarkExecutionAllowed()
+  assertTridentBenchmarkAllowed('palette-performance')
   assertCleanWorktree()
   const fixtures = benchmarkFixtures()
   const ordered = seededShuffle(fixtures, ORDER_SEED)

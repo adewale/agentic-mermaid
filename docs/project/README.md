@@ -16,7 +16,7 @@ code/tests, not dated inventories.
 | [Brand/family design record](brand-primitives-plan.md) | Design rationale and completed rollout; current architecture lives in the [system hub](../design/system/README.md). Old report/receipt tables are not current gates. |
 | [Divergences](divergences.md) | Deliberate product boundaries, not feature requests. |
 | [Lessons learned](lessons-learned.md) | Engineering lessons, not mandatory restoration of historical machinery. |
-| [Benchmark evidence](../../eval/benchmark/RESULTS.md) | Current measurement methods, bounded findings, peer gaps and reproduction; raw reports remain review artifacts. |
+| [Benchmark evidence](https://github.com/adewale/trident/blob/main/RESULTS.md) | Current measurement methods, bounded findings, peer gaps and reproduction; raw reports remain review artifacts. |
 | [Conditional forest layout](conditional-forest-layout.md) | Opt-in forest eligibility, fallback boundary and reproducible qualification commands. |
 | [Staged replacement of ELK](layered-layout-proposal.md) | Proposed measured-graph adapter, Pele evaluation, staged scope and acceptance boundary for replacing ELK. |
 

@@ -78,7 +78,7 @@ C4 proposals below supply behavioral examples with their own ancestry.
 ### Performance evidence
 
 Current methods, fixed source/package identities, scoped findings and remaining
-measurement gaps live in [benchmark evidence](https://github.com/adewale/agentic-mermaid/blob/main/eval/benchmark/RESULTS.md).
+measurement gaps live in [benchmark evidence](https://github.com/adewale/trident/blob/main/RESULTS.md).
 The 18 October Node/browser/startup/payload tables and bounded C4 A/B runs are
 [immutable historical observations](https://github.com/adewale/agentic-mermaid/blob/30f0af5d63e460c8bd3de88358414f2c7857a2c6/docs/comparison.md#fresh-performance-observations),
 not measurements of the frozen 0.5 candidate. Their exact versions, environments

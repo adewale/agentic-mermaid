@@ -27,5 +27,7 @@ The generated source workspace uses this checkout's tracked files and Trident's
 protocols. It records both original revisions and the combined driver revision.
 Do not put evidence inside that disposable workspace; default records live in
 this checkout's ignored `bench-report/` and explicit output paths remain external.
-The old `eval/benchmark` copy is retained pending a separately approved removal;
-active commands no longer rely on it. Shared harness fixes belong in Trident.
+Agentic no longer keeps a copy of the harness. Inside the workspace, `eval/benchmark`
+is Trident; Agentic entry points that Trident runs as suites (`palette-performance`,
+`modern-editor`) refuse outside it, so Trident's CI and pinned-Mermaid checks always
+apply. Shared harness fixes belong in Trident.

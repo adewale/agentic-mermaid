@@ -1,5 +1,5 @@
 // Run with Bun; all outputs belong outside the source tree. No peer code is patched.
-import '../benchmark/ci-policy-enforce.ts'
+import { assertTridentBenchmarkAllowed } from '../shared/trident-policy.ts'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -11,6 +11,8 @@ import { chromium } from 'playwright'
 import { officialCorpusInventory } from '../shared/official-fences.ts'
 import { probeModernThemes } from './themes.mjs'
 import { resumeEngineEvidence } from './evidence.mjs'
+
+assertTridentBenchmarkAllowed('modern-editor')
 
 const [peerArg, outArg] = process.argv.slice(2)
 if (!peerArg || !outArg) throw new Error('bun eval/modern-mermaid/run.mjs MODERN_CHECKOUT OUTPUT_DIRECTORY')

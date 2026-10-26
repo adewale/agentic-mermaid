@@ -94,5 +94,5 @@ eval/mermaid-family-portfolio/provenance.json
 eval/palette-harmony/report.json
 eval/palette-performance/report.json
 
-# Release benchmark output (eval/benchmark/release-bench.ts)
+# Benchmark output written by Trident (eval/trident)
 bench-report/

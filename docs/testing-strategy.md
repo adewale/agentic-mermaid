@@ -590,10 +590,10 @@ table here, which would drift. In broad strokes:
   allocation and memory diagnostics; `bun run bench:release:browser` compares
   the exact packed candidate with pinned browser peers. Run them on an owned
   local host and retain candidate/baseline identities and raw results. Controller
-  tests live under `eval/benchmark/tests` and run through `bun run bench:test`.
+  tests live in [Trident](https://github.com/adewale/trident) and run through `bun run bench:test`.
   Normal product correctness, distribution and pinned-Mermaid semantic tests
-  remain CI gates. See [the benchmark package](../eval/benchmark/README.md) and
-  [unified runner](../eval/benchmark/unified/README.md) for invocation coverage,
+  remain CI gates. See [Trident](https://github.com/adewale/trident/blob/main/README.md), its
+  [unified runner](https://github.com/adewale/trident/blob/main/unified/README.md) and [the launcher](../eval/trident/README.md) for invocation coverage,
   project updates and explicit gaps.
 - **Normal local benchmarks:** `bun run bench` runs the bounded unified smoke
   profile; `bun run bench:all` selects the full maintained catalog.
@@ -618,7 +618,7 @@ table here, which would drift. In broad strokes:
   target and `wasm-bindgen-cli` 0.2.104, then run:
 
   ```sh
-  bun run eval/benchmark/bezel-wasm/build.ts --checkout ../bezel --out /tmp/bezel-bench
+  (cd ../trident && bun run bezel-wasm/build.ts --checkout ../bezel --out /tmp/bezel-bench)
   bun run bench:dave --bezel-dir /tmp/bezel-bench --executable /path/to/chromium
   ```
 
@@ -629,8 +629,7 @@ table here, which would drift. In broad strokes:
   bundle size includes the WASM embedded in its JS wrapper. This measures
   standalone browser rendering, not Bezel's GPUI gallery or native execution.
   WASM memory is outside the separate V8 JS-memory diagnostic.
-  `bun run eval/benchmark/editor-preview-bench.ts --site website/public --out
-  bench-report/editor-preview --executable /path/to/chromium` complements that
+  `bun run bench --profile full --suites editor-preview` complements that
   render-only score with actual editor input through verified DOM and two
   animation frames. It changes the root label in 5/50/150-node trees, keeps
   default cache behavior and adaptive debounce, and records a 5 ms main-thread
@@ -648,10 +647,8 @@ table here, which would drift. In broad strokes:
 
   ```sh
   # AGENTIC_ROOT contains package.json and the actual dist/browser.global.js.
-  bun run eval/benchmark/renderer-profile.ts --agentic-root /path/to/extracted/package \
-    --bezel-dir /tmp/bezel-bench --out bench-report/renderer-profile --executable /path/to/chromium
-  bun run eval/benchmark/editor-session-bench.ts --site website/public \
-    --out bench-report/editor-session --session-edits 120 --executable /path/to/chromium
+  bun run bench --profile full --suites renderer-profile --package-root /path/to/extracted/package --bezel-dir /tmp/bezel-bench
+  bun run bench --profile full --suites editor-session
   ```
 
   The renderer investigation records family-level SVG acceptance, differential
