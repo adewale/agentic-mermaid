@@ -2,247 +2,187 @@
 > [eval/trident](../trident/README.md). This directory is a retained legacy copy;
 > it is not required by the active launcher or Trident source workspace.
 
-# Local Mermaid benchmarks
+# Trident
 
-This directory owns the performance runners, community adapters, result
-qualification, records and reporting tools. The private package is not a root
-workspace member and is not shipped in the Agentic Mermaid npm artifact.
-Benchmarks are excluded from CI, including scheduled and hosted manual runs.
-The former release benchmark workflow and its publication dependency are removed.
+Trident benchmarks Mermaid tool artifacts and reads retained evidence. Its portable
+runner, qualification, records and reports live in this private package. Agentic
+Mermaid's source diagnostics remain an optional adapter. The package is excluded
+from product distribution, product test discovery and CI.
 
-From the repository root:
+## Run without an Agentic checkout
+
+Install this package's declared dependencies. Build and report commands accept
+Node 24 or Bun 1.4 or later. Relative output paths resolve in this package:
+
+```sh
+node commands.ts --help
+node commands.ts build
+node commands.ts run --project obsidianmd/pele --artifact-root /installed/pele \
+  --node /path/to/node24 --out /evidence/pele --records /evidence/records
+node commands.ts build --out /tmp/trident-kit
+```
+
+Copy the complete generated kit, including its artifact manifest. It runs with
+plain Node 24, the explicitly supplied tool artifact and the pinned Mermaid oracle,
+without Bun, Git, an Agentic checkout or a harness dependency installation:
+
+```sh
+node /tmp/trident-kit/run.mjs --help
+node /tmp/trident-kit/run.mjs --project obsidianmd/pele \
+  --artifact-root /installed/pele --out /evidence/pele --records /evidence/records
+```
+
+The `run` entry requires the compiled kit in `portable/dist`; missing artifacts
+produce a build-first error. `NODE_BIN` selects its Node executable. This keeps
+storage/report changes separate from the worker/execution byte identity.
+
+The `run` entry measures the portable public SVG protocol. Its supported adapters,
+authored expectations, sampling, memory boundaries and calibration limits remain
+explicit in each report. It does not claim to execute every source diagnostic.
+`portable:build` remains an alias for `build`. `portable` retains the legacy
+source-mode runner, whose identity requires committed source.
+
+Whole-worker CPU and peak RSS need GNU time. By default Trident uses
+`/usr/bin/time` when it is GNU time, otherwise `gtime` on `PATH`: macOS ships BSD
+time, so install `gnu-time`. `--observer` names another GNU time. Without one these
+values are recorded as unavailable, not zero.
+
+## The Mermaid oracle
+
+Every benchmark run, and `test`, consults one pinned Mermaid: `mermaid` 12.2.0 with
+`@mermaid-js/parser` 2.0.1 and `jsdom` 26.1.0, pinned in `tool-versions.json`. It
+decides whether each authored source and family-support probe is valid Mermaid,
+serves as Dave's Mermaid comparator and backs the tests. A run refuses to start
+unless exactly that install is present. Benchmarking a project does not benchmark
+Mermaid; the oracle only has to be installed:
+
+```sh
+node commands.ts mermaid:install
+```
+
+The default directory is `../mermaid-reference` beside the Agentic checkout, or
+beside this package or kit, so sibling checkouts share one install. Agentic's
+`bun run reference:mermaid` installs the same packages there.
+`MERMAID_REFERENCE_DIR`, or the kit's `--mermaid-reference`, names another install.
+In an Agentic checkout the pin must equal `docs/project/upstream-mermaid-policy.json`.
+`build`, `typecheck`, `lint`, `export` and `fidelity:report` do not need it.
+
+Read existing fidelity evidence without acquiring or rendering tools:
+
+```sh
+node commands.ts fidelity:report --core /evidence/core/fidelity-report.json \
+  --community /evidence/community/community-fidelity-report.json \
+  --out /evidence/comparison
+```
+
+Core and community reports must name the same authored cases and actual observer
+protocol. Missing projections stay unavailable. A successful SVG call does not
+supply native-model or whole-diagram fidelity credit.
+
+Reports store compact gzip documents beside a small JSON reference. Keep these
+siblings together when copying a report. Export decoded JSON explicitly for other
+tools; stdout is the default and `--out` requires a fresh file:
+
+```sh
+node commands.ts export --input /evidence/comparison/comparison.json | jq '.rows'
+node commands.ts export --input /evidence/comparison/comparison.json \
+  --out /tmp/comparison-full.json
+```
+
+The reader also accepts canonical record payloads and legacy JSON. Export does
+not rewrite or migrate the input evidence.
+
+## Optional Agentic source adapter
+
+The complete Agentic orchestrator still owns Dave, pinned Mermaid original tests,
+entry startup, source-stage, website, CLI/MCP and other maintained lanes. Supply
+its checkout when using these commands from a copied Trident package:
+
+```sh
+TRIDENT_AGENTIC_ROOT=/checkouts/agentic-mermaid \
+  bun commands.ts agentic --list --profile full
+TRIDENT_AGENTIC_ROOT=/checkouts/agentic-mermaid \
+  bun commands.ts community:update --projects obsidianmd/pele \
+    --records /evidence/records --out /evidence/community-updates
+```
+
+These commands execute that checkout's owning protocol files in that checkout.
+An unavailable source adapter produces an explicit error before importing it.
+The containing checkout is detected only when its root package is named
+`agentic-mermaid`; arbitrary parent directories are not repository defaults.
+`AM_BENCH_REPOSITORY_ROOT` remains an alias for `TRIDENT_AGENTIC_ROOT`. `bench`
+remains a legacy alias for `agentic`. Existing root `bench:*` shortcuts retain
+their suite IDs and options.
+
+Lanes that read Mermaid's upstream tests also need the pinned source checkout
+(`MERMAID_UPSTREAM_DIR`, default `../mermaid`); `bun run reference:mermaid`
+installs it beside the oracle. Community CLI resource diagnostics use
+`--startup-observer`, or the default GNU time above.
+
+Full source-adapter tests and typechecking still require the Agentic checkout;
+they are not a standalone-package promise:
 
 ```sh
 bun run bench:test
 bun run bench:typecheck
 bun run bench:lint
-bun run bench -- --list --profile full
-bun run bench:community:update -- --help
 ```
 
-The private package exposes the same checks through `bun run --cwd eval/benchmark
-test`, `typecheck` and `lint`. Its own `package.json` declares the directly used
-benchmark libraries; Python charts use `requirements.txt`. An existing root
-installation can provide these dependencies during development. A separate
-installation can be made in this directory without changing the product lock.
-Install browser executables and language toolchains only for the selected lanes.
+The local temporary-directory and child-process test support belongs to Trident.
+Product runtime code does not import benchmark code. Copying this directory does
+not make the optional source adapters, external corpora, product tests or built
+website available. Their remaining dependencies are explicit rather than
+silently substituted with public-artifact results.
 
-Product test discovery stays in `src/__tests__` plus the existing family-usage
-contract. Benchmark controller tests are under `tests/`, outside that discovery.
-The product's repository typecheck and lint exclude this directory; the explicit
-benchmark commands own its checks. A shared deterministic graph fixture lives
-under `eval/shared` so product route contracts do not import benchmark code.
-Correctness tests that also appear in a benchmark campaign remain ordinary
-product CI tests; selecting them in a local campaign does not turn them into
-timing gates.
+## Retention and extraction contract
 
-Measured entry points reject `CI` and supported hosted-CI indicators before
-starting work. Reporting tools can still consume existing evidence without
-launching benchmark workers. There is no CI override flag.
+An unchanged project reuses its exact completed attempt, including failures and
+original dates. Select one project before acquisition to update it independently.
+Changed executable bytes, dependencies, selected inputs or measured protocol
+invalidate affected records. Analysis-only changes can read existing evidence.
+`--force` requests a new attempt; it is not the default update path.
 
-## Update one community project
+Keep both the record store and its referenced evidence directories. Missing
+files prevent reuse. Cancellation, failed cleanup and incomplete publication
+cannot become completed measurements. Historical records and raw observations
+remain intact when readers or report policies change.
 
-Edit that project's pin or adapter in `docs/mermaid-community.json`, or resolve
-its newer published version under the existing version policy. Commit protocol
-code before timing: a Git object must identify the code that actually ran.
+New attempts keep one canonical compressed record in `result.json.gz`. Store
+entries and result views use small references that verify the output path,
+length and digest before reading it. The shared readers also accept legacy
+inline JSON records and results; existing evidence is not rewritten or migrated.
+The temporary identity file is removed only after successful publication because
+the canonical record already owns that identity. Failed attempts retain their
+identity and incomplete-state receipts. Keep referenced output locations intact.
+Store manifests and owning suite-result references use absolute paths; derived report-document
+references use verified sibling basenames so report directories can be copied.
 
-```sh
-bun run bench:community:update -- \
-  --projects obsidianmd/pele \
-  --profile full --rounds 3 \
-  --records bench-report/project-records \
-  --out bench-report/community-updates \
-  --markdown docs/community-benchmark-ranking.md
-```
+The portable kit is the extraction boundary that is tested without product
+source, documentation or Git. The full optional Agentic orchestrator still uses
+its product registry, source/test adapters, reviewed policy and external corpora.
+Those adapters can move independently; Trident does not need a second registry
+or a replacement framework to run its public-artifact core.
 
-`--projects` accepts comma-separated catalog IDs and filters acquisition before
-any unrelated project is prepared. Omit it to check the whole catalog. The
-default `bench:community` and unified `community` suite use the same retained
-records. The following `community-cli` suite consumes the CLI results published
-by that same controller invocation, rather than timing the projects twice.
+Successful portable workers send jobs and results through stdin, a dedicated
+result descriptor or IPC. They do not create individual job/result files. A
+compressed journal retains completed workers until the canonical record publishes;
+incomplete attempts keep that journal and failure diagnostics. SVGs remain useful
+case evidence. Unified CSV/coverage exports are opt-in with `--export-tables`.
 
-The update command resolves and prepares selected artifacts, then compares their
-complete measurement identity with retained attempts. Matching records skip both
-API/browser and supplemental CLI clocks, including failed results. `--force`
-explicitly creates a new attempt. `--plan` performs preparation and prints the
-reuse/measure decisions without starting clocks; preparation may download or build
-the selected project. Frozen preparation/input/browser flags remain available.
+A bounded extraction check used the real Node runner and GNU time: 24 workers
+and 51 workers each produced six files, with no SVGs for the selected invalid-source
+cases. Both repeated invocations reused the same record and dates. This checks
+storage behavior, not renderer performance or statistical calibration. Encoding
+existing Bezel and Mermaid source-test records with the new format reduced their
+payload sizes by 95% and 87%; regenerating the 43-project comparison reduced its
+JSON from 28,366,022 bytes to 541,131 compressed bytes with identical scores.
+Historical evidence was read, not migrated or deleted.
 
-Reuse binds shipped bytes and installed dependencies, browser/native CLI bytes,
-adapter configuration, committed protocol code, literal inputs and assertions,
-runtime versions, environment, machine and sampling policy. A changed shared
-protocol or cohort invalidates affected records even when a project is unchanged.
-Catalog prose and unrelated Agentic Mermaid source changes do not by themselves
-invalidate peer timings. Raw evidence must remain present. Records keep the
-original observation dates; a reused failure remains a failure.
+All measurement entry points reject CI, including hosted manual and scheduled
+runs. Reporting never starts a renderer, provider or benchmark worker. Live model
+costs require observed usage and dated prices; unavailable costs or memory are
+never zero-cost results.
 
-The store retains immutable attempts and atomically selects the current attempt
-for each project. A cached older version can become current without erasing the
-newer attempt. The Markdown command replaces only its marked rolling-record
-section, preserving dated historical tables. Ranks compare matching contexts
-and remain separate by output and invocation boundary. Rolling ranks do not
-provide paired same-session evidence for small performance differences.
-
-Keep the records directory **and** the referenced evidence directories. Missing
-evidence prevents reuse and is excluded from ranks; an unrelated missing record
-does not stop a selected project's update. A campaign lock serializes preparation
-and timing against their shared cache. After an interrupted process, verify that
-its recorded PID has stopped before removing a leftover `project-campaign.lock`.
-
-The retained store now has independent lanes for the community API/browser/CLI
-campaign and the portable SVG campaign. Both can retain a current record for the
-same project without overwriting each other. Report, test and independent-suite
-edits do not invalidate the measured community producer closure. Analysis-only
-price and noise-policy changes can regenerate portable reports from raw samples.
-Explicitly invoking a legacy Dave, release, PR or source-diagnostic runner starts
-its owning protocol again; paired controls are intentionally part of those
-experiments. Historical reports are retained as historical evidence and are not
-silently admitted into the new cache under a different protocol.
-
-## Portable family, scaling and resource campaign
-
-The portable package adds 49 authored cases: 23 family representatives, 15
-scaling cases, eight adversarial interactions and three invalid inputs. Its public
-SVG adapters currently support Pele, Agentic Mermaid, Beautiful Mermaid and
-Ondine Node packages. The wider community runner retains its additional runtimes
-and invocation paths. Dave, pinned-Mermaid scoring and the historical six-core
-lane remain unchanged.
-
-```sh
-node eval/benchmark/portable/build.ts --out /tmp/mermaid-benchmark-kit
-node /tmp/mermaid-benchmark-kit/run.mjs \
-  --project obsidianmd/pele --artifact-root /path/to/installed/pele \
-  --rounds 5 --samples 31 --cold-samples 20 \
-  --records /tmp/mermaid-records --out /tmp/pele-run \
-  --observer /usr/bin/time --allow-partial
-python3 eval/benchmark/portable/charts.py \
-  --report /tmp/pele-run/report.json --out /tmp/pele-charts
-```
-
-Copy the four compiled artifact files (`run.mjs`, `worker.mjs`, `execution.mjs`,
-`package.json`) and `harness-artifact.json` together. That kit needs Node 24 and
-the supplied external project artifact; it needs no Agentic source, Git, npm
-installation or harness dependencies. Compiled measurement-worker and execution
-bytes identify the protocol. Report-only changes can reuse samples. Source-mode
-execution instead checks the committed measurement-producer Git objects.
-
-The default experiment uses five rounds, three same-artifact replicas (A0/A1/B),
-31 warm batch means and 20 fresh-process first-use calls per replica/round/case.
-Cold processes may import concurrently, then wait behind a complete idle barrier;
-only one API call executes at a time. Import preparation time is not ranked as
-serial import cost. Every distinct returned SVG is checked outside clocks;
-byte-identical immutable outputs reuse their admission. Warm sample p95 describes
-batch means, not a request tail. Comment-varied inputs change source bytes while
-keeping the same semantic graph; they do not prove uncached layout work.
-
-Memory uses a later phase of fixed-work fresh processes. Current RSS/heap at the
-API boundary and post-GC retention precede output qualification. Import/prelude
-controls are retained. GNU time, when configured, records whole-worker CPU/peak
-RSS, including later qualification. Missing native/WASM/GPU observations are not
-zero. A 0/10/100/1000-call comment-variation probe adds bounded retention evidence,
-not proof against all leaks. CPU prices must be supplied; live model costs need
-actual dated usage evidence. The runner makes no provider calls.
-
-The report keeps acceptance, failed declared criteria, unmeasured semantics and
-timing calibration separate. `--allow-partial` permits a process exit for an
-incomplete report; it never turns unmeasured criteria into passes. Repeating an
-unchanged command reuses the exact record. Cancellation or failed cleanup cannot
-publish a completed record.
-
-## Extraction boundary
-
-The generic controller, artifact records, community adapters, worker evidence,
-qualification and reports live together here. The existing Agentic Mermaid
-adapter still has these explicit repository dependencies:
-
-| Dependency | Why it remains | Extraction work |
-| --- | --- | --- |
-| Built package/archive, native executable and built website | Public invocation and delivery measurements | Pass explicit artifact roots; keep the product build outside the benchmark package. |
-| Source imports in source-stage/family adapters | Layout stage attribution, family metadata, direct functionality | Replace these owning adapters with a versioned Agentic Mermaid adapter in the extracted project. |
-| `eval/shared`, imported corpora and reviewed policy documents | Independently expected inputs and pinned reference scope | Move reviewed data with its provenance or load it from an explicit fixture root. |
-| `src/__tests__`, `e2e` and other `eval` suites | Existing owning correctness checks orchestrated as external processes | Keep these as optional repository commands rather than copying their implementation. |
-| Two forwarding modules under `tests/helpers` | Existing temporary-directory and child cleanup behavior | Replace those two test-support seams when moving the package. |
-| Git checkout and root package scripts | Source identity, legacy suite discovery and command cwd | Supply the repository adapter root; `AM_BENCH_REPOSITORY_ROOT` controls the local package-command cwd. |
-
-These dependencies mean copying the directory alone does not yet make every
-source diagnostic runnable. Public artifact comparisons and project records
-have different prerequisites from source-stage diagnostics; missing adapters
-must remain blocked. Product runtime code does not import benchmark modules.
-
-See the [unified runner](unified/README.md) for the complete suite selection and
-evidence protocol. Historical reports may describe the removed hosted benchmark
-workflow; their recorded observations are unchanged.
-
-The [inventory](INVENTORY.md) lists all suites and standalone evaluations. The
-[assessment](ASSESSMENT.md) separates measured coverage from remaining gaps.
-
-## Docs, original assertions, startup and memory
-
-Start with the [overview](OVERVIEW.md#primary-questions) and
-[measurement rules](MEASUREMENT.md). The original Dave comparison measures all
-official docs fence occurrences. The existing selected-input reference score is
-not a run of all original Mermaid assertions. `upstream-test-assertions` adds
-current original Mindmap/GitGraph callbacks and a full tracked-test census,
-retaining every unprojected declaration and unscored source replay separately.
-
-Use a frozen installed candidate and selected peer artifact. For example:
-
-```sh
-bun run bench --profile full \
-  --suites stable-support,entry-startup \
-  --projects adewale/agentic-mermaid,obsidianmd/pele \
-  --package-root /path/to/installed/agentic-mermaid \
-  --portable-project obsidianmd/pele --portable-artifact-root /path/to/pele \
-  --rounds 5 --startup-samples 5 \
-  --startup-observer /path/to/GNU-time --native-executable /path/to/am \
-  --executable /path/to/chromium \
-  --benchmark-records /path/to/records --out /path/to/report
-
-bun run bench --profile full --suites upstream-test-assertions \
-  --projects adewale/agentic-mermaid,obsidianmd/pele,mermaid-js/mermaid \
-  --package-root /path/to/installed/agentic-mermaid \
-  --portable-project obsidianmd/pele --portable-artifact-root /path/to/pele \
-  --mermaid-dir /path/to/pinned/source --reference-dir /path/to/reference \
-  --benchmark-records /path/to/records --out /path/to/assertion-report
-```
-
-These commands can legitimately report required-family or original-assertion
-failures; they do not turn an unsupported product feature into a passed gate.
-Repeat unchanged to reuse each selected project's immutable attempt. `--projects`
-also aliases the existing community filter; `--community-projects` remains
-supported, but do not pass both. `--benchmark-force` explicitly creates another
-attempt for these new lanes. Original paired Dave/release/PR experiments still
-execute their own controls when explicitly selected.
-
-Startup samples are fresh processes/browsers/servers, with fully consumed first
-results. Resource passes default to one fresh pair per round, separately from the
-five latency samples per round. The requested sample count, actual phase names,
-child lifecycle, native executable and compiled website assets remain in the
-record. A source-hosted/deployed service without a bound artifact remains blocked.
-Browser document heap does not stand in for whole-browser or worker/native/GPU
-peak memory. For a smaller invocation request use `--startup-surfaces library,cli`
-and retain its narrower scope.
-
-The source benchmark install requires its development dependencies, including
-TypeScript and the optional MCP client SDK. Startup-only SDK/Playwright lookup is
-anchored to this private package; their actual installed bytes are recorded.
-The established community runtime dependency closure is unchanged by the new
-optional SDK declaration. The compiled portable SVG runner still runs without a
-source checkout. New source-stage invocation helpers retain an explicit checkout
-seam; they are not represented as a fully standalone artifact.
-
-## One tool version per comparison set
-
-The active version manifest is [`tool-versions.json`](tool-versions.json). Pele
-is pinned to **1.9.0** across Dave, Node peers, community acquisition, portable
-runs, startup/resources and original-assertion comparisons. Registry `latest`
-cannot override its set pin. Actual installed identities are checked before
-measurement/cache admission; report readers reject mixed versions for any tool
-before replacing reports or charts. Explicit baseline/version experiments are
-named separately, rather than assigning different releases to different suites.
-
-Historical receipts keep their measured versions and dates. To review an older
-uniform set, the chart reader accepts an explicit historical version manifest.
-It cannot combine Pele 1.6 and 1.9 into one set. Changing a pin requires new
-measurements only for affected tool/artifact lanes; already matching records
-retain their clocks and original dates.
+See the [overview](OVERVIEW.md), [inventory](INVENTORY.md),
+[measurement rules](MEASUREMENT.md), [assessment](ASSESSMENT.md) and
+[optional unified runner](unified/README.md) for suite scope and remaining gaps.

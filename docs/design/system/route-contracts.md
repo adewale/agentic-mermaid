@@ -6,6 +6,13 @@ as deferred are unscheduled evidence, not a shadow backlog; implementation
 requires promotion to root `TODO.md`.
 Supersedes: the draft spec in issue #25, whose claims this document re-verified against the code.
 
+The public `src/route-contracts.ts` entry owns pass orchestration, certificate
+closure and final audit. Geometry and port allocation live in
+`src/layout/route-geometry.ts`; lane proofs in `route-lanes.ts`; feedback
+shortening in `route-feedback.ts`; and per-pass self-loop occupancy in
+`route-self-loops.ts`. Their extraction preserves the pipeline manifest and
+fixed-point order.
+
 ## 1. The problem
 
 A **hitch** is a short dogleg on an edge whose semantics imply a straight lane:

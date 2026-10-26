@@ -1,3 +1,4 @@
+import * as familyDetection from '../shared/builtin-family-detection.ts'
 import { PACKET_CONFIG_KEYS } from '../packet/config.ts'
 import { KANBAN_CONFIG_KEYS } from '../kanban/config.ts'
 
@@ -27,7 +28,7 @@ export const STABLE_FAMILY_DESCRIPTOR_SEEDS = [
     config: { section: 'packet', keys: PACKET_CONFIG_KEYS, noopKeys: ['useMaxWidth'] },
     semanticChannels: [],
     sceneRoles: [...documentRoles, ...boxes],
-    detect: (line: string) => /^packet(?:-beta)?\s*$/.test(line),
+    detect: familyDetection.detectsPacketFamily,
     example: 'packet\n0-15: "Source port"\n16-31: "Destination port"',
     editorExample: 'packet\ntitle UDP datagram\n+16: "Source port"\n+16: "Destination port"\n+16: "Length"\n+16: "Checksum"\n+32: "Payload"',
   },
@@ -46,7 +47,7 @@ export const STABLE_FAMILY_DESCRIPTOR_SEEDS = [
     config: { section: 'kanban', keys: KANBAN_CONFIG_KEYS, noopKeys: ['useMaxWidth'] },
     semanticChannels: [],
     sceneRoles: [...documentRoles, ...boxes, { role: 'group', primitives: ['container', 'shape'] }, { role: 'group-header', primitives: ['shape'] }],
-    detect: (line: string) => /^kanban\s*$/.test(line),
+    detect: familyDetection.detectsKanbanFamily,
     example: 'kanban\n  todo[To do]\n    parser[Build parser]\n  done[Done]\n    research[Research]',
     editorExample: 'kanban\n  todo[To do]\n    packet[Packet family]@{ assigned: "Maya", priority: "High" }\n  doing[In progress]\n    kanban[Kanban family]@{ assigned: "Alex", ticket: "AM-409" }\n  done[Done]\n    research[Community research]',
   },
@@ -73,7 +74,7 @@ export const STABLE_FAMILY_DESCRIPTOR_SEEDS = [
       { role: 'edge-label', primitives: ['text', 'container'] },
       { role: 'defs', primitives: ['document', 'marker'] },
     ],
-    detect: (line: string) => /^requirement(?:diagram)?\s*$/.test(line),
+    detect: familyDetection.detectsRequirementFamily,
     example: 'requirementDiagram\n  requirement fast {\n    id: 1\n    text: Respond within 100ms\n    risk: high\n    verifymethod: test\n  }\n  element benchmark {\n    type: "test"\n  }\n  benchmark - verifies -> fast',
     editorExample:
       'requirementDiagram\n  direction LR\n  requirement reliable {\n    id: R1\n    text: Requests retain authored meaning\n    risk: high\n    verifymethod: test\n  }\n  functionalRequirement edits {\n    id: R2\n    text: Typed edits preserve all relationships\n    risk: medium\n    verifymethod: inspection\n  }\n  element suite {\n    type: conformance suite\n  }\n  reliable - contains -> edits\n  suite - verifies -> edits',
@@ -93,7 +94,7 @@ export const STABLE_FAMILY_DESCRIPTOR_SEEDS = [
     config: { section: 'treemap', keys: ['useMaxWidth', 'padding', 'diagramPadding', 'showValues', 'nodeWidth', 'nodeHeight', 'borderWidth', 'valueFontSize', 'labelFontSize', 'valueFormat'], noopKeys: ['useMaxWidth'] },
     semanticChannels: ['value', 'category'],
     sceneRoles: [...documentRoles.filter(role => role.role !== 'chrome'), { role: 'chrome', primitives: ['document', 'shape'] }, { role: 'node', primitives: ['container'] }, { role: 'group', primitives: ['container'] }, { role: 'bar', primitives: ['shape', 'data-mark'] }, { role: 'label', primitives: ['text'] }],
-    detect: (line: string) => /^treemap(?:-beta)?\s*$/.test(line),
+    detect: familyDetection.detectsTreemapFamily,
     example: 'treemap\n"Product"\n  "Engineering": 60\n  "Design": 40',
     editorExample: 'treemap\ntitle Product investment\n"Build"\n  "Engineering": 60\n  "Design": 25\n"Learn"\n  "Research": 30\n  "Analytics": 15',
   },
@@ -112,7 +113,7 @@ export const STABLE_FAMILY_DESCRIPTOR_SEEDS = [
     config: { section: 'ishikawa', keys: ['diagramPadding', 'useMaxWidth'], noopKeys: ['useMaxWidth'] },
     semanticChannels: [],
     sceneRoles: [...documentRoles, ...boxes, { role: 'defs', primitives: ['document', 'marker'] }, { role: 'edge', primitives: ['connector'] }, { role: 'rail', primitives: ['connector'] }],
-    detect: (line: string) => /^ishikawa(?:-beta)?\s*$/.test(line),
+    detect: familyDetection.detectsIshikawaFamily,
     example: 'ishikawa\n  Slow release\n  Process\n    Manual checks\n  Tooling\n    Slow builds',
     editorExample: 'ishikawa\n  Delayed release\n  Process\n    Manual approvals\n    Unclear acceptance\n  People\n    Shared ownership\n  Tooling\n    Slow builds\n      Cold caches\n  Environment\n    Unstable test data',
   },
@@ -139,7 +140,7 @@ export const STABLE_FAMILY_DESCRIPTOR_SEEDS = [
       { role: 'edge-label', primitives: ['text', 'container'] },
       { role: 'defs', primitives: ['document', 'marker'] },
     ],
-    detect: (line: string) => /^block(?:-beta)?\s*$/.test(line),
+    detect: familyDetection.detectsBlockFamily,
     example: 'block\n  columns 2\n  A["API"] B["Database"]\n  A --> B',
     editorExample: 'block\n  columns 3\n  client["Client"] space api["API"]\n  block:data:3\n    columns 2\n    primary[("Primary")] replica[("Replica")]\n    primary --> replica\n  end\n  client --> api\n  api --> primary',
   },

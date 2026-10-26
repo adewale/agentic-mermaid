@@ -3,11 +3,12 @@ import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import { inspectFidelityPaint, type PaintEvidence, type PaintInput } from '../fidelity/paint.ts'
 import type { MeaningExpectation } from '../fidelity/meaning.ts'
+import { chromiumExecutable } from './helpers/environment.ts'
 
 let browser: any
 beforeAll(async () => {
-  const require = createRequire(join(process.cwd(), 'eval/benchmark/package.json'))
-  browser = await require('playwright').chromium.launch({ headless: true, executablePath: process.env.AM_CHROMIUM_EXECUTABLE ?? '/usr/bin/chromium' })
+  const require = createRequire(join(import.meta.dir, '../package.json'))
+  browser = await require('playwright').chromium.launch({ headless: true, executablePath: chromiumExecutable })
 })
 afterAll(async () => { await browser?.close() })
 const expected = { labels: ['Alpha', 'Beta'], nodes: [{ id: 'A', label: 'Alpha' }, { id: 'B', label: 'Beta' }], edges: [{ source: 'A', target: 'B', directed: true }] }

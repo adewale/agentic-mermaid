@@ -1,3 +1,4 @@
+import { editorModuleScript } from './helpers/editor-module-harness.ts'
 import { describe, expect, test } from 'bun:test'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join, relative } from 'node:path'
@@ -102,6 +103,8 @@ describe('editor link producer/consumer contract', () => {
   })
 })
 
+const sharingModule = await editorModuleScript('sharing.js')
+
 function browserShareConsumer() {
   const window = {
     location: { hash: '', pathname: '/editor/', search: '' },
@@ -116,7 +119,7 @@ function browserShareConsumer() {
     EDITOR_SHARE_STATE_KEYS: readonly string[]
     getHashSource(): Promise<string | null>
     readonly hashDecodeFailure: string | null
-  }>(readFileSync(join(ROOT, 'editor/js/sharing.js'), 'utf8'), {
+  }>(sharingModule, {
     window,
     state,
     localStorage: { getItem: () => null, setItem() {}, removeItem() {} },

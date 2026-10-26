@@ -7,6 +7,7 @@ import { admitCurrentReference } from '../../mermaid-modern-compat/reference.ts'
 import { assertBenchmarkExecutionAllowed } from '../ci-policy.ts'
 import type { BenchmarkObservation, UnifiedRunOptions, UnifiedSuiteResult } from './types.ts'
 import { inventoryUpstreamTests } from './upstream-test-inventory.ts'
+import { mermaidOracleDirectory, mermaidUpstreamDirectory } from '../portable/mermaid-oracle.ts'
 
 export const UPSTREAM_TEST_SCORE_PRODUCERS = ['eval/benchmark/unified/upstream-test-score.ts', 'eval/benchmark/unified/upstream-test-worker.mjs', 'eval/benchmark/unified/upstream-test-assertions.mjs', 'eval/benchmark/unified/upstream-test-inventory.ts', 'eval/mermaid-modern-compat/corpus.ts'] as const
 
@@ -40,8 +41,8 @@ export async function runUpstreamTestScoreSuite(options: UnifiedRunOptions): Pro
   const startedAt = new Date().toISOString(),
     driver = options.harnessRoot ?? options.root,
     target = options.packageRoot ?? options.root
-  const upstream = options.mermaidDir ?? process.env.MERMAID_UPSTREAM_DIR ?? resolve(driver, '../mermaid'),
-    reference = options.referenceDir ?? process.env.MERMAID_REFERENCE_DIR ?? resolve(driver, '../mermaid-reference')
+  const upstream = options.mermaidDir ?? mermaidUpstreamDirectory(),
+    reference = options.referenceDir ?? mermaidOracleDirectory()
   const observations: BenchmarkObservation[] = [],
     gaps: string[] = []
   mkdirSync(options.out, { recursive: true })
@@ -52,12 +53,12 @@ export async function runUpstreamTestScoreSuite(options: UnifiedRunOptions): Pro
   let provenance: ReturnType<typeof admitCurrentReference> | undefined, inventory: ReturnType<typeof inventoryUpstreamTests> | undefined
   try {
     provenance = admitCurrentReference(upstream, reference)
-    inventory = inventoryUpstreamTests(upstream)
-    writeFileSync(join(options.out, 'upstream-test-inventory.json'), JSON.stringify({ provenance, ...inventory }, null, 2))
   } catch (error) {
-    gaps.push(`Current upstream inventory/reference admission unavailable: ${String(error)}`)
+    // Without the pinned Mermaid source and oracle there are no upstream tests to run; refuse.
+    throw Error(`The pinned Mermaid source checkout (${upstream}) and oracle (${reference}) are required; run \`bun run reference:mermaid\` in the Agentic checkout. ${String(error)}`)
   }
-  if (!provenance || !inventory) return { id: 'upstream-test-assertions', status: 'blocked', startedAt, finishedAt: new Date().toISOString(), observations, gaps }
+  inventory = inventoryUpstreamTests(upstream)
+  writeFileSync(join(options.out, 'upstream-test-inventory.json'), JSON.stringify({ provenance, ...inventory }, null, 2))
   const files = historicalFiles.map(file => ({ family: file.family, path: join(upstream, file.relativePath), relativePath: file.relativePath, historicalByteEquivalent: readFileSync(file.path).equals(readFileSync(join(upstream, file.relativePath))) }))
   const coveredPaths = new Set(files.map(file => file.relativePath))
   const unprojectedFamilyFiles = inventory.files.filter(file => ['mindmap', 'gitgraph'].includes(file.family) && !coveredPaths.has(file.path))

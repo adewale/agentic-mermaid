@@ -1,4 +1,8 @@
-# Mermaid benchmark suite
+# Trident benchmark suite
+
+Trident is being prepared for extraction into its own project. Its compiled
+artifact runner and report readers work without Agentic source; repository
+diagnostics remain an explicit optional adapter.
 
 The suite answers four different questions: whether a diagram's meaning survives
 an operation, how a caller can invoke the implementation, what that work costs,
@@ -142,13 +146,16 @@ enter an SVG speed rank. A project that loses one required case cannot enter a
 complete fixed-core rank using just its successful subset. Forks with verified artifact and protocol equivalence may share explicitly
 attributed evidence; they are not independent votes.
 
-If collection completed but publication rejected repeated observation IDs, the
+If collection completed but record publication failed, the
 controller can recover that exact attempt with
 `--benchmark-resume-attempt /absolute/project-output/attempts/ID`, one selected
 project and one retained suite. Recovery checks the original identity against
 current artifacts and settings, validates distinct measured sample coordinates,
-and preserves the original sampler response as `raw-result.json`. It adds record
-ownership and observation IDs without launching measurement workers. Cancelled,
+and preserves the original sampler response. New attempts retain it in their
+canonical compressed record; legacy recovery leaves its existing raw files intact.
+New recovery receipts bind the original compressed output bytes as well as its
+identity. Recovery adds record ownership and observation IDs without launching
+measurement workers. Cancelled,
 partial or changed-identity attempts cannot use this recovery path. Normal
 updates use the retained record automatically; they do not need this flag.
 

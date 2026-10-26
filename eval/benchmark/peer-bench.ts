@@ -65,6 +65,7 @@ import { measurePeerTrack } from './peer-track-worker.ts'
 import type { TrackJob } from './peer-track-worker.ts'
 import { combineColdTrackRows, coldTrackGroups, pairedColdTrackSchedule, PEER_TRACK_SCHEDULES, type ColdTrackGroup, type PeerTrackSchedule } from './peer-track-schedule.ts'
 import { PELE_SEMANTIC_ADAPTER } from './pele-semantics.ts'
+import { familySupportProbe } from './portable/cohorts.ts'
 import { selectedPeerSemanticAdapter } from './peer-semantic-adapters.ts'
 import { frozenRuntimePolicy, installAgenticRuntime, installedNpmPackagePin, inspectAgenticRuntime, assertMatchedAgenticRuntimes, type RuntimePolicy, type RuntimeReceipt } from './release-baseline.ts'
 import { assertBenchmarkSetVersions, assertBenchmarkToolVersion, benchmarkToolPins } from './tool-versions.ts'
@@ -527,7 +528,10 @@ interface ProcessRecord {
   results: WorkloadResult[]
 }
 
-const UNSUPPORTED = /Invalid mermaid header|No diagram type detected|UnknownDiagramError|Unrecognized Mermaid header|(?:unsupported|inventory-only) in Agentic Mermaid|unsupported diagram|diagram type is not supported/i
+/** Families of the named workloads; corpus fences carry their own. Support is decided by probing
+ * each family's canonical source, never by an error message. */
+const WORKLOAD_FAMILIES: Record<string, string> = { flow5: 'flowchart', tree50: 'flowchart', tree100: 'flowchart', mesh50: 'flowchart', mesh100: 'flowchart', seq20: 'sequence', seq300: 'sequence', c4: 'c4', class80: 'class', er40: 'er', state80: 'state', packet240: 'packet', kanban240: 'kanban', requirement100: 'requirement', treemap260: 'treemap', ishikawa133: 'ishikawa', block120: 'block' }
+interface FamilySupport { unsupported: Set<string>; familyOf: (id: string) => string | undefined }
 
 function parseArgs(argv: readonly string[]): Map<string, string> {
   const flags = new Set(['quick', 'child', 'corpus', 'aa', 'sequence300'])
@@ -735,7 +739,7 @@ function spawnWorker(command: readonly string[], outPath: string, limits: { impo
   })
 }
 
-async function runProcess(prepared: Prepared, output: Output, workloads: readonly WorkloadId[], round: number, context: { scratch: string; bundle: string; timing: Timing; sources: Record<WorkloadId, string>; elkCache: 'on' | 'off'; rawSamples: string; expectedLabels: Record<string, readonly string[]> }): Promise<ProcessRecord> {
+async function runProcess(prepared: Prepared, output: Output, workloads: readonly WorkloadId[], round: number, context: { support?: FamilySupport; scratch: string; bundle: string; timing: Timing; sources: Record<WorkloadId, string>; elkCache: 'on' | 'off'; rawSamples: string; expectedLabels: Record<string, readonly string[]> }): Promise<ProcessRecord> {
   const { peer } = prepared
   const record: ProcessRecord = { peer: peer.id, output, round, wallMs: 0, restarts: 0, results: [] }
   const adapter = peer[output]!
@@ -758,7 +762,7 @@ async function runProcess(prepared: Prepared, output: Output, workloads: readonl
     const imported = run.lines.find(line => line.type === 'import')
     if (attempt === 0 && imported?.type === 'import') Object.assign(record, { importMs: imported.importMs, setupMs: imported.setupMs })
     const finished = run.lines.flatMap(line => (line.type === 'result' ? [line] : []))
-    for (const { type: _, ...result } of finished) record.results.push(result.status === 'error' && UNSUPPORTED.test(result.detail ?? '') ? { ...result, status: 'unsupported' } : result)
+    for (const { type: _, ...result } of finished) record.results.push(result.status === 'error' && context.support?.unsupported.has(context.support.familyOf(result.workload) ?? '') ? { ...result, status: 'unsupported' } : result)
     const doneIds = new Set(finished.map(line => line.workload))
     const end = run.lines.find(line => line.type === 'end')
     if (end?.type === 'end') {
@@ -789,7 +793,7 @@ async function runProcess(prepared: Prepared, output: Output, workloads: readonl
 /** Enhanced measurements use the same prepared packages, adapters, worker,
  * watchdog, raw receipts and provenance as the legacy peer suite. */
 async function runTrackProcess(prepared: Prepared, workloads: readonly string[], track: TrackJob, context: {
-  scratch: string; bundle: string; timing: Timing; sources: Record<string, string>; expectedLabels: Record<string, readonly string[]>; rawSamples: string; elkCache: 'on' | 'off'
+  support?: FamilySupport; scratch: string; bundle: string; timing: Timing; sources: Record<string, string>; expectedLabels: Record<string, readonly string[]>; rawSamples: string; elkCache: 'on' | 'off'
 }, coldGroup?: ColdTrackGroup): Promise<PeerTrackObservation[]> {
   const rows: PeerTrackObservation[] = []
   const diagnostics = new Map<string, PeerTrackObservation['diagnostics']>()
@@ -821,6 +825,11 @@ async function runTrackProcess(prepared: Prepared, workloads: readonly string[],
     const completed = run.lines.flatMap(line => line.type === 'track' ? [line.observation] : [])
     const imported = run.lines.find(line => line.type === 'import')
     if (track.phase === 'first-use' && imported?.type === 'import') for (const row of completed) Object.assign(row, { importMs: imported.importMs, setupMs: imported.setupMs })
+    // A rejected call in a family whose probe this tool rejected is unsupported; elsewhere an error.
+    for (const row of completed) if (context.support?.unsupported.has(context.support.familyOf(row.workload) ?? '')) {
+      for (const call of row.calls) if (call.status === 'error') call.status = 'unsupported'
+      finalizeTrackObservation(row)
+    }
     rows.push(...completed)
     if (probe === 'diagnostic') for (const row of completed) diagnostics.set(row.workload, row.diagnostics)
     if (cold && completed.some(row => row.status === 'unsupported')) unavailable.add(group[0]!)
@@ -1017,11 +1026,26 @@ async function main(): Promise<void> {
       },
       freshness: { firstUse: 'first API render in each fresh process after import/setup', exactRepeat: 'identical source bytes and repeated labels', warmNewSource: 'authored visible-label/relationship edits and graph-ID renaming where defined; unchanged labels may reuse typography caches', labelEdit: 'authored visible-label/relationship edit; graph IDs retained' },
     } : {}), minimumTailCalls: 20, inputs: trackInputs, harnessRevision, harnessDirty }
+    // Probe each family once per tool and output, untimed, before any workload of that family.
+    const familyOf = (id: string) => (inventory ? inventory.occurrences.find(input => input.id === id)?.family : WORKLOAD_FAMILIES[id])
+    const familySupport: { peer: string; output: Output; family: string; supported: boolean; detail?: string }[] = []
+    const supportFor = new Map<string, FamilySupport>()
+    for (const { prepared: entry, output } of jobs) {
+      const probes = [...new Set([...workloads[output], ...(output === 'svg' ? trackWorkloads : [])].map(familyOf).filter((family): family is string => !!family))].flatMap(family => familySupportProbe(family) ?? [])
+      const probed = probes.length ? await runProcess(entry, output, probes.map(probe => probe.id), -1, { scratch, bundle, timing: { warmCalls: 1, warmupMs: 0, samples: 1, minSampleMs: 0, maxCaseMs: 5000 }, sources: { ...sources, ...Object.fromEntries(probes.map(probe => [probe.id, probe.source])) }, elkCache, rawSamples, expectedLabels: { ...expectedLabels, ...Object.fromEntries(probes.map(probe => [probe.id, probe.expected.labels])) } }) : undefined
+      const unsupported = new Set<string>()
+      for (const result of probed?.results ?? []) {
+        const family = probes.find(probe => probe.id === result.workload)!.family
+        if (result.status === 'error') unsupported.add(family)
+        familySupport.push({ peer: entry.peer.id, output, family, supported: result.status !== 'error', ...(result.detail ? { detail: result.detail } : {}) })
+      }
+      supportFor.set(`${entry.peer.id}\n${output}`, { unsupported, familyOf })
+    }
     const processes: ProcessRecord[] = []
     for (let round = 0; round < rounds; round++) {
       for (const { prepared: entry, output } of phases.length ? [] : round % 2 === 0 ? jobs : [...jobs].reverse()) {
         console.error(`round ${round + 1}/${rounds}: ${entry.peer.id} ${output} (${workloads[output].length} workloads)`)
-        const observation = await runProcess(entry, output, workloads[output], round, { scratch, bundle, timing, sources, elkCache, rawSamples, expectedLabels })
+        const observation = await runProcess(entry, output, workloads[output], round, { support: supportFor.get(`${entry.peer.id}\n${output}`), scratch, bundle, timing, sources, elkCache, rawSamples, expectedLabels })
         processes.push(observation)
         appendFileSync(rawSamples, `${JSON.stringify({ type: 'process', ...observation })}\n`)
       }
@@ -1034,7 +1058,7 @@ async function main(): Promise<void> {
           const key = `${peer}/${group.ids[0]}`
           if (unavailable.has(key)) continue
           const entry = prepared.find(entry => entry.peer.id === peer)!
-          const fragments = await runTrackProcess(entry, group.ids, track, { scratch, bundle, timing, sources: trackSources, expectedLabels: trackExpected, elkCache, rawSamples }, group)
+          const fragments = await runTrackProcess(entry, group.ids, track, { support: supportFor.get(`${entry.peer.id}\nsvg`), scratch, bundle, timing, sources: trackSources, expectedLabels: trackExpected, elkCache, rawSamples }, group)
           rows.get(peer)!.push(...fragments)
           if (group.probe === 'diagnostic') for (const row of fragments) diagnostics.get(peer)!.set(row.workload, row.diagnostics)
           if (entry.error || !entry.peer.svg || entry.peer.runtime !== 'node' || fragments.some(row => row.status === 'unsupported')) unavailable.add(key)
@@ -1048,7 +1072,7 @@ async function main(): Promise<void> {
       }
       if (phases.length) for (const entry of round % 2 === 0 ? prepared : [...prepared].reverse()) for (const phase of phases.filter(phase => trackSchedule !== 'paired-cold-ordinal-v1' || phase !== 'first-use')) for (const consumer of consumers) {
         console.error(`round ${round + 1}/${rounds}: ${entry.peer.id} ${phase} ${consumer} (${trackWorkloads.length} workloads)`)
-        tracks.observations.push(...await runTrackProcess(entry, trackWorkloads, { ...trackSettings, phase, consumer, round }, { scratch, bundle, timing, sources: trackSources, expectedLabels: trackExpected, elkCache, rawSamples }))
+        tracks.observations.push(...await runTrackProcess(entry, trackWorkloads, { ...trackSettings, phase, consumer, round }, { support: supportFor.get(`${entry.peer.id}\nsvg`), scratch, bundle, timing, sources: trackSources, expectedLabels: trackExpected, elkCache, rawSamples }))
         writeFileSync(jsonPath, `${JSON.stringify({ ...metadata, status: 'incomplete', tracks, tracksConfig }, null, 2)}\n`)
       }
     }
@@ -1209,6 +1233,7 @@ async function main(): Promise<void> {
         }) }),
         coverage, receiptCoverage,
         ...(inventory ? { corpus: inventory } : {}),
+        familySupport,
         expectedLabels: phases.length ? trackExpected : expectedLabels,
         expectedSvgLabelPrefixes: SVG_LABEL_PREFIXES,
         warnings,

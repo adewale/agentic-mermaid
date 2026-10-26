@@ -27,7 +27,7 @@ they do not create issues automatically.
 Run `bun run quality:check` to execute the complete GitHub **Quality gates**
 job locally. The command installs the frozen dependency graph and then runs
 the dependency audit, the font-subset, lazy browser-family catalog, and website
-regeneration checks, the sketch and whole-corpus audits, lint,
+regeneration checks, the whole-corpus audit, lint,
 repository-wide typechecking, and hero freshness (the
 list is `QUALITY_CHECKS` in `scripts/ci/quality-gates.ts`). The workflow calls
 this same entry point, so the local list and CI list cannot diverge.
@@ -64,6 +64,10 @@ at delivery: `am llms-txt` and the website use current registries, while the
 repository's authored `llms.txt` points readers to those sources. A second
 committed capability roster and its snapshot-freshness test are unnecessary.
 There are no input-hash receipts.
+
+The sketch prototype remains an on-demand research tool (`bun run sketch:check`).
+Production styling is exercised by the Scene/backend and render-conformance
+tests; the browser label-contrast check renders the shipped looks.
 
 ## The central problem: this is a partly non-testable program
 

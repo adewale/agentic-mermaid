@@ -1,5 +1,4 @@
-import { PACKET_OP_KINDS } from '../packet/ops.ts'
-import { formatUnknownOpMessage } from './unknown-op.ts'
+import { unknownOpMessage } from './mutation-ops.ts'
 import { parsePacketDiagram } from '../packet/parser.ts'
 import type { PacketBody, PacketMutationOp } from '../packet/types.ts'
 import { appendAccessibilityLines } from './accessibility-envelope.ts'
@@ -68,7 +67,7 @@ export function mutatePacket(body: PacketBody, op: PacketMutationOp): Result<Pac
       next.fields.splice(op.to, 0, next.fields.splice(op.from, 1)[0]!)
       break
     default:
-      return invalid(formatUnknownOpMessage('packet', op, PACKET_OP_KINDS.join(', ')))
+      return invalid(unknownOpMessage('packet', op))
   }
   let cursor = 0
   for (const field of next.fields) {

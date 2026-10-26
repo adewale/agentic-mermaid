@@ -4,6 +4,7 @@ import { assertBenchmarkSetVersions, benchmarkToolPins } from '../tool-versions.
 import { runBaselineBrowserSuite } from './baseline-browser.ts'
 import { runMermaidBaselineCompatibility } from './mermaid-baseline-compatibility.ts'
 import type { UnifiedRunOptions, UnifiedSuiteResult } from './types.ts'
+import { mermaidOracleDirectory, mermaidUpstreamDirectory } from '../portable/mermaid-oracle.ts'
 
 /** Campaign adapters keep baseline setup out of existing measurement workers. */
 export async function runMermaidBrowserBaseline(options: UnifiedRunOptions): Promise<UnifiedSuiteResult> {
@@ -13,8 +14,8 @@ export async function runMermaidBrowserBaseline(options: UnifiedRunOptions): Pro
     out: options.out,
     agenticRoot: options.packageRoot ?? options.root,
     peleRoot: options.portableArtifactRoot ?? join(root, `node_modules/.cache/unified-community/pele@${benchmarkToolPins['obsidianmd/pele'].version}/node_modules/pele`),
-    referenceRoot: join(options.referenceDir ?? resolve(root, '../mermaid-reference'), 'node_modules/mermaid'),
-    upstreamRoot: options.mermaidDir ?? resolve(root, '../mermaid'),
+    referenceRoot: join(options.referenceDir ?? mermaidOracleDirectory(), 'node_modules/mermaid'),
+    upstreamRoot: options.mermaidDir ?? mermaidUpstreamDirectory(),
     browserExecutable: options.executable,
     nodeExecutable: options.nodeExecutable,
     records: options.benchmarkRecordStore,

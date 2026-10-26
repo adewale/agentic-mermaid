@@ -1,3 +1,4 @@
+import * as familyDetection from '../shared/builtin-family-detection.ts'
 import { enrollOwnedFamily } from '../experimental/owned-family.ts'
 import { STABLE_FAMILY_DESCRIPTOR_SEEDS } from './stable-family-metadata.ts'
 // ============================================================================
@@ -30,7 +31,7 @@ import { boundedUtf8ByteLength } from '../shared/utf8.ts'
 
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { C4_CONFIG_KEYS, C4_NOOP_CONFIG_KEYS } from '../c4/config.ts'
-import { detectsFlowchartFamily, detectsStateFamily, detectsStateFamilyLoose, installRegisteredFamilyByIdResolver, installRegisteredFamilyResolver } from './family-router.ts'
+import { installRegisteredFamilyByIdResolver, installRegisteredFamilyResolver } from './family-router.ts'
 import { normalizeFamilyDetectionLine } from '../mermaid-source-wrapper.ts'
 export { extractLabelsGeneric } from './family-labels.ts'
 
@@ -470,7 +471,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     },
     aliases: ['swimlane'],
     semanticChannels: [],
-    detect: detectsFlowchartFamily,
+    detect: familyDetection.detectsFlowchartFamily,
     sceneRoles: [
       nativeSceneRole('prelude', 'document'),
       nativeSceneRole('title', 'text'),
@@ -535,8 +536,8 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
       ],
     },
     semanticChannels: ['status'],
-    detect: detectsStateFamily,
-    detectLoose: detectsStateFamilyLoose,
+    detect: familyDetection.detectsStateFamily,
+    detectLoose: familyDetection.detectsStateFamilyLoose,
     sceneRoles: [
       nativeSceneRole('prelude', 'document'),
       nativeSceneRole('title', 'text'),
@@ -647,8 +648,8 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
       ],
     },
     semanticChannels: ['category'],
-    detect: (line: string) => /^sequencediagram\s*$/.test(line),
-    detectLoose: (line: string) => /^sequencediagram(?:\s|$)/.test(line),
+    detect: familyDetection.detectsSequenceFamily,
+    detectLoose: familyDetection.detectsSequenceFamilyLoose,
     sceneRoles: [
       nativeSceneRole('prelude', 'document'),
       nativeSceneRole('title', 'text'),
@@ -739,8 +740,8 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
       ],
     },
     semanticChannels: ['category'],
-    detect: (line: string) => /^timeline(?=$|[\s;#%])/.test(line),
-    detectLoose: (line: string) => /^timeline(?=$|[\s;#%])/.test(line),
+    detect: familyDetection.detectsTimelineFamily,
+    detectLoose: familyDetection.detectsTimelineFamilyLoose,
     sceneRoles: [
       nativeSceneRole('prelude', 'document'),
       nativeSceneRole('chrome', 'document'),
@@ -780,8 +781,8 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
       noopKeys: ['arrowMarkerAbsolute', 'defaultRenderer', 'diagramPadding', 'dividerMargin', 'hideEmptyMembersBox', 'htmlLabels', 'look', 'padding', 'textHeight', 'theme', 'titleTopMargin'],
     },
     semanticChannels: [],
-    detect: (line: string) => /^classdiagram(?:-v2)?\s*$/.test(line),
-    detectLoose: (line: string) => /^classdiagram(?:-v2)?(?:\s|$)/.test(line),
+    detect: familyDetection.detectsClassFamily,
+    detectLoose: familyDetection.detectsClassFamilyLoose,
     sceneRoles: [
       nativeSceneRole('prelude', 'document'),
       nativeSceneRole('title', 'text'),
@@ -829,8 +830,8 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
       noopKeys: ['diagramPadding', 'entityPadding', 'fill', 'fontSize', 'look', 'minEntityHeight', 'minEntityWidth', 'stroke', 'theme', 'titleTopMargin'],
     },
     semanticChannels: ['category'],
-    detect: (line: string) => /^erdiagram(?:\s+subgraph\b.*)?\s*$/.test(line),
-    detectLoose: (line: string) => /^erdiagram(?:\s|$)/.test(line),
+    detect: familyDetection.detectsErFamily,
+    detectLoose: familyDetection.detectsErFamilyLoose,
     sceneRoles: [
       nativeSceneRole('prelude', 'document'),
       nativeSceneRole('title', 'text'),
@@ -905,8 +906,8 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
       noopKeys: ['boxMargin', 'boxTextMargin', 'noteMargin', 'messageMargin', 'messageAlign', 'bottomMarginAdj', 'rightAngles', 'activationWidth', 'textPlacement'],
     },
     semanticChannels: ['value', 'category'],
-    detect: (line: string) => /^journey\s*$/.test(line),
-    detectLoose: (line: string) => /^journey(?:\s|$)/.test(line),
+    detect: familyDetection.detectsJourneyFamily,
+    detectLoose: familyDetection.detectsJourneyFamilyLoose,
     sceneRoles: [
       nativeSceneRole('prelude', 'document'),
       nativeSceneRole('defs', 'document', 'marker'),
@@ -949,8 +950,8 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     editorGlyph: 'A',
     config: { section: 'architecture', keys: ['padding', 'iconSize', 'fontSize', 'nodeSeparation', 'idealEdgeLengthMultiplier', 'edgeElasticity', 'numIter', 'seed', 'randomize'], noopKeys: ['edgeElasticity', 'numIter', 'randomize', 'seed'] },
     semanticChannels: [],
-    detect: (line: string) => /^architecture(?:-beta)?\s*$/.test(line),
-    detectLoose: (line: string) => /^architecture(?:-beta)?(?:\s|$)/.test(line),
+    detect: familyDetection.detectsArchitectureFamily,
+    detectLoose: familyDetection.detectsArchitectureFamilyLoose,
     sceneRoles: [
       nativeSceneRole('prelude', 'document'),
       nativeSceneRole('defs', 'document', 'marker'),
@@ -988,7 +989,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     editorGlyph: 'XY',
     config: { section: 'xyChart', keys: ['width', 'height', 'useMaxWidth', 'useWidth', 'titleFontSize', 'titlePadding', 'chartOrientation', 'plotReservedSpacePercent', 'showDataLabel', 'showDataLabelOutsideBar', 'showTitle', 'showLegend', 'legendFontSize', 'legendPadding', 'xAxis', 'yAxis'] },
     semanticChannels: ['value', 'category'],
-    detect: (line: string) => /^xychart(?:-beta)?(?:\s|$)/.test(line),
+    detect: familyDetection.detectsXychartFamily,
     sceneRoles: [
       nativeSceneRole('prelude', 'document'),
       nativeSceneRole('defs', 'document'),
@@ -1024,7 +1025,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     editorGlyph: 'P',
     config: { section: 'pie', keys: ['textPosition', 'donutHole', 'legendPosition', 'highlightSlice', 'useMaxWidth', 'useWidth'], noopKeys: ['useMaxWidth', 'useWidth'] },
     semanticChannels: ['value', 'category', 'emphasis'],
-    detect: (line: string) => /^pie(?:\s|$)/.test(line),
+    detect: familyDetection.detectsPieFamily,
     sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document', 'shape', 'container'), nativeSceneRole('pie-slice', 'shape', 'data-mark'), nativeSceneRole('legend', 'text', 'shape', 'data-mark'), nativeSceneRole('title', 'text'), nativeSceneRole('label', 'text')],
     example: 'pie title Plans\n  "Free" : 60\n  "Pro" : 30\n  "Enterprise" : 10',
     editorExample: `pie showData
@@ -1074,8 +1075,8 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     },
     aliases: ['quadrant'],
     semanticChannels: ['category'],
-    detect: (line: string) => /^quadrant(?:chart)?\s*$/.test(line),
-    detectLoose: (line: string) => /^quadrant(?:chart)?(?:\s|$)/.test(line),
+    detect: familyDetection.detectsQuadrantFamily,
+    detectLoose: familyDetection.detectsQuadrantFamilyLoose,
     sceneRoles: [
       nativeSceneRole('prelude', 'document'),
       nativeSceneRole('chrome', 'document', 'shape', 'container'),
@@ -1117,8 +1118,8 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
       noopKeys: ['barGap', 'topPadding', 'leftPadding', 'rightPadding', 'titleTopMargin', 'gridLineStartPadding', 'fontSize', 'sectionFontSize', 'numberSectionStyles', 'todayMarker', 'weekday'],
     },
     semanticChannels: ['status', 'progress', 'emphasis', 'category'],
-    detect: (line: string) => /^gantt\s*$/.test(line),
-    detectLoose: (line: string) => /^gantt(?:\s|$)/.test(line),
+    detect: familyDetection.detectsGanttFamily,
+    detectLoose: familyDetection.detectsGanttFamilyLoose,
     sceneRoles: [
       nativeSceneRole('prelude', 'document'),
       nativeSceneRole('defs', 'document', 'marker'),
@@ -1160,8 +1161,8 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     editorGlyph: 'M',
     config: { section: 'mindmap', keys: ['padding', 'maxNodeWidth', 'layoutAlgorithm', 'colorBy'], noopKeys: ['colorBy', 'layoutAlgorithm'] },
     semanticChannels: ['importance', 'category'],
-    detect: (line: string) => /^mindmap\s*$/.test(line),
-    detectLoose: (line: string) => /^mindmap(?:\s|$)/.test(line),
+    detect: familyDetection.detectsMindmapFamily,
+    detectLoose: familyDetection.detectsMindmapFamilyLoose,
     sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('title', 'text'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('edge', 'connector'), nativeSceneRole('node', 'container'), nativeSceneRole('icon', 'container', 'shape', 'text'), nativeSceneRole('label', 'text')],
     example: 'mindmap\n  root((Product))\n    Research\n      Interviews\n      Evidence\n    Delivery\n      Launch',
     editorExample: `mindmap
@@ -1199,8 +1200,8 @@ interviews, benchmarks, and Unicode naïve café\`"]
     editorGlyph: 'Git',
     config: { section: 'gitGraph', keys: ['showBranches', 'showCommitLabel', 'mainBranchName', 'mainBranchOrder', 'parallelCommits', 'rotateCommitLabel', 'arrowMarkerAbsolute', 'diagramPadding', 'nodeLabel', 'titleTopMargin'], noopKeys: ['arrowMarkerAbsolute', 'diagramPadding', 'nodeLabel', 'titleTopMargin'] },
     semanticChannels: ['status', 'category'],
-    detect: (line: string) => /^gitgraph(?:\s+(?:lr|tb|bt))?\s*:?\s*$/.test(line),
-    detectLoose: (line: string) => /^gitgraph(?:\s|:|$)/.test(line),
+    detect: familyDetection.detectsGitgraphFamily,
+    detectLoose: familyDetection.detectsGitgraphFamilyLoose,
     sceneRoles: [
       nativeSceneRole('prelude', 'document'),
       nativeSceneRole('chrome', 'document', 'shape'),
@@ -1253,7 +1254,7 @@ gitGraph LR:
     editorGlyph: 'R',
     config: { section: 'radar', keys: ['width', 'height', 'marginTop', 'marginRight', 'marginBottom', 'marginLeft', 'axisScaleFactor', 'axisLabelFactor', 'curveTension', 'useMaxWidth', 'tickLabels', 'useWidth'], noopKeys: ['useWidth'] },
     semanticChannels: ['category'],
-    detect: (line: string) => /^radar-beta(?:\s|:|$)/.test(line),
+    detect: familyDetection.detectsRadarFamily,
     sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document'), nativeSceneRole('grid', 'shape'), nativeSceneRole('pie-slice', 'shape'), nativeSceneRole('point', 'shape'), nativeSceneRole('axis', 'text'), nativeSceneRole('legend', 'shape', 'text'), nativeSceneRole('title', 'text')],
     example: 'radar-beta\n  title Skills\n  axis speed["Speed"], power["Power"], range["Range"]\n  curve now["Current"]{4, 3, 5}\n  curve goal["Target"]{5, 5, 4}\n  max 5',
     editorExample: `radar-beta
@@ -1279,8 +1280,8 @@ gitGraph LR:
     editorGlyph: 'SK',
     config: { section: 'sankey', keys: ['width', 'height', 'linkColor', 'nodeAlignment', 'showValues', 'prefix', 'suffix', 'labelStyle', 'nodeWidth', 'nodePadding', 'nodeColors', 'useMaxWidth'], noopKeys: ['useMaxWidth'] },
     semanticChannels: ['value', 'category'],
-    detect: (line: string) => /^sankey(?:-beta)?\s*$/.test(line),
-    detectLoose: (line: string) => /^sankey(?:-beta)?(?:\s|$)/.test(line),
+    detect: familyDetection.detectsSankeyFamily,
+    detectLoose: familyDetection.detectsSankeyFamilyLoose,
     sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document'), nativeSceneRole('defs', 'document'), nativeSceneRole('edge', 'connector'), nativeSceneRole('bar', 'shape', 'data-mark'), nativeSceneRole('label', 'text'), nativeSceneRole('title', 'text')],
     // Balanced by construction (Electricity grid: in 127.93 = out 71.24 + 56.69):
     // the example agents copy must clear the FLOW_IMBALANCE conservation lint.
@@ -1306,8 +1307,8 @@ gitGraph LR:
     editorGlyph: 'C4',
     config: { section: 'c4', keys: [...C4_CONFIG_KEYS, ...C4_NOOP_CONFIG_KEYS], noopKeys: C4_NOOP_CONFIG_KEYS },
     semanticChannels: ['category', 'status'],
-    detect: (line: string) => /^c4(?:context|container|component|dynamic|deployment)(?:\s|$)/.test(line),
-    detectLoose: (line: string) => /^c4(?:context|container|component|dynamic|deployment)(?:\s|$)/.test(line),
+    detect: familyDetection.detectsC4Family,
+    detectLoose: familyDetection.detectsC4FamilyLoose,
     sceneRoles: [
       nativeSceneRole('prelude', 'document'),
       nativeSceneRole('title', 'text'),

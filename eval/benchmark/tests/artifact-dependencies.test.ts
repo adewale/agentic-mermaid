@@ -1,15 +1,15 @@
 import { afterEach, describe, expect, test } from 'bun:test'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { captureInstalledDependencyClosure } from '../unified/artifact-dependencies.ts'
+import { captureInstalledDependencyClosure } from '../portable/artifact-dependencies.ts'
 
 const roots: string[] = []
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
 })
 function fixture() {
-  const directory = mkdtempSync(join(tmpdir(), 'installed-dependency-closure-'))
+  const directory = realpathSync(mkdtempSync(join(tmpdir(), 'installed-dependency-closure-')))
   roots.push(directory)
   const root = join(directory, 'candidate')
   const install = (path: string, name: string, fields: Record<string, unknown> = {}) => {

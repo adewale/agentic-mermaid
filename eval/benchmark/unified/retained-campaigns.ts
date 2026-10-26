@@ -1,11 +1,12 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, readFileSync, realpathSync } from 'node:fs'
+import { readFileSync, realpathSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { join, relative, resolve } from 'node:path'
 import { assertBenchmarkExecutionAllowed } from '../ci-policy.ts'
 import { artifactIdentity, resolveArtifact } from '../portable/artifacts.ts'
-import { captureInstalledDependencyClosure } from './artifact-dependencies.ts'
-import { benchmarkContext, deliveredArtifactIdentity, executableIdentity } from './benchmark-context.ts'
+import { captureInstalledDependencyClosure } from '../portable/artifact-dependencies.ts'
+import { defaultTimeObserver } from '../portable/time-observer.ts'
+import { benchmarkContext, defaultChromium, deliveredArtifactIdentity, executableIdentity } from './benchmark-context.ts'
 import { committedDataIdentity } from './committed-data-identity.ts'
 import { ENTRY_STARTUP_PRODUCERS, type EntryStartupOptions, prepareEntryStartup, runEntryStartupSuite } from './entry-startup.ts'
 import { projectReportView } from './project-report-view.ts'
@@ -13,6 +14,7 @@ import { runRetainedSuite } from './retained-suite.ts'
 import type { UnifiedRunOptions, UnifiedSuiteResult } from './types.ts'
 import { runUpstreamTestScoreSuite, UPSTREAM_TEST_SCORE_PRODUCERS } from './upstream-test-score.ts'
 import { assertBenchmarkSetVersions, assertBenchmarkToolVersion } from '../tool-versions.ts'
+import { mermaidOracleDirectory, mermaidUpstreamDirectory } from '../portable/mermaid-oracle.ts'
 
 interface RetainedCampaignOptions extends UnifiedRunOptions {
   benchmarkRecordStore?: string
@@ -69,7 +71,7 @@ export async function runRetainedEntryStartupSuite(options: RetainedCampaignOpti
   const harness = options.harnessRoot ?? options.root
   const node = nodePath(options)
   const require = createRequire(join(harness, 'eval/benchmark/package.json'))
-  const browser = options.executable ?? (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : require('playwright').chromium.executablePath())
+  const browser = options.executable ?? defaultChromium(require('playwright').chromium)
   const projects = targets(options)
   const results: UnifiedSuiteResult[] = missingProjects(
     options,
@@ -91,7 +93,7 @@ export async function runRetainedEntryStartupSuite(options: RetainedCampaignOpti
       project: project.id,
       nodeExecutable: node,
       bunExecutable: options.bunExecutable ?? 'bun',
-      observerExecutable: options.observerExecutable ?? options.portableObserver ?? '/usr/bin/time',
+      observerExecutable: options.observerExecutable ?? options.portableObserver ?? defaultTimeObserver() ?? '/usr/bin/time',
       executable: browser,
       nativeExecutable: project.adapter === 'agentic' ? options.nativeExecutable : undefined,
     }
@@ -141,8 +143,8 @@ export async function runRetainedUpstreamTestSuite(options: RetainedCampaignOpti
   const startedAt = new Date().toISOString()
   const harness = options.harnessRoot ?? options.root
   const node = nodePath(options)
-  const upstream = options.mermaidDir ?? process.env.MERMAID_UPSTREAM_DIR ?? resolve(harness, '../mermaid')
-  const reference = options.referenceDir ?? process.env.MERMAID_REFERENCE_DIR ?? resolve(harness, '../mermaid-reference')
+  const upstream = options.mermaidDir ?? mermaidUpstreamDirectory()
+  const reference = options.referenceDir ?? mermaidOracleDirectory()
   const git = (...args: string[]) => execFileSync('git', args, { cwd: upstream, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
   const sourcePin = () => {
     if (git('status', '--porcelain', '--untracked-files=all')) throw Error('Upstream test corpus must be a clean pinned checkout')

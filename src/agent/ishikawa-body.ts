@@ -1,4 +1,5 @@
-import { formatUnknownOpMessage } from './unknown-op.ts'
+export { ISHIKAWA_OP_SCHEMAS, ISHIKAWA_OP_KINDS } from '../ishikawa/ops.ts'
+import { unknownOpMessage } from './mutation-ops.ts'
 import type { IshikawaBody, IshikawaMutationOp } from '../ishikawa/types.ts'
 import { parseIshikawaDiagram } from '../ishikawa/parser.ts'
 import type { LayoutWarning, MutationError, Result, VerifyOptions } from './types.ts'
@@ -116,7 +117,7 @@ export function mutateIshikawa(body: IshikawaBody, op: IshikawaMutationOp): Resu
         break
       }
       default:
-        throw new Error(formatUnknownOpMessage('ishikawa', op, ISHIKAWA_OP_KINDS.join(', ')))
+        throw new Error(unknownOpMessage('ishikawa', op))
     }
     renderIshikawa(next)
     return ok(next)
@@ -132,16 +133,3 @@ export function verifyIshikawa(body: IshikawaBody, opts: VerifyOptions): LayoutW
   for (const node of body.nodes) overflow(node.id, node.label)
   return warnings
 }
-
-const string = { type: 'string', required: true } as const
-const nullable = { type: 'string-or-null', required: true } as const
-export const ISHIKAWA_OP_SCHEMAS = {
-  set_effect: { fields: { label: string } },
-  add_cause: { fields: { label: string, parentId: { type: 'string', required: false } } },
-  remove_cause: { fields: { id: string } },
-  set_label: { fields: { id: string, label: string } },
-  move_cause: { fields: { id: string, parentId: string, index: { type: 'number', required: false } } },
-  set_accessibility_title: { fields: { title: nullable } },
-  set_accessibility_description: { fields: { description: nullable } },
-} as const
-export const ISHIKAWA_OP_KINDS = Object.keys(ISHIKAWA_OP_SCHEMAS)

@@ -1,10 +1,9 @@
+import { evaluateBrowserScript } from './browser-script-harness.ts'
+import { editorModuleScript } from './helpers/editor-module-harness.ts'
 import { describe, expect, test } from 'bun:test'
 import { deflateRawSync } from 'node:zlib'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
-const ROOT = join(import.meta.dir, '..', '..')
-const sharingSource = readFileSync(join(ROOT, 'editor/js/sharing.js'), 'utf8')
+const sharingSource = await editorModuleScript('sharing.js')
 
 function memoryStorage() {
   const values = new Map<string, string>()
@@ -37,50 +36,20 @@ function sharingHarness(options: {
       ],
     },
   }
-  const factory = new Function(
-    'window', 'localStorage', 'sessionStorage', 'editor', 'state', 'document', 'showToast',
-    'CompressionStream', 'DecompressionStream', 'Blob', 'Response', 'TextEncoder', 'TextDecoder',
-    'Uint8Array', 'URLSearchParams', 'btoa', 'atob', 'setTimeout', 'clearTimeout',
-    'hasCurrentVerifiedSvgArtifact', 'DEFAULT_EDITOR_PALETTE',
-    `${sharingSource}\nreturn {
-      decodeSource,
-      encodeSourceCompressed,
-      updateHash,
-      readEditorDraft,
-      saveEditorDraft,
-      discardEditorDraft,
-      get hashDecodeFailure() { return hashDecodeFailure; },
-      get draftRestoreFailure() { return draftRestoreFailure; },
-      MAX_SHARE_DECODED_BYTES,
-      MAX_SHARE_ENCODED_BYTES,
-      MAX_DRAFT_BYTES,
-      DRAFT_STORAGE_KEY,
-      sanitizeEditorStyle,
-    };`,
-  )
-  const api = factory(
-    window,
-    localStorage,
-    sessionStorage,
-    editor,
-    state,
-    { getElementById() { return null } },
-    (message: string) => toasts.push(message),
-    Object.prototype.hasOwnProperty.call(options, 'compression') ? options.compression : globalThis.CompressionStream,
-    Object.prototype.hasOwnProperty.call(options, 'decompression') ? options.decompression : globalThis.DecompressionStream,
-    globalThis.Blob,
-    globalThis.Response,
-    globalThis.TextEncoder,
-    globalThis.TextDecoder,
-    globalThis.Uint8Array,
-    globalThis.URLSearchParams,
-    globalThis.btoa,
-    globalThis.atob,
-    globalThis.setTimeout,
-    globalThis.clearTimeout,
-    () => options.verified !== false,
-    'paper',
-  )
+  const api = evaluateBrowserScript<any>(sharingSource, {
+    window, localStorage, sessionStorage, editor, state,
+    document: { getElementById() { return null } },
+    showToast: (message: string) => toasts.push(message),
+    CompressionStream: Object.prototype.hasOwnProperty.call(options, 'compression') ? options.compression : globalThis.CompressionStream,
+    DecompressionStream: Object.prototype.hasOwnProperty.call(options, 'decompression') ? options.decompression : globalThis.DecompressionStream,
+    hasCurrentVerifiedSvgArtifact: () => options.verified !== false,
+    DEFAULT_EDITOR_PALETTE: 'paper',
+  }, `{
+    decodeSource, encodeSourceCompressed, updateHash, readEditorDraft, saveEditorDraft, discardEditorDraft,
+    get hashDecodeFailure() { return hashDecodeFailure; },
+    get draftRestoreFailure() { return draftRestoreFailure; },
+    MAX_SHARE_DECODED_BYTES, MAX_SHARE_ENCODED_BYTES, MAX_DRAFT_BYTES, DRAFT_STORAGE_KEY, sanitizeEditorStyle,
+  }`)
   return { api, localStorage, sessionStorage, editor, state, toasts, replacedUrls }
 }
 

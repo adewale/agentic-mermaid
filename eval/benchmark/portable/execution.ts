@@ -1,9 +1,10 @@
+import { StringDecoder } from 'node:string_decoder'
 import { fork, spawn, type ChildProcess } from 'node:child_process'
-import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { performance } from 'node:perf_hooks'
-import { portableDirectory, readJson } from './artifacts.ts'
-import type { PortableArtifact, PortableJob, PortableWorkerResult, Replica } from './protocol.ts'
+import { portableDirectory } from './artifacts.ts'
+import { familySupportProbe } from './cohorts.ts'
+import { PORTABLE_MEASUREMENT_PROTOCOL, type PortableArtifact, type PortableJob, type PortableWorkerResult, type Replica } from './protocol.ts'
 import type { PortableCase } from './cohorts.ts'
 import type { PortableOptions } from './run.ts'
 
@@ -34,14 +35,17 @@ export function terminatePortableWorkers() {
   for (const child of active) kill(child)
 }
 function validateResult(job: PortableJob, result: PortableWorkerResult) {
-  if (result.protocol !== 'portable-svg-processes-v1' || result.caseId !== job.testCase.id || result.mode !== job.mode || result.round !== job.round || result.replica !== job.replica || result.sample !== job.sample || !['passed', 'partial', 'failed', 'blocked'].includes(result.status))
+  if (result.protocol !== PORTABLE_MEASUREMENT_PROTOCOL || result.caseId !== job.testCase.id || result.mode !== job.mode || result.round !== job.round || result.replica !== job.replica || result.sample !== job.sample || !['passed', 'partial', 'failed', 'blocked', ...(job.mode === 'probe' ? ['unsupported'] : [])].includes(result.status))
     throw Error('Worker evidence does not match the declared job')
   return result
 }
-function writeJob(job: PortableJob) {
-  const path = job.resultFile + '.job.json'
-  writeFileSync(path, JSON.stringify(job), { flag: 'wx' })
-  return path
+function failureEvidence(job: PortableJob, error: unknown, diagnostics: string, result?: PortableWorkerResult) {
+  const file = job.diagnosticFile ?? (job.resultFile ? job.resultFile + '.failure.json' : undefined)
+  if (!file || existsSync(file)) return
+  try {
+    mkdirSync(dirname(file), { recursive: true })
+    writeFileSync(file, JSON.stringify({ job, error: String(error), diagnostics, result }) + '\n', { flag: 'wx' })
+  } catch (failure) { if (error instanceof Error) error.message += '; Could not retain worker diagnostic: ' + String(failure) }
 }
 function assertExit(result: PortableWorkerResult, code: number | null, signal: NodeJS.Signals | null) {
   assertPortableRunning()
@@ -49,122 +53,108 @@ function assertExit(result: PortableWorkerResult, code: number | null, signal: N
 }
 export async function runSerialJob(job: PortableJob, node: string, observer?: string): Promise<PortableWorkerResult> {
   assertPortableRunning()
-  const file = writeJob(job),
-    resource = job.resultFile + '.resources.txt',
-    args = ['--expose-gc', join(portableDirectory, 'worker.mjs'), file]
-  const child = spawn(observer ?? node, observer ? ['-f', '%U\n%S\n%M', '-o', resource, '--', node, ...args] : args, { detached: process.platform !== 'win32', stdio: ['ignore', 'pipe', 'pipe'] })
+  const input = JSON.stringify(job)
+  const args = ['--expose-gc', join(portableDirectory, 'worker.mjs'), '--stdio']
+  // GNU time writes its counters after the child exits. Frame that final stderr
+  // suffix rather than reopening a Node socket through /dev/fd (which fails on
+  // Linux). The worker's result still has its own descriptor, independent of
+  // renderer stdout/stderr. No resource files are needed.
+  const child = spawn(observer ?? node, observer ? ['-f', '\nTRIDENT_RESOURCE %U %S %M', '--', node, ...args] : args, { detached: process.platform !== 'win32', stdio: ['pipe', 'ignore', 'pipe', 'pipe'] })
   active.add(child)
-  let diagnostics = ''
-  child.stdout?.on('data', () => {})
-  child.stderr?.on('data', data => {
-    diagnostics = (diagnostics + String(data)).slice(-2000)
-  })
-  const exit = await new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      kill(child)
-      reject(Error('Fresh worker exceeded60seconds'))
-    }, 60_000)
-    child.once('error', error => {
-      clearTimeout(timeout)
-      active.delete(child)
-      reject(error)
+  const decoder = new StringDecoder('utf8')
+  let diagnostics = '', payload = '', payloadBytes = 0, transportError: Error | undefined
+  child.stderr?.on('data', data => { diagnostics = (diagnostics + String(data)).slice(-2000) })
+  child.stdio[3]?.on('data', (data: Buffer) => { payload += decoder.write(data); payloadBytes += data.length; if (payloadBytes > 64 * 1024 * 1024) { transportError = Error('Worker evidence exceeded64MiB'); kill(child) } })
+  child.stdin?.on('error', error => { transportError ??= error })
+  child.stdin?.end(input)
+  let result: PortableWorkerResult | undefined
+  try {
+    const exit = await new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolve, reject) => {
+      const timeout = setTimeout(() => { kill(child); reject(Error('Fresh worker exceeded60seconds')) }, 60_000)
+      child.once('error', error => { clearTimeout(timeout); active.delete(child); reject(error) })
+      child.once('close', (code, signal) => { clearTimeout(timeout); active.delete(child); resolve({ code, signal }) })
     })
-    child.once('close', (code, signal) => {
-      clearTimeout(timeout)
-      active.delete(child)
-      resolve({ code, signal })
-    })
-  })
-  assertPortableRunning()
-  if (!existsSync(job.resultFile)) throw Error('Fresh worker failed without completed evidence: ' + diagnostics)
-  const result = validateResult(job, readJson(job.resultFile))
-  assertExit(result, exit.code, exit.signal)
-  if (observer) {
-    const values = readFileSync(resource, 'utf8').trim().split('\n').map(Number)
-    if (exit.code !== 0 || values.length !== 3 || values.some(value => !Number.isFinite(value) || value < 0)) throw Error('Invalid GNU time child evidence')
-    result.resource = { userSeconds: values[0]!, systemSeconds: values[1]!, peakRssBytes: values[2]! * 1024, scope: 'Whole fresh process, including import, driver, GC and post-snapshot qualification; not an API-only allocation peak.' }
-    writeFileSync(job.resultFile, JSON.stringify(result) + '\n')
-  }
-  return result
-}
-/** Imports may overlap; all timed API calls wait behind a complete idle barrier. */
-export async function runFirstUseBatch(jobs: PortableJob[], node: string, concurrency: number): Promise<PortableWorkerResult[]> {
-  const results: PortableWorkerResult[] = []
-  for (let start = 0; start < jobs.length; start += concurrency) {
     assertPortableRunning()
-    const selected = jobs.slice(start, start + concurrency)
-    const prepared = selected.map(job => {
-      const file = writeJob(job),
-        child = fork(join(portableDirectory, 'worker.mjs'), [file], { execPath: node, execArgv: ['--expose-gc'], silent: true, detached: process.platform !== 'win32' })
-      active.add(child)
-      let diagnostics = '',
-        ready = false
-      child.stdout?.on('data', () => {})
-      child.stderr?.on('data', data => {
-        diagnostics = (diagnostics + String(data)).slice(-2000)
-      })
+    if (transportError) throw transportError
+    payload += decoder.end()
+    if (!payload) throw Error('Fresh worker failed without completed evidence: ' + diagnostics)
+    result = validateResult(job, JSON.parse(payload))
+    assertExit(result, exit.code, exit.signal)
+    if (observer) {
+      const counters = /\nTRIDENT_RESOURCE ([^\s]+) ([^\s]+) ([^\s]+)\n$/.exec(diagnostics)
+      const values = counters?.slice(1).map(Number)
+      if (exit.code !== 0 || !values || values.some(value => !Number.isFinite(value) || value < 0)) throw Error('Invalid GNU time child evidence')
+      result.resource = { userSeconds: values[0]!, systemSeconds: values[1]!, peakRssBytes: values[2]! * 1024, scope: 'Whole fresh process, including import, driver, GC and post-snapshot qualification; not an API-only allocation peak.' }
+    }
+    return result
+  } catch (error) { failureEvidence(job, error, diagnostics, result); throw error }
+}
+/** Imports may overlap; all timed API calls wait behind a complete idle barrier.
+ * Dedicated IPC carries jobs/results; successful workers create no disk files. */
+export async function runFirstUseBatch(jobs: PortableJob[], node: string, concurrency: number, retain?: (result: PortableWorkerResult) => void): Promise<PortableWorkerResult[]> {
+  assertPortableRunning()
+  // Validate the entire wire batch before starting any process.
+  const wireJobs = jobs.map(job => JSON.parse(JSON.stringify(job)) as PortableJob)
+  const results: PortableWorkerResult[] = []
+  for (let start = 0; start < wireJobs.length; start += concurrency) {
+    assertPortableRunning()
+    const launched: ChildProcess[] = []
+    const prepare = (job: PortableJob) => {
+      const child = fork(join(portableDirectory, 'worker.mjs'), ['--ipc'], { execPath: node, execArgv: ['--expose-gc'], detached: process.platform !== 'win32', stdio: ['ignore', 'ignore', 'pipe', 'ipc'] })
+      active.add(child); launched.push(child)
+      let diagnostics = '', ready = false, started = false, result: PortableWorkerResult | undefined, transportError: Error | undefined
+      child.stderr?.on('data', data => { diagnostics = (diagnostics + String(data)).slice(-2000) })
       let resolveReady!: () => void, rejectReady!: (error: Error) => void
-      const readiness = new Promise<void>((resolve, reject) => {
-        resolveReady = resolve
-        rejectReady = reject
-      })
-      // Attach rejection handling immediately while the rest of the batch starts.
+      const readiness = new Promise<void>((resolve, reject) => { resolveReady = resolve; rejectReady = reject })
       void readiness.catch(() => {})
-      let timeout = setTimeout(() => {
-        kill(child)
-        rejectReady(Error('First-use import barrier timed out'))
-      }, 60_000)
-      child.once('message', message => {
-        if ((message as { phase?: string })?.phase === 'ready') {
-          clearTimeout(timeout)
-          ready = true
-          resolveReady()
-        } else rejectReady(Error('Invalid first-use barrier'))
+      let timeout = setTimeout(() => { kill(child); rejectReady(Error('First-use import barrier timed out')) }, 60_000)
+      child.on('message', message => {
+        const value = message as { phase?: string; result?: PortableWorkerResult }
+        try {
+          if (value?.phase === 'ready' && !ready && !started) { clearTimeout(timeout); ready = true; resolveReady() }
+          else if (value?.phase === 'result' && !result && value.result) {
+            result = validateResult(job, value.result)
+            if (!started) {
+              if (result.status !== 'blocked' || result.apiWindow || Object.keys(result.tracks).length) throw Error('First-use evidence arrived before its API start')
+              rejectReady(Error('First-use worker blocked before readiness: ' + result.error))
+            }
+          } else throw Error('Invalid first-use worker message')
+        } catch (error) { transportError = error as Error; rejectReady(transportError); kill(child) }
       })
-      let exit: { code: number | null; signal: NodeJS.Signals | null }
+      let exit!: { code: number | null; signal: NodeJS.Signals | null }
       const completion = new Promise<void>((resolve, reject) => {
-        child.once('error', reject)
+        child.once('error', error => { clearTimeout(timeout); active.delete(child); rejectReady(error); reject(error) })
         child.once('close', (code, signal) => {
-          exit = { code, signal }
-          clearTimeout(timeout)
-          active.delete(child)
+          exit = { code, signal }; clearTimeout(timeout); active.delete(child)
           if (!ready) rejectReady(Error('Worker exited before the first-use barrier: ' + diagnostics))
-          if (signal || code === null || code > 2) reject(Error('First-use worker failed: ' + diagnostics))
+          if (transportError || signal || code === null || code > 2) reject(transportError ?? Error('First-use worker failed: ' + diagnostics))
           else resolve()
         })
       })
       void completion.catch(() => {})
-      return {
-        child,
-        job,
-        readiness,
-        completion,
-        get exit() {
-          return exit
-        },
-        startDeadline() {
-          timeout = setTimeout(() => kill(child), 60_000)
-        },
-      }
-    })
+      try { child.send({ phase: 'job', job }, error => { if (error) { transportError = error; rejectReady(error); kill(child) } }) } catch (error) { transportError = error as Error; rejectReady(transportError); kill(child) }
+      return { child, job, readiness, completion, get result() { return result }, get exit() { return exit }, get diagnostics() { return diagnostics }, get started() { return started }, start() { started = true; timeout = setTimeout(() => kill(child), 60_000); child.send({ phase: 'start' }) } }
+    }
+    let prepared: ReturnType<typeof prepare>[]
+    try { prepared = wireJobs.slice(start, start + concurrency).map(prepare) }
+    catch (error) {
+      await Promise.all(launched.map(child => new Promise<void>(resolve => { if (child.exitCode !== null || child.signalCode !== null) resolve(); else { child.once('close', () => resolve()); kill(child) } })))
+      throw error
+    }
     try {
       await Promise.all(prepared.map(item => item.readiness))
       for (const item of prepared) {
-        assertPortableRunning()
-        const started = performance.now()
-        item.startDeadline()
-        item.child.send({ phase: 'start' })
-        await item.completion
-        const result = validateResult(item.job, readJson(item.job.resultFile))
+        assertPortableRunning(); item.start(); await item.completion
+        if (!item.result) throw Error('First-use worker exited without completed evidence')
+        const result = validateResult(item.job, item.result)
         assertExit(result, item.exit.code, item.exit.signal)
-        appendFileSync(join(dirname(item.job.resultFile), 'barrier-order.jsonl'), JSON.stringify({ resultFile: item.job.resultFile, apiStartedAfterAllImportsReady: true, apiWindow: result.apiWindow ?? null, completeWallMs: performance.now() - started }) + '\n')
-        results.push(result)
+        results.push(result); retain?.(result)
       }
     } catch (error) {
       for (const item of prepared) kill(item.child)
       await Promise.allSettled(prepared.map(item => item.completion))
-      assertPortableRunning()
-      throw error
+      for (const item of prepared) if (!item.started || !item.result || item.exit?.signal || item.exit?.code !== (item.result.status === 'blocked' ? 2 : 0)) failureEvidence(item.job, error, item.diagnostics, item.result)
+      assertPortableRunning(); throw error
     }
   }
   return results
@@ -172,7 +162,6 @@ export async function runFirstUseBatch(jobs: PortableJob[], node: string, concur
 
 /** All timed scheduling lives beside the execution boundary, independently of reporting. */
 export async function measurePortableProject(artifact: PortableArtifact, testCases: PortableCase[], options: PortableOptions, directory: string, retain: (result: PortableWorkerResult) => void) {
-  const raw = join(directory, 'raw')
   const makeJob = (testCase: PortableCase, round: number, replica: Replica, mode: PortableJob['mode'], sample: number): PortableJob => {
     const stem = `${testCase.id.replaceAll(':', '_')}-${mode}-r${round}-${replica}-${sample}`
     return {
@@ -184,11 +173,22 @@ export async function measurePortableProject(artifact: PortableArtifact, testCas
       round,
       replica,
       sample,
-      resultFile: join(raw, stem + '.json'),
-      fullEvidence: mode === 'warm' && round === 1,
+      diagnosticFile: join(directory, 'failures', stem + '.json'),
+      fullEvidence: mode === 'warm' && round === 1 && replica === 'B',
       ...(mode === 'warm' && round === 1 && replica === 'B' ? { svgFile: join(directory, 'svg', testCase.id.replaceAll(':', '_') + '.svg') } : {}),
     }
   }
+  // Probe each selected family once, untimed, before any measured case of that family runs.
+  const unsupported = new Set<string>()
+  for (const family of new Set(testCases.map(testCase => testCase.family))) {
+    const probe = familySupportProbe(family)
+    if (!probe) continue
+    const result = await runSerialJob(makeJob(probe, 1, 'B', 'probe', 0), options.node)
+    retain(result)
+    if (result.status === 'unsupported') unsupported.add(family)
+    console.log(JSON.stringify({ phase: 'family-support', project: options.project, family, supported: result.status !== 'unsupported' }))
+  }
+  testCases = testCases.filter(testCase => !unsupported.has(testCase.family))
   const order = (round: number, index: number) => {
     const values: Replica[] = ['A0', 'A1', 'B']
     const offset = (round + index) % values.length
@@ -203,7 +203,7 @@ export async function measurePortableProject(artifact: PortableArtifact, testCas
     for (const [index, testCase] of testCases.entries()) {
       for (const replica of order(round, index)) {
         const jobs = Array.from({ length: options.coldSamples }, (_, sample) => makeJob(testCase, round, replica, 'cold', sample))
-        for (const result of await runFirstUseBatch(jobs, options.node, options.preparationConcurrency)) retain(result)
+        await runFirstUseBatch(jobs, options.node, options.preparationConcurrency, retain)
       }
       console.log(JSON.stringify({ phase: 'first-use', project: options.project, round, caseId: testCase.id, completedCasesInRound: index + 1 }))
     }

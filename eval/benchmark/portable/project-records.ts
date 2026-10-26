@@ -1,6 +1,8 @@
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
-import { isAbsolute, join } from 'node:path'
-import type { BenchmarkObservation } from './observation.ts'
+import { createHash, randomUUID } from 'node:crypto'
+import { gzipSync, gunzipSync } from 'node:zlib'
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, renameSync, statSync, lstatSync, linkSync, unlinkSync, writeFileSync } from 'node:fs'
+import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path'
+import type { BenchmarkObservation, UnifiedSuiteResult } from './observation.ts'
 
 export interface ProjectBenchmarkIdentity {
   project: string
@@ -56,7 +58,7 @@ function component(value: unknown, name: string): string {
   if (typeof value !== 'string' || !value || Buffer.byteLength(value) > 160) return fail(`${name} must be a nonempty string of at most160 UTF-8 bytes`)
   return Buffer.from(value).toString('base64url')
 }
-const pathFor = (store: string, project: string, id: string) => join(store, 'projects', component(project, 'project'), component(id, 'record id') + '.json')
+export const projectRecordPath = (store: string, project: string, id: string) => join(store, 'projects', component(project, 'project'), component(id, 'record id') + '.json')
 const strings = (value: unknown): value is string[] => Array.isArray(value) && value.every(item => typeof item === 'string')
 function validateIdentity(value: unknown): asserts value is ProjectBenchmarkIdentity {
   if (!value || typeof value !== 'object') fail('identity is missing')
@@ -113,9 +115,117 @@ function readIndex(store: string): ProjectIndex {
   }
   return index
 }
-function readRecord(store: string, project: string, id: string, expectedLane = 'community'): ProjectBenchmarkRecord {
-  const record: unknown = JSON.parse(readFileSync(pathFor(store, project, id), 'utf8'))
+interface OutputReference { path: string; bytes: number; sha256: string }
+interface StoredRecordReference { schemaVersion: 2; kind: 'project-benchmark-record-reference'; id: string; project: string; lane?: string; payload: OutputReference }
+const canonicalRecords = new WeakSet<ProjectBenchmarkRecord>()
+const digest = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex')
+const json = (file: string): any => { const bytes = readFileSync(file); return JSON.parse((file.endsWith('.gz') ? gunzipSync(bytes) : bytes).toString('utf8')) }
+const outputReference = (file: string): OutputReference => {
+  if (!lstatSync(file).isFile()) return fail('canonical output must be a regular file, not a symlink')
+  const bytes = readFileSync(file)
+  return { path: resolve(file), bytes: bytes.length, sha256: digest(bytes) }
+}
+function verifyOutput(reference: OutputReference, ownerFile?: string): string {
+  if (!reference || typeof reference.path !== 'string' || !reference.path || !Number.isSafeInteger(reference.bytes) || reference.bytes < 0 || typeof reference.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(reference.sha256)) return fail('invalid output reference')
+  const absolute = isAbsolute(reference.path)
+  if (!absolute && (!ownerFile || basename(reference.path) !== reference.path || /[\\/]/.test(reference.path) || ['.', '..'].includes(reference.path))) return fail('invalid output reference')
+  const file = absolute ? reference.path : join(dirname(resolve(ownerFile!)), reference.path), actual = outputReference(file)
+  if (actual.bytes !== reference.bytes || actual.sha256 !== reference.sha256) return fail('canonical output differs from its immutable reference')
+  return file
+}
+/** Publish a complete file without exposing a partially written destination.
+ * Link is exclusive; a concurrent writer cannot replace an immutable payload. */
+function immutableWrite(file: string, bytes: Buffer | string) {
+  const temporary = file + '.' + randomUUID() + '.pending'
+  try { writeFileSync(temporary, bytes, { flag: 'wx' }); linkSync(temporary, file) }
+  finally { if (existsSync(temporary)) unlinkSync(temporary) }
+}
+/** One compressed observation payload. Existing completed bytes are never
+ * rewritten, including on an explicit publication retry. */
+export function writeProjectBenchmarkRecord(file: string, record: ProjectBenchmarkRecord): OutputReference {
   validateRecord(record)
+  record = JSON.parse(JSON.stringify(record)) as ProjectBenchmarkRecord
+  if (!file.endsWith('.json.gz')) return fail('new canonical record needs a .json.gz path')
+  if (existsSync(file)) {
+    if (stableValue(readProjectBenchmarkRecord(file)) !== stableValue(record)) return fail('canonical payload already contains a different attempt')
+    return outputReference(file)
+  }
+  immutableWrite(file, gzipSync(Buffer.from(JSON.stringify(record))))
+  return outputReference(file)
+}
+/** Legacy inline records remain readable. New store files are small references
+ * to the one canonical gzip record in the owning evidence directory. */
+export function readProjectBenchmarkRecord(file: string): ProjectBenchmarkRecord { return hydrateRecord(json(file), file) }
+function hydrateRecord(stored: any, file: string): ProjectBenchmarkRecord {
+  if (stored?.schemaVersion === 2 && stored.kind === 'project-benchmark-record-reference') {
+    const reference = stored as StoredRecordReference, payload = verifyOutput(reference.payload), record = json(payload)
+    validateRecord(record)
+    if (record.id !== reference.id || record.identity.project !== reference.project || lane(record.identity) !== lane(reference)) return fail('record identity differs from its reference')
+    canonicalRecords.add(record)
+    return record
+  }
+  validateRecord(stored)
+  if (file.endsWith('.gz')) canonicalRecords.add(stored)
+  return stored
+}
+/** Resolve legacy suites, canonical records and small result references. When
+ * passed a hydrated legacy record, retain its original owning-result check. */
+const recordEnvelope = (value: any) => value?.schemaVersion === 1 && value.identity && Array.isArray(value.observations) && typeof value.evidenceDirectory === 'string'
+/** Ordinary documents remain ordinary JSON. A typed result reference projects
+ * a record to its suite result; reading the canonical record directly does not. */
+export function readBenchmarkDocument(file: string): any { return resolveDocument(file, new Set(), false) }
+function resolveDocument(source: string, visited: Set<string>, projectRecord: boolean): any {
+  let file = source
+  if (!existsSync(file) && existsSync(file + '.gz')) file += '.gz'
+  const key = resolve(file)
+  if (visited.has(key)) return fail('cyclic benchmark result reference')
+  visited.add(key)
+  const stored = json(file)
+  if (stored?.schemaVersion === 2 && stored.kind === 'benchmark-result-reference') return resolveDocument(verifyOutput(stored.payload, file), visited, true)
+  if (stored?.schemaVersion === 2 && stored.kind === 'project-benchmark-record-reference') { const record = hydrateRecord(stored, file); return projectRecord ? readBenchmarkResult(record) : record }
+  if (projectRecord && recordEnvelope(stored)) return readBenchmarkResult(hydrateRecord(stored, file))
+  return stored
+}
+export function readBenchmarkResult(source: string | ProjectBenchmarkRecord): UnifiedSuiteResult {
+  if (typeof source !== 'string') {
+    const result = { ...(source.provenance as object), observations: source.observations } as UnifiedSuiteResult
+    if (!result.id || !result.status || !result.startedAt || !result.finishedAt || !Array.isArray(result.gaps)) return fail('record has no suite result metadata')
+    const owning = join(source.evidenceDirectory, 'result.json')
+    if (!canonicalRecords.has(source) && existsSync(owning)) {
+      const original = json(owning)
+      if (stableValue(original) !== stableValue(result)) return fail('owning benchmark result differs from its immutable project record')
+    }
+    return result
+  }
+  const stored = resolveDocument(source, new Set(), true)
+  if (!Array.isArray(stored?.observations) || !Array.isArray(stored?.gaps)) return fail('file has no benchmark result')
+  return stored as UnifiedSuiteResult
+}
+function mutableWrite(file: string, bytes: Buffer | string) {
+  const temporary = file + '.' + randomUUID() + '.pending'
+  try { writeFileSync(temporary, bytes, { flag: 'wx' }); renameSync(temporary, file) }
+  finally { if (existsSync(temporary)) unlinkSync(temporary) }
+}
+function writeResultReference(file: string, payloadFile: string, sibling: boolean) {
+  const payload = outputReference(payloadFile)
+  if (sibling) payload.path = basename(payloadFile)
+  mutableWrite(file, JSON.stringify({ schemaVersion: 2, kind: 'benchmark-result-reference', payload }) + '\n')
+}
+export function writeBenchmarkResultReference(file: string, payloadFile: string): void { writeResultReference(file, payloadFile, false) }
+/** Derived reports may be regenerated. Canonical measurement records use the
+ * immutable writer above and are never rewritten by this document writer. */
+export function writeBenchmarkDocument(file: string, value: unknown): void {
+  if (!file.endsWith('.json')) return fail('derived document destination needs a .json path')
+  const payload = file + '.gz'
+  for (const existing of [file, payload]) if (existsSync(existing)) {
+    const document = json(existing)
+    if (recordEnvelope(document) || document?.schemaVersion === 2 && document.kind === 'project-benchmark-record-reference') return fail('immutable measurement record cannot be rewritten as a derived document')
+  }
+  mutableWrite(payload, gzipSync(Buffer.from(JSON.stringify(value))))
+  writeResultReference(file, payload, true)
+}
+function readRecord(store: string, project: string, id: string, expectedLane = 'community'): ProjectBenchmarkRecord {
+  const record = readProjectBenchmarkRecord(projectRecordPath(store, project, id))
   if (record.id !== id || record.identity.project !== project || lane(record.identity) !== expectedLane) fail('record identity differs from its index')
   return record
 }
@@ -163,20 +273,33 @@ function publishIndex(store: string, index: ProjectIndex): void {
   }
 }
 
-/** One immutable attempt per file; publishing the index is the only mutable step. */
-export function publishProjectRecord(store: string, record: ProjectBenchmarkRecord): void {
+export interface RecordPublicationOptions { payloadFile?: string }
+/** Only the index is mutable. New store entries reference a canonical compressed
+ * record instead of copying its observations and dependency identities. */
+export function publishProjectRecord(store: string, record: ProjectBenchmarkRecord, options: RecordPublicationOptions = {}): void {
   validateRecord(record)
+  record = JSON.parse(JSON.stringify(record)) as ProjectBenchmarkRecord
   if (!retained(record)) fail('retained evidence directory is missing')
   withWriterLock(store, () => {
-    const index = readIndex(store),
-      destination = pathFor(store, record.identity.project, record.id)
-    mkdirSync(join(store, 'projects', component(record.identity.project, 'project')), { recursive: true })
-    writeFileSync(destination, JSON.stringify(record, null, 2) + '\n', { flag: 'wx' })
+    const index = readIndex(store), destination = projectRecordPath(store, record.identity.project, record.id)
     const entry = index.projects.find(entry => entry.project === record.identity.project && lane(entry) === lane(record.identity))
-    if (entry) {
-      entry.current = record.id
-      entry.history.push(record.id)
-    } else index.projects.push({ project: record.identity.project, ...(record.identity.lane ? { lane: record.identity.lane } : {}), current: record.id, history: [record.id] })
+    if (entry?.history.includes(record.id)) return fail('immutable attempt is already published')
+    mkdirSync(dirname(destination), { recursive: true })
+    if (existsSync(destination)) {
+      // An exact, complete orphan from a failed index write may finish that
+      // publication. A truncated or conflicting orphan cannot be overwritten.
+      if (stableValue(readProjectBenchmarkRecord(destination)) !== stableValue(record)) return fail('unpublished record differs from the completed attempt')
+    } else {
+      const payload = options.payloadFile ?? join(record.evidenceDirectory, 'record-' + digest(gzipSync(Buffer.from(JSON.stringify(record)))) + '.json.gz')
+      if (!resolve(payload).startsWith(resolve(record.evidenceDirectory) + sep)) return fail('canonical payload must belong to the evidence directory')
+      if (options.payloadFile) {
+        if (stableValue(readProjectBenchmarkRecord(payload)) !== stableValue(record)) return fail('canonical payload differs from the completed attempt')
+      } else writeProjectBenchmarkRecord(payload, record)
+      const reference: StoredRecordReference = { schemaVersion: 2, kind: 'project-benchmark-record-reference', id: record.id, project: record.identity.project, ...(record.identity.lane ? { lane: record.identity.lane } : {}), payload: outputReference(payload) }
+      immutableWrite(destination, JSON.stringify(reference) + '\n')
+    }
+    if (entry) { entry.current = record.id; entry.history.push(record.id) }
+    else index.projects.push({ project: record.identity.project, ...(record.identity.lane ? { lane: record.identity.lane } : {}), current: record.id, history: [record.id] })
     publishIndex(store, index)
   })
 }

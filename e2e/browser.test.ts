@@ -16,11 +16,9 @@ import { join } from 'path'
 import { deflateRawSync, gzipSync } from 'node:zlib'
 import { chromium, type Browser, type BrowserContext, type CDPSession, type Page } from 'playwright'
 import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
-import { renderMermaidSVG, renderMermaidSVGWithReceipt, renderMermaidASCIIWithReceipt } from '../src/index.ts'
+import { renderMermaidSVG, renderMermaidSVGWithReceipt, renderMermaidASCIIWithReceipt, knownStyleDescriptors, inferBackend } from '../src/index.ts'
 import { serveWithAvailablePort } from './test-port.ts'
 import { PIE_ENTITY_FIXTURES } from '../src/__tests__/helpers/pie-entity-fixtures.ts'
-import { restyle } from '../scripts/sketch-prototype/restyle.ts'
-import { STYLES } from '../scripts/sketch-prototype/styles.ts'
 
 const ROOT = join(import.meta.dir, '..')
 const PREFERRED_PORT = 4567
@@ -287,14 +285,17 @@ afterAll(async () => {
 // Tests
 // ---------------------------------------------------------------------------
 
-it('prototype styles paint readable label ink against an opaque halo', async () => {
+it('shipped sketch looks paint readable label ink against an opaque halo', async () => {
   const labels = await browser.newPage()
   await labels.route('**/*', route => route.abort())
   try {
-    for (const style of STYLES) {
-      await labels.setContent(restyle('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 50"><text x="8" y="28">Readable label</text></svg>', style, { backdrop: false }))
+    const looks = knownStyleDescriptors().filter(descriptor => descriptor.kind === 'look' && inferBackend(descriptor.spec) !== 'default')
+    expect(looks.length).toBeGreaterThan(0)
+    for (const style of looks) {
+      await labels.setContent(renderMermaidSVG('flowchart TD\n A["Readable label"]', { style: style.inputName, embedFontImport: false, seed: 7 }))
       const paint = await labels.evaluate(() => {
-        const text = [...document.querySelectorAll('text')].find(node => node.textContent === 'Readable label')!
+        const text = [...document.querySelectorAll('text')].find(node => node.textContent?.toLowerCase() === 'readable label')
+        if (!text) throw new Error('Shipped look did not paint the node label')
         const computed = getComputedStyle(text)
         // Canvas normalizes supported CSS colors without pinning hex spelling.
         const canvas = document.createElement('canvas')
@@ -314,18 +315,18 @@ it('prototype styles paint readable label ink against an opaque halo', async () 
           visibility: computed.visibility, display: computed.display,
         }
       })
-      expect(paint, style.name).toMatchObject({ order: 'stroke', opacity: [1, 1, 1], visibility: 'visible' })
-      expect(paint.display, style.name).not.toBe('none')
-      expect(paint.width, style.name).toBeGreaterThan(0)
-      expect(paint.fill[3], style.name).toBe(255)
-      expect(paint.halo[3], style.name).toBe(255)
+      expect(paint, style.inputName).toMatchObject({ order: 'stroke', opacity: [1, 1, 1], visibility: 'visible' })
+      expect(paint.display, style.inputName).not.toBe('none')
+      expect(paint.width, style.inputName).toBeGreaterThan(0)
+      expect(paint.fill[3], style.inputName).toBe(255)
+      expect(paint.halo[3], style.inputName).toBe(255)
       // WCAG 2 relative luminance, independently of the production guardrail.
       const luminance = (rgba: number[]) => rgba.slice(0, 3).reduce((sum, channel, i) => {
         const c = channel / 255
         return sum + [0.2126, 0.7152, 0.0722][i]! * (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
       }, 0)
       const [light, dark] = [luminance(paint.fill), luminance(paint.halo)].sort((a, b) => b - a)
-      expect((light! + 0.05) / (dark! + 0.05), style.name).toBeGreaterThanOrEqual(4.5)
+      expect((light! + 0.05) / (dark! + 0.05), style.inputName).toBeGreaterThanOrEqual(4.5)
     }
   } finally {
     await labels.close()
@@ -334,12 +335,12 @@ it('prototype styles paint readable label ink against an opaque halo', async () 
 
 it('standalone editor stays within its single-renderer payload budget', async () => {
   const html = new Uint8Array(await Bun.file(join(ROOT, 'editor.html')).arrayBuffer())
-  // Paired Bun 1.4.2 builds against 97aea952:
-  // raw 4,422,894 → 4,424,081; Bun gzip 1,331,713 → 1,332,290.
-  // Portable Kanban IDs and halo-safe lanes add 1,187 B raw / 577 B gzip.
-  // Retain ~1.4 KB raw / 1.7 KB gzip headroom. The module
-  // graph has one renderer program for main and worker realms; single-engine
-  // and relative payload gates also apply.
+  // Paired Bun 1.4.2 builds against eab9407 (Bun gzip level 9):
+  // raw 4,424,081 → 4,425,416; gzip 1,332,290 → 1,333,346.
+  // The module/contract cleanup adds 1,335 B raw / 1,056 B gzip.
+  // Keep current main's ceilings unchanged: 84 B raw / 654 B gzip headroom.
+  // One renderer still serves the main/worker realms; the single-engine and
+  // relative payload gates also apply.
   expect(html.byteLength).toBeLessThanOrEqual(4_425_500)
   expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_334_000)
 })

@@ -1,4 +1,6 @@
 import { describe, expect, test } from 'bun:test'
+import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
 import type { DiagramKind } from '../agent/types.ts'
@@ -33,6 +35,18 @@ import { projectTerminalStyle } from '../terminal-style.ts'
 import type { RenderOptions } from '../types.ts'
 
 const SOURCE = 'flowchart LR\n  A[Start] --> B[Finish]'
+
+// Construct the admitted JSON subset; forbidden-key and resource-budget cases
+// remain with the existing JSON admission and render-authority tests.
+function configJsonKeys(value: fc.JsonValue): fc.JsonValue {
+  if (Array.isArray(value)) return value.map(configJsonKeys)
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, child]) => [`k${key}`, configJsonKeys(child!)]))
+  }
+  return value
+}
+
+const recursiveConfigJson = fc.jsonValue({ stringUnit: 'binary' }).map(configJsonKeys)
 
 const EXPECTED_BUILTIN_OPTION_APPLICABILITY = {
   layoutHints: ['flowchart', 'state'],
@@ -245,6 +259,35 @@ describe('Section A canonical render contracts', () => {
     })
   })
 
+  test.each([
+    { name: 'valid first field', bg: '#123456', nullOptions: false, containerChanges: false, error: undefined },
+    { name: 'invalid first field', bg: 'url(https://invalid.example/first)', nullOptions: false, containerChanges: false, error: 'render option "bg" must be a safe, non-fetching CSS paint' },
+    { name: 'valid first container', bg: '#123456', nullOptions: false, containerChanges: true, error: undefined },
+    { name: 'invalid first container', bg: '#123456', nullOptions: true, containerChanges: true, error: 'render options must be a plain JSON object' },
+  ])('MCP projection validates captured values: $name', ({ bg, nullOptions, containerChanges, error }) => {
+    let reads = 0
+    const options = Object.defineProperty({}, 'bg', {
+      enumerable: true,
+      get() { return ++reads === 1 ? bg : bg.startsWith('url(') ? '#abcdef' : 'url(https://invalid.example/changed)' },
+    })
+    let optionReads = 0
+    const args = Object.defineProperty({}, 'options', {
+      get() {
+        optionReads++
+        if (!containerChanges) return options
+        return optionReads === 1 ? (nullOptions ? null : options) : (nullOptions ? options : null)
+      },
+    })
+    if (error) {
+      expect(() => projectMcpRenderOptions(args)).toThrow(error)
+    } else {
+      const projected = projectMcpRenderOptions(args)
+      expect(projected).toEqual({ bg })
+      expect(resolveRenderRequest(SOURCE, projected).appearance.colors.bg).toBe(bg)
+    }
+    expect({ optionReads, valueReads: reads }).toEqual({ optionReads: 1, valueReads: nullOptions ? 0 : 1 })
+  })
+
   test('one appearance receipt survives graphical and terminal output choices', () => {
     const options = { style: ['hand-drawn', { colors: { accent: '#005fcc' } }], seed: 4 }
     const svg = resolveRenderRequest(SOURCE, options, 'svg')
@@ -346,6 +389,65 @@ xychart-beta
     expect(validateSerializableRenderOptions({ backendPolicy: { selected: 'backend:probe' } })).toContain('unknown render option "backendPolicy"')
     for (const tool of [...HOSTED_TOOLS, ...LOCAL_TOOLS]) {
       expect(JSON.stringify(tool.inputSchema), tool.name).not.toContain('backendPolicy')
+    }
+  })
+
+  test('recursive Mermaid JSON admits finite values and repeated shared subtrees', () => {
+    fc.assert(fc.property(recursiveConfigJson, value => {
+      expect(validateSerializableRenderOptions({ mermaidConfig: { extensionData: { first: value, second: value } } })).toEqual([])
+    }), fcParameters({ numRuns: 2_000 }))
+  })
+
+  test('recursive Mermaid JSON rejection identifies an injected non-JSON leaf', () => {
+    const invalidLeaf = fc.constantFrom(
+      { value: undefined, message: 'must be a JSON value, not undefined' },
+      { value: () => true, message: 'must be a JSON value, not function' },
+      { value: Symbol('invalid'), message: 'must be a JSON value, not symbol' },
+      { value: 1n, message: 'must be a JSON value, not bigint' },
+      { value: Number.NaN, message: 'must be a finite number' },
+      { value: Number.POSITIVE_INFINITY, message: 'must be a finite number' },
+      { value: Number.NEGATIVE_INFINITY, message: 'must be a finite number' },
+    )
+    fc.assert(fc.property(fc.array(recursiveConfigJson), invalidLeaf, (siblings, invalid) => {
+      const options = { mermaidConfig: { extensionData: [...siblings, { badLeaf: invalid.value }] } }
+      expect(validateSerializableRenderOptions(options)).toEqual([
+        `render option "mermaidConfig.extensionData[${siblings.length}].badLeaf" ${invalid.message}`,
+      ])
+    }), fcParameters({ numRuns: 2_000 }))
+  })
+
+  test.each([
+    ['contrast lower bound', { kind: 'contrast', action: 'error', minimum: 0.5 }, '"constraints[0].minimum" must be between 1 and 21'],
+    ['contrast upper bound', { kind: 'contrast', action: 'warn', minimum: 22 }, '"constraints[0].minimum" must be between 1 and 21'],
+    ['accent-area lower bound', { kind: 'accent-area', action: 'error', maxFraction: -0.1 }, '"constraints[0].maxFraction" must be between 0 and 1'],
+    ['accent-area upper bound', { kind: 'accent-area', action: 'warn', maxFraction: 1.1 }, '"constraints[0].maxFraction" must be between 0 and 1'],
+    ['mono-role domain', { kind: 'mono-role', action: 'error', role: 'not-a-role' }, '"constraints[0].role" must be a registered built-in SceneRole'],
+    ['required mono-role field', { kind: 'mono-role', action: 'warn' }, '"constraints[0].role" is required for mono-role'],
+    ['constraint action', { kind: 'contrast', action: 'repair' }, '"constraints[0].action" must be one of warn | error'],
+    ['constraint kind', { kind: 'unknown', action: 'error' }, '"constraints[0].kind" must be one of contrast | accent-area | mono-role'],
+  ])('style constraint diagnostics identify %s in inline and stacked input', (_name, constraint, diagnostic) => {
+    const spec = { constraints: [constraint] }
+    for (const style of [spec, ['hand-drawn', spec]]) {
+      expect(validateSerializableRenderOptions({ style })).toEqual([
+        `render option "style" is invalid: Invalid style spec: ${diagnostic}`,
+      ])
+    }
+  })
+
+  test.each([
+    { kind: 'contrast', minimum: 1 },
+    { kind: 'contrast', minimum: 21 },
+    { kind: 'contrast' },
+    { kind: 'accent-area', maxFraction: 0 },
+    { kind: 'accent-area', maxFraction: 1 },
+    { kind: 'mono-role', role: 'node' },
+    { kind: 'mono-role', role: 'edge' },
+  ])('style constraints admit valid limits and roles: %j', constraint => {
+    for (const action of ['warn', 'error']) {
+      const spec = { constraints: [{ ...constraint, action }] }
+      for (const style of [spec, ['hand-drawn', spec]]) {
+        expect(validateSerializableRenderOptions({ style })).toEqual([])
+      }
     }
   })
 

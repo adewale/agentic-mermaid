@@ -5,12 +5,13 @@ import { dirname, join, relative, resolve } from 'node:path'
 import { admitCurrentReference } from '../../mermaid-modern-compat/reference.ts'
 import { assertBenchmarkExecutionAllowed } from '../ci-policy.ts'
 import { assertBenchmarkSetVersions, assertBenchmarkToolVersion } from '../tool-versions.ts'
-import { captureInstalledDependencyClosure } from './artifact-dependencies.ts'
+import { captureInstalledDependencyClosure } from '../portable/artifact-dependencies.ts'
 import { baselineMeasurementContext } from './baseline-measurement-context.ts'
 import { deliveredArtifactIdentity, executableIdentity } from './benchmark-context.ts'
 import { inventoryOriginalDeclarations } from './upstream-fidelity-census.ts'
 import { runRetainedSuite } from './retained-suite.ts'
 import type { BenchmarkObservation, UnifiedRunOptions, UnifiedSuiteResult } from './types.ts'
+import { mermaidOracleDirectory, mermaidUpstreamDirectory } from '../portable/mermaid-oracle.ts'
 
 export interface UpstreamOriginalOptions extends UnifiedRunOptions { upstreamWorkerTimeoutMs?: number; upstreamRunnerRoot?: string }
 const write = (file: string, value: unknown) => writeFileSync(file, JSON.stringify(value, null, 2) + '\n')
@@ -52,7 +53,7 @@ export async function runUpstreamOriginalSuite(options: UpstreamOriginalOptions)
   assertBenchmarkExecutionAllowed()
   const skippedAt = new Date().toISOString()
   if (options.communityProjects && !options.communityProjects.includes('mermaid-js/mermaid')) return { id: 'upstream-original', status: 'not-applicable', startedAt: skippedAt, finishedAt: skippedAt, observations: [], gaps: ['Pinned Mermaid original runner was not selected; no source, reference, runtime or project record was prepared'] }
-  const startedAt = new Date().toISOString(), root = options.harnessRoot ?? options.root, upstream = options.mermaidDir ?? resolve(root, '../mermaid'), reference = options.referenceDir ?? resolve(root, '../mermaid-reference'), node = options.nodeExecutable ?? 'node'
+  const startedAt = new Date().toISOString(), root = options.harnessRoot ?? options.root, upstream = options.mermaidDir ?? mermaidUpstreamDirectory(), reference = options.referenceDir ?? mermaidOracleDirectory(), node = options.nodeExecutable ?? 'node'
   mkdirSync(options.out, { recursive: true })
   const pin = admitCurrentReference(upstream, reference)
   assertBenchmarkToolVersion('mermaid-js/mermaid', pin.version, 'Pinned source release tag and actual reference install')

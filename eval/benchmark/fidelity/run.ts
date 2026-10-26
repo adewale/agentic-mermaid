@@ -1,3 +1,4 @@
+import { writeBenchmarkDocument } from '../portable/project-records.ts'
 import { fidelityCriteriaProtocol } from './protocol.ts'
 import { createServer } from 'node:http'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -10,7 +11,7 @@ import { assertBenchmarkExecutionAllowed } from '../ci-policy.ts'
 import { assertBenchmarkSetVersions, benchmarkToolPins } from '../tool-versions.ts'
 import { baselineBrowserAction } from '../unified/baseline-browser-worker.mjs'
 import { baselineMeasurementContext } from '../unified/baseline-measurement-context.ts'
-import { deliveredArtifactIdentity, executableIdentity } from '../unified/benchmark-context.ts'
+import { defaultChromium, deliveredArtifactIdentity, executableIdentity } from '../unified/benchmark-context.ts'
 import { runRetainedSuite } from '../unified/retained-suite.ts'
 import { qualifyOutput } from '../unified/qualification.ts'
 import type { BenchmarkObservation, UnifiedRunOptions, UnifiedSuiteResult } from '../unified/types.ts'
@@ -22,6 +23,7 @@ import { planFidelityCriteria, completeCriterionLedger, compareFidelityCriteria 
 import { inspectQuantitativePaint } from './paint-values.ts'
 import { assessMeaning, type AuthoredFidelityCase } from './meaning.ts'
 import { inspectFidelityPaint } from './paint.ts'
+import { mermaidOracleDirectory, mermaidUpstreamDirectory } from '../portable/mermaid-oracle.ts'
 
 export interface FidelityRunOptions extends UnifiedRunOptions { fidelityDiagnostic?: boolean; fidelityCaseIds?: string[] }
 const write = (path: string, value: unknown) => writeFileSync(path, JSON.stringify(value, null, 2) + '\n')
@@ -33,7 +35,7 @@ export async function runFidelityCampaign(options: FidelityRunOptions): Promise<
   const startedAt = new Date().toISOString(), root = options.harnessRoot ?? options.root, out = options.out
   if (!selectsCoreFidelity(options.communityProjects)) return { id: 'mermaid-fidelity', startedAt, finishedAt: startedAt, status: 'not-applicable', observations: [], artifacts: [], gaps: ['No core public-model project was selected; no source, reference, runtime, browser or output directory was prepared.'] }
   mkdirSync(out, { recursive: true })
-  const reference = options.referenceDir ?? resolve(root, '../mermaid-reference'), upstream = options.mermaidDir ?? resolve(root, '../mermaid')
+  const reference = options.referenceDir ?? mermaidOracleDirectory(), upstream = options.mermaidDir ?? mermaidUpstreamDirectory()
   const sourcePin = admitCurrentReference(upstream, reference)
   const targets: Array<{ tool: MeaningTool; project: string; packageRoot: string; entry: string; version: string }> = []
   for (const tool of ['mermaid', 'agentic', 'pele'] as const) {
@@ -60,7 +62,7 @@ export async function runFidelityCampaign(options: FidelityRunOptions): Promise<
   if (!selectedCases.length) throw Error('No authored fidelity cases selected')
   const planned = planFidelityCriteria(selectedCases)
   const request = createRequire(join(root, 'eval/benchmark/package.json')), { chromium } = request('playwright')
-  const browserExecutable = options.executable ?? '/usr/bin/chromium', node = options.nodeExecutable ?? process.execPath
+  const browserExecutable = options.executable ?? defaultChromium(chromium), node = options.nodeExecutable ?? process.execPath
   let browser: any
   const getBrowser = async () => browser ??= await chromium.launch({ headless: true, executablePath: browserExecutable })
   const server = createServer((request, response) => {
@@ -162,7 +164,7 @@ export async function runFidelityCampaign(options: FidelityRunOptions): Promise<
   const observations = results.flatMap(result => result.observations)
   const calibration = compareFidelityCriteria(observations, targets.map(target => target.project))
   const report = { id: 'mermaid-fidelity', status: results.some(result => result.status === 'failed') ? 'failed' : results.some(result => result.status === 'blocked') ? 'blocked' : 'passed', startedAt, finishedAt: new Date().toISOString(), observations, artifacts: results.flatMap(result => result.artifacts ?? []), gaps: [...new Set(results.flatMap(result => result.gaps))], toolVersions, calibration, criteriaProtocol: options.fidelityDiagnostic ? null : fidelityCriteriaProtocol(root, browserExecutable), cases: selectedCases, targets, sourcePin, addon: addon ? { name: addon.manifest.name, version: addon.manifest.version, root: addon.root, scope: 'Explicit pinned first-party browser addon; core Node parser remains a separate host/capability' } : null }
-  write(join(out, 'fidelity-report.json'), report)
+  writeBenchmarkDocument(join(out, 'fidelity-report.json'), report)
   writeFileSync(join(out, 'index.html'), '<!doctype html><meta charset="utf-8"><title>Authored Mermaid fidelity evidence</title><style>body{font:16px system-ui;margin:2rem}img{max-width:100%;max-height:600px}figure{border-bottom:1px solid #ccc;padding:1rem}</style><h1>Actual rendered fidelity evidence</h1><p>Layouts belong to each renderer. Compare authored meaning, clipping, ownership and visible content; these are not pixel-equality goldens.</p>' + report.artifacts.filter(path => path.endsWith('.png')).map(path => `<figure><figcaption>${path.slice(out.length + 1)}</figcaption><img loading="lazy" src="${path.slice(out.length + 1)}"></figure>`).join(''))
   return report as UnifiedSuiteResult
 }

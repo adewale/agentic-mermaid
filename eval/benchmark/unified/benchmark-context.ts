@@ -4,8 +4,14 @@ import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { byteDigest } from '../portable/artifacts.ts'
 import { environmentIdentity } from '../portable/environment.ts'
-import { captureInstalledDependencyClosure } from './artifact-dependencies.ts'
+import { captureInstalledDependencyClosure } from '../portable/artifact-dependencies.ts'
 import { protocolIdentity } from './protocol-identity.ts'
+
+/** The Chromium a browser lane runs when none is configured: the system browser
+ * (/usr/bin/chromium on Linux) when present, otherwise Playwright's own. */
+export function defaultChromium(chromium: { executablePath(): string }): string {
+  return existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : chromium.executablePath()
+}
 
 export function executableIdentity(path: string | undefined) {
   if (!path) return { status: 'not-configured', path: null }

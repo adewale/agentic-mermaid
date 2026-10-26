@@ -1,5 +1,6 @@
+import { editorModuleScript } from './helpers/editor-module-harness.ts'
 /**
- * Behavioural contracts for the Editor's classic scripts, executed in-process
+ * Behavioural contracts for the Editor's modules, executed in-process
  * through browser-script-harness.ts. Each test drives the shipped script via
  * its real entry points (render-option resolution, the advanced-options Apply
  * button, the PNG export adapter boundary, the verify panel, storage access)
@@ -9,8 +10,6 @@
  * this suite covers export admission and failure-tolerant storage behavior.
  */
 import { describe, expect, test } from 'bun:test'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { BROWSER_EDITOR_ADAPTER } from '../browser.ts'
 import { resolveEditorRenderOptions } from '../editor-render-options.ts'
 import { PNG_DEFAULT_SCALE } from '../png-contract.ts'
@@ -20,9 +19,8 @@ import { verifyNoExternalRefs } from '../output-security.ts'
 import { WARNING_TIER } from '../agent/types.ts'
 import { evaluateBrowserScript, FakeDocument, type FakeElement } from './browser-script-harness.ts'
 
-const ROOT = join(import.meta.dir, '..', '..')
-const EDITOR_JS = join(ROOT, 'editor', 'js')
-const editorScript = (name: string) => readFileSync(join(EDITOR_JS, name), 'utf8')
+const moduleScripts = new Map(await Promise.all(['font-picker.js', 'config-panel.js', 'export.js', 'helpers.js', 'rendering.js', 'sharing.js'].map(async name => [name, await editorModuleScript(name)] as const)))
+const editorScript = (name: string) => moduleScripts.get(name)!
 
 describe('editor render-option boundary', () => {
   const dependencies = {
@@ -211,6 +209,7 @@ class FakeFontFaceRule {
 function exportHarness(options: {
   defaultScale?: string
   verified?: boolean
+  svgArtifact?: { svg: string; receipt: { sharedRequestDigest: string } }
   adapter?: (...args: unknown[]) => Promise<unknown>
   fetch?: (url: string) => Promise<Response>
 } = {}) {
@@ -232,6 +231,8 @@ function exportHarness(options: {
   const toasts: string[] = []
   const adapterCalls: unknown[][] = []
   const fetched: string[] = []
+  const downloads: Blob[] = []
+  const revokedUrls: string[] = []
   const adapter = options.adapter ?? (async () => ({ png: new Uint8Array([1]), diagnostics: [], receipt: { output: 'png', sharedRequestDigest: 'digest-current' } }))
   const api = evaluateBrowserScript<ExportApi>(`var renderRequestVersion = 1;\n${editorScript('export.js')}`, {
     document,
@@ -242,7 +243,11 @@ function exportHarness(options: {
     previewInner,
     buildOptions: () => ({ security: 'strict', embedFontImport: false }),
     renderMermaidPngInBrowserWithReceipt: (...args: unknown[]) => { adapterCalls.push(args); return adapter(...args) },
-    lastRenderedSvgArtifact: null,
+    lastRenderedSvgArtifact: options.svgArtifact ?? null,
+    URL: class extends URL {
+      static createObjectURL(blob: Blob) { downloads.push(blob); return `blob:export-${downloads.length}` }
+      static revokeObjectURL(url: string) { revokedUrls.push(url) }
+    },
     showToast: (message: string) => { toasts.push(message) },
     setCopyFeedback: () => {},
     updateHash: () => Promise.resolve(false),
@@ -263,7 +268,7 @@ function exportHarness(options: {
     exportPNG, exportSVG, copyPNG,
     setRenderRequestVersion: function(version) { renderRequestVersion = version; },
   }`)
-  return { api, document, pills, scalePills, fitMode, fitValue, backgroundMode, backgroundColor, previewInner, editor, toasts, adapterCalls, fetched }
+  return { api, document, pills, scalePills, fitMode, fitValue, backgroundMode, backgroundColor, previewInner, editor, toasts, adapterCalls, fetched, downloads, revokedUrls }
 }
 
 describe('editor PNG export contract', () => {
@@ -343,6 +348,26 @@ describe('editor PNG export contract', () => {
       .toThrow('Unsafe SVG export: inline-event-handler')
     expect(() => api.serializeCanonicalSvg('<svg xmlns="http://www.w3.org/2000/svg"><image href="https://attacker.invalid/x.png"/></svg>'))
       .toThrow(/Unsafe SVG export: .*attacker\.invalid/)
+  })
+
+  test.each([false, true])('SVG download commits only while its preview receipt remains current (stale: %s)', async (stale) => {
+    const { api, previewInner, downloads, revokedUrls, toasts } = exportHarness({
+      svgArtifact: { svg: '<svg xmlns="http://www.w3.org/2000/svg"></svg>', receipt: { sharedRequestDigest: 'digest-current' } },
+    })
+    api.exportSVG()
+    if (stale) previewInner.dataset.sharedRequestDigest = 'digest-rerendered'
+    await new Promise(resolve => setTimeout(resolve, 0))
+    if (stale) {
+      expect(downloads).toEqual([])
+      expect(revokedUrls).toEqual([])
+      expect(toasts).toEqual(['SVG export failed: SVG bytes and preview receipt no longer match'])
+    } else {
+      expect(downloads).toHaveLength(1)
+      expect(downloads[0]!.type).toBe('image/svg+xml;charset=utf-8')
+      expect(await downloads[0]!.text()).toBe('<svg></svg>')
+      expect(revokedUrls).toEqual(['blob:export-1'])
+      expect(toasts).toEqual(['SVG saved.'])
+    }
   })
 
   test('PNG bytes whose receipt does not match the current preview request are refused', async () => {

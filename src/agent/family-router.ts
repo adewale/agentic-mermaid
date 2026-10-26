@@ -5,6 +5,8 @@
 // the render contract instead, so source normalization and the common SVG core
 // do not need to import every family hook merely to identify a header.
 
+import { detectsFlowchartFamily, detectsStateFamily, detectsStateFamilyLoose } from '../shared/builtin-family-detection.ts'
+export { detectsFlowchartFamily, detectsStateFamily, detectsStateFamilyLoose } from '../shared/builtin-family-detection.ts'
 import type { FamilyDescriptor } from './families.ts'
 import type { FamilyId } from './types.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
@@ -22,25 +24,6 @@ let registeredFamilyByIdResolver: RegisteredFamilyByIdResolver | undefined
 const loadedFamilyDescriptors = new Map<FamilyId, FamilyDescriptor>()
 
 export type CompatibilityGraphFamilyId = 'flowchart' | 'state'
-
-/** Lightweight compatibility-parser ownership, deliberately independent of
- * the complete family registry so direct graph-parser imports remain usable. */
-export function detectsFlowchartFamily(firstLine: string): boolean {
-  // Keep this detector self-contained: the browser catalog generator embeds
-  // descriptor detectors via Function#toString at build time.
-  const line = (firstLine.split(';')[0] ?? '').trim().toLowerCase()
-  return /^(?:flowchart|graph|swimlane)(?:\s|$)/.test(line)
-}
-
-export function detectsStateFamily(firstLine: string): boolean {
-  const line = (firstLine.split(';')[0] ?? '').trim().toLowerCase()
-  return /^statediagram(?:-v2)?\s*$/.test(line)
-}
-
-export function detectsStateFamilyLoose(firstLine: string): boolean {
-  const line = (firstLine.split(';')[0] ?? '').trim().toLowerCase()
-  return /^statediagram(?:-v2)?(?:\s|$)/.test(line)
-}
 
 export function detectCompatibilityGraphFamilyFromFirstLine(
   firstLine: string,

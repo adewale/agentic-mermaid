@@ -4,8 +4,10 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { baselineBrowserAction } from '../unified/baseline-browser-worker.mjs'
-import { baselineBrowserCases, baselineRoleOrder, qualifyBaselineBrowser, type BaselineBrowserCase } from '../unified/baseline-browser.ts'
+import { baselineBrowserCases, baselineRoleOrder, qualifyBaselineBrowser, unsupportedByFamilyProbe, type BaselineBrowserCase } from '../unified/baseline-browser.ts'
+import type { BenchmarkObservation } from '../unified/types.ts'
 import { runRetainedSuite } from '../unified/retained-suite.ts'
+import { chromiumExecutable } from './helpers/environment.ts'
 
 const witness: BaselineBrowserCase = { id: 'independent-label-witness', family: 'flowchart', source: 'flowchart LR\nA[Alpha] --> B[Beta]', cohorts: ['test'], expected: { accept: true, labels: ['Alpha', 'Beta'] } }
 const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 40"><text>Alpha Beta</text></svg>'
@@ -56,7 +58,7 @@ test('counterbalancing rotates all four roles and keeps sample order determinist
 
 test('real browser consumer includes module initialization and traverses Map/Set sidecars, while recording excluded callbacks', async () => {
   const require = createRequire(join(process.cwd(), 'eval/benchmark/package.json')), { chromium } = require('playwright')
-  const browser = await chromium.launch({ headless: true, executablePath: '/usr/bin/chromium' })
+  const browser = await chromium.launch({ headless: true, executablePath: chromiumExecutable })
   try {
     const page = await browser.newPage()
     const module = `await new Promise(r=>setTimeout(r,25));let calls=0,configuration;export default{async initialize(value){await new Promise(r=>setTimeout(r,25));configuration=value},async render(){if(++calls!==1)throw Error('Unexpected extra render/warmup');await new Promise(r=>setTimeout(r,25));return{svg:${JSON.stringify(svg)},bindFunctions(){},metadata:new Map([['large-payload','x'.repeat(4096)],['nested',new Set(['first','second'])],['security',configuration.securityLevel]])}}}`
@@ -88,3 +90,11 @@ test('real browser consumer includes module initialization and traverses Map/Set
     expect(configured.resolvedRenderOptions).toEqual({ security: 'strict', style: { roles: { node: { fontSize: 14 }, edge: { fontSize: 14 }, group: { fontSize: 14 } } } })
   } finally { await browser.close() }
 }, 20_000)
+
+test('only a rejected canonical family case makes that family unsupported; rejection messages decide nothing', () => {
+  const row = (caseId: string, family: string, accepted: boolean, detail = 'Error: Invalid mermaid header'): BenchmarkObservation => ({ suite: 'pinned-browser-baseline', surface: 'baseline-browser:pele', runtime: 'chromium', family, caseId, operation: 'public-svg', format: 'svg', mode: 'reused-page-render', status: accepted ? 'passed' : 'failed', detail, metrics: { accepted, expectedAccepted: true } })
+  const rows = [row('family:pie', 'pie', false), row('scaling:pie:8', 'pie', false), row('family:flowchart', 'flowchart', true), row('adversarial:flowchart', 'flowchart', false, 'Error: unsupported graph direction')]
+  expect(qualifyBaselineBrowser(witness, { accepted: false, error: 'Error: unsupported diagram', errorPhase: 'public-call' }).status).toBe('failed')
+  unsupportedByFamilyProbe(rows)
+  expect(rows.map(value => [value.caseId, value.status])).toEqual([['family:pie', 'unsupported'], ['scaling:pie:8', 'unsupported'], ['family:flowchart', 'passed'], ['adversarial:flowchart', 'failed']])
+})

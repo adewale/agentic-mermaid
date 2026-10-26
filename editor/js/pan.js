@@ -1,42 +1,45 @@
-var panBtn = document.getElementById('pan-btn');
-var panActive = false;
-var panStart = null;
-var panPointerId = null;
-var panTracker = EditorMotion.makeVelocityTracker();
-var panDecay = null;
-var activePanPointers = Object.create(null);
-var pinchState = null;
+import { EditorMotion } from './motion.js';
+import { previewBody } from './elements.js';
+import { cancelZoomMotion, commitPresentationZoom, constrainZoom, getPresentationZoom, queueWheelZoom, setPresentationZoom } from './zoom.js';
+export var panBtn, panActive, panStart, panPointerId, panTracker, panDecay, activePanPointers, pinchState;
 
-function syncPanButton() {
+
+export function syncPanButton() {
   panBtn.classList.toggle('active', panActive);
   panBtn.setAttribute('aria-pressed', panActive ? 'true' : 'false');
   previewBody.classList.toggle('pan-mode', panActive);
 }
 
-function cancelPanMomentum() {
+
+export function cancelPanMomentum() {
   if (!panDecay) return;
   panDecay.cancel();
   panDecay = null;
 }
 
-function cancelPreviewMotion() {
+
+export function cancelPreviewMotion() {
   cancelPanMomentum();
   if (typeof cancelZoomMotion === 'function') cancelZoomMotion();
 }
 
-function pointerValues() {
+
+export function pointerValues() {
   return Object.keys(activePanPointers).map(function(id) { return activePanPointers[id]; });
 }
 
-function setPointer(event) {
+
+export function setPointer(event) {
   activePanPointers[event.pointerId] = { id: event.pointerId, x: event.clientX, y: event.clientY, type: event.pointerType };
 }
 
-function shouldPan(event) {
+
+export function shouldPan(event) {
   return panActive || event.metaKey || event.ctrlKey;
 }
 
-function beginSinglePan(pointer) {
+
+export function beginSinglePan(pointer) {
   panPointerId = pointer.id;
   panStart = { x: pointer.x, y: pointer.y, sl: previewBody.scrollLeft, st: previewBody.scrollTop };
   pinchState = null;
@@ -45,7 +48,8 @@ function beginSinglePan(pointer) {
   previewBody.classList.add('panning');
 }
 
-function beginPinch() {
+
+export function beginPinch() {
   var points = pointerValues();
   if (points.length !== 2) return;
   var dx = points[1].x - points[0].x;
@@ -64,7 +68,8 @@ function beginPinch() {
   previewBody.classList.add('panning');
 }
 
-function updatePinch() {
+
+export function updatePinch() {
   if (!pinchState) return;
   var first = activePanPointers[pinchState.ids[0]];
   var second = activePanPointers[pinchState.ids[1]];
@@ -79,7 +84,8 @@ function updatePinch() {
   previewBody.scrollTop = pinchState.st - (midpoint.y - pinchState.midpoint.y);
 }
 
-function beginMomentum() {
+
+export function beginMomentum() {
   var velocity = panTracker.get();
   if (Math.hypot(velocity.vx, velocity.vy) < 50) return;
   cancelPanMomentum();
@@ -101,45 +107,8 @@ function beginMomentum() {
   });
 }
 
-panBtn.addEventListener('click', function() {
-  panActive = !panActive;
-  syncPanButton();
-});
-syncPanButton();
 
-previewBody.addEventListener('pointerdown', function(event) {
-  // A coast is always grabbable, even when the next pointerdown is not itself
-  // eligible to begin pan mode (for example after releasing Cmd/Ctrl).
-  cancelPanMomentum();
-  if (!shouldPan(event)) return;
-  if (event.pointerType === 'mouse' && event.button !== 0) return;
-  event.preventDefault();
-  cancelPreviewMotion();
-  setPointer(event);
-  if (previewBody.setPointerCapture) {
-    try { previewBody.setPointerCapture(event.pointerId); } catch (err) {}
-  }
-  var points = pointerValues();
-  if (points.length === 1) beginSinglePan(points[0]);
-  else if (points.length === 2) beginPinch();
-});
-
-previewBody.addEventListener('pointermove', function(event) {
-  if (!activePanPointers[event.pointerId]) return;
-  setPointer(event);
-  if (pinchState) {
-    updatePinch();
-    return;
-  }
-  if (!panStart || event.pointerId !== panPointerId) return;
-  var dx = event.clientX - panStart.x;
-  var dy = event.clientY - panStart.y;
-  previewBody.scrollLeft = panStart.sl - dx;
-  previewBody.scrollTop = panStart.st - dy;
-  panTracker.push(performance.now(), event.clientX, event.clientY);
-});
-
-function endPan(event, cancelled) {
+export function endPan(event, cancelled) {
   if (!activePanPointers[event.pointerId]) return;
   var wasPinching = !!pinchState;
   delete activePanPointers[event.pointerId];
@@ -168,15 +137,79 @@ function endPan(event, cancelled) {
     beginMomentum();
   }
 }
+
+export function initialize() {
+panBtn = document.getElementById('pan-btn');
+
+panActive = false;
+
+panStart = null;
+
+panPointerId = null;
+
+panTracker = EditorMotion.makeVelocityTracker();
+
+panDecay = null;
+
+activePanPointers = Object.create(null);
+
+pinchState = null;
+
+
+panBtn.addEventListener('click', function() {
+  panActive = !panActive;
+  syncPanButton();
+});
+
+syncPanButton();
+
+
+previewBody.addEventListener('pointerdown', function(event) {
+  // A coast is always grabbable, even when the next pointerdown is not itself
+  // eligible to begin pan mode (for example after releasing Cmd/Ctrl).
+  cancelPanMomentum();
+  if (!shouldPan(event)) return;
+  if (event.pointerType === 'mouse' && event.button !== 0) return;
+  event.preventDefault();
+  cancelPreviewMotion();
+  setPointer(event);
+  if (previewBody.setPointerCapture) {
+    try { previewBody.setPointerCapture(event.pointerId); } catch (err) {}
+  }
+  var points = pointerValues();
+  if (points.length === 1) beginSinglePan(points[0]);
+  else if (points.length === 2) beginPinch();
+});
+
+
+previewBody.addEventListener('pointermove', function(event) {
+  if (!activePanPointers[event.pointerId]) return;
+  setPointer(event);
+  if (pinchState) {
+    updatePinch();
+    return;
+  }
+  if (!panStart || event.pointerId !== panPointerId) return;
+  var dx = event.clientX - panStart.x;
+  var dy = event.clientY - panStart.y;
+  previewBody.scrollLeft = panStart.sl - dx;
+  previewBody.scrollTop = panStart.st - dy;
+  panTracker.push(performance.now(), event.clientX, event.clientY);
+});
+
 previewBody.addEventListener('pointerup', function(event) { endPan(event, false); });
+
 previewBody.addEventListener('pointercancel', function(event) { endPan(event, true); });
+
 
 window.addEventListener('keydown', function(event) {
   if (event.metaKey || event.ctrlKey) previewBody.classList.add('cmd-pan');
 });
+
 window.addEventListener('keyup', function(event) {
   if (!event.metaKey && !event.ctrlKey) previewBody.classList.remove('cmd-pan');
 });
+
 
 previewBody.addEventListener('wheel', function(event) {
   cancelPanMomentum();
@@ -185,3 +218,4 @@ previewBody.addEventListener('wheel', function(event) {
   var factor = Math.pow(0.999, event.deltaY);
   queueWheelZoom(getPresentationZoom() * factor, { x: event.clientX, y: event.clientY });
 }, { passive: false });
+}

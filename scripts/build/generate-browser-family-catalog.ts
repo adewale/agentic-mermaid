@@ -3,7 +3,6 @@ import { dirname, join } from 'node:path'
 import {
   getFamily,
   knownBuiltinFamilies,
-  type FamilyDescriptor,
 } from '../../src/agent/families.ts'
 
 const ROOT = join(import.meta.dir, '../..')
@@ -26,19 +25,6 @@ function writeGenerated(path: string, source: string): void {
   writeFileSync(path, source)
 }
 
-function functionSource(value: FamilyDescriptor['detect']): string {
-  const source = value.toString()
-    .replace(/^\(line\)\s*=>/, '(line: string) =>')
-    .replace(/^line\s*=>/, '(line: string) =>')
-    // Bun omits TypeScript annotations when stringifying imported named
-    // functions, while inline detector arrows retain them in this generator.
-    .replace(/^function(\s+[^\s(]+)?\(([^),]+)\)/, 'function$1($2: string)')
-  if (!source.includes('=>') && !source.startsWith('function')) {
-    throw new Error(`Cannot serialize family detector: ${source}`)
-  }
-  return source
-}
-
 const ids = knownBuiltinFamilies()
 const descriptors = ids.map(id => {
   const descriptor = getFamily(id)
@@ -46,10 +32,15 @@ const descriptors = ids.map(id => {
   return descriptor
 })
 
+function detectorName(id: string, loose = false): string {
+  return `detects${id[0]!.toUpperCase()}${id.slice(1)}Family${loose ? 'Loose' : ''}`
+}
+
 const catalogRows = descriptors.map(descriptor =>
-  `  Object.freeze({ id: ${JSON.stringify(descriptor.id)}, detect: ${functionSource(descriptor.detect)} }),`)
+  `  Object.freeze({ id: ${JSON.stringify(descriptor.id)}, detect: familyDetection.${detectorName(descriptor.id)} }),`)
 const catalog = `${generatedHeader()}
 import { normalizeFamilyDetectionLine } from '../../mermaid-source-wrapper.ts'
+import * as familyDetection from '../../shared/builtin-family-detection.ts'
 
 export const BROWSER_BUILTIN_FAMILY_IDS = Object.freeze(${JSON.stringify(ids)} as const)
 export type BrowserBuiltinFamilyId = (typeof BROWSER_BUILTIN_FAMILY_IDS)[number]
@@ -92,10 +83,12 @@ for (const descriptor of descriptors) {
     example: descriptor.example,
   }
   const source = `${generatedHeader()}
+import * as familyDetection from '../../../shared/builtin-family-detection.ts'
+
 const descriptorData = Object.freeze({
   ...(${JSON.stringify(data, null, 2)} as const),
-  detect: ${functionSource(descriptor.detect)},
-  detectLoose: ${functionSource(descriptor.detectLoose ?? descriptor.detect)},
+  detect: familyDetection.${detectorName(descriptor.id)},
+  detectLoose: ${'detectLoose' in descriptor ? `familyDetection.${detectorName(descriptor.id, true)}` : `familyDetection.${detectorName(descriptor.id)}`},
 })
 
 export default descriptorData

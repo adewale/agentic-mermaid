@@ -4,9 +4,10 @@ import { join } from 'node:path'
 import { inspectQuantitativePaint } from '../fidelity/paint-values.ts'
 import type { MeaningExpectation } from '../fidelity/meaning.ts'
 import type { PaintCheck } from '../fidelity/paint.ts'
+import { chromiumExecutable } from './helpers/environment.ts'
 
 let browser: any
-beforeAll(async () => { const require = createRequire(join(process.cwd(), 'eval/benchmark/package.json')); browser = await require('playwright').chromium.launch({ headless: true, executablePath: process.env.AM_CHROMIUM_EXECUTABLE ?? '/usr/bin/chromium' }) })
+beforeAll(async () => { const require = createRequire(join(import.meta.dir, '../package.json')); browser = await require('playwright').chromium.launch({ headless: true, executablePath: chromiumExecutable }) })
 afterAll(async () => { await browser?.close() })
 async function inspect(svg: string, family: string, expected: MeaningExpectation): Promise<PaintCheck[]> {
   const page = await browser.newPage()

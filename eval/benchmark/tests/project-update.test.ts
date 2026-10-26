@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { communityCoreWorkloads, selectCommunityProjects } from '../unified/community.ts'
 import { runCommunityCliCohort } from '../unified/community-cli.ts'
-import { findProjectRecord, loadCurrentProjectRecords, type ProjectBenchmarkIdentity, type ProjectBenchmarkRecord } from '../unified/project-records.ts'
+import { findProjectRecord, loadCurrentProjectRecords, type ProjectBenchmarkIdentity, type ProjectBenchmarkRecord } from '../portable/project-records.ts'
 import { renderProjectRecords, runRetainedCommunityCliSuite, updateProjectMarkdown, updateProjectRecords } from '../unified/project-update.ts'
 import type { CommunityNode } from '../unified/community-types.ts'
 

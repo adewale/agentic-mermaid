@@ -10,6 +10,7 @@ import { type ReviewedUpstreamCase, reviewedUpstreamCases } from '../../mermaid-
 import { REFERENCE_ELIGIBILITY_PROTOCOL, REVIEWED_DIAGNOSTIC_FIXTURES, REVIEWED_REFERENCE, type ReferenceEligibility, referenceEligibilityFor } from './reference-eligibility.ts'
 import { semanticLabelValues } from './reference-portable.mjs'
 import type { BenchmarkObservation, UnifiedRunOptions, UnifiedSuiteResult } from './types.ts'
+import { mermaidOracleDirectory, mermaidUpstreamDirectory } from '../portable/mermaid-oracle.ts'
 
 type Reply = ReferenceReply & {
   parseOk?: boolean
@@ -120,8 +121,8 @@ function score(reply: Reply, engine: 'agentic' | 'mermaid', criteria: Criterion[
 export async function runReferenceScoreSuite(options: UnifiedRunOptions): Promise<UnifiedSuiteResult> {
   const startedAt = new Date().toISOString(),
     driver = options.harnessRoot ?? options.root,
-    referenceDir = process.env.MERMAID_REFERENCE_DIR ?? resolve(driver, '../mermaid-reference'),
-    upstream = process.env.MERMAID_UPSTREAM_DIR ?? resolve(driver, '../mermaid'),
+    referenceDir = mermaidOracleDirectory(),
+    upstream = mermaidUpstreamDirectory(),
     observations: BenchmarkObservation[] = [],
     diagnosticObservations: BenchmarkObservation[] = [],
     gaps: string[] = []
@@ -130,7 +131,8 @@ export async function runReferenceScoreSuite(options: UnifiedRunOptions): Promis
   try {
     provenance = admitCurrentReference(upstream, referenceDir)
   } catch (error) {
-    return { id: 'pinned-reference-score', status: 'blocked', startedAt, finishedAt: new Date().toISOString(), observations, gaps: [String(error)] }
+    // Without the pinned Mermaid source and oracle this lane cannot score; it refuses to run.
+    throw Error(`The pinned Mermaid source checkout (${upstream}) and oracle (${referenceDir}) are required; run \`bun run reference:mermaid\` in the Agentic checkout. ${String(error)}`)
   }
   const target = options.packageRoot ?? options.root
   if (!existsSync(join(target, 'dist/agent-core.js'))) return { id: 'pinned-reference-score', status: 'blocked', startedAt, finishedAt: new Date().toISOString(), observations, gaps: ['Missing actual target dist/agent-core.js'] }

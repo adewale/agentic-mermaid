@@ -1,3 +1,5 @@
+import { editorModuleScript } from './helpers/editor-module-harness.ts'
+import { evaluateBrowserScript } from './browser-script-harness.ts'
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -61,10 +63,12 @@ describe('removed compatibility surfaces stay removed', () => {
     const sessionStorage = memoryStorage()
     const persistedDraft = JSON.stringify({ source: 'flowchart TD\n  Persisted --> Draft' })
     localStorage.setItem('bm-editor-draft', persistedDraft)
-    const sharing = readFileSync(join(ROOT, 'editor/js/sharing.js'), 'utf8')
-    const editor = new Function('localStorage', 'sessionStorage', 'editor', 'state', `${sharing}
-      return { decodeSource, readEditorDraft, saveEditorDraft, get hashDecodeFailure() { return hashDecodeFailure } };`,
-    )(localStorage, sessionStorage, { value: 'flowchart TD\n  Current --> Tab' }, { style: 'crisp', config: {} })
+    const sharing = await editorModuleScript('sharing.js')
+    const editor = evaluateBrowserScript<any>(sharing, {
+      localStorage, sessionStorage,
+      editor: { value: 'flowchart TD\n  Current --> Tab' }, state: { style: 'crisp', config: {} },
+    }, '{ decodeSource, readEditorDraft, saveEditorDraft, get hashDecodeFailure() { return hashDecodeFailure } }')
+
 
     // The retired plain-base64 share link fails closed instead of decoding.
     expect(await editor.decodeSource(Buffer.from(JSON.stringify({ source: 'flowchart TD\n  A --> B' })).toString('base64'))).toBe('')

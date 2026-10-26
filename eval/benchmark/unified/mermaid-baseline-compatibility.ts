@@ -1,3 +1,4 @@
+import { readBenchmarkResult } from '../portable/project-records.ts'
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
@@ -9,18 +10,20 @@ import { captureInstalledDependencyClosure } from '../portable/artifact-dependen
 import { byteDigest } from '../portable/artifacts.ts'
 import { portableCases } from '../portable/cohorts.ts'
 import { median, quantile } from '../portable/statistics.ts'
+import { defaultTimeObserver } from '../portable/time-observer.ts'
 import { assertBenchmarkToolVersion } from '../tool-versions.ts'
 import { deliveredArtifactIdentity, executableIdentity } from './benchmark-context.ts'
 import { baselineMeasurementContext } from './baseline-measurement-context.ts'
 import { committedDataIdentity } from './committed-data-identity.ts'
 import { parseStartupResource, runStartupChild } from './entry-startup.ts'
-import { inspectCurrentProjectRecords, stableValue } from './project-records.ts'
+import { inspectCurrentProjectRecords, stableValue } from '../portable/project-records.ts'
 import { protocolIdentity } from './protocol-identity.ts'
 import { requiredFamilyWorkloads } from './required-family-cases.ts'
 import { runRetainedSuite } from './retained-suite.ts'
 import { readStableSupportPolicy } from './stable-support.ts'
 import type { BenchmarkObservation, UnifiedRunOptions, UnifiedSuiteResult } from './types.ts'
 import { inventoryUpstreamTests } from './upstream-test-inventory.ts'
+import { mermaidOracleDirectory, mermaidUpstreamDirectory } from '../portable/mermaid-oracle.ts'
 
 export interface MermaidBaselineCompatibilityOptions extends UnifiedRunOptions {
   parserStartupSamples?: number
@@ -106,7 +109,7 @@ export function retainedMermaidAssertions(harness: string, records: string, upst
   if (!retained?.evidenceRetained) return { status: 'unavailable', reason: 'No retained pinned Mermaid original-assertion record; this baseline does not retime that suite' }
   const record = retained.record,
     identity = record.identity as any
-  const owning = read(join(record.evidenceDirectory, 'result.json'))
+  const owning = readBenchmarkResult(join(record.evidenceDirectory, 'result.json'))
   const { observations: _observations, ...metadata } = owning
   if (stableValue(owning.observations) !== stableValue(record.observations) || stableValue(metadata) !== stableValue(record.provenance)) throw Error('Retained original assertion result differs from its immutable record')
   const paths = (objects: string[]) => objects.map(value => value.split('\t')[1]!)
@@ -156,8 +159,8 @@ export async function runMermaidBaselineCompatibility(options: MermaidBaselineCo
     harness = options.harnessRoot ?? options.root
   const node = execFileSync(options.nodeExecutable ?? 'node', ['-p', 'process.execPath'], { encoding: 'utf8' }).trim()
   if (!node) throw Error('Node runtime admission returned no executable; check driver/sandbox access before benchmarking')
-  const upstream = options.mermaidDir ?? resolve(harness, '../mermaid'),
-    reference = options.referenceDir ?? resolve(harness, '../mermaid-reference')
+  const upstream = options.mermaidDir ?? mermaidUpstreamDirectory(),
+    reference = options.referenceDir ?? mermaidOracleDirectory()
   const pin = admitCurrentReference(upstream, reference)
   const policy = readStableSupportPolicy(join(harness, 'docs/project/upstream-mermaid-policy.json')) as any
   const expectedTypes = (family: string) => [...new Set<string>([family, ...(policy.families.find((row: any) => row.id === family)?.upstreamDetectorIds ?? [])])].sort()
@@ -198,7 +201,7 @@ export async function runMermaidBaselineCompatibility(options: MermaidBaselineCo
   }
   const out = options.out
   mkdirSync(out, { recursive: true })
-  const observer = options.observerExecutable ?? options.portableObserver ?? '/usr/bin/time'
+  const observer = options.observerExecutable ?? options.portableObserver ?? defaultTimeObserver() ?? '/usr/bin/time'
   const observerIdentity = executableIdentity(observer)
   const plan = { schemaVersion: 1, protocol, pin, settings, bindings: bindings.length, uniqueInputs: cases.length, cases, targets: targetList, unavailableTargets, retainedOriginalAssertions: original }
   if (options.parserPlan) {

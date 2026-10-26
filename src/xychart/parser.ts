@@ -246,10 +246,6 @@ function parseNumericPoints(str: string, strict = false, statementLine?: number)
   return { values, labels }
 }
 
-function parseNumericArray(str: string): number[] {
-  return parseNumericPoints(str).values
-}
-
 const NUMBER_PATTERN = String.raw`[+-]?(?:\d+(?:\.\d+)?|\.\d+)`
 const RANGE_REGEX = new RegExp(`^(${NUMBER_PATTERN})\\s*-->\\s*(${NUMBER_PATTERN})$`)
 

@@ -387,3 +387,12 @@ export function portableCases(selection?: readonly PortableCohort[]): PortableCa
   const cases = [...familyCases, ...['flowchart', 'sequence', 'class', 'state', 'er'].flatMap(family => [8, 32, 128].map(size => scalingCase(family, size))), ...adversarialCases, ...invalidCases]
   return selection ? cases.filter(testCase => selection.includes(testCase.cohort)) : cases
 }
+
+/** A family is supported when the renderer accepts its canonical family-cohort source.
+ * Rejecting this probe marks the family unsupported before any of its cases run; an
+ * accepted probe keeps every later failure in that family a failure. */
+export const FAMILY_SUPPORT_PROTOCOL = 'family-cohort-source-acceptance-v1'
+export function familySupportProbe(family: string): PortableCase | undefined {
+  const canonical = familyCases.find(testCase => testCase.family === family)
+  return canonical && { ...canonical, id: `family-support:${family}` }
+}

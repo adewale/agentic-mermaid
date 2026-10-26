@@ -9,7 +9,7 @@ export interface TrackJob {
   phase: PeerPhase; consumer: PeerConsumer; round: number; samples: number; allocationSamples: number; maxCaseMs: number; warmCalls?: number; warmupMs?: number; coldSamples?: number; coldProbe?: 'timing' | 'allocation' | 'diagnostic'
 }
 const firstLine = (error: unknown) => String(error instanceof Error ? error.message : error).split('\n')[0]!
-const unsupported = /Invalid mermaid header|No diagram type detected|UnknownDiagramError|Unrecognized Mermaid header|unsupported.*(?:diagram|Agentic)|diagram type is not supported/i
+// A rejected call is an error here; the controller's family probe decides unsupported families.
 const thenable = (value: unknown): value is PromiseLike<unknown> => typeof (value as PromiseLike<unknown> | null)?.then === 'function'
 
 /** No observer is present during clocks or GCProfiler probes. Every timed
@@ -80,7 +80,7 @@ export async function measurePeerTrack(options: {
         row.calls.push({ index, variant: variant.variant, domain: variant.domain, elapsedMs: result.elapsedMs, consumedBytes: result.bytes, checksum: result.checksum, ...inspect(result.svg, variant) })
       } catch (error) {
         const detail = firstLine(error)
-        row.calls.push({ index, variant: variant.variant, domain: variant.domain, status: unsupported.test(detail) ? 'unsupported' : 'error', detail })
+        row.calls.push({ index, variant: variant.variant, domain: variant.domain, status: 'error', detail })
       }
       options.progress?.(row)
       if (performance.now() - started > track.maxCaseMs) break
@@ -120,7 +120,7 @@ export async function measurePeerTrack(options: {
     }
   } catch (error) {
     const detail = firstLine(error)
-    row.calls.push({ index: row.calls.length, variant: latest?.variant ?? 0, domain: latest?.domain, status: unsupported.test(detail) ? 'unsupported' : 'error', detail })
+    row.calls.push({ index: row.calls.length, variant: latest?.variant ?? 0, domain: latest?.domain, status: 'error', detail })
   } finally {
     if (priorObserver === undefined) delete global[observerKey]
     else global[observerKey] = priorObserver

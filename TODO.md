@@ -14,6 +14,9 @@ retain their evidence. Candidate implementation does not establish merge,
 publication or deployment; a closed issue is not completion evidence when its
 acceptance conditions still fail. Plans supply design context, never additional
 queues. Retired IDs are not reused.
+CONS-43 is retired: `src/layout/passes/index.ts` contains only re-exports;
+cohesive implementations already live in their owning pass modules. Further
+route-contract extraction preserves the existing pipeline manifest and order.
 
 ## Release / owner decisions
 
@@ -260,10 +263,6 @@ queues. Retired IDs are not reused.
   whether insert-position error wording should converge; promote any further
   extraction only with a demonstrated repeated behavior and characterization.
   Do not mechanically unify the intentionally different code.
-- [ ] **CONS-43 — Continue physical layout-pass extraction** (`todo`). Move
-  cohesive pass implementations out of `layout/passes/index.ts` one at a time
-  behind the checked manifest; preserve order, mutation declarations,
-  certificate reissue, layout bytes, and SVG bytes.
 - [ ] **CONS-45 — Finish terminal-context convergence** (`todo`). Move remaining
   family-local cell writers and context argument lists onto shared grapheme-safe
   canvas/context helpers without projecting pixel Scene geometry. Build on the

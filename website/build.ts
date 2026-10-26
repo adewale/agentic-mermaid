@@ -1,3 +1,7 @@
+import { createSiteMetadata } from './build/metadata.ts'
+import { createPageShell } from './build/page-shell.ts'
+import { escapeHtml, escapeAttr, makePreFocusable } from './build/html.ts'
+import { buildWorkerArtifacts } from './build/worker-artifacts.ts'
 import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { mkdir, mkdtemp, readdir, rm, unlink, writeFile } from 'node:fs/promises'
@@ -18,7 +22,6 @@ import { NodeResourceResolver } from '../src/node-resource-resolver.ts'
 import { namespaceSvgIds } from '../src/renderer.ts'
 import { HOSTED_MCP_SERVER_NAME, HOSTED_TOOLS, SUPPORTED_PROTOCOL_VERSIONS } from '../src/mcp/hosted-server.ts'
 import { MCP_SERVER_VERSION } from '../src/mcp/tool-surface.ts'
-import { computeDeployVersion } from './src/deploy-hash.ts'
 import { resolveBuildGitSha } from './build-provenance.ts'
 import { AI_CATALOG_RESOURCES } from './agent-resource-inventory.ts'
 import { CLEAN_PAGE_ROUTES, DYNAMIC_CLEAN_REDIRECT_LINES, staticRedirectLines } from './src/site-routes.ts'
@@ -113,176 +116,6 @@ function addHeadDescription(html: string) {
   return html.replace(/<meta name="viewport"[^>]*>/, '$&\n<meta name="description" content="Agentic Mermaid renders, verifies, and edits Mermaid diagrams locally, with compact agent instructions for CLI, library, and MCP use.">')
 }
 
-// Social/canonical metadata. Keep the canonical public origin as the default so
-// local builds and production both ship complete entity-resolution metadata.
-const siteOrigin = process.env.SITE_ORIGIN ?? 'https://agentic-mermaid.dev'
-// titleAttr/descriptionAttr must already be attribute-escaped by the caller.
-function socialMetaTags(titleAttr: string, descriptionAttr: string, route = '') {
-  const tags = [`<meta property="og:title" content="${titleAttr}">`, `<meta property="og:description" content="${descriptionAttr}">`, '<meta property="og:type" content="website">', '<meta name="twitter:card" content="summary_large_image">']
-  if (siteOrigin && route) {
-    tags.push(`<link rel="canonical" href="${escapeAttr(siteOrigin + route)}">`, `<meta property="og:url" content="${escapeAttr(siteOrigin + route)}">`, `<meta property="og:image" content="${escapeAttr(siteOrigin + '/og-image.png')}">`)
-  }
-  return tags.join('\n')
-}
-
-// Head-injection step for mockup-derived pages (and the editor): reuse the
-// page's own <title> and meta description so the social card never drifts
-// from the visible page. Both are lifted from markup, so they are already
-// entity-escaped; only stray quotes need re-escaping for the attribute.
-function addSocialMeta(html: string, route = '') {
-  if (html.includes('property="og:title"')) return html
-  const title = (html.match(/<title>([\s\S]*?)<\/title>/)?.[1] ?? 'Agentic Mermaid').trim().replace(/"/g, '&quot;')
-  const description = html.match(/<meta name="description" content="([^"]*)"/)?.[1] ?? ''
-  return html.replace('</head>', socialMetaTags(title, description, route) + '\n</head>')
-}
-
-function jsonLdScript(data: unknown) {
-  return `<script type="application/ld+json">${JSON.stringify(data).replace(/</g, '\\u003c')}</script>`
-}
-
-function decodeHtmlLite(s: string) {
-  return s
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-}
-
-function structuredDataTags(title = 'Agentic Mermaid', description = packageJson.description, route = '/') {
-  const pageUrl = siteOrigin + (route || '/')
-  const homeUrl = `${siteOrigin}/`
-  const logoUrl = `${siteOrigin}/og-image.png`
-  return jsonLdScript({
-    '@context': 'https://schema.org',
-    '@graph': [
-      {
-        '@type': 'Organization',
-        '@id': `${homeUrl}#organization`,
-        name: 'Agentic Mermaid',
-        url: homeUrl,
-        logo: logoUrl,
-        description: 'Open-source Mermaid rendering, verification, and structured editing for coding agents.',
-        sameAs: ['https://github.com/adewale/agentic-mermaid'],
-        contactPoint: {
-          '@type': 'ContactPoint',
-          contactType: 'technical support',
-          url: 'https://github.com/adewale/agentic-mermaid/issues',
-        },
-        address: {
-          '@type': 'PostalAddress',
-          addressCountry: 'US',
-        },
-      },
-      {
-        '@type': 'WebSite',
-        '@id': `${homeUrl}#website`,
-        name: 'Agentic Mermaid',
-        url: homeUrl,
-        description: packageJson.description,
-        publisher: { '@id': `${homeUrl}#organization` },
-      },
-      {
-        '@type': 'SoftwareApplication',
-        '@id': `${homeUrl}#software`,
-        name: 'Agentic Mermaid',
-        url: homeUrl,
-        description: packageJson.description,
-        applicationCategory: 'DeveloperApplication',
-        applicationSubCategory: 'Diagramming, MCP server, CLI, and library',
-        operatingSystem: 'Cross-platform',
-        softwareVersion: packageJson.version,
-        codeRepository: 'https://github.com/adewale/agentic-mermaid',
-        programmingLanguage: ['TypeScript', 'JavaScript'],
-        runtimePlatform: ['Node.js', 'Bun', 'Cloudflare Workers'],
-        isAccessibleForFree: true,
-        offers: {
-          '@type': 'Offer',
-          price: '0',
-          priceCurrency: 'USD',
-        },
-        featureList: ['Parse, verify, mutate, serialize, and render Mermaid diagrams', 'Deterministic SVG, PNG, ASCII, Unicode, and JSON layout output', 'Hosted and self-hosted MCP tools for agent workflows', 'Structured mutation operations for supported Mermaid families'],
-        provider: { '@id': `${homeUrl}#organization` },
-        sameAs: ['https://github.com/adewale/agentic-mermaid'],
-      },
-      {
-        '@type': 'Service',
-        '@id': `${homeUrl}#hosted-mcp`,
-        name: 'Agentic Mermaid hosted MCP',
-        serviceType: 'Model Context Protocol server',
-        url: `${siteOrigin}/mcp`,
-        description: 'Stateless Streamable HTTP MCP endpoint for rendering, verifying, describing, mutating, and building Mermaid diagrams.',
-        provider: { '@id': `${homeUrl}#organization` },
-        isRelatedTo: { '@id': `${homeUrl}#software` },
-        offers: {
-          '@type': 'Offer',
-          price: '0',
-          priceCurrency: 'USD',
-        },
-      },
-      {
-        '@type': 'WebPage',
-        '@id': `${pageUrl}#webpage`,
-        url: pageUrl,
-        name: title,
-        description,
-        isPartOf: { '@id': `${homeUrl}#website` },
-        primaryImageOfPage: logoUrl,
-        about: { '@id': `${homeUrl}#software` },
-        speakable: {
-          '@type': 'SpeakableSpecification',
-          cssSelector: ['h1', '.lead', '.agent-entrypoints'],
-        },
-      },
-      // FAQPage markup is scoped to /about/ (the page whose visible FAQ section
-      // it describes): Google's guideline requires the Q&A to be visible on the
-      // page carrying the markup, and stamping it site-wide risks it being
-      // ignored as duplicate structured data.
-      ...(route === '/about/'
-        ? [
-            {
-              '@type': 'FAQPage',
-              '@id': `${homeUrl}#faq`,
-              mainEntity: [
-                {
-                  '@type': 'Question',
-                  name: 'What is Agentic Mermaid?',
-                  acceptedAnswer: {
-                    '@type': 'Answer',
-                    text: 'Agentic Mermaid is an open-source Mermaid runtime for agents. It parses, verifies, mutates, serializes, and renders diagrams without a browser.',
-                  },
-                },
-                {
-                  '@type': 'Question',
-                  name: 'How should an agent use Agentic Mermaid?',
-                  acceptedAnswer: {
-                    '@type': 'Answer',
-                    text: 'Use the local library, CLI, or MCP server. Parse source first, narrow to the diagram family, apply structured mutations when available, verify, then serialize or render.',
-                  },
-                },
-                {
-                  '@type': 'Question',
-                  name: 'Where is the hosted MCP endpoint?',
-                  acceptedAnswer: {
-                    '@type': 'Answer',
-                    text: 'The hosted stateless Streamable HTTP MCP endpoint is https://agentic-mermaid.dev/mcp, with a standard discovery alias at https://agentic-mermaid.dev/.well-known/mcp.',
-                  },
-                },
-              ],
-            },
-          ]
-        : []),
-    ],
-  })
-}
-
-function addStructuredData(html: string, route = '') {
-  if (html.includes('"@id":"https://agentic-mermaid.dev/#software"')) return html
-  const title = decodeHtmlLite((html.match(/<title>([\s\S]*?)<\/title>/)?.[1] ?? 'Agentic Mermaid').trim())
-  const description = decodeHtmlLite(html.match(/<meta name="description" content="([^"]*)"/)?.[1] ?? packageJson.description)
-  return html.replace('</head>', structuredDataTags(title, description, route || '/') + '\n</head>')
-}
-
 function addAgentDiscoveryLinks(html: string) {
   if (html.includes('rel="alternate" type="application/json" href="/capabilities.json"')) return html
   if (/<link rel="stylesheet" href="([^\"]+)"\s*>/.test(html)) {
@@ -302,10 +135,6 @@ function ensureMainId(html: string) {
 
 // Code blocks scroll horizontally on narrow screens; a scrollable region must
 // be keyboard-focusable (WCAG 2.1.1 / axe scrollable-region-focusable).
-function makePreFocusable(html: string) {
-  return html.replace(/<pre(?![^>]*\btabindex)((?:\s[^>]*)?)>/g, '<pre tabindex="0"$1>')
-}
-
 function rewriteAttrs(html: string) {
   return html.replace(/\b(href|src)="([^"]+)"/g, (_m, attr, value) => `${attr}="${rewriteUrl(value)}"`)
 }
@@ -467,78 +296,6 @@ async function generateEditorHtml() {
   return transformed
 }
 
-function mastheadHtml(currentHref = '') {
-  const links = [
-    ['/about/', 'About', ''],
-    ['/examples/', 'Examples', ''],
-    ['/comparisons/', 'Comparisons', ''],
-    ['/docs/', 'Docs', ''],
-    ['https://github.com/adewale/agentic-mermaid', 'GitHub', ''],
-    [GENERIC_EDITOR_HREF, 'Open editor', 'link-editor'],
-  ] as const
-  const nav = links
-    .map(([href, label, cls]) => {
-      const attrs = [cls ? `class="${cls}"` : '', currentHref === href ? 'aria-current="page"' : ''].filter(Boolean).join(' ')
-      return `<a ${attrs ? attrs + ' ' : ''}href="${href}">${label}</a>`
-    })
-    .join('')
-  return `<header class="masthead"><div class="bar"><a class="brand" href="/"><span class="mark"></span> Agentic&nbsp;Mermaid</a><nav class="links desktop-links" aria-label="Primary navigation">${nav}</nav><details class="nav-menu"><summary class="nav-toggle"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span>Menu</span></summary><nav id="site-navigation" class="links" aria-label="Primary navigation">${nav}</nav></details></div><hr></header>`
-}
-
-// One quiet footer on every document page: the trust signals an evaluating
-// engineer looks for (version, license, where to report a problem) plus the
-// pages that otherwise have no inbound link (design language). The editor is
-// app chrome and carries its own report-issue affordance instead.
-function siteFooterHtml() {
-  return `<footer class="site-footer"><hr><div class="bar"><p>Agentic Mermaid v${packageJson.version} · <a href="https://github.com/adewale/agentic-mermaid/blob/main/LICENSE">MIT</a> · <a href="https://github.com/adewale/agentic-mermaid">GitHub</a> · <a href="https://github.com/adewale/agentic-mermaid/issues">Report an issue</a> · <a href="https://github.com/adewale/agentic-mermaid/blob/main/CHANGELOG.md">Changelog</a> · <a href="/about/design/">Design language</a> · <a href="/llms.txt">llms.txt</a></p></div></footer>`
-}
-
-function addFooter(html: string) {
-  if (html.includes('class="site-footer"')) return html
-  return html.replace('</main>', '</main>\n' + siteFooterHtml())
-}
-
-// Single page header contract: h1 + lead, then an optional meta row
-// (e.g. "Updated · source · read time") and actions row. The public site is
-// deliberately document-first with no breadcrumb chrome (see the website
-// contract test — masthead nav is the only wayfinding the shell ships).
-function pageShell(title: string, lead: string, body: string, currentHref = '', meta = '', actions = '', route = '') {
-  // Titles that already carry the brand (e.g. "About Agentic Mermaid") do not
-  // get the suffix a second time.
-  const fullTitle = title.includes('Agentic Mermaid') ? title : `${title} – Agentic Mermaid`
-  return `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="light">
-<meta name="description" content="${escapeAttr(lead)}">
-<title>${escapeHtml(fullTitle)}</title>
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="icon" href="/favicon.ico" type="image/x-icon">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<link rel="stylesheet" href="/styles.css">
-${agentDiscoveryLinks}
-${socialMetaTags(escapeAttr(fullTitle), escapeAttr(lead), route)}
-${structuredDataTags(fullTitle, lead, route || '/')}
-</head>
-<body>
-<a class="skip-link" href="#main">Skip to content</a>
-${mastheadHtml(currentHref)}
-<main id="main" class="doc">
-<section class="page-header">
-<h1>${escapeHtml(title)}</h1>
-<p class="lead">${escapeHtml(lead)}</p>
-${meta ? `<p class="page-meta">${meta}</p>\n` : ''}${actions ? `<div class="page-actions">${actions}</div>\n` : ''}</section>
-${makePreFocusable(body)}
-</main>
-${siteFooterHtml()}
-<script src="/shader-mark.js"></script>
-<script src="/theme.js"></script>
-</body>
-</html>`
-}
-
 // pageShell + emit with the page's own route wired through, so canonical/og:url
 // metadata can carry the exact path when SITE_ORIGIN is set.
 async function externalizeExecutableInlineScripts(html: string) {
@@ -562,12 +319,6 @@ async function emitShell(rel: string, title: string, lead: string, body: string,
   await emit(rel, await externalizeExecutableInlineScripts(html))
 }
 
-function escapeHtml(s: string) {
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-}
-function escapeAttr(s: string) {
-  return escapeHtml(s).replace(/"/g, '&quot;')
-}
 // The warning catalog's page prose is authored as inline HTML (<code> spans,
 // entities); render it as plain Markdown for the .md siblings. Decode
 // &amp; last so pre-encoded entities like &amp;#160; survive as literal text.
@@ -583,6 +334,10 @@ function inlineHtmlToMarkdown(s: string) {
 }
 
 const packageJson = JSON.parse(await Bun.file(join(ROOT, 'package.json')).text())
+const siteOrigin = process.env.SITE_ORIGIN ?? 'https://agentic-mermaid.dev'
+const metadata = createSiteMetadata(packageJson, siteOrigin)
+const { addSocialMeta, addStructuredData } = metadata
+const { mastheadHtml, addFooter, pageShell } = createPageShell(packageJson.version, agentDiscoveryLinks, GENERIC_EDITOR_HREF, metadata)
 const rawCapabilities = buildCapabilities()
 function checkoutGitValue(args: string[]): string | undefined {
   try {
@@ -3060,85 +2815,10 @@ await emit('sitemap.xml', sitemapXml)
 // The directory is gitignored and rebuilt by website checks, tests that need
 // Worker artifacts, and deploy. worker-env.d.ts owns the stable import types so
 // repository typecheck remains read-only and works from a fresh checkout.
-const SRC_GENERATED = join(import.meta.dir, 'src', 'generated')
-const workerGenerated = new Map<string, Buffer>()
-
-async function emitWorkerArtifact(rel: string, content: Buffer) {
-  workerGenerated.set(rel, content)
-  if (CHECK) return
-  const dest = join(SRC_GENERATED, rel)
-  await mkdir(dirname(dest), { recursive: true })
-  await writeFile(dest, content)
-}
-
-if (!PUBLIC_ONLY) {
-  const harnessBuild = await Bun.build({
-    entrypoints: [join(ROOT, 'src', 'mcp', 'dynamic-harness.ts')],
-    target: 'browser',
-    format: 'esm',
-    minify: true,
-    // The agent-code module exists only inside the Worker Loader's
-    // per-isolate module registry; the import must survive bundling.
-    external: ['*user.js'],
-  })
-  if (!harnessBuild.success || harnessBuild.outputs.length !== 1) {
-    throw new Error(`execute-harness bundle failed: ${harnessBuild.logs.join('\n')}`)
-  }
-  const harness = Buffer.from((await harnessBuild.outputs[0]!.text()).replace(/[ \t]+$/gm, ''))
-  if (!harness.includes('import("./user.js")')) throw new Error('execute-harness bundle lost the ./user.js import')
-  const resvgWasm = Buffer.from(await Bun.file(join(ROOT, 'node_modules', '@resvg', 'resvg-wasm', 'index_bg.wasm')).arrayBuffer())
-  const hostedFonts = HOSTED_FONT_RESOURCES.map(resource => {
-    const verified = VERIFIED_FONT_BY_ID.get(resource.identity.id)
-    if (!verified) throw new Error(`Required font was not verified: ${resource.identity.id}`)
-    return { name: resource.file, bytes: Buffer.from(verified.readBytes()) }
-  })
-  await emitWorkerArtifact('execute-harness.js.txt', harness)
-  await emitWorkerArtifact('resvg.wasm', resvgWasm)
-  for (const font of hostedFonts) await emitWorkerArtifact(font.name, font.bytes)
-
-  // Full-deploy version for the /mcp response cache. Bundle the worker's own
-  // JS closure (transport, hosted-server, PNG path, raster budget, SDK) and
-  // hash it together with the harness + wasm + fonts. Unlike the harness-only
-  // hash used for Worker Loader isolate IDs, this changes when ANY hosted tool
-  // implementation, transport, or asset changes — so a deploy that touches
-  // hosted-server.ts / mcp-handler.ts / png-wasm.ts without moving the harness
-  // still invalidates cached render_svg/verify/describe/render_png results.
-  const workerBuild = await Bun.build({
-    entrypoints: [join(import.meta.dir, 'src', 'worker.ts')],
-    target: 'browser',
-    format: 'esm',
-    minify: true,
-    // Assets + the generated version constant stay external: the constant is
-    // what we are computing, so it must not feed its own hash. (Glob form —
-    // bun resolves bare relative specifiers, so a literal path would not match.)
-    external: ['*.wasm', '*.ttf', '*.js.txt', '*deploy-version.ts'],
-  })
-  if (!workerBuild.success || workerBuild.outputs.length < 1) {
-    throw new Error(`worker bundle failed: ${workerBuild.logs.join('\n')}`)
-  }
-  const workerJs = Buffer.from(await workerBuild.outputs[0]!.text())
-  if (!workerJs.includes('render_svg') || !workerJs.includes('RENDER_FAILED')) {
-    throw new Error('worker bundle is missing the hosted MCP surface; deploy hash would be blind to it')
-  }
-  // The main worker's compatibility_date is a deploy-controlled runtime input
-  // that lives in config, not in any bundled artifact — the one output-relevant
-  // setting the worker JS hash cannot see. Fold it in so a compat-date bump
-  // (which can shift workerd JS semantics) also invalidates cached results.
-  const wranglerText = await Bun.file(join(import.meta.dir, 'wrangler.jsonc')).text()
-  const compatDate = wranglerText.match(/"compatibility_date"\s*:\s*"([^"]+)"/)?.[1] ?? ''
-  const deployVersion = computeDeployVersion(packageJson.version, [workerJs, harness, resvgWasm, ...hostedFonts.map(font => font.bytes), new TextEncoder().encode(compatDate)])
-  await emitWorkerArtifact(
-    'deploy-version.ts',
-    Buffer.from(
-      '// Generated by website/build.ts — do not edit.\n' +
-        '// Full-deploy content hash (worker JS closure + harness + wasm + fonts +\n' +
-        '// main-worker compatibility_date). Used as the /mcp response-cache version\n' +
-        '// so any change to the hosted tool surface, transport, PNG path, SDK, or\n' +
-        '// worker runtime semantics invalidates cached tool results.\n' +
-        `export const DEPLOY_VERSION = '${deployVersion}'\n`,
-    ),
-  )
-}
+const workerGenerated = PUBLIC_ONLY ? new Map<string, Buffer>() : await buildWorkerArtifacts({
+  root: ROOT, websiteDirectory: import.meta.dir, packageVersion: packageJson.version,
+  verifiedFontById: VERIFIED_FONT_BY_ID, check: CHECK,
+})
 
 function assertNoPlaceholders() {
   const offenders: string[] = []

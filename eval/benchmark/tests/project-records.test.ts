@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, test } from 'bun:test'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { gzipSync } from 'node:zlib'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { activateProjectRecord, findProjectRecord, inspectCurrentProjectRecords, loadCurrentProjectRecords, type ProjectBenchmarkIdentity, type ProjectBenchmarkRecord, publishProjectRecord, stableValue } from '../unified/project-records.ts'
+import { activateProjectRecord, findProjectRecord, inspectCurrentProjectRecords, loadCurrentProjectRecords, type ProjectBenchmarkIdentity, type ProjectBenchmarkRecord, projectRecordPath, readProjectBenchmarkRecord, readBenchmarkDocument, readBenchmarkResult, writeBenchmarkDocument, publishProjectRecord, stableValue } from '../portable/project-records.ts'
 
 const temporary: string[] = []
 afterEach(() => {
@@ -189,6 +190,10 @@ describe('immutable project benchmark records', () => {
     expect(existsSync(join(f.store, '.writer.lock'))).toBe(false)
     expect(loadCurrentProjectRecords(f.store)[0]?.id).toBe('first')
     rmSync(obstacle, { recursive: true })
+    const orphan = projectRecordPath(f.store, 'owner/tool', 'second'), orphanBytes = readFileSync(orphan, 'utf8')
+    publishProjectRecord(f.store, f.record('second'))
+    expect(readFileSync(orphan, 'utf8')).toBe(orphanBytes)
+    expect(loadCurrentProjectRecords(f.store)[0]?.id).toBe('second')
     publishProjectRecord(f.store, f.record('third'))
     expect(loadCurrentProjectRecords(f.store)[0]?.id).toBe('third')
   })
@@ -206,4 +211,58 @@ describe('immutable project benchmark records', () => {
     writeFileSync(join(directory, readdirSync(directory)[0]!), '{"schemaVersion":1')
     expect(() => findProjectRecord(f.store, f.identity())).toThrow()
   })
+  test('new entries reference one compressed canonical record and reject changed payload bytes', () => {
+    const f = fixture(), record = f.record('compressed')
+    record.observations[0]!.detail = 'retained measurement output '.repeat(2000)
+    publishProjectRecord(f.store, record)
+    const file = projectRecordPath(f.store, 'owner/tool', record.id), bytes = readFileSync(file, 'utf8'), pointer = JSON.parse(bytes)
+    expect(pointer).toMatchObject({ schemaVersion: 2, kind: 'project-benchmark-record-reference' })
+    expect(bytes.length).toBeLessThan(1024)
+    expect(pointer.observations).toBeUndefined()
+    expect(pointer.identity).toBeUndefined()
+    expect(pointer.payload.bytes).toBeLessThan(JSON.stringify(record).length / 10)
+    expect(readProjectBenchmarkRecord(file)).toEqual(record)
+    expect(readProjectBenchmarkRecord(pointer.payload.path)).toEqual(record)
+    expect(readBenchmarkDocument(pointer.payload.path)).toEqual(record)
+    expect(readBenchmarkDocument(file)).toEqual(record)
+    expect(() => writeBenchmarkDocument(pointer.payload.path.slice(0, -3), { changed: true })).toThrow('immutable measurement record')
+    expect(findProjectRecord(f.store, f.identity())).toEqual(record)
+    const index = readFileSync(join(f.store, 'current.json'), 'utf8')
+    const altered = readProjectBenchmarkRecord(pointer.payload.path)
+    altered.observations[0]!.samplesMs = [0.1, 2, 3]
+    writeFileSync(pointer.payload.path, gzipSync(Buffer.from(JSON.stringify(altered))))
+    expect(readProjectBenchmarkRecord(pointer.payload.path).observations[0]!.samplesMs).toEqual([0.1, 2, 3])
+    expect(() => findProjectRecord(f.store, f.identity())).toThrow('canonical output differs')
+    expect(readFileSync(join(f.store, 'current.json'), 'utf8')).toBe(index)
+  })
+
+  test('derived documents share the gzip/reference codec without imposing a suite schema or changing legacy JSON', () => {
+    const f = fixture(), legacy = join(f.evidence, 'legacy.json'), document = join(f.evidence, 'summary.json')
+    const value = { schemaVersion: 1, identity: { project: 'document-reader' }, counts: [1, 2], label: 'λ🙂' }, bytes = JSON.stringify(value, null, 4) + '\n'
+    writeFileSync(legacy, bytes)
+    expect(readBenchmarkDocument(legacy)).toEqual(value)
+    writeBenchmarkDocument(document, value)
+    expect(readBenchmarkDocument(document)).toEqual(value)
+    expect(readBenchmarkDocument(document + '.gz')).toEqual(value)
+    expect(() => readBenchmarkResult(document)).toThrow('file has no benchmark result')
+    expect(JSON.parse(readFileSync(document, 'utf8')).observations).toBeUndefined()
+    const altered = { ...value, counts: [0.1, 2] }
+    writeFileSync(document + '.gz', gzipSync(Buffer.from(JSON.stringify(altered))))
+    expect(() => readBenchmarkDocument(document)).toThrow('canonical output differs')
+    writeBenchmarkDocument(document, altered)
+    expect(readBenchmarkDocument(document)).toEqual(altered)
+    expect(readFileSync(legacy, 'utf8')).toBe(bytes)
+    const exported = join(f.evidence, 'exported'); mkdirSync(exported)
+    const copy = join(exported, 'summary.json'); copyFileSync(document, copy); copyFileSync(document + '.gz', copy + '.gz')
+    rmSync(document); rmSync(document + '.gz')
+    expect(JSON.parse(readFileSync(copy, 'utf8')).payload.path).toBe('summary.json.gz')
+    expect(readBenchmarkDocument(copy)).toEqual(altered)
+    const copiedReference = readFileSync(copy, 'utf8'), unsafe = JSON.parse(copiedReference); unsafe.payload.path = '../exported/summary.json.gz'
+    writeFileSync(copy, JSON.stringify(unsafe))
+    expect(() => readBenchmarkDocument(copy)).toThrow('invalid output reference')
+    writeFileSync(copy, copiedReference)
+    writeFileSync(copy + '.gz', gzipSync(Buffer.from(JSON.stringify(value))))
+    expect(() => readBenchmarkDocument(copy)).toThrow('canonical output differs')
+  })
+
 })

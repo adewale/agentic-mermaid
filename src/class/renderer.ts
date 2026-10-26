@@ -721,21 +721,6 @@ function renderRelationshipMarkerOverlay<T>(
   return marks.connector({ ...fields, geometry: { kind: 'polyline', points: rel.points } })
 }
 
-/**
- * Get marker-start/marker-end attributes for a relationship type.
- * Uses `markerAt` from the parser to place the marker on the correct end:
- *   - 'from' → marker-start (prefix arrows like `<|--`, `*--`, `o--`)
- *   - 'to'   → marker-end   (suffix arrows like `..|>`, `-->`, `--*`)
- */
-function getRelationshipMarkers(type: RelationshipType, markerAt: 'from' | 'to' | 'both' | 'none'): string {
-  const markerId = getMarkerDefId(type)
-  if (!markerId || markerAt === 'none') return ''
-
-  if (markerAt === 'from') return ` marker-start="url(#${markerId})"`
-  if (markerAt === 'both') return ` marker-start="url(#${markerId})" marker-end="url(#${markerId})"`
-  return ` marker-end="url(#${markerId})"`
-}
-
 /** Map relationship type to its SVG marker definition ID */
 function getMarkerDefId(type: RelationshipType): string | null {
   switch (type) {

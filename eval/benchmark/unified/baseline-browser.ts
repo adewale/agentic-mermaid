@@ -1,3 +1,4 @@
+import { writeBenchmarkDocument } from '../portable/project-records.ts'
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { createRequire } from 'node:module'
@@ -10,7 +11,7 @@ import { assertBenchmarkExecutionAllowed } from '../ci-policy.ts'
 import { assertBenchmarkToolVersion } from '../tool-versions.ts'
 import { portableCases, type Json } from '../portable/cohorts.ts'
 import { byteDigest } from '../portable/artifacts.ts'
-import { deliveredArtifactIdentity, executableIdentity } from './benchmark-context.ts'
+import { defaultChromium, deliveredArtifactIdentity, executableIdentity } from './benchmark-context.ts'
 import { baselineMeasurementContext } from './baseline-measurement-context.ts'
 import { baselineBrowserAction } from './baseline-browser-worker.mjs'
 import { qualifyOutput } from './qualification.ts'
@@ -104,6 +105,17 @@ function sourceRejection(error: string, errorName: string): boolean {
     || /^Error: Invalid mermaid header:/.test(error)
     || /^Error: SEQUENCE_UNSUPPORTED_STATEMENT: line [1-9]\d*:/.test(error)
 }
+/** A family is unsupported only when the tool rejects its canonical family-cohort case
+ * (family:<name>, the family-support probe source). Then its rejected positive cases are
+ * unsupported; elsewhere a rejection stays a failure, whatever its message says. */
+export function unsupportedByFamilyProbe(rows: BenchmarkObservation[]): void {
+  const rejected = new Set(rows.filter(row => row.caseId === `family:${row.family}` && row.metrics?.accepted === false).map(row => row.family))
+  for (const row of rows)
+    if (rejected.has(row.family) && row.status === 'failed' && row.metrics?.accepted === false && row.metrics?.expectedAccepted !== false) {
+      row.status = 'unsupported'
+      row.detail = `Family unsupported: the tool rejected family:${row.family}, its canonical source. ${row.detail ?? ''}`.trim()
+    }
+}
 /** Authored expectations are independent of each renderer's accepted output. */
 export function qualifyBaselineBrowser(testCase: BaselineBrowserCase, result: any, preludes: readonly { status: BenchmarkStatus; findings: string[] }[] = []): { status: BenchmarkStatus; findings: string[]; scope: string } {
   const failedSetup = preludes.filter(value => value.status !== 'passed')
@@ -111,7 +123,7 @@ export function qualifyBaselineBrowser(testCase: BaselineBrowserCase, result: an
   if (!result.accepted) {
     const detail = String(result.error ?? 'No public result')
     if (!testCase.expected.accept && result.errorPhase === 'public-call' && sourceRejection(detail, String(result.errorName ?? 'Error'))) return { status: 'passed', findings: [], scope: 'recognized source rejection; no positive SVG credit' }
-    return { status: testCase.expected.accept && /unsupported|not supported|unknown diagram|no diagram type|not registered|diagram.*not found/i.test(detail) ? 'unsupported' : 'failed', findings: [detail], scope: 'public operation did not produce expected SVG' }
+    return { status: 'failed', findings: [detail], scope: 'public operation did not produce expected SVG' }
   }
   if (!testCase.expected.accept) return { status: 'failed', findings: ['Expected source rejection; public renderer accepted it'], scope: 'negative source control' }
   const qualification = qualifyOutput({ id: testCase.id, family: testCase.family, source: testCase.source, expectedLabels: testCase.expected.labels, features: testCase.cohorts, provenance: 'Independent authored portable/required-family literal' }, result.svg, 'svg')
@@ -178,7 +190,7 @@ export async function runBaselineBrowserSuite(options: BaselineBrowserOptions): 
     return result
   }
   const require = createRequire(join(options.root, 'eval/benchmark/package.json')), { chromium } = require('playwright')
-  const executable = options.browserExecutable ?? '/usr/bin/chromium'
+  const executable = options.browserExecutable ?? defaultChromium(chromium)
   const node = options.nodeExecutable ?? 'node'
   const collectors = new Map<string, Collector>(), tickets: Promise<UnifiedSuiteResult>[] = [], cached: string[] = []
   const executionPlan: BaselineBrowserReport['executionPlan'] = []
@@ -309,6 +321,7 @@ export async function runBaselineBrowserSuite(options: BaselineBrowserOptions): 
       }
     }
     for (const collector of collectors.values()) {
+      unsupportedByFamilyProbe(collector.observations)
       collector.gaps.push('Admission proves XML/namespace/canvas/authored labels only; native relationships and CSS/paint fidelity unmeasured.', 'Document V8 heap excludes native/GPU/worker/whole-browser process peak. No monetary/model-token cost inferred.', 'A0/A1 are same-artifact controls, not independent tools. Five renderer rounds provide repeatability diagnostics, not p95 or causal proof.')
       const result: BaselineBrowserReport = { id: 'pinned-browser-baseline', status: collector.observations.some(row => row.status === 'failed') ? 'failed' : 'blocked', startedAt: collector.startedAt, finishedAt: new Date().toISOString(), observations: collector.observations, gaps: collector.gaps, artifacts: collector.artifacts, settings: plan.settings, identities: [collector.identity], cases: plan.cases, executionPlan, rolling, collectionId }
       write(join(collector.directory, 'browser-baseline-result.json'), result); collector.resolve(result)
@@ -316,7 +329,7 @@ export async function runBaselineBrowserSuite(options: BaselineBrowserOptions): 
     const results = await Promise.all(tickets)
     const windows = new Set(results.map(result => (result as BaselineBrowserReport).collectionId).filter(Boolean)), sameWindow = windows.size === 1 && results.every(result => (result as BaselineBrowserReport).collectionId) && plan.selected.length === plan.identities.length
     const report: BaselineBrowserReport = { id: 'pinned-browser-baseline', status: results.some(result => result.status === 'failed') ? 'failed' : 'blocked', startedAt, finishedAt: new Date().toISOString(), observations: results.flatMap(result => result.observations) as BaselineBrowserObservation[], gaps: [...new Set(results.flatMap(result => result.gaps))], artifacts: results.flatMap(result => result.artifacts ?? []), settings: plan.settings, identities: plan.identities, cases: plan.cases, executionPlan, rolling: !sameWindow, ...(sameWindow ? { collectionId: [...windows][0] } : {}) }
-    write(join(options.out, 'result.json'), report)
+    writeBenchmarkDocument(join(options.out, 'result.json'), report)
     return report
   } catch (error) { for (const collector of collectors.values()) collector.reject(error); await Promise.allSettled(tickets); throw error }
   finally { await new Promise<void>(resolveClose => server.close(() => resolveClose())) }

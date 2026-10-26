@@ -341,6 +341,6 @@ bun test src/__tests__/scene-fidelity.test.ts  # semantic/backend agreement
 ```
 
 Then render your style across every registered diagram type and *look at it small*
-— the poster/contact-sheet harness in `scripts/sketch-prototype/` is the
+— the optional research poster/contact-sheet harness in `scripts/sketch-prototype/` is the
 visual-review surface. A style ships when it is distinctive at a glance,
 legible at cell size, and honest to its intent.
