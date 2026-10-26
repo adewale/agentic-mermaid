@@ -75,7 +75,7 @@ export function lowerRequirementDrawing<T>(marks: DrawingFactory<T>, ctx: Render
         role: 'relationship',
         geometry: projection?.geometry ?? { kind: 'polyline', points: edge.points },
         lineStyle: edge.type === 'contains' ? 'solid' : 'dashed',
-        paint: { stroke: p.style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: String(p.style.lineWidth), fill: 'none' },
+        paint: { stroke: p.style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: String(p.style.lineWidth), fill: 'none', ...(edge.type !== 'contains' ? { strokeDasharray: '6 4' } : {}) },
         endpoints: { from: edge.src, to: edge.dst },
         relationship: { kind: edge.type, direction: 'forward' },
         markers: edge.type === 'contains' ? { start: contains } : { end: arrow },

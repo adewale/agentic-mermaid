@@ -82,6 +82,30 @@ describe('Requirement layout backends', () => {
     }
   })
 
+  test.each(['agentic', 'elk'] as const)('paints authored dashed relationships and solid containment with %s', backend => {
+    for (const type of ['contains', 'copies', 'derives', 'satisfies', 'verifies', 'refines', 'traces']) for (const bendRadius of [0, 12]) {
+      const input = `requirementDiagram\nrequirement r {\ntext: Card\n}\nelement proof {\ntype: evidence\n}\nproof - ${type} -> r`
+      const result = renderMermaidSVGWithReceipt(input, { graphLayout: { backend, fallback: 'none' }, style: { roles: { relationship: { bendRadius } } } })
+      expect(result.receipt.layoutCertification?.status).toBe('passed')
+      const relationships = scanSvgStartTags(result.svg).filter(tag => tag.attributes.some(attribute => attribute.name === 'data-role' && attribute.value === 'relationship'))
+      expect(relationships).toHaveLength(1)
+      const paint = Object.fromEntries(relationships[0]!.attributes.map(attribute => [attribute.name, attribute.value]))
+      expect(paint['data-from']).toBe('proof')
+      expect(paint['data-to']).toBe('r')
+      expect(paint['data-relationship']).toBe(type)
+      if (type === 'contains') {
+        expect(paint['stroke-dasharray']).toBeUndefined()
+        expect(paint['marker-start']).toBe('url(#requirement-contains)')
+        expect(paint['marker-end']).toBeUndefined()
+      } else {
+        expect(paint['stroke-dasharray']).toBe('6 4')
+        expect(paint['marker-end']).toBe('url(#requirement-arrow)')
+        expect(paint['marker-start']).toBeUndefined()
+      }
+      expect(result.svg).toContain(`&lt;&lt;${type}&gt;&gt;`)
+    }
+  })
+
   test('uses the native producer across source, parsed, layout and PNG while preserving explicit ELK', () => {
     const input = source('TB'), stages: string[] = [], parsed = parseRegisteredMermaid(input)
     const options = { ...native, padding: 33 }
