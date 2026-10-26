@@ -3,6 +3,110 @@ import { useTestChildren } from './helpers/test-child.ts'
 
 const runChild = useTestChildren(20_000)
 
+test('a held render request cannot pin evicted private geometry through a drawing proof', async () => {
+  const child = await runChild('node', ['--expose-gc', '--input-type=module', '-e', `
+    import assert from 'node:assert/strict'
+    import { setImmediate } from 'node:timers/promises'
+    import { borrowedPositioned, retainOwnedNativeSvgPositioned, retainPositioned } from './src/experimental/position-cache.ts'
+    const family = {}, heldRequest = { live: true }
+    const tracked = (key, enroll) => {
+      const value = { positioned: { width: 1, height: 1 } }
+      retainOwnedNativeSvgPositioned(family, key, value)
+      if (enroll) borrowedPositioned(family, key, heldRequest)
+      return new WeakRef(value.positioned)
+    }
+    const control = tracked('lifetime-control', false)
+    const held = tracked('lifetime-held', true)
+    for (let index = 0; index < 512; index++) {
+      retainPositioned(family, 'lifetime-churn-' + index, { positioned: { width: 1, height: 1 } })
+    }
+    for (let index = 0; index < 8; index++) { await setImmediate(); globalThis.gc() }
+    assert.equal(control.deref(), undefined, 'unbound control must be collected')
+    assert.equal(heldRequest.live, true)
+    assert.equal(held.deref(), undefined, 'an unconsumed drawing proof must not extend geometry lifetime')
+  `], { cwd: `${import.meta.dir}/../..` })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
+
+test('native drawing cache admission accounts for hidden evidence without burdening fresh or public layouts', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import assert from 'node:assert/strict'
+    import { borrowedPositioned, cachedNativeDrawing, retainNativeDrawing, retainOwnedNativeSvgPositioned, retainPositioned } from './src/experimental/position-cache.ts'
+    const family = {}, layout = { positioned: { width: 1, height: 1 } }
+    const drawing = { svg: '<svg/>', header: {}, paint: { primitives: [] }, preparedText: true }
+    const fresh = {}, publicRequest = {}, repeated = {}, events = []
+    const symbol = Symbol.for('agentic-mermaid.performance-observer.v1')
+    globalThis[symbol] = event => events.push(event)
+    retainOwnedNativeSvgPositioned(family, 'private', layout)
+    const unexpected = () => { throw Error('fresh/public requests must not walk drawing residency') }
+    retainNativeDrawing(fresh, layout, drawing, unexpected)
+    retainPositioned(family, 'public', layout)
+    const publicLayout = borrowedPositioned(family, 'public', publicRequest).result
+    retainNativeDrawing(publicRequest, publicLayout, drawing, unexpected)
+    const repeatedLayout = borrowedPositioned(family, 'private', repeated).result
+    assert.equal(repeatedLayout.positioned, layout.positioned)
+    let walks = 0
+    retainNativeDrawing(repeated, repeatedLayout, drawing, () => { walks++; return 'x'.repeat(17 * 1024 * 1024) })
+    assert.equal(walks, 1)
+    assert.ok(events.some(event => event.owner === 'native-drawing' && event.outcome === 'store-skipped' && event.reason === 'weight-limit'))
+    const next = {}
+    const nextLayout = borrowedPositioned(family, 'private', next).result
+    assert.equal(nextLayout.positioned, layout.positioned)
+    assert.equal(cachedNativeDrawing(next, nextLayout, true), undefined)
+    delete globalThis[symbol]
+  `], { cwd: `${import.meta.dir}/../..` })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
+
+test('repeated private native drawings preserve receipts, policy and final security within the positioning budget', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import assert from 'node:assert/strict'
+    import { createMermaidRenderer } from './src/index.ts'
+    import { PERFORMANCE_EXPERIMENTS, withPerformanceExperiments } from './src/experimental-performance.ts'
+    const events = []
+    const symbol = Symbol.for('agentic-mermaid.performance-observer.v1')
+    globalThis[symbol] = event => events.push(event)
+    let policies = 0
+    const renderer = createMermaidRenderer({ backendPolicy: { selectBackend() { policies++; return undefined } } })
+    const withoutPositionCache = callback => withPerformanceExperiments(
+      PERFORMANCE_EXPERIMENTS.filter(name => name !== 'position-cache'), callback)
+    for (const source of [
+      'sequenceDiagram\\n NativeOwnerA->>NativeOwnerB: retained message',
+      'flowchart LR\\n NativeOwnerA["wide 界"] --> NativeOwnerB',
+      'stateDiagram-v2\\n NativeOwnerA --> NativeOwnerB: retained transition',
+    ]) {
+      const reference = withoutPositionCache(() => renderer.renderMermaidSVGWithReceipt(source))
+      const reuse = []
+      for (let index = 0; index < 3; index++) {
+        const start = events.length, priorPolicies = policies
+        const actual = renderer.renderMermaidSVGWithReceipt(source)
+        assert.deepEqual(actual, reference)
+        assert.equal(policies, priorPolicies + 1)
+        const observed = events.slice(start)
+        reuse.push(observed.filter(event => event.kind === 'cache' && event.owner === 'native-drawing' && event.detail === 'positioned-owner').length)
+        assert.equal(observed.filter(event => event.kind === 'cache' && event.owner === 'svg-inspection' && event.detail === 'final-security').length, 1)
+        assert.ok(observed.some(event => event.kind === 'cache' && event.owner === 'paint-certification' && event.outcome === 'miss'))
+      }
+      assert.deepEqual(reuse, [0, 0, 1])
+      for (const options of [{ fg: '#334455' }, { compact: true }, { security: 'strict' }]) {
+        const expected = withoutPositionCache(() => renderer.renderMermaidSVGWithReceipt(source, options))
+        const start = events.length
+        assert.deepEqual(renderer.renderMermaidSVGWithReceipt(source, options), expected)
+        assert.equal(events.slice(start).filter(event => event.detail === 'positioned-owner').length, 0)
+      }
+      const start = events.length
+      assert.deepEqual(withoutPositionCache(() => renderer.renderMermaidSVGWithReceipt(source)), reference)
+      assert.equal(events.slice(start).filter(event => event.detail === 'positioned-owner').length, 0)
+    }
+    delete globalThis[symbol]
+  `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '1' } })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+}, 30_000)
+
+
 test('immutable enrollment proof cannot be upgraded, forged through a proxy, or inferred from freezing alone', async () => {
   for (const mode of ['original', 'changed-before-enrollment', 'failed-enrollment']) {
     const child = await runChild(process.execPath, ['-e', `

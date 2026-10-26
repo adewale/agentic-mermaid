@@ -56,12 +56,12 @@ test('Sequence geometry captured by a replaced native producer cannot poison lat
     const original = getFamily('sequence'), lower = original.lowerScene
     const producer = nativeDrawingOf(lower), originalSource = sceneLowering(producer)
     const options = { embedFontImport: false }
-    for (const late of [false, true]) for (const warm of [false, true]) {
+    for (const late of [false, true]) for (const warm of [0, 1, 3]) {
       const source = 'sequenceDiagram\\nProducer' + late + warm + 'A->>Producer' + late + warm + 'B: isolated'
       const restoreFamily = replaceFamilyForTest('sequence', { ...original })
       let expected
       try { expected = renderMermaidSVGWithReceipt(source, options) } finally { restoreFamily() }
-      if (warm) assert.deepEqual(renderMermaidSVGWithReceipt(source, options), expected)
+      for (let index = 0; index < warm; index++) assert.deepEqual(renderMermaidSVGWithReceipt(source, options), expected)
       let captured, calls = 0
       const custom = sceneLowering((factory, context) => {
         calls++
@@ -85,6 +85,8 @@ test('Sequence geometry captured by a replaced native producer cannot poison lat
       let restored
       assert.doesNotThrow(() => { restored = renderMermaidSVGWithReceipt(source, options) })
       assert.deepEqual(restored, expected)
+      const { layoutMermaidWithReceipt } = await import('./src/agent/index.ts')
+      assert.equal(layoutMermaidWithReceipt(source, options).layout.kind, 'sequence')
       assert.deepEqual(reads, [])
     }
   `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '1' } })

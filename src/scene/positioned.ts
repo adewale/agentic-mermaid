@@ -1,5 +1,5 @@
 import { assertBackendConformance, isBuiltinDefaultBackend } from './backend.ts'
-import { nativeDrawingOf } from './drawing.ts'
+import { nativeDrawingOf, originalNativeDrawingOf } from './drawing.ts'
 import { drawNative, type NativeDrawing } from './native-drawing.ts'
 import type { FamilyLayoutResult } from '../agent/families.ts'
 import type { ResolvedRenderRequest } from '../render-contract.ts'
@@ -12,6 +12,8 @@ import { withDeferredTerminalProjections } from './deferred-terminal-projection.
 import type { SceneDoc } from './ir.ts'
 import { certifyNativePaint, certifyScenePaint, type PaintLayoutCertification } from './paint-certification.ts'
 import { observeCache, observeFallback } from '../performance-observations.ts'
+import { cachedNativeDrawing, retainNativeDrawing } from '../experimental/position-cache.ts'
+import { paintPrimitiveSource, scenePrimitiveMatrix } from './inspection.ts'
 
 interface PositionedScene { scene: SceneDoc; crossChecks: boolean; certification?: PaintLayoutCertification }
 interface PositionedNative { drawing: NativeDrawing; certification?: PaintLayoutCertification }
@@ -63,14 +65,24 @@ export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: Fa
   if (!requests) { requests = new WeakMap(); native.set(layout, requests) }
   const prior = requests.get(request)
   if (prior) { observeCache('native-drawing', 'hit'); return prior.drawing }
-  observeCache('native-drawing', 'miss')
   // Reading conformance proves the same default writer capability as render().
   if (plan.backend) assertBackendConformance(plan.backend.conformance, plan.backend.inputName)
+  // Positioning's ownership proof must still hold after layout observers run.
+  // A changed producer executes on its detached graph and cannot publish a
+  // drawing under the original producer's private cache entry.
+  const cached = cachedNativeDrawing(request, layout, producer === originalNativeDrawingOf(plan.family.lowerScene))
+  if (cached) {
+    observeCache('native-drawing', 'hit', undefined, 'positioned-owner')
+    requests.set(request, { drawing: cached })
+    return cached
+  }
+  observeCache('native-drawing', 'miss')
   const colors = request.output === 'png' && request.appearance.colors.embedFontImport !== false
     ? { ...request.appearance.colors, embedFontImport: false } : request.appearance.colors
   const drawing = withTextMeasurementExecution(plan.textMeasurement, () => drawNative(producer!,
     { positioned: positionedForNativeProducer(layout, producer!), colors, resolved: resolvedFamilyRenderContextOf(request) }, plan.family.id, request.appearance.styled ? request.appearance.style : undefined))
   requests.set(request, { drawing })
+  retainNativeDrawing(request, layout, drawing, () => drawing.paint.primitives.map(primitive => [paintPrimitiveSource(primitive), scenePrimitiveMatrix(primitive)]))
   return drawing
 }
 

@@ -91,7 +91,7 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
         : cacheKey === undefined ? 'elk-cache-disabled' : 'key-limit')
   return withTextMeasurementExecution(executionPlan.textMeasurement, () => {
     if (borrow && boundedKey !== undefined) {
-      const snapshot = borrowedPositioned(descriptor, boundedKey)
+      const snapshot = borrowedPositioned(descriptor, boundedKey, request.output === 'svg' ? request : undefined)
       if (snapshot?.projection) {
         retainedProjections.set(snapshot.result, snapshot.projection)
         return snapshot.result
