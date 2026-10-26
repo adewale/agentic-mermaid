@@ -1005,11 +1005,11 @@ test('a translucent note has no proved opaque core to reject a semantic shaft', 
 // These are ordinary polygon resources: the proof must not depend on a family
 // name or marker id. The first midpoint (61,32.5) lies strictly inside the
 // second fill, away from its 0.75px outline, at the covered offset.
-test.each(['covered', 'separate', 'aabb-corner', 'coincident', 'different-coincident', 'owned-repaint', 'same-owner-cover', 'unknown-fill', 'transparent-fill', 'affine', 'clipped', 'nonsemantic', 'no-earlier-stroke', 'unemitted-opacity', 'later-restoration', 'overlay-repaint', 'same-color', 'thick-outline', 'unmeasured-restoration', 'late-open', 'early-open-covered', 'early-open-clear', 'no-closing-stroke', 'string-marker-units', 'vertex-only-cover', 'partial-restoration'] as const)('distinct marker stroke/fill proof preserves %s', mode => {
+test.each(['covered', 'separate', 'aabb-corner', 'coincident', 'different-coincident', 'owned-repaint', 'same-owner-cover', 'unknown-fill', 'transparent-fill', 'affine', 'clipped', 'nonsemantic', 'no-earlier-stroke', 'unemitted-opacity', 'later-restoration', 'overlay-repaint', 'same-color', 'thick-outline', 'unmeasured-restoration', 'late-open', 'early-open-covered', 'early-open-clear', 'no-closing-stroke', 'string-marker-units', 'vertex-only-cover', 'partial-restoration', 'no-earlier-ink'] as const)('distinct marker stroke/fill proof preserves %s', mode => {
   const first: MarkerDescriptor = { id: 'diamond-resource', shape: 'diamond', units: 'userSpaceOnUse', orient: 'auto-start-reverse',
     size: { width: 14, height: 12 }, viewBox: { x: 0, y: 0, width: 14, height: 12 }, ref: { x: 13, y: 6 },
     geometry: mode === 'no-closing-stroke' ? { kind: 'polyline', points: [{ x: 7, y: 1 }, { x: 13, y: 6 }, { x: 7, y: 11 }] } : ['early-open-covered', 'early-open-clear'].includes(mode) ? { kind: 'polyline', points: [{ x: 7, y: 11 }, { x: 1, y: 6 }, { x: 7, y: 1 }] } : { kind: 'polygon', points: [{ x: 7, y: 1 }, { x: 13, y: 6 }, { x: 7, y: 11 }, { x: 1, y: 6 }] },
-    paint: { fill: mode === 'vertex-only-cover' ? '#111' : mode.startsWith('early-open') || mode === 'no-closing-stroke' ? 'none' : '#fff', stroke: mode === 'no-earlier-stroke' ? 'none' : '#111', strokeWidth: mode === 'aabb-corner' ? '0.25' : '1.5' } }
+    paint: { fill: mode === 'no-earlier-ink' ? 'none' : mode === 'vertex-only-cover' ? '#111' : mode.startsWith('early-open') || mode === 'no-closing-stroke' ? 'none' : '#fff', stroke: ['no-earlier-stroke', 'no-earlier-ink'].includes(mode) ? 'none' : '#111', strokeWidth: mode === 'aabb-corner' ? '0.25' : '1.5' } }
   const later: MarkerDescriptor = ['coincident', 'owned-repaint'].includes(mode) ? first : { id: 'triangle-resource', shape: 'arrow', units: 'userSpaceOnUse', orient: 'auto-start-reverse', overflow: mode === 'clipped' ? 'hidden' : 'visible',
     size: { width: mode === 'clipped' ? 6 : 12, height: mode === 'clipped' ? 5 : 10 }, ref: { x: 12, y: 5 },
     geometry: { kind: mode === 'late-open' ? 'polyline' : 'polygon', points: [{ x: 0, y: 0 }, { x: 12, y: 5 }, { x: 0, y: 10 }] },
@@ -1035,11 +1035,34 @@ test.each(['covered', 'separate', 'aabb-corner', 'coincident', 'different-coinci
   const drawing = drawNative(producer, context, 'flowchart')
   expect(drawing.svg).toContain('marker-start')
   if (mode === 'string-marker-units') expect(drawing.svg).toContain('stroke-width=" 1.004000000000001px "')
-  const expected = ['covered', 'different-coincident', 'same-owner-cover', 'unemitted-opacity', 'overlay-repaint', 'early-open-covered', 'string-marker-units', 'vertex-only-cover', 'partial-restoration'].includes(mode) ? 'failed' : ['unknown-fill', 'affine', 'clipped', 'later-restoration', 'same-color', 'thick-outline', 'unmeasured-restoration', 'no-closing-stroke'].includes(mode) ? 'unverified' : 'passed'
+  const expected = ['covered', 'different-coincident', 'same-owner-cover', 'unemitted-opacity', 'overlay-repaint', 'early-open-covered', 'string-marker-units', 'vertex-only-cover', 'partial-restoration'].includes(mode) ? 'failed' : ['unknown-fill', 'affine', 'clipped', 'later-restoration', 'same-color', 'thick-outline', 'unmeasured-restoration', 'no-closing-stroke', 'no-earlier-stroke'].includes(mode) ? 'unverified' : 'passed'
   for (const proof of [certifyScenePaint(producer(marks, context)), certifyNativePaint(drawing.header, drawing.paint)]) {
     expect(proof.status).toBe(expected)
     if (expected === 'failed') expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'MARKER_OCCLUDED', id: mode === 'overlay-repaint' ? 'overlay:earlier' : 'earlier', by: mode === 'overlay-repaint' ? 'overlay:later' : 'later' }))
     else if (expected === 'unverified') expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', id: 'earlier', by: 'later' }))
     else expect(proof.issues).toEqual([])
+  }
+})
+
+test.each(['covered-white', 'covered-same-black', 'separate', 'unknown-fill'] as const)('filled-only marker visibility retains uncertainty for %s', mode => {
+  const black: MarkerDescriptor = { id: 'small-filled-marker', shape: 'diamond', units: 'userSpaceOnUse', orient: 'auto-start-reverse',
+    size: { width: 14, height: 12 }, viewBox: { x: 0, y: 0, width: 14, height: 12 }, ref: { x: 13, y: 6 },
+    geometry: { kind: 'polygon', points: [{ x: 4, y: 8 }, { x: 5, y: 9 }, { x: 4, y: 10 }, { x: 3, y: 9 }] }, paint: { fill: mode === 'unknown-fill' ? 'var(--host)' : '#000', stroke: 'none' } }
+  const white: MarkerDescriptor = { id: 'large-white-marker', shape: 'arrow', units: 'userSpaceOnUse', orient: 'auto-start-reverse', overflow: 'visible',
+    size: { width: 12, height: 10 }, ref: { x: 12, y: 5 }, geometry: { kind: 'polygon', points: [{ x: 0, y: 0 }, { x: 12, y: 5 }, { x: 0, y: 10 }] },
+    paint: { fill: mode === 'covered-same-black' ? '#000' : '#fff', stroke: '#111', strokeWidth: '1.5' } }
+  const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => ({ ...scene([]), parts: [
+    factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'),
+    factory.definitions({ id: 'resources' }, `<defs>${serializeMarkerResource(black)}${serializeMarkerResource(white)}</defs>`),
+    factory.connector({ id: 'black-relation', role: 'edge', lineStyle: 'solid', endpoints: { from: 'A', to: 'B' }, geometry: { kind: 'line', x1: 70, y1: 30, x2: 20, y2: 30 }, paint: { stroke: '#111', strokeWidth: '1' }, markers: { start: black } }),
+    factory.connector({ id: 'white-relation', role: 'edge', lineStyle: 'solid', endpoints: { from: 'C', to: 'D' }, geometry: { kind: 'line', x1: 70, y1: mode === 'separate' ? 55 : 33.865217391, x2: 20, y2: mode === 'separate' ? 55 : 33.865217391 }, paint: { stroke: '#111', strokeWidth: '1' }, markers: { start: white } }),
+    factory.documentClose(),
+  ] })
+  const doc = producer(marks, context), drawing = drawNative(producer, context, 'flowchart')
+  const proofs = [certifyScenePaint(doc), certifyNativePaint(drawing.header, drawing.paint)]
+  for (const proof of proofs) {
+    expect(proof.status).toBe(mode === 'separate' ? 'passed' : 'unverified')
+    if (mode !== 'separate') expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', id: 'black-relation', by: 'white-relation' }))
   }
 })

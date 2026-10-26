@@ -481,7 +481,7 @@ export function prepareMarkerPolygonInk(scene: Pick<NativePaintHeader, 'colors'>
  */
 export function compareMarkerStrokeInk(earlier: MarkerPolygonProof | undefined, later: MarkerPolygonProof | undefined, work: () => boolean, startWitness = 0): Readonly<ScenePoint> | 'clear' | 'unknown' {
   if (!work() || !Number.isSafeInteger(startWitness) || startWitness < 0) return 'unknown'
-  if (later?.fill === 'absent' || earlier?.stroke === 'absent') return 'clear'
+  if (later?.fill === 'absent' || earlier?.stroke === 'absent' && earlier.fill === 'absent') return 'clear'
   if (!earlier || !later) return 'unknown'
   const hull = later.hull
   if (earlier.innerStroke !== undefined) {
