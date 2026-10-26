@@ -11,10 +11,11 @@ interface NativeResidency { geometryWeight: number; lastUse?: number; locallyRep
 const nativeResidency = new WeakMap<PositionedSnapshot, NativeResidency>()
 let nativeUse = 0
 const nativeOwners = new WeakMap<FamilyLayoutResult, { key: string; snapshot: PositionedSnapshot; request: object }>()
+const MAX_ENTRIES = 128
 const MAX_WEIGHT = 16 * 1024 * 1024
 const DRAWING_WEIGHT = 8 * 1024 * 1024
-const drawings = new WeightedLru<string, { owner: PositionedSnapshot; drawing: NativeDrawing }>(128, DRAWING_WEIGHT)
-const results = new WeightedLru<string, PositionedSnapshot>(128, MAX_WEIGHT, key => { drawings.delete(key) })
+const drawings = new WeightedLru<string, { owner: PositionedSnapshot; drawing: NativeDrawing }>(MAX_ENTRIES, DRAWING_WEIGHT)
+const results = new WeightedLru<string, PositionedSnapshot>(MAX_ENTRIES, MAX_WEIGHT, key => { drawings.delete(key) })
 const retainedResults = new WeakSet<object>()
 function isolatedKey(family: object, key: string): string {
   let id = familyIds.get(family)
@@ -107,8 +108,17 @@ export function cachedNativeDrawing(request: object, layout: FamilyLayoutResult,
   return retained?.owner === entry.snapshot ? retained.drawing : undefined
 }
 
+function canAdmitDrawing(key: string, weight: number, residency: NativeResidency): boolean {
+  if (residency.locallyRepeated || drawings.canFit(key, weight)) return true
+  const oldest = drawings.oldestValue()
+  const lastUse = oldest && nativeResidency.get(oldest.owner)?.lastUse
+  return lastUse !== undefined && nativeUse - lastUse >= MAX_ENTRIES
+}
+
 /** Derived drawings have their own bounded tier and cannot evict geometry.
  * Cold cyclic sources use spare capacity; consecutive reuse may replace drawings.
+ * Residents unused for a full geometry-cache capacity of probes may also yield
+ * to an interleaved working set, using the existing native cache-probe serial.
  * Evicting geometry invalidates its dependent drawing, including hidden evidence. */
 export function retainNativeDrawing(request: object, layout: FamilyLayoutResult, drawing: NativeDrawing, hiddenEvidence: () => unknown): void {
   const entry = nativeOwners.get(layout)
@@ -116,7 +126,7 @@ export function retainNativeDrawing(request: object, layout: FamilyLayoutResult,
   const residency = nativeResidency.get(entry.snapshot)!
   if (residency.oversized) { observeCache('native-drawing', 'store-skipped', 'weight-limit'); return }
   const lowerBound = residency.drawingWeight ?? residency.geometryWeight + drawing.svg.length * 4
-  if (!residency.locallyRepeated && !drawings.canFit(entry.key, lowerBound)) {
+  if (!canAdmitDrawing(entry.key, lowerBound, residency)) {
     observeCache('native-drawing', 'store-skipped', 'drawing-budget'); return
   }
   const retained = { owner: entry.snapshot, drawing }
@@ -128,7 +138,7 @@ export function retainNativeDrawing(request: object, layout: FamilyLayoutResult,
     residency.oversized = true
     observeCache('native-drawing', 'store-skipped', 'weight-limit'); return
   }
-  if (!residency.locallyRepeated && !drawings.canFit(entry.key, weight)) {
+  if (!canAdmitDrawing(entry.key, weight, residency)) {
     observeCache('native-drawing', 'store-skipped', 'drawing-budget'); return
   }
   drawings.set(entry.key, retained, weight)

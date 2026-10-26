@@ -64,19 +64,24 @@ test('native drawing cache admission accounts for hidden evidence without burden
   expect(child.status).toBe(0)
 })
 
-test('drawing pressure preserves geometry and cyclic admission avoids repeated residency walks', async () => {
+test('drawing pressure preserves geometry, avoids cyclic walks and admits a changed working set', async () => {
   const child = await runChild(process.execPath, ['-e', `
     import assert from 'node:assert/strict'
     import { borrowedPositioned, cachedNativeDrawing, retainNativeDrawing, retainOwnedNativeSvgPositioned } from './src/experimental/position-cache.ts'
-    const family = {}, sources = Array.from({ length: 10 }, (_, i) => 'pressure-' + i)
+    const family = {}, sources = Array.from({ length: 10 }, (_, i) => 'pressure-' + i), geometry = new Map()
     const drawing = { svg: 'x'.repeat(600_000), header: {}, paint: { primitives: [] }, preparedText: true }
-    for (const key of sources) retainOwnedNativeSvgPositioned(family, key, { positioned: { key } })
+    for (const key of sources) {
+      const positioned = { key }
+      geometry.set(key, positioned)
+      retainOwnedNativeSvgPositioned(family, key, { positioned })
+    }
     let walks = 0
-    const visit = key => {
+    const visit = (key, produced = drawing) => {
       const request = {}, borrowed = borrowedPositioned(family, key, request)
       assert.ok(borrowed, 'drawing admission must preserve every resident layout')
+      assert.equal(borrowed.result.positioned, geometry.get(key), 'drawing pressure must preserve geometry identity')
       const hit = cachedNativeDrawing(request, borrowed.result, true)
-      if (!hit) retainNativeDrawing(request, borrowed.result, drawing, () => { walks++; return {} })
+      if (!hit) retainNativeDrawing(request, borrowed.result, produced, () => { walks++; return {} })
       return hit
     }
     for (const key of sources) visit(key)
@@ -88,6 +93,23 @@ test('drawing pressure preserves geometry and cyclic admission avoids repeated r
     assert.equal(visit(sources[8]), drawing, 'consecutive reuse can replace an older drawing')
     assert.equal(walks, 4)
     for (const key of sources) assert.ok(borrowedPositioned(family, key))
+
+    // The old drawings now fill the tier. A new interleaved working set must
+    // eventually replace that unused evidence without adjacent equal probes.
+    const active = ['active-a', 'active-b']
+    const activeDrawings = active.map(key => ({ ...drawing, header: { key } }))
+    for (const key of active) {
+      const positioned = { key }
+      geometry.set(key, positioned)
+      retainOwnedNativeSvgPositioned(family, key, { positioned })
+    }
+    for (let round = 0; round < 300; round++) {
+      for (const [index, key] of active.entries()) visit(key, activeDrawings[index])
+    }
+    for (const [index, key] of active.entries()) {
+      assert.equal(visit(key, activeDrawings[index]), activeDrawings[index], 'a changed interleaved working set must become reusable')
+    }
+    for (const [key, positioned] of geometry) assert.equal(borrowedPositioned(family, key).result.positioned, positioned)
   `], { cwd: `${import.meta.dir}/../..` })
   expect(child.stderr).toBe('')
   expect(child.status).toBe(0)

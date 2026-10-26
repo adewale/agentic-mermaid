@@ -71,7 +71,7 @@
       "requests": 34,
       "raw": 622000,
       "gzip": 201000,
-      "brotli": 176500
+      "brotli": 176600
     },
     "gantt": {
       "requests": 32,
