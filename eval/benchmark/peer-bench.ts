@@ -12,6 +12,8 @@ import './ci-policy-enforce.ts'
 // --elk-cache on|off (off), --candidate-tarball PATH --candidate-sha256 DIGEST.
 // --tracks all|first-use,warm-new-source,exact-repeat,label-edit opts into
 // consumed SVG/complete receipts and per-call p50/p95 rather than legacy batches.
+// --track-schedule peer-block-v1|paired-cold-ordinal-v1 declares first-use launch order.
+// --sequence300 --workloads seq300 adds the canonical release stress input to consumed tracks.
 // --aa adds an independently installed identical agentic-baseline; alternatively
 // --baseline-tarball PATH --baseline-sha256 DIGEST installs a pinned baseline.
 // Durable reports default to bench-report/peer-report.{json,md}; adjacent JSONL
@@ -22,7 +24,7 @@ import './ci-policy-enforce.ts'
 //
 // Advisory only: it replaces the dated hand-run tables in docs/comparison.md
 // with a re-runnable command. The qualification wrapper can run consumed tracks
-// in CI with separate calibrated gates. `agentic` is the
+// locally with separate calibrated gates. `agentic` is the
 // local `dist/` (run `bun run build` first). Registry peers are installed at
 // the exact version pinned below into
 // node_modules/.cache/agentic-mermaid-peers/<name>@<version>/, with install
@@ -61,6 +63,9 @@ import { PEER_CONSUMERS, PEER_VARIANT_DOMAINS, PEER_FROZEN_COHORT, PEER_EXPECTED
 import type { PeerTrackObservation, PeerTrackReport } from './peer-tracks.ts'
 import { measurePeerTrack } from './peer-track-worker.ts'
 import type { TrackJob } from './peer-track-worker.ts'
+import { combineColdTrackRows, coldTrackGroups, pairedColdTrackSchedule, PEER_TRACK_SCHEDULES, type ColdTrackGroup, type PeerTrackSchedule } from './peer-track-schedule.ts'
+import { PELE_SEMANTIC_ADAPTER } from './pele-semantics.ts'
+import { selectedPeerSemanticAdapter } from './peer-semantic-adapters.ts'
 import { frozenRuntimePolicy, installAgenticRuntime, installedNpmPackagePin, inspectAgenticRuntime, assertMatchedAgenticRuntimes, type RuntimePolicy, type RuntimeReceipt } from './release-baseline.ts'
 import { assertBenchmarkSetVersions, assertBenchmarkToolVersion, benchmarkToolPins } from './tool-versions.ts'
 
@@ -525,8 +530,8 @@ interface ProcessRecord {
 const UNSUPPORTED = /Invalid mermaid header|No diagram type detected|UnknownDiagramError|Unrecognized Mermaid header|(?:unsupported|inventory-only) in Agentic Mermaid|unsupported diagram|diagram type is not supported/i
 
 function parseArgs(argv: readonly string[]): Map<string, string> {
-  const flags = new Set(['quick', 'child', 'corpus', 'aa'])
-  const valued = new Set(['peers', 'workloads', 'rounds', 'json', 'markdown', 'agentic-npm', 'job', 'out', 'candidate-tarball', 'candidate-sha256', 'elk-cache', 'tracks', 'track-consumers', 'baseline-tarball', 'baseline-sha256', 'runtime-source'])
+  const flags = new Set(['quick', 'child', 'corpus', 'aa', 'sequence300'])
+  const valued = new Set(['peers', 'workloads', 'rounds', 'json', 'markdown', 'agentic-npm', 'job', 'out', 'candidate-tarball', 'candidate-sha256', 'elk-cache', 'tracks', 'track-consumers', 'track-schedule', 'baseline-tarball', 'baseline-sha256', 'runtime-source'])
   const options = new Map<string, string>()
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i]!.replace(/^--/, '')
@@ -543,6 +548,7 @@ function parseArgs(argv: readonly string[]): Map<string, string> {
   parsePeerTracks(options.get('tracks'))
   parsePeerConsumers(options.get('track-consumers'))
   if (options.has('track-consumers') && !parsePeerTracks(options.get('tracks')).length) throw new Error('--track-consumers requires --tracks')
+  if (options.has('track-schedule') && (!parsePeerTracks(options.get('tracks')).length || !(PEER_TRACK_SCHEDULES as readonly string[]).includes(options.get('track-schedule')!))) throw new Error('--track-schedule requires --tracks and a known schedule')
   return options
 }
 
@@ -784,16 +790,12 @@ async function runProcess(prepared: Prepared, output: Output, workloads: readonl
  * watchdog, raw receipts and provenance as the legacy peer suite. */
 async function runTrackProcess(prepared: Prepared, workloads: readonly string[], track: TrackJob, context: {
   scratch: string; bundle: string; timing: Timing; sources: Record<string, string>; expectedLabels: Record<string, readonly string[]>; rawSamples: string; elkCache: 'on' | 'off'
-}): Promise<PeerTrackObservation[]> {
+}, coldGroup?: ColdTrackGroup): Promise<PeerTrackObservation[]> {
   const rows: PeerTrackObservation[] = []
   const diagnostics = new Map<string, PeerTrackObservation['diagnostics']>()
   // Every first-use workload has its own import/process, including receipt API.
   const cold = track.phase === 'first-use'
-  const groups = cold ? workloads.flatMap(id => [
-    ...Array.from({ length: track.coldSamples ?? 21 }, (_, sample) => ({ ids: [id], probe: 'timing' as const, sample })),
-    ...Array.from({ length: track.allocationSamples }, (_, sample) => ({ ids: [id], probe: 'allocation' as const, sample })),
-    { ids: [id], probe: 'diagnostic' as const, sample: 0 },
-  ]) : [{ ids: workloads, probe: undefined, sample: 0 }]
+  const groups = coldGroup ? [coldGroup] : cold ? coldTrackGroups(workloads, track.coldSamples ?? 21, track.allocationSamples) : [{ ids: workloads, probe: undefined, sample: 0 }]
   const unavailable = new Set<string>()
   for (const { ids: group, probe, sample } of groups) {
     if (unavailable.has(group[0]!)) continue
@@ -810,7 +812,7 @@ async function runTrackProcess(prepared: Prepared, workloads: readonly string[],
       continue
     }
     const base = join(context.scratch, key)
-    const job: WorkerJob = { peer: prepared.peer.id, output: 'svg', entry: packageEntry(prepared.root!, prepared.peer.svg.subpath), timing: context.timing, track: { ...track, coldProbe: probe },
+    const job: WorkerJob = { peer: prepared.peer.id, output: 'svg', entry: packageEntry(prepared.root!, prepared.peer.svg.subpath), timing: context.timing, track: { ...track, coldProbe: probe, semanticAdapter: selectedPeerSemanticAdapter({ peer: prepared.peer.id, version: prepared.version, integrity: prepared.integrity }) },
       workloads: group.map(id => ({ id, source: context.sources[id]!, expected: context.expectedLabels[id]!, svgLabelPrefixes: SVG_LABEL_PREFIXES[id] })) }
     writeFileSync(`${base}.job.json`, JSON.stringify(job))
     const receipts = `${context.rawSamples}.${key}.jsonl`
@@ -825,20 +827,9 @@ async function runTrackProcess(prepared: Prepared, workloads: readonly string[],
     const fatal = run.lines.find(line => line.type === 'fatal')
     for (const id of group.filter(id => !completed.some(row => row.workload === id))) rows.push(failed(id, 'error', fatal?.type === 'fatal' ? fatal.error : run.exit ?? 'worker omitted observation'))
   }
-  const observations = cold ? workloads.map(id => {
-    const parts = rows.filter(row => row.workload === id)
-    const row = emptyTrackObservation(prepared.peer.id, track.round, id, track.phase, track.consumer)
-    row.calls = parts.flatMap(part => part.calls).map((call, index) => ({ ...call, index }))
-    row.allocationSamplesBytes = parts.flatMap(part => part.allocationSamplesBytes)
-    row.allocationErrors = parts.flatMap(part => part.allocationErrors ?? [])
-    row.diagnostics = diagnostics.get(id) ?? row.diagnostics
-    const imports = parts.flatMap(part => part.importMs === undefined ? [] : [part.importMs])
-    const setups = parts.flatMap(part => part.setupMs === undefined ? [] : [part.setupMs])
-    if (imports.length) row.importMs = median(imports)
-    if (setups.length) row.setupMs = median(setups)
-    if (!row.allocationSamplesBytes.length) row.allocationUnsupported = parts.find(part => part.allocationUnsupported)?.allocationUnsupported
-    return finalizeTrackObservation(row)
-  }) : rows
+  // Paired scheduling collects fragments across peers before aggregation.
+  if (coldGroup) return rows
+  const observations = cold ? combineColdTrackRows(prepared.peer.id, workloads, track, rows, diagnostics) : rows
   for (const row of observations) appendFileSync(context.rawSamples, `${JSON.stringify({ type: 'track-observation', ...row })}\n`)
   return observations
 }
@@ -902,11 +893,12 @@ async function main(): Promise<void> {
   // A runtime path keeps the worker bundle from walking src/ through the
   // cases' lazy imports (and emitting its native assets); workers get sources
   // from the job file.
+  const sequence300 = args.has('sequence300') ? (await import('./peer-sequence300-input.ts')).sequence300StudyInput(args) : undefined
   const { MICRO_WORKLOADS } = (await import(pathToFileURL(join(ROOT, 'eval/benchmark/micro-bench-cases.ts')).href)) as typeof import('./micro-bench-cases.ts')
   const inventory = args.has('corpus') ? ((await import(pathToFileURL(join(ROOT, 'eval/shared/official-fences.ts')).href)).officialCorpusInventory() as ReturnType<typeof import('../shared/official-fences.ts').officialCorpusInventory>) : undefined
-  const sources: Record<string, string> = inventory ? Object.fromEntries(inventory.occurrences.map(input => [input.id, input.source])) : MICRO_WORKLOADS
-  const expectedLabels: Record<string, readonly string[]> = inventory ? Object.fromEntries(inventory.occurrences.map(input => [input.id, []])) : EXPECTED_LABELS
-  const available: Record<Output, readonly string[]> = inventory ? { svg: Object.keys(sources), terminal: Object.keys(sources) } : WORKLOADS
+  const sources: Record<string, string> = inventory ? Object.fromEntries(inventory.occurrences.map(input => [input.id, input.source])) : sequence300 ? { ...MICRO_WORKLOADS, seq300: sequence300.source } : MICRO_WORKLOADS
+  const expectedLabels: Record<string, readonly string[]> = inventory ? Object.fromEntries(inventory.occurrences.map(input => [input.id, []])) : sequence300 ? { ...EXPECTED_LABELS, seq300: sequence300.expected } : EXPECTED_LABELS
+  const available: Record<Output, readonly string[]> = inventory ? { svg: Object.keys(sources), terminal: Object.keys(sources) } : sequence300 ? { ...WORKLOADS, svg: [...WORKLOADS.svg, 'seq300'] } : WORKLOADS
   const rounds = Number(args.get('rounds') ?? 3)
   if (!Number.isSafeInteger(rounds) || rounds < 1) throw new Error('--rounds must be a positive integer')
   const elkCache = (args.get('elk-cache') ?? 'off') as 'on' | 'off'
@@ -914,6 +906,7 @@ async function main(): Promise<void> {
   const timing: Timing = inventory ? { warmCalls: 1, warmupMs: 0, samples: 3, minSampleMs: 0, maxCaseMs: 5000 } : args.has('quick') ? QUICK_TIMING : TIMING
   const phases = parsePeerTracks(args.get('tracks'))
   const consumers = parsePeerConsumers(args.get('track-consumers'))
+  const trackSchedule = (args.get('track-schedule') ?? 'peer-block-v1') as PeerTrackSchedule
   if (inventory && phases.length) throw new Error('--tracks uses synthetic semantic contracts and cannot be combined with --corpus')
   const npmVersion = args.get('agentic-npm')
   if (npmVersion !== undefined && !/^\d+\.\d+\.\d+(?:-[\w.-]+)?$/.test(npmVersion)) throw new Error('--agentic-npm takes an exact version such as 0.4.1')
@@ -1008,15 +1001,20 @@ async function main(): Promise<void> {
     const trackSettings = { coldSamples: args.has('quick') ? 3 : 21, warmCalls: args.has('quick') ? 3 : 20, warmupMs: args.has('quick') ? 0 : 1000, samples: args.has('quick') ? 3 : 201, allocationSamples: 3, maxCaseMs: args.has('quick') ? timing.maxCaseMs : 180_000 }
     const tracks: PeerTrackReport = { schemaVersion: 1, contractVersion: 'semantic-peer-v1', cohort: PEER_FROZEN_COHORT, phases, consumers, scaling, observations: [] }
     const trackWorkloads = [...workloads.svg, ...scaling]
-    const trackInputs = Object.fromEntries(trackWorkloads.map(id => [id, { source: trackSources[id], expected: trackExpected[id] }]))
+    const trackInputs = Object.fromEntries(trackWorkloads.map(id => [id, { source: trackSources[id], expected: trackExpected[id], ...(sequence300?.id === id ? { releaseCaseId: sequence300.releaseCaseId } : {}) }]))
     const harnessRevision = git(['rev-parse', 'HEAD'])
-    const harnessDirty = git(['status', '--porcelain', '--', 'eval/benchmark']).length > 0
+    // Semantic adapters also import geometry/color helpers from src.
+    const harnessDirty = git(['status', '--porcelain', '--untracked-files=no']).length > 0 || git(['status', '--porcelain', '--', 'src', 'eval']).length > 0
     const tracksConfig = { variantDomains: PEER_VARIANT_DOMAINS, phases, consumers, ...trackSettings, ...(phases.length ? {
       consumption: 'indexed-utf8-checksum-v1',
       warmupSources: 'fresh-edit-ordinals-v1',
+      schedule: trackSchedule,
       apiBindings: prepared.map(({ peer }) => ({ peer: peer.id, svg: peer.svg ? { subpath: peer.svg.subpath, api: peer.svg.api } : null,
         receipt: peer.id === 'agentic' || peer.id.startsWith('agentic-') ? 'renderMermaidSVGWithReceipt(source); availability is retained per observation' : null })),
-      rendererEnvironment: { host: 'Node public SVG API; no browser mount/adaptation', fontAndMeasurerOptions: 'pinned peer defaults; no overrides supplied', validation: 'Resvg(svg, {font:{loadSystemFonts:false}})' },
+      rendererEnvironment: { host: 'Node public SVG API; no browser mount/adaptation', fontAndMeasurerOptions: 'pinned peer defaults; no overrides supplied', validation: 'Resvg(svg, {font:{loadSystemFonts:false}})',
+        semanticAdapters: prepared.filter(entry => entry.peer.id === 'pele').map(entry => ({ adapter: PELE_SEMANTIC_ADAPTER, selected: selectedPeerSemanticAdapter({ peer: entry.peer.id, version: entry.version, integrity: entry.integrity }) ?? null, installedVersion: entry.version, installedIntegrity: entry.integrity ?? null })),
+        sourceBinding: 'exact clean full harness Git revision; tracked inputs and new src/eval sources',
+      },
       freshness: { firstUse: 'first API render in each fresh process after import/setup', exactRepeat: 'identical source bytes and repeated labels', warmNewSource: 'authored visible-label/relationship edits and graph-ID renaming where defined; unchanged labels may reuse typography caches', labelEdit: 'authored visible-label/relationship edit; graph IDs retained' },
     } : {}), minimumTailCalls: 20, inputs: trackInputs, harnessRevision, harnessDirty }
     const processes: ProcessRecord[] = []
@@ -1027,7 +1025,28 @@ async function main(): Promise<void> {
         processes.push(observation)
         appendFileSync(rawSamples, `${JSON.stringify({ type: 'process', ...observation })}\n`)
       }
-      if (phases.length) for (const entry of round % 2 === 0 ? prepared : [...prepared].reverse()) for (const phase of phases) for (const consumer of consumers) {
+      if (phases.length && trackSchedule === 'paired-cold-ordinal-v1' && phases.includes('first-use')) for (const consumer of consumers) {
+        const track: TrackJob = { ...trackSettings, phase: 'first-use', consumer, round }
+        const rows = new Map(prepared.map(entry => [entry.peer.id, [] as PeerTrackObservation[]]))
+        const diagnostics = new Map(prepared.map(entry => [entry.peer.id, new Map<string, PeerTrackObservation['diagnostics']>()]))
+        const unavailable = new Set<string>()
+        for (const { peer, group } of pairedColdTrackSchedule(prepared.map(entry => entry.peer.id), trackWorkloads, trackSettings.coldSamples, trackSettings.allocationSamples, round)) {
+          const key = `${peer}/${group.ids[0]}`
+          if (unavailable.has(key)) continue
+          const entry = prepared.find(entry => entry.peer.id === peer)!
+          const fragments = await runTrackProcess(entry, group.ids, track, { scratch, bundle, timing, sources: trackSources, expectedLabels: trackExpected, elkCache, rawSamples }, group)
+          rows.get(peer)!.push(...fragments)
+          if (group.probe === 'diagnostic') for (const row of fragments) diagnostics.get(peer)!.set(row.workload, row.diagnostics)
+          if (entry.error || !entry.peer.svg || entry.peer.runtime !== 'node' || fragments.some(row => row.status === 'unsupported')) unavailable.add(key)
+        }
+        for (const entry of prepared) {
+          const observations = combineColdTrackRows(entry.peer.id, trackWorkloads, track, rows.get(entry.peer.id)!, diagnostics.get(entry.peer.id)!)
+          for (const row of observations) appendFileSync(rawSamples, `${JSON.stringify({ type: 'track-observation', ...row })}\n`)
+          tracks.observations.push(...observations)
+        }
+        writeFileSync(jsonPath, `${JSON.stringify({ ...metadata, status: 'incomplete', tracks, tracksConfig }, null, 2)}\n`)
+      }
+      if (phases.length) for (const entry of round % 2 === 0 ? prepared : [...prepared].reverse()) for (const phase of phases.filter(phase => trackSchedule !== 'paired-cold-ordinal-v1' || phase !== 'first-use')) for (const consumer of consumers) {
         console.error(`round ${round + 1}/${rounds}: ${entry.peer.id} ${phase} ${consumer} (${trackWorkloads.length} workloads)`)
         tracks.observations.push(...await runTrackProcess(entry, trackWorkloads, { ...trackSettings, phase, consumer, round }, { scratch, bundle, timing, sources: trackSources, expectedLabels: trackExpected, elkCache, rawSamples }))
         writeFileSync(jsonPath, `${JSON.stringify({ ...metadata, status: 'incomplete', tracks, tracksConfig }, null, 2)}\n`)
@@ -1070,7 +1089,8 @@ async function main(): Promise<void> {
     out.push(`- Machine: ${cpus()[0]?.model ?? 'unknown CPU'}, ${cpus().length} logical CPUs, ${(totalmem() / 1024 ** 3).toFixed(0)} GiB, ${process.platform} ${process.arch} ${release()}; load average ${startLoad.map(value => value.toFixed(2)).join(' ')} at start, ${loadavg()[0]!.toFixed(2)} at end`)
     out.push(`- Runtimes: Node ${nodeVersion} (Node workers), Bun ${process.versions.bun ?? 'n/a'} (orchestrator)`)
     const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`
-    const command = ['bun run bench:peers', '--peers', quote(peers.map(peer => peer.id).join(',')), '--workloads', quote(selected.join(',')), '--rounds', String(rounds), '--elk-cache', elkCache, ...(phases.length ? ['--tracks', quote(phases.join(',')), '--track-consumers', quote(consumers.join(','))] : []), ...(args.has('aa') ? ['--aa'] : []), ...(args.has('baseline-tarball') ? ['--baseline-tarball', quote(resolve(args.get('baseline-tarball')!)), '--baseline-sha256', args.get('baseline-sha256')!] : []), ...(args.has('quick') ? ['--quick'] : []), ...(inventory ? ['--corpus'] : []), ...(npmVersion ? ['--agentic-npm', quote(npmVersion)] : []), ...(args.has('candidate-tarball') ? ['--candidate-tarball', quote(resolve(args.get('candidate-tarball')!)), '--candidate-sha256', args.get('candidate-sha256')!] : [])]
+    const command = ['bun run bench:peers', '--peers', quote(peers.map(peer => peer.id).join(',')), '--workloads', quote(selected.join(',')), '--rounds', String(rounds), '--elk-cache', elkCache, ...(phases.length ? ['--tracks', quote(phases.join(',')), '--track-consumers', quote(consumers.join(',')), '--track-schedule', trackSchedule] : []), ...(args.has('aa') ? ['--aa'] : []), ...(args.has('baseline-tarball') ? ['--baseline-tarball', quote(resolve(args.get('baseline-tarball')!)), '--baseline-sha256', args.get('baseline-sha256')!] : []), ...(args.has('quick') ? ['--quick'] : []), ...(inventory ? ['--corpus'] : []), ...(npmVersion ? ['--agentic-npm', quote(npmVersion)] : []), ...(args.has('candidate-tarball') ? ['--candidate-tarball', quote(resolve(args.get('candidate-tarball')!)), '--candidate-sha256', args.get('candidate-sha256')!] : [])]
+    if (sequence300) command.push(...sequence300.reproductionArgs)
     out.push('- Reproduce:', '', '```sh', command.join(' '), '```')
     out.push(`- Policy: ELK cache ${elkCache}; built-in Scene assertions off; Node --expose-gc and final untimed GC; APL environment ${JSON.stringify(policy.aplEnvironment)}`)
     if (inventory)
@@ -1080,7 +1100,7 @@ async function main(): Promise<void> {
     out.push(`- Pins: ${prepared.map(entry => `${entry.peer.id} = ${entry.label}`).join('; ')}`)
     for (const entry of prepared) for (const lock of entry.dependencyLocks ?? []) out.push(`- ${entry.peer.id} ${lock.source}: ${lock.path} (SHA-256 ${lock.sha256})`)
     out.push(
-      phases.length ? `- Track method: ${rounds} paired round(s), ${trackSettings.warmCalls} priming calls and at least ${trackSettings.warmupMs} ms elapsed warmup, up to ${trackSettings.samples} individually clocked calls (minimum 20 for tail qualification), ${trackSettings.allocationSamples} separate allocation probes, wall cap ${trackSettings.maxCaseMs} ms; consumption inside clocks and allocation probes, validation outside. First-use has ${trackSettings.coldSamples} timing calls, ${trackSettings.allocationSamples} allocation probes and one untimed diagnostic call, each in its own fresh worker per case/consumer/round, with no earlier render. Warmup, timing, allocation and diagnostics use separate deterministic source streams; only exact-repeat and first-use retain identical bytes between streams. Diagnostics replay is untimed. No observable endpoint contract means semantic.ok=false and excludes semantic numeric qualification.` : `- Method: ${rounds} round(s), one fresh process per peer and output, order alternating; per workload one first render, then ≥${timing.warmCalls} warm calls and ≥${timing.warmupMs} ms, ≤${timing.samples} samples of ≥${timing.minSampleMs} ms (at least ${MIN_SAMPLES}), capped near ${timing.maxCaseMs} ms; every complete output checked outside timing for labels and parseable SVG, captured in batches of at most 64 returns (about 1 MiB at the first output size), with output stores and per-batch clocks included; medians across rounds, ± is the median MAD/median.`,
+      phases.length ? `- Track method: schedule ${trackSchedule}; ${rounds} paired round(s), ${trackSettings.warmCalls} priming calls and at least ${trackSettings.warmupMs} ms elapsed warmup, up to ${trackSettings.samples} individually clocked calls (minimum 20 for tail qualification), ${trackSettings.allocationSamples} separate allocation probes, wall cap ${trackSettings.maxCaseMs} ms; consumption inside clocks and allocation probes, validation outside. First-use has ${trackSettings.coldSamples} timing calls, ${trackSettings.allocationSamples} allocation probes and one untimed diagnostic call, each in its own fresh worker per case/consumer/round, with no earlier render. Warmup, timing, allocation and diagnostics use separate deterministic source streams; only exact-repeat and first-use retain identical bytes between streams. Diagnostics replay is untimed. No observable endpoint contract means semantic.ok=false and excludes semantic numeric qualification.` : `- Method: ${rounds} round(s), one fresh process per peer and output, order alternating; per workload one first render, then ≥${timing.warmCalls} warm calls and ≥${timing.warmupMs} ms, ≤${timing.samples} samples of ≥${timing.minSampleMs} ms (at least ${MIN_SAMPLES}), capped near ${timing.maxCaseMs} ms; every complete output checked outside timing for labels and parseable SVG, captured in batches of at most 64 returns (about 1 MiB at the first output size), with output stores and per-batch clocks included; medians across rounds, ± is the median MAD/median.`,
     )
     out.push(`- Not covered: ${NOT_COVERED.join('; ')}`)
     for (const warning of warnings) out.push(`- Warning: ${warning}`)

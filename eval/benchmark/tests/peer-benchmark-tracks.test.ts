@@ -1,10 +1,14 @@
 import { describe, expect, spyOn, test } from 'bun:test'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { consumePeerOutput, finalizeTrackObservation, emptyTrackObservation, inspectPeerSemantics, parsePeerTracks, peerTrackVariant, peerRuntimeDependencyGraph, percentile, peerExecutionEnvironment } from '../peer-tracks.ts'
 import * as protocol from '../peer-tracks.ts'
 import { measurePeerTrack } from '../peer-track-worker.ts'
+import { coldTrackGroups, combineColdTrackRows, pairedColdTrackSchedule } from '../peer-track-schedule.ts'
+import { sequence300StudyInput } from '../peer-sequence300-input.ts'
+import { releaseBenchCases } from '../release-bench-cases.ts'
 import { useTestChildren } from './helpers/test-child.ts'
 
 const runChild = useTestChildren(10_000)
@@ -38,6 +42,42 @@ async function captureVariantStreams(phase: 'warm-new-source' | 'label-edit', ca
 }
 
 describe('maintained consumed peer protocol', () => {
+  test('explicit Sequence300 stress selection reuses canonical source and labels without entering default cohorts', async () => {
+    expect(sequence300StudyInput(new Map())).toBeUndefined()
+    for (const args of [
+      [['sequence300', 'true']],
+      [['sequence300', 'true'], ['tracks', 'warm-new-source']],
+      [['sequence300', 'true'], ['tracks', 'warm-new-source'], ['workloads', 'seq20']],
+      [['sequence300', 'true'], ['tracks', 'warm-new-source'], ['workloads', 'seq300'], ['corpus', 'true']],
+    ]) expect(() => sequence300StudyInput(new Map(args as [string, string][]))).toThrow('--sequence300 requires')
+    const study = sequence300StudyInput(new Map([['sequence300', 'true'], ['tracks', 'warm-new-source'], ['workloads', 'seq20,seq300']]))!
+    const canonical = releaseBenchCases().find(input => input.id === 'sequence:20-participants-300-messages')!
+    expect(study.source).toBe(canonical.source)
+    expect(study.expected).toBe(canonical.expectedSvgLabels!)
+    expect(study.releaseCaseId).toBe(canonical.id)
+    expect(study.reproductionArgs).toEqual(['--sequence300'])
+    expect(study.expected).toHaveLength(300)
+    expect(study.expected.at(-1)).toBe('message 299')
+    const pairs = [...study.source.matchAll(/(P\d+)->>(P\d+):/g)]
+    expect(pairs).toHaveLength(300)
+    const nodes = [...new Set(pairs.flatMap(pair => [pair[1]!, pair[2]!]))]
+    expect(nodes).toHaveLength(20)
+    expect(protocol.PEER_EXPECTED_LABELS).not.toHaveProperty('seq300')
+    expect(protocol.PEER_FROZEN_COHORT).not.toContain('seq300')
+    const edit = peerTrackVariant(study, 'label-edit', 2)
+    expect(edit.source).toContain('P0->>P1: q2')
+    expect(edit.expected[0]).toBe('q2')
+    const fresh = peerTrackVariant(study, 'warm-new-source', 3)
+    expect(fresh.source).toContain('v3_P0->>v3_P1: q3')
+    expect(fresh.source).not.toMatch(/\bP\d+\b/)
+    const rendered = `<svg>${nodes.map(id => `<g data-id="${id}"/>`).join('')}${pairs.map(pair => `<path d="M0 0L10 10" data-from="${pair[1]}" data-to="${pair[2]}"/>`).join('')}</svg>`
+    expect(inspectPeerSemantics(rendered, study, true).ok).toBe(true)
+    expect(inspectPeerSemantics(rendered.replaceAll('data-to="P1"', 'data-to="P0"'), study, true).ok).toBe(false)
+    const child = await runChild(process.execPath, [resolve(import.meta.dir, '../peer-bench.ts'), '--sequence300', '--workloads', 'seq300', '--tracks', 'warm-new-source', '--peers', 'not-a-real-peer'], { cwd: resolve(import.meta.dir, '../../..') })
+    expect(child.status).toBe(1)
+    expect(child.stderr).toContain('Unknown peer not-a-real-peer')
+    expect(child.stdout).toBe('')
+  })
   test('records only known runtime selectors while preserving explicit empty experiments', () => {
     expect(peerExecutionEnvironment({})).toEqual({ experiments: null, nodeOptions: null, bunOptions: null, nodeEnv: null, timezone: null })
     const policy = peerExecutionEnvironment({ AGENTIC_MERMAID_EXPERIMENTS: '', NODE_OPTIONS: '--max-old-space-size=4096', UNRELATED_SECRET: 'must-not-appear' })
@@ -86,6 +126,52 @@ describe('maintained consumed peer protocol', () => {
     const erSvg = svg.replaceAll('data-id="A"', 'data-id="E0"').replaceAll('data-id="B"', 'data-id="E1"').replace('data-from="A" data-to="B"', 'data-entity1="E0" data-entity2="E1"')
     expect(inspectPeerSemantics(erSvg, er).ok).toBe(true)
     expect(inspectPeerSemantics(erSvg.replace('data-entity2="E1"', 'data-entity2="E0"'), er).failures).toContain('1 authored directed endpoint pairs absent')
+  })
+  test.each([
+    { id: 'flow5', source: 'flowchart TD\n A_X[Start] --> B[End]\n A_X --> B\n B --> A_X', nodes: ['A_X', 'B'], edges: ['L_A_X_B_0', 'L_A_X_B_2', 'L_B_A_X_0'] },
+    { id: 'class80', source: 'classDiagram\n class C_0 {\n +int field0\n +method0()\n }\n C_0 <|-- C1\n C1 <|-- C_0', nodes: ['C_0', 'C1'], edges: ['id_C_0_C1_1', 'id_C1_C_0_2'] },
+    { id: 'er40', source: 'erDiagram\n E_0 {\n int id PK\n string name0\n }\n E_0 ||--o{ E1 : has\n E1 ||--o{ E_0 : has', nodes: ['E_0', 'E1'], edges: ['id_entity-E_0-0_entity-E1-1_0', 'id_entity-E1-1_entity-E_0-0_1'] },
+  ])('pinned Pele $id adapter observes owned wrapper identities and directed multiplicity', fixture => {
+    const graph = { id: fixture.id, source: fixture.source, expected: fixture.nodes }
+    const edge = (id: string) => `<g class="pele-edge" data-id="${id}"><path d="M0 0L10 10"/></g>`
+    const rendered = `<svg><g class="pele-edges" fill="none" stroke="#111">${fixture.edges.map(edge).join('')}</g>${fixture.nodes.map(id => `<g class="pele-node" data-id="${id}"><rect width="10" height="10"/></g>`).join('')}<g class="pele-edge-label" data-id="${fixture.edges[0]}"><text>has</text></g></svg>`
+    const inspect = (value: string, source: string = graph.source) => inspectPeerSemantics(value, { ...graph, source }, false, 'pele-1.9.0-rendered-ids-v1')
+    expect(inspect(rendered).ok).toBe(true)
+    expect(inspectPeerSemantics(rendered, graph).ok).toBe(false) // frozen generic method is unchanged
+    expect(inspect(rendered.replace(edge(fixture.edges[0]!), '')).ok).toBe(false)
+    expect(inspect(rendered.replace(edge(fixture.edges[0]!), edge(fixture.edges[1]!))).ok).toBe(false)
+    expect(inspect(rendered.replace('d="M0 0L10 10"', 'd="M0 0"')).failures).toContain('Pele edge wrapper has no nonempty owned path')
+    for (const shaft of ['<path d="M0 0L0 0"/>', '<path d="M0 0M10 10"/>', '<path d="M0 0L0 0M10 10L10 10"/>', '<defs><path d="M0 0L10 10"/></defs>', '<!--<path d="M0 0L10 10"/>-->', '<![CDATA[<path d="M0 0L10 10"/>]]>', '<path visibility="hidden" d="M0 0L10 10"/>', '<path stroke="none" d="M0 0L10 10"/>', '<path stroke="#0000" d="M0 0L10 10"/>', '<path stroke="rgba(0,0,0,0)" d="M0 0L10 10"/>', '<path stroke-dasharray="0 99999" d="M0 0L10 10"/>']) {
+      expect(inspect(rendered.replace('<path d="M0 0L10 10"/>', shaft)).ok).toBe(false)
+    }
+    expect(inspect(rendered.replace(edge(fixture.edges[0]!), `<text>${edge(fixture.edges[0]!)}</text>`)).ok).toBe(false)
+    const variableStroke = rendered.replace('<svg>', '<svg style="--_l:var(--pele-line,#1f1f1f)">').replace('stroke="#111"', 'stroke="var(--_l)"')
+    expect(inspect(variableStroke).ok).toBe(true)
+    expect(inspect(variableStroke.replace('style="--_l:var(--pele-line,#1f1f1f)"', 'style="--_l:var(--pele-line,#1f1f1f);--_l:#0000"')).ok).toBe(false)
+    expect(inspect(rendered.replace(`data-id="${fixture.nodes[0]}"`, `data-id="${fixture.nodes[1]}"`)).ok).toBe(false)
+    // Keep every label and identity string: change an actual wrapper endpoint.
+    const wrong = fixture.id === 'flow5' ? 'L_A_X_A_X_0' : fixture.id === 'class80' ? 'id_C_0_C_0_1' : 'id_entity-E_0-0_entity-E_0-0_0'
+    expect(inspect(rendered.replace(edge(fixture.edges[0]!), edge(wrong))).failures).toContain('Pele rendered directed endpoint multiset differs from authored relations')
+    expect(inspect(rendered, graph.source + '\n click A_X "https://example.com"').ok).toBe(false)
+    expect(inspectPeerSemantics(rendered, graph, false, 'pele-1.9.1-rendered-ids-v1').ok).toBe(false)
+    if (fixture.id !== 'flow5') {
+      const declared = graph.source + `\n ${fixture.id === 'class80' ? 'class ' : ''}Isolated {\n ${fixture.id === 'class80' ? '+' : ''}int value\n }`
+      expect(inspect(rendered.replace('</svg>', '<text>Isolated</text></svg>'), declared).ok).toBe(false)
+      expect(inspect(rendered.replace('</svg>', '<g class="pele-node" data-id="Isolated"><rect width="10" height="10"/></g></svg>'), declared).ok).toBe(true)
+    }
+  })
+  test('Pele leaves ambiguous encodings and Sequence/State endpoints unqualified', () => {
+    const graph = { id: 'flow5', source: 'flowchart TD\n A_B --> C\n A --> B_C', expected: [] }
+    const rendered = '<svg><g class="pele-edge" data-id="L_A_B_C_0"><path d="M0 0L10 10"/></g><g class="pele-edge" data-id="L_A_B_C_2"><path d="M0 0L10 10"/></g>' + ['A_B', 'C', 'A', 'B_C'].map(id => `<g class="pele-node" data-id="${id}"/>`).join('') + '</svg>'
+    const ambiguous = inspectPeerSemantics(rendered, graph, false, 'pele-1.9.0-rendered-ids-v1')
+    expect(ambiguous.ok).toBe(false)
+    expect(ambiguous.unsupported).toContain('ambiguous Pele rendered endpoint identity encoding')
+    for (const [id, source, edgeId] of [['seq20', 'sequenceDiagram\n A->>B: unchanged', 'i0'], ['state80', 'stateDiagram-v2\n A --> B: unchanged', 'edge0']]) {
+      const unobservable = inspectPeerSemantics(`<svg><g class="pele-edge" data-id="${edgeId}"><path d="M0 0L10 10"/></g></svg>`, { id: id!, source: source!, expected: ['unchanged'] }, false, 'pele-1.9.0-rendered-ids-v1')
+      expect(unobservable.ok).toBe(false)
+      expect(unobservable.failures).toEqual([])
+      expect(unobservable.unsupported).toContain('pele-1.9.0-rendered-ids-v1: rendered endpoints unobservable for this family or source grammar')
+    }
   })
   test('consumes complete UTF8 and evaluates serialized receipt getters', () => {
     let reads = 0
@@ -318,5 +404,96 @@ describe('maintained consumed peer protocol', () => {
     expect(row.counts).toEqual({ ok: 1, unsupported: 0, lostLabels: 1, errors: 1 })
     expect(row.calls).toHaveLength(3)
     expect(row.callSamplesMs).toEqual([1])
+  })
+})
+describe('first-use process scheduling', () => {
+  test.each([undefined, 'paired-cold-ordinal-v1', 'unknown'] as const)('qualification forwards or rejects schedule %s before launching measurements', async requested => {
+    const dir = mkdtempSync(join(tmpdir(), 'peer-qualification-schedule-'))
+    const root = resolve(import.meta.dir, '../../..')
+    try {
+      const baseline = join(dir, 'baseline.tgz'), candidate = join(dir, 'candidate.tgz'), script = join(dir, 'qualification.mjs'), out = join(dir, 'out')
+      const executable = join(dir, 'capture-child'), captured = join(dir, 'child-command.json')
+      writeFileSync(baseline, 'baseline')
+      writeFileSync(candidate, 'candidate')
+      writeFileSync(executable, `#!${process.execPath}\nimport { writeFileSync } from 'node:fs'; writeFileSync(${JSON.stringify(captured)}, JSON.stringify(process.argv.slice(2))); process.exit(1)`)
+      chmodSync(executable, 0o755)
+      writeFileSync(script, `
+        import { mock } from 'bun:test'
+        import { readFileSync } from 'node:fs'
+        let installations = 0, error
+        mock.module(${JSON.stringify(join(root, 'eval/benchmark/release-baseline.ts'))}, () => ({
+          frozenRuntimePolicy: () => ({}), assertMatchedAgenticRuntimes() {},
+          installAgenticRuntime() { installations++; return { runtime: {} } },
+        }))
+        process.argv = [process.execPath, ${JSON.stringify(join(root, 'eval/benchmark/qualify-peer-performance.ts'))}, ...process.argv.slice(2)]
+        process.execPath = ${JSON.stringify(executable)}
+        try { await import(${JSON.stringify(join(root, 'eval/benchmark/qualify-peer-performance.ts'))}) }
+        catch (caught) { error = caught.message }
+        let command
+        try { command = JSON.parse(readFileSync(${JSON.stringify(captured)}, 'utf8')) } catch {}
+        console.log(JSON.stringify({ command, installations, error }))
+      `)
+      const digest = (path: string) => createHash('sha256').update(readFileSync(path)).digest('hex')
+      const child = await runChild(process.execPath, [script, '--baseline-tarball', baseline, '--candidate-tarball', candidate, '--baseline-sha256', digest(baseline), '--candidate-sha256', digest(candidate), '--out', out, ...(requested === undefined ? [] : ['--track-schedule', requested])], { cwd: root })
+      expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+      const result = JSON.parse(child.stdout)
+      if (requested === 'unknown') {
+        expect(result).toEqual({ installations: 0, error: '--track-schedule must be a known peer schedule' })
+      } else {
+        const schedule = requested ?? 'peer-block-v1'
+        expect(result.installations).toBe(2)
+        expect(result.command.slice(result.command.indexOf('--track-schedule'), result.command.indexOf('--track-schedule') + 2)).toEqual(['--track-schedule', schedule])
+        expect(result.command.slice(result.command.indexOf('--candidate-tarball'), result.command.indexOf('--candidate-tarball') + 2)).toEqual(['--candidate-tarball', baseline])
+        expect(result.error).toContain('aa-1 did not complete')
+        const receipt = JSON.parse(readFileSync(join(out, 'qualification-status.json'), 'utf8'))
+        expect(receipt).toMatchObject({ schedule, status: 'incomplete', complete: false, steps: [{ name: 'aa-1', command: result.command, exit: 1 }] })
+      }
+    } finally { rmSync(dir, { recursive: true, force: true }) }
+  })
+
+  test('comparison sides stay adjacent at each case/probe/ordinal and reverse without changing the population', () => {
+    const jobs = pairedColdTrackSchedule(['candidate', 'baseline'], ['flow', 'sequence'], 21, 3, 0)
+    expect(jobs).toHaveLength(100)
+    const identities = new Set<string>()
+    for (let index = 0; index < jobs.length; index += 2) {
+      const a = jobs[index]!, b = jobs[index + 1]!
+      expect(a.group).toEqual(b.group)
+      expect([a.peer, b.peer]).toEqual(index % 4 === 0 ? ['candidate', 'baseline'] : ['baseline', 'candidate'])
+      for (const job of [a, b]) identities.add(`${job.peer}/${job.group.ids[0]}/${job.group.probe}/${job.group.sample}`)
+    }
+    expect(identities.size).toBe(100)
+    for (const peer of ['candidate', 'baseline']) for (const id of ['flow', 'sequence']) {
+      const groups = jobs.filter(job => job.peer === peer && job.group.ids[0] === id).map(job => job.group)
+      expect(groups.filter(group => group.probe === 'timing').map(group => group.sample)).toEqual(Array.from({ length: 21 }, (_, i) => i))
+      expect(groups.filter(group => group.probe === 'allocation').map(group => group.sample)).toEqual([0, 1, 2])
+      expect(groups.filter(group => group.probe === 'diagnostic')).toHaveLength(1)
+    }
+    expect(pairedColdTrackSchedule(['candidate', 'baseline'], ['flow'], 21, 3, 1).slice(0, 2).map(job => job.peer)).toEqual(['baseline', 'candidate'])
+    expect(coldTrackGroups(['flow', 'sequence'], 21, 3)).toHaveLength(50)
+  })
+
+  test('cold aggregation retains timing errors and untimed probes without inventing clocks or discarding failed diagnostics', () => {
+    const row = () => emptyTrackObservation('agentic', 0, 'flow5', 'first-use', 'svg-utf8')
+    const timed = row()
+    timed.calls = [{ index: 0, variant: 0, status: 'ok', elapsedMs: 7, consumedBytes: 42, checksum: 9 }]
+    const failed = row()
+    failed.calls = [{ index: 0, variant: 0, status: 'error', detail: 'retained failure' }]
+    const allocation = row()
+    allocation.calls = [{ index: 0, variant: 0, status: 'ok', consumedBytes: 42, checksum: 9 }]
+    allocation.allocationSamplesBytes = [123]
+    const diagnostic = row()
+    diagnostic.diagnostics = { status: 'observed', complete: false, counts: {}, events: [], detail: 'diagnostic failure' }
+    const job = { phase: 'first-use', consumer: 'svg-utf8', round: 0, samples: 201, allocationSamples: 3, maxCaseMs: 180000 } as const
+    const [combined] = combineColdTrackRows('agentic', ['flow5'], job, [timed, failed, allocation, diagnostic], new Map([['flow5', diagnostic.diagnostics]]))
+    expect(combined!.calls.map(call => call.index)).toEqual([0, 1, 2])
+    expect(combined!.callSamplesMs).toEqual([7])
+    expect(combined!.allocationSamplesBytes).toEqual([123])
+    expect(combined!.calls[1]!.detail).toBe('retained failure')
+    expect(combined!.diagnostics.detail).toBe('diagnostic failure')
+    expect(combined!.diagnostics.complete).toBe(false)
+    expect(combined!.status).toBe('error')
+    timed.diagnostics.detail = 'timing worker has already rendered'
+    const [missing] = combineColdTrackRows('agentic', ['flow5'], job, [timed], new Map())
+    expect(missing!.diagnostics).toEqual({ status: 'unobserved', complete: false, counts: {}, events: [] })
   })
 })

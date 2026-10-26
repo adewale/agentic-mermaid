@@ -122,6 +122,8 @@ describe('calibrated semantic performance decisions', () => {
   test.each([
     ['consumption', 'indexed-utf8-checksum-v1'],
     ['warmupSources', 'fresh-edit-ordinals-v1'],
+    ['schedule', 'paired-cold-ordinal-v1'],
+    ['rendererEnvironment', { semanticAdapters: [{ id: 'pele-1.9.0-rendered-ids-v1' }] }],
   ])('%s method changes invalidate saved controls', (setting, value) => {
     const { candidate, controls } = setup()
     candidate.tracksConfig![setting] = value
@@ -175,6 +177,7 @@ describe('calibrated semantic performance decisions', () => {
     expect(score.semanticComplete).toBe(false)
     expect(score.labelCheckedRatio).toBeCloseTo(10)
     expect(result.peerCompetitiveness.filter(g => g.peer === 'pele').every(g => !g.blocking && g.status === 'uncalibrated')).toBe(true)
+    expect(result.peerCompetitiveness.filter(g => g.peer === 'pele').every(g => g.reason?.includes('peer does not expose authored directed endpoints'))).toBe(true)
     expect(result.performanceQualified).toBe(false)
   })
 

@@ -22,6 +22,15 @@ and mesh100 cases measure larger-input behavior without altering the seven-case
 cohort. Unsupported, lost-label and error observations remain explicit for every
 peer, round, phase and consumer; third-party receipt APIs are not invented.
 
+An explicit `--sequence300 --workloads seq300 --tracks ...` adds the supplementary
+stress input from `releaseBenchCases()` case
+`sequence:20-participants-300-messages`, including its canonical SVG label list.
+It reuses the same workers and consumed SVG/receipt clocks. The default fourteen
+inputs and fixed seven-case cohort do not change; this input is not a replacement
+for Sequence20 or a complete scorecard by itself. Its release case ID and literal
+source/labels enter the existing track-input fingerprint, and reproduction retains
+the opt-in flag. Warm-new-source renames its participant IDs; label-edit keeps them.
+
 `--tracks all` separates:
 
 - **First use:** 21 individually timed first renders, three allocation probes
@@ -85,6 +94,18 @@ They do not report a percentile of batch averages as call p95. A minimum of 20
 complete calls per warm case is required for tail qualification. Quick mode is a
 functional smoke policy, never performance qualification. Legacy `bench:peers`
 without `--tracks` keeps its existing warmup and calibrated-loop methodology.
+
+The new Node peer lane explicitly advances to Pele 1.9.0, matching PR #492's
+shared active policy; the frozen 1.6.0 evidence above remains historical.
+Its rendered-endpoint adapter is selected only for the actual installed peer,
+version and exact fetched integrity. Complete metadata, selection and actual
+pin enter the control fingerprint. Flowchart/Class/ER admission observes owned
+rendered wrappers and nondegenerate shafts; Sequence/State stay unavailable in
+the fixed denominator. See the bounded
+[adapter contract](../../docs/design/system/pele-peer-observability.md).
+Geometry/color dependencies bind to the exact clean harness Git revision;
+all tracked changes and new source under `src`/`eval` invalidate cleanliness.
+Earlier controls with unavailable endpoint observability do not transfer.
 
 ## Calibration and decisions
 
@@ -294,3 +315,19 @@ Artifacts retain attempt numbers. Duplicate runs for the same scope are rejected
 rather than silently selecting a favorable attempt. A complete campaign uses a
 fresh campaign directory; partial controls from an interrupted campaign are not
 resumed.
+
+## First-use launch order
+
+`peer-bench --track-schedule paired-cold-ordinal-v1` groups selected peers at each
+first-use workload, probe and sample ordinal. Peer order reverses after each
+ordinal and round; two-sided controls are adjacent. Every timing, allocation and
+diagnostic call still uses its own fresh process. The default remains
+`peer-block-v1`.
+
+`qualify-peer-performance.ts` accepts the same option, forwards it to both A/A
+controls and the comparison, and records it in the qualification receipt.
+
+The schedule is part of the control fingerprint and reproduction command, so
+changing it requires fresh matching controls. Use the option in an explicit local
+measurement session. It changes acquisition order and makes no renderer
+performance claim.

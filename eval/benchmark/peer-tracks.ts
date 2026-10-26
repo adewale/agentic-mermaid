@@ -2,6 +2,7 @@
  * semantic checks run after the clock. This is not a visual-equivalence oracle. */
 import { decodeXML } from 'entities'
 import { median } from './bench-stats.ts'
+import { inspectPeleSemantics, PELE_SEMANTIC_ADAPTER } from './pele-semantics.ts'
 
 export const PEER_FROZEN_COHORT = Object.freeze(['flow5', 'tree50', 'mesh50', 'seq20', 'class80', 'er40', 'state80'] as const)
 export const PEER_PHASES = Object.freeze(['first-use', 'warm-new-source', 'exact-repeat', 'label-edit'] as const)
@@ -86,7 +87,7 @@ export function peerTrackVariant(input: TrackInput, phase: PeerPhase, variant: n
     expected = input.expected.map(item => item === previous ? label : item)
   }
   if (source === input.source) throw new Error(`Label edit did not change ${input.id}`)
-  if (phase === 'warm-new-source' && /^(?:flow5|tree\d+|mesh\d+|seq20|class80|er40|state80)$/.test(input.id)) {
+  if (phase === 'warm-new-source' && /^(?:flow5|tree\d+|mesh\d+|seq20|seq300|class80|er40|state80)$/.test(input.id)) {
     const rename = (text: string) => text.replace(/\b(?:[A-E]|n\d+|P\d+|C\d+|E\d+|S\d+)\b/g, id => `${prefixes.identity}${variant}_${id}`)
     source = rename(source)
     expected = expected.map(rename)
@@ -102,7 +103,7 @@ function authoredRelations(input: TrackInput): Array<[string, string]> | undefin
   const text = '(?:\\[[^\\]\\n]*\\]|\\{[^}\\n]*\\})?'
   let pattern: RegExp
   if (/^(flow5|tree\d+|mesh\d+)$/.test(input.id)) pattern = new RegExp(`${id}${text}\\s*-->\\s*(?:\\|[^|]*\\|\\s*)?${id}`, 'g')
-  else if (input.id === 'seq20') pattern = new RegExp(`${id}->>${id}`, 'g')
+  else if (input.id === 'seq20' || input.id === 'seq300') pattern = new RegExp(`${id}->>${id}`, 'g')
   else if (input.id === 'class80') pattern = new RegExp(`${id}\\s*<\\|--\\s*${id}`, 'g')
   else if (input.id === 'er40') pattern = new RegExp(`${id}\\s*\\|\\|--o\\{\\s*${id}`, 'g')
   else if (input.id === 'state80') pattern = new RegExp(`${id}\\s*-->\\s*${id}`, 'g')
@@ -110,7 +111,7 @@ function authoredRelations(input: TrackInput): Array<[string, string]> | undefin
   return [...input.source.matchAll(pattern)].map(match => [match[1]!, match[2]!])
 }
 
-export function inspectPeerSemantics(svg: string, input: TrackInput, requireIdentity = false): PeerSemantic {
+export function inspectPeerSemantics(svg: string, input: TrackInput, requireIdentity = false, semanticAdapter?: string): PeerSemantic {
   const result: PeerSemantic = { ok: true, checks: [], unsupported: [], failures: [] }
   // XML parsing is separately performed by resvg in the worker. A label-only
   // SVG with no drawable geometry must fail even when all labels are present.
@@ -129,6 +130,11 @@ export function inspectPeerSemantics(svg: string, input: TrackInput, requireIden
   if (nonempty) result.checks.push('nonempty drawable geometry')
   else result.failures.push('no nonempty drawable geometry')
   const expected = authoredRelations(input)
+  if (semanticAdapter !== undefined) {
+    const adapted: PeerSemantic = semanticAdapter === PELE_SEMANTIC_ADAPTER.id ? inspectPeleSemantics(svg, input, expected)
+      : { ok: false, checks: [], unsupported: [`unknown rendered semantic adapter: ${semanticAdapter}`], failures: [] }
+    return { ok: result.failures.length === 0 && adapted.ok, checks: [...result.checks, ...adapted.checks], failures: [...result.failures, ...adapted.failures], unsupported: adapted.unsupported }
+  }
   if (expected === undefined) result.unsupported.push('authored identity/endpoint contract unavailable for this family')
   else {
     // Beautiful's ER emitter names source entities explicitly rather than
