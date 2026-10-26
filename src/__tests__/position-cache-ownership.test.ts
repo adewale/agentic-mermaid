@@ -7,12 +7,16 @@ test('a held render request cannot pin evicted private geometry through a drawin
   const child = await runChild('node', ['--expose-gc', '--input-type=module', '-e', `
     import assert from 'node:assert/strict'
     import { setImmediate } from 'node:timers/promises'
-    import { borrowedPositioned, retainOwnedNativeSvgPositioned, retainPositioned } from './src/experimental/position-cache.ts'
+    import { borrowedPositioned, cachedNativeDrawing, retainNativeDrawing, retainOwnedNativeSvgPositioned, retainPositioned } from './src/experimental/position-cache.ts'
     const family = {}, heldRequest = { live: true }
     const tracked = (key, enroll) => {
       const value = { positioned: { width: 1, height: 1 } }
       retainOwnedNativeSvgPositioned(family, key, value)
-      if (enroll) borrowedPositioned(family, key, heldRequest)
+      if (enroll) {
+        const borrowed = borrowedPositioned(family, key, heldRequest).result
+        cachedNativeDrawing(heldRequest, borrowed, true)
+        retainNativeDrawing(heldRequest, borrowed, { svg: '<svg/>', header: {}, paint: { geometry: value.positioned }, preparedText: true }, () => value.positioned)
+      }
       return new WeakRef(value.positioned)
     }
     const control = tracked('lifetime-control', false)
@@ -23,7 +27,7 @@ test('a held render request cannot pin evicted private geometry through a drawin
     for (let index = 0; index < 8; index++) { await setImmediate(); globalThis.gc() }
     assert.equal(control.deref(), undefined, 'unbound control must be collected')
     assert.equal(heldRequest.live, true)
-    assert.equal(held.deref(), undefined, 'an unconsumed drawing proof must not extend geometry lifetime')
+    assert.equal(held.deref(), undefined, 'a retained drawing and held request must not extend evicted geometry lifetime')
   `], { cwd: `${import.meta.dir}/../..` })
   expect(child.stderr).toBe('')
   expect(child.status).toBe(0)
@@ -60,7 +64,36 @@ test('native drawing cache admission accounts for hidden evidence without burden
   expect(child.status).toBe(0)
 })
 
-test('repeated private native drawings preserve receipts, policy and final security within the positioning budget', async () => {
+test('drawing pressure preserves geometry and cyclic admission avoids repeated residency walks', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import assert from 'node:assert/strict'
+    import { borrowedPositioned, cachedNativeDrawing, retainNativeDrawing, retainOwnedNativeSvgPositioned } from './src/experimental/position-cache.ts'
+    const family = {}, sources = Array.from({ length: 10 }, (_, i) => 'pressure-' + i)
+    const drawing = { svg: 'x'.repeat(600_000), header: {}, paint: { primitives: [] }, preparedText: true }
+    for (const key of sources) retainOwnedNativeSvgPositioned(family, key, { positioned: { key } })
+    let walks = 0
+    const visit = key => {
+      const request = {}, borrowed = borrowedPositioned(family, key, request)
+      assert.ok(borrowed, 'drawing admission must preserve every resident layout')
+      const hit = cachedNativeDrawing(request, borrowed.result, true)
+      if (!hit) retainNativeDrawing(request, borrowed.result, drawing, () => { walks++; return {} })
+      return hit
+    }
+    for (const key of sources) visit(key)
+    assert.equal(walks, 3, 'only spare drawing capacity should be walked and filled')
+    for (let round = 0; round < 3; round++) for (const key of sources) visit(key)
+    assert.equal(walks, 3, 'cyclic misses must not repeatedly walk or evict drawings')
+    visit(sources[8])
+    visit(sources[8])
+    assert.equal(visit(sources[8]), drawing, 'consecutive reuse can replace an older drawing')
+    assert.equal(walks, 4)
+    for (const key of sources) assert.ok(borrowedPositioned(family, key))
+  `], { cwd: `${import.meta.dir}/../..` })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
+
+test('repeated private native drawings preserve receipts, policy and final security with bounded derived retention', async () => {
   const child = await runChild(process.execPath, ['-e', `
     import assert from 'node:assert/strict'
     import { createMermaidRenderer } from './src/index.ts'
