@@ -613,3 +613,98 @@ describe('hierarchy parameter compatibility', () => {
   })
 
 })
+
+describe('protected UP synthetic boundary ports', () => {
+  test('a titled inherited UP scope completes the safe incoming SOUTH side before ELK import', () => {
+    const graph = parseMermaid('flowchart BT\nsubgraph S1\nA[One]\nend\nsubgraph S2\nB[Two]\nend\nA --> B')
+    const elk = convertToElkFormat(graph, {separateHierarchy: true}), target = hierarchyScope(elk, 'S2')
+    expect(target.layoutOptions!['elk.direction']).toBe('UP')
+    expect(target.layoutOptions!['elk.portConstraints']).toBe('FIXED_SIDE')
+    expect(target.ports).toHaveLength(1)
+    expect(target.ports![0]!.layoutOptions?.['elk.port.side']).toBe('SOUTH')
+    expect(hierarchyScope(elk, 'S1').ports![0]!.layoutOptions?.['elk.port.side']).toBe('EAST')
+    expect(elk.layoutOptions!['elk.layered.crossingMinimization.forceNodeModelOrder']).toBe('false')
+    expect(graph.direction).toBe('BT')
+    expect(graph.subgraphs.map(group => [group.id, group.nodeIds])).toEqual([['S1', ['A']], ['S2', ['B']]])
+  })
+
+  test('both undefined UP roles retain their existing safe root-flow preferences when completed', () => {
+    const elk = convertToElkFormat(parseMermaid('flowchart LR\nsubgraph G\ndirection BT\nA --> B\nend\nX --> A\nB --> Y'))
+    const scope = hierarchyScope(elk, 'G')
+    expect(scope.layoutOptions!['elk.direction']).toBe('UP')
+    expect(scope.ports!.map(port => [port.id, port.layoutOptions?.['elk.port.side']])).toEqual([['G_in_1', 'WEST'], ['G_out_2', 'EAST']])
+    expect(scope.children!.map(node => node.id)).toEqual(['A', 'B'])
+  })
+
+  test('an UP outgoing scope retains the existing safe SOUTH preference of its DOWN parent flow', () => {
+    const elk = convertToElkFormat(parseMermaid('flowchart TD\nsubgraph G\ndirection BT\nA --> B\nend\nB --> X'))
+    expect(hierarchyScope(elk, 'G').ports![0]!.layoutOptions?.['elk.port.side']).toBe('SOUTH')
+    expect(elk.layoutOptions!['elk.layered.crossingMinimization.forceNodeModelOrder']).toBe('true')
+  })
+
+  test.each([['TD', 'WEST'], ['LR', undefined], ['RL', undefined]] as const)('the existing %s protected input policy is unchanged', (direction, incoming) => {
+    const elk = convertToElkFormat(parseMermaid(`flowchart ${direction}\nsubgraph G\nA --> B\nend\nX --> A`), {separateHierarchy: true})
+    expect(hierarchyScope(elk, 'G').ports![0]!.layoutOptions?.['elk.port.side']).toBe(incoming)
+  })
+
+  test('a headerless UP scope and authored external group contact receive no synthetic-side override', () => {
+    const graph = parseMermaid('flowchart BT\nsubgraph G\nA --> B\nend\nX --> A')
+    graph.subgraphs[0]!.concurrencyRegion = true
+    const elk = convertToElkFormat(graph, {separateHierarchy: true})
+    expect(hierarchyScope(elk, 'G').ports![0]!.layoutOptions?.['elk.port.side']).toBeUndefined()
+    const external = convertToElkFormat(parseMermaid('flowchart BT\nsubgraph G\nA\nend\nG --> X'), {separateHierarchy: true})
+    expect(hierarchyScope(external, 'G').ports).toBeUndefined()
+    expect((external.edges![0] as ElkExtendedEdge).sources).toEqual(['G'])
+  })
+
+  test('the actual base BT SVG keeps coherent ports, upward flow and clear full headers', () => {
+    const source = 'flowchart BT\nsubgraph S1\nA[One]\nend\nsubgraph S2\nB[Two]\nend\nA --> B'
+    const {value: {svg, receipt}, snapshots} = observeHierarchyPorts(() => renderMermaidSVGWithReceipt(source, {embedFontImport: false}))
+    expectSharedHierarchyPorts(snapshots, 2)
+    expect(receipt.layoutCertification?.status).toBe('passed')
+    const tags = scanSvgStartTags(svg), carriers = tags.filter(tag => decodedSvgAttributeValue(tag, 'data-role') === 'edge')
+    expect(carriers).toHaveLength(1)
+    const carrier = carriers[0]!
+    expect([decodedSvgAttributeValue(carrier, 'data-from'), decodedSvgAttributeValue(carrier, 'data-to')]).toEqual(['A', 'B'])
+    expect(decodedSvgAttributeValue(carrier, 'marker-end')).toMatch(/^url\(#.+\)$/)
+    expect(decodedSvgAttributeValue(carrier, 'data-arrow-end')).toBe('true')
+    expect(tags.filter(tag => tag.name === 'g' && decodedSvgAttributeValue(tag, 'class') === 'node').map(tag => decodedSvgAttributeValue(tag, 'data-id')).sort()).toEqual(['A', 'B'])
+    const cards = new Map(tags.filter(tag => tag.name === 'rect' && decodedSvgAttributeValue(tag, 'data-id')?.startsWith('node-shape:')).map(tag => [decodedSvgAttributeValue(tag, 'data-id')!.slice(11), {
+      x: Number(decodedSvgAttributeValue(tag, 'x')), y: Number(decodedSvgAttributeValue(tag, 'y')),
+      width: Number(decodedSvgAttributeValue(tag, 'width')), height: Number(decodedSvgAttributeValue(tag, 'height')),
+    }]))
+    expect([...cards.keys()].sort()).toEqual(['A', 'B'])
+    expect(cards.get('B')!.y + cards.get('B')!.height).toBeLessThan(cards.get('A')!.y)
+    const points = decodedSvgAttributeValue(carrier, 'points')!.trim().split(/\s+/).map(value => {
+      const [x, y] = value.split(',').map(Number); return {x: x!, y: y!}
+    })
+    const outward = (node: {x: number; y: number; width: number; height: number}, port: {x: number; y: number}, next: {x: number; y: number}) => {
+      // Independent SVG12-significant-digit readback allowance for separately
+      // emitted body extents; shaft normals remain strict and non-tangent.
+      const noise = 1e-6
+      return Math.abs(port.x - node.x) < noise && next.y === port.y && next.x < port.x
+        || Math.abs(port.x - node.x - node.width) < noise && next.y === port.y && next.x > port.x
+        || Math.abs(port.y - node.y) < noise && next.x === port.x && next.y < port.y
+        || Math.abs(port.y - node.y - node.height) < noise && next.x === port.x && next.y > port.y
+    }
+    expect(outward(cards.get('A')!, points[0]!, points[1]!)).toBe(true)
+    expect(outward(cards.get('B')!, points.at(-1)!, points.at(-2)!)).toBe(true)
+    const bands = [...svg.matchAll(/<g\b[^>]*data-region="subgraph"[^>]*>\s*<rect\b[^>]*>\s*<path\b[^>]*d="([^"]+)"/g)].map(match => {
+      const values = match[1]!.match(/[-+]?(?:\d*\.\d+|\d+\.?\d*)(?:[eE][-+]?\d+)?/g)!.map(Number)
+      expect(values).toHaveLength(5)
+      return {x: values[0]!, y: values[1]!, width: values[2]! - values[0]!, height: values[3]! - values[1]!}
+    })
+    expect(bands).toHaveLength(2)
+    for (let index = 1; index < points.length; index++) {
+      const a = points[index - 1]!, b = points[index]!
+      expect(a.x === b.x || a.y === b.y).toBe(true)
+      for (const band of bands) expect(Math.max(a.x, b.x) > band.x && Math.min(a.x, b.x) < band.x + band.width
+        && Math.max(a.y, b.y) > band.y && Math.min(a.y, b.y) < band.y + band.height).toBe(false)
+      for (const [id, card] of cards) {
+        if (id === 'A' && index === 1 || id === 'B' && index === points.length - 1) continue
+        expect(Math.max(a.x, b.x) > card.x && Math.min(a.x, b.x) < card.x + card.width
+          && Math.max(a.y, b.y) > card.y && Math.min(a.y, b.y) < card.y + card.height).toBe(false)
+      }
+    }
+  })
+})

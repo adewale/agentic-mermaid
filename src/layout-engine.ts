@@ -1087,7 +1087,9 @@ function subgraphToElk(
     elkNode.ports = ports.map(port => {
       const preferred = port.direction === 'in' ? flow.targetSide : flow.sourceSide
       const side = preferred === 'N' ? (port.direction === 'in' ? 'W' : 'E') : preferred
-      return { id: port.id, ...(avoidHeader && preferred === 'N' ? { layoutOptions: { 'elk.port.side': elkPortSide(side) } } : {}) }
+      // FIXED_SIDE with no side on an unsized UP compound falls back to
+      // NORTH in ELK's importer. Declare the already-safe preference there.
+      return { id: port.id, ...(avoidHeader && (preferred === 'N' || effectiveDirection === 'BT') ? { layoutOptions: { 'elk.port.side': elkPortSide(side) } } : {}) }
     })
     if (avoidHeader) elkNode.layoutOptions!['elk.portConstraints'] = 'FIXED_SIDE'
   }
