@@ -84,7 +84,9 @@ export function validateJsonSchema(
 
     const oneOf = Array.isArray(schema.oneOf)
       ? schema.oneOf.map(schemaRecord).filter((entry): entry is JsonSchema => entry !== undefined) : []
-    if (oneOf.length > 0) {
+    // Render fields leave exclusive unions to their runtime owner, which can
+    // name the failing payload field. Wire schemas retain exact-one admission.
+    if (oneOf.length > 0 && !fieldDiagnostics) {
       const matching = oneOf.filter(candidate => validate(value, candidate, root, path, new Set(ancestors)).length === 0)
       if (matching.length !== 1) return problem(`must match exactly one allowed shape (matched ${matching.length})`)
     }
