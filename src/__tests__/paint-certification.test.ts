@@ -951,3 +951,53 @@ test.each(['clear-contact', 'centroid-on-line-body', 'all-witnesses-on-stroke', 
     else expect(proof.issues).toContainEqual(expect.objectContaining({ code: mode === 'opaque-child' ? 'MARKER_OCCLUDED' : 'POTENTIAL_OCCLUSION', id: 'edge', by: 'target' }))
   }
 })
+
+const opaqueNoteCore = (fill = '#fff') => marks.shape({
+  id: 'note:N:body', role: 'note', owner: { id: 'N', role: 'note' },
+  geometry: { kind: 'rect', x: 30, y: 20, width: 40, height: 40, rx: 2, ry: 2 }, paint: { fill },
+})
+const noteSubject = (id: string, x: number) => marks.shape({
+  id: `subject:${id}`, role: 'node', owner: { id, role: 'node' },
+  geometry: { kind: 'rect', x, y: 30, width: 10, height: 20 }, paint: { fill: '#fff' },
+})
+const noteCrossing = () => marks.connector({
+  id: 'S-to-T', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 15, y1: 40, x2: 85, y2: 40 },
+  paint: { stroke: '#111', strokeWidth: '1' },
+  endpoints: { from: 'S', to: 'T', start: { owner: { id: 'S', role: 'node' } }, end: { owner: { id: 'T', role: 'node' } } },
+})
+
+test.each([false, true])('known semantic shafts cannot cross an unrelated opaque note (note paints later: %s)', later => {
+  const note = opaqueNoteCore(), edge = noteCrossing()
+  const proof = certifyScenePaint(scene([noteSubject('S', 5), noteSubject('T', 85), ...(later ? [edge, note] : [note, edge])]))
+  expect(proof.status).toBe('failed')
+  expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'CONNECTOR_CARD_CROSSING', id: 'S-to-T', by: 'note:N:body' }))
+})
+
+test('a typed annotation connector may touch its own opaque note', () => {
+  const attachment = marks.connector({
+    id: 'S-to-note', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 15, y1: 40, x2: 30, y2: 40 },
+    paint: { stroke: '#111', strokeWidth: '1' },
+    endpoints: { from: 'S', to: 'N', start: { owner: { id: 'S', role: 'node' } }, end: { owner: { id: 'N', role: 'note' } } },
+  })
+  expect(certifyScenePaint(scene([noteSubject('S', 5), opaqueNoteCore(), attachment])).status).toBe('passed')
+})
+
+test.each(['lifeline', 'edge'])('nonsemantic %s artwork retains an intentional note overlay', role => {
+  const lifeline = marks.connector({ id: 'lifeline', role, lineStyle: 'solid', geometry: { kind: 'line', x1: 50, y1: 5, x2: 50, y2: 75 }, paint: { stroke: '#111', strokeWidth: '1' } })
+  expect(certifyScenePaint(scene([lifeline, opaqueNoteCore()])).status).toBe('passed')
+})
+
+test('an ambiguous legacy note endpoint remains unverified rather than gaining an ownership exemption', () => {
+  const legacy = marks.connector({
+    id: 'ambiguous-note', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 15, y1: 40, x2: 85, y2: 40 },
+    paint: { stroke: '#111', strokeWidth: '1' }, endpoints: { from: 'S', to: 'N' },
+  })
+  const proof = certifyScenePaint(scene([noteSubject('S', 5), noteSubject('N', 85), opaqueNoteCore(), legacy]))
+  expect(proof.status).toBe('unverified')
+  expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', id: 'ambiguous-note', by: 'note:N:body' }))
+  expect(proof.issues.some(issue => issue.code === 'CONNECTOR_CARD_CROSSING')).toBe(false)
+})
+
+test('a translucent note has no proved opaque core to reject a semantic shaft', () => {
+  expect(certifyScenePaint(scene([noteSubject('S', 5), noteSubject('T', 85), opaqueNoteCore('rgba(255,255,255,0.4)'), noteCrossing()])).status).toBe('passed')
+})

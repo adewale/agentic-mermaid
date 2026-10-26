@@ -507,12 +507,15 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
         for (const surface of branch.leaves) {
           if (!work()) return
           if (++pairs > MAX_OCCLUSION_PAIRS) { exhausted = true; return }
-          if (!CARD_ROLES.has(surface.primitive.role) || surface.primitive.owner.id === primitive.owner.id && surface.primitive.owner.role === primitive.owner.role || !overlaps(surface.bounds, bounds)) continue
+          // Notes participate only for known semantic ink and a proved opaque
+          // core. This does not turn lifelines or decorative rails into routes.
+          const noteCore = exactInk && surface.primitive.role === 'note' && !!surface.interiors?.length
+          if ((!CARD_ROLES.has(surface.primitive.role) && !noteCore) || surface.primitive.owner.id === primitive.owner.id && surface.primitive.owner.role === primitive.owner.role || !overlaps(surface.bounds, bounds)) continue
           const relation = endpointRelation(node, surface.primitive.owner)
           if (relation === 'attached') continue
           if (exactInk && line && separatedOrthogonalStroke(line, surface.bounds, node.stroke, width, extent, matrix, work)) continue
-          if (exactInk && relation === 'unrelated' && line && surface.interiors?.some(interior => work() && lineCrossesInterior(line, interior))) issue({ code: 'CONNECTOR_CARD_CROSSING', id: primitive.id, by: surface.primitive.id, message: `Final connector shaft crosses opaque artwork owned by unrelated card ${surface.primitive.owner.id}` }, true)
-          else issue({ code: 'POTENTIAL_OCCLUSION', id: primitive.id, by: surface.primitive.id, message: 'Final connector envelope intersects unrelated filled card artwork; actual route/card crossing is unverified' })
+          if (exactInk && relation === 'unrelated' && line && surface.interiors?.some(interior => work() && lineCrossesInterior(line, interior))) issue({ code: 'CONNECTOR_CARD_CROSSING', id: primitive.id, by: surface.primitive.id, message: `Final connector shaft crosses opaque artwork owned by unrelated ${noteCore ? 'note' : 'card'} ${surface.primitive.owner.id}` }, true)
+          else issue({ code: 'POTENTIAL_OCCLUSION', id: primitive.id, by: surface.primitive.id, message: noteCore ? 'Final connector envelope intersects unrelated filled note artwork; actual route/note crossing is unverified' : 'Final connector envelope intersects unrelated filled card artwork; actual route/card crossing is unverified' })
         }
       }
       walk(surfaces)
