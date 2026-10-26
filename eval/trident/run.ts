@@ -20,7 +20,10 @@ if (!args.length || args[0] === '--help') {
     if (explicit) throw Error('TRIDENT_ROOT must name an installed checkout of the pinned Trident revision')
     mkdirSync(trident, { recursive: true })
     git(['init', '-q'])
-    git(['remote', 'add', 'origin', config.repository])
+    let origin: string | undefined
+    try { origin = git(['config', '--get', 'remote.origin.url']) } catch {}
+    if (origin && origin !== config.repository) throw Error('Cached Trident remote differs from the configured repository')
+    if (!origin) git(['remote', 'add', 'origin', config.repository])
     git(['fetch', '--depth=1', 'origin', config.revision])
     git(['checkout', '--detach', 'FETCH_HEAD'])
   }
