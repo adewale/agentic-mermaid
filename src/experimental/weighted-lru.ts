@@ -16,6 +16,11 @@ export class WeightedLru<K, V> {
     const prior = this.entries.get(key)
     return Number.isFinite(weight) && weight >= 0 && this.entries.size + (prior ? 0 : 1) <= this.maxEntries && this.weight - (prior?.weight ?? 0) + weight <= this.maxWeight
   }
+  /** Inspect the eviction candidate without changing its recency. */
+  leastRecentlyUsed(): V | undefined {
+    const oldest = this.entries.values().next()
+    return oldest.done ? undefined : oldest.value.value
+  }
   delete(key: K): boolean {
     const prior = this.entries.get(key)
     if (!prior) return false

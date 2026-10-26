@@ -93,6 +93,48 @@ test('drawing pressure preserves geometry and cyclic admission avoids repeated r
   expect(child.status).toBe(0)
 })
 
+test('an interleaved drawing working set replaces stale drawings without adjacent repeats', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import assert from 'node:assert/strict'
+    import { borrowedPositioned, cachedNativeDrawing, retainNativeDrawing, retainOwnedNativeSvgPositioned } from './src/experimental/position-cache.ts'
+    const family = {}, established = ['old-a', 'old-b', 'old-c'], replacements = ['new-a', 'new-b']
+    const sources = [...established, ...replacements]
+    const drawing = { svg: 'x'.repeat(600_000), header: {}, paint: { primitives: [] }, preparedText: true }
+    const identities = new Map()
+    for (const key of sources) {
+      const positioned = { key }
+      identities.set(key, positioned)
+      retainOwnedNativeSvgPositioned(family, key, { positioned })
+    }
+    let walks = 0
+    const visit = key => {
+      const request = {}, borrowed = borrowedPositioned(family, key, request)
+      assert.ok(borrowed, 'drawing replacement must preserve resident geometry')
+      assert.equal(borrowed.result.positioned, identities.get(key), 'drawing pressure must not replace geometry')
+      const hit = cachedNativeDrawing(request, borrowed.result, true)
+      if (!hit) retainNativeDrawing(request, borrowed.result, drawing, () => { walks++; return {} })
+      return hit
+    }
+    for (const key of established) visit(key)
+    assert.equal(walks, 3, 'the established set must fill the drawing budget')
+    for (let round = 0; round < 300; round++) {
+      visit(replacements[0])
+      visit(replacements[1])
+    }
+    assert.equal(walks, 5, 'each replacement should be measured and admitted exactly once')
+    assert.equal(visit(replacements[0]), drawing)
+    assert.equal(visit(replacements[1]), drawing)
+    assert.equal(walks, 5, 'reusable replacements must not repeat evidence walks')
+    for (const key of sources) {
+      const borrowed = borrowedPositioned(family, key)
+      assert.ok(borrowed)
+      assert.equal(borrowed.result.positioned, identities.get(key))
+    }
+  `], { cwd: `${import.meta.dir}/../..` })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
+
 test('repeated private native drawings preserve receipts, policy and final security with bounded derived retention', async () => {
   const child = await runChild(process.execPath, ['-e', `
     import assert from 'node:assert/strict'
