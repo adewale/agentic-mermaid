@@ -1,13 +1,14 @@
 import { expect, test } from 'bun:test'
 import { execFileSync, spawnSync } from 'node:child_process'
-import { cpSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { useTempDirs } from './helpers/temp-dir.ts'
 
 const temp = useTempDirs('am-trident-launcher-')
 const launcher = resolve(import.meta.dir, '../../eval/trident/run.ts')
 function fixture() {
-  const root = temp.dir(), source = join(root, 'agentic'), trident = join(root, 'trident')
+  // macOS links /var to /private/var; the child reports the resolved path.
+  const root = realpathSync(temp.dir()), source = join(root, 'agentic'), trident = join(root, 'trident')
   mkdirSync(join(source, 'eval/trident'), { recursive: true }); mkdirSync(trident)
   cpSync(launcher, join(source, 'eval/trident/run.ts'))
   writeFileSync(join(source, 'package.json'), '{"name":"agentic-mermaid"}')
