@@ -14,6 +14,7 @@ from statistics import median
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from evidence import read_document
 from tool_versions import assert_tool_versions, canonical_tool, read_tool_versions
 from mermaid_baseline_charts import render_charts
 
@@ -22,7 +23,7 @@ ALIASES = {"candidate": "adewale/agentic-mermaid", "pele": "obsidianmd/pele", "m
 
 
 def load(path):
-    return json.loads(Path(path).read_text())
+    return read_document(path)
 
 
 def positive(values):

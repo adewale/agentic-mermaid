@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto'
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs'
+import { gzipSync } from 'node:zlib'
 import { basename, join, resolve } from 'node:path'
 import { assertBenchmarkExecutionAllowed } from '../ci-policy.ts'
-import { activateProjectRecord, findProjectRecord, publishProjectRecord, stableValue, type ProjectBenchmarkIdentity, type ProjectBenchmarkRecord } from './project-records.ts'
+import { activateProjectRecord, findProjectRecord, publishProjectRecord, readBenchmarkResult, readProjectBenchmarkRecord, writeProjectBenchmarkRecord, writeBenchmarkResultReference, projectRecordPath, stableValue, type ProjectBenchmarkIdentity, type ProjectBenchmarkRecord } from '../portable/project-records.ts'
 import type { UnifiedSuiteResult } from './types.ts'
 
 const read = (file: string): unknown => JSON.parse(readFileSync(file, 'utf8'))
@@ -47,6 +48,8 @@ export async function runRetainedSuite(options: RetainedSuiteOptions): Promise<U
   const fd = openSync(lock, 'wx')
   let cancelled: string | undefined
   let published = false
+  let anchoredRecovery = false
+  let completedOutput: ReturnType<typeof writeProjectBenchmarkRecord> | undefined
   let pendingAttempt: string | undefined
   let attemptDirectory: string | undefined
   let stage: 'collection' | 'publication' = 'collection'
@@ -60,26 +63,42 @@ export async function runRetainedSuite(options: RetainedSuiteOptions): Promise<U
     const retained = options.force || options.resumeAttempt ? undefined : findProjectRecord(options.records, identity)
     active()
     if (retained) {
-      const result = read(join(retained.evidenceDirectory, 'result.json')) as UnifiedSuiteResult
-      if (stableValue(result.observations) !== stableValue(retained.observations) || stableValue(metadata(result)) !== stableValue(retained.provenance)) throw Error('Owning benchmark result differs from its immutable project record')
+      const result = readBenchmarkResult(retained)
       const current = options.identity()
+      await new Promise<void>(resolve => setImmediate(resolve))
       active()
       if (stableValue(current) !== stableValue(identity)) throw Error('Measurement identity changed while validating retained evidence')
       activateProjectRecord(options.records, retained)
       write(join(options.out, 'cache.json'), { project: identity.project, lane: identity.lane, reused: true, recordId: retained.id, startedAt: retained.startedAt, finishedAt: retained.finishedAt, evidenceDirectory: retained.evidenceDirectory })
-      write(join(options.out, 'result.json'), result)
+      writeBenchmarkResultReference(join(options.out, 'result.json'), projectRecordPath(options.records, retained.identity.project, retained.id))
       return result
     }
     const id = options.resumeAttempt ? basename(resolve(options.resumeAttempt)) : randomUUID()
-    const directory = resolve(options.out, 'attempts', id)
-    let raw: UnifiedSuiteResult
+    const directory = resolve(options.out, 'attempts', id), payload = join(directory, 'result.json.gz')
+    let raw: UnifiedSuiteResult, completed: ProjectBenchmarkRecord | undefined
     if (options.resumeAttempt) {
       if (resolve(options.resumeAttempt) !== directory) throw Error('Recovery attempt must belong to the selected project output directory')
       const cache = read(join(options.out, 'cache.json')) as { project?: string; lane?: string; state?: string; published?: boolean; pendingAttempt?: string; error?: string }
       const receipt = existsSync(join(directory, 'publication-failure.json')) ? read(join(directory, 'publication-failure.json')) as Record<string, unknown> : undefined
-      if (cache.project !== identity.project || cache.lane !== identity.lane || cache.state !== 'incomplete' || cache.published !== false || cache.pendingAttempt !== id || !receipt || receipt.attempt !== id || receipt.stage !== 'publication' || receipt.state !== 'incomplete' || receipt.error !== cache.error || stableValue(receipt.identity) !== stableValue(identity)) throw Error('Recovery requires an attempt-bound publication failure receipt; cancelled or unbound evidence cannot recover')
+      anchoredRecovery = receipt?.schemaVersion === 2 && receipt.kind === 'benchmark-result-reference'
+      if (cache.project !== identity.project || cache.lane !== identity.lane || cache.state !== 'incomplete' || cache.published !== false || cache.pendingAttempt !== id || !receipt || receipt.attempt !== id || receipt.stage !== 'publication' || receipt.state !== 'incomplete' || receipt.error !== cache.error || (!anchoredRecovery && stableValue(receipt.identity) !== stableValue(identity))) throw Error('Recovery requires an attempt-bound publication failure receipt; cancelled or unbound evidence cannot recover')
       if (stableValue(read(join(directory, 'identity.json'))) !== stableValue(identity)) throw Error('Recovery measurement identity differs from the current requested identity')
-      raw = read(join(directory, existsSync(join(directory, 'raw-result.json')) ? 'raw-result.json' : 'result.json')) as UnifiedSuiteResult
+      if (anchoredRecovery) {
+        if ((receipt!.payload as { path?: string } | undefined)?.path !== payload) throw Error('Recovery output reference belongs to a different attempt')
+        readBenchmarkResult(join(directory, 'publication-failure.json'))
+      }
+      if (existsSync(payload)) {
+        completed = readProjectBenchmarkRecord(payload)
+        if (completed.id !== id || resolve(completed.evidenceDirectory) !== directory || stableValue(completed.identity) !== stableValue(identity)) throw Error('Recovery canonical payload belongs to a different attempt or identity')
+        raw = readBenchmarkResult(completed)
+        const legacySource = existsSync(join(directory, 'raw-result.json')) ? join(directory, 'raw-result.json') : join(directory, 'result.json')
+        if (!anchoredRecovery && existsSync(legacySource) && stableValue(publicationResult(readBenchmarkResult(legacySource), identity.project)) !== stableValue(raw)) throw Error('Recovery canonical payload differs from preserved legacy evidence')
+      } else {
+        const original = join(directory, existsSync(join(directory, 'raw-result.json')) ? 'raw-result.json' : 'result.json')
+        raw = readBenchmarkResult(original)
+        // Legacy recovery preserves original bytes before adopting canonical storage.
+        if (!existsSync(join(directory, 'raw-result.json'))) writeFileSync(join(directory, 'raw-result.json'), readFileSync(original))
+      }
       if (!['passed', 'failed', 'blocked'].includes(raw.status) || !Array.isArray(raw.observations) || !raw.observations.length || !Number.isFinite(Date.parse(raw.startedAt)) || Date.parse(raw.finishedAt) < Date.parse(raw.startedAt) || !Number.isFinite(Date.parse(raw.finishedAt))) throw Error('Recovery requires a completed sampler result with ordered timestamps')
     } else {
       mkdirSync(directory, { recursive: true })
@@ -89,26 +108,20 @@ export async function runRetainedSuite(options: RetainedSuiteOptions): Promise<U
       write(join(options.out, 'cache.json'), { project: identity.project, lane: identity.lane, state: 'running', pendingAttempt: id, published: false })
       write(join(options.out, 'result.json'), { status: 'running', project: identity.project, pendingAttempt: id })
       raw = await options.measure(directory)
-      write(join(directory, 'raw-result.json'), raw)
     }
-    // Preserve the exact original response on recovery, including its formatting.
-    if (!existsSync(join(directory, 'raw-result.json'))) writeFileSync(join(directory, 'raw-result.json'), readFileSync(join(directory, 'result.json')))
-    const result = publicationResult(raw, identity.project)
-    active()
-    assertBenchmarkExecutionAllowed()
-    const current = options.identity()
-    active()
-    if (stableValue(current) !== stableValue(identity)) throw Error('Measurement identity changed; retaining the attempt without publishing a reusable record')
-    pendingAttempt = id
-    attemptDirectory = directory
-    stage = 'publication'
-    write(join(directory, 'result.json'), result)
+    let result: UnifiedSuiteResult
+    try { result = publicationResult(raw, identity.project) }
+    catch (error) {
+      // Failed normalization still retains its one diagnostic sampler payload.
+      if (!options.resumeAttempt) writeFileSync(join(directory, 'sampler-result.json.gz'), gzipSync(Buffer.from(JSON.stringify(raw))))
+      throw error
+    }
     const files = (path: string): string[] => readdirSync(join(directory, path), { withFileTypes: true }).flatMap(entry => {
       const child = path ? `${path}/${entry.name}` : entry.name
       if (entry.isSymbolicLink()) throw Error('Evidence symlinks cannot establish retained benchmark ownership')
       return entry.isDirectory() ? files(child) : entry.isFile() ? [child] : []
     })
-    const record: ProjectBenchmarkRecord = {
+    const record: ProjectBenchmarkRecord = completed ?? {
       schemaVersion: 1,
       id,
       identity,
@@ -116,22 +129,43 @@ export async function runRetainedSuite(options: RetainedSuiteOptions): Promise<U
       finishedAt: result.finishedAt,
       status: result.status === 'failed' || result.observations.some(row => row.status === 'failed') ? 'failed' : result.status === 'passed' && !result.observations.some(row => row.status === 'blocked') ? 'passed' : 'blocked',
       evidenceDirectory: directory,
-      evidenceFiles: files(''),
+      evidenceFiles: [...new Set([...files('').filter(path => options.resumeAttempt || path !== 'identity.json'), 'result.json.gz'])],
       observations: result.observations,
       gaps: result.gaps,
       provenance: metadata(result),
     }
-    publishProjectRecord(options.records, record)
+    completedOutput = writeProjectBenchmarkRecord(payload, record)
+    active()
+    assertBenchmarkExecutionAllowed()
+    const current = options.identity()
+    // Deliver OS cancellation queued during compression/admission before publish.
+    await new Promise<void>(resolve => setImmediate(resolve))
+    active()
+    if (stableValue(current) !== stableValue(identity)) throw Error('Measurement identity changed; retaining the attempt without publishing a reusable record')
+    pendingAttempt = id
+    attemptDirectory = directory
+    stage = 'publication'
+    if (anchoredRecovery && stableValue(readBenchmarkResult(join(directory, 'publication-failure.json'))) !== stableValue(result)) throw Error('Recovery output changed before publication')
+    publishProjectRecord(options.records, record, { payloadFile: payload })
     published = true
+    // Only new completed attempts replace this temporary admission receipt.
+    // Failed attempts and legacy recovery keep their original identity bytes.
+    if (!record.evidenceFiles.includes('identity.json') && existsSync(join(directory, 'identity.json'))) unlinkSync(join(directory, 'identity.json'))
     write(join(options.out, 'cache.json'), { project: identity.project, lane: identity.lane, reused: false, recordId: id, startedAt: record.startedAt, finishedAt: record.finishedAt, evidenceDirectory: directory })
-    write(join(options.out, 'result.json'), result)
+    writeBenchmarkResultReference(join(options.out, 'result.json'), projectRecordPath(options.records, record.identity.project, record.id))
     return result
   } catch (error) {
     // A rejected recovery request must not erase the eligible attempt's receipt
     // or pointer; the user can correct its path/settings and retry publication.
     if (options.resumeAttempt && !attemptDirectory) throw error
     const state = cancelled ? 'cancelled' : 'incomplete'
-    if (attemptDirectory && !published) write(join(attemptDirectory, 'publication-failure.json'), { attempt: pendingAttempt, identity, stage, state, error: String(error) })
+    if (attemptDirectory && !published) {
+      const failure = join(attemptDirectory, 'publication-failure.json'), metadata = { attempt: pendingAttempt, stage, state, error: String(error) }
+      // New failures bind the completed OUTPUT bytes, not just its identity.
+      // Existing legacy recovery receipts keep their original identity format.
+      if (completedOutput && (!options.resumeAttempt || anchoredRecovery)) write(failure, { ...metadata, schemaVersion: 2, kind: 'benchmark-result-reference', payload: completedOutput })
+      else write(failure, { ...metadata, identity })
+    }
     write(join(options.out, 'cache.json'), { project: identity.project, lane: identity.lane, pendingAttempt, state, published, error: String(error) })
     write(join(options.out, 'result.json'), { status: cancelled ? 'cancelled' : 'incomplete', project: identity.project, published, error: String(error) })
     throw error

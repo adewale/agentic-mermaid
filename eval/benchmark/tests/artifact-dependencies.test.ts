@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from 'bun:test'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { captureInstalledDependencyClosure } from '../unified/artifact-dependencies.ts'
+import { captureInstalledDependencyClosure } from '../portable/artifact-dependencies.ts'
 
 const roots: string[] = []
 afterEach(() => {

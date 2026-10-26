@@ -1,3 +1,4 @@
+import { writeBenchmarkDocument } from '../portable/project-records.ts'
 import { fidelityCriteriaProtocol } from './protocol.ts'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
@@ -13,7 +14,7 @@ import { executableIdentity } from '../unified/benchmark-context.ts'
 import type { PreparedCommunityBrowser, CommunityBrowserEngine } from '../unified/community-browser.ts'
 import { qualifyOutput } from '../unified/qualification.ts'
 import { runRetainedSuite } from '../unified/retained-suite.ts'
-import { stableValue } from '../unified/project-records.ts'
+import { stableValue } from '../portable/project-records.ts'
 import type { BenchmarkObservation, UnifiedSuiteResult } from '../unified/types.ts'
 import { communityFidelityBrowserAction } from './community-browser-helper.ts'
 import { planFidelityCriteria, completeCriterionLedger } from './ledger.ts'
@@ -164,7 +165,7 @@ export async function runCommunityFidelitySuite(options: CommunityFidelityOption
     }
   } finally { await browser?.close() }
   const observations = results.flatMap(result => result.observations), report = { id: 'mermaid-fidelity', status: observations.some(row => row.status === 'failed') ? 'failed' : 'blocked', startedAt, finishedAt: new Date().toISOString(), observations, artifacts: results.flatMap(result => result.artifacts ?? []), gaps: [...new Set(results.flatMap(result => result.gaps))], toolVersions, criteriaProtocol: options.fidelityDiagnostic ? null : fidelityCriteriaProtocol(root, executable), catalogFile, preparedFile, boundaries, selectedCaseIds: selectedCases.map(value => value.id), scope: 'New SVG functionality collection on frozen prepared artifacts, no timing/startup/memory claims; core3 delegated; all missing native projections remain unavailable' }
-  write(join(out, 'community-fidelity-report.json'), report)
+  writeBenchmarkDocument(join(out, 'community-fidelity-report.json'), report)
   return report as UnifiedSuiteResult
 }
 

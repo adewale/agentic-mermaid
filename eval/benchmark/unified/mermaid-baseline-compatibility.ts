@@ -1,3 +1,4 @@
+import { readBenchmarkResult } from '../portable/project-records.ts'
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
@@ -14,7 +15,7 @@ import { deliveredArtifactIdentity, executableIdentity } from './benchmark-conte
 import { baselineMeasurementContext } from './baseline-measurement-context.ts'
 import { committedDataIdentity } from './committed-data-identity.ts'
 import { parseStartupResource, runStartupChild } from './entry-startup.ts'
-import { inspectCurrentProjectRecords, stableValue } from './project-records.ts'
+import { inspectCurrentProjectRecords, stableValue } from '../portable/project-records.ts'
 import { protocolIdentity } from './protocol-identity.ts'
 import { requiredFamilyWorkloads } from './required-family-cases.ts'
 import { runRetainedSuite } from './retained-suite.ts'
@@ -106,7 +107,7 @@ export function retainedMermaidAssertions(harness: string, records: string, upst
   if (!retained?.evidenceRetained) return { status: 'unavailable', reason: 'No retained pinned Mermaid original-assertion record; this baseline does not retime that suite' }
   const record = retained.record,
     identity = record.identity as any
-  const owning = read(join(record.evidenceDirectory, 'result.json'))
+  const owning = readBenchmarkResult(join(record.evidenceDirectory, 'result.json'))
   const { observations: _observations, ...metadata } = owning
   if (stableValue(owning.observations) !== stableValue(record.observations) || stableValue(metadata) !== stableValue(record.provenance)) throw Error('Retained original assertion result differs from its immutable record')
   const paths = (objects: string[]) => objects.map(value => value.split('\t')[1]!)

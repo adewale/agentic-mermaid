@@ -1,3 +1,4 @@
+import { readBenchmarkDocument, writeBenchmarkDocument } from '../portable/project-records.ts'
 /** Supplemental fixed-core CLI comparison. Existing community evidence is never overwritten. */
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -27,7 +28,7 @@ interface Variant {
   identity?: unknown
   error?: string
 }
-const read = (path: string) => JSON.parse(readFileSync(path, 'utf8'))
+const read = readBenchmarkDocument
 const digest = (path: string) => createHash('sha256').update(readFileSync(path)).digest('hex')
 const median = (values: number[]) => {
   const sorted = [...values].sort((a, b) => a - b)
@@ -434,7 +435,7 @@ export async function runCommunityCliCohort(options: Options) {
     policy,
     resourcePolicy,
   }
-  writeFileSync(resultPath, JSON.stringify(result, null, 2))
+  writeBenchmarkDocument(resultPath, result)
   writeFileSync(ranksPath, JSON.stringify({ resourceOnly: options.resourceOnly ?? false, startedAt, finishedAt: result.finishedAt, rounds: options.rounds, ranks, resourceRanks, latencyFinishedAt, executionOrder, evidence, policy, resourcePolicy }, null, 2))
   return result
 }
@@ -469,7 +470,7 @@ export async function runCommunityCliSuite(options: UnifiedRunOptions): Promise<
       gaps: [detail],
     }
   }
-  writeFileSync(join(options.out, 'community-cli-suite.json'), JSON.stringify(envelope, null, 2))
+  writeBenchmarkDocument(join(options.out, 'community-cli-suite.json'), envelope)
   return envelope
 }
 export { ranksFor as rankCommunityCliObservations, resourceDiagnostic as runCommunityResourceDiagnostic, resourceObserver as observeCommunityResourceTool, resourceRanksFor as rankCommunityCliResources }

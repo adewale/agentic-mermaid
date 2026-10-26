@@ -1,3 +1,4 @@
+import { writeBenchmarkDocument } from '../portable/project-records.ts'
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { createRequire } from 'node:module'
@@ -316,7 +317,7 @@ export async function runBaselineBrowserSuite(options: BaselineBrowserOptions): 
     const results = await Promise.all(tickets)
     const windows = new Set(results.map(result => (result as BaselineBrowserReport).collectionId).filter(Boolean)), sameWindow = windows.size === 1 && results.every(result => (result as BaselineBrowserReport).collectionId) && plan.selected.length === plan.identities.length
     const report: BaselineBrowserReport = { id: 'pinned-browser-baseline', status: results.some(result => result.status === 'failed') ? 'failed' : 'blocked', startedAt, finishedAt: new Date().toISOString(), observations: results.flatMap(result => result.observations) as BaselineBrowserObservation[], gaps: [...new Set(results.flatMap(result => result.gaps))], artifacts: results.flatMap(result => result.artifacts ?? []), settings: plan.settings, identities: plan.identities, cases: plan.cases, executionPlan, rolling: !sameWindow, ...(sameWindow ? { collectionId: [...windows][0] } : {}) }
-    write(join(options.out, 'result.json'), report)
+    writeBenchmarkDocument(join(options.out, 'result.json'), report)
     return report
   } catch (error) { for (const collector of collectors.values()) collector.reject(error); await Promise.allSettled(tickets); throw error }
   finally { await new Promise<void>(resolveClose => server.close(() => resolveClose())) }

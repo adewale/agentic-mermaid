@@ -3,11 +3,16 @@
 import contextlib
 import io
 import json
+import gzip
+import os
+import subprocess
+import shutil
 from pathlib import Path
 import tempfile
 import unittest
 
 import mermaid_baseline as baseline
+from evidence import read_document
 
 
 class BaselineControls(unittest.TestCase):
@@ -20,6 +25,24 @@ class BaselineControls(unittest.TestCase):
         path = self.root / name
         path.write_text(json.dumps(value))
         return path
+
+    def test_real_typescript_document_exports_remain_portable_and_reject_changed_data(self):
+        module = Path(__file__).resolve().parents[1] / 'portable/project-records.ts'
+        source = self.root / 'source'
+        source.mkdir()
+        output = source / 'summary.json'
+        expected = {'title': 'Trident λ漢', 'rows': [{'samplesMs': [1.25, 2.5]}]}
+        script = f'import {{writeBenchmarkDocument}} from {json.dumps(str(module))};writeBenchmarkDocument({json.dumps(str(output))},{json.dumps(expected)});'
+        subprocess.run([os.environ.get('NODE_BIN', 'node'), '--input-type=module', '-e', script], check=True, capture_output=True, text=True)
+        copied = self.root / 'copied'
+        copied.mkdir()
+        for name in ('summary.json', 'summary.json.gz'):
+            shutil.copy2(source / name, copied / name)
+        shutil.rmtree(source)
+        self.assertEqual(read_document(copied / 'summary.json'), expected)
+        (copied / 'summary.json.gz').write_bytes(gzip.compress(json.dumps({'title': 'Trident λ漢', 'rows': [{'samplesMs': [0.001]}]}).encode()))
+        with self.assertRaisesRegex(ValueError, 'immutable reference'):
+            read_document(copied / 'summary.json')
 
     def dave(self):
         report = {"status": "completed", "startedAt": "start", "finishedAt": "end", "browser": "same-browser", "environment": {},

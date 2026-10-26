@@ -4,7 +4,7 @@ import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { byteDigest } from '../portable/artifacts.ts'
 import { environmentIdentity } from '../portable/environment.ts'
-import { captureInstalledDependencyClosure } from './artifact-dependencies.ts'
+import { captureInstalledDependencyClosure } from '../portable/artifact-dependencies.ts'
 import { protocolIdentity } from './protocol-identity.ts'
 
 export function executableIdentity(path: string | undefined) {

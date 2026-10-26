@@ -1,3 +1,4 @@
+import { readBenchmarkDocument, writeBenchmarkDocument } from '../portable/project-records.ts'
 import { execFileSync } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
 import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
@@ -5,19 +6,19 @@ import { createRequire } from 'node:module'
 import { cpus, hostname, release } from 'node:os'
 import { dirname, join, relative, resolve } from 'node:path'
 import { assertBenchmarkExecutionAllowed } from '../ci-policy.ts'
-import { captureInstalledDependencyClosure } from './artifact-dependencies.ts'
+import { captureInstalledDependencyClosure } from '../portable/artifact-dependencies.ts'
 import { communityCoreWorkloads, prepareCommunity, rankCommunityObservations, runCommunitySuite, selectCommunityProjects, verifyFrozenBrowserEngine, verifyProvidedCommunityArtifact } from './community.ts'
 import { type PreparedCommunityBrowser, prepareCommunityBrowsers } from './community-browser.ts'
 import { communityCliCacheIdentity, runCommunityCliSuite } from './community-cli.ts'
 import { communityProtocolIdentity } from './community-protocol-identity.ts'
 import type { CommunityNode, PreparedCommunity } from './community-types.ts'
-import { activateProjectRecord, findProjectRecord, inspectCurrentProjectRecords, type ProjectBenchmarkIdentity, type ProjectBenchmarkRecord, publishProjectRecord, stableValue } from './project-records.ts'
+import { activateProjectRecord, findProjectRecord, inspectCurrentProjectRecords, type ProjectBenchmarkIdentity, type ProjectBenchmarkRecord, publishProjectRecord, stableValue } from '../portable/project-records.ts'
 import { withReferenceLabels } from './qualification.ts'
 import { parseOptions } from './run.ts'
 import type { BenchmarkObservation, UnifiedRunOptions, UnifiedSuiteResult } from './types.ts'
 import { getWorkloadEvidence, unifiedWorkloads } from './workloads.ts'
 
-const json = (path: string): any => JSON.parse(readFileSync(path, 'utf8'))
+const json = readBenchmarkDocument
 const writeJson = (path: string, value: unknown) => writeFileSync(path, JSON.stringify(value, null, 2) + '\n', { flag: 'wx' })
 const git = (root: string, ...args: string[]) => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim()
 const now = () => new Date().toISOString()
@@ -379,7 +380,7 @@ export async function runIncrementalCommunitySuite(options: UnifiedRunOptions): 
     cli = envelope('community-cli')
   // These files deliberately use an incremental envelope, not a fabricated fresh
   // community-evidence.json. Historical single-run chart admission must not infer freshness.
-  writeFileSync(join(options.out, 'community-result.json'), JSON.stringify(community, null, 2) + '\n')
+  writeBenchmarkDocument(join(options.out, 'community-result.json'), community)
   writeFileSync(
     join(options.out, 'project-update-manifest.json'),
     JSON.stringify(
@@ -393,7 +394,7 @@ export async function runIncrementalCommunitySuite(options: UnifiedRunOptions): 
       2,
     ) + '\n',
   )
-  writeFileSync(join(options.out, 'retained-cli-suite.json'), JSON.stringify(cli, null, 2) + '\n')
+  writeBenchmarkDocument(join(options.out, 'retained-cli-suite.json'), cli)
   return community
 }
 export async function runRetainedCommunityCliSuite(options: UnifiedRunOptions): Promise<UnifiedSuiteResult> {

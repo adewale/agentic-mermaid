@@ -1,6 +1,6 @@
 import type { PortableCase } from './cohorts.ts'
 
-export const PORTABLE_MEASUREMENT_PROTOCOL = 'portable-svg-processes-v1'
+export const PORTABLE_MEASUREMENT_PROTOCOL = 'portable-svg-processes-v2'
 export type Replica = 'A0' | 'A1' | 'B'
 export type Track = 'first-use' | 'warm-repeat' | 'warm-new-source' | 'warm-label-edit'
 export interface PortableArtifact {
@@ -18,7 +18,9 @@ export interface PortableJob {
   round: number
   replica: Replica
   sample: number
-  resultFile: string
+  /** Legacy direct-worker file destination; controllers now use dedicated pipes. */
+  resultFile?: string
+  diagnosticFile?: string
   svgFile?: string
   fullEvidence?: boolean
   minSampleMs?: number
@@ -31,7 +33,7 @@ export interface MemorySnapshot {
   arrayBuffers: number
 }
 export interface PortableWorkerResult {
-  protocol: typeof PORTABLE_MEASUREMENT_PROTOCOL
+  protocol: typeof PORTABLE_MEASUREMENT_PROTOCOL | 'portable-svg-processes-v1'
   caseId: string
   family: string
   mode: PortableJob['mode']

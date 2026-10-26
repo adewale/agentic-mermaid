@@ -1,3 +1,4 @@
+import { readBenchmarkDocument } from '../portable/project-records.ts'
 import '../ci-policy-enforce.ts'
 /** Current-head PR comparisons. Preparation is separate from sequential clocks. */
 import { execFileSync, spawnSync } from 'node:child_process'
@@ -98,7 +99,7 @@ interface CoreResult {
   runtime: string
   memory: unknown
 }
-const read = (path: string) => JSON.parse(readFileSync(path, 'utf8'))
+const read = readBenchmarkDocument
 const git = (root: string, args: string[]) => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 const equal = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 const stamp = () => new Date().toISOString()

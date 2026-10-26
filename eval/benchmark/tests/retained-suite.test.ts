@@ -1,11 +1,12 @@
 import { afterEach, expect, test } from 'bun:test'
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { gzipSync } from 'node:zlib'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { protocolIdentity } from '../unified/protocol-identity.ts'
 import { publicationResult, runRetainedSuite } from '../unified/retained-suite.ts'
-import { loadCurrentProjectRecords } from '../unified/project-records.ts'
+import { loadCurrentProjectRecords, projectRecordPath, readBenchmarkResult, readBenchmarkDocument, readProjectBenchmarkRecord, stableValue } from '../portable/project-records.ts'
 import type { UnifiedSuiteResult } from '../unified/types.ts'
 
 const directories: string[] = []
@@ -66,6 +67,7 @@ test('explicit recovery publishes completed matching raw evidence without measur
   expect(existsSync(join(root, 'records/current.json'))).toBe(false)
   const recovered = await runRetainedSuite(options)
   expect(readFileSync(join(attempt, 'raw-result.json'), 'utf8')).toBe(rawBytes)
+  expect(existsSync(join(attempt, 'identity.json'))).toBe(true)
   expect(recovered.observations[0]!.samplesMs).toEqual([2])
   expect(recovered.startedAt).toBe(result().startedAt)
   expect(loadCurrentProjectRecords(options.records)[0]!.id).toBe('completed')
@@ -97,10 +99,12 @@ test('changed owning observations cannot be reused and do not replace the publis
   const options = { out: join(root, 'out'), records: join(root, 'records'), identity: () => ({ project: 'pele', lane: 'startup', protocol: 'v1', artifact: 'shipped-byte-proof', measurement: 'node' }), measure: async () => result() }
   await runRetainedSuite(options)
   const original = loadCurrentProjectRecords(options.records)[0]!
-  const changed = result()
-  changed.observations[0]!.samplesMs = [0.1]
-  writeFileSync(join(original.evidenceDirectory, 'result.json'), JSON.stringify(changed))
-  await expect(runRetainedSuite(options)).rejects.toThrow('differs from its immutable project record')
+  const payload = join(original.evidenceDirectory, 'result.json.gz'), bytes = readFileSync(payload), index = readFileSync(join(options.records, 'current.json'), 'utf8')
+  writeFileSync(payload, Buffer.concat([bytes, Buffer.from('corruption')]))
+  await expect(runRetainedSuite(options)).rejects.toThrow('canonical output differs')
+  expect(readFileSync(join(options.records, 'current.json'), 'utf8')).toBe(index)
+  expect(() => loadCurrentProjectRecords(options.records)).toThrow('canonical output differs')
+  writeFileSync(payload, bytes)
   expect(loadCurrentProjectRecords(options.records)[0]!.id).toBe(original.id)
   expect(JSON.parse(readFileSync(join(options.out, 'result.json'), 'utf8')).status).toBe('incomplete')
 })
@@ -123,6 +127,10 @@ test('cancellation during final identity validation cannot publish a completed m
   await expect(runRetainedSuite({ out: join(root, 'out'), records: join(root, 'records'), identity, measure: async () => { measured = true; return result() } })).rejects.toThrow('cancelled by SIGTERM')
   expect(existsSync(join(root, 'records/current.json'))).toBe(false)
   expect(JSON.parse(readFileSync(join(root, 'out/cache.json'), 'utf8')).state).toBe('cancelled')
+  const cache = JSON.parse(readFileSync(join(root, 'out/cache.json'), 'utf8')), payload = join(root, 'out/attempts', cache.pendingAttempt, 'result.json.gz')
+  expect(readBenchmarkResult(payload).observations[0]!.samplesMs).toEqual([2])
+  expect(existsSync(join(root, 'out/attempts', cache.pendingAttempt, 'identity.json'))).toBe(true)
+  await expect(runRetainedSuite({ out: join(root, 'out'), records: join(root, 'records'), resumeAttempt: join(root, 'out/attempts', cache.pendingAttempt), identity: () => ({ project: 'pele', lane: 'startup', protocol: 'v1', artifact: 'same', measurement: 'node' }), measure: async () => { throw Error('Cancelled output must not remeasure') } })).rejects.toThrow('attempt-bound')
 })
 
 test('an artifact change during cached-evidence validation cannot activate the cached result', async () => {
@@ -166,4 +174,106 @@ test('producer identity follows runtime dependencies and spawned roots without b
   mkdirSync(join(root, 'untracked'))
   writeFileSync(join(root, 'untracked/new.ts'), 'export const newWork=1\n')
   expect(() => protocolIdentity(root, ['untracked/new.ts'])).toThrow('Uncommitted')
+})
+
+
+test('new retained attempts store observations once and resolve both compressed and reference result APIs', async () => {
+  const root = directory(), out = join(root, 'out'), records = join(root, 'records')
+  const actual = await runRetainedSuite({ out, records, identity: () => ({ project: 'pele', lane: 'startup', protocol: 'v1', artifact: 'same', measurement: 'node' }), measure: async () => ({ ...result(), artifacts: undefined }) })
+  const record = loadCurrentProjectRecords(records)[0]!, payload = join(record.evidenceDirectory, 'result.json.gz')
+  expect(existsSync(join(record.evidenceDirectory, 'raw-result.json'))).toBe(false)
+  expect(existsSync(join(record.evidenceDirectory, 'identity.json'))).toBe(false)
+  expect(existsSync(join(record.evidenceDirectory, 'result.json'))).toBe(false)
+  expect(JSON.parse(readFileSync(join(out, 'result.json'), 'utf8')).observations).toBeUndefined()
+  expect(JSON.parse(readFileSync(projectRecordPath(records, record.identity.project, record.id), 'utf8')).observations).toBeUndefined()
+  expect(readBenchmarkResult(payload)).toEqual(actual)
+  expect(readBenchmarkResult(join(record.evidenceDirectory, 'result.json'))).toEqual(actual)
+  expect(readBenchmarkResult(join(out, 'result.json'))).toEqual(actual)
+  expect(readBenchmarkDocument(join(out, 'result.json'))).toEqual(actual)
+  expect(readBenchmarkDocument(payload)).toEqual(record)
+})
+
+test('completed canonical output can recover publication without being rewritten or measured again', async () => {
+  const root = directory(), out = join(root, 'out'), records = join(root, 'records')
+  mkdirSync(records); writeFileSync(join(records, '.writer.lock'), 'another writer')
+  let calls = 0
+  const options = { out, records, identity: () => ({ project: 'pele', lane: 'startup', protocol: 'v1', artifact: 'same', measurement: 'node' }), measure: async () => { calls++; return result() } }
+  await expect(runRetainedSuite(options)).rejects.toThrow()
+  const cache = JSON.parse(readFileSync(join(out, 'cache.json'), 'utf8')), attempt = join(out, 'attempts', cache.pendingAttempt), payload = join(attempt, 'result.json.gz'), before = readFileSync(payload)
+  expect(existsSync(join(attempt, 'identity.json'))).toBe(true)
+  rmSync(join(records, '.writer.lock'))
+  const originalFailure = readFileSync(join(attempt, 'publication-failure.json'), 'utf8'), originalCache = readFileSync(join(out, 'cache.json'), 'utf8'), altered = readProjectBenchmarkRecord(payload)
+  altered.observations[0]!.samplesMs = [0.1]
+  writeFileSync(payload, gzipSync(Buffer.from(JSON.stringify(altered))))
+  await expect(runRetainedSuite({ ...options, resumeAttempt: attempt })).rejects.toThrow('canonical output differs')
+  expect(existsSync(join(records, 'current.json'))).toBe(false)
+  expect(readFileSync(join(attempt, 'publication-failure.json'), 'utf8')).toBe(originalFailure)
+  expect(readFileSync(join(out, 'cache.json'), 'utf8')).toBe(originalCache)
+  writeFileSync(payload, before)
+  const recovered = await runRetainedSuite({ ...options, resumeAttempt: attempt })
+  expect(calls).toBe(1)
+  expect(readFileSync(payload)).toEqual(before)
+  expect(existsSync(join(attempt, 'identity.json'))).toBe(false)
+  expect(recovered.startedAt).toBe(result().startedAt)
+  expect(readBenchmarkResult(join(out, 'result.json'))).toEqual(recovered)
+})
+
+test('an actual legacy inline record reuses original results without migration or remeasurement', async () => {
+  const root = directory(), out = join(root, 'out'), records = join(root, 'records'), attempt = join(out, 'attempts', 'legacy')
+  mkdirSync(attempt, { recursive: true })
+  const identity = { project: 'pele', lane: 'startup', protocol: 'v1', artifact: 'same', measurement: 'node' }, original = publicationResult(result(), 'pele'), { observations, ...provenance } = original
+  const record = { schemaVersion: 1, id: 'legacy', identity, startedAt: original.startedAt, finishedAt: original.finishedAt, status: original.status, evidenceDirectory: attempt, evidenceFiles: ['result.json'], observations, gaps: [], provenance }
+  const recordFile = projectRecordPath(records, 'pele', 'legacy'); mkdirSync(join(records, 'projects', Buffer.from('pele').toString('base64url')), { recursive: true })
+  const bytes = JSON.stringify(record, null, 4) + '\n'; writeFileSync(recordFile, bytes); writeFileSync(join(attempt, 'result.json'), JSON.stringify(original)); writeFileSync(join(records, 'current.json'), JSON.stringify({ schemaVersion: 1, projects: [{ project: 'pele', lane: 'startup', current: 'legacy', history: ['legacy'] }] }))
+  const reused = await runRetainedSuite({ out, records, identity: () => identity, measure: async () => { throw Error('Legacy measurement must not run') } })
+  expect(stableValue(reused)).toBe(stableValue(original))
+  expect(readFileSync(recordFile, 'utf8')).toBe(bytes)
+  expect(existsSync(join(attempt, 'result.json.gz'))).toBe(false)
+  expect(JSON.parse(readFileSync(join(out, 'cache.json'), 'utf8'))).toMatchObject({ reused: true, recordId: 'legacy', startedAt: original.startedAt, finishedAt: original.finishedAt })
+  const altered = publicationResult(result(), 'pele'); altered.observations[0]!.samplesMs = [0.1]
+  writeFileSync(join(attempt, 'result.json'), JSON.stringify(altered))
+  await expect(runRetainedSuite({ out, records, identity: () => identity, measure: async () => { throw Error('Corrupted legacy evidence must not remeasure') } })).rejects.toThrow('owning benchmark result differs')
+  expect(readFileSync(recordFile, 'utf8')).toBe(bytes)
+})
+
+
+for (const cached of [false, true]) test(`queued OS cancellation during ${cached ? 'cached' : 'fresh'} identity validation is delivered before publication`, async () => {
+  const root = directory(), out = join(root, 'out'), records = join(root, 'records')
+  let checking = false, calls = 0
+  const identity = () => { if (checking && ++calls === 2) process.kill(process.pid, 'SIGTERM'); return { project: 'pele', lane: 'startup', protocol: 'v1', artifact: 'same', measurement: 'node' } }
+  const options = { out, records, identity, measure: async () => result() }, harmless = () => {}
+  // Keep the test process alive if an incorrect implementation removes its
+  // cancellation listener before the queued OS signal is delivered.
+  process.on('SIGTERM', harmless)
+  try {
+    if (cached) await runRetainedSuite(options)
+    checking = true
+    await expect(runRetainedSuite(options)).rejects.toThrow('cancelled by SIGTERM')
+    expect(JSON.parse(readFileSync(join(out, 'cache.json'), 'utf8')).state).toBe('cancelled')
+    expect(loadCurrentProjectRecords(records)).toHaveLength(cached ? 1 : 0)
+  } finally { await new Promise<void>(resolve => setImmediate(resolve)); process.off('SIGTERM', harmless) }
+})
+
+
+test('a failure receipt anchors the original completed output rather than corruption discovered at publication', async () => {
+  const root = directory(), out = join(root, 'out'), records = join(root, 'records')
+  let admissions = 0, originalOutput: Buffer | undefined
+  const data = { project: 'pele', lane: 'startup', protocol: 'v1', artifact: 'same', measurement: 'node' }
+  const identity = () => {
+    if (++admissions === 2) {
+      const cache = JSON.parse(readFileSync(join(out, 'cache.json'), 'utf8')), payload = join(out, 'attempts', cache.pendingAttempt, 'result.json.gz')
+      originalOutput = readFileSync(payload)
+      const changed = readProjectBenchmarkRecord(payload); changed.observations[0]!.samplesMs = [0.1]
+      writeFileSync(payload, gzipSync(Buffer.from(JSON.stringify(changed))))
+    }
+    return data
+  }
+  const options = { out, records, identity, measure: async () => result() }
+  await expect(runRetainedSuite(options)).rejects.toThrow('canonical payload differs')
+  const cache = JSON.parse(readFileSync(join(out, 'cache.json'), 'utf8')), attempt = join(out, 'attempts', cache.pendingAttempt)
+  expect(existsSync(join(records, 'current.json'))).toBe(false)
+  await expect(runRetainedSuite({ ...options, identity: () => data, resumeAttempt: attempt, measure: async () => { throw Error('Do not remeasure corrupted output') } })).rejects.toThrow('canonical output differs')
+  writeFileSync(join(attempt, 'result.json.gz'), originalOutput!)
+  const recovered = await runRetainedSuite({ ...options, identity: () => data, resumeAttempt: attempt, measure: async () => { throw Error('Do not remeasure repaired original output') } })
+  expect(recovered.observations[0]!.samplesMs).toEqual([2])
 })

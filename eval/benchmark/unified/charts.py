@@ -18,6 +18,7 @@ from datetime import datetime
 from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from evidence import read_document
 from tool_versions import assert_tool_versions
 from statistics import median
 from textwrap import fill
@@ -28,7 +29,7 @@ def finite(value):
 
 
 def load(path, default=None):
-    return json.loads(path.read_text()) if path and path.is_file() else default
+    return read_document(path) if path and (path.is_file() or Path(str(path) + '.gz').is_file()) else default
 
 
 def find(root, name):

@@ -1,3 +1,4 @@
+import { writeBenchmarkDocument } from '../portable/project-records.ts'
 import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
@@ -1095,7 +1096,7 @@ export async function runCommunitySuite(options: UnifiedRunOptions): Promise<Uni
     gaps,
     artifacts: ['community-prepared.json', 'community-inputs.json', 'community-ranks.json', 'community-alias-proof.json', 'community-identity-rechecks.json', 'community-evidence.json'],
   }
-  writeFileSync(join(options.out, 'community-result.json'), JSON.stringify(result, null, 2))
+  writeBenchmarkDocument(join(options.out, 'community-result.json'), result)
   return result
 }
 

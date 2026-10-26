@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import type { BenchmarkObservation, UnifiedSuiteResult } from './types.ts'
+import { readBenchmarkResult } from '../portable/project-records.ts'
 
 const SURFACE = 'library:./svg/styles'
 const read = (path: string) => JSON.parse(readFileSync(path, 'utf8'))
@@ -59,8 +60,8 @@ interface Options {
 }
 export function reconcileInvocation(options: Options) {
   if (!options.protocolChange.trim()) throw Error('A human-readable protocol correction is required')
-  const original = read(options.original) as UnifiedSuiteResult,
-    correction = read(options.correction) as UnifiedSuiteResult
+  const original = readBenchmarkResult(options.original),
+    correction = readBenchmarkResult(options.correction)
   if (original.id !== 'invocation' || correction.id !== 'invocation' || !original.finishedAt || !correction.finishedAt || !Array.isArray(original.observations) || !Array.isArray(correction.observations)) throw Error('Both inputs must be completed invocation suite envelopes')
   const oldRows = original.observations.filter(row => row.surface === SURFACE),
     newRows = correction.observations.filter(row => row.surface === SURFACE)
