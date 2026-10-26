@@ -3,18 +3,23 @@ import type { FamilyLayoutResult, FamilyPositionedView } from '../agent/families
 import { transferRetainedPixelText } from '../shared/prepared-text.ts'
 import { WeightedLru } from './weighted-lru.ts'
 import { observeCache } from '../performance-observations.ts'
-import type { NativeDrawing } from '../scene/native-drawing.ts'
+import type { PaintLayoutCertification } from '../scene/paint-certification.ts'
 const familyIds = new WeakMap<object, number>()
 let nextFamilyId = 0
 interface PositionedSnapshot { result: FamilyLayoutResult; projection?: FamilyPositionedView }
-interface NativeResidency { geometryWeight: number; lastUse?: number; locallyRepeated: boolean; drawingWeight?: number; oversized?: boolean }
+interface NativeResidency { lastUse?: number; locallyRepeated: boolean; drawingWeight?: number; oversized?: boolean }
+export interface RetainedNativeDrawing {
+  readonly svg: string
+  readonly preparedText: boolean
+  readonly certification: PaintLayoutCertification
+}
 const nativeResidency = new WeakMap<PositionedSnapshot, NativeResidency>()
 let nativeUse = 0
 const nativeOwners = new WeakMap<FamilyLayoutResult, { key: string; snapshot: PositionedSnapshot; request: object }>()
 const MAX_WEIGHT = 16 * 1024 * 1024
 const DRAWING_WEIGHT = 8 * 1024 * 1024
 const DRAWING_REPLACEMENT_AGE = 128
-const drawings = new WeightedLru<string, { owner: PositionedSnapshot; drawing: NativeDrawing }>(128, DRAWING_WEIGHT)
+const drawings = new WeightedLru<string, { owner: PositionedSnapshot; drawing: RetainedNativeDrawing }>(128, DRAWING_WEIGHT)
 const results = new WeightedLru<string, PositionedSnapshot>(128, MAX_WEIGHT, key => { drawings.delete(key) })
 const retainedResults = new WeakSet<object>()
 function isolatedKey(family: object, key: string): string {
@@ -86,14 +91,14 @@ function retainSnapshot(family: object, key: string, value: FamilyLayoutResult, 
       throw error
     }
   }
-  if (!copy) nativeResidency.set(retained, { geometryWeight: weight, locallyRepeated: false })
+  if (!copy) nativeResidency.set(retained, { locallyRepeated: false })
   results.set(isolatedKey(family, key), retained, weight)
   retainedResults.add(retained.result)
 }
 
 /** The request acquired this entry through the full private positioning key.
  * A public layout copy or arbitrary request/layout pair cannot inherit it. */
-export function cachedNativeDrawing(request: object, layout: FamilyLayoutResult, originalProducer: boolean): NativeDrawing | undefined {
+export function cachedNativeDrawing(request: object, layout: FamilyLayoutResult, originalProducer: boolean): RetainedNativeDrawing | undefined {
   const entry = nativeOwners.get(layout)
   if (!originalProducer) {
     nativeOwners.delete(layout)
@@ -111,13 +116,13 @@ export function cachedNativeDrawing(request: object, layout: FamilyLayoutResult,
 /** Derived drawings have their own bounded tier and cannot evict geometry.
  * Cold cyclic sources use spare capacity. Consecutive reuse or a working-set
  * change that leaves the oldest drawing unused may replace drawings.
- * Evicting geometry invalidates its dependent drawing, including hidden evidence. */
-export function retainNativeDrawing(request: object, layout: FamilyLayoutResult, drawing: NativeDrawing, hiddenEvidence: () => unknown): void {
+ * Evicting geometry invalidates its dependent certified drawing artifact. */
+export function retainNativeDrawing(request: object, layout: FamilyLayoutResult, drawing: RetainedNativeDrawing): void {
   const entry = nativeOwners.get(layout)
   if (!entry || entry.request !== request || results.get(entry.key) !== entry.snapshot) return
   const residency = nativeResidency.get(entry.snapshot)!
   if (residency.oversized) { observeCache('native-drawing', 'store-skipped', 'weight-limit'); return }
-  const lowerBound = residency.drawingWeight ?? residency.geometryWeight + drawing.svg.length * 4
+  const lowerBound = residency.drawingWeight ?? entry.key.length * 2 + drawing.svg.length * 4 + 1024
   const oldest = drawings.leastRecentlyUsed()
   const oldestUse = oldest && nativeResidency.get(oldest.owner)?.lastUse
   const canReplaceAged = oldestUse !== undefined && nativeUse - oldestUse >= DRAWING_REPLACEMENT_AGE
@@ -125,9 +130,10 @@ export function retainNativeDrawing(request: object, layout: FamilyLayoutResult,
     observeCache('native-drawing', 'store-skipped', 'drawing-budget'); return
   }
   const retained = { owner: entry.snapshot, drawing }
-  // Charge shared geometry conservatively in both tiers, and include private
-  // paint evidence without retaining the temporary inventory itself.
-  const weight = entry.key.length * 2 + estimatedResidency([retained, hiddenEvidence()], DRAWING_WEIGHT) + 1024
+  // The certified artifact deliberately excludes construction paint and its
+  // geometry aliases. Its parent owns those graphs; this tier needs only the
+  // reusable SVG, prepared-text decision and completed paint certificate.
+  const weight = entry.key.length * 2 + estimatedResidency(drawing, DRAWING_WEIGHT) + 1024
   residency.drawingWeight = weight
   if (weight > DRAWING_WEIGHT) {
     residency.oversized = true

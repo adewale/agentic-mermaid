@@ -12,11 +12,11 @@ import { withDeferredTerminalProjections } from './deferred-terminal-projection.
 import type { SceneDoc } from './ir.ts'
 import { certifyNativePaint, certifyScenePaint, type PaintLayoutCertification } from './paint-certification.ts'
 import { observeCache, observeFallback } from '../performance-observations.ts'
-import { cachedNativeDrawing, retainNativeDrawing } from '../experimental/position-cache.ts'
-import { paintPrimitiveSource, scenePrimitiveMatrix } from './inspection.ts'
+import { cachedNativeDrawing, retainNativeDrawing, type RetainedNativeDrawing } from '../experimental/position-cache.ts'
 
 interface PositionedScene { scene: SceneDoc; crossChecks: boolean; certification?: PaintLayoutCertification }
-interface PositionedNative { drawing: NativeDrawing; certification?: PaintLayoutCertification }
+type RenderableNativeDrawing = Pick<NativeDrawing, 'svg' | 'preparedText'>
+interface PositionedNative { drawing: RenderableNativeDrawing; evidence?: NativeDrawing; certification?: PaintLayoutCertification }
 const native = new WeakMap<FamilyLayoutResult, WeakMap<ResolvedRenderRequest, PositionedNative>>()
 const retained = new WeakMap<FamilyLayoutResult, WeakMap<ResolvedRenderRequest, PositionedScene>>()
 
@@ -49,7 +49,7 @@ export function retainedPositionedScene(request: ResolvedRenderRequest, layout: 
 
 /** Native crisp work has no Scene document/group tree. Strong evidence and
  * alternate backends deliberately retain the extension-facing Scene adapter. */
-export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: FamilyLayoutResult): NativeDrawing | undefined {
+export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: FamilyLayoutResult): RenderableNativeDrawing | undefined {
   const plan = resolvedRenderExecutionPlanOf(request)
   let bypass = sceneAssertionsEnabled(request) ? 'scene-assertions' : plan.family.id.startsWith('family:') ? 'external-family'
     : plan.backend && !isBuiltinDefaultBackend(plan.backend.backend) ? 'alternate-backend'
@@ -73,7 +73,7 @@ export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: Fa
   const cached = cachedNativeDrawing(request, layout, producer === originalNativeDrawingOf(plan.family.lowerScene))
   if (cached) {
     observeCache('native-drawing', 'hit', undefined, 'positioned-owner')
-    requests.set(request, { drawing: cached })
+    requests.set(request, { drawing: cached, certification: cached.certification })
     return cached
   }
   observeCache('native-drawing', 'miss')
@@ -81,8 +81,7 @@ export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: Fa
     ? { ...request.appearance.colors, embedFontImport: false } : request.appearance.colors
   const drawing = withTextMeasurementExecution(plan.textMeasurement, () => drawNative(producer!,
     { positioned: positionedForNativeProducer(layout, producer!), colors, resolved: resolvedFamilyRenderContextOf(request) }, plan.family.id, request.appearance.styled ? request.appearance.style : undefined))
-  requests.set(request, { drawing })
-  retainNativeDrawing(request, layout, drawing, () => drawing.paint.primitives.map(primitive => [paintPrimitiveSource(primitive), scenePrimitiveMatrix(primitive)]))
+  requests.set(request, { drawing, evidence: drawing })
   return drawing
 }
 
@@ -91,7 +90,13 @@ export function positionedPaintCertification(request: ResolvedRenderRequest, lay
   if (drawing) {
     const entry = native.get(layout)!.get(request)!
     observeCache('paint-certification', entry.certification ? 'hit' : 'miss', undefined, 'native')
-    return entry.certification ??= certifyNativePaint(drawing.header, drawing.paint, retainedFamilyProjection(layout), { outputSupported: !request.appearance.colors.shadow })
+    if (entry.certification) return entry.certification
+    const evidence = entry.evidence!
+    const certification = certifyNativePaint(evidence.header, evidence.paint, retainedFamilyProjection(layout), { outputSupported: !request.appearance.colors.shadow })
+    entry.certification = certification
+    const retained: RetainedNativeDrawing = Object.freeze({ svg: drawing.svg, preparedText: drawing.preparedText, certification })
+    retainNativeDrawing(request, layout, retained)
+    return certification
   }
   const scene = retainedPositionedScene(request, layout)
   const entry = retained.get(layout)!.get(request)!

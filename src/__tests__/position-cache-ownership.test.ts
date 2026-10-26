@@ -15,7 +15,7 @@ test('a held render request cannot pin evicted private geometry through a drawin
       if (enroll) {
         const borrowed = borrowedPositioned(family, key, heldRequest).result
         cachedNativeDrawing(heldRequest, borrowed, true)
-        retainNativeDrawing(heldRequest, borrowed, { svg: '<svg/>', header: {}, paint: { geometry: value.positioned }, preparedText: true }, () => value.positioned)
+        retainNativeDrawing(heldRequest, borrowed, { svg: '<svg/>', preparedText: true, certification: { status: 'passed' } })
       }
       return new WeakRef(value.positioned)
     }
@@ -33,26 +33,24 @@ test('a held render request cannot pin evicted private geometry through a drawin
   expect(child.status).toBe(0)
 })
 
-test('native drawing cache admission accounts for hidden evidence without burdening fresh or public layouts', async () => {
+test('native drawing admission retains only certified artifacts without burdening fresh or public layouts', async () => {
   const child = await runChild(process.execPath, ['-e', `
     import assert from 'node:assert/strict'
     import { borrowedPositioned, cachedNativeDrawing, retainNativeDrawing, retainOwnedNativeSvgPositioned, retainPositioned } from './src/experimental/position-cache.ts'
     const family = {}, layout = { positioned: { width: 1, height: 1 } }
-    const drawing = { svg: '<svg/>', header: {}, paint: { primitives: [] }, preparedText: true }
+    const inaccessible = new Proxy({}, { ownKeys() { throw Error('fresh/public requests must not walk drawing residency') } })
+    const drawing = { svg: '<svg/>', preparedText: true, certification: { payload: 'x'.repeat(3 * 1024 * 1024) } }
     const fresh = {}, publicRequest = {}, repeated = {}, events = []
     const symbol = Symbol.for('agentic-mermaid.performance-observer.v1')
     globalThis[symbol] = event => events.push(event)
     retainOwnedNativeSvgPositioned(family, 'private', layout)
-    const unexpected = () => { throw Error('fresh/public requests must not walk drawing residency') }
-    retainNativeDrawing(fresh, layout, drawing, unexpected)
+    retainNativeDrawing(fresh, layout, inaccessible)
     retainPositioned(family, 'public', layout)
     const publicLayout = borrowedPositioned(family, 'public', publicRequest).result
-    retainNativeDrawing(publicRequest, publicLayout, drawing, unexpected)
+    retainNativeDrawing(publicRequest, publicLayout, inaccessible)
     const repeatedLayout = borrowedPositioned(family, 'private', repeated).result
     assert.equal(repeatedLayout.positioned, layout.positioned)
-    let walks = 0
-    retainNativeDrawing(repeated, repeatedLayout, drawing, () => { walks++; return 'x'.repeat(17 * 1024 * 1024) })
-    assert.equal(walks, 1)
+    retainNativeDrawing(repeated, repeatedLayout, drawing)
     assert.ok(events.some(event => event.owner === 'native-drawing' && event.outcome === 'store-skipped' && event.reason === 'weight-limit'))
     const next = {}
     const nextLayout = borrowedPositioned(family, 'private', next).result
@@ -64,19 +62,19 @@ test('native drawing cache admission accounts for hidden evidence without burden
   expect(child.status).toBe(0)
 })
 
-test('drawing pressure preserves geometry and cyclic admission avoids repeated residency walks', async () => {
+test('drawing pressure preserves geometry and cyclic admission avoids repeated artifact walks', async () => {
   const child = await runChild(process.execPath, ['-e', `
     import assert from 'node:assert/strict'
     import { borrowedPositioned, cachedNativeDrawing, retainNativeDrawing, retainOwnedNativeSvgPositioned } from './src/experimental/position-cache.ts'
     const family = {}, sources = Array.from({ length: 10 }, (_, i) => 'pressure-' + i)
-    const drawing = { svg: 'x'.repeat(600_000), header: {}, paint: { primitives: [] }, preparedText: true }
-    for (const key of sources) retainOwnedNativeSvgPositioned(family, key, { positioned: { key } })
     let walks = 0
+    const drawing = { svg: 'x'.repeat(600_000), preparedText: true, certification: { get proof() { walks++; return 'complete' } } }
+    for (const key of sources) retainOwnedNativeSvgPositioned(family, key, { positioned: { key } })
     const visit = key => {
       const request = {}, borrowed = borrowedPositioned(family, key, request)
       assert.ok(borrowed, 'drawing admission must preserve every resident layout')
       const hit = cachedNativeDrawing(request, borrowed.result, true)
-      if (!hit) retainNativeDrawing(request, borrowed.result, drawing, () => { walks++; return {} })
+      if (!hit) retainNativeDrawing(request, borrowed.result, drawing)
       return hit
     }
     for (const key of sources) visit(key)
@@ -93,26 +91,60 @@ test('drawing pressure preserves geometry and cyclic admission avoids repeated r
   expect(child.status).toBe(0)
 })
 
+test('the drawing tier retains compact certificates without construction geometry', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import assert from 'node:assert/strict'
+    import { borrowedPositioned, cachedNativeDrawing, retainNativeDrawing, retainOwnedNativeSvgPositioned } from './src/experimental/position-cache.ts'
+    const family = {}, sources = Array.from({ length: 32 }, (_, index) => 'shared-geometry-' + index)
+    const identities = new Map(), drawings = new Map()
+    for (const key of sources) {
+      const positioned = { key, payload: 'g'.repeat(80_000) }
+      identities.set(key, positioned)
+      drawings.set(key, { svg: '<svg><path d="M0 0L1 1"/></svg>', preparedText: true, certification: { status: 'passed' } })
+      retainOwnedNativeSvgPositioned(family, key, { positioned })
+    }
+    let admissions = 0
+    const visit = key => {
+      const request = {}, borrowed = borrowedPositioned(family, key, request)
+      assert.ok(borrowed, 'the geometry owner must remain resident')
+      assert.equal(borrowed.result.positioned, identities.get(key))
+      const hit = cachedNativeDrawing(request, borrowed.result, true)
+      if (!hit) { admissions++; retainNativeDrawing(request, borrowed.result, drawings.get(key)) }
+      return hit
+    }
+    for (const key of sources) assert.equal(visit(key), undefined)
+    assert.equal(admissions, sources.length)
+    for (const key of sources) {
+      const retained = visit(key)
+      assert.equal(retained, drawings.get(key), 'construction geometry must not consume the certified drawing budget')
+      assert.deepEqual(Object.keys(retained).sort(), ['certification', 'preparedText', 'svg'])
+    }
+    assert.equal(admissions, sources.length, 'drawing hits must not repeat artifact walks')
+  `], { cwd: `${import.meta.dir}/../..` })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
+
 test('an interleaved drawing working set replaces stale drawings without adjacent repeats', async () => {
   const child = await runChild(process.execPath, ['-e', `
     import assert from 'node:assert/strict'
     import { borrowedPositioned, cachedNativeDrawing, retainNativeDrawing, retainOwnedNativeSvgPositioned } from './src/experimental/position-cache.ts'
     const family = {}, established = ['old-a', 'old-b', 'old-c'], replacements = ['new-a', 'new-b']
     const sources = [...established, ...replacements]
-    const drawing = { svg: 'x'.repeat(600_000), header: {}, paint: { primitives: [] }, preparedText: true }
+    let walks = 0
+    const drawing = { svg: 'x'.repeat(600_000), preparedText: true, certification: { get proof() { walks++; return 'complete' } } }
     const identities = new Map()
     for (const key of sources) {
       const positioned = { key }
       identities.set(key, positioned)
       retainOwnedNativeSvgPositioned(family, key, { positioned })
     }
-    let walks = 0
     const visit = key => {
       const request = {}, borrowed = borrowedPositioned(family, key, request)
       assert.ok(borrowed, 'drawing replacement must preserve resident geometry')
       assert.equal(borrowed.result.positioned, identities.get(key), 'drawing pressure must not replace geometry')
       const hit = cachedNativeDrawing(request, borrowed.result, true)
-      if (!hit) retainNativeDrawing(request, borrowed.result, drawing, () => { walks++; return {} })
+      if (!hit) retainNativeDrawing(request, borrowed.result, drawing)
       return hit
     }
     for (const key of established) visit(key)
@@ -162,7 +194,7 @@ test('repeated private native drawings preserve receipts, policy and final secur
         const observed = events.slice(start)
         reuse.push(observed.filter(event => event.kind === 'cache' && event.owner === 'native-drawing' && event.detail === 'positioned-owner').length)
         assert.equal(observed.filter(event => event.kind === 'cache' && event.owner === 'svg-inspection' && event.detail === 'final-security').length, 1)
-        assert.ok(observed.some(event => event.kind === 'cache' && event.owner === 'paint-certification' && event.outcome === 'miss'))
+        assert.ok(observed.some(event => event.kind === 'cache' && event.owner === 'paint-certification' && event.outcome === (index === 2 ? 'hit' : 'miss')))
       }
       assert.deepEqual(reuse, [0, 0, 1])
       for (const options of [{ fg: '#334455' }, { compact: true }, { security: 'strict' }]) {
