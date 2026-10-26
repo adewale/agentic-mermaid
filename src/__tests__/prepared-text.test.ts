@@ -168,6 +168,19 @@ describe('prepared display text', () => {
     expect(Object.isFrozen(block.prepared.lines[0]![0]!.clusters)).toBe(true)
   })
 
+  it('preserves measurement observations for supplied fragment accessors', () => {
+    const style = { bold: false, italic: false, underline: false, strikethrough: false }
+    const fragments = [
+      { ...style, get text() { fragments.length = 1; return 'A' }, sourceStart: 0, sourceEnd: 1 },
+      { ...style, text: 'B', sourceStart: 1, sourceEnd: 2 },
+    ]
+    const input = { source: 'AB', display: 'literal' as const, lineStarts: [0], lines: [[{ ...style, text: 'AB', sourceStart: 0, sourceEnd: 2, fragments }]] }
+    const measured: string[] = []
+    const execution = createTextMeasurementExecution({ id: 'test:fragment-accessors', version: '1.0.0', measure: ({ text }) => { measured.push(text); return text.length * 10 } }, 'Inter')
+    withTextMeasurementExecution(execution, () => preparePixelText(input, { fontSize: 14, fontWeight: 400, maxWidth: 1000 }))
+    expect(measured).toEqual(['AB', 'A'])
+  })
+
   it('keeps monospace metrics distinct from proportional text', () => {
     const block = preparePixelText('iii界', { ...typography, display: 'literal', monospace: true })
     expect(block.width).toBe(5 * 18 * 0.6)
@@ -275,11 +288,12 @@ describe('prepared text at the graphical boundary', () => {
     expect(Math.max(...ink)).toBeLessThanOrEqual(source.includes(' ') ? 51 : 41)
   })
 
-  it('keeps adjacent identical styles in their original whole-run measurement', () => {
+  it.each([undefined, 2])('keeps adjacent identical styles in their original whole-run measurement at width %s', maxWidth => {
     const execution = createTextMeasurementExecution({ id: 'test:adjacent-style-runs', version: '1.0.0', measure: ({ text }) => text.length > 1 ? 2 : 9 }, 'Inter')
     for (const source of ['<b>A</b><b>B</b>', concatDisplayText([prepareDisplayText('<b>A</b>'), prepareDisplayText('<b>B</b>')])]) {
-      const block = withTextMeasurementExecution(execution, () => preparePixelText(source, { fontSize: 20, fontWeight: 800 }))
+      const block = withTextMeasurementExecution(execution, () => preparePixelText(source, { fontSize: 20, fontWeight: 800, maxWidth }))
       expect(block.width).toBe(2)
+      expect(block.breaks).toEqual([])
       expect(block.lineBlocks[0]!.runs.map(run => run.text)).toEqual(['A', 'B'])
       expect(block.lineBlocks[0]!.fragments).toEqual([{ runIndex: 0, text: 'AB', x: 0, width: 2 }])
       const markup = renderMultilineText(block, 10, 30, 20, 'text-anchor="start" font-size="20" font-weight="800"')
