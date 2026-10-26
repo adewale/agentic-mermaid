@@ -1,7 +1,6 @@
 import { describe, expect, spyOn, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { releaseBenchCases } from '../../eval/shared/release-bench-cases.ts'
-import { missingSvgLabels } from './helpers/svg-labels.ts'
 import { layoutMermaidWithReceipt, parseRegisteredMermaid } from '../agent/core.ts'
 import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
 import { renderMermaidASCII } from '../ascii/index.ts'
@@ -10,6 +9,7 @@ import { parseClassDiagram } from '../class/parser.ts'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
 import { withRenderStageObserver } from '../render-stages.ts'
+import { missingSvgLabels } from './helpers/svg-labels.ts'
 
 const native = { graphLayout: { backend: 'agentic' as const } }
 const fixture = readFileSync(new URL('../../eval/layout-compare/fixtures/class-backends.mmd', import.meta.url), 'utf8')
@@ -772,4 +772,64 @@ test('rounded header detour cannot cut through a foreign card and uses the oppos
   expect(route.some((p: any) => p.x > 150)).toBe(true)
   expect(route[0]).toEqual({ x: 100, y: 100 })
   expect(route.at(-1)).toEqual({ x: 100, y: 360 })
+})
+
+test.each(['elk', 'agentic'] as const)('retains a proved note seat outside obstructed columns with %s', backend => {
+  const source = 'classDiagram\nAnimal <|--|> Zebra\nWhole *--o Part\nCaller <..> Callee\nSearchable ()-- Index\nnote for Animal "base type"\nclick Animal href "https://example.com/animal"'
+  const model = parseClassDiagram(toMermaidLines(source))
+  if (backend === 'agentic') model.title = 'Owned note title'
+  const before = structuredClone(model),
+    options = { graphLayout: { backend, fallback: 'none' as const }, embedFontImport: false }
+  const placed = layoutClassDiagram(model, options),
+    retained = structuredClone(placed)
+  expect(layoutClassDiagram(model, options)).toEqual(retained)
+  expect(placed).toEqual(retained)
+  expect(model).toEqual(before)
+  expect(placed.classes.map(node => [node.id, node.label, node.href, node.isInterface])).toEqual(model.classes.map(node => [node.id, node.label, node.href, node.isInterface || undefined]))
+  expect(placed.relationships.map(rel => [rel.from, rel.to, rel.type, rel.fromType, rel.toType, rel.markerAt])).toEqual(model.relationships.map(rel => [rel.from, rel.to, rel.type, rel.fromType, rel.toType, rel.markerAt]))
+  const note = placed.notes[0]!
+  expect([note.for, note.text]).toEqual(['Animal', 'base type'])
+  expect([note.targetX, note.targetY, note.noteX, note.noteY].every(Number.isFinite)).toBe(true)
+  const a = { x: note.targetX!, y: note.targetY! },
+    b = { x: note.noteX!, y: note.noteY! }
+  const crosses = (box: { x: number; y: number; width: number; height: number }): boolean => {
+    let low = 0,
+      high = 1
+    for (const [origin, delta, lo, hi] of [
+      [a.x, b.x - a.x, box.x, box.x + box.width],
+      [a.y, b.y - a.y, box.y, box.y + box.height],
+    ]) {
+      if (delta === 0) {
+        if (origin! <= lo! || origin! >= hi!) return false
+      } else {
+        const first = (lo! - origin!) / delta!,
+          last = (hi! - origin!) / delta!
+        low = Math.max(low, Math.min(first, last))
+        high = Math.min(high, Math.max(first, last))
+      }
+    }
+    return low < high
+  }
+  for (const node of placed.classes) {
+    expect(note.x < node.x + node.width && note.x + note.width > node.x && note.y < node.y + node.height && note.y + note.height > node.y, `note clears ${node.id}, including the lollipop label allocation`).toBe(false)
+    expect(crosses(node), `annotation connector clears ${node.id}`).toBe(false)
+  }
+  for (const rel of placed.relationships)
+    for (let i = 1; i < rel.points.length; i++) {
+      const a = rel.points[i - 1]!,
+        b = rel.points[i]!
+      const hit =
+        a.x === b.x ? a.x > note.x + 2 && a.x < note.x + note.width - 2 && Math.max(a.y, b.y) > note.y + 2 && Math.min(a.y, b.y) < note.y + note.height - 2 : a.y === b.y ? a.y > note.y + 2 && a.y < note.y + note.height - 2 && Math.max(a.x, b.x) > note.x + 2 && Math.min(a.x, b.x) < note.x + note.width - 2 : false
+      expect(hit, 'actual relationship clears filled note core').toBe(false)
+    }
+  if (model.title) expect(placed.title?.x).toBe(placed.width / 2)
+  const renderSource = model.title ? `---\ntitle: ${model.title}\n---\n${source}` : source
+  const rendered = renderMermaidSVGWithReceipt(renderSource, options),
+    repeated = renderMermaidSVGWithReceipt(renderSource, options)
+  expect(repeated.svg).toBe(rendered.svg)
+  expect(repeated.receipt.graphicalProjectionDigest).toBe(rendered.receipt.graphicalProjectionDigest)
+  expect(rendered.receipt.layoutCertification?.status, JSON.stringify(rendered.receipt.layoutCertification)).toBe('passed')
+  for (const text of ['Animal', 'Zebra', 'Whole', 'Part', 'Caller', 'Callee', 'Searchable', 'Index', 'base type']) expect(rendered.svg).toContain(text)
+  expect(rendered.svg).toContain('marker-start=')
+  expect(rendered.svg).toContain('marker-end=')
 })

@@ -388,17 +388,24 @@ export function repairClassHeaderRoutes(diagram: PositionedClassDiagram, style: 
 /** Move only an unsafe unauthored annotation seat; preserve every relationship. */
 export function repairClassNoteSeats(diagram: PositionedClassDiagram, style: ResolvedRenderStyle, padding: number): void {
   if (!diagram.notes.length) return
-  const headers = diagram.namespaces.map(ns => ({ x: ns.x, y: ns.y, width: ns.width, height: ns.headerHeight })),
-    paint = classRelationshipPaintBoxes(diagram, style)
+  const headers = diagram.namespaces.map(ns => ({ x: ns.x, y: ns.y, width: ns.width, height: ns.headerHeight }))
+  let paint = classRelationshipPaintBoxes(diagram, style)
+  // Interfaces paint their retained name, not their invisible layout card.
+  const interfaceLabels = diagram.classes
+    .filter(node => node.isInterface)
+    .map(node => {
+      const block = node.labelBlock
+      return block ? { x: node.x + (node.width - block.width) / 2, y: node.y + node.headerHeight / 2 - block.height / 2, width: block.width, height: block.height } : { x: node.x, y: node.y, width: node.width, height: node.height }
+    })
   const safe = (note: PositionedClassNote, index: number): boolean => {
     const otherNotes = diagram.notes.filter((_, i) => i !== index),
-      fixed = [...diagram.classes.filter(c => !c.isInterface), ...headers, ...otherNotes, ...paint.filter(p => p.kind !== 'marker').map(p => p.box)]
+      fixed = [...diagram.classes.filter(c => !c.isInterface), ...interfaceLabels, ...headers, ...otherNotes, ...paint.filter(p => p.kind !== 'marker').map(p => p.box)]
     if (fixed.some(box => overlaps(note, box)) || paint.some(p => p.kind === 'marker' && classMarkerEntersNote(p.pieces ?? [], note))) return false
     for (const rel of diagram.relationships) for (let i = 1; i < rel.points.length; i++) if (roundedHit(rel.points[i - 1]!, rel.points[i]!, note, 2)) return false
     if (note.targetX !== undefined && note.targetY !== undefined) {
       const a = { x: note.targetX, y: note.targetY },
         b = { x: note.noteX ?? note.x, y: note.noteY ?? note.y + note.height / 2 }
-      if ([...diagram.classes.filter(c => !c.isInterface), ...headers, ...otherNotes, ...paint.filter(p => p.kind !== 'marker').map(p => p.box)].some(box => classSegmentEntersBox(a, b, box)) || paint.some(p => p.kind === 'marker' && classCarrierEntersMarker(a, b, p.pieces ?? [], 1))) return false
+      if ([...diagram.classes.filter(c => !c.isInterface), ...interfaceLabels, ...headers, ...otherNotes, ...paint.filter(p => p.kind !== 'marker').map(p => p.box)].some(box => classSegmentEntersBox(a, b, box)) || paint.some(p => p.kind === 'marker' && classCarrierEntersMarker(a, b, p.pieces ?? [], 1))) return false
     }
     return true
   }
@@ -429,11 +436,39 @@ export function repairClassNoteSeats(diagram: PositionedClassDiagram, style: Res
         }
       }
     } else candidates.push({ ...note, x: padding, y: diagram.height + 16 })
-    const seat = candidates.find(candidate => candidate.x >= padding && candidate.y >= padding && safe(candidate, i))
+    let seat = candidates.find(candidate => candidate.x >= padding && candidate.y >= padding && safe(candidate, i))
+    // A clear left seat need not be discarded merely because the current
+    // canvas has no leading room. Reuse the same bounded candidate list and
+    // admit its geometry first; a rigid translation preserves every route.
+    if (!seat) seat = candidates.find(candidate => candidate.x < padding && candidate.y >= padding && safe(candidate, i))
     if (!seat) throw new LayoutCertificationError([{ strategy: 'class-owned-note', violations: [`No safe note seat for ${note.for ?? 'unattached annotation'}`] }])
+    const shift = Math.max(0, padding - seat.x)
+    if (!Number.isFinite(diagram.width + shift)) throw new LayoutCertificationError([{ strategy: 'class-owned-note', violations: ['No finite leading room for note'] }])
     Object.assign(note, seat)
+    if (shift > 0) {
+      for (const node of diagram.classes) {
+        node.x += shift
+        if (node.interfaceBox) node.interfaceBox.x += shift
+      }
+      for (const namespace of diagram.namespaces) namespace.x += shift
+      for (const annotation of diagram.notes) {
+        annotation.x += shift
+        if (annotation.targetX !== undefined) annotation.targetX += shift
+        if (annotation.noteX !== undefined) annotation.noteX += shift
+      }
+      for (const relationship of diagram.relationships) {
+        for (const point of relationship.points) point.x += shift
+        for (const position of [relationship.labelPosition, relationship.fromCardinalityPosition, relationship.toCardinalityPosition]) if (position) position.x += shift
+      }
+      diagram.width += shift
+      // These small proof records describe the same live geometry revision.
+      for (const header of headers) header.x += shift
+      for (const label of interfaceLabels) label.x += shift
+      paint = classRelationshipPaintBoxes(diagram, style)
+    }
     diagram.width = Math.max(diagram.width, note.x + note.width + padding)
     diagram.height = Math.max(diagram.height, note.y + note.height + padding)
+    if (diagram.title) diagram.title.x = diagram.width / 2
   }
 }
 export function classOwnedSurfaceViolations(diagram: PositionedClassDiagram, style: ResolvedRenderStyle): string[] {
