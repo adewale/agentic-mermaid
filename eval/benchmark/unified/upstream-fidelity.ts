@@ -5,6 +5,7 @@ import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { admitCurrentReference } from '../../mermaid-modern-compat/reference.ts'
+import { selectsCoreFidelity } from '../fidelity/selection.ts'
 import { assertBenchmarkExecutionAllowed } from '../ci-policy.ts'
 import { assertBenchmarkSetVersions, assertBenchmarkToolVersion, benchmarkToolPins } from '../tool-versions.ts'
 import { deliveredArtifactIdentity, executableIdentity } from './benchmark-context.ts'
@@ -45,7 +46,9 @@ export function upstreamDeclarationLedger(inventory: ReturnType<typeof inventory
 
 export async function runUpstreamFidelitySuite(options: UpstreamFidelityOptions): Promise<UnifiedSuiteResult> {
   assertBenchmarkExecutionAllowed()
-  const startedAt = new Date().toISOString(), { root, upstream, reference, pin } = sourceContext(options)
+  const startedAt = new Date().toISOString()
+  if (!selectsCoreFidelity(options.communityProjects)) return { id: 'upstream-fidelity', status: 'not-applicable', startedAt, finishedAt: startedAt, observations: [], gaps: ['No project with a reviewed original public-parser projection was selected; no source, reference, runtime or output directory was prepared.'] }
+  const { root, upstream, reference, pin } = sourceContext(options)
   mkdirSync(options.out, { recursive: true })
   const inventory = inventoryOriginalDeclarations(upstream)
   const policy = JSON.parse(readFileSync(join(root, 'docs/project/upstream-mermaid-policy.json'), 'utf8'))

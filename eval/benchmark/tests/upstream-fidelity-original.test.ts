@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { captureUpstreamTransformDependencies, runUpstreamOriginalSuite, summarizeOriginalVitest } from '../unified/upstream-fidelity-original.ts'
+import { runUpstreamFidelitySuite } from '../unified/upstream-fidelity.ts'
 import { snapshotMermaidDatabase } from '../unified/upstream-fidelity-projection.mjs'
 
 const census = { counts: { files: 2, declarations: 2, disabledOrTodoDeclarations: 0 }, scope: 'fixture', files: [{ path: 'packages/mermaid/src/diagrams/flowchart/flow.spec.ts', family: 'flowchart', declarations: [{ name: 'keeps an endpoint', line: 4, endLine: 6, modifiers: [] }] }, { path: 'e2e/rendering/flowchart.spec.ts', family: 'flowchart', declarations: [{ name: 'renders paint', line: 8, endLine: 9, modifiers: [] }] }] }
@@ -51,6 +52,15 @@ test('source transform admission binds an ESM-only installed package without req
 test('selecting only a peer never prepares or executes the unrelated Mermaid original runner', async () => {
   const nonexistent = join(tmpdir(), 'upstream-not-selected-' + crypto.randomUUID())
   const result = await runUpstreamOriginalSuite({ root: nonexistent, out: join(nonexistent, 'out'), mermaidDir: join(nonexistent, 'source'), referenceDir: join(nonexistent, 'reference'), nodeExecutable: join(nonexistent, 'must-not-execute'), upstreamRunnerRoot: join(nonexistent, 'runtime'), profile: 'full', rounds: 1, communityProjects: ['obsidianmd/pele'] })
+  expect(result.status).toBe('not-applicable')
+  expect(result.observations).toEqual([])
+  expect(existsSync(nonexistent)).toBe(false)
+})
+
+
+test('selecting a community-only peer skips original public projection before source, runtime and output admission', async () => {
+  const nonexistent = join(tmpdir(), 'upstream-public-not-selected-' + crypto.randomUUID())
+  const result = await runUpstreamFidelitySuite({ root: nonexistent, out: join(nonexistent, 'out'), mermaidDir: join(nonexistent, 'source'), referenceDir: join(nonexistent, 'reference'), nodeExecutable: join(nonexistent, 'must-not-execute'), profile: 'full', rounds: 1, communityProjects: ['marco-orru/mermaid-ascii'] })
   expect(result.status).toBe('not-applicable')
   expect(result.observations).toEqual([])
   expect(existsSync(nonexistent)).toBe(false)
