@@ -418,8 +418,9 @@ interface ErOpenAttribute {
 // Mermaid's attribute word (ATTRIBUTE_WORD in erDiagram.jison), or a generic
 // type (`List~int~`). Its lexer reads `PK`, `FK` and `UK` as keys first.
 const ER_ATTRIBUTE_WORD_RE = /^[*A-Za-z_\u00C0-\uFFFF][\w\-[\]().,\u00C0-\uFFFF*]*$/
+const ER_QUOTED_ATTRIBUTE_WORD_RE = /^`[^`]+`$/
 const isErAttributeWord = (token: ErBlockToken, text = token.text): boolean => token.kind === 'word'
-  && ((text.match(/~/g)?.length ?? 0) >= 2 || ER_ATTRIBUTE_WORD_RE.test(text)) && !/^(?:PK|FK|UK)\b/i.test(text)
+  && ((text.match(/~/g)?.length ?? 0) >= 2 || ER_ATTRIBUTE_WORD_RE.test(text) || ER_QUOTED_ATTRIBUTE_WORD_RE.test(text)) && !/^(?:PK|FK|UK)\b/i.test(text)
 const isErKeyList = (token: ErBlockToken): boolean =>
   token.kind === 'word' && token.text.split(',').every(part => !part || /^(?:PK|FK|UK)$/i.test(part))
 
@@ -449,10 +450,13 @@ function readErAttributeTokens(open: ErOpenAttribute | undefined, tokens: readon
 }
 
 function erAttribute(type: string, name: string, keys: ErAttribute['keys'], quoted: string | undefined): ErAttribute {
+  // Backticks delimit attribute words; they are not part of the type/name.
+  // Keep tokens and the typed body's attribute text authored for export.
+  const word = (value: string): string => value.replace(/^`([^`]+)`(\?)?$/, (_match, text: string, optional: string | undefined) => text + (optional ?? ''))
   // A quoted comment may hold <br> tags and entity codes.
   const comment = quoted === undefined ? undefined : decodeErText(normalizeBrTags(quoted))
   const commentContent = quoted === undefined ? undefined : erTextContent(quoted, comment!, true)
-  return { type, name, keys, comment, ...(commentContent ? { commentContent } : {}) }
+  return { type: word(type), name: word(name), keys, comment, ...(commentContent ? { commentContent } : {}) }
 }
 
 /** Whether an attribute's keys form Mermaid's key list, parted by commas
