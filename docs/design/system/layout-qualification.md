@@ -1,5 +1,10 @@
 # Owned backend qualification: implementation and evidence
 
+The owner deferred this work to **0.6.0** on 27 October 2026. The current
+acceptance contract is [Native layout: 0.6 qualification](layout-0.6-qualification.md),
+owned by the existing section in `TODO.md`. The campaigns below retain their
+original revisions, populations and verdicts; they are not new 0.6 qualification.
+
 The target is quality parity with ELK plus lower public-workflow time, memory,
 and browser transfer cost. Supporting selection alone does not close that target.
 ELK remains the default and supported fallback. No default change is proposed.

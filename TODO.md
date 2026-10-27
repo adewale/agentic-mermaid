@@ -30,8 +30,8 @@ route-contract extraction preserves the existing pipeline manifest and order.
   #496; those merges do not establish current release qualification or general
   superiority over peers. Finish the current candidate's semantic, peer,
   tail-latency and allocation comparisons, qualify the SVG-number conversion
-  follow-up to #505, and resolve #449's native coverage/quality/cost limits
-  before promoting that backend. The rejected native recorder rewrite and
+  follow-up to #505, and resolve #449's native coverage/quality/cost limits for
+  **0.6.0** before promoting that backend. The rejected native recorder rewrite and
   blocked renderer-lifetime prototype are not shipped improvements. Production
   SVG-only distribution remains unimplemented. Renderer-lifetime controls still
   need qualification within the payload caps; broader geometry reuse requires
@@ -57,6 +57,8 @@ route-contract extraction preserves the existing pipeline manifest and order.
   claims with the [remaining export limits](docs/project/divergences.md#mermaid-input-decisions-363)
   and output-specific projection limits. Green source CI alone does not prove
   publication or hosted delivery; #477 and #478 remain delivery concerns.
+  The owner's 27 October decision defers #449's Native-layout qualification
+  to 0.6.0; it is not a 0.5 publication condition. ELK remains the default.
 - [ ] **DEC-6 — Decide the hosted `execute` boundary from usage evidence**
   (`owner-decision`, [#204](https://github.com/adewale/agentic-mermaid/issues/204)).
   Compare hosted direct tools, hosted Code Mode and local Code Mode for real
@@ -317,6 +319,17 @@ A new defect needs a current reproduction at its owning boundary.
 - Do not treat historical archives or process notes as backlog unless an item is promoted here with an ID.
 
 ## Owned graph backend qualification (owner request, PR #449)
+
+**Release target: 0.6.0**, per the owner's 27 October decision. This section
+remains the sole backlog owner. The six acceptance contracts are in
+[Native layout: 0.6 qualification](docs/design/system/layout-0.6-qualification.md):
+repair coverage; establish broader held-out correctness; match or beat ELK
+aesthetics; match ELK performance; soundly verify the seven unverified diagrams;
+and compare correctness with public Mermaid and Pele artifacts. All six remain
+open. Checked historical work below is implementation/evaluation evidence at its
+named revision, not completion of these 0.6 contracts. Keep the feature draft and
+opt-in while qualifying it; this deferral does not change package versions,
+publish a release or authorize a default switch.
 
 - [x] Retain explicit ELK, checked native selection, typed fallback and immutable execution receipts.
 - [x] Native Flowchart/State measured placement and independent nested scopes; flat Requirement and Architecture adapters, Class cards and independent namespaces, plus ER frames and boundary relations.
