@@ -2,7 +2,7 @@ import { recordSourceMapEnds } from './source-map-spans.ts'
 import { sourceLineStarts, sourcePointAt } from '../shared/source-spans.ts'
 import type { SourceMap, SourceLocation } from './types.ts'
 import type { FamilyOperations } from './family-registry.ts'
-import { eventNonportableIdentifiers, parseEventModeling } from '../eventmodeling/parser.ts'
+import { eventNonportableIdentifiers, eventSourceTypeProblems, parseEventModeling } from '../eventmodeling/parser.ts'
 import { mutateEventModeling, serializeEventModeling } from '../eventmodeling/body.ts'
 import { err, ok } from './types.ts'
 export const EVENTMODELING_AGENT_HOOKS: FamilyOperations = {
@@ -45,10 +45,12 @@ export const EVENTMODELING_AGENT_HOOKS: FamilyOperations = {
   },
   verify: body => {
     if (body.kind !== 'eventmodeling') return []
+    const frames = new Map(body.frames.map(frame => [frame.id, frame]))
     return [
       ...(!body.frames.length ? [{ code: 'EMPTY_DIAGRAM' as const }] : []),
       ...eventNonportableIdentifiers(body).map(id => ({ code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'eventmodeling_keyword_identifier', message: `Identifier ${id} is read literally; pinned Mermaid reserves that keyword. Rename it before exporting or editing.` })),
       ...(body.accessibilityTitle !== undefined || body.accessibilityDescription !== undefined ? [{ code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'eventmodeling_accessibility', message: 'Event Modeling accessibility is retained in native comments on export; pinned Mermaid does not expose these fields.' }] : []),
+      ...body.frames.flatMap(frame => eventSourceTypeProblems(frame.type, frame.sources.map(id => frames.get(id)?.type)).map(problem => ({ code: 'EVENT_SOURCE_TYPE' as const, node: frame.id, source: frame.sources[problem.sourceIndex]!, message: problem.message }))),
     ]
   },
 }

@@ -17,6 +17,19 @@ export function eventType(value: string): EventFrameType {
   if (!type) throw Error(`Unknown Event Modeling type: ${value}`)
   return type
 }
+const sourceTypes: Record<EventFrameType, { allowed: readonly EventFrameType[]; target: string; expected: string }> = {
+  command: { allowed: ['ui', 'processor'], target: 'command', expected: 'ui or processor' },
+  event: { allowed: ['command'], target: 'event', expected: 'command' },
+  readmodel: { allowed: ['event'], target: 'read model', expected: 'event' },
+  processor: { allowed: ['readmodel'], target: 'processor', expected: 'read model' },
+  ui: { allowed: ['readmodel'], target: 'ui', expected: 'read model' },
+}
+/** Event-domain lint on resolved explicit inputs. Reading/painting remain
+ * generous; chronological inferred relations are not authored source claims. */
+export function eventSourceTypeProblems(target: EventFrameType, sources: readonly (EventFrameType | undefined)[]): Array<{ sourceIndex: number; message: string }> {
+  const rule = sourceTypes[target]
+  return sources.flatMap((source, sourceIndex) => source === undefined || rule.allowed.includes(source) ? [] : [{ sourceIndex, message: `A ${rule.target} can only receive input from a ${rule.expected}, not from '${source}'.` }])
+}
 function readData(value: string, block: boolean): EventData {
   const match = value.match(/^(?:`(\w+)`\s*)?([\s\S]+)$/)
   if (!match || (match[1] && !dataTypes.has(match[1]))) throw Error('Invalid Event Modeling data type')

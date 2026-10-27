@@ -73,13 +73,23 @@ text, namespace lane membership and both reset inputs after a checked data edit.
 
 ## Correctness and performance evidence
 
-The original pinned Event inventory now collects both files: fifteen parser
-cases pass against fifteen admitted pinned controls. Twenty-six private Langium
-validator/service-registry cases remain explicitly unavailable; collecting them
-does not imply a native validator API or product failure. The parser adapter
-projects actual native frames, reset flags, source references and owned record
-counts, retaining an authored type spelling only when it denotes the native
-type. It supplies no DOM geometry or text measurements.
+The original pinned Event inventory collects both files: fifteen parser cases
+and twenty-five source-type rule cases pass against their actual pinned
+controls. The rule adapter calls the production authority used by native
+verification; its receipts retain actual target/source types and no invented
+parser inputs. The reference executes the unchanged pinned validator itself.
+Only the private Langium validation-registry wiring case remains unavailable
+on the native side; its reference control passes. The parser adapter projects
+actual native frames, reset flags, source references and owned record counts,
+retaining an authored type spelling only when it denotes the native type. It
+supplies no DOM geometry or text measurements.
+
+Source-type lint follows explicit authored inputs: commands receive UI or
+processor inputs, events receive commands, read models receive events, and
+processors/UI receive read models. Each invalid input produces an advisory
+`EVENT_SOURCE_TYPE` warning identifying source and target. Native parsing and
+rendering retain the connection; inferred chronological relations do not claim
+an explicit source type and do not receive this lint.
 
 An exploratory Chromium source profile attributes most small-diagram work to
 shared request admission, drawing, security and paint certification, rather than
@@ -92,14 +102,15 @@ retains a literal URL instead of treating its `//` as a comment. The existing
 relative-growth guard protects this bounded-work
 contract; timing campaigns remain in Trident and outside CI.
 
-## Separate optional backend
+## ZenUML and its separate upstream control
 
-ZenUML remains an optional browser renderer using pinned upstream core. It
-consumes shared palettes and supported node/edge/group/label paint colors, but
-does not lower native Scene marks or provide typed editing. Native Look
-geometry, typography and sketch effects remain unavailable. Its owned vendor
-paint mapping and capability limits must be shown separately; a successful
-returned SVG does not establish native aesthetics.
+Native ZenUML retains its own authored call/return/branch model and checked edits,
+then projects directly to existing Sequence geometry, Scene and terminal owners.
+It has no vendor DOM dependency. The explicit upstream browser renderer remains
+a separate control using pinned core and its own paint mapping. That upstream
+path consumes shared palettes and supported paint colors while retaining vendor
+geometry and typography; it does not supply the native editing or Scene
+contract. Report its capability limits separately from native ZenUML evidence.
 
 ## Limits
 

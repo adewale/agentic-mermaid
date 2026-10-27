@@ -7,13 +7,15 @@ import { normalizeMermaidSource } from '../../src/mermaid-source.ts'
 import { parseNativeModel } from '../mermaid-modern-compat/grammar-agentic.ts'
 import { withParserObservation, type ParserObservation } from '../../src/shared/parser-observation.ts'
 import { nativeGetters, nativeAst } from './views.ts'
+import * as candidateEventParser from '../../src/eventmodeling/parser.ts'
 
 export const referenceMode = process.env.AM_ASSERT_MODE === 'reference'
 const contexts = new Map<string, AdapterContext>()
 const referenceRequire = createRequire(resolve(process.env.AM_ASSERT_REFERENCE ?? '../probe-runtime', 'package.json'))
-let reference: any, referenceConfig: any, language: any
+let reference: any, referenceConfig: any, language: any, referenceEventValidation: any
 interface ParsedInput { family: string; source: string; accepted?: boolean; error?: string }
-let active: { file: string; name: string; path: string[]; inputs: ParsedInput[]; missing: Set<string> } | undefined
+interface ExecutedCheck { family: string; operation: string; targetType?: string; sourceTypes?: Array<string | null> }
+let active: { file: string; name: string; path: string[]; inputs: ParsedInput[]; checks: ExecutedCheck[]; missing: Set<string> } | undefined
 
 export class AdapterBoundary extends Error {}
 export function noteUnavailable(name: string): void { active?.missing.add(name) }
@@ -49,6 +51,13 @@ export async function initializeReference(): Promise<void> {
   const parserExport = JSON.parse(readFileSync(parserPackage, 'utf8')).exports['.'].import
   language = await import(/* @vite-ignore */ pathToFileURL(resolve(dirname(parserPackage), parserExport)).href)
   const requested = (process.env.AM_ASSERT_FAMILIES ?? knownBuiltinFamilies().join(',')).split(',')
+  if (requested.includes('eventmodeling')) {
+    // The runner verifies this checkout's pinned revision and clean tracked
+    // source before either mode starts. Execute the original validator itself;
+    // all its imports are type-only, so no Langium state is reconstructed.
+    const validator = resolve(process.env.AM_ASSERT_UPSTREAM ?? '../mermaid-pinned', 'packages/parser/src/language/eventmodeling/event-modeling-validator.ts')
+    referenceEventValidation = await import(/* @vite-ignore */ pathToFileURL(validator).href)
+  }
   for (const family of requested) {
     const example = getFamily(family)?.example
     if (!example) continue
@@ -67,7 +76,7 @@ function taskPath(task: any): string[] {
 }
 export function beginCase(task: any): void {
   const path = taskPath(task)
-  active = { file: task.file.filepath, name: path.join(' > '), path, inputs: [], missing: new Set() }
+  active = { file: task.file.filepath, name: path.join(' > '), path, inputs: [], checks: [], missing: new Set() }
   if (referenceMode) {
     referenceConfig.reset()
     const context = contexts.get(active.file)
@@ -76,8 +85,8 @@ export function beginCase(task: any): void {
 }
 export function finishCase(_task: any): void {
   if (!active) return
-  const record = { file: active.file, name: active.name, path: active.path, inputs: active.inputs, unavailable: [...active.missing] }
-  if (!record.inputs.length && !record.unavailable.length) record.unavailable.push('No native parse executed: direct database/helper or renderer-only API case')
+  const record = { file: active.file, name: active.name, path: active.path, inputs: active.inputs, checks: active.checks, unavailable: [...active.missing] }
+  if (!record.inputs.length && !record.checks.length && !record.unavailable.length) record.unavailable.push('No native parse or production domain check executed: direct database/helper or renderer-only API case')
   const audit = process.env.AM_ASSERT_AUDIT
   if (audit) appendFileSync(audit, JSON.stringify(record) + '\n')
   active = undefined
@@ -88,6 +97,10 @@ export function recordInput(family: string, source: string): ParsedInput | undef
   const record = { family, source }
   active?.inputs.push(record)
   return active ? record : undefined
+}
+
+function recordEventSourceCheck(frame: any): void {
+  active?.checks.push({ family: 'eventmodeling', operation: 'eventmodeling.source-types', targetType: frame.modelEntityType, sourceTypes: frame.sourceFrames.map((source: any) => source.ref?.modelEntityType ?? null) })
 }
 
 class NativeDatabase {
@@ -219,14 +232,33 @@ class AdapterContext {
     if (/Diagram\.js$/.test(specifier)) return { Diagram }
     if (/diagram-orchestration/.test(specifier)) return { addDiagrams() {} }
     if (/logger/.test(specifier)) return { log: Object.fromEntries(['info', 'warn', 'error', 'debug', 'trace', 'fatal'].map(name => [name, () => {}])), setLogLevel() {} }
-    if (context.family === 'eventmodeling' && /event-modeling-validator\.js$/.test(specifier)) return {
-      // This private class is constructed during suite collection. Admit the
-      // declaration so unrelated real parser cases can run; every private
-      // validator invocation still records an unavailable boundary in its case.
-      EventModelingValidator: class {
-        checkSourceFrameTypes() { return unavailable('EventModelingValidator.checkSourceFrameTypes: private Langium AST validation has no native API adapter') }
-      },
-      registerValidationChecks() { return unavailable('EventModelingValidator.registerValidationChecks: private Langium service registry has no native equivalent') },
+    if (context.family === 'eventmodeling' && /event-modeling-validator\.js$/.test(specifier)) {
+      if (referenceMode) {
+        const ActualValidator = referenceEventValidation.EventModelingValidator
+        return {
+          EventModelingValidator: class extends ActualValidator {
+            checkSourceFrameTypes(frame: any, accept: any) { recordEventSourceCheck(frame); return super.checkSourceFrameTypes(frame, accept) }
+          },
+          registerValidationChecks(services: any) {
+            active?.checks.push({ family: 'eventmodeling', operation: 'eventmodeling.register-validation-checks' })
+            return referenceEventValidation.registerValidationChecks(services)
+          },
+        }
+      }
+      return {
+        EventModelingValidator: class {
+          checkSourceFrameTypes(frame: any, accept: any) {
+            if (typeof candidateEventParser.eventSourceTypeProblems !== 'function') return unavailable('EventModelingValidator.checkSourceFrameTypes: candidate revision has no production source-type rule authority')
+            recordEventSourceCheck(frame)
+            // Project only the actual rule inputs supplied by the unchanged
+            // assertion. This is the same production authority native verify
+            // calls; no synthetic frame IDs, parser result or expected state.
+            const problems = candidateEventParser.eventSourceTypeProblems(candidateEventParser.eventType(frame.modelEntityType), frame.sourceFrames.map((source: any) => source.ref === undefined ? undefined : candidateEventParser.eventType(source.ref.modelEntityType)))
+            for (const problem of problems) accept('warning', problem.message, { node: frame, property: 'sourceFrames' })
+          }
+        },
+        registerValidationChecks() { return unavailable('EventModelingValidator.registerValidationChecks: private Langium service registry has no native equivalent') },
+      }
     }
     if (/language\/index|language\/generated|language\/\w+\/module\.js$/.test(specifier)) {
       if (referenceMode) return new Proxy(language, { get(target, key) {

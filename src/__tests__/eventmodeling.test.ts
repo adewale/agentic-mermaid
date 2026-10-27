@@ -57,6 +57,25 @@ test('native frames keep source order, full data and source-owned notes/specific
   expect(describeMermaidTree(parsed.value).edges.map(edge => [edge.from, edge.to])).toContainEqual(['04', '07'])
 })
 
+test('domain verification diagnoses each invalid explicit source while retaining renderable authored connections', () => {
+  const bad = 'eventmodeling\ntf 01 rmo Catalog\ntf 02 pcr Refresh\nrf 03 evt Changed ->> 01 ->> 02'
+  const parsed = parseRegisteredMermaid(bad)
+  if (!parsed.ok || parsed.value.body.kind !== 'eventmodeling') throw Error('Expected retained native Event semantics')
+  expect(eventRelations(parsed.value.body).filter(edge => edge.explicit).map(edge => [edge.from, edge.to])).toEqual([['01', '03'], ['02', '03']])
+  const result = verifyMermaid(bad)
+  expect(result.ok).toBe(true)
+  expect(result.warnings.filter(warning => warning.code === 'EVENT_SOURCE_TYPE').map(warning => [warning.node, warning.source])).toEqual([['03', '01'], ['03', '02']])
+  for (const warning of result.warnings.filter(warning => warning.code === 'EVENT_SOURCE_TYPE')) {
+    expect(warning.message).toContain('event')
+    expect(warning.message).toContain('command')
+  }
+  const svg = renderMermaidSVG(bad, { embedFontImport: false })
+  for (const label of ['Catalog', 'Refresh', 'Changed']) expect(svg).toContain(label)
+  for (const source of ['eventmodeling\ntf 01 cmd Save\ntf 02 evt Saved ->> 01', 'eventmodeling\ntf 01 rmo Catalog\ntf 02 evt Changed', 'eventmodeling\nrf 01 rmo Catalog']) {
+    expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'EVENT_SOURCE_TYPE')).toEqual([])
+  }
+})
+
 test('namespace re-entry owns one lane, non-overlapping chronological columns and exact endpoints', () => {
   const p = layoutEventModeling(parseEventModeling(complex))
   expect(p.nodes.filter(node => node.frame.type === 'ui').map(node => node.lane)).toEqual(['lane:0', 'lane:0'])
