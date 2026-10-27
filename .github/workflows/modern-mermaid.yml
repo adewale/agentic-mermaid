@@ -52,6 +52,11 @@ jobs:
           MERMAID_UPSTREAM_DIR: ${{ runner.temp }}/mermaid
           MERMAID_REFERENCE_DIR: ${{ runner.temp }}/mermaid-reference
         run: bun run test:mermaid-modern
+      - name: Replay reviewed grammar finder witnesses
+        env:
+          MERMAID_UPSTREAM_DIR: ${{ runner.temp }}/mermaid
+          MERMAID_REFERENCE_DIR: ${{ runner.temp }}/mermaid-reference
+        run: bun run eval/mermaid-modern-compat/grammar-triage-run.ts --check
       - name: Record modern documentation and seeded mutation diagnostics
         if: ${{ always() && !cancelled() && steps.reference.outcome == 'success' }}
         continue-on-error: true
@@ -76,6 +81,7 @@ jobs:
             eval/mermaid-modern-compat/output/semantic-gate.json
             eval/mermaid-modern-compat/output/native-operations-gate.json
             eval/mermaid-modern-compat/output/grammar-regressions-gate.json
+            eval/mermaid-modern-compat/output/grammar-triage/
             eval/mermaid-modern-compat/output/summary.json
             eval/mermaid-modern-compat/output/cases.json
             eval/mermaid-modern-compat/output/label-census.json

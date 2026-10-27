@@ -132,12 +132,30 @@ describe('parseSequenceDiagram – actors', () => {
     expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'RENDER_FAILED', origin: 'source', reason: expect.stringContaining('Typed editing and serialization require a portable ID') }))
   })
 
-  it.each(['A+B', 'A/B', 'A\\B', 'A(B)', '$', '資料'])('keeps valid punctuation and Unicode declaration IDs: %s', id => {
+  it.each(['A+B', 'A/B', 'A\\B', 'A(B)', 'create)', '$', '資料'])('keeps valid punctuation and Unicode declaration IDs: %s', id => {
     const source = `sequenceDiagram\nparticipant ${id} as Label :@`
     expect(parse(source).actors).toEqual([{ id, label: 'Label :@', type: 'participant' }])
     const parsed = parseRegisteredMermaid(source)
     if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
     expect(parse(serializeMermaid(parsed.value)).actors).toEqual([{ id, label: 'Label :@', type: 'participant' }])
+  })
+
+  it.each([['create)', true], ['destroy)', true], ['actor)', true], ['loop)', false], ['end)', true], ['right of)', true]] as const)('keeps keyword-prefixed message ID %s source-only', async (id, sender) => {
+    // A leading loop) is already a block opener, not a native message.
+    for (const [from, to] of sender ? [['A', id], [id, 'A']] : [['A', id]]) {
+      const source = `sequenceDiagram\n${from}<<->>${to}: Message`
+      expect(await upstream.publicAccepts(source)).toBe(false)
+      expect(parse(source).messages).toMatchObject([{ from, to, label: 'Message' }])
+      const parsed = parseRegisteredMermaid(source)
+      if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+      expect(parsed.value.body.kind).toBe('opaque')
+      expect(serializeMermaid(parsed.value)).toBe(source + '\n')
+      expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'sequence_message_id_extension' }))
+      expect(mutate(parsed.value, { kind: 'add_participant', id: 'Other' }).ok).toBe(false)
+    }
+    const control = `sequenceDiagram\nA->>created): Message`
+    expect(await upstream.publicAccepts(control)).toBe(true)
+    expect(parseRegisteredMermaid(control).ok).toBe(true)
   })
 
   it.each([

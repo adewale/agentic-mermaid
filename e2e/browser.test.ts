@@ -368,13 +368,9 @@ it('resolved circle and ellipse paths preserve the native stroke traversal for d
 
 it('standalone editor stays within its single-renderer payload budget', async () => {
   const html = new Uint8Array(await Bun.file(join(ROOT, 'editor.html')).arrayBuffer())
-  // Paired Bun 1.4.2 builds against merged PR532 e8cb92ec, gzip level 9:
-  // raw 4,428,971 → 4,429,131; gzip 1,334,388 → 1,334,493.
-  // The new synchronous resolved-scene API adds 160 raw / 105 gzip bytes to
-  // shared emission hooks; capture-only resolution is absent from this editor.
-  // Retain 269 raw bytes of headroom. The gzip limit stays unchanged (7 B).
-  // One renderer still serves the main/worker realms; the single-engine and
-  // relative payload gates also apply.
+  // Retain this branch's existing ceilings while integrating Main's portable
+  // metadata and Sequence fixes. Any excess remains a failed delivery check.
+  // One renderer serves the main/worker realms; the relative payload gate applies.
   expect(html.byteLength).toBeLessThanOrEqual(4_429_400)
   expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_334_500)
   const runtime = new TextDecoder().decode(html).match(/<script type="module" id="editor-runtime">([\s\S]*?)<\/script>/)?.[1]

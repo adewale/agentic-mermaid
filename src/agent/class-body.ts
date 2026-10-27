@@ -1069,6 +1069,10 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
     const directive = parseAccessibilityDirective(statementLines, index)
     if (directive === undefined) break
     if (directive === null) continue
+    if (!directive.title && directive.form !== 'native' && directive.value === '') warnings.push({
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'class_empty_accessibility_description', line: header + index + 2,
+      message: 'An empty accessibility description is retained, but pinned Mermaid rejects an empty Class accDescr block. The writer preserves the empty value in a native metadata comment.',
+    })
     for (let at = index; at <= directive.endIndex; at++) statementLines[at] = ''
     if (directive.suffixLine) statementLines[directive.endIndex] = directive.suffixLine
     index = directive.endIndex
