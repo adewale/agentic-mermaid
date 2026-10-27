@@ -1,4 +1,4 @@
-import { eventRelations } from '../eventmodeling/parser.ts'
+import { eventLanes, eventRelations } from '../eventmodeling/parser.ts'
 import { isStableFamilyBody, stableFamilyCount, stableFamilyTree } from './stable-family-adapters.ts'
 
 // ============================================================================
@@ -275,7 +275,9 @@ export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
       tree.edges.push({ from: link.source, to: link.target, label: String(link.value) })
     }
   } else if (d.body.kind === 'eventmodeling') {
-    tree.nodes.push(...d.body.frames.map(frame => ({ id: frame.id, label: frame.entity })))
+    const lanes = eventLanes(d.body)
+    tree.nodes.push(...lanes.map(lane => ({ id: lane.id, label: lane.label })))
+    tree.nodes.push(...d.body.frames.map(frame => ({ id: frame.id, label: frame.entity, parentId: lanes.find(lane => lane.members.includes(frame.id))!.id })))
     tree.edges.push(...eventRelations(d.body))
   } else if (isStableFamilyBody(d.body)) {
     const semantics = stableFamilyTree(d.body)

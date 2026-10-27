@@ -32,7 +32,7 @@ function lowerEventModelingDrawing<T>(marks: DrawingFactory<T>, { positioned: di
             }),
             indent: 2,
           },
-          { node: marks.text({ id: `${lane.id}:label`, role: 'label', owner, text: lane.block.text, block: lane.block, x: lane.x + 12, y: lane.y + lane.height / 2, anchor: 'start', fontSize: lane.block.fontSize, fontWeight: lane.block.fontWeight, paint: { fill: style.groupTextColor ?? 'var(--_text)' } }), indent: 2 },
+          { node: marks.text({ id: `${lane.id}:label`, role: 'label', owner, text: lane.block.text, block: lane.block, x: lane.x + 12, y: lane.y + lane.height / 2, anchor: 'start', fontSize: lane.block.fontSize, fontWeight: lane.block.fontWeight, letterSpacing: lane.block.letterSpacing, paint: { fill: style.groupTextColor ?? ink('var(--_text)', style.groupFillColor ?? 'var(--_group-fill)') } }), indent: 2 },
         ],
       }),
     )
@@ -83,6 +83,7 @@ function lowerEventModelingDrawing<T>(marks: DrawingFactory<T>, { positioned: di
               anchor: 'middle',
               fontSize: node.block.fontSize,
               fontWeight: node.block.fontWeight,
+              letterSpacing: node.block.letterSpacing,
               paint: { fill: style.nodeTextColor ?? ink('var(--_text)', fill) },
             }),
             indent: 2,

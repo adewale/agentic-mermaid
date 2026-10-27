@@ -34,7 +34,7 @@ function identityTuples(svg: string): IdentityTuple[] {
 }
 function primaryNodeIdentities(family: DiagramKind, tuples: IdentityTuple[]): IdentityTuple[] {
   return tuples.filter(({ id, role }) => {
-    if (family === 'packet' || family === 'kanban' || family === 'requirement' || family === 'block' || family === 'ishikawa' || family === 'treemap') return role === 'node'
+    if (family === 'packet' || family === 'kanban' || family === 'requirement' || family === 'eventmodeling' || family === 'block' || family === 'ishikawa' || family === 'treemap') return role === 'node'
     if (family === 'c4') return role === 'node' && !id.startsWith('c4:')
     if (family === 'flowchart' || family === 'state') return role === 'node' && !id.startsWith('node-shape:')
     if (family === 'sequence') return role === 'actor' && !id.startsWith('actor:')
@@ -54,7 +54,7 @@ function primaryNodeIdentities(family: DiagramKind, tuples: IdentityTuple[]): Id
 }
 function primaryGroupIdentities(family: DiagramKind, tuples: IdentityTuple[]): IdentityTuple[] {
   return tuples.filter(({ id, role }) => {
-    if (family === 'kanban' || family === 'treemap' || family === 'block') return role === 'group'
+    if (family === 'eventmodeling' || family === 'kanban' || family === 'treemap' || family === 'block') return role === 'group'
     if (family === 'c4') return role === 'group' && !id.startsWith('c4:')
     if (family === 'flowchart' || family === 'state') return role === 'group' && !id.startsWith('group-')
     if (family === 'class') return role === 'group' && !id.startsWith('namespace-')
@@ -116,7 +116,7 @@ function expectedRelationTuples(family: DiagramKind, layout: ReturnType<typeof l
       const arrow = `${edge.from}-&gt;${edge.to}`
       if (family === 'c4') return { id: edge.id, role: 'edge', from: edge.from, to: edge.to }
       if (family === 'requirement') return { id: edge.id, role: 'relationship', from: edge.from, to: edge.to }
-      if (family === 'block' || family === 'ishikawa') return { id: edge.id, role: 'edge', from: edge.from, to: edge.to }
+      if (family === 'eventmodeling' || family === 'block' || family === 'ishikawa') return { id: edge.id, role: 'edge', from: edge.from, to: edge.to }
       if (family === 'sequence') return { id: `message:${arrow}#${occurrence}:line`, role: 'message', from: edge.from, to: edge.to }
       if (family === 'class') return { id: `rel:${arrow}#${occurrence}`, role: 'relationship', from: edge.from, to: edge.to }
       if (family === 'er') return { id: `rel:${edge.from}-${edge.to}#${occurrence}`, role: 'relationship', from: edge.from, to: edge.to }

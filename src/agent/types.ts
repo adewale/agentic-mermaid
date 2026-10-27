@@ -1,5 +1,5 @@
 import type { EventModelingBody, EventModelingMutationOp } from '../eventmodeling/types.ts'
-export type { EventModelingBody, EventModelingMutationOp } from '../eventmodeling/types.ts'
+export type { EventModelingBody, EventModelingMutationOp, EventFrame, EventFrameType, EventData, EventSpecification } from '../eventmodeling/types.ts'
 import type { C4Body, C4MutationOp } from '../c4/types.ts'
 import type { LabelContent } from '../shared/display-text.ts'
 

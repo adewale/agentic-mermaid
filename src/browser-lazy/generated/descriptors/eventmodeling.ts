@@ -14,8 +14,22 @@ const descriptorData = Object.freeze({
   "aliases": [],
   "config": {
     "section": "eventmodeling",
-    "keys": [],
-    "noopKeys": []
+    "keys": [
+      "padding",
+      "rowHeight",
+      "useWidth",
+      "useMaxWidth",
+      "theme",
+      "look",
+      "layout"
+    ],
+    "noopKeys": [
+      "useWidth",
+      "useMaxWidth",
+      "theme",
+      "look",
+      "layout"
+    ]
   },
   "identity": {
     "id": "family:eventmodeling",

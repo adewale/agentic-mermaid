@@ -39,6 +39,9 @@ Compact frame declarations can share a line; writers emit one statement per
 line. Line and multiline comments are read outside data payloads. Data, notes and specifications are retained
 and displayed. `set_entities`, `set_notes` and `set_specifications` replace those
 owned records atomically, with reference validation.
+Titles are written as one merged YAML metadata field; accessibility uses native
+comments because the shipped pinned parser rejects those in-body statements.
+Agentic paints the title, while the upstream renderer currently omits it.
 The maturity remains `experimental` under the pinned policy; upstream stability
 classification is unresolved. This is not a complete-library support claim.
 
@@ -79,3 +82,5 @@ not an independent renderer vote. The addon's parser shim is not a syntax oracle
 Historical default-core Dave results retain all 32 ZenUML failures and their
 original 1,095-occurrence denominator. Optional backend evidence uses a separate
 configuration identity and never reclassifies those default-entry failures.
+
+Title edits preserve unrelated YAML values. If an alias couples the title to another configuration value, the edit returns `INVALID_OP` atomically; remove that coupling before editing the title. Generous reads of missing or reordered Given/When/Then clause markers report `UNSUPPORTED_SYNTAX`; export writes the portable clause order.

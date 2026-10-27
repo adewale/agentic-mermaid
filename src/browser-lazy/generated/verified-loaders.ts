@@ -21,11 +21,11 @@ export const VERIFIED_FAMILY_LOADERS = Object.freeze({
   radar: () => import('./verified/radar.ts').then(module => module.default()),
   sankey: () => import('./verified/sankey.ts').then(module => module.default()),
   c4: () => import('./verified/c4.ts').then(module => module.default()),
-  eventmodeling: () => import('./verified/eventmodeling.ts').then(module => module.default()),
   packet: () => import('./verified/packet.ts').then(module => module.default()),
   kanban: () => import('./verified/kanban.ts').then(module => module.default()),
   requirement: () => import('./verified/requirement.ts').then(module => module.default()),
   treemap: () => import('./verified/treemap.ts').then(module => module.default()),
   ishikawa: () => import('./verified/ishikawa.ts').then(module => module.default()),
   block: () => import('./verified/block.ts').then(module => module.default()),
+  eventmodeling: () => import('./verified/eventmodeling.ts').then(module => module.default()),
 } satisfies Record<BrowserBuiltinFamilyId, () => Promise<FamilyDescriptor>>)

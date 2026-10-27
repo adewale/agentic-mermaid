@@ -17,6 +17,7 @@ export interface FamilyCountFixture {
 }
 
 export const FAMILY_COUNT_FIXTURES: FamilyCountFixture[] = [
+  { family: 'eventmodeling', source: 'eventmodeling\ntf 01 ui CartUI\ntf 02 cmd AddItem\ntf 03 evt ItemAdded', count: { nodes: 3, edges: 2, groups: 3 } },
   { family: 'packet', source: 'packet\n+16: "Port"\n+48: "Payload"', count: { nodes: 2, edges: 0, groups: 0 } },
   { family: 'kanban', source: 'kanban\nTodo\n  a[Build]\nDone\n  b[Research]\n  c[Plan]', count: { nodes: 3, edges: 0, groups: 2 } },
   { family: 'requirement', source: 'requirementDiagram\nrequirement r {\nid: R1\ntext: Respond quickly\nrisk: high\nverifymethod: test\n}\nelement suite {\ntype: "test"\n}\nsuite - verifies -> r', count: { nodes: 2, edges: 1, groups: 0 } },

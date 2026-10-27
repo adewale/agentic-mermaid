@@ -73,7 +73,7 @@ import { STATE_SVG_HOOKS } from './svg-family-hooks/state.ts'
 import { TIMELINE_SVG_HOOKS } from './svg-family-hooks/timeline.ts'
 import { XYCHART_SVG_HOOKS } from './svg-family-hooks/xychart.ts'
 
-export const EVENTMODELING_RENDER_HOOKS = { ...EVENTMODELING_SVG_HOOKS, renderAscii: nativeTerminalRenderer(ctx => renderEventModelingTerminal(ctx.source.familyBody, ctx.config, ctx.colorMode, ctx.theme)) }
+export const EVENTMODELING_RENDER_HOOKS = { ...EVENTMODELING_SVG_HOOKS, renderAscii: nativeTerminalRenderer(ctx => renderEventModelingTerminal(ctx.source.authoredFamilyBody ?? ctx.source.familyBody, ctx.config, ctx.colorMode, ctx.theme)) }
 
 type BuiltinRenderHooks = Pick<FamilyDescriptor, 'normalizeRequest' | 'layout' | 'projectPositioned' | 'renderAscii' | 'lowerScene'>
 
@@ -145,10 +145,7 @@ export const SEQUENCE_RENDER_HOOKS = {
 
 export const CLASS_RENDER_HOOKS = {
   ...CLASS_SVG_HOOKS,
-  renderAscii: /* @__PURE__ */ nativeTerminalRenderer(ctx => renderClassTerminal(
-    ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth,
-    (ctx.source.authoredFamilyLines ?? ctx.source.familyLines).join('\n'),
-  )),
+  renderAscii: /* @__PURE__ */ nativeTerminalRenderer(ctx => renderClassTerminal(ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth, (ctx.source.authoredFamilyLines ?? ctx.source.familyLines).join('\n'))),
 } satisfies BuiltinRenderHooks
 
 export const ER_RENDER_HOOKS = {
@@ -249,7 +246,6 @@ export const C4_RENDER_HOOKS = {
     return renderC4Terminal(config.model, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth, config.c4)
   }),
 } satisfies BuiltinRenderHooks
-
 
 export const PACKET_RENDER_HOOKS = /* @__PURE__ */ { ...PACKET_SVG_HOOKS, renderAscii: /* @__PURE__ */ nativeTerminalRenderer(ctx => renderPacketTerminal(ctx)) }
 

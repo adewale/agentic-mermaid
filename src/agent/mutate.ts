@@ -1,3 +1,4 @@
+import { eventModelingMeta } from '../eventmodeling/body.ts'
 import type { EventModelingValidDiagram, EventModelingMutationOp } from './types.ts'
 import { rebaseBodyComments, restoreBodyComments, snapshotBodyCommentAnchors } from './body-comments.ts'
 import { beginMutationDraft, type MutationDraft } from './mutation-draft.ts'
@@ -121,8 +122,9 @@ function applyOneMutation(d: ParsedDiagram, op: AnyMutationOp, deferSerializatio
     const before = draft?.apply ? snapshotBodyCommentAnchors(d) : d
     const r = draft?.apply ? draft.apply(op) : plugin.mutate(d.body, op)
     if (!r.ok) return r
-    try { r.value = normalizeBodyAccessibility(r.value) }
-    catch (error) {
+    try {
+      r.value = normalizeBodyAccessibility(r.value)
+    } catch (error) {
       if (!(error instanceof AccessibilityTextError)) throw error
       return err({ code: 'INVALID_OP', message: error.message })
     }
@@ -141,7 +143,13 @@ function commitMutation(d: ParsedDiagram, body: ParsedDiagram['body']): Result<P
   // 1C wrapper policy: a mutated diagram keeps its leading wrapper
   // (frontmatter/directives/comments) byte-verbatim; only the body changes.
   const bodyAccessibility = accessibilityFromBody(body)
-  const meta = bodyAccessibility === undefined ? d.meta : { ...d.meta, accessibility: bodyAccessibility }
+  const accessibilityMeta = bodyAccessibility === undefined ? d.meta : { ...d.meta, accessibility: bodyAccessibility }
+  let meta = accessibilityMeta
+  try {
+    if (body.kind === 'eventmodeling') meta = eventModelingMeta(body, accessibilityMeta)
+  } catch (error) {
+    return err({ code: 'INVALID_OP', message: error instanceof Error ? error.message : String(error) })
+  }
   const bodySource = restoreBodyComments(ensureAccessibilityLines(plugin.serialize!(body), meta.accessibility), d.kind, body, meta)
   const canonicalSource = wrapperPrefix(meta, 'verbatim', bodySource, d.kind) + bodySource
   // Source locations, exact authored spans, and wrapper ownership describe a
@@ -170,8 +178,7 @@ function commitMutation(d: ParsedDiagram, body: ParsedDiagram['body']): Result<P
       message: `Mutation changed semantic family while reparsing: expected ${d.kind}/${body.kind}, got ${reparsed.value.kind}/${reparsed.value.body.kind}`,
     })
   }
-  if (bodyAccessibility && (bodyAccessibility.title !== reparsed.value.meta.accessibility.title
-    || bodyAccessibility.descr !== reparsed.value.meta.accessibility.descr)) {
+  if (bodyAccessibility && (bodyAccessibility.title !== reparsed.value.meta.accessibility.title || bodyAccessibility.descr !== reparsed.value.meta.accessibility.descr)) {
     return err({
       code: 'INVALID_OP',
       message: 'Accessibility text cannot be serialized by this family without changing its value; remove directive openers or description block delimiters',
@@ -190,7 +197,6 @@ function commitMutation(d: ParsedDiagram, body: ParsedDiagram['body']): Result<P
     canonicalSource,
     source: reparsed.value.source,
   } as ParsedDiagram)
-
 }
 
 export type MutationBatchError = MutationError & { opIndex: number }

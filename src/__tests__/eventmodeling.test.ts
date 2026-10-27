@@ -1,3 +1,4 @@
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 import { expect, test } from 'bun:test'
 import { asEventModeling, buildMermaid, createMermaid, describeMermaidTree, mutateChecked, parseRegisteredMermaid, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/core.ts'
 import { eventRelations, parseEventModeling } from '../eventmodeling/parser.ts'
@@ -105,4 +106,155 @@ test('compact statements and comments do not consume literal data', () => {
   const body = parseEventModeling('eventmodeling\ntf 01 ui CartUI tf 02 cmd AddItem { keep %% and /* data */ } /* bridge\ncomment */ tf 03 evt Added // comment')
   expect(body.frames.map(frame => frame.entity)).toEqual(['CartUI', 'AddItem', 'Added'])
   expect(body.frames[1]!.data!.text).toBe(' keep %% and /* data */ ')
+})
+
+test('literal payload punctuation and reserved dictionary keys survive checked writes', () => {
+  for (const text of ['a} // remainder', 'a} tf 02 evt Extra {b', '<b>keep</b>', '&lt;b&gt;keep&lt;/b&gt;', 'https://example.com']) {
+    const changed = mutateChecked(createMermaid('eventmodeling'), { kind: 'insert_frame', frame: { id: '01', reset: false, type: 'ui', entity: 'Main', sources: [], data: { text } } })
+    expect(changed.ok).toBe(true)
+    if (!changed.ok || changed.value.body.kind !== 'eventmodeling') throw Error('expected native write')
+    expect(changed.value.body.frames).toHaveLength(1)
+    expect(changed.value.body.frames[0]!.data!.text).toBe(text)
+    expect(parseEventModeling(serializeMermaid(changed.value)).frames[0]!.data!.text).toBe(text)
+    expect(renderMermaidASCII(serializeMermaid(changed.value))).toContain(text)
+  }
+  const data = mutateChecked(createMermaid('eventmodeling'), { kind: 'set_data', id: '__proto__', data: { text: 'retained' } })
+  expect(data.ok).toBe(true)
+  if (!data.ok || data.value.body.kind !== 'eventmodeling') throw Error('expected native data')
+  expect(Object.hasOwn(data.value.body.data, '__proto__')).toBe(true)
+  expect(data.value.body.data.__proto__!.text).toBe('retained')
+  for (const kind of ['set_title', 'set_accessibility_title', 'set_accessibility_description'] as const) {
+    const op = kind === 'set_accessibility_description' ? { kind, description: 'https://example.com' } : { kind, title: 'https://example.com' }
+    const result = mutateChecked(createMermaid('eventmodeling'), op)
+    expect(result.ok).toBe(true)
+    if (!result.ok) throw Error('expected text write')
+    if (result.value.body.kind !== 'eventmodeling') throw Error('expected native text')
+    const field = kind === 'set_title' ? 'title' : kind === 'set_accessibility_title' ? 'accessibilityTitle' : 'accessibilityDescription'
+    expect(result.value.body[field]).toBe('https://example.com')
+    expect(parseEventModeling(serializeMermaid(result.value))[field]).toBe('https://example.com')
+  }
+})
+
+test('untyped shapes and reserved writer tokens fail atomically without banning ordinary prototype-named identifiers', () => {
+  const empty = createMermaid('eventmodeling')
+  for (const frame of [
+    { id: 1, reset: false, type: 'ui', entity: 'Main', sources: [] },
+    { id: '01', reset: false, type: 'ui', entity: 'event', sources: [] },
+    { id: '01', reset: false, type: 'ui', entity: 'then', sources: [] },
+  ])
+    expect(mutateChecked(empty, { kind: 'insert_frame', frame } as never).ok).toBe(false)
+  expect(empty.body.frames).toEqual([])
+  expect(mutateChecked(empty, { kind: 'insert_frame', frame: { id: '01', reset: false, type: 'ui', entity: 'constructor', sources: [] } }).ok).toBe(true)
+  const invalid = parseRegisteredMermaid('eventmodeling\nentity A\ntf 01 ui Main\ngwt 01 given constructor A then constructor A')
+  expect(invalid.ok && invalid.value.body.kind).toBe('opaque')
+})
+
+test('compact/comment-prefixed declarations and explicit relations retain exact authored spans', () => {
+  const source = 'eventmodeling\n/* doc */ tf 01 ui Main tf 02 cmd Save\nrf 03 evt Saved ->> 02'
+  const result = parseRegisteredMermaid(source)
+  if (!result.ok) throw Error('expected native source')
+  expect([...result.value.source.nodes.keys()]).toEqual(['01', '02', '03'])
+  for (const id of ['01', '02', '03']) {
+    const span = result.value.source.spans!.nodes.get(id)!
+    expect(source.slice(span.start.offset, span.start.offset + 2)).toBe(id)
+  }
+  const edge = result.value.source.spans!.edges.get('relation:02:03')!
+  expect(source.slice(edge.start.offset, edge.end.offset)).toBe('->> 02')
+})
+
+test('outer routing space and group typography survive public render options', () => {
+  const source = 'eventmodeling\nrf 01 ui A\nrf 02 cmd B\nrf 03 evt C ->> 01'
+  for (const padding of [0, 24])
+    for (const nodeSpacing of [48, 80, 200]) {
+      const p = layoutEventModeling(parseEventModeling(source), { padding, nodeSpacing })
+      for (const edge of p.edges) for (const point of edge.points) expect(point.y).toBeGreaterThan(0)
+      expect(renderMermaidSVG(source, { padding, nodeSpacing })).toContain('viewBox=')
+    }
+  const svg = renderMermaidSVG('eventmodeling\ntf 01 ui A', { style: { roles: { group: { fontSize: 42, fontWeight: 900, fontFamily: 'Georgia', textTransform: 'uppercase' }, node: { fontSize: 18 } } } })
+  expect(svg).toContain('UI /')
+  expect(svg).toContain('AUTOMA')
+  expect(svg).not.toContain('Automation')
+  expect(svg).toContain('Georgia')
+  expect(svg).toContain('font-size="42"')
+  expect(svg).toContain('font-weight="900"')
+})
+
+test('native writers produce source admitted by pinned Mermaid for rich ownership and data delimiters', async () => {
+  const upstream = startUpstreamMermaid()
+  try {
+    const rich = parseRegisteredMermaid(complex)
+    if (!rich.ok) throw Error('expected rich native source')
+    expect((await upstream.parse(serializeMermaid(rich.value))).ok).toBe(true)
+    for (const text of ['a} // remainder', 'a} tf 02 evt Extra {b', 'https://example.com']) {
+      const result = buildMermaid('eventmodeling', [{ kind: 'insert_frame', frame: { id: '01', reset: false, type: 'ui', entity: 'Main', sources: [], data: { text } } }])
+      if (!result.ok) throw Error(result.error.message)
+      expect((await upstream.parse(serializeMermaid(result.value))).ok).toBe(true)
+    }
+  } finally {
+    await upstream.close()
+  }
+})
+
+test('title changes preserve unrelated wrapper fields/comments and metadata-looking data stays literal', async () => {
+  const upstream = startUpstreamMermaid()
+  try {
+    for (const title of ['title: Old # keep comment\n', 'title: |\n  First\n  Second\n', '']) {
+      const source = `---\n${title}config:\n  theme: dark\n# untouched metadata comment\n---\n%% leading comment\neventmodeling\ntf 01 ui Main`
+      const parsed = parseRegisteredMermaid(source)
+      if (!parsed.ok) throw Error('expected source')
+      const changed = mutateChecked(parsed.value, { kind: 'set_title', title: 'https://example.com' })
+      if (!changed.ok) throw Error(changed.error.message)
+      const written = serializeMermaid(changed.value)
+      expect(written.match(/^---$/gm)).toHaveLength(2)
+      expect(written).toContain('config:\n  theme: dark\n# untouched metadata comment')
+      expect(written).toContain('%% leading comment')
+      expect((await upstream.parse(written)).ok).toBe(true)
+      const cleared = mutateChecked(changed.value, { kind: 'set_title' })
+      if (!cleared.ok || cleared.value.body.kind !== 'eventmodeling') throw Error('expected title removal')
+      expect(cleared.value.body.title).toBeUndefined()
+      expect(serializeMermaid(cleared.value)).toContain('# untouched metadata comment')
+    }
+    for (const yaml of ['{title: Old, config: {theme: dark}}', '{config: {theme: dark}, title: Old}']) {
+      const parsed = parseRegisteredMermaid(`---\n${yaml}\n---\neventmodeling\ntf 01 ui Main`)
+      if (!parsed.ok) throw Error('expected flow metadata')
+      const cleared = mutateChecked(parsed.value, { kind: 'set_title' })
+      if (!cleared.ok) throw Error(cleared.error.message)
+      expect(cleared.value.meta.frontmatter?.theme).toBe('dark')
+    }
+    const anchored = parseRegisteredMermaid('---\ntitle: &shared Old\nconfig:\n  theme: dark\n  fontFamily: *shared\n---\neventmodeling\ntf 01 ui Main')
+    if (!anchored.ok) throw Error('expected aliased title')
+    const before = serializeMermaid(anchored.value)
+    const rejected = mutateChecked(anchored.value, { kind: 'set_title', title: 'Changed' })
+    expect(rejected.ok).toBe(false)
+    expect(serializeMermaid(anchored.value)).toBe(before)
+    expect(anchored.value.meta.frontmatter?.fontFamily).toBe('Old')
+    const source = 'eventmodeling\ntf 01 ui Main [[Payload]]\ndata Payload {\naccTitle: literal field\naccDescr: literal description\n}'
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok || parsed.value.body.kind !== 'eventmodeling') throw Error('expected native payload')
+    expect(parsed.value.body.data.Payload!.text).toBe('accTitle: literal field\naccDescr: literal description')
+    expect(parsed.value.meta.accessibility).toEqual({})
+  } finally {
+    await upstream.close()
+  }
+})
+
+
+test('generous Given/When/Then reads warn for missing and reordered clause markers', async () => {
+  const upstream = startUpstreamMermaid()
+  try {
+    for (const clauses of ['cmd A then evt A', 'given cmd A then evt A given evt A', 'given cmd A then evt A when cmd A']) {
+      const source = `eventmodeling\nentity A\ntf 01 ui Main\ngwt 01 ${clauses}`
+      expect((await upstream.parse(source)).ok).toBe(false)
+      expect(verifyMermaid(source).warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toBe(true)
+    }
+  } finally { await upstream.close() }
+})
+
+
+test('source-map relation ownership excludes arrow-like literal data', () => {
+  const source = 'eventmodeling\nrf 01 ui Main {example ->> 99}\ntf 02 cmd Next ->> 01 {literal ->> 98}'
+  const parsed = parseRegisteredMermaid(source)
+  if (!parsed.ok) throw Error('expected source')
+  expect([...parsed.value.source.edges.keys()]).toEqual(['relation:01:02'])
+  expect(parsed.value.source.edges.get('relation:01:02')).toEqual({line: 3, col: 16})
 })

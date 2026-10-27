@@ -834,3 +834,20 @@ domain. Explicit named style-class edits remain available where their own target
 grammar applies. Flowchart functional values and Requirement functions or
 meaningful spaces still have no demonstrated portable field spelling under the
 pin. Invalid XML/control-character values remain outside the writable domain.
+
+### Event Modeling metadata and literal payloads
+
+The shipped Mermaid 12.2.0 / parser 2.0.1 rejects in-body Event Modeling
+`title`, `accTitle` and `accDescr`, although the pinned Langium source declares
+those productions. Agentic reads them and retains their meaning. Its writer
+uses one merged YAML title field and the existing native accessibility-comment
+transport. Unrelated wrapper fields and comments survive title edits. Mermaid
+accepts that output but currently omits the YAML title from its Event Modeling
+SVG and ignores native accessibility comments; Agentic paints the title and
+exposes the accessibility envelope. Verification names the accessibility limit.
+
+Event Modeling data is literal content in both graphical and terminal outputs.
+The whole authored inline string survives; Agentic does not reproduce the
+pinned upstream renderer's reported final-character loss. Reserved grammar
+words used as identifiers are generous reads with an `UNSUPPORTED_SYNTAX`
+warning. Writers reject them until renamed rather than emit invalid Mermaid.

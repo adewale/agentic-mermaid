@@ -118,9 +118,9 @@ describe('registered family public layout and verify APIs', () => {
     const hiddenLoose = extensionDescriptor('hidden-loose', 'hiddenLooseDiagram')
     const unregisterLoose = registerFamily({
       ...hiddenLoose,
-      detectLoose: line => line === 'hiddenloosediagram' || line === 'eventmodeling',
+      detectLoose: line => line === 'hiddenloosediagram' || line === 'zenuml',
     })
-    expect(detectRegisteredFamilyFromFirstLine('eventmodeling', 'loose')).toBeNull()
+    expect(detectRegisteredFamilyFromFirstLine('zenuml', 'loose')).toBeNull()
     unregisterLoose()
 
     const multiFamily = extensionDescriptor('multi-upstream', 'zenuml')
@@ -130,7 +130,7 @@ describe('registered family public layout and verify APIs', () => {
         headers: ['zenuml', 'eventmodeling'],
         detect: line => line === 'zenuml' || line === 'eventmodeling',
       }),
-    ).toThrow(/cannot claim upstream headers from multiple Mermaid families/)
+    ).toThrow(/header "eventmodeling" is already owned/)
   })
 
   test('uses declared headers as the routing prefilter for broad or adversarial detectors', () => {

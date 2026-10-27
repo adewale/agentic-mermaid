@@ -15,10 +15,10 @@ const FIXTURES = [
     semanticHeader: 'futureDiagram-v99',
   },
   {
-    source: 'eventmod&#101;ling\n  opaque payload',
+    source: 'zenum&#108;\n  opaque payload',
     code: 'UNSUPPORTED_FAMILY',
-    authoredHeader: 'eventmod&#101;ling',
-    semanticHeader: 'eventmodeling',
+    authoredHeader: 'zenum&#108;',
+    semanticHeader: 'zenuml',
   },
 ] as const
 

@@ -1,3 +1,4 @@
+import { eventModelingMeta } from '../eventmodeling/body.ts'
 import { configDirective } from '../shared/pinned-mermaid-config/merge.js'
 import { canonicalWrapperConfig } from './wrapper-portability.ts'
 import { restoreBodyComments } from './body-comments.ts'
@@ -6,10 +7,7 @@ import { restoreBodyComments } from './body-comments.ts'
 // synthesizeFromGraph: build a ValidDiagram from a JSON payload (no re-parse).
 // ============================================================================
 
-import type {
-  ValidDiagram, ParsedDiagram, ValidDiagramMeta, DiagramBody, FamilyParsedBody,
-  ValidDiagramPayload, ParseError, Result,
-} from './types.ts'
+import type { ValidDiagram, ParsedDiagram, ValidDiagramMeta, DiagramBody, FamilyParsedBody, ValidDiagramPayload, ParseError, Result } from './types.ts'
 import { ok, err } from './types.ts'
 import { stringifyMermaidYaml } from '../shared/mermaid-yaml.ts'
 import { getFamily, knownFamilies } from './families.ts'
@@ -19,11 +17,7 @@ import type { ExtensionIdentity } from '../shared/extension-identity.ts'
 import { sameExtensionIdentity } from '../shared/extension-identity.ts'
 import { radarBodyProblem } from './radar-body.ts'
 import { matchMermaidFrontmatter } from '../mermaid-source-wrapper.ts'
-import {
-  mermaidInitDirectiveIdentity,
-  mermaidInitDirectives,
-  stripMermaidInitDirectives,
-} from '../mermaid-source.ts'
+import { mermaidInitDirectiveIdentity, mermaidInitDirectives, stripMermaidInitDirectives } from '../mermaid-source.ts'
 
 // Re-export for callers that used the previous in-tree serializer home.
 export { renderTimeline } from './timeline-body.ts'
@@ -52,26 +46,18 @@ export interface SerializeOptions {
 export function serializeMermaid(d: ParsedDiagram, opts: SerializeOptions = {}): string {
   if (d.body.kind === 'preserved') return d.body.source
   const mode = opts.wrapper ?? 'verbatim'
-  const renderedBody = renderBody(
-    d.body,
-    d.kind,
-    d.meta,
-    d.body.kind === 'extension' && 'descriptorIdentity' in d ? d.descriptorIdentity : undefined,
-  )
+  const bodyMeta = d.body.kind === 'eventmodeling' ? eventModelingMeta(d.body, d.meta) : d.meta
+  const renderedBody = renderBody(d.body, d.kind, bodyMeta, d.body.kind === 'extension' && 'descriptorIdentity' in d ? d.descriptorIdentity : undefined)
   // Canonical mode folds universal config into renderMeta. Opaque bodies and
   // source-preserving extension serializers may still contain the authored
   // directives, so remove them through the same grammar authority before
   // joining the canonical wrapper and family source.
-  const preservedBody = restoreBodyComments(renderedBody, d.kind, d.body, d.meta)
-  const bodySource = mode === 'canonical'
-    ? stripMermaidInitDirectives(preservedBody)
-    : preservedBody
+  const preservedBody = restoreBodyComments(renderedBody, d.kind, d.body, bodyMeta)
+  const bodySource = mode === 'canonical' ? stripMermaidInitDirectives(preservedBody) : preservedBody
   // Family writers may use configuration for values their statement token
   // cannot hold. Fold those directives after authored configuration, before
   // removing them from the body, so canonical export retains their meaning.
-  const meta = mode === 'canonical'
-    ? { ...d.meta, initDirectives: serializedInitLayers(d.meta, preservedBody) }
-    : d.meta
+  const meta = mode === 'canonical' ? { ...bodyMeta, initDirectives: serializedInitLayers(bodyMeta, preservedBody) } : bodyMeta
   return wrapperPrefix(meta, mode, bodySource, d.kind) + bodySource
 }
 
@@ -94,19 +80,12 @@ function serializedInitLayers(meta: ValidDiagramMeta, body: string): ValidDiagra
 }
 
 /** The wrapper text to emit before the diagram body for the given policy. */
-export function wrapperPrefix(
-  meta: ValidDiagramMeta,
-  mode: 'verbatim' | 'canonical' = 'verbatim',
-  bodySource = '',
-  family?: string,
-): string {
+export function wrapperPrefix(meta: ValidDiagramMeta, mode: 'verbatim' | 'canonical' = 'verbatim', bodySource = '', family?: string): string {
   if (mode === 'verbatim' && meta.wrapperSource !== undefined) {
     const frontmatter = matchMermaidFrontmatter(meta.wrapperSource)
     // Mermaid requires a content line between delimiters, even if blank.
     // Adjacent delimiters carry no config; retain the rest of the wrapper.
-    const wrapper = frontmatter && frontmatter.yaml === ''
-      ? meta.wrapperSource.slice(frontmatter.source.length)
-      : meta.wrapperSource
+    const wrapper = frontmatter && frontmatter.yaml === '' ? meta.wrapperSource.slice(frontmatter.source.length) : meta.wrapperSource
     return wrapper + postWrapperInitDirectives(meta, bodySource)
   }
   return renderMeta(meta, family)
@@ -171,12 +150,7 @@ export function renderMeta(meta: ValidDiagramMeta, family?: string): string {
   return parts.join('')
 }
 
-function renderBody(
-  body: FamilyParsedBody,
-  kind: ParsedDiagram['kind'],
-  meta: ValidDiagramMeta,
-  parsedDescriptorIdentity?: ExtensionIdentity<'family'>,
-): string {
+function renderBody(body: FamilyParsedBody, kind: ParsedDiagram['kind'], meta: ValidDiagramMeta, parsedDescriptorIdentity?: ExtensionIdentity<'family'>): string {
   // Opaque bodies re-emit preserved source verbatim. Every structured body
   // serializes through its FamilyDescriptor hook — looked up by DIAGRAM kind,
   // not body kind. State diagrams (BUILD-19) own a dedicated StateBody and the
@@ -188,8 +162,7 @@ function renderBody(
   // Descriptor-owned `data` is meaningful only to the exact registration
   // contract that parsed it. After an extension upgrade, preserve/reparse the
   // core-owned source instead of passing stale data into a new serializer.
-  const descriptorMatches = body.kind !== 'extension'
-    || sameExtensionIdentity(parsedDescriptorIdentity, plugin?.identity)
+  const descriptorMatches = body.kind !== 'extension' || sameExtensionIdentity(parsedDescriptorIdentity, plugin?.identity)
   if (plugin?.serialize && descriptorMatches) {
     const rendered = plugin.serialize(body)
     const source = ensureAccessibilityLines(rendered, meta.accessibility)
@@ -200,7 +173,6 @@ function renderBody(
   if (body.kind === 'extension') return body.source.endsWith('\n') ? body.source : body.source + '\n'
   throw new Error(`No serializer registered for diagram kind "${kind}"`)
 }
-
 
 // ---- synthesizeFromGraph --------------------------------------------------
 
@@ -229,23 +201,21 @@ export function synthesizeFromGraph(payload: ValidDiagramPayload): Result<Parsed
     return err([{ code: 'INVALID_PAYLOAD', message: `payload.kind must be a known diagram family, received ${typeof kind === 'string' ? kind : typeof kind}` }])
   }
   const bodyKind = (bodyPayload as { kind: string }).kind
-  const bodyFamily = bodyKind === 'opaque' || bodyKind === 'extension'
-    ? (bodyPayload as { family?: unknown }).family
-    : bodyKind
+  const bodyFamily = bodyKind === 'opaque' || bodyKind === 'extension' ? (bodyPayload as { family?: unknown }).family : bodyKind
   if (bodyFamily !== kind) {
     return err([{ code: 'INVALID_PAYLOAD', message: `payload kind "${kind}" does not match body family "${typeof bodyFamily === 'string' ? bodyFamily : typeof bodyFamily}"` }])
   }
   if (bodyKind === 'pie') {
     const pie = bodyPayload as { showData?: unknown; title?: unknown; slices?: unknown }
-    if (typeof pie.showData !== 'boolean'
-      || (pie.title !== undefined && typeof pie.title !== 'string')
-      || !Array.isArray(pie.slices)
-      || pie.slices.some(slice => !slice || typeof slice !== 'object'
-        || typeof (slice as { id?: unknown }).id !== 'string'
-        || typeof (slice as { label?: unknown }).label !== 'string'
-        || typeof (slice as { value?: unknown }).value !== 'number'
-        || !Number.isFinite((slice as { value: number }).value)
-        || (slice as { value: number }).value <= 0)) {
+    if (
+      typeof pie.showData !== 'boolean' ||
+      (pie.title !== undefined && typeof pie.title !== 'string') ||
+      !Array.isArray(pie.slices) ||
+      pie.slices.some(
+        slice =>
+          !slice || typeof slice !== 'object' || typeof (slice as { id?: unknown }).id !== 'string' || typeof (slice as { label?: unknown }).label !== 'string' || typeof (slice as { value?: unknown }).value !== 'number' || !Number.isFinite((slice as { value: number }).value) || (slice as { value: number }).value <= 0,
+      )
+    ) {
       return err([{ code: 'INVALID_PAYLOAD', message: 'payload pie body must contain typed positive finite slices' }])
     }
   }
@@ -254,17 +224,13 @@ export function synthesizeFromGraph(payload: ValidDiagramPayload): Result<Parsed
       const bodySource = (bodyPayload as { source?: unknown }).source
       const canonicalSource = (payload as { canonicalSource?: unknown }).canonicalSource
       const wrapperSource = (payload as { meta?: { wrapperSource?: unknown } }).meta?.wrapperSource
-      const source = typeof bodySource === 'string' && bodySource.trim()
-        ? (typeof wrapperSource === 'string' ? wrapperSource : '') + bodySource
-        : canonicalSource
+      const source = typeof bodySource === 'string' && bodySource.trim() ? (typeof wrapperSource === 'string' ? wrapperSource : '') + bodySource : canonicalSource
       if (typeof source !== 'string' || !source.trim()) {
         return err([{ code: 'INVALID_PAYLOAD', message: 'extension payload must retain canonicalSource or body.source' }])
       }
       const reparsed = parseRegisteredMermaid(source)
       if (!reparsed.ok || reparsed.value.kind !== kind || reparsed.value.body.kind !== 'extension') {
-        const detail = reparsed.ok
-          ? `serialized source reparsed as ${reparsed.value.kind}/${reparsed.value.body.kind}`
-          : reparsed.error.map(error => error.message).join('; ')
+        const detail = reparsed.ok ? `serialized source reparsed as ${reparsed.value.kind}/${reparsed.value.body.kind}` : reparsed.error.map(error => error.message).join('; ')
         return err([{ code: 'INVALID_PAYLOAD', message: `serialized extension payload is not a valid ${kind} diagram: ${detail}` }])
       }
       return ok(reparsed.value)
@@ -276,9 +242,7 @@ export function synthesizeFromGraph(payload: ValidDiagramPayload): Result<Parsed
     // source and require the same family before publishing ValidDiagram.
     const reparsed = parseRegisteredMermaid(rebuilt.value.canonicalSource)
     if (!reparsed.ok || reparsed.value.kind !== rebuilt.value.kind) {
-      const detail = reparsed.ok
-        ? `serialized source reparsed as ${reparsed.value.kind}/${reparsed.value.body.kind}`
-        : reparsed.error.map(error => error.message).join('; ')
+      const detail = reparsed.ok ? `serialized source reparsed as ${reparsed.value.kind}/${reparsed.value.body.kind}` : reparsed.error.map(error => error.message).join('; ')
       return err([{ code: 'INVALID_PAYLOAD', message: `serialized payload is not a valid ${kind} diagram: ${detail}` }])
     }
     // Publish the parser-admitted snapshot, not the caller's retained graph.
@@ -305,9 +269,7 @@ function rebuildFromPayload(payload: ValidDiagramPayload): Result<ValidDiagram, 
     const sg = payload.body.graph
     // A flowchart payload with a missing/empty node map is malformed but not fatal: default to
     // an empty map. Exotic shapes (a non-tuple array) fall through to the boundary's error net.
-    const nodesMap = Array.isArray(sg?.nodes)
-      ? new Map(sg.nodes)
-      : (sg?.nodes ? new Map(Object.entries(sg.nodes)) : new Map())
+    const nodesMap = Array.isArray(sg?.nodes) ? new Map(sg.nodes) : sg?.nodes ? new Map(Object.entries(sg.nodes)) : new Map()
     body = {
       kind: 'flowchart',
       graph: {
@@ -342,7 +304,9 @@ function rebuildFromPayload(payload: ValidDiagramPayload): Result<ValidDiagram, 
   }
 
   const draft: ValidDiagram = {
-    kind: payload.kind as ValidDiagram['kind'], meta, body,
+    kind: payload.kind as ValidDiagram['kind'],
+    meta,
+    body,
     source: { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() },
     canonicalSource: '',
   }
@@ -408,7 +372,10 @@ function toLinkStyleMap(input: unknown): Map<number | 'default', Record<string, 
   const raw = toMap<Record<string, string>>(input)
   const out = new Map<number | 'default', Record<string, string>>()
   for (const [k, v] of raw) {
-    if (k === 'default') { out.set('default', v); continue }
+    if (k === 'default') {
+      out.set('default', v)
+      continue
+    }
     // Only accept non-negative integer keys; silently drop anything else
     // rather than producing NaN- or float-keyed entries that downstream
     // index lookups can never find.

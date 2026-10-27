@@ -1,3 +1,4 @@
+import { prepareDisplayText } from '../shared/display-text.ts'
 import { TerminalDocument } from './terminal-document.ts'
 import { parseEventModeling, eventLane, eventRelations } from '../eventmodeling/parser.ts'
 import { eventFrameText } from '../eventmodeling/layout.ts'
@@ -11,7 +12,9 @@ export function renderEventModelingTerminal(source: string, config: AsciiConfig,
   const body = parseEventModeling(source)
   const graph: MermaidGraph = {
     direction: 'LR',
-    nodes: new Map(body.frames.map(frame => [frame.id, { id: frame.id, label: `${eventLane(frame)}\n${eventFrameText(body, frame)}`, shape: 'rectangle' }])),
+    nodes: new Map(
+      body.frames.map(frame => [frame.id, { id: frame.id, label: `${eventLane(frame)}\n${eventFrameText(body, frame)}`, labelContent: { value: `${eventLane(frame)}\n${eventFrameText(body, frame)}`, prepared: prepareDisplayText(`${eventLane(frame)}\n${eventFrameText(body, frame)}`, 'literal') }, shape: 'rectangle' }]),
+    ),
     edges: eventRelations(body).map(edge => ({ id: edge.id, source: edge.from, target: edge.to, style: 'solid', hasArrowStart: false, hasArrowEnd: true })),
     subgraphs: [],
     classDefs: new Map(),

@@ -1,5 +1,8 @@
+import { recordSourceMapEnds } from './source-map-spans.ts'
+import { sourceLineStarts, sourcePointAt } from '../shared/source-spans.ts'
+import type { SourceMap, SourceLocation } from './types.ts'
 import type { FamilyOperations } from './family-registry.ts'
-import { parseEventModeling } from '../eventmodeling/parser.ts'
+import { eventNonportableIdentifiers, parseEventModeling } from '../eventmodeling/parser.ts'
 import { mutateEventModeling, serializeEventModeling } from '../eventmodeling/body.ts'
 import { err, ok } from './types.ts'
 export const EVENTMODELING_AGENT_HOOKS: FamilyOperations = {
@@ -7,6 +10,7 @@ export const EVENTMODELING_AGENT_HOOKS: FamilyOperations = {
     try {
       const body = parseEventModeling(ctx.source.familyBody)
       if (body.title === undefined && typeof ctx.source.frontmatter.title === 'string') body.title = ctx.source.frontmatter.title
+      if (eventNonportableIdentifiers(body).length) return ok({ kind: 'opaque', family: 'eventmodeling', source: ctx.opaqueSource })
       return ok(body)
     } catch {
       return ok({ kind: 'opaque', family: 'eventmodeling', source: ctx.opaqueSource })
@@ -14,10 +18,10 @@ export const EVENTMODELING_AGENT_HOOKS: FamilyOperations = {
   },
   serialize: body => {
     if (body.kind !== 'eventmodeling') throw Error('Expected Event Modeling body')
-    return serializeEventModeling(body)
+    return serializeEventModeling(body, false)
   },
   mutate: (body, op) => (body.kind === 'eventmodeling' ? mutateEventModeling(body, op as never) : err({ code: 'UNSUPPORTED_FAMILY', message: 'Unmodeled Event Modeling source remains preserved' })),
-  renderSource: () => 'serialized',
+  renderSource: body => (body.kind === 'eventmodeling' && eventNonportableIdentifiers(body).length ? 'canonical' : 'serialized'),
   extractLabels: source => {
     try {
       return parseEventModeling(source).frames.map(frame => ({ text: frame.entity, target: frame.id }))
@@ -26,17 +30,36 @@ export const EVENTMODELING_AGENT_HOOKS: FamilyOperations = {
     }
   },
   buildSourceMap: (body, source) => {
-    const map = { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }
+    const map: SourceMap = { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }
     if (body.kind !== 'eventmodeling') return map
-    source.split('\n').forEach((line, index) => {
-      const match = line.match(/^\s*(?:tf|timeframe|rf|resetframe)\s+(\d{1,3})\s+\w+\s+(\S+)/)
-      if (match) {
-        const at = { line: index + 1, col: line.indexOf(match[1]!) + 1 }
-        map.nodes.set(match[1], at)
-        map.labels.set(`node:${match[1]}`, at)
-      }
+    const ends = { nodes: new Map<string, SourceLocation>(), edges: new Map<string, SourceLocation>(), labels: new Map<string, SourceLocation>() }
+    const starts = sourceLineStarts(source)
+    parseEventModeling(source, event => {
+      const at = sourcePointAt(starts, event.start)
+      const end = sourcePointAt(starts, event.end)
+      map[event.kind].set(event.id, { line: at.line, col: at.col })
+      ends[event.kind].set(event.id, { line: end.line, col: end.col })
     })
+    recordSourceMapEnds(map, ends)
     return map
   },
-  verify: body => (body.kind === 'eventmodeling' && !body.frames.length ? [{ code: 'EMPTY_DIAGRAM' }] : []),
+  verify: body => {
+    if (body.kind !== 'eventmodeling') return []
+    return [
+      ...(!body.frames.length ? [{ code: 'EMPTY_DIAGRAM' as const }] : []),
+      ...eventNonportableIdentifiers(body).map(id => ({ code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'eventmodeling_keyword_identifier', message: `Identifier ${id} is read literally; pinned Mermaid reserves that keyword. Rename it before exporting or editing.` })),
+      ...(body.accessibilityTitle !== undefined || body.accessibilityDescription !== undefined ? [{ code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'eventmodeling_accessibility', message: 'Event Modeling accessibility is retained in native comments on export; pinned Mermaid does not expose these fields.' }] : []),
+    ]
+  },
+}
+
+export function eventModelingUnsupportedSyntaxWarnings(source: string): import('./types.ts').LayoutWarning[] {
+  const warnings: import('./types.ts').LayoutWarning[] = []
+  try {
+    parseEventModeling(source, event => {
+      if (event.kind === 'labels' && event.id === 'unsupported-gwt') warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax: 'eventmodeling_gwt_order', message: 'Pinned Mermaid requires one given clause, an optional when clause, then one then clause, in that order. Native reading retains the authored clause contents.' })
+      if (event.kind === 'labels' && event.id === 'title') warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax: 'eventmodeling_title_statement', message: 'In-body Event Modeling titles are a native read extension. Export uses portable YAML metadata; the pinned renderer does not paint that metadata title.' })
+    })
+  } catch { /* Opaque syntax has its own preservation diagnostic. */ }
+  return warnings
 }

@@ -3,7 +3,7 @@ import { diagramTitleBand, positionDiagramTitle, resolveRenderStyle } from '../s
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import type { RenderOptions } from '../types.ts'
 import type { EventFrame, EventModelingBody } from './types.ts'
-import { eventLane, eventRelations } from './parser.ts'
+import { eventLane, eventLanes, eventRelations } from './parser.ts'
 
 export function eventFrameText(body: EventModelingBody, identity: string | EventFrame): string {
   const frame = typeof identity === 'string' ? body.frames.find(value => value.id === identity)! : identity
@@ -13,11 +13,12 @@ export function eventFrameText(body: EventModelingBody, identity: string | Event
   const specs = body.specifications.filter(value => value.frame === id).flatMap(value => (['given', 'when', 'then'] as const).filter(key => value[key].length).map(key => `${key}: ${value[key].map(item => `${item.type} ${item.entity}`).join(', ')}`))
   return [`${frame.id} · ${frame.type}${frame.reset ? ' · reset' : ''}`, frame.entity, ...(data ? [data.text] : []), ...notes, ...specs].join('\n')
 }
-export function layoutEventModeling(body: EventModelingBody, options: Readonly<RenderOptions> = {}, styleFace?: Readonly<InternalStyleFace>) {
+export function layoutEventModeling(body: EventModelingBody, options: Readonly<RenderOptions> = {}, styleFace?: Readonly<InternalStyleFace>, rowHeight = 0) {
   const style = resolveRenderStyle(options, undefined, styleFace),
     pad = options.padding ?? 24
   const prepare = (text: string) => preparePixelText(text, { display: 'literal', fontFamily: options.font, fontSize: style.nodeLabelFontSize, fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing, transform: style.nodeTextTransform, maxWidth: 220 })
-  const lanes = [...new Set(body.frames.map(eventLane))].map((label, index) => ({ id: `lane:${index}`, label, block: prepare(label), x: pad, y: 0, width: 0, height: 0 }))
+  const prepareLane = (text: string) => preparePixelText(text, { display: 'literal', fontFamily: style.groupFont ?? options.font, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing, transform: style.groupTextTransform, maxWidth: 220 })
+  const lanes = eventLanes(body).map(lane => ({ ...lane, block: prepareLane(lane.label), x: pad, y: 0, width: 0, height: 0 }))
   const laneByLabel = new Map(lanes.map(lane => [lane.label, lane]))
   const titleBand = diagramTitleBand(body.title, style)
   const laneWidth = Math.max(140, ...lanes.map(lane => lane.block.width + 24))
@@ -27,18 +28,18 @@ export function layoutEventModeling(body: EventModelingBody, options: Readonly<R
   })
   const columnWidth = Math.max(160, ...nodes.map(node => node.width))
   const gap = Math.max(48, options.nodeSpacing ?? 48)
-  const width = pad * 2 + laneWidth + Math.max(1, nodes.length) * (columnWidth + gap)
+  const width = Math.max(pad * 2 + laneWidth + Math.max(1, nodes.length) * (columnWidth + gap), (titleBand?.width ?? 0) + 2 * pad)
   const members = new Map<string, typeof nodes>()
   for (const node of nodes) {
     const list = members.get(node.lane) ?? []
     list.push(node)
     members.set(node.lane, list)
   }
-  let y = pad + (titleBand?.height ?? 0)
+  let y = pad + (titleBand?.height ?? 0) + gap / 2 + Math.max(4, style.lineWidth)
   for (const lane of lanes) {
     const owned = members.get(lane.id) ?? []
     lane.y = y
-    lane.height = Math.max(lane.block.height + 32, ...owned.map(node => node.height + 48))
+    lane.height = Math.max(rowHeight, lane.block.height + 32, ...owned.map(node => node.height + 48))
     lane.width = width - 2 * pad
     for (const node of owned) {
       node.x = pad + laneWidth + node.index * (columnWidth + gap)

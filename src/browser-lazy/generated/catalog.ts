@@ -3,7 +3,7 @@
 import { normalizeFamilyDetectionLine } from '../../mermaid-source-wrapper.ts'
 import * as familyDetection from '../../shared/builtin-family-detection.ts'
 
-export const BROWSER_BUILTIN_FAMILY_IDS = Object.freeze(["flowchart","state","sequence","timeline","class","er","journey","architecture","xychart","pie","quadrant","gantt","mindmap","gitgraph","radar","sankey","c4","eventmodeling","packet","kanban","requirement","treemap","ishikawa","block"] as const)
+export const BROWSER_BUILTIN_FAMILY_IDS = Object.freeze(["flowchart","state","sequence","timeline","class","er","journey","architecture","xychart","pie","quadrant","gantt","mindmap","gitgraph","radar","sankey","c4","packet","kanban","requirement","treemap","ishikawa","block","eventmodeling"] as const)
 export type BrowserBuiltinFamilyId = (typeof BROWSER_BUILTIN_FAMILY_IDS)[number]
 
 const CATALOG = Object.freeze([
@@ -24,13 +24,13 @@ const CATALOG = Object.freeze([
   Object.freeze({ id: "radar", detect: familyDetection.detectsRadarFamily }),
   Object.freeze({ id: "sankey", detect: familyDetection.detectsSankeyFamily }),
   Object.freeze({ id: "c4", detect: familyDetection.detectsC4Family }),
-  Object.freeze({ id: "eventmodeling", detect: familyDetection.detectsEventmodelingFamily }),
   Object.freeze({ id: "packet", detect: familyDetection.detectsPacketFamily }),
   Object.freeze({ id: "kanban", detect: familyDetection.detectsKanbanFamily }),
   Object.freeze({ id: "requirement", detect: familyDetection.detectsRequirementFamily }),
   Object.freeze({ id: "treemap", detect: familyDetection.detectsTreemapFamily }),
   Object.freeze({ id: "ishikawa", detect: familyDetection.detectsIshikawaFamily }),
   Object.freeze({ id: "block", detect: familyDetection.detectsBlockFamily }),
+  Object.freeze({ id: "eventmodeling", detect: familyDetection.detectsEventmodelingFamily }),
 ])
 
 export function detectBrowserBuiltinFamilyFromFirstLine(firstLine: string): BrowserBuiltinFamilyId | null {

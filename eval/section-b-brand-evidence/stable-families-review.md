@@ -74,3 +74,10 @@ or displays. No rendering logic or test assertion changed for this refresh.
 ### PR #456 category and authored-label follow-up
 
 The incremental agent review inspected five native-size before/after pairs: the sentinel Pie role key and GitGraph in all four variants. Pie now binds its Pro key to the same role paint as the mark. GitGraph shows the authored merge label and opaque rails; its shorter canvas fits at a larger size. All other 87 cells are pixel-identical. The exact image digest and bounded approval are in `visual-approval.json`.
+
+
+## Event Modeling enrollment, 2026-10-27
+
+The Codex agent inspected the four new Event Modeling cells at native 520 × 380. UI, command and event frames occupy separate bands with directed connectors. Complete labels and lane headings remain readable in the sentinel, warm editorial, light technical and dark operations styles. These small fixtures establish style participation; they do not establish readability at arbitrary density.
+
+Pixel comparison against the previous approved sheet found changes only in the four formerly empty final cells. All 92 existing cells, headings and background are pixel-identical. The sheet remains 1560 × 12504. The approval record binds the reviewed PNG bytes and records this agent review, not human approval.

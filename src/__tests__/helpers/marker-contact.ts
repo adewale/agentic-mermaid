@@ -28,7 +28,7 @@ export function markerContact(family: string, marker: MarkerDescriptor): MarkerC
       if (marker.shape === 'arrow') return tip('surface-bound')
       if (marker.shape === 'circle' || marker.shape === 'cross') return { intent: 'surface-bound', attachment: 'envelope' }
       break
-    case 'architecture': case 'gantt': case 'ishikawa':
+    case 'eventmodeling': case 'architecture': case 'gantt': case 'ishikawa':
       if (marker.shape === 'arrow') return tip('surface-bound')
       break
     case 'class':

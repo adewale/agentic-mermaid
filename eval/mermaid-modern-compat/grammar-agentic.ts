@@ -1,3 +1,4 @@
+import { parseEventModeling } from '../../src/eventmodeling/parser.ts'
 import { knownBuiltinFamilies, parseRegisteredMermaid, serializeMermaid } from '../../src/agent/core.ts'
 import { architectureSourceLines, parseArchitectureDiagram } from '../../src/architecture/parser.ts'
 import { parseBlockDiagram } from '../../src/block/parser.ts'
@@ -95,6 +96,7 @@ function nativeParserForRequest(family: string, request: ReturnType<typeof resol
         return parseTimelineDiagram(lines, normalized.accessibility)
       case 'xychart':
         return parseXYChart(lines)
+      case 'eventmodeling': return withFrontmatterTitle(withAccessibilityFields(parseEventModeling(normalized.authoredFamilyBody ?? normalized.familyBody), normalized.accessibility), normalized.frontmatter)
       case 'packet': {
         const body = parsePacketDiagram(normalized.familyBody, normalized.accessibility)
         body.title ??= frontmatterTitle(normalized.frontmatter)

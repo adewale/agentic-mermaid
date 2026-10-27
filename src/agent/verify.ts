@@ -1,3 +1,4 @@
+import { eventModelingUnsupportedSyntaxWarnings } from './eventmodeling-body.ts'
 import { canonicalWrapperConfig } from './wrapper-portability.ts'
 import { PaintLayoutCertificationError } from '../scene/paint-certification.ts'
 import { deferredDependency } from '../layout/certification-error.ts'
@@ -466,6 +467,7 @@ function treemapNumericExtensionWarnings(d: ValidDiagram): LayoutWarning[] {
  * names the authored line. Given
  * the authored source, a rule may read a canonical line as authored. */
 const UPSTREAM_REJECTED_SYNTAX: Partial<Record<ValidDiagram['kind'], (canonicalSource: string, authoredLine?: (canonicalLine: number) => string | undefined) => LayoutWarning[]>> = {
+  eventmodeling: eventModelingUnsupportedSyntaxWarnings,
   architecture: architectureUnsupportedSyntaxWarnings,
   block: blockUnsupportedSyntaxWarnings,
   ishikawa: ishikawaUnsupportedSyntaxWarnings,

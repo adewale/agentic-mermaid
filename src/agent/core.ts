@@ -636,4 +636,4 @@ export { asBlock } from './types.ts'
 export type { BlockBody, BlockMutationOp, BlockValidDiagram } from './types.ts'
 
 export { asEventModeling } from './types.ts'
-export type { EventModelingBody, EventModelingMutationOp, EventModelingValidDiagram } from './types.ts'
+export type { EventModelingBody, EventModelingMutationOp, EventModelingValidDiagram, EventFrame, EventFrameType, EventData, EventSpecification } from './types.ts'

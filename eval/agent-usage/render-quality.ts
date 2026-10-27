@@ -34,6 +34,7 @@ export interface AgentUsageRenderQualitySummary {
 }
 
 const EXPECTED_VISIBLE_LABELS: Record<string, string[]> = {
+  eventmodeling_add_read_model: ['Cart.UI', 'Cart.AddItem', 'Cart.ItemAdded', 'Cart.Items', 'description: string'],
   cache_between_api_and_db: ['API', 'Cache', 'DB'],
   state_add_done_transition: ['Processing', 'done'],
   sequence_alt_add_message: ['hi', 'bye', 'yes'],

@@ -822,7 +822,7 @@ for (const source of [
 }
 
 for (const family of BUILTIN_FAMILY_METADATA) {
-  semantic(`independent label surfaces: ${family.id}`, 'FamilyDescriptor.example parsed by the independently installed reference DB', async () => {
+  semantic(`independent label surfaces: ${family.id}`, 'FamilyDescriptor.example through the independent reference DB, or explicitly tagged upstream Event Modeling parser AST', async () => {
     const reference = await accepted(family.example)
     const parsed = am.parseRegisteredMermaid(family.example)
     if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
