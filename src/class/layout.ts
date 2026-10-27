@@ -359,6 +359,21 @@ function projectClassElkPlacement(result: ElkNode, namespacePaths: ReadonlyMap<s
 }
 
 /** Project either measured placement through Class-owned card/marker rules. */
+/** Renderer class cards inherit default paint, then their one assigned class,
+ * then inline paint. The source grammar stores a single assigned class name;
+ * repeated assignments already resolve to the last one in the parser.
+ * Generated interface occurrences use their separate circle/label renderer. */
+function classNodePaint(diagram: ClassDiagram, cls: ClassNode): Record<string, string> | undefined {
+  const defaults = cls.isInterface ? undefined : diagram.classDefs.get('default'),
+    named = cls.className ? diagram.classDefs.get(cls.className) : undefined
+  if (!defaults && !named && !cls.inlineStyle) return undefined
+  return {
+    ...checkedAuthoredStyle(defaults, 'classDef default'),
+    ...checkedAuthoredStyle(named, `classDef ${cls.className}`),
+    ...checkedAuthoredStyle(cls.inlineStyle, `style ${cls.id}`),
+  }
+}
+
 function extractClassLayout(result: ClassPlacement, diagram: ClassDiagram, classSizes: ClassSizeMap, style: ResolvedRenderStyle, hierarchicalNamespaces: boolean, titles: ReadonlyMap<string, string> = new Map()): PositionedClassDiagram {
   const classLookup = new Map<string, ClassNode>()
   for (const cls of diagram.classes) classLookup.set(cls.id, cls)
@@ -391,7 +406,7 @@ function extractClassLayout(result: ClassPlacement, diagram: ClassDiagram, class
     }
     const cls = classLookup.get(child.id)
     if (cls) {
-      const size = classSizes.get(cls.id)!
+      const size = classSizes.get(cls.id)!, local = classNodePaint(diagram, cls)
       positionedClasses.push({
         id: cls.id,
         ...(cls.isInterface ? { isInterface: true } : {}),
@@ -410,11 +425,7 @@ function extractClassLayout(result: ClassPlacement, diagram: ClassDiagram, class
         ...(cls.className ? { className: cls.className } : {}),
         ...(cls.href ? { href: cls.href } : {}),
         ...(cls.tooltip !== undefined ? { tooltip: cls.tooltip } : {}),
-        ...((cls.className && diagram.classDefs.get(cls.className)) || cls.inlineStyle
-          ? {
-              inlineStyle: { ...(cls.className ? checkedAuthoredStyle(diagram.classDefs.get(cls.className), `classDef ${cls.className}`) : {}), ...checkedAuthoredStyle(cls.inlineStyle, `style ${cls.id}`) },
-            }
-          : {}),
+        ...(local ? { inlineStyle: local } : {}),
       })
     }
   }
@@ -639,8 +650,8 @@ export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions
         nativeClassSizes.set(id,{...old,width,height,methodHeight:old.methodHeight+(height-old.height)})
       }
       const markerNodeStrokes = diagram.classes.map(cls => {
-        const local = { ...(cls.className ? checkedAuthoredStyle(diagram.classDefs.get(cls.className), `classDef ${cls.className}`) : {}), ...checkedAuthoredStyle(cls.inlineStyle, `style ${cls.id}`) }
-        const parsed = Number.parseFloat(local['stroke-width'] ?? '')
+        const local = classNodePaint(diagram, cls)
+        const parsed = Number.parseFloat(local?.['stroke-width'] ?? '')
         return Number.isFinite(parsed) && parsed > 0 ? parsed : style.nodeLineWidth
       })
       const placed = measureRenderStage('agentic', () =>
