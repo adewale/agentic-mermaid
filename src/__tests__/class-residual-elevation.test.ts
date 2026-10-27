@@ -317,6 +317,8 @@ CEO --> Designer : oversees`
 describe('Class header bypass carrier ownership', () => {
   test.each(['vertical', 'horizontal'] as const)('keeps unrelated %s header detours visually distinct', async direction => {
     const { repairClassHeaderRoutes, classOwnedSurfaceViolations } = await import('../class/owned-surfaces.ts')
+    const { finalClassHeaderNumericSeed } = await import('../class/header-lanes.ts')
+    const { createClassMarkerAdmissionWork, chargeClassMarkerAdmissionWork } = await import('../class/marker-admission.ts')
     const { CLASS_STYLE_DEFAULTS } = await import('../class/layout.ts')
     const { resolveRenderStyle } = await import('../styles.ts')
     const card = (id: string, x: number, y: number) => ({ id, label: id, x, y, width: 120, height: 60, headerHeight: 40, attrHeight: 10, methodHeight: 10, attributes: [], methods: [] })
@@ -339,8 +341,15 @@ describe('Class header bypass carrier ownership', () => {
             { from: 'S2', to: 'T2', type: 'association', markerAt: 'to', points: [{ x: 280, y: 212 }, { x: 1220, y: 212 }, { x: 1220, y: 260 }, { x: 1390, y: 260 }, { x: 1390, y: 212 }, { x: 1400, y: 212 }] },
           ],
         }
-    const before = structuredClone(p), style = resolveRenderStyle({}, CLASS_STYLE_DEFAULTS)
-    repairClassHeaderRoutes(p, style)
+    const before = structuredClone(p), style = resolveRenderStyle({}, CLASS_STYLE_DEFAULTS), work = createClassMarkerAdmissionWork(), capture = {}
+    repairClassHeaderRoutes(p, style, work, capture)
+    const seed = finalClassHeaderNumericSeed(capture, p.relationships, style, () => chargeClassMarkerAdmissionWork(work))!
+    expect(seed).toBeDefined()
+    for (let i = 0; i < p.relationships.length; i++) {
+      expect(seed.routes[i]!.raw).toEqual(p.relationships[i]!.points)
+      expect(seed.routes[i]!.raw).not.toBe(p.relationships[i]!.points)
+    }
+    expect(seed.routes.some((route, i) => route.raw.length !== before.relationships[i]!.points.length)).toBe(true)
     expect(classOwnedSurfaceViolations(p, style)).toEqual([])
     const [one, two] = p.relationships
     let parallelInk = false
@@ -453,5 +462,86 @@ describe('final served Class sharp contact admission', () => {
     expect(work.exhausted).toBe(true)
     expect(work.operations).toBe(MAX_OCCLUSION_OPERATIONS)
     expect(scene).toEqual(before)
+  })
+})
+
+
+describe('final Class header numeric snapshots', () => {
+  async function fixture() {
+    const api = await import('../class/header-lanes.ts')
+    const { CLASS_STYLE_DEFAULTS } = await import('../class/layout.ts')
+    const { resolveRenderStyle } = await import('../styles.ts')
+    const style = { ...resolveRenderStyle({}, CLASS_STYLE_DEFAULTS), lineWidth: 1, edgeBendRadius: 0 }
+    const relationships: import('../class/types.ts').PositionedClassRelationship[] = [
+      { from: 'A', to: 'B', type: 'link-solid', markerAt: 'none', points: [{ x: 10, y: 30 }, { x: 90, y: 30 }] },
+      { from: 'C', to: 'D', type: 'link-solid', markerAt: 'none', points: [{ x: 50, y: 10 }, { x: 50, y: 90 }] },
+    ]
+    const candidates = api.classHeaderDetourCandidates({ header: { x: 40, y: 20, width: 20, height: 20 }, a: relationships[0]!.points[0]!, b: relationships[0]!.points[1]!, owner: 0, relationships, width: 120, height: 120, style, gap: 4, escape: 8, charge: () => true })
+    const context = candidates.next().value!.peerContext
+    candidates.return(undefined)
+    const capture = {}
+    api.captureClassHeaderNumericContext(capture, context)
+    return { api, style, relationships, context, capture }
+  }
+  const tuples = (entries: readonly { key: number; piece: { owner: number; segment: number } }[]) => entries.map(entry => [entry.key, entry.piece.owner, entry.piece.segment])
+
+  test('borrows unchanged prepared numeric rows and consumes the request-local capture', async () => {
+    const { api, style, relationships, context, capture } = await fixture()
+    const seed = api.finalClassHeaderNumericSeed(capture, relationships, style, () => true)!
+    expect(seed.routes).toBe(context.routes)
+    expect(seed.horizontal).toBe(context.horizontal)
+    expect(seed.verticalEnds).toBe(context.verticalEnds)
+    expect('pieces' in seed).toBe(false)
+    expect('half' in seed).toBe(false)
+    expect('peerProof' in seed).toBe(false)
+    expect(tuples(seed.horizontal)).toEqual([[30, 0, 0]])
+    expect(tuples(seed.vertical)).toEqual([[50, 1, 0]])
+    expect(tuples(seed.horizontalEnds)).toEqual([[10, 0, 0], [90, 0, 0]])
+    expect(tuples(seed.verticalEnds)).toEqual([[10, 1, 0], [90, 1, 0]])
+    expect(api.finalClassHeaderNumericSeed(capture, relationships, style, () => true)).toBeUndefined()
+  })
+  test('refreshes in-place coordinates with exact canonical spelling and complete sorted endpoint lists', async () => {
+    const { api, style, relationships, context, capture } = await fixture()
+    relationships[1]!.points[0] = { x: 60.12345678901234, y: 15 }
+    Object.assign(relationships[1]!.points[1]!, { x: 60.12345678901234, y: 95 })
+    const seed = api.finalClassHeaderNumericSeed(capture, relationships, style, () => true)!
+    expect(seed.routes[0]).toBe(context.routes[0])
+    expect(seed.routes[1]!.raw).toEqual([{ x: 60.12345678901234, y: 15 }, { x: 60.12345678901234, y: 95 }])
+    expect(seed.routes[1]!.points).toEqual([{ x: 60.123456789, y: 15 }, { x: 60.123456789, y: 95 }])
+    expect(tuples(seed.vertical)).toEqual([[60.123456789, 1, 0]])
+    expect(tuples(seed.verticalEnds)).toEqual([[15, 1, 0], [95, 1, 0]])
+    expect(seed.horizontal[0]).toBe(context.horizontal[0])
+    relationships[1]!.points[0]!.x = 70
+    expect(seed.routes[1]!.raw[0]!.x).toBe(60.12345678901234)
+    expect(seed.routes[1]!.points[0]!.x).toBe(60.123456789)
+  })
+  test('refreshes a replaced route with changed arity and interleaved axis entries', async () => {
+    const { api, style, relationships, capture } = await fixture()
+    relationships[0]!.points = [{ x: 10, y: 30 }, { x: 70, y: 30 }, { x: 70, y: 80 }]
+    const seed = api.finalClassHeaderNumericSeed(capture, relationships, style, () => true)!
+    expect(tuples(seed.horizontal)).toEqual([[30, 0, 0]])
+    expect(tuples(seed.vertical)).toEqual([[50, 1, 0], [70, 0, 1]])
+    expect(tuples(seed.horizontalEnds)).toEqual([[10, 0, 0], [70, 0, 0]])
+    expect(tuples(seed.verticalEnds)).toEqual([[10, 1, 0], [30, 0, 1], [80, 0, 1], [90, 1, 0]])
+    expect(seed.routes[0]!.raw).not.toBe(relationships[0]!.points)
+    relationships[0]!.points[0]!.x = 20
+    expect(seed.routes[0]!.points[0]!.x).toBe(10)
+  })
+  test.each(['identity', 'stroke', 'radius', 'count'] as const)('declines numeric reuse after %s dependency changes', async kind => {
+    const { api, style, relationships, capture } = await fixture()
+    if (kind === 'identity') relationships[0]!.from = 'changed'
+    if (kind === 'stroke') style.lineWidth = 2
+    if (kind === 'radius') style.edgeBendRadius = 8
+    if (kind === 'count') relationships.pop()
+    expect(api.finalClassHeaderNumericSeed(capture, relationships, style, () => true)).toBeUndefined()
+    expect(api.finalClassHeaderNumericSeed(capture, relationships, { ...style, lineWidth: 1, edgeBendRadius: 0 }, () => true)).toBeUndefined()
+  })
+  test('charges newly formatted rows before publication and never caches an exhausted partial refresh', async () => {
+    const { api, style, relationships, capture } = await fixture()
+    for (const point of relationships[1]!.points) point.x = 60.12345678901234
+    let remaining = 250
+    expect(() => api.finalClassHeaderNumericSeed(capture, relationships, style, () => --remaining >= 0)).toThrow('work limit')
+    expect(remaining).toBeLessThan(0)
+    expect(api.finalClassHeaderNumericSeed(capture, relationships, style, () => true)).toBeUndefined()
   })
 })

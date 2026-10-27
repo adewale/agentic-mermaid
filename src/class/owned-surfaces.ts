@@ -7,7 +7,7 @@ import { formatSvgNumber } from '../shared/svg-number.ts'
 import { DIAGRAM_TITLE_GAP, diagramTitleBand, type ResolvedRenderStyle } from '../styles.ts'
 import type { Point } from '../types.ts'
 import { type ClassMarkerAdmissionWork, chargeClassMarkerAdmissionWork, createClassMarkerAdmissionWork } from './marker-admission.ts'
-import { type ClassHeaderPeerContext, classHeaderDetourCandidates } from './header-lanes.ts'
+import { type ClassHeaderPeerContext, type ClassHeaderNumericCapture, captureClassHeaderNumericContext, classHeaderDetourCandidates } from './header-lanes.ts'
 import { type ClassMarkerPiece, classCaptionAnchor, classCardinalityAnchor, classMarkerPieces, classMarkerResources, getMarkerDefId, RELATION_LABEL_HALO_WIDTH, RELATION_LABEL_OFFSET_Y } from './relationship-paint.ts'
 import type { PositionedClassDiagram, PositionedClassNote } from './types.ts'
 export interface ClassSurfaceBox {
@@ -421,13 +421,21 @@ function simpleClassRoute(route: readonly Point[]): boolean {
   return true
 }
 /** Test every retained band; endpoint ancestry grants no header exemption. */
-export function repairClassHeaderRoutes(diagram: PositionedClassDiagram, style: ResolvedRenderStyle, work?: ClassMarkerAdmissionWork): Set<number> {
+export function repairClassHeaderRoutes(diagram: PositionedClassDiagram, style: ResolvedRenderStyle, work?: ClassMarkerAdmissionWork, numeric?: ClassHeaderNumericCapture): Set<number> {
   const changed = new Set<number>()
-  if (!diagram.namespaces.length) return changed
+  if (!diagram.namespaces.length) {
+    if (numeric) {
+      const ledger = work ?? createClassMarkerAdmissionWork()
+      if (!chargeClassMarkerAdmissionWork(ledger)) throw new LayoutCertificationError([{strategy:'class-header-lanes',violations:['Class header proof work limit']}])
+      captureClassHeaderNumericContext(numeric, undefined)
+    }
+    return changed
+  }
   const ledger = work ?? createClassMarkerAdmissionWork(),
     charge = () => chargeClassMarkerAdmissionWork(ledger),
-    pay = () => { if (!charge()) throw new LayoutCertificationError([{strategy:'class-header-lanes',violations:['Class header proof work limit']}]) },
-    headers = diagram.namespaces.map(ns => { pay(); return expanded({ x: ns.x, y: ns.y, width: ns.width, height: ns.headerHeight }, style.lineWidth / 2) }),
+    pay = () => { if (!charge()) throw new LayoutCertificationError([{strategy:'class-header-lanes',violations:['Class header proof work limit']}]) }
+  if (numeric) { pay(); captureClassHeaderNumericContext(numeric, undefined) }
+  const headers = diagram.namespaces.map(ns => { pay(); return expanded({ x: ns.x, y: ns.y, width: ns.width, height: ns.headerHeight }, style.lineWidth / 2) }),
     paint = classRelationshipPaintBoxes(diagram, style, true, pay, false),
     cards = diagram.classes.filter(c => { pay(); return !c.isInterface }),
     furniture: ClassSurfaceBox[] = []
@@ -497,6 +505,9 @@ export function repairClassHeaderRoutes(diagram: PositionedClassDiagram, style: 
       }
     }
   }
+  // Every candidate iterator has closed before this data-only capture. The
+  // final accepted owner may still need the accessor's exact raw refresh.
+  if (numeric) { pay(); captureClassHeaderNumericContext(numeric, peerContext) }
   return changed
 }
 /** Move only an unsafe unauthored annotation seat; preserve every relationship. */

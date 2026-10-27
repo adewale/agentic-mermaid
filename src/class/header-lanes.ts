@@ -1,5 +1,6 @@
 import { LayoutCertificationError } from '../layout/certification-error.ts'
 import { formatSvgNumber } from '../shared/svg-number.ts'
+import { projectMeasuredRoutePoint } from '../layout/measured-route-safety.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
 import type { Point } from '../types.ts'
 import type { PositionedClassDiagram, PositionedClassRelationship } from './types.ts'
@@ -23,6 +24,26 @@ export interface ClassHeaderPeerContext {
   readonly cornerHalfY: number
   readonly half: number
   readonly radius: number
+}
+// Request-local opaque data holder. Candidate capabilities/leases are never
+// stored here. The numeric view grants no stroke-box or old-proof authority.
+const numericContext = Symbol('Class header numeric snapshot')
+export interface ClassHeaderNumericCapture {
+  [numericContext]?: ClassHeaderPeerContext
+}
+/** Borrowed entries may carry private header fields; consumers use only these
+ * numeric keys/ordinals and establish fresh exact physical predicates. */
+export interface ClassHeaderNumericSeed {
+  readonly routes: readonly { readonly raw: readonly Point[]; readonly points: readonly Point[] }[]
+  readonly horizontal: readonly { readonly key: number; readonly piece: { readonly owner: number; readonly segment: number } }[]
+  readonly vertical: readonly { readonly key: number; readonly piece: { readonly owner: number; readonly segment: number } }[]
+  readonly horizontalEnds: readonly { readonly key: number; readonly piece: { readonly owner: number; readonly segment: number } }[]
+  readonly verticalEnds: readonly { readonly key: number; readonly piece: { readonly owner: number; readonly segment: number } }[]
+}
+/** Caller prepays the single holder write. The context contains copied numeric
+ * data only; the candidate iterator's proof and charge callback stay private. */
+export function captureClassHeaderNumericContext(capture: ClassHeaderNumericCapture, context: ClassHeaderPeerContext | undefined): void {
+  capture[numericContext] = context
 }
 export interface ClassHeaderLaneOptions {
   header: { x: number; y: number; width: number; height: number }
@@ -230,6 +251,92 @@ function refresh(c: ClassHeaderPeerContext, relationships: readonly PositionedCl
     horizontalEnds: merge(c.horizontalEnds, delta.horizontalEnds), verticalEnds: merge(c.verticalEnds, delta.verticalEnds),
     cornersX: merge(c.cornersX, delta.cornersX), cornersY: merge(c.cornersY, delta.cornersY),
     cornerHalfX: Math.max(c.cornerHalfX, delta.cornerHalfX), cornerHalfY: Math.max(c.cornerHalfY, delta.cornerHalfY) }
+}
+/** Refresh after all note/contact/annotation writes. Unchanged copied rows
+ * and sorted axis entries are borrowed; changed rows pay the shared canonical
+ * projection envelope. Stroke boxes and old contact outcomes are never used. */
+export function finalClassHeaderNumericSeed(capture: ClassHeaderNumericCapture, relationships: readonly PositionedClassRelationship[], style: ResolvedRenderStyle, charge: Charge): ClassHeaderNumericSeed | undefined {
+  tick(charge)
+  const before = capture[numericContext]
+  if (!before) return undefined
+  tick(charge)
+  capture[numericContext] = undefined // One final traversal, never another revision.
+  tick(charge) // The local debit callback, before construction.
+  const pay = (units: number): void => { for (let i = 0; i < units; i++) tick(charge) }
+  if (style.edgeBendRadius !== 0 || before.radius !== 0 || before.routes.length !== relationships.length) return undefined
+  let half: number
+  if (Number.isSafeInteger(style.lineWidth)) { pay(2); half = style.lineWidth / 2 }
+  else { pay(133); half = written(style.lineWidth) / 2 }
+  if (before.half !== half) return undefined
+  let changed: Set<number> | undefined
+  for (let owner = 0; owner < relationships.length; owner++) {
+    tick(charge)
+    const live = relationships[owner]!, old = before.routes[owner]!
+    if (live.from !== old.from || live.to !== old.to || (classRelationshipLineStyle(live) === 'dashed') !== old.dashed) return undefined
+    let equal = live.points.length === old.raw.length
+    if (equal) for (let i = 0; i < live.points.length; i++) {
+      tick(charge)
+      if (!same(live.points[i]!, old.raw[i]!)) { equal = false; break }
+    }
+    if (!equal) {
+      if (!changed) { tick(charge); changed = new Set() }
+      tick(charge); changed.add(owner)
+    }
+  }
+  if (!changed) {
+    pay(6)
+    return { routes: before.routes, horizontal: before.horizontal, vertical: before.vertical, horizontalEnds: before.horizontalEnds, verticalEnds: before.verticalEnds }
+  }
+  type NumericRoute = ClassHeaderNumericSeed['routes'][number]
+  type NumericEntry = ClassHeaderNumericSeed['horizontal'][number]
+  pay(before.routes.length + 5) // Copied row references and four new-entry arrays.
+  const routes: NumericRoute[] = before.routes.slice(), horizontal: NumericEntry[] = [], vertical: NumericEntry[] = [], horizontalEnds: NumericEntry[] = [], verticalEnds: NumericEntry[] = []
+  for (const owner of changed) {
+    tick(charge)
+    const live = relationships[owner]!
+    pay(5) // Two row headers and a two-field route record.
+    const raw: Point[] = [], points: Point[] = []
+    for (const p of live.points) {
+      tick(charge)
+      const projected = projectMeasuredRoutePoint(p, pay, pay)
+      if (!projected) return undefined
+      // Safe integer projection may return the live point; retain an owned
+      // copy, just as the original header context does for every coordinate.
+      pay(projected === p ? 8 : 5)
+      raw.push({ x: p.x, y: p.y })
+      points.push(projected === p ? { x: p.x, y: p.y } : projected)
+    }
+    routes[owner] = { raw, points }
+    for (let i = 1; i < points.length; i++) {
+      tick(charge)
+      const a = points[i - 1]!, b = points[i]!
+      if (same(a, b) || a.x !== b.x && a.y !== b.y) return undefined
+      pay(15) // One numeric piece, three entry records and three list references.
+      const piece = { owner, segment: i - 1 }, h = a.y === b.y
+      ;(h ? horizontal : vertical).push({ key: h ? a.y : a.x, piece })
+      ;(h ? horizontalEnds : verticalEnds).push({ key: h ? a.x : a.y, piece }, { key: h ? b.x : b.y, piece })
+    }
+  }
+  tick(charge) // One comparator shared by both actual sorts and merges.
+  const compare = (a: NumericEntry, b: NumericEntry): number => { tick(charge); return a.key - b.key || a.piece.owner - b.piece.owner || a.piece.segment - b.piece.segment }
+  horizontal.sort(compare); vertical.sort(compare); horizontalEnds.sort(compare); verticalEnds.sort(compare)
+  tick(charge)
+  const merge = (old: readonly NumericEntry[], added: readonly NumericEntry[]): NumericEntry[] => {
+    tick(charge)
+    const entries: NumericEntry[] = []
+    let i = 0
+    for (const entry of old) {
+      tick(charge)
+      if (changed.has(entry.piece.owner)) continue
+      while (i < added.length && compare(added[i]!, entry) <= 0) { tick(charge); entries.push(added[i++]!) }
+      tick(charge); entries.push(entry)
+    }
+    for (; i < added.length; i++) { pay(2); entries.push(added[i]!) }
+    return entries
+  }
+  const h = merge(before.horizontal, horizontal), v = merge(before.vertical, vertical), he = merge(before.horizontalEnds, horizontalEnds), ve = merge(before.verticalEnds, verticalEnds)
+  pay(6)
+  return { routes, horizontal: h, vertical: v, horizontalEnds: he, verticalEnds: ve }
 }
 /** Continuous strips are sufficient reservations for dashed carriers too. They
  * prevent two unrelated dashed meanings from interleaving into one solid run. */
