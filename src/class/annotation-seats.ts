@@ -26,8 +26,8 @@ const centerOf = (point: Point, role: Role): Point => ({ x: written(point.x), y:
 /** Seat actual Class annotations, preserving the intentional shaft/halo policy.
  * Measured rows plus the real halo are sufficient clearances, not claims that
  * every row-box overlap is actual glyph ink. No route or contact is changed. */
-export function repairClassAnnotationSeats(diagram: PositionedClassDiagram, style: ResolvedRenderStyle, ledger: ClassMarkerAdmissionWork): void {
-  if (!diagram.relationships.some(r => r.markerAt !== 'none') || !diagram.relationships.some(r => r.label || r.fromCardinality || r.toCardinality)) return
+export function repairClassAnnotationSeats(diagram: PositionedClassDiagram, style: ResolvedRenderStyle, ledger: ClassMarkerAdmissionWork, changed?: ReadonlySet<number>): void {
+  if ((!diagram.relationships.some(r => r.markerAt !== 'none') && !changed?.size) || !diagram.relationships.some(r => r.label || r.fromCardinality || r.toCardinality)) return
   const charge = () => {
     if (!chargeClassMarkerAdmissionWork(ledger)) throw new LayoutCertificationError([{ strategy: 'class-owned-annotation', violations: ['Class annotation proof work limit'] }])
   }
@@ -77,6 +77,15 @@ export function repairClassAnnotationSeats(diagram: PositionedClassDiagram, styl
   const clearStatic = (seat: Seat, center: Point): boolean => {
     charge()
     const box = row(seat, center)
+    if (seat.role === 'caption' && changed?.has(seat.edge)) {
+      const near = {x:box.x-8,y:box.y-8,width:box.width+16,height:box.height+16}
+      let associated=false
+      for(let i=1;i<seat.rel.points.length;i++) {
+        charge()
+        if(classSegmentEntersBox(seat.rel.points[i-1]!,seat.rel.points[i]!,near)){associated=true;break}
+      }
+      if(!associated)return false
+    }
     if (box.x < 0 || box.y < 0 || box.x + box.width > diagram.width || box.y + box.height > diagram.height) return false
     for (const obstacle of boxes) {
       charge()

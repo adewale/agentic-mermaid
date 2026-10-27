@@ -4,8 +4,10 @@ import { connectorMarkerPaintRegions } from '../scene/bounds.ts'
 import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
 import { connector } from '../scene/marks.ts'
 import { formatSvgNumber } from '../shared/svg-number.ts'
-import type { ResolvedRenderStyle } from '../styles.ts'
+import { DIAGRAM_TITLE_GAP, diagramTitleBand, type ResolvedRenderStyle } from '../styles.ts'
 import type { Point } from '../types.ts'
+import { type ClassMarkerAdmissionWork, chargeClassMarkerAdmissionWork, createClassMarkerAdmissionWork } from './marker-admission.ts'
+import { type ClassHeaderPeerContext, classHeaderDetourCandidates } from './header-lanes.ts'
 import { type ClassMarkerPiece, classCaptionAnchor, classCardinalityAnchor, classMarkerPieces, classMarkerResources, getMarkerDefId, RELATION_LABEL_HALO_WIDTH, RELATION_LABEL_OFFSET_Y } from './relationship-paint.ts'
 import type { PositionedClassDiagram, PositionedClassNote } from './types.ts'
 export interface ClassSurfaceBox {
@@ -22,6 +24,9 @@ const emittedPoint = (p: Point): Point => ({ x: emitted(p.x), y: emitted(p.y) })
 // Compare written decimal coordinates to a written rectangle face without
 // treating binary addition's one-ULP tail as physical interior or clearance.
 function compareSvgSum(value: number, a: number, b: number): number {
+  value = emitted(value)
+  a = emitted(a)
+  b = emitted(b)
   const sum = a + b,
     difference = value - sum
   if (Math.abs(difference) > 8 * Number.EPSILON * Math.max(1, Math.abs(value), Math.abs(a), Math.abs(b))) return Math.sign(difference)
@@ -37,6 +42,19 @@ function compareSvgSum(value: number, a: number, b: number): number {
 }
 
 export { compareSvgSum as compareClassSvgSum }
+
+/** A face is the exact sum of the two SVG rectangle fields, not a separately
+ * rounded long-tail port. Refuse a sum that the existing writer cannot retain. */
+export function addClassSvgNumbers(a: number, b: number): number | undefined {
+  const parts = [a, b].map(v => {
+    const m = /^(-?)(\d+)(?:\.(\d+))?(?:e([+-]?\d+))?$/.exec(formatSvgNumber(emitted(v)))!
+    return { n: BigInt(m[1]! + m[2]! + (m[3] ?? '')), e: Number(m[4] ?? 0) - (m[3]?.length ?? 0) }
+  })
+  const scale = Math.min(...parts.map(p => p.e)),
+    sum = parts.reduce((n, p) => n + p.n * 10n ** BigInt(p.e - scale), 0n),
+    value = Number(`${sum}e${scale}`)
+  return Number.isFinite(value) && compareSvgSum(value, a, b) === 0 ? value : undefined
+}
 
 const emittedBox = (b: ClassSurfaceBox): ClassSurfaceBox => {
   if (b.width < 0 || b.height < 0 || !Number.isFinite(b.x + b.width) || !Number.isFinite(b.y + b.height)) throw new LayoutCertificationError([{ strategy: 'class-owned-surfaces', violations: ['Invalid retained Class surface'] }])
@@ -219,14 +237,15 @@ export function classNewMiterEntersMarker(route: readonly Point[], original: rea
 }
 /** A quadratic lies in its emitted control hull; overlapping hulls are unproved
  * candidates, not claims that every bounding-box overlap is painted ink. */
-export function classNewRoundedCornersClear(route: readonly Point[], original: readonly Point[], boxes: readonly ClassSurfaceBox[], markers: readonly ClassMarkerPiece[][], style: ResolvedRenderStyle): boolean {
+export function classNewRoundedCornersClear(route: readonly Point[], original: readonly Point[], boxes: readonly ClassSurfaceBox[], markers: readonly ClassMarkerPiece[][], style: ResolvedRenderStyle, charge?: () => void): boolean {
   if (!(style.edgeBendRadius > 0)) return true
-  const half = style.lineWidth / 2
+  const half = emitted(style.lineWidth) / 2
   for (let i = 1; i + 1 < route.length; i++) {
+    charge?.()
     const a = route[i - 1]!,
       p = route[i]!,
       b = route[i + 1]!
-    if (original.some((q, j) => j > 0 && j + 1 < original.length && q.x === p.x && q.y === p.y && original[j - 1]!.x === a.x && original[j - 1]!.y === a.y && original[j + 1]!.x === b.x && original[j + 1]!.y === b.y)) continue
+    if (original.some((q, j) => {charge?.();return j > 0 && j + 1 < original.length && q.x === p.x && q.y === p.y && original[j - 1]!.x === a.x && original[j - 1]!.y === a.y && original[j + 1]!.x === b.x && original[j + 1]!.y === b.y})) continue
     const projection = projectRoundedConnectorPath([a, p, b], style.edgeBendRadius, { metric: 'manhattan' })
     if (projection.geometry.kind !== 'path') return false
     const match = /L([^LQ]+)Q([^LQ]+)/.exec(projection.geometry.d)
@@ -234,15 +253,15 @@ export function classNewRoundedCornersClear(route: readonly Point[], original: r
     const values = (match[1] + ' ' + match[2]).trim().split(/[ ,]+/).map(Number)
     if (values.length !== 6 || values.some(v => !Number.isFinite(v))) return false
     const hull: Point[] = [
-      { x: values[0]!, y: values[1]! },
-      { x: values[2]!, y: values[3]! },
-      { x: values[4]!, y: values[5]! },
+      { x: emitted(values[0]!), y: emitted(values[1]!) },
+      { x: emitted(values[2]!), y: emitted(values[3]!) },
+      { x: emitted(values[4]!), y: emitted(values[5]!) },
     ]
-    if (boxes.some(box => polygonBox(hull, expanded(emittedBox(box), half)))) return false
+    if (boxes.some(box => {charge?.();return polygonBox(hull, expanded(emittedBox(box), half),charge)})) return false
     const xs = hull.map(q => q.x),
       ys = hull.map(q => q.y),
       bounds = { x: Math.min(...xs) - half, y: Math.min(...ys) - half, width: Math.max(...xs) - Math.min(...xs) + 2 * half, height: Math.max(...ys) - Math.min(...ys) + 2 * half }
-    if (markers.some(pieces => classMarkerEntersBox(pieces, bounds))) return false
+    if (markers.some(pieces => {charge?.();return classMarkerEntersBox(pieces, bounds,charge)})) return false
   }
   return true
 }
@@ -378,143 +397,170 @@ function simpleClassRoute(route: readonly Point[]): boolean {
   return true
 }
 /** Test every retained band; endpoint ancestry grants no header exemption. */
-export function repairClassHeaderRoutes(diagram: PositionedClassDiagram, style: ResolvedRenderStyle): void {
-  const headers = diagram.namespaces.map(ns => ({ x: ns.x, y: ns.y, width: ns.width, height: ns.headerHeight })),
-    paint = classRelationshipPaintBoxes(diagram, style)
+export function repairClassHeaderRoutes(diagram: PositionedClassDiagram, style: ResolvedRenderStyle, work?: ClassMarkerAdmissionWork): Set<number> {
+  const changed = new Set<number>()
+  if (!diagram.namespaces.length) return changed
+  const ledger = work ?? createClassMarkerAdmissionWork(),
+    charge = () => chargeClassMarkerAdmissionWork(ledger),
+    pay = () => { if (!charge()) throw new LayoutCertificationError([{strategy:'class-header-lanes',violations:['Class header proof work limit']}]) },
+    headers = diagram.namespaces.map(ns => { pay(); return expanded({ x: ns.x, y: ns.y, width: ns.width, height: ns.headerHeight }, style.lineWidth / 2) }),
+    paint = classRelationshipPaintBoxes(diagram, style, true, pay, false),
+    cards = diagram.classes.filter(c => { pay(); return !c.isInterface }),
+    furniture: ClassSurfaceBox[] = []
+  let titleFloor = 0
+  for (const node of diagram.classes) {
+    pay()
+    if (!node.isInterface) continue
+    if (node.interfaceBox) furniture.push(node.interfaceBox)
+    const block = node.labelBlock
+    if (block) furniture.push({ x: node.x + (node.width - block.width) / 2, y: node.y + node.headerHeight / 2 - block.height / 2, width: block.width, height: block.height })
+  }
+  if (diagram.title) {
+    pay()
+    const title=diagram.title,block=title.block??diagramTitleBand(title.text,style)?.block
+    if(block){furniture.push({x:title.x-block.width/2,y:title.y-block.height/2,width:block.width,height:block.height});titleFloor=title.y+block.height/2+style.lineWidth/2}
+  }
+  // Relationship annotations and unauthored notes are finalized AFTER routes.
+  // They cannot veto immutable geometry using stale, initially unsafe seats.
+  const localBoxes = [...cards.map(c=>{pay();return expanded(c,style.lineWidth/2)}), ...headers, ...furniture.map(c=>{pay();return expanded(c,style.lineWidth/2)})]
+  let peerContext: ClassHeaderPeerContext | undefined
   for (let ri = 0; ri < diagram.relationships.length; ri++) {
+    pay()
     const relation = diagram.relationships[ri]!
     for (const header of headers) {
+      pay()
       if (!routeEnters(relation.points, header)) continue
       for (let segment = 1; segment < relation.points.length; segment++) {
-        const a = relation.points[segment - 1]!,
-          b = relation.points[segment]!
+        pay()
+        const a = relation.points[segment - 1]!, b = relation.points[segment]!
         if (!classSegmentEntersBox(a, b, header)) continue
-        const vertical = emitted(a.x) === emitted(b.x),
-          horizontal = emitted(a.y) === emitted(b.y)
-        if (!vertical && !horizontal) continue
-        const main = vertical ? 'y' : 'x',
-          cross = vertical ? 'x' : 'y',
-          gap = Math.max(HEADER_DETOUR_GAP, style.lineWidth / 2),
-          low = header[main] - gap,
-          high = header[main] + (vertical ? header.height : header.width) + gap
-        if (Math.min(a[main], b[main]) >= low || Math.max(a[main], b[main]) <= high) continue
-        const before = { ...a, [main]: a[main] < b[main] ? low : high },
-          after = { ...b, [main]: a[main] < b[main] ? high : low }
-        const escape = Math.max(HEADER_ESCAPE_GAP, style.edgeBendRadius + style.lineWidth / 2),
-          lanes = [header[cross] - escape, header[cross] + (vertical ? header.width : header.height) + escape].sort((x, y) => Math.abs(x - a[cross]) - Math.abs(y - a[cross]))
-        for (const lane of lanes) {
-          const detour = [before, { ...before, [cross]: lane }, { ...after, [cross]: lane }, after]
-          if (detour.some(p => p.x < 0 || p.y < 0 || p.x > diagram.width || p.y > diagram.height)) continue
-          const boxes = [...diagram.classes.filter(c => !c.isInterface), ...headers, ...diagram.notes, ...paint.filter(p => p.edge !== ri && p.kind !== 'marker').map(p => p.box)]
-          if (boxes.some(box => routeEnters(detour, box)) || paint.some(p => p.edge !== ri && p.kind === 'marker' && detour.some((point, i) => i > 0 && classCarrierEntersMarker(detour[i - 1]!, point, p.pieces ?? [], style.lineWidth)))) continue
+        const gap = Math.max(HEADER_DETOUR_GAP, style.lineWidth / 2),
+          escape = Math.max(HEADER_ESCAPE_GAP, style.edgeBendRadius + style.lineWidth / 2)
+        let accepted: {points:Point[];length:number} | undefined
+        for (const candidate of classHeaderDetourCandidates({header,a,b,owner:ri,relationships:diagram.relationships,width:diagram.width,height:diagram.height,style,gap,escape,charge,peerContext})) {
+          peerContext = candidate.peerContext
+          pay()
+          const detour = candidate.points
+          if(detour.some(p=>{pay();return p.y<titleFloor}))continue
+          if (localBoxes.some(box => { pay(); return routeEnters(detour, box) }) || paint.some(p => { pay(); return p.kind === 'marker' && detour.some((point, i) => { pay(); return i > 0 && classCarrierEntersMarker(detour[i - 1]!, point, p.pieces ?? [], style.lineWidth) }) })) continue
           const trial = simplifyOrthogonal([...relation.points.slice(0, segment), ...detour, ...relation.points.slice(segment)])
-          if (!simpleClassRoute(trial) || (style.edgeBendRadius <= 0 && paint.some(p => p.edge !== ri && p.kind === 'marker' && classNewMiterEntersMarker(trial, relation.points, p.pieces ?? [], style.lineWidth)))) continue
-          if (
-            style.edgeBendRadius > 0 &&
-            !classNewRoundedCornersClear(
-              trial,
-              relation.points,
-              [...diagram.classes.filter(c => !c.isInterface), ...headers, ...diagram.notes, ...paint.filter(p => p.edge !== ri && p.kind !== 'marker').map(p => p.box)],
-              paint.filter(p => p.edge !== ri && p.kind === 'marker').map(p => p.pieces ?? []),
-              style,
-            )
-          )
-            continue
-          // Actual endpoints/rays and all existing points outside this replaced interval survive.
+          if (!simpleClassRoute(trial) || (style.edgeBendRadius <= 0 && paint.some(p => { pay(); return p.kind === 'marker' && classNewMiterEntersMarker(trial, relation.points, p.pieces ?? [], style.lineWidth) }))) continue
+          if (style.edgeBendRadius > 0 && !classNewRoundedCornersClear(trial,relation.points,localBoxes,paint.filter(p=>p.kind==='marker').map(p=>p.pieces??[]),style,pay)) continue
           if (trial[0]!.x !== relation.points[0]!.x || trial[0]!.y !== relation.points[0]!.y || trial.at(-1)!.x !== relation.points.at(-1)!.x || trial.at(-1)!.y !== relation.points.at(-1)!.y) continue
-          if ([...diagram.classes.filter(c => !c.isInterface), ...diagram.notes, ...headers.filter(h => h !== header && !routeEnters(relation.points, h)), ...paint.filter(p => p.edge !== ri && p.kind !== 'marker').map(p => p.box)].some(box => routeEnters(trial, box))) continue
-          relation.points = trial
-          segment += Math.max(0, detour.length - 2)
-          break
+          if ([...cards,...furniture,...headers.filter(h=>h!==header&&!routeEnters(relation.points,h))].some(box=>{pay();return routeEnters(trial,box)})) continue
+          if (!candidate.peerProof.clear(trial)) continue
+          pay()
+          accepted={points:trial,length:detour.length}
+          break // Close/release the candidate iterator before publishing geometry.
         }
+        if(accepted){pay();relation.points=accepted.points;changed.add(ri);segment+=Math.max(0,accepted.length-2)}
       }
     }
   }
+  return changed
 }
 /** Move only an unsafe unauthored annotation seat; preserve every relationship. */
-export function repairClassNoteSeats(diagram: PositionedClassDiagram, style: ResolvedRenderStyle, padding: number): void {
+export function repairClassNoteSeats(diagram: PositionedClassDiagram, style: ResolvedRenderStyle, padding: number, work?: ClassMarkerAdmissionWork): void {
   if (!diagram.notes.length) return
-  const headers = diagram.namespaces.map(ns => ({ x: ns.x, y: ns.y, width: ns.width, height: ns.headerHeight }))
-  let paint = classRelationshipPaintBoxes(diagram, style)
-  // Interfaces paint their retained name, not their invisible layout card.
-  const interfaceLabels = diagram.classes
-    .filter(node => node.isInterface)
-    .map(node => {
-      const block = node.labelBlock
-      return block ? { x: node.x + (node.width - block.width) / 2, y: node.y + node.headerHeight / 2 - block.height / 2, width: block.width, height: block.height } : { x: node.x, y: node.y, width: node.width, height: node.height }
-    })
-  const safe = (note: PositionedClassNote, index: number): boolean => {
-    const otherNotes = diagram.notes.filter((_, i) => i !== index),
-      fixed = [...diagram.classes.filter(c => !c.isInterface), ...interfaceLabels, ...headers, ...otherNotes, ...paint.filter(p => p.kind !== 'marker').map(p => p.box)]
-    if (fixed.some(box => overlaps(note, box)) || paint.some(p => p.kind === 'marker' && classMarkerEntersNote(p.pieces ?? [], note))) return false
-    for (const rel of diagram.relationships) for (let i = 1; i < rel.points.length; i++) if (roundedHit(rel.points[i - 1]!, rel.points[i]!, note, 2)) return false
-    if (note.targetX !== undefined && note.targetY !== undefined) {
-      const a = { x: note.targetX, y: note.targetY },
-        b = { x: note.noteX ?? note.x, y: note.noteY ?? note.y + note.height / 2 }
-      if ([...diagram.classes.filter(c => !c.isInterface), ...interfaceLabels, ...headers, ...otherNotes, ...paint.filter(p => p.kind !== 'marker').map(p => p.box)].some(box => classSegmentEntersBox(a, b, box)) || paint.some(p => p.kind === 'marker' && classCarrierEntersMarker(a, b, p.pieces ?? [], 1))) return false
+  const ledger=work??createClassMarkerAdmissionWork(), pay=()=>{if(!chargeClassMarkerAdmissionWork(ledger))throw new LayoutCertificationError([{strategy:'class-owned-note',violations:['Class note proof work limit']}])},
+    titleBlock=diagram.title?(diagram.title.block??diagramTitleBand(diagram.title.text,style)?.block):undefined,
+    minimumTop=Math.max(padding,diagram.title&&titleBlock?diagram.title.y+titleBlock.height/2+DIAGRAM_TITLE_GAP:padding),
+    headers=diagram.namespaces.map(ns=>{pay();return{x:ns.x,y:ns.y,width:ns.width,height:ns.headerHeight}})
+  let paint=classRelationshipPaintBoxes(diagram,style,true,pay,false)
+  const interfaceLabels=diagram.classes.filter(node=>{pay();return node.isInterface}).map(node=>{
+    pay();const block=node.labelBlock
+    return block?{x:node.x+(node.width-block.width)/2,y:node.y+node.headerHeight/2-block.height/2,width:block.width,height:block.height}:{x:node.x,y:node.y,width:node.width,height:node.height}
+  })
+  const safe=(note:PositionedClassNote,index:number,leading=false):boolean=>{
+    pay()
+    if(!leading&&note.y<minimumTop)return false
+    const others=diagram.notes.filter((_,i)=>{pay();return i!==index}),fixed=[...diagram.classes.filter(c=>{pay();return !c.isInterface}),...interfaceLabels,...headers,...others]
+    // Captions/cardinalities are future joint-seater outputs. Immutable cards,
+    // full headers, markers and actual shafts remain authoritative here.
+    if(fixed.some(box=>{pay();return overlaps(note,box)})||paint.some(p=>{pay();return p.kind==='marker'&&classMarkerEntersNote(p.pieces??[],note)}))return false
+    for(const rel of diagram.relationships)for(let i=1;i<rel.points.length;i++){pay();if(roundedHit(rel.points[i-1]!,rel.points[i]!,note,2))return false}
+    if(style.edgeBendRadius>0)for(const rel of diagram.relationships){pay();if(!classNewRoundedCornersClear(rel.points,[],[note],[],style,pay))return false}
+    if(note.targetX!==undefined&&note.targetY!==undefined){
+      const a={x:note.targetX,y:note.targetY},b={x:note.noteX??note.x,y:note.noteY??note.y+note.height/2}
+      if(fixed.some(box=>{pay();return classSegmentEntersBox(a,b,box)})||paint.some(p=>{pay();return p.kind==='marker'&&classCarrierEntersMarker(a,b,p.pieces??[],1)}))return false
+      const A=emittedPoint(a),B=emittedPoint(b),horizontal=A.y===B.y,vertical=A.x===B.x
+      if(horizontal&&vertical)return false
+      if((horizontal||vertical)&&style.lineWidth>0)for(const rel of diagram.relationships)for(let j=1;j<rel.points.length;j++){
+        pay();const c=emittedPoint(rel.points[j-1]!),d=emittedPoint(rel.points[j]!),half=(1+emitted(style.lineWidth))/2
+        const parallel=horizontal?c.y===d.y&&Math.abs(c.y-A.y)<half:c.x===d.x&&Math.abs(c.x-A.x)<half
+        if(!parallel)continue
+        const axis=horizontal?'x':'y'
+        if(Math.max(Math.min(A[axis],B[axis]),Math.min(c[axis],d[axis]))<Math.min(Math.max(A[axis],B[axis]),Math.max(c[axis],d[axis])))return false
+      }
     }
     return true
   }
-  for (let i = 0; i < diagram.notes.length; i++) {
-    const note = diagram.notes[i]!
-    if (safe(note, i)) continue
-    const target = diagram.classes.find(c => c.id === note.for),
-      candidates: PositionedClassNote[] = []
-    if (target) {
-      for (let lane = 0; lane < Math.max(4, diagram.notes.length + 1); lane++) {
-        const offset = lane * (note.height + 12)
+  for(let i=0;i<diagram.notes.length;i++){
+    pay();const note=diagram.notes[i]!
+    if(safe(note,i))continue
+    const target=diagram.classes.find(c=>{pay();return c.id===note.for}),candidates:PositionedClassNote[]=[]
+    if(target){
+      for(let lane=0;lane<Math.max(4,diagram.notes.length+1);lane++){
+        pay();const offset=lane*(note.height+12)
         candidates.push(
-          { ...note, x: target.x + target.width + 24, y: target.y + offset, targetX: target.x + target.width, targetY: target.y + target.height / 2, noteX: target.x + target.width + 24, noteY: target.y + offset + note.height / 2 },
-          { ...note, x: target.x - note.width - 24, y: target.y + offset, targetX: target.x, targetY: target.y + target.height / 2, noteX: target.x - 24, noteY: target.y + offset + note.height / 2 },
-          { ...note, x: target.x, y: target.y + target.height + 24 + offset, targetX: target.x + target.width / 2, targetY: target.y + target.height, noteX: target.x + note.width / 2, noteY: target.y + target.height + 24 + offset },
+          {...note,x:target.x+target.width+24,y:target.y+offset,targetX:target.x+target.width,targetY:target.y+target.height/2,noteX:target.x+target.width+24,noteY:target.y+offset+note.height/2},
+          {...note,x:target.x-note.width-24,y:target.y+offset,targetX:target.x,targetY:target.y+target.height/2,noteX:target.x-24,noteY:target.y+offset+note.height/2},
+          {...note,x:target.x,y:target.y+target.height+24+offset,targetX:target.x+target.width/2,targetY:target.y+target.height,noteX:target.x+note.width/2,noteY:target.y+target.height+24+offset},
         )
       }
-      candidates.push({ ...note, x: diagram.width + 24, y: target.y, targetX: target.x + target.width, targetY: target.y + target.height / 2, noteX: diagram.width + 24, noteY: target.y + note.height / 2 })
-      // A neighboring column or an endpoint marker can block every midpoint
-      // seat. Try the lower corners without changing a relationship's route.
-      const radius = Math.min(style.cornerRadius ?? 0, target.width / 2, target.height / 2)
-      for (let lane = 0; lane < Math.max(4, diagram.notes.length + 1); lane++) {
-        const y = target.y + target.height + 12 + lane * (note.height + 12)
-        for (const right of [true, false]) {
-          const center = target.x + (right ? target.width : 0)
-          const contact = target.x + (right ? Math.min(target.width * 0.75, target.width - radius) : Math.max(target.width * 0.25, radius))
-          candidates.push({ ...note, x: center - note.width / 2, y, targetX: contact, targetY: target.y + target.height, noteX: center, noteY: y })
-        }
+      candidates.push({...note,x:diagram.width+24,y:target.y,targetX:target.x+target.width,targetY:target.y+target.height/2,noteX:diagram.width+24,noteY:target.y+note.height/2})
+      const radius=Math.min(style.cornerRadius??0,target.width/2,target.height/2)
+      for(let lane=0;lane<Math.max(4,diagram.notes.length+1);lane++){
+        const y=target.y+target.height+12+lane*(note.height+12)
+        for(const right of[true,false]){pay();const center=target.x+(right?target.width:0),contact=target.x+(right?Math.min(target.width*.75,target.width-radius):Math.max(target.width*.25,radius));candidates.push({...note,x:center-note.width/2,y,targetX:contact,targetY:target.y+target.height,noteX:center,noteY:y})}
       }
-    } else candidates.push({ ...note, x: padding, y: diagram.height + 16 })
-    let seat = candidates.find(candidate => candidate.x >= padding && candidate.y >= padding && safe(candidate, i))
-    // A clear left seat need not be discarded merely because the current
-    // canvas has no leading room. Reuse the same bounded candidate list and
-    // admit its geometry first; a rigid translation preserves every route.
-    if (!seat) seat = candidates.find(candidate => candidate.x < padding && candidate.y >= padding && safe(candidate, i))
-    if (!seat) throw new LayoutCertificationError([{ strategy: 'class-owned-note', violations: [`No safe note seat for ${note.for ?? 'unattached annotation'}`] }])
-    const shift = Math.max(0, padding - seat.x)
-    if (!Number.isFinite(diagram.width + shift)) throw new LayoutCertificationError([{ strategy: 'class-owned-note', violations: ['No finite leading room for note'] }])
-    Object.assign(note, seat)
-    if (shift > 0) {
-      for (const node of diagram.classes) {
-        node.x += shift
-        if (node.interfaceBox) node.interfaceBox.x += shift
+    }else candidates.push({...note,x:padding,y:diagram.height+16})
+    let seat=candidates.find(c=>{pay();return c.x>=padding&&c.y>=minimumTop&&safe(c,i)})
+    if(!seat)seat=candidates.find(c=>{pay();return c.x<padding&&c.y>=minimumTop&&safe(c,i)})
+    // Preserve every old successful seat before trying the bounded north
+    // mirrors. A proved leading seat gets real canvas room, never clipping.
+    if(!seat&&target&&!target.isInterface){
+      const radius=Math.min(style.cornerRadius??0,target.width/2,target.height/2)
+      north:for(let lane=0;lane<Math.max(4,diagram.notes.length+1);lane++)for(const right of[true,false]){
+        pay();const center=target.x+(right?target.width:0),contact=target.x+(right?Math.min(target.width*.75,target.width-radius):Math.max(target.width*.25,radius)),y=target.y-note.height-12-lane*(note.height+12),candidate={...note,x:center-note.width/2,y,targetX:contact,targetY:target.y,noteX:center,noteY:y+note.height}
+        if(safe(candidate,i,true)){seat=candidate;break north}
       }
-      for (const namespace of diagram.namespaces) namespace.x += shift
-      for (const annotation of diagram.notes) {
-        annotation.x += shift
-        if (annotation.targetX !== undefined) annotation.targetX += shift
-        if (annotation.noteX !== undefined) annotation.noteX += shift
-      }
-      for (const relationship of diagram.relationships) {
-        for (const point of relationship.points) point.x += shift
-        for (const position of [relationship.labelPosition, relationship.fromCardinalityPosition, relationship.toCardinalityPosition]) if (position) position.x += shift
-      }
-      diagram.width += shift
-      // These small proof records describe the same live geometry revision.
-      for (const header of headers) header.x += shift
-      for (const label of interfaceLabels) label.x += shift
-      paint = classRelationshipPaintBoxes(diagram, style)
     }
-    diagram.width = Math.max(diagram.width, note.x + note.width + padding)
-    diagram.height = Math.max(diagram.height, note.y + note.height + padding)
-    if (diagram.title) diagram.title.x = diagram.width / 2
+    if(!seat)throw new LayoutCertificationError([{strategy:'class-owned-note',violations:[`No safe note seat for ${note.for??'unattached annotation'}`]}])
+    const dx=Math.max(0,padding-seat.x),dy=Math.max(0,minimumTop-seat.y)
+    if(!Number.isFinite(diagram.width+dx)||!Number.isFinite(diagram.height+dy))throw new LayoutCertificationError([{strategy:'class-owned-note',violations:['No finite leading room for note']}])
+    for(const _key of Object.keys(seat))pay()
+    Object.assign(note,seat)
+    if(dx>0||dy>0){
+      // These poses are unauthored factory seats: separated horizontal seats
+      // use facing E/W contacts; the overlapping corner seats use facing N/S.
+      // Retain that identity across the rigid shift, then spell high faces as
+      // exact sums of actual rectangle fields, not independent rounded tails.
+      const anchors:{note:PositionedClassNote;node:PositionedClassDiagram['classes'][number];side:'E'|'W'|'S'|'N'}[]=[]
+      for(const n of diagram.notes){
+        pay();const node=diagram.classes.find(c=>{pay();return c.id===n.for})
+        if(!node||node.isInterface||n.targetX===undefined||n.targetY===undefined)continue
+        const side=n.x>node.x+node.width?'E':n.x+n.width<node.x?'W':n.y>node.y+node.height?'S':n.y+n.height<node.y?'N':undefined
+        if(side){pay();anchors.push({note:n,node,side})}
+      }
+      for(const node of diagram.classes){pay();node.x+=dx;node.y+=dy;if(node.interfaceBox){pay();node.interfaceBox.x+=dx;node.interfaceBox.y+=dy}}
+      for(const ns of diagram.namespaces){pay();ns.x+=dx;ns.y+=dy}
+      for(const n of diagram.notes){pay();n.x+=dx;n.y+=dy;if(n.targetX!==undefined)n.targetX+=dx;if(n.targetY!==undefined)n.targetY+=dy;if(n.noteX!==undefined)n.noteX+=dx;if(n.noteY!==undefined)n.noteY+=dy}
+      for(const rel of diagram.relationships){pay();for(const p of rel.points){pay();p.x+=dx;p.y+=dy}for(const p of[rel.labelPosition,rel.fromCardinalityPosition,rel.toCardinalityPosition])if(p){pay();p.x+=dx;p.y+=dy}}
+      for(const h of headers){pay();h.x+=dx;h.y+=dy}
+      for(const label of interfaceLabels){pay();label.x+=dx;label.y+=dy}
+      diagram.width+=dx;diagram.height+=dy
+      for(const{note:n,node,side}of anchors){
+        pay();const high=side==='E'||side==='S',axis=side==='E'||side==='W'?'x':'y',origin=node[axis],extent=axis==='x'?node.width:node.height,source=high?addClassSvgNumbers(origin,extent):emitted(origin),sink=high?emitted(n[axis]):addClassSvgNumbers(n[axis],axis==='x'?n.width:n.height)
+        if(source===undefined||sink===undefined)throw new LayoutCertificationError([{strategy:'class-owned-note',violations:['Exact note contact is not representable']}])
+        if(axis==='x'){n.targetX=source;n.noteX=sink}else{n.targetY=source;n.noteY=sink}
+      }
+      paint=classRelationshipPaintBoxes(diagram,style,true,pay,false)
+    }
+    diagram.width=Math.max(diagram.width,note.x+note.width+padding)
+    diagram.height=Math.max(diagram.height,note.y+note.height+padding)
+    if(diagram.title)diagram.title.x=diagram.width/2 // Its vertical band stays above content.
+    if(!safe(note,i))throw new LayoutCertificationError([{strategy:'class-owned-note',violations:['Unproved translated note seat']}])
   }
 }
 export function classOwnedSurfaceViolations(diagram: PositionedClassDiagram, style: ResolvedRenderStyle): string[] {
@@ -575,8 +621,8 @@ export function classOwnedSurfaceViolations(diagram: PositionedClassDiagram, sty
   return violations
 }
 
-/** Only existing marker/header conflicts request more content inset in the existing sizing loop. */
-export function classMarkerHeaderInsets(diagram: PositionedClassDiagram, style: ResolvedRenderStyle, current: ReadonlyMap<string, number>): Map<string, number> {
+/** Measured marker/header or own-boundary channel pressure in the existing sizing loop. */
+export function classMarkerHeaderInsets(diagram: PositionedClassDiagram, style: ResolvedRenderStyle, current: ReadonlyMap<string, number>, work?: ClassMarkerAdmissionWork): Map<string, number> {
   const next = new Map(current),
     paint = classRelationshipPaintBoxes(diagram, style).filter(p => p.kind === 'marker'),
     groups = new Map(diagram.namespaces.map(ns => [ns.id, ns])),
@@ -597,5 +643,45 @@ export function classMarkerHeaderInsets(diagram: PositionedClassDiagram, style: 
       if (overlap > 0 && Number.isFinite(overlap)) next.set(ns.id, Math.max(next.get(ns.id) ?? style.groupPaddingY, Math.ceil((current.get(ns.id) ?? style.groupPaddingY) + overlap)))
     }
   }
+  // Distinct crossings need two-sided horizontal bypass rows as well as
+  // glyph room. Reserve only measured missing space in the existing loop;
+  // the actual returned routes and full peer proof remain authoritative.
+  const half=emitted(style.lineWidth)/2
+  if(!(half>0))return next
+  const pay=()=>{if(work&&!chargeClassMarkerAdmissionWork(work))throw new LayoutCertificationError([{strategy:'class-header-capacity',violations:['Class header capacity proof work limit']}])},
+    nodes=new Map(diagram.classes.map(n=>{pay();return[n.id,n]})),
+    glyphs=new Map(paint.map(p=>{pay();return[`${p.edge}:${p.endpoint}`,p]})),
+    demands=new Map<string,{count:number;free:number}>()
+  for(let index=0;index<diagram.relationships.length;index++){
+    const rel=diagram.relationships[index]!
+    for(const from of[true,false]){
+      pay();const node=nodes.get(from?rel.from:rel.to)
+      if(!node||node.isInterface||rel.points.length<2)continue
+      const a=from?rel.points[0]!:rel.points.at(-1)!,b=from?rel.points[1]!:rel.points.at(-2)!
+      if(compareSvgSum(a.y,node.y,0)!==0||emitted(b.x)!==emitted(a.x)||emitted(b.y)>=emitted(a.y))continue
+      let reach=half
+      const marker=glyphs.get(`${index}:${from?'from':'to'}`)
+      for(const piece of marker?.pieces??[]){
+        pay()
+        if(piece.kind==='circle')reach=Math.max(reach,emitted(a.y)-piece.cy+piece.r)
+        else for(const point of piece.points){pay();reach=Math.max(reach,emitted(a.y)-point.y)}
+      }
+      let parent=owners.get(node.id)
+      for(let depth=0;parent&&depth<=groups.size;depth++){
+        pay();const ns=groups.get(parent)!
+        const header={x:ns.x,y:ns.y,width:ns.width,height:ns.headerHeight}
+        if(routeEnters(rel.points,expanded(header,half))){
+          const free=emitted(a.y)-reach-emitted(ns.y)-emitted(ns.headerHeight),old=demands.get(parent)
+          demands.set(parent,{count:(old?.count??0)+1,free:Math.min(old?.free??Infinity,free)})
+        }
+        parent=ns.parentId
+      }
+    }
+  }
+  for(const[id,demand]of demands){
+    pay();const rows=Math.ceil(demand.count/2),required=HEADER_DETOUR_GAP+2*half+(rows-1)*Math.max(1,emitted(style.lineWidth))
+    if(demand.free<required){const padding=Math.ceil((current.get(id)??style.groupPaddingY)+required-demand.free);if(Number.isFinite(padding))next.set(id,Math.max(next.get(id)??style.groupPaddingY,padding))}
+  }
+
   return next
 }

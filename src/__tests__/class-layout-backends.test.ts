@@ -5,6 +5,7 @@ import { releaseBenchCases } from '../../eval/shared/release-bench-cases.ts'
 import { layoutMermaidWithReceipt, parseRegisteredMermaid } from '../agent/core.ts'
 import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
 import { renderMermaidASCII } from '../ascii/index.ts'
+import * as classLayoutModule from '../class/layout.ts'
 import { CLASS_STYLE_DEFAULTS, classTextBlock, finalizeClassOwnedSurfaces, layoutClassDiagram } from '../class/layout.ts'
 import { parseClassDiagram } from '../class/parser.ts'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
@@ -523,7 +524,7 @@ note "free note 37"
   })
 })
 
-import { classCarrierEntersMarker, classMarkerEntersBox, classNewMiterEntersMarker, classSegmentEntersBox, repairClassHeaderRoutes, repairClassNoteSeats } from '../class/owned-surfaces.ts'
+import { classCarrierEntersMarker, classMarkerEntersBox, classMarkerHeaderInsets, classNewMiterEntersMarker, classSegmentEntersBox, repairClassHeaderRoutes, repairClassNoteSeats } from '../class/owned-surfaces.ts'
 import { classMarkerPieces } from '../class/relationship-paint.ts'
 import * as elk from '../elk-instance.ts'
 import { diagramTitleBand, resolveRenderStyle } from '../styles.ts'
@@ -1271,4 +1272,122 @@ test('Class annotation repair reserves the prepared title before choosing a nort
   expect(Math.abs(point.x - title.x) >= block.width / 2 + 1.5 + titleBlock.width / 2 || Math.abs(point.y - title.y) >= block.height / 2 + 1.5 + titleBlock.height / 2).toBe(true)
   expect(p.title).toEqual(before.title)
   expect(p.relationships.map(r => r.points)).toEqual(before.relationships.map(r => r.points))
+})
+
+test('Class header repair includes the actual shaft half-width outside a header edge', () => {
+  const card = (id: string, y: number) => ({ id, label: id, x: 30, y, width: 40, height: 20, headerHeight: 12, attrHeight: 4, methodHeight: 4, attributes: [], methods: [] })
+  const p: PositionedClassDiagram = { width: 240, height: 220, classes: [card('S',0),card('T',160)], notes: [], namespaces: [{id:'G',name:'G',label:'G',classIds:[],x:50,y:50,width:100,height:100,headerHeight:60}], relationships: [{from:'S',to:'T',type:'link-solid',markerAt:'none',points:[{x:49.75,y:20},{x:49.75,y:160}]}] }
+  const original=structuredClone(p),style=resolveRenderStyle({},CLASS_STYLE_DEFAULTS)
+  repairClassHeaderRoutes(p,style)
+  for(let i=1;i<p.relationships[0]!.points.length;i++){
+    const a=p.relationships[0]!.points[i-1]!,b=p.relationships[0]!.points[i]!
+    // Literal full header inflated by the actual .5px shaft radius. The
+    // original centerline x49.75 misses x50 yet its real stroke enters it.
+    const enters=a.x===b.x ? a.x>49.5&&a.x<150.5&&Math.max(a.y,b.y)>49.5&&Math.min(a.y,b.y)<110.5 : a.y===b.y&&a.y>49.5&&a.y<110.5&&Math.max(a.x,b.x)>49.5&&Math.min(a.x,b.x)<150.5
+    expect(enters,'actual shaft ink enters the full reserved header').toBe(false)
+  }
+  const points=p.relationships[0]!.points
+  expect(points[0]).toEqual(original.relationships[0]!.points[0])
+  expect(points.at(-1)).toEqual(original.relationships[0]!.points.at(-1))
+  expect(points[1]!.x).toBe(points[0]!.x)
+  expect(points[1]!.y).toBeGreaterThan(points[0]!.y)
+  expect(points.at(-2)!.x).toBe(points.at(-1)!.x)
+  expect(points.at(-2)!.y).toBeLessThan(points.at(-1)!.y)
+  expect(p.classes).toEqual(original.classes)
+  expect(p.namespaces).toEqual(original.namespaces)
+})
+
+test.each([false,true])('ELK contacts use the exact written rectangle face after title=%s', titled => {
+  const source=(titled?'---\ntitle: Exact rectangle\n---\n':'')+'classDiagram\n'+(titled?'direction TB':'direction LR')+'\nclass S\nclass T\nS -- T'
+  const spy=spyOn(elk,'elkLayoutSync').mockImplementation((input:any)=>{
+    const graph=structuredClone(input),vertical=titled
+    Object.assign(graph,{width:1700,height:1700})
+    Object.assign(graph.children.find((n:any)=>n.id==='S'),{x:vertical?400:909.6033333333332,y:vertical?932.8666666666666:289.4166666666667,width:120,height:88.9})
+    Object.assign(graph.children.find((n:any)=>n.id==='T'),{x:vertical?400:1383.8199999999997,y:vertical?1383.8199999999997:289.4166666666667,width:120,height:88.9})
+    const a=graph.children.find((n:any)=>n.id==='S'),b=graph.children.find((n:any)=>n.id==='T'),points=vertical?[{x:a.x+60,y:a.y+a.height},{x:b.x+60,y:b.y}]:[{x:a.x+a.width,y:a.y+44.45},{x:b.x,y:b.y+44.45}]
+    graph.edges[0].sections=[{id:'section',startPoint:points[0],endPoint:points[1]}]
+    return graph
+  })
+  try {
+    const rendered=renderMermaidSVGWithReceipt(source,{graphLayout:{backend:'elk',fallback:'none'}})
+    expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+    const carrier=rendered.svg.match(/<polyline\b[^>]*class="class-relationship"[^>]*>/)![0],
+      points=carrier.match(/\spoints="([^"]+)"/)![1]!.trim().split(/[ ,]+/).map(Number)
+    // Exact decimal sums of the actual rectangle fields. The old independent
+    // long-tail endpoint spelling rounds inward/outward at the1000 boundary.
+    expect(points[titled?1:0]).toBe(titled?1057.166666667:1029.603333333)
+    expect(points[titled?0:1]).toBe(points[titled?2:3])
+    expect(rendered.svg).toContain('data-id="S"')
+    expect(rendered.svg).toContain('data-id="T"')
+  } finally {spy.mockRestore()}
+})
+
+test('a Class caption follows its own repaired header spine instead of remaining free-floating', () => {
+ const style=resolveRenderStyle({},CLASS_STYLE_DEFAULTS),card=(id:string,x:number,y:number,width:number,height:number)=>({id,label:id,x,y,width,height,headerHeight:height,attrHeight:0,methodHeight:0,attributes:[],methods:[]})
+ const p:PositionedClassDiagram={width:600,height:600,classes:[card('S',200,40,100,60),card('T',200,400,100,60),card('B',255,180,20,20)],namespaces:[{id:'G',name:'G',label:'G',classIds:[],x:150,y:200,width:100,height:100,headerHeight:60}],notes:[],relationships:[{from:'S',to:'T',type:'inheritance',markerAt:'from',points:[{x:249,y:100},{x:249,y:400}],label:'x',labelBlock:classTextBlock('x',style,'edge'),labelPosition:{x:256,y:238}}]}
+ const before=structuredClone(p.relationships[0]!)
+ finalizeClassOwnedSurfaces(p,style)
+ const rel=p.relationships[0]!,pos=rel.labelPosition!,block=rel.labelBlock!,left=pos.x-block.width/2-1.5-8,right=pos.x+block.width/2+1.5+8,top=pos.y-8-block.height/2-1.5-8,bottom=pos.y-8+block.height/2+1.5+8
+ const associated=rel.points.some((b,i)=>{if(!i)return false;const a=rel.points[i-1]!;return a.x===b.x?a.x>left&&a.x<right&&Math.max(a.y,b.y)>top&&Math.min(a.y,b.y)<bottom:a.y===b.y&&a.y>top&&a.y<bottom&&Math.max(a.x,b.x)>left&&Math.min(a.x,b.x)<right})
+ expect(associated,'occupied caption row is no longer associated with its own actual route').toBe(true)
+ expect(rel.points[0]).toEqual(before.points[0])
+ expect(rel.points.at(-1)).toEqual(before.points.at(-1))
+ expect(rel.label).toBe(before.label)
+ expect(rel.labelBlock).toEqual(before.labelBlock)
+})
+
+
+test('Class own-header bypass reservation measures distinct marked incidences without growing already-clear space', () => {
+ const style=resolveRenderStyle({},CLASS_STYLE_DEFAULTS)
+ const placement=(count:number,inset:number):PositionedClassDiagram=>{
+  const classes=Array.from({length:6},(_,i)=>({id:'S'+i,label:'S'+i,x:100+i*150,y:68+inset,width:120,height:60,headerHeight:40,attrHeight:10,methodHeight:10,attributes:[],methods:[]}))
+  return{width:1240,height:300,classes:[...classes,{id:'T',label:'T',x:0,y:0,width:1200,height:20,headerHeight:20,attrHeight:0,methodHeight:0,attributes:[],methods:[]}],namespaces:[{id:'G',name:'G',label:'G',classIds:classes.map(c=>c.id),x:40,y:40,width:1100,height:220,headerHeight:28}],notes:[],relationships:Array.from({length:count},(_,i)=>({from:'S'+Math.floor(i/2),to:'T',type:'inheritance',markerAt:'from',points:[{x:100+Math.floor(i/2)*150+(i%2?80:40),y:68+inset},{x:100+Math.floor(i/2)*150+(i%2?80:40),y:20}]}))}
+ }
+ const crowded=placement(11,20),before=structuredClone(crowded),current=new Map([['G',20]])
+ expect(classMarkerHeaderInsets(crowded,style,current).get('G')).toBeGreaterThan(20)
+ expect(crowded).toEqual(before)
+ expect(current.get('G')).toBe(20)
+ expect(classMarkerHeaderInsets(placement(2,20),style,new Map([['G',20]])).get('G')).toBe(20)
+ expect(classMarkerHeaderInsets(placement(11,32),style,new Map([['G',32]])).get('G')).toBe(32)
+})
+
+
+test('ELK seats a crowded RTL owned note with real leading vertical room and fresh contacts', () => {
+ const source=readFileSync(new URL('./fixtures/class-crowded-rtl-note.mmd',import.meta.url),'utf8'),capture:{positioned?:PositionedClassDiagram}={},original=classLayoutModule.layoutClassDiagram
+ const observer=spyOn(classLayoutModule,'layoutClassDiagram').mockImplementation((...args:Parameters<typeof original>)=>{const p=original(...args);capture.positioned=p;return p})
+ try{
+  const result=renderMermaidSVGWithReceipt(source,{class:{hierarchicalNamespaces:true},graphLayout:{backend:'elk',fallback:'none'}})
+  expect(result.receipt.layoutCertification?.status).toBe('passed')
+  if(!capture.positioned)throw new Error('The Class owning boundary was not observed')
+  const p=capture.positioned,note=p.notes[0]!,node=p.classes.find(c=>c.id===note.for)!
+  expect(p.title?.text).toBe('Class compact 15')
+  expect(p.title?.y).toBe(51.7)
+  expect(note.y).toBeGreaterThanOrEqual(75.4)
+  expect(note.y+note.height).toBeLessThan(node.y)
+  expect(note.targetY).toBe(node.y)
+  expect(note.noteY).toBe(124.6)
+  expect(note.text).toBe('owned note 15\nsecond line')
+  expect(result.svg).toContain('owned note 15')
+  expect(result.svg).toContain('second line')
+  expect(p.classes).toHaveLength(14)
+  expect(p.relationships).toHaveLength(16)
+  // The public carrier uses canonical decimal spelling; raw retained binary
+  // sums can differ by one ULP after the exact rigid translation.
+  const carriers=[...result.svg.matchAll(/<polyline\b[^>]*class="class-relationship"[^>]*\spoints="([^"]+)"/g)]
+  expect(carriers).toHaveLength(p.relationships.length)
+  for(const carrier of carriers){const points=carrier[1]!.trim().split(/[ ,]+/).map(Number);for(let i=2;i<points.length;i+=2)expect(points[i-2]===points[i]||points[i-1]===points[i+1]).toBe(true)}
+ }finally{observer.mockRestore()}
+})
+
+test('Class annotation connectors do not co-own an unrelated horizontal carrier', () => {
+ const card=(id:string,x:number,y:number)=>({id,label:id,x,y,width:120,height:49.2,headerHeight:33.2,attrHeight:8,methodHeight:8,attributes:[],methods:[]})
+ const p:PositionedClassDiagram={width:500,height:340,namespaces:[],classes:[card('S',80,100),card('U',145,40),card('V',155,240)],relationships:[{from:'U',to:'V',type:'link-solid',markerAt:'none',points:[{x:205,y:89.2},{x:205,y:124.6},{x:215,y:124.6},{x:215,y:240}]}],notes:[{for:'S',text:'two lines',x:224,y:100,width:90,height:49.2,targetX:200,targetY:124.6,noteX:224,noteY:124.6}]}
+ const before=structuredClone(p)
+ repairClassNoteSeats(p,resolveRenderStyle({},CLASS_STYLE_DEFAULTS),40)
+ const n=p.notes[0]!,sameRow=n.targetY===124.6&&n.noteY===124.6,overlap=sameRow&&Math.min(n.targetX!,n.noteX!)<215&&Math.max(n.targetX!,n.noteX!)>205
+ expect(overlap,'dashed annotation and foreign solid carrier share real ink').toBe(false)
+ expect(p.relationships).toEqual(before.relationships)
+ expect(p.classes).toEqual(before.classes)
+ expect(n.for).toBe('S')
+ expect(n.text).toBe('two lines')
 })
