@@ -249,6 +249,25 @@ async function websiteWorker(): Promise<{ fetch: (request: Request, env: any) =>
 }
 
 describe('Workers Static Assets website contract', () => {
+  test('library reference delivers API details and a page-specific Markdown alternative', () => {
+    for (const rel of ['docs/api/', 'docs/api/advanced/']) {
+      const html = read(`${rel}index.html`)
+      const markdown = read(`${rel}index.md`)
+      expect(html).toContain(`<link rel="alternate" type="text/markdown" href="/${rel}index.md">`)
+      expect(html).toContain(`href="/${rel}index.md">Read as Markdown</a>`)
+      expect(markdown).toStartWith('# ')
+    }
+    const html = read('docs/api/index.html')
+    expect(html).toContain('renderResolvedScene')
+    expect(html).toContain('id="errors-and-recovery"')
+    expect(html).toContain('Does not run verification.')
+    expect(html).toContain('latest release recorded')
+    const markdown = read('docs/api/index.md')
+    expect(markdown).toContain('[Rendering](#rendering)')
+    expect(markdown).toContain('[advanced reference](/docs/api/advanced/')
+    expect(markdown).toContain('error: ParseError[]')
+  })
+
   test('build provenance never labels dirty or unverifiable bytes as exact HEAD', () => {
     const head = '0123456789abcdef'
     expect(resolveBuildGitSha({ head, status: '' })).toBe(head)

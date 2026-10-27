@@ -192,6 +192,25 @@ process.stdout.write(JSON.stringify({ resolved, results, pngResults }))
 `
 
 describe('installed tarball — library', () => {
+  test('canonical API examples typecheck and run against the installed package', () => {
+    expect(haveConsumer).toBe(true)
+    const markdown = readFileSync(join(REPO, 'docs/api.md'), 'utf8')
+    const examples = [...markdown.matchAll(/^```ts\s*\n([\s\S]*?)^```/gm)]
+    const files = examples.map((match, index) => {
+      const file = join(work, `api-example-${index}.mts`)
+      writeFileSync(file, match[1]!)
+      return file
+    })
+    const checked = spawnSync(NODE!, [join(REPO, 'node_modules/typescript/bin/tsc'), '--strict', '--skipLibCheck', '--target', 'ESNext', '--module', 'NodeNext', '--moduleResolution', 'NodeNext', '--typeRoots', join(REPO, 'node_modules/@types'), ...files], {
+      cwd: work, encoding: 'utf8', timeout: RUN_TIMEOUT_MS,
+    })
+    expect({ status: checked.status, stdout: checked.stdout, stderr: checked.stderr }).toEqual({ status: 0, stdout: '', stderr: '' })
+    for (const file of files) {
+      const result = spawnSync(NODE!, [file.replace(/\.mts$/, '.mjs')], { cwd: work, encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
+      expect({ file, status: result.status, stderr: result.stderr }).toEqual({ file, status: 0, stderr: '' })
+    }
+  }, RUN_TIMEOUT_MS)
+
   test('resolved scenes ship typed, synchronous and browser-free through the main entry', () => {
     expect(haveConsumer).toBe(true)
     const consumer = join(work, 'resolved-scene.mts')
@@ -254,7 +273,7 @@ console.log(JSON.stringify(entries.map(entry => Object.hasOwn(entry, 'TUFTE_STYL
 
   test('published documentation entry points have no broken relative links', () => {
     expect(haveConsumer).toBe(true)
-    for (const relativeHubPath of ['README.md', 'docs/README.md']) {
+    for (const relativeHubPath of ['README.md', 'docs/README.md', 'docs/api.md', 'docs/api-advanced.md']) {
       const hubPath = join(packageDir, relativeHubPath)
       const hub = readFileSync(hubPath, 'utf8')
       const relativeLinks = [...hub.matchAll(/\]\(([^)]+)\)/g)]

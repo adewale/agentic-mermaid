@@ -1,5 +1,7 @@
 import { createSiteMetadata } from './build/metadata.ts'
 import { createPageShell } from './build/page-shell.ts'
+import { documentationPage } from './build/documentation.ts'
+import { renderDocBlocks } from '../scripts/docs/doc-blocks.ts'
 import { escapeHtml, escapeAttr, makePreFocusable } from './build/html.ts'
 import { buildWorkerArtifacts } from './build/worker-artifacts.ts'
 import { createHash } from 'node:crypto'
@@ -313,6 +315,10 @@ async function externalizeExecutableInlineScripts(html: string) {
 
 async function emitShell(rel: string, title: string, lead: string, body: string, currentHref = '', meta = '', actions = '') {
   let html = pageShell(title, lead, body, currentHref, meta, actions, '/' + rel.replace(/index\.html$/, ''))
+  if (rel === 'docs/api/index.html' || rel === 'docs/api/advanced/index.html') {
+    const markdownPath = '/' + rel.replace(/index\.html$/, 'index.md')
+    html = html.replace('<link rel="alternate" type="text/markdown" href="/index.md">', `<link rel="alternate" type="text/markdown" href="${markdownPath}">`)
+  }
   if (rel === 'examples/index.html' || rel.startsWith('examples/style-palette/') || rel.startsWith('examples/corpus/')) {
     html = html.replace('</head>', `<link rel="stylesheet" href="/${EXAMPLES_STYLE_REL}">\n</head>`)
   }
@@ -1440,7 +1446,7 @@ await emit(mermaidRuntimeRel, mermaidRuntimeBytes)
 // the manual keeps the lower-level typed-edit sequence in sync from here.
 const LOOP_STEPS = [
   { label: 'Parse', short: 'Read the source into a typed model; unmodeled syntax round-trips as preserved source.' },
-  { label: 'Narrow', short: 'Resolve the one node or edge the edit touches via the matching family surface (<code>asFlowchart</code>, <code>asSequence</code>, …).' },
+  { label: 'Narrow', short: 'Select the diagram family with its typed surface (<code>asFlowchart</code>, <code>asSequence</code>, …).' },
   { label: 'Mutate', short: 'Change the requested node, edge, task, relation, or event while preserving unmodeled syntax.' },
   { label: 'Verify', short: 'Read structural, geometric, and lint warnings before serializing or rendering artifacts.' },
   { label: 'Serialize', short: 'Write the typed model back to Mermaid source, then render only when an artifact is needed.' },
@@ -2503,18 +2509,24 @@ await emit(EXAMPLES_STYLE_REL, EXAMPLES_STYLE_SOURCE)
 await emit(EXAMPLES_DELIVERY.styleFragment.rel, EXAMPLES_DELIVERY.styleFragment.html)
 await emit(EXAMPLES_DELIVERY.corpusFragment.rel, EXAMPLES_DELIVERY.corpusFragment.html)
 
+const referencePages = await Promise.all(['docs/api.md', 'docs/api-advanced.md'].map(async file => {
+  const source = await Bun.file(join(ROOT, file)).text()
+  const rendered = renderDocBlocks(file, source)
+  if (rendered.problems.some(problem => problem.problem === 'unknown')) throw new Error(`Unknown documentation block in ${file}`)
+  const page = documentationPage(rendered.text, file)
+  await emit(`${page.destination.slice(1)}index.md`, page.markdown)
+  return page
+}))
+
 type DocPage = readonly [rel: string, title: string, lead: string, body: string, currentHref?: string]
 const docPages: DocPage[] = [
   ['about/index.html', 'About Agentic Mermaid', aboutLead, aboutBody, '/about/'],
   ['about/design/index.html', 'Design language', designLead, designBody, '/about/'],
   ['docs/getting-started/index.html', 'Getting started', 'From a prompt and style choice to a verified local render, then to an agent-safe edit loop.', gettingStartedBody, '/docs/'],
-  [
-    'docs/api/index.html',
-    'Library API',
-    'Use agentic-mermaid and agentic-mermaid/agent from local JS or TS.',
-    "<p>Import rendering helpers from <code>agentic-mermaid</code> and typed parse/mutate/verify helpers from <code>agentic-mermaid/agent</code>. Everything runs locally with no network.</p>\n<pre><code>import { renderMermaidSVG, renderMermaidASCII } from 'agentic-mermaid'\nimport { parseRegisteredMermaid, verifyMermaid } from 'agentic-mermaid/agent'\n\nconst src = 'flowchart LR\\n  A[Idea] --&gt; B[Ship]'\nconst svg = renderMermaidSVG(src)           // also renderMermaidASCII / unicode\nconst parsed = parseRegisteredMermaid(src)\nif (!parsed.ok) throw new Error(parsed.error.message)\nconst { ok, warnings } = verifyMermaid(parsed.value) // structured, tiered warnings</code></pre>\n<p>Render helpers return strings (SVG, ASCII, Unicode); the agent surface returns typed diagrams plus structured verify warnings. <strong>In React</strong>, call the same helpers in your component and inject the SVG — private diagrams never leave the browser or your own infrastructure. <strong>Config:</strong> supported Mermaid frontmatter and <code>init</code> directives are normalized before rendering; unsupported syntax is preserved or reported, never silently dropped.</p>" +
-      docsIndex,
-  ],
+  ...referencePages.map(page => [
+    `${page.destination.slice(1)}index.html`, page.title, page.lead,
+    `<p><a href="${page.destination}index.md">Read as Markdown</a></p>${page.html}${docsIndex}`,
+  ] as const),
   [
     'docs/cli/index.html',
     'CLI',

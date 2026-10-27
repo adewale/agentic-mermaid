@@ -6,6 +6,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Added
 
+- Generate the website's library reference and Markdown download from the
+  canonical API documentation, with task-first examples, runtime-derived option
+  defaults, source/release version information and a separate advanced reference.
+
 - Export synchronous `renderResolvedScene` and `RESOLVED_SCENE_VERSION = 1`
   from the main entry. Resolved parts retain their Scene nodes and expose
   backend-painted paths, text runs, concrete paint, transforms and expanded
