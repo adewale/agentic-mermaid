@@ -1,11 +1,19 @@
+import { resolveDiagramColors } from '../color-resolver.ts'
 import { connectorMarkerPaintRegions } from '../scene/bounds.ts'
 import { connector } from '../scene/marks.ts'
 import { configSpacing } from '../shared/config-spacing.ts'
 import { assertClassDiagramWork } from '../shared/diagram-limits.ts'
 import { type DisplayTextInput, prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
 import { type PixelTextBlock, preparePixelText } from '../shared/prepared-text.ts'
+import { repairClassAnnotationSeats } from './annotation-seats.ts'
+import { type ClassElkContact, projectClassElkContacts, retainClassElkContacts } from './elk-contacts.ts'
+import { assertClassHeaderPeersClear } from './header-lanes.ts'
 import { classInterfaceMarker } from './interface-occurrences.ts'
+import { assertClassMarkerMeaning, type ClassMarkerAdmissionWork, chargeClassMarkerAdmissionWork, createClassMarkerAdmissionWork } from './marker-admission.ts'
+import { buildClassEndpointMarkerTemplates } from './marker-measurement.ts'
+import { classElkMarkerMinimums, classNativeMarkerMinimums } from './marker-port-capacity.ts'
 import { classMarkerHeaderInsets, classOwnedSurfaceViolations, repairClassHeaderRoutes, repairClassNoteSeats } from './owned-surfaces.ts'
+import { classEndpointTextCandidates } from './relationship-paint.ts'
 import { memberToString } from './text.ts'
 
 export { memberToString } from './text.ts'
@@ -396,7 +404,7 @@ function extractClassLayout(result: ClassPlacement, diagram: ClassDiagram, class
         height: child.height ?? size.height,
         headerHeight: size.headerHeight,
         attrHeight: size.attrHeight,
-        methodHeight: size.methodHeight,
+        methodHeight: size.methodHeight + Math.max(0, (child.height ?? size.height) - size.height),
         ...(cls.className ? { className: cls.className } : {}),
         ...(cls.href ? { href: cls.href } : {}),
         ...(cls.tooltip !== undefined ? { tooltip: cls.tooltip } : {}),
@@ -536,29 +544,13 @@ function placeClassCardinalityLabels(relationships: PositionedClassRelationship[
         return preferred
       }
     }
-    const dx = toward.x - endpoint.x
-    const dy = toward.y - endpoint.y
-    const horizontal = Math.abs(dx) >= Math.abs(dy)
-    const ux = horizontal ? Math.sign(dx || 1) : 0
-    const uy = horizontal ? 0 : Math.sign(dy || 1)
-    const px = -uy
-    const py = ux
-    const perpendicular: number[] = []
-    for (let distance = 10; distance <= 190; distance += 12) perpendicular.push(-distance, distance)
     const candidates: Array<{ point: Point; box: CardinalityBox }> = []
-    for (let along = 14; along <= 150; along += 10) {
-      for (const offset of perpendicular) {
-        const point = {
-          x: endpoint.x + ux * along + px * offset,
-          y: endpoint.y + uy * along + py * offset,
-        }
-        const box = { x0: point.x - halfW, y0: point.y - halfH, x1: point.x + halfW, y1: point.y + halfH }
-        candidates.push({ point, box })
-        if (box.x0 < 0 || box.y0 < 0 || box.x1 > width || box.y1 > height) continue
-        if (accepted(box)) {
-          obstacles.push(box)
-          return point
-        }
+    for (const point of classEndpointTextCandidates(endpoint, toward)) {
+      const box = { x0: point.x - halfW, y0: point.y - halfH, x1: point.x + halfW, y1: point.y + halfH }
+      candidates.push({ point, box })
+      if (accepted(box)) {
+        obstacles.push(box)
+        return point
       }
     }
     // Extremely small canvases may have no perfect slot. Choose the stable
@@ -588,9 +580,16 @@ function placeClassCardinalityLabels(relationships: PositionedClassRelationship[
 /**
  * Lay out measured Class cards with the selected graph backend.
  */
-export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions = {}, styleFace?: Readonly<InternalStyleFace>): PositionedClassDiagram {
+export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions = {}, styleFace?: Readonly<InternalStyleFace>, paintBackendId?: string): PositionedClassDiagram {
   assertClassDiagramWork(diagram)
   const style = resolveRenderStyle(options, CLASS_STYLE_DEFAULTS, styleFace)
+  // These first-party marker overlays are canonical. Sketch notes can extend
+  // outside the native note envelope, so they cannot prove final non-restoration.
+  const canonicalMarkers = paintBackendId === undefined || paintBackendId === 'backend:default' || ((paintBackendId === 'backend:rough' || paintBackendId === 'backend:hybrid') && diagram.notes.length === 0)
+  // Resolve once, before either callback, from the canonical request options.
+  const hasMarkers = diagram.relationships.some(rel => rel.markerAt !== 'none')
+  const inkWork = createClassMarkerAdmissionWork()
+  const markerAdmission = canonicalMarkers && hasMarkers ? { colors: resolveDiagramColors(options, options.mermaidConfig ?? {}), work: inkWork } : undefined
   if (diagram.classes.length === 0 && !diagram.namespaces.length && !diagram.notes.length) {
     const empty = (): PositionedClassDiagram => withClassTitle({ width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, classes: [], relationships: [], notes: [], namespaces: [] }, diagram.title, style)
     return runMeasuredGraphBackend(options, empty, empty)
@@ -623,21 +622,42 @@ export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions
         const block = rel.label ? classTextBlock(resolveLabelContent(rel.label, rel.labelContent), style, 'edge') : undefined
         return block?.lineBlocks.some(line => line.runs.some(run => run.text.trim())) ? { width: block.width + 8, height: block.height + 6 } : undefined
       })
+      const markerTemplates = buildClassEndpointMarkerTemplates(diagram.relationships, style)
+      // One Native placement, using copied minima. Extra vertical reservation
+      // is blank last-compartment space; authored text measurements stay fixed.
+      const nativeMinimums = inkWork ? classNativeMarkerMinimums(diagram.classes, diagram.relationships, markerTemplates, style.lineWidth, diagram.direction??'TB', inkWork) : undefined
+      const chargeNativeSize=(units:number):void=>{for(let unit=0;unit<units;unit++)if(!chargeClassMarkerAdmissionWork(inkWork!))throw new LayoutCertificationError([{strategy:'class-native-marker-capacity',violations:['Class marker capacity work limit']}])}
+      let nativeClassSizes = classSizes
+      for(const [id,minimum] of nativeMinimums ?? []){
+        chargeNativeSize(5)
+        const old=classSizes.get(id)!,height=Math.max(old.height,minimum.height),width=Math.max(old.width,minimum.width)
+        if(height===old.height&&width===old.width)continue
+        if(nativeClassSizes===classSizes){chargeNativeSize(classSizes.size+1);nativeClassSizes=new Map(classSizes)}
+        chargeNativeSize(3)
+        nativeClassSizes.set(id,{...old,width,height,methodHeight:old.methodHeight+(height-old.height)})
+      }
+      const markerNodeStrokes = diagram.classes.map(cls => {
+        const local = { ...(cls.className ? checkedAuthoredStyle(diagram.classDefs.get(cls.className), `classDef ${cls.className}`) : {}), ...checkedAuthoredStyle(cls.inlineStyle, `style ${cls.id}`) }
+        const parsed = Number.parseFloat(local['stroke-width'] ?? '')
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : style.nodeLineWidth
+      })
       const placed = measureRenderStage('agentic', () =>
         layoutAgenticGraph({
-          nodes: diagram.classes.map(cls => ({ id: cls.id, width: classSizes.get(cls.id)!.width, height: classSizes.get(cls.id)!.height, ...(membership.has(cls.id) ? { parent: membership.get(cls.id)! } : {}) })),
-          groups,
+          nodes: diagram.classes.map((cls, index) => ({ id: cls.id, width: nativeClassSizes.get(cls.id)!.width, height: nativeClassSizes.get(cls.id)!.height, paintStrokeWidth: markerNodeStrokes[index], ...(!cls.isInterface && (paintBackendId===undefined||paintBackendId==='backend:default') ? {paintCornerRadius:style.cornerRadius??0} : {}), ...(nativeMinimums?.has(cls.id) ? { minimumPortSpacing: nativeMinimums.get(cls.id)!.portSpacing } : {}), ...(membership.has(cls.id) ? { parent: membership.get(cls.id)! } : {}) })),
+          groups: groups.map(group => ({ ...group, paintStrokeWidth: style.groupLineWidth })),
           edges: diagram.relationships.map((rel, index) => {
             const source = indices.get(rel.from),
               target = indices.get(rel.to)
             if (source === undefined || target === undefined) throw new Error('Class relationship references an undeclared card')
-            return { source, target, minSpan: 1, ...(labels[index] ? { label: labels[index] } : {}) }
+            return { source, target, minSpan: 1, markerPaint: markerTemplates[index], ...(labels[index] ? { label: labels[index] } : {}) }
           }),
           direction: diagram.direction ?? 'TB',
           padding: CLS.padding,
           nodeSpacing: options.nodeSpacing ?? CLS.nodeSpacing,
           layerSpacing: options.layerSpacing ?? CLS.layerSpacing,
           edgeSpacing: Math.max(6, style.lineWidth + 4),
+          maximumEdgeStrokeWidth: style.lineWidth,
+          maximumEdgeBendRadius: style.edgeBendRadius,
         }),
       )
       if (placed.nodes.length !== diagram.classes.length || (placed.groups?.length ?? 0) !== namespaces.length || placed.edges.length !== diagram.relationships.length) {
@@ -647,7 +667,7 @@ export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions
         width: placed.width,
         height: placed.height,
         nodes: [
-          ...placed.nodes.map((node, index) => ({ ...node, id: diagram.classes[index]!.id, width: classSizes.get(diagram.classes[index]!.id)!.width, height: classSizes.get(diagram.classes[index]!.id)!.height })),
+          ...placed.nodes.map((node, index) => ({ ...node, id: diagram.classes[index]!.id, width: nativeClassSizes.get(diagram.classes[index]!.id)!.width, height: nativeClassSizes.get(diagram.classes[index]!.id)!.height })),
           ...namespaces.map((info, index) => ({ ...placed.groups![index]!, id: NS_PREFIX + info.path, namespacePath: info.path })),
         ],
         routes: new Map(
@@ -661,28 +681,40 @@ export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions
           ]),
         ),
       }
-      return finishClassLayout(extractClassLayout(geometry, diagram, classSizes, style, hierarchicalNamespaces), diagram, style)
+      return finishClassLayout(extractClassLayout(geometry, diagram, nativeClassSizes, style, hierarchicalNamespaces), diagram, style, markerAdmission, inkWork)
     },
     () => {
       // Wrapped namespace headers retain the existing bounded ELK sizing loop.
       let result: PositionedClassDiagram | undefined
       let headerInsets: ReadonlyMap<string, number> = new Map()
+      let elkSizes = classSizes
       for (let pass = 0; pass < 3; pass++) {
-        const { elkGraph, namespacePaths } = buildClassElkGraph(diagram, options, classSizes, styleFace, titles, headerInsets)
-        result = extractClassLayout(projectClassElkPlacement(elkLayoutSync(elkGraph), namespacePaths), diagram, classSizes, style, hierarchicalNamespaces, titles)
+        const { elkGraph, namespacePaths } = buildClassElkGraph(diagram, options, elkSizes, styleFace, titles, headerInsets)
+        result = extractClassLayout(projectClassElkPlacement(elkLayoutSync(elkGraph), namespacePaths), diagram, elkSizes, style, hierarchicalNamespaces, titles)
         const wrapped = wrappedNamespaceTitles(result.namespaces, style)
-        const nextInsets = classMarkerHeaderInsets(result, style, headerInsets)
-        if (wrapped.size === titles.size && [...wrapped].every(([path, title]) => titles.get(path) === title) && nextInsets.size === headerInsets.size && [...nextInsets].every(([id, inset]) => headerInsets.get(id) === inset)) break
+        const nextInsets = classMarkerHeaderInsets(result, style, headerInsets, inkWork)
+        const minimums = markerAdmission ? classElkMarkerMinimums(result, style, markerAdmission.work) : new Map()
+        let nextSizes = elkSizes
+        for (const [id, minimum] of minimums) {
+          const size = elkSizes.get(id)!
+          const width = Math.max(size.width, minimum.width),
+            height = Math.max(size.height, minimum.height)
+          if (width === size.width && height === size.height) continue
+          if (nextSizes === elkSizes) nextSizes = new Map(elkSizes)
+          nextSizes.set(id, { ...size, width, height, methodHeight: size.methodHeight + height - size.height })
+        }
+        if (nextSizes === elkSizes && wrapped.size === titles.size && [...wrapped].every(([path, title]) => titles.get(path) === title) && nextInsets.size === headerInsets.size && [...nextInsets].every(([id, inset]) => headerInsets.get(id) === inset)) break
         titles = wrapped
         headerInsets = nextInsets
+        elkSizes = nextSizes
       }
-      return finishClassLayout(result!, diagram, style)
+      return finishClassLayout(result!, diagram, style, markerAdmission, inkWork, true)
     },
     true,
   )
 }
 
-function finishClassLayout(positioned: PositionedClassDiagram, diagram: ClassDiagram, style: ResolvedRenderStyle): PositionedClassDiagram {
+function finishClassLayout(positioned: PositionedClassDiagram, diagram: ClassDiagram, style: ResolvedRenderStyle, markerAdmission?: { colors: ReturnType<typeof resolveDiagramColors>; work: ClassMarkerAdmissionWork }, inkWork?: ClassMarkerAdmissionWork, elk = false): PositionedClassDiagram {
   for (const cls of positioned!.classes) {
     cls.labelBlock = classTextBlock(resolveLabelContent(cls.label, cls.labelContent), style, 'node')
     cls.attributeBlocks = cls.attributes.map(classMemberBlock)
@@ -698,6 +730,7 @@ function finishClassLayout(positioned: PositionedClassDiagram, diagram: ClassDia
       if (text !== undefined) rel[`${side}CardinalityBlock`] = preparePixelText(resolveLabelContent(text, rel[`${side}CardinalityContent`]), { fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing })
     }
   }
+  const contacts = elk ? retainClassElkContacts(positioned, inkWork) : undefined
   const result = withClassTitle(positioned!, diagram.title, style)
   if (result.classes.some(node => node.isInterface)) {
     const interfaces = new Map(result.classes.filter(node => node.isInterface).map(node => [node.id, node]))
@@ -717,18 +750,32 @@ function finishClassLayout(positioned: PositionedClassDiagram, diagram: ClassDia
       }
     }
   }
-  finalizeClassOwnedSurfaces(result, style)
+  finalizeClassOwnedSurfaces(result, style, inkWork, contacts)
+  if (markerAdmission) assertClassMarkerMeaning(result, style, markerAdmission.colors, markerAdmission.work)
   return result
 }
 
 /** Shared final geometric admission for both Class producers. */
-export function finalizeClassOwnedSurfaces(result: PositionedClassDiagram, style: ResolvedRenderStyle): void {
-  repairClassHeaderRoutes(result, style)
+export function finalizeClassOwnedSurfaces(result: PositionedClassDiagram, style: ResolvedRenderStyle, inkWork?: ClassMarkerAdmissionWork, contacts?: readonly ClassElkContact[]): void {
+  if (contacts) projectClassElkContacts(contacts, inkWork)
+  const changed = repairClassHeaderRoutes(result, style, inkWork)
   const extra = [...result.namespaces.map(ns => ({ x0: ns.x, y0: ns.y, x1: ns.x + ns.width, y1: ns.y + ns.headerHeight })), ...result.notes.map(n => ({ x0: n.x, y0: n.y, x1: n.x + n.width, y1: n.y + n.height }))]
-  placeClassCardinalityLabels(result.relationships, result.classes, style, result.width, result.height, extra, true)
-  repairClassNoteSeats(result, style, CLS.padding)
+  if (result.relationships.some(rel => rel.markerAt !== 'none')) {
+    const oldLeft = result.classes[0]?.x, oldTop = result.classes[0]?.y
+    repairClassNoteSeats(result, style, CLS.padding, inkWork)
+    if (contacts && (result.classes[0]?.x !== oldLeft || result.classes[0]?.y !== oldTop)) projectClassElkContacts(contacts, inkWork)
+    repairClassAnnotationSeats(result, style, inkWork ?? createClassMarkerAdmissionWork(), changed)
+  } else {
+    placeClassCardinalityLabels(result.relationships, result.classes, style, result.width, result.height, extra, true)
+    const oldLeft = result.classes[0]?.x, oldTop = result.classes[0]?.y
+    repairClassNoteSeats(result, style, CLS.padding, inkWork)
+    if (contacts && (result.classes[0]?.x !== oldLeft || result.classes[0]?.y !== oldTop)) projectClassElkContacts(contacts, inkWork)
+  }
+  if (!result.relationships.some(rel => rel.markerAt !== 'none') && changed.size) repairClassAnnotationSeats(result, style, inkWork ?? createClassMarkerAdmissionWork(), changed)
   const violations = classOwnedSurfaceViolations(result, style)
   if (violations.length) throw new LayoutCertificationError([{ strategy: 'class-owned-surfaces', violations }])
+  const peerWork=inkWork??createClassMarkerAdmissionWork()
+  assertClassHeaderPeersClear(result,changed,style,()=>chargeClassMarkerAdmissionWork(peerWork))
 }
 
 /** The diagram's title takes a band above everything the layout placed. */

@@ -9,6 +9,7 @@ import { type MeasuredBox, segmentEntersMeasuredBox, measuredBoxesOverlap, score
  * are excluded when tightening the resulting authored canvas. */
 export function compactMeasuredLoops(input: MeasuredGraph, placed: AgenticLayout, work: { loopPairs: number }): AgenticLayout {
   if (work.loopPairs <= 0 || input.groups?.length || input.nodes.length > 256 || input.edges.length > 128 || placed.edges.reduce((n, e) => n + e.points.length, 0) > 2048) return placed
+  const chargeContact = (amount: number): boolean => (work.loopPairs -= amount) >= 0
   const horizontal = input.direction === 'LR' || input.direction === 'RL',
     sign = input.direction === 'RL' || input.direction === 'BT' ? -1 : 1
   const main = horizontal ? 'x' : 'y',
@@ -77,7 +78,8 @@ export function compactMeasuredLoops(input: MeasuredGraph, placed: AgenticLayout
         }
         if (!labelPosition) continue
       }
-      const value = scoreMeasuredRouteCrossings(proposed, index, ink, input)
+      const value = scoreMeasuredRouteCrossings(proposed, index, ink, input, chargeContact, chargeContact)
+      if (work.loopPairs < 0) return placed
       if (value === undefined || value > before) continue
       route.points = proposed
       ink[index]!.points = proposed

@@ -1,7 +1,8 @@
 import type { MarkerDescriptor } from '../scene/ir.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
+import type { Point } from '../types.ts'
 import { classInterfaceMarker } from './interface-occurrences.ts'
-import type { RelationshipType } from './types.ts'
+import type { PositionedClassRelationship, RelationshipType } from './types.ts'
 export function classMarkerResources(style: ResolvedRenderStyle): readonly MarkerDescriptor[] {
   const edgeColor = style.edgeStrokeColor ?? 'var(--_arrow)'
   const triangle = [
@@ -70,107 +71,30 @@ export function getMarkerDefId(type: RelationshipType): string | null {
 }
 
 export const RELATION_LABEL_HALO_WIDTH = 3
-
-export type ClassMarkerPiece = { kind: 'polygon'; points: { x: number; y: number }[] } | { kind: 'circle'; cx: number; cy: number; r: number }
-/** Canonical Class resources contain only convex polygons, two-segment open
- * arrows and circles. Retain their actual fill/stroke pieces, including joins
- * and marker viewport clipping, instead of treating an AABB corner as paint. */
-export function classMarkerPieces(marker: MarkerDescriptor, anchor: { x: number; y: number }, tangent: { x: number; y: number }, position: 'start' | 'end', strokeWidth: number): ClassMarkerPiece[] {
-  const geometry = marker.geometry
-  if (!geometry) return []
-  const factor = position === 'start' && marker.orient === 'auto-start-reverse' ? -1 : 1,
-    length = Math.hypot(tangent.x, tangent.y)
-  if (!length) return []
-  const cosine = (factor * tangent.x) / length,
-    sine = (factor * tangent.y) / length,
-    view = marker.viewBox,
-    scale = (marker.units === 'userSpaceOnUse' ? 1 : strokeWidth) * Math.max(1, marker.scale ?? 1) * (view && marker.size ? Math.min(marker.size.width / view.width, marker.size.height / view.height) : 1)
-  if (!Number.isFinite(scale)) throw new TypeError('Nonfinite Class marker scale')
-  if (scale <= 0) return []
-  const world = (p: { x: number; y: number }) => {
-    const x = (p.x - (marker.ref?.x ?? 0)) * scale,
-      y = (p.y - (marker.ref?.y ?? 0)) * scale
-    return { x: anchor.x + cosine * x - sine * y, y: anchor.y + sine * x + cosine * y }
-  }
-  const paint = marker.paint ?? {},
-    radius = paint.stroke && paint.stroke !== 'none' && paint.stroke !== 'transparent' ? Number.parseFloat(paint.strokeWidth ?? '1') / 2 : 0,
-    filled = paint.fill !== undefined && paint.fill !== 'none' && paint.fill !== 'transparent'
-  if (geometry.kind === 'circle') {
-    const c = world({ x: geometry.cx, y: geometry.cy })
-    return [{ kind: 'circle', cx: c.x, cy: c.y, r: (geometry.r + radius) * scale }]
-  }
-  if (geometry.kind !== 'polygon' && geometry.kind !== 'polyline') throw new TypeError('Unmeasured Class marker geometry')
-  const points = geometry.points,
-    local: { x: number; y: number }[][] = []
-  if (filled && geometry.kind === 'polygon') local.push([...points])
-  const count = geometry.kind === 'polygon' ? points.length : points.length - 1
-  const vector = (a: { x: number; y: number }, b: { x: number; y: number }) => {
-    const n = Math.hypot(b.x - a.x, b.y - a.y)
-    return { x: (b.x - a.x) / n, y: (b.y - a.y) / n }
-  }
-  if (radius > 0) {
-    for (let i = 0; i < count; i++) {
-      const a = points[i]!,
-        b = points[(i + 1) % points.length]!,
-        d = vector(a, b),
-        n = { x: -d.y * radius, y: d.x * radius }
-      local.push([
-        { x: a.x + n.x, y: a.y + n.y },
-        { x: b.x + n.x, y: b.y + n.y },
-        { x: b.x - n.x, y: b.y - n.y },
-        { x: a.x - n.x, y: a.y - n.y },
-      ])
-    }
-    for (let i = geometry.kind === 'polygon' ? 0 : 1; i < (geometry.kind === 'polygon' ? points.length : points.length - 1); i++) {
-      const p = points[i]!,
-        a = points[(i - 1 + points.length) % points.length]!,
-        b = points[(i + 1) % points.length]!,
-        u = vector(a, p),
-        v = vector(p, b),
-        turn = u.x * v.y - u.y * v.x
-      if (!turn) continue
-      const side = turn > 0 ? -1 : 1,
-        q = { x: p.x - side * u.y * radius, y: p.y + side * u.x * radius },
-        r = { x: p.x - side * v.y * radius, y: p.y + side * v.x * radius },
-        t = ((r.x - q.x) * v.y - (r.y - q.y) * v.x) / turn,
-        m = { x: q.x + t * u.x, y: q.y + t * u.y }
-      local.push(Math.hypot(m.x - p.x, m.y - p.y) <= Number(paint.strokeMiterlimit ?? '4') * radius ? [p, q, m, r] : [p, q, r])
-    }
-  }
-  const clip = (polygon: { x: number; y: number }[], axis: 'x' | 'y', boundary: number, low: boolean) => {
-    const result: { x: number; y: number }[] = []
-    for (let i = 0; i < polygon.length; i++) {
-      const a = polygon[i]!,
-        b = polygon[(i + 1) % polygon.length]!,
-        inside = (p: { x: number; y: number }) => (low ? p[axis] >= boundary : p[axis] <= boundary),
-        aa = inside(a),
-        bb = inside(b)
-      if (aa) result.push(a)
-      if (aa !== bb) {
-        const t = (boundary - a[axis]) / (b[axis] - a[axis])
-        result.push({ x: a.x + t * (b.x - a.x), y: a.y + t * (b.y - a.y) })
-      }
-    }
-    return result
-  }
-  return local.flatMap(piece => {
-    if (marker.overflow === 'hidden' && view) {
-      for (const [axis, boundary, low] of [
-        ['x', view.x, true],
-        ['x', view.x + view.width, false],
-        ['y', view.y, true],
-        ['y', view.y + view.height, false],
-      ] as const)
-        piece = clip(piece, axis, boundary, low)
-    }
-    const origin = piece[0]
-    let area = 0
-    if (origin)
-      for (let i = 0; i < piece.length; i++) {
-        const a = piece[i]!,
-          b = piece[(i + 1) % piece.length]!
-        area += (a.x - origin.x) * (b.y - origin.y) - (a.y - origin.y) * (b.x - origin.x)
-      }
-    return piece.length >= 3 && area !== 0 ? [{ kind: 'polygon' as const, points: piece.map(world) }] : []
-  })
+export const RELATION_LABEL_OFFSET_Y = 8
+/** Same stored anchors and fallback semantics consumed by Class drawing. */
+export function classCaptionAnchor(rel: PositionedClassRelationship): Point | undefined {
+  return rel.label && rel.points.length >= 2 ? (rel.labelPosition ?? rel.points[Math.floor(rel.points.length / 2)]) : undefined
 }
+export function classCardinalityAnchor(rel: PositionedClassRelationship, side: 'from' | 'to'): Point | undefined {
+  if (!rel[`${side}Cardinality`] || rel.points.length < 2) return undefined
+  const stored = rel[`${side}CardinalityPosition`]
+  if (stored) return stored
+  const p = side === 'from' ? rel.points[0]! : rel.points.at(-1)!,
+    q = side === 'from' ? rel.points[1]! : rel.points.at(-2)!,
+    dx = q.x - p.x,
+    dy = q.y - p.y
+  return Math.abs(dx) > Math.abs(dy) ? { x: p.x + (dx > 0 ? 14 : -14), y: p.y - 10 } : { x: p.x - 14, y: p.y + (dy > 0 ? 14 : -14) }
+}
+// The existing Class endpoint roster: 14 along slots × 32 perpendicular slots.
+export const CLASS_TEXT_CANDIDATE_LIMIT = (Math.floor((150 - 14) / 10) + 1) * 2 * (Math.floor((190 - 10) / 12) + 1)
+export function* classEndpointTextCandidates(endpoint: Point, toward: Point): Generator<Point> {
+  const dx = toward.x - endpoint.x,
+    dy = toward.y - endpoint.y,
+    horizontal = Math.abs(dx) >= Math.abs(dy),
+    ux = horizontal ? Math.sign(dx || 1) : 0,
+    uy = horizontal ? 0 : Math.sign(dy || 1)
+  for (let along = 14; along <= 150; along += 10) for (let distance = 10; distance <= 190; distance += 12) for (const offset of [-distance, distance]) yield { x: endpoint.x + ux * along - uy * offset, y: endpoint.y + uy * along + ux * offset }
+}
+
+export { markerPaintPieces as classMarkerPieces, type MarkerPaintPiece as ClassMarkerPiece } from '../scene/marker-paint-pieces.ts'

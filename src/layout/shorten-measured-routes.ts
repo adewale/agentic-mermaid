@@ -34,6 +34,7 @@ export function shortenMeasuredRoutes(input: MeasuredGraph, placed: AgenticLayou
   const length = (points: readonly Point[]): number => points.slice(1).reduce((sum, point, index) => sum + Math.abs(point.x - points[index]!.x) + Math.abs(point.y - points[index]!.y), 0)
   const ray = (a: Point, b: Point): string => `${Math.sign(b.x - a.x)},${Math.sign(b.y - a.y)}`
   let attempts = 512, comparisons = 8_000_000
+  const chargeContact = (amount: number): boolean => (comparisons -= amount) >= 0
   for (const [index, edge] of input.edges.entries()) {
     if (placed.boundaryRoutes?.includes(index)) continue
     if (edge.source === edge.target || edge.visible === false || ink[index]!.points.length < 5) continue
@@ -74,7 +75,8 @@ export function shortenMeasuredRoutes(input: MeasuredGraph, placed: AgenticLayou
           if (attempts-- <= 0) return placed
           comparisons -= count * count
           if (comparisons < 0) return placed
-          const nextCrossings = scoreMeasuredRouteCrossings(candidate, index, ink, input)
+          const nextCrossings = scoreMeasuredRouteCrossings(candidate, index, ink, input, chargeContact, chargeContact)
+          if (comparisons < 0) return placed
           if (nextCrossings === undefined) continue
           let labelPosition = anchor, labelBox = labels[index]
           if (anchor && edge.label && !candidate.slice(1).some((point, cursor) => pointOnMeasuredSegment(anchor, candidate[cursor]!, point))) {

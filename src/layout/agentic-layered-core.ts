@@ -1,3 +1,4 @@
+import { assertMarkerPaint, type MarkerPaint } from './compound-marker-seating.ts'
 import { refinePrivateChainOrder } from './chain-insertion-order.ts'
 import { minimumSpanRanks, privateRankSpan, MAX_MEASURED_RANKS as MAX_RANKS } from './minimum-span-ranks.ts'
 import { compactMeasuredLoops } from './compact-measured-loops.ts'
@@ -10,23 +11,27 @@ import { assignChannelTracks, type ChannelStep, type ChannelWork } from './chann
 
 export interface MeasuredGraph {
   /** Ordered partitions are local to a sibling scope; omitted values use zero. */
-  nodes: readonly { id: string; width: number; height: number; parent?: number; partition?: number; modelOrder?: number }[]
+  nodes: readonly { id: string; width: number; height: number; paintStrokeWidth?: number; paintCornerRadius?: number; /** Producer-reserved primary port pitch; final paint proofs remain required. */ minimumPortSpacing?: number; parent?: number; partition?: number; modelOrder?: number }[]
   /** Edges may address a frame at nodes.length + its group index. */
   groups?: readonly {
     id: string; parent?: number; partition?: number; modelOrder?: number; direction?: Direction; minWidth: number
     /** Measured painted header strip, excluding blank content padding. */
+    paintStrokeWidth?: number
     headerHeight?: number
     padding: { top: number; right: number; bottom: number; left: number }
   }[]
   /** Label dimensions include the occupied painted body. Its own shaft is
    * masked by that body; foreign routes must stay outside it. Loop expansion
    * reserves additional space beside the arc instead of masking its shaft. */
-  edges: readonly { source: number; target: number; minSpan: number; short?: true; boundaryMarker?: { inset: number; height: number }; visible?: boolean; label?: { width: number; height: number } }[]
+  edges: readonly { source: number; target: number; minSpan: number; short?: true; boundaryMarker?: { inset: number; height: number }; markerPaint?: MarkerPaint; visible?: boolean; label?: { width: number; height: number } }[]
   direction: Direction
   padding: number
   nodeSpacing: number
   layerSpacing: number
   edgeSpacing?: number
+  /** Actual maximum painted edge stroke, supplied by the producer. Absence keeps legacy routing. */
+  maximumEdgeStrokeWidth?: number
+  maximumEdgeBendRadius?: number
   /** Private source-port separation constraints introduced by loop expansion. */
   loopPorts?: readonly (readonly [number, number])[]
   /** Adapter permits confluent routing only for compatible plain fans. */
@@ -68,7 +73,7 @@ interface Vertex {
 // These are local solver bounds, not a replacement for request admission.
 const MAX_NODES = 4096
 const MAX_EDGES = 16384
-const MAX_EXPANDED_VERTICES = 32768
+export const MAX_EXPANDED_VERTICES = 32768
 const SWEEP_PAIRS = 4
 const LABEL_GAP = 8
 
@@ -99,6 +104,13 @@ export function layoutLayeredGraph(
     throw new TypeError('Measured graph spacing must be finite and nonnegative')
   }
   if (input.edgeSpacing !== undefined && !finiteSize(input.edgeSpacing, true)) throw new TypeError('Measured edge spacing must be finite and positive')
+  if (input.maximumEdgeStrokeWidth !== undefined && !finiteSize(input.maximumEdgeStrokeWidth, true)) throw new TypeError('Measured maximum edge stroke width must be finite and positive')
+  if (input.maximumEdgeBendRadius !== undefined && !finiteSize(input.maximumEdgeBendRadius,false)) throw new TypeError('Invalid measured edge bend radius')
+  for (const node of input.nodes) if (node.paintStrokeWidth !== undefined && !finiteSize(node.paintStrokeWidth,true)) throw new TypeError('Invalid measured node paint stroke')
+  for (const node of input.nodes) if (node.paintCornerRadius !== undefined && !finiteSize(node.paintCornerRadius,false)) throw new TypeError('Invalid measured node corner radius')
+  for (const node of input.nodes) if (node.minimumPortSpacing !== undefined && !finiteSize(node.minimumPortSpacing,true)) throw new TypeError('Invalid measured node port spacing')
+  for (const group of input.groups ?? []) if (group.paintStrokeWidth !== undefined && !finiteSize(group.paintStrokeWidth,true)) throw new TypeError('Invalid measured group paint stroke')
+  for (const edge of input.edges) if (edge.markerPaint !== undefined) assertMarkerPaint(edge.markerPaint)
   if (!['TD', 'TB', 'BT', 'LR', 'RL'].includes(input.direction)) throw new TypeError('Invalid measured graph direction')
   if (input.groups?.length) {
     if (nodes.length + input.groups.length > MAX_NODES) unsupported('agentic local compound-size limit')
@@ -665,7 +677,8 @@ export function layoutLayeredGraph(
       // lane instead of adding a jog merely to reach a uniformly spaced port.
       // Dense sides retain the existing proportional spread; loop pairs keep
       // their separately proved attachment separation.
-      const margin = Math.min(8, width / 6), separation = 8
+      if(nodes[nodeIndex]!.minimumPortSpacing!==undefined){routingWork.pairs-=3;if(routingWork.pairs<0)unsupported('agentic node port-spacing work limit')}
+      const margin = Math.min(8, width / 6), separation = Math.max(8,nodes[nodeIndex]!.minimumPortSpacing??8)
       if (!pairs?.length && width - 2 * margin >= (peers.length - 1) * separation) {
         const left = cross[nodeIndex]! - width / 2 + margin, right = cross[nodeIndex]! + width / 2 - margin
         const positions = peers.map((edge, slot) => {
@@ -708,6 +721,25 @@ export function layoutLayeredGraph(
     return horizontal ? { x: orientedMain, y: padding + crossValue } : { x: padding + crossValue, y: orientedMain }
   }
 
+  // Node origins are the border authority used by the shape writer. Project
+  // terminal faces from those same values instead of reassociating center/half
+  // arithmetic, and carry each chosen cross coordinate through its lead.
+  const positionedNodes = nodes.map((node, index) => {
+    const center = point(cross[index]!, main[index]!)
+    return { x: center.x - node.width / 2, y: center.y - node.height / 2 }
+  })
+  const portCross = (value: number, index: number): number => {
+    const width = vertices[index]!.crossSize, margin = Math.min(8, width / 6)
+    const origin = horizontal ? positionedNodes[index]!.y : positionedNodes[index]!.x
+    if (value === cross[index]! - width / 2 + margin) return origin + margin
+    if (value === cross[index]! + width / 2 - margin) return origin + width - margin
+    return padding + value
+  }
+  const portMain = (index: number, source: boolean): number => {
+    const node = positionedNodes[index]!, size = nodes[index]!
+    return horizontal ? node.x + (source !== reverse ? size.width : 0) : node.y + (source !== reverse ? size.height : 0)
+  }
+
   // Cycle selection and loop compaction still depend on temporary route
   // geometry. Ordinary acyclic placement needs channels/gaps but no point
   // arrays: the family will build the actual side-constrained routes.
@@ -715,8 +747,10 @@ export function layoutLayeredGraph(
     ? edges.map(() => ({ points: [] as Point[] })) : edges.map((_, edgeIndex) => {
     const chain = chains[edgeIndex]!
     const points: Point[] = []
-    const append = (crossValue: number, mainValue: number): void => {
+    const append = (crossValue: number, mainValue: number, projectedCross?: number, projectedMain?: number): void => {
       const next = point(crossValue, mainValue)
+      if (projectedCross !== undefined) { if (horizontal) next.y = projectedCross; else next.x = projectedCross }
+      if (projectedMain !== undefined) { if (horizontal) next.x = projectedMain; else next.y = projectedMain }
       const last = points.at(-1)
       if (last?.x === next.x && last.y === next.y) return
       const previous = points.at(-2)
@@ -732,14 +766,16 @@ export function layoutLayeredGraph(
       const endMain = main[to]! - vertices[to]!.mainSize / 2
       const bandEnd = main[from]! + bandHeights[vertices[from]!.rank]! / 2
       const gapMain = bandEnd + step.offset
-      append(startCross, startMain)
-      append(startCross, gapMain)
-      append(step.targetEscape ?? endCross, gapMain)
+      const startProjectedCross = from < nodes.length ? portCross(startCross, from) : undefined
+      const endProjectedCross = to < nodes.length ? portCross(endCross, to) : undefined
+      append(startCross, startMain, startProjectedCross, from < nodes.length ? portMain(from, true) : undefined)
+      append(startCross, gapMain, startProjectedCross)
+      append(step.targetEscape ?? endCross, gapMain, step.targetEscape === undefined ? endProjectedCross : undefined)
       if (step.targetEscape !== undefined) {
         append(step.targetEscape, bandEnd + step.targetExit!)
-        append(endCross, bandEnd + step.targetExit!)
+        append(endCross, bandEnd + step.targetExit!, endProjectedCross)
       }
-      append(endCross, endMain)
+      append(endCross, endMain, endProjectedCross, to < nodes.length ? portMain(to, false) : undefined)
     }
     const labelIndex = labelVertices[edgeIndex]
     const labelPosition = labelIndex === undefined ? undefined : point(cross[labelIndex]!, main[labelIndex]!)
@@ -750,10 +786,7 @@ export function layoutLayeredGraph(
     expandedVertices: vertices.length,
     width: 2 * padding + (horizontal ? mainExtent : crossExtent),
     height: 2 * padding + (horizontal ? crossExtent : mainExtent),
-    nodes: nodes.map((node, index) => {
-      const center = point(cross[index]!, main[index]!)
-      return { x: center.x - node.width / 2, y: center.y - node.height / 2 }
-    }),
+    nodes: positionedNodes,
     edges: positionedEdges,
   }
 }

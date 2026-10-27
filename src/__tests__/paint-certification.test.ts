@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test'
 import * as marks from '../scene/marks.ts'
 import { readFileSync } from 'node:fs'
 import { connectorMarkerPaintRegions, nodePaintBounds } from '../scene/bounds.ts'
-import { certifyNativePaint, certifyScenePaint } from '../scene/paint-certification.ts'
+import { certifyNativePaint, certifyScenePaint, prepareMarkerPolygonInk, compareMarkerStrokeInk } from '../scene/paint-certification.ts'
 import type { Geometry, MarkPaint, SceneDoc, SceneNode, SceneTransform, MarkerDescriptor } from '../scene/ir.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 import { getFamily, knownBuiltinFamilies } from '../agent/families.ts'
@@ -21,6 +21,7 @@ import { replaceFamilyForTest } from '../agent/families.ts'
 import type { PositionedArchitectureDiagram } from '../architecture/types.ts'
 import type { PositionedErDiagram } from '../er/types.ts'
 import type { PositionedIshikawa } from '../ishikawa/types.ts'
+import { classMarkerResources } from '../class/relationship-paint.ts'
 
 const scene = (parts: SceneNode[]): SceneDoc => ({ family: 'flowchart', width: 100, height: 80, transparent: false, colors: { bg: '#fff', fg: '#111' }, parts })
 const label = () => {
@@ -379,7 +380,7 @@ test.each(['1', 'var(--unknown,0.5)'])('native group opacity %s admits only cert
     const cover = factory.shape({ id: 'cover', role: 'node', geometry: { kind: 'rect', x: 10, y: 10, width: 80, height: 60 }, paint: { fill: '#fff' } })
     return { ...scene([]), parts: [
       factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'),
-      factory.text({ id: 'text', role: 'label', text: 'Read', block: preparePixelText('Read', { fontSize: 12, fontWeight: 400 }), x: 20, y: 30, fontSize: 12, anchor: 'start', paint: { fill: '#111' } }),
+      factory.text({ id: 'text', role: 'label', text: 'Read', block: preparePixelText('Read', { fontSize: 12, fontWeight: 400 }), x: 40, y: 50, fontSize: 12, anchor: 'start', paint: { fill: '#111' } }),
       factory.group({ id: 'cover-group', role: 'chrome', open: '<g>', close: '</g>', paint: { opacity }, children: [{ node: cover, indent: 0 }] }),
       factory.documentClose(),
     ] }
@@ -406,7 +407,7 @@ test.each([
     factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'),
     factory.definitions({ id: 'markers' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
     factory.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 20, y1: 30, x2: 30, y2: 30 }, paint: { stroke: '#111' }, endpoints: { from: 'outside', to: 'cover' }, markers: { end: marker } }),
-    factory.text({ id: 'text', role: 'label', text: 'Read', block: preparePixelText('Read', { fontSize: 12, fontWeight: 400 }), x: 20, y: 30, fontSize: 12, anchor: 'start', paint: { fill: '#111' } }),
+    factory.text({ id: 'text', role: 'label', text: 'Read', block: preparePixelText('Read', { fontSize: 12, fontWeight: 400 }), x: 40, y: 50, fontSize: 12, anchor: 'start', paint: { fill: '#111' } }),
     factory.shape({ id: 'cover', role: 'node', geometry: { kind: 'compound', children: [{ kind: 'rect', x: 80, y: 10, width: 10, height: 10 }, { kind: 'rect', x: 10, y: 10, width: 60, height: 60 }] }, paint: { fill: 'none', opacity: '0' }, childPaints: [first, second] }),
     factory.documentClose(),
   ] })
@@ -1000,4 +1001,270 @@ test('an ambiguous legacy note endpoint remains unverified rather than gaining a
 
 test('a translucent note has no proved opaque core to reject a semantic shaft', () => {
   expect(certifyScenePaint(scene([noteSubject('S', 5), noteSubject('T', 85), opaqueNoteCore('rgba(255,255,255,0.4)'), noteCrossing()])).status).toBe('passed')
+})
+
+// These are ordinary polygon resources: the proof must not depend on a family
+// name or marker id. The first midpoint (61,32.5) lies strictly inside the
+// second fill, away from its 0.75px outline, at the covered offset.
+test.each(['covered', 'separate', 'aabb-corner', 'coincident', 'different-coincident', 'owned-repaint', 'same-owner-cover', 'unknown-fill', 'transparent-fill', 'affine', 'clipped', 'nonsemantic', 'no-earlier-stroke', 'unemitted-opacity', 'later-restoration', 'overlay-repaint', 'same-color', 'thick-outline', 'unmeasured-restoration', 'late-open', 'early-open-covered', 'early-open-clear', 'no-closing-stroke', 'string-marker-units', 'vertex-only-cover', 'partial-restoration', 'no-earlier-ink'] as const)('distinct marker stroke/fill proof preserves %s', mode => {
+  const first: MarkerDescriptor = { id: 'diamond-resource', shape: 'diamond', units: 'userSpaceOnUse', orient: 'auto-start-reverse',
+    size: { width: 14, height: 12 }, viewBox: { x: 0, y: 0, width: 14, height: 12 }, ref: { x: 13, y: 6 },
+    geometry: mode === 'no-closing-stroke' ? { kind: 'polyline', points: [{ x: 7, y: 1 }, { x: 13, y: 6 }, { x: 7, y: 11 }] } : ['early-open-covered', 'early-open-clear'].includes(mode) ? { kind: 'polyline', points: [{ x: 7, y: 11 }, { x: 1, y: 6 }, { x: 7, y: 1 }] } : { kind: 'polygon', points: [{ x: 7, y: 1 }, { x: 13, y: 6 }, { x: 7, y: 11 }, { x: 1, y: 6 }] },
+    paint: { fill: mode === 'no-earlier-ink' ? 'none' : mode === 'vertex-only-cover' ? '#111' : mode.startsWith('early-open') || mode === 'no-closing-stroke' ? 'none' : '#fff', stroke: ['no-earlier-stroke', 'no-earlier-ink'].includes(mode) ? 'none' : '#111', strokeWidth: mode === 'aabb-corner' ? '0.25' : '1.5' } }
+  const later: MarkerDescriptor = ['coincident', 'owned-repaint'].includes(mode) ? first : { id: 'triangle-resource', shape: 'arrow', units: 'userSpaceOnUse', orient: 'auto-start-reverse', overflow: mode === 'clipped' ? 'hidden' : 'visible',
+    size: { width: mode === 'clipped' ? 6 : 12, height: mode === 'clipped' ? 5 : 10 }, ref: { x: 12, y: 5 },
+    geometry: { kind: mode === 'late-open' ? 'polyline' : 'polygon', points: [{ x: 0, y: 0 }, { x: 12, y: 5 }, { x: 0, y: 10 }] },
+    paint: { fill: mode === 'late-open' ? 'none' : mode === 'unknown-fill' ? 'var(--host)' : mode === 'transparent-fill' ? 'rgba(255,255,255,0.5)' : mode === 'same-color' ? '#111' : '#fff', stroke: '#111', strokeWidth: mode === 'thick-outline' ? '20' : '1.5', ...(mode === 'unemitted-opacity' ? { fillOpacity: '0', strokeOpacity: '0' } : {}) } }
+  if (mode === 'vertex-only-cover') { later.size = { width: 14, height: 12 }; later.ref = { x: 13, y: 6 }; later.viewBox = { x: 0, y: 0, width: 14, height: 12 }; later.geometry = first.geometry }
+  if (mode === 'no-closing-stroke') { later.size = { width: 1, height: 1 }; later.ref = { x: 0.5, y: 0.5 }; later.geometry = { kind: 'polygon', points: [{ x: 0, y: 0 }, { x: 1, y: 0.5 }, { x: 0, y: 1 }] }; later.paint!.strokeWidth = '0.1' }
+  if (mode === 'string-marker-units') { first.units = 'strokeWidth'; later.units = 'strokeWidth' }
+  const y = mode === 'vertex-only-cover' ? 38 : ['separate', 'early-open-clear'].includes(mode) ? 55 : mode === 'aabb-corner' ? 39.5 : ['coincident', 'different-coincident', 'owned-repaint', 'no-closing-stroke'].includes(mode) ? 30 : 33.865217391
+  const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => {
+    const connector = (id: string, marker: MarkerDescriptor, cy: number, overlay = false) => factory.connector({ id, role: mode === 'nonsemantic' || overlay ? 'chrome' : 'edge', owner: { id: ['owned-repaint', 'same-owner-cover'].includes(mode) ? 'earlier' : overlay ? id.replace('overlay:', '') : id, role: mode === 'nonsemantic' ? 'chrome' : 'edge' },
+      lineStyle: 'solid', endpoints: { from: 'shared-source', to: id }, geometry: { kind: 'line', x1: mode === 'no-closing-stroke' && id === 'later' ? 64 : 70, y1: cy, x2: 20, y2: cy },
+      ...(mode === 'affine' ? { transform: { kind: 'matrix' as const, a: 1, b: 0, c: 0, d: 1, e: 1, f: 0 } } : {}),
+      paint: { stroke: '#111', strokeWidth: mode === 'string-marker-units' ? ' 1.004000000000001px ' : '1' }, ...(overlay ? { stroke: { opacity: 0 } } : {}), markers: { start: marker } })
+    return { ...scene([]), parts: [
+      factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'),
+      factory.definitions({ id: 'resources' }, `<defs>${serializeMarkerResource(first)}${later === first ? '' : serializeMarkerResource(later)}</defs>`),
+      connector('earlier', first, 30), connector('later', later, y),
+      ...(mode === 'overlay-repaint' ? [connector('overlay:earlier', first, 30, true), connector('overlay:later', later, y, true)] : []),
+      ...(mode === 'later-restoration' ? [factory.connector({ id: 'restorer', role: 'chrome', lineStyle: 'solid', geometry: { kind: 'polyline', points: [{ x: 64, y: 25 }, { x: 70, y: 30 }, { x: 64, y: 35 }, { x: 58, y: 30 }, { x: 64, y: 25 }] }, paint: { stroke: '#111', strokeWidth: '1' } })] : []), ...(mode === 'partial-restoration' ? [factory.connector({ id: 'partial-restorer', role: 'chrome', lineStyle: 'solid', geometry: { kind: 'polyline', points: [{ x: 60, y: 31.35 }, { x: 65.5, y: 31.35 }, { x: 65.5, y: 38.5 }, { x: 60, y: 38.5 }] }, paint: { stroke: '#111', strokeWidth: '0.1' } })] : []), ...(mode === 'unmeasured-restoration' ? [factory.shape({ id: 'unmeasured-restorer', role: 'chrome', geometry: { kind: 'rect', x: 58, y: 30, width: 10, height: 6 }, paint: { fill: 'none', stroke: '#111', strokeWidth: 'var(--host)' } })] : []), factory.documentClose(),
+    ] }
+  }
+  const drawing = drawNative(producer, context, 'flowchart')
+  expect(drawing.svg).toContain('marker-start')
+  if (mode === 'string-marker-units') expect(drawing.svg).toContain('stroke-width=" 1.004000000000001px "')
+  if (mode === 'transparent-fill' || mode === 'late-open') {
+    // The narrower opaque-fill loss API still proves no opaque fill loss.
+    // The complete semantic pair has overlapping visible strokes, so the
+    // scene's stronger all-paint separation contract must retain uncertainty.
+    const connectors = producer(marks, context).parts.filter((node): node is Extract<SceneNode, { kind: 'connector' }> => node.kind === 'connector')
+    expect(compareMarkerStrokeInk(prepareMarkerPolygonInk({ colors: context.colors }, connectors[0]!, first, 'start', () => true), prepareMarkerPolygonInk({ colors: context.colors }, connectors[1]!, later, 'start', () => true), () => true)).toBe('clear')
+  }
+  const expected = ['covered', 'different-coincident', 'same-owner-cover', 'unemitted-opacity', 'overlay-repaint', 'early-open-covered', 'string-marker-units', 'vertex-only-cover', 'partial-restoration'].includes(mode) ? 'failed' : ['unknown-fill', 'affine', 'clipped', 'later-restoration', 'same-color', 'thick-outline', 'unmeasured-restoration', 'no-closing-stroke', 'no-earlier-stroke', 'transparent-fill', 'late-open'].includes(mode) ? 'unverified' : 'passed'
+  for (const proof of [certifyScenePaint(producer(marks, context)), certifyNativePaint(drawing.header, drawing.paint)]) {
+    expect(proof.status).toBe(expected)
+    if (expected === 'failed') expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'MARKER_OCCLUDED', id: mode === 'overlay-repaint' ? 'overlay:earlier' : 'earlier', by: mode === 'overlay-repaint' ? 'overlay:later' : 'later' }))
+    else if (expected === 'unverified') expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', id: 'earlier', by: 'later' }))
+    else expect(proof.issues).toEqual([])
+  }
+})
+
+test.each(['covered-white', 'covered-same-black', 'separate', 'unknown-fill'] as const)('filled-only marker visibility retains uncertainty for %s', mode => {
+  const black: MarkerDescriptor = { id: 'small-filled-marker', shape: 'diamond', units: 'userSpaceOnUse', orient: 'auto-start-reverse',
+    size: { width: 14, height: 12 }, viewBox: { x: 0, y: 0, width: 14, height: 12 }, ref: { x: 13, y: 6 },
+    geometry: { kind: 'polygon', points: [{ x: 4, y: 8 }, { x: 5, y: 9 }, { x: 4, y: 10 }, { x: 3, y: 9 }] }, paint: { fill: mode === 'unknown-fill' ? 'var(--host)' : '#000', stroke: 'none' } }
+  const white: MarkerDescriptor = { id: 'large-white-marker', shape: 'arrow', units: 'userSpaceOnUse', orient: 'auto-start-reverse', overflow: 'visible',
+    size: { width: 12, height: 10 }, ref: { x: 12, y: 5 }, geometry: { kind: 'polygon', points: [{ x: 0, y: 0 }, { x: 12, y: 5 }, { x: 0, y: 10 }] },
+    paint: { fill: mode === 'covered-same-black' ? '#000' : '#fff', stroke: '#111', strokeWidth: '1.5' } }
+  const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => ({ ...scene([]), parts: [
+    factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'),
+    factory.definitions({ id: 'resources' }, `<defs>${serializeMarkerResource(black)}${serializeMarkerResource(white)}</defs>`),
+    factory.connector({ id: 'black-relation', role: 'edge', lineStyle: 'solid', endpoints: { from: 'A', to: 'B' }, geometry: { kind: 'line', x1: 70, y1: 30, x2: 20, y2: 30 }, paint: { stroke: '#111', strokeWidth: '1' }, markers: { start: black } }),
+    factory.connector({ id: 'white-relation', role: 'edge', lineStyle: 'solid', endpoints: { from: 'C', to: 'D' }, geometry: { kind: 'line', x1: 70, y1: mode === 'separate' ? 55 : 33.865217391, x2: 20, y2: mode === 'separate' ? 55 : 33.865217391 }, paint: { stroke: '#111', strokeWidth: '1' }, markers: { start: white } }),
+    factory.documentClose(),
+  ] })
+  const doc = producer(marks, context), drawing = drawNative(producer, context, 'flowchart')
+  const proofs = [certifyScenePaint(doc), certifyNativePaint(drawing.header, drawing.paint)]
+  for (const proof of proofs) {
+    expect(proof.status).toBe(mode === 'separate' ? 'passed' : 'unverified')
+    if (mode !== 'separate') expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', id: 'black-relation', by: 'white-relation' }))
+  }
+})
+
+
+test.each(['foreign', 'owned', 'separated', 'nonpainting', 'transparent', 'same-paint', 'before', 'owned-repaint', 'empty-marker'] as const)('prepared text and canonical marker visibility retain uncertainty for %s', mode => {
+  const canonical = classMarkerResources({ lineWidth: 1, edgeStrokeColor: '#47474a' } as any).find(marker => marker.id === 'cls-inherit')!
+  const marker: MarkerDescriptor = mode === 'empty-marker' ? { ...canonical, paint: { fill: 'none', stroke: 'none' } } : canonical
+  const block = preparePixelText('0..1', { fontSize: 11, fontWeight: 400 })
+  const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => {
+    const carrier = () => factory.connector({ id: 'relation', role: 'relationship', endpoints: { from: 'A', to: 'B' }, lineStyle: 'solid', geometry: { kind: 'line', x1: 70, y1: 40, x2: 20, y2: 40 }, paint: { stroke: '#47474a', strokeWidth: '1' }, markers: { start: marker } })
+    const label = () => factory.text({ id: 'count', role: 'cardinality', ...(mode === 'owned' || mode === 'owned-repaint' ? { owner: { id: 'relation', role: 'relationship' } } : {}), text: '0..1', block, x: 61, y: mode === 'separated' ? 65 : 40, fontSize: 11, anchor: 'middle', paint: { fill: mode === 'nonpainting' ? 'none' : mode === 'same-paint' ? '#47474a' : '#69696c', stroke: mode === 'nonpainting' ? 'none' : mode === 'same-paint' ? '#47474a' : '#fff', strokeWidth: '3', strokeLinejoin: 'round', paintOrder: 'stroke', ...(mode === 'transparent' ? { opacity: '0' } : {}) } })
+    const parts = [factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'), factory.definitions({ id: 'defs' }, `<defs>${serializeMarkerResource(marker)}</defs>`), ...(mode === 'before' ? [label(), carrier()] : [carrier(), label()])]
+    if (mode === 'owned-repaint') parts.push(factory.connector({ id: 'repaint', role: 'chrome', owner: { id: 'relation', role: 'relationship' }, lineStyle: 'solid', geometry: { kind: 'line', x1: 70, y1: 40, x2: 20, y2: 40 }, paint: { stroke: '#47474a', strokeWidth: '1' }, stroke: { opacity: 0 }, markers: { start: marker } }))
+    parts.push(factory.documentClose())
+    return { ...scene([]), parts }
+  }
+  const drawing = drawNative(producer, context, 'class')
+  expect(drawing.svg).toContain('marker-start="url(#cls-inherit)"')
+  const clear = ['separated', 'nonpainting', 'transparent', 'empty-marker'].includes(mode)
+  for (const proof of [certifyScenePaint(producer(marks, context)), certifyNativePaint(drawing.header, drawing.paint)]) {
+    expect(proof.status).toBe(clear ? 'passed' : 'unverified')
+    if (clear) expect(proof.issues).toEqual([])
+    else {
+      const inverse = mode === 'before' || mode === 'owned-repaint'
+      expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', id: inverse ? 'count' : 'relation', by: inverse ? mode === 'owned-repaint' ? 'repaint' : 'relation' : 'count' }))
+      expect(proof.issues.some(issue => issue.code === 'MARKER_OCCLUDED' || issue.code === 'TEXT_OCCLUDED')).toBe(false)
+      if (mode === 'owned-repaint') expect(proof.issues).toHaveLength(1)
+    }
+  }
+})
+
+test.each(['clear', 'later-stroke', 'round-join', 'affine', 'clipped', 'unknown-width', 'filled-open'] as const)('marker paint-piece separation preserves %s', mode => {
+  // Literal final Class37 resource/pose pair, with no family/id exemption.
+  // Independent emitted-piece readback gives0.241519px minimum all-ink gap.
+  const earlier: MarkerDescriptor = {
+    id: 'open-resource',
+    shape: 'open-arrow',
+    orient: 'auto-start-reverse',
+    overflow: mode === 'clipped' ? 'hidden' : 'visible',
+    size: { width: 8, height: 6 },
+    ref: { x: 8, y: 3 },
+    geometry: {
+      kind: 'polyline',
+      points: [
+        { x: 0, y: 0 },
+        { x: 8, y: 3 },
+        { x: 0, y: 6 },
+      ],
+    },
+    paint: { fill: mode === 'filled-open' ? '#111' : 'none', stroke: '#111', strokeWidth: mode === 'unknown-width' ? 'var(--host)' : '1.5', ...(mode === 'round-join' ? { strokeLinejoin: 'round' as const } : {}) },
+  }
+  const later: MarkerDescriptor = {
+    id: 'filled-resource',
+    shape: 'arrow',
+    orient: 'auto-start-reverse',
+    overflow: 'visible',
+    size: { width: 12, height: 10 },
+    ref: { x: 12, y: 5 },
+    geometry: {
+      kind: 'polygon',
+      points: [
+        { x: 0, y: 0 },
+        { x: 12, y: 5 },
+        { x: 0, y: 10 },
+      ],
+    },
+    paint: { fill: '#fff', stroke: mode === 'later-stroke' ? '#fff' : '#111', strokeWidth: mode === 'later-stroke' ? '20' : '1.5' },
+  }
+  const context = { positioned: { width: 280, height: 750 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => ({
+    ...scene([]),
+    width: 280,
+    height: 750,
+    parts: [
+      factory.documentOpen({ id: 'root', width: 280, height: 750, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="280" height="750">'),
+      factory.definitions({ id: 'resources' }, `<defs>${serializeMarkerResource(earlier)}${serializeMarkerResource(later)}</defs>`),
+      factory.connector({
+        id: 'earlier',
+        role: 'edge',
+        owner: { id: 'earlier', role: 'edge' },
+        endpoints: { from: 'A', to: 'B' },
+        lineStyle: 'solid',
+        geometry: { kind: 'line', x1: 196, y1: 705.9, x2: 196, y2: 645.9 },
+        paint: { stroke: '#111', strokeWidth: '1' },
+        stroke: { opacity: 0 },
+        markers: { end: earlier },
+        ...(mode === 'affine' ? { transform: { kind: 'matrix' as const, a: 1, b: 0, c: 0, d: 1, e: 0.001, f: 0 } } : {}),
+      }),
+      factory.connector({ id: 'later', role: 'edge', owner: { id: 'later', role: 'edge' }, endpoints: { from: 'C', to: 'D' }, lineStyle: 'solid', geometry: { kind: 'line', x1: 204, y1: 645.9, x2: 204, y2: 699.9 }, paint: { stroke: '#111', strokeWidth: '1' }, stroke: { opacity: 0 }, markers: { start: later } }),
+      factory.documentClose(),
+    ],
+  })
+  const drawing = drawNative(producer, context, 'flowchart')
+  expect(drawing.svg).toContain('marker-end="url(#open-resource)"')
+  expect(drawing.svg).toContain('marker-start="url(#filled-resource)"')
+  if (mode === 'clear') {
+    const connectors = producer(marks, context).parts.filter((node): node is Extract<SceneNode, { kind: 'connector' }> => node.kind === 'connector')
+    const first = prepareMarkerPolygonInk({ colors: context.colors }, connectors[0]!, earlier, 'end', () => true)
+    const second = prepareMarkerPolygonInk({ colors: context.colors }, connectors[1]!, later, 'start', () => true)
+    let completeWork = 0
+    expect(compareMarkerStrokeInk(first, second, () => { completeWork++; return true })).toBe('clear')
+    let remaining = completeWork - 1, stopped = false
+    expect(compareMarkerStrokeInk(first, second, () => {
+      if (stopped) throw new Error('geometry work continued after exhaustion')
+      if (--remaining < 0) { stopped = true; return false }
+      return true
+    })).toBe('unknown')
+    expect(stopped).toBe(true)
+  }
+  for (const proof of [certifyScenePaint(producer(marks, context)), certifyNativePaint(drawing.header, drawing.paint)]) {
+    expect(proof.status).toBe(['clear', 'round-join'].includes(mode) ? 'passed' : 'unverified')
+    if (['clear', 'round-join'].includes(mode)) expect(proof.issues).toEqual([])
+    else expect(proof.issues.some(issue => issue.code === 'POTENTIAL_OCCLUSION' || issue.code === 'UNMEASURED_PAINT')).toBe(true)
+  }
+})
+
+test.each(['overlap', 'separated', 'empty', 'sharing', 'unknown'] as const)('stroke-only semantic marker pairs retain %s paint evidence', mode => {
+  // Literal returned Native14 resources and contacts. Its lower diamond stroke
+  // and later open arrow intersect near(2091.9712,163.7273); neither same RGB
+  // nor the arrow's absent fill proves two distinct marker meanings visible.
+  const resources = classMarkerResources({ lineWidth: 1, edgeStrokeColor: '#47474a' } as any)
+  const earlier = { ...resources.find(marker => marker.id === 'cls-aggregation')!, id: 'earlier-resource' }
+  const later: MarkerDescriptor = mode === 'sharing' ? earlier : {
+    ...resources.find(marker => marker.id === 'cls-arrow')!, id: 'later-resource',
+    paint: { fill: 'none', stroke: mode === 'empty' ? 'none' : '#47474a', strokeWidth: '1.5', ...(mode === 'unknown' ? { strokeLinecap: 'round' as const } : {}) },
+  }
+  const context = { positioned: { width: 2300, height: 300 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
+  const sharing = mode === 'sharing', y = mode === 'separated' ? 186.9 : 166.9
+  const producer: DrawingProducer = factory => ({
+    ...scene([]), width: 2300, height: 300,
+    parts: [
+      factory.documentOpen({ id: 'root', width: 2300, height: 300, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="2300" height="300">'),
+      factory.definitions({ id: 'resources' }, `<defs>${serializeMarkerResource(earlier)}${sharing ? '' : serializeMarkerResource(later)}</defs>`),
+      factory.connector({ id: 'earlier', role: 'relationship', owner: { id: 'earlier', role: 'relationship' }, endpoints: { from: 'A', to: 'B' }, lineStyle: 'solid', geometry: { kind: 'line', x1: 2098.968, y1: 158.9, x2: 2083.968, y2: 158.9 }, paint: { stroke: '#939395', strokeWidth: '1' }, stroke: { opacity: 0 }, markers: { start: earlier } }),
+      factory.connector({ id: 'later', role: 'relationship', owner: { id: 'later', role: 'relationship' }, endpoints: { from: 'C', to: 'D' }, lineStyle: 'solid', geometry: sharing ? { kind: 'line', x1: 2098.968, y1: 158.9, x2: 2083.968, y2: 158.9 } : { kind: 'line', x1: 2083.968, y1: y, x2: 2098.968, y2: y }, paint: { stroke: '#939395', strokeWidth: '1' }, stroke: { opacity: 0 }, markers: sharing ? { start: later } : { end: later } }),
+      factory.documentClose(),
+    ],
+  })
+  const drawing = drawNative(producer, context, 'class')
+  expect(drawing.svg).toContain(sharing ? 'marker-start="url(#earlier-resource)"' : 'marker-end="url(#later-resource)"')
+  for (const proof of [certifyScenePaint(producer(marks, context)), certifyNativePaint(drawing.header, drawing.paint)]) {
+    const clear = mode === 'separated' || mode === 'empty' || sharing
+    expect(proof.status).toBe(clear ? 'passed' : 'unverified')
+    if (clear) expect(proof.issues).toEqual([])
+    else {
+      expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', id: 'earlier', by: 'later' }))
+      expect(proof.issues.some(issue => issue.code === 'MARKER_OCCLUDED')).toBe(false)
+    }
+  }
+})
+
+test.each(['clear', 'hidden-overlap', 'unknown-view', 'aspect-mismatch', 'round-join-separated', 'opaque-covered'] as const)('hidden marker superset separation preserves %s', mode => {
+  // Actual retained capacity14 marker10/11 poses; all original resource and
+  // paint attributes remain unchanged in the Scene and emitted SVG.
+  const resources = classMarkerResources({ lineWidth: 1, edgeStrokeColor: '#47474a' } as any)
+  const earlier: MarkerDescriptor = { ...resources.find(marker => marker.id === 'cls-aggregation')!, id: 'hidden-diamond',
+    ...(mode === 'unknown-view' ? { viewBox: undefined } : {}),
+    ...(mode === 'aspect-mismatch' ? { size: { width: 14, height: 24 } } : {}),
+    ...(mode === 'round-join-separated' ? { paint: { fill: '#fff', stroke: '#47474a', strokeWidth: '1.5', strokeLinejoin: 'round' } } : {}),
+  }
+  const covered = mode === 'opaque-covered'
+  const later: MarkerDescriptor = { ...resources.find(marker => marker.id === (covered ? 'cls-inherit' : 'cls-arrow'))!, id: 'later-resource' }
+  const y = covered ? 167.315217391 : mode === 'hidden-overlap' ? 171.45 : 176.294264046
+  const context = { positioned: { width: 2300, height: 300 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => ({ ...scene([]), width: 2300, height: 300, parts: [
+    factory.documentOpen({ id: 'root', width: 2300, height: 300, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="2300" height="300">'),
+    factory.definitions({ id: 'resources' }, `<defs>${serializeMarkerResource(earlier)}${serializeMarkerResource(later)}</defs>`),
+    factory.connector({ id: 'earlier', role: 'relationship', owner: { id: 'earlier', role: 'relationship' }, endpoints: { from: 'A', to: 'B' }, lineStyle: 'solid', geometry: { kind: 'line', x1: 2098.968, y1: 163.45, x2: 2083.968, y2: 163.45 }, paint: { stroke: '#939395', strokeWidth: '1' }, stroke: { opacity: 0 }, markers: { start: earlier } }),
+    factory.connector({ id: 'later', role: 'relationship', owner: { id: 'later', role: 'relationship' }, endpoints: { from: 'C', to: 'D' }, lineStyle: 'solid', geometry: covered ? { kind: 'line', x1: 2098.968, y1: y, x2: 2083.968, y2: y } : { kind: 'line', x1: 2083.968, y1: y, x2: 2098.968, y2: y }, paint: { stroke: '#939395', strokeWidth: '1' }, stroke: { opacity: 0 }, markers: covered ? { start: later } : { end: later } }),
+    factory.documentClose(),
+  ] })
+  const originalResource = JSON.stringify(earlier)
+  const drawing = drawNative(producer, context, 'class')
+  expect(drawing.svg).toContain('overflow="hidden"')
+  expect(drawing.svg).toContain('markerWidth="14"')
+  if (mode === 'clear') {
+    expect(drawing.svg).toContain('viewBox="0 0 14 12" overflow="hidden"')
+    const before = JSON.stringify(earlier)
+    const connector = producer(marks, context).parts.find((node): node is Extract<SceneNode, { kind: 'connector' }> => node.kind === 'connector')!
+    let calls = 0
+    expect(prepareMarkerPolygonInk({ colors: context.colors }, connector, earlier, 'start', () => { calls++; return false })).toBeUndefined()
+    expect(calls).toBe(1)
+    expect(JSON.stringify(earlier)).toBe(before)
+  }
+  for (const proof of [certifyScenePaint(producer(marks, context)), certifyNativePaint(drawing.header, drawing.paint)]) {
+    // Round-join padding already proves these particular envelopes separate;
+    // unsupported extra stencil proof must not erase that earlier authority.
+    const clear = mode === 'clear' || mode === 'round-join-separated'
+    expect(proof.status).toBe(clear ? 'passed' : covered ? 'failed' : 'unverified')
+    if (clear) expect(proof.issues).toEqual([])
+    else expect(proof.issues).toContainEqual(expect.objectContaining({ code: covered ? 'MARKER_OCCLUDED' : 'POTENTIAL_OCCLUSION', id: 'earlier', by: 'later' }))
+    if (!covered) expect(proof.issues.some(issue => issue.code === 'MARKER_OCCLUDED')).toBe(false)
+  }
+  expect(JSON.stringify(earlier)).toBe(originalResource)
 })

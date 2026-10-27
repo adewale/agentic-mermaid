@@ -30,6 +30,9 @@ import { displayText, normalizeBrTags } from '../multiline-utils.ts'
 import { oneRowDisplayText } from './multiline-utils.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { terminalIds } from './identity.ts'
+import { TERMINAL_CERTIFICATION_LIMITS } from './terminal-limits.ts'
+import { AsciiWidthError } from './width-error.ts'
+import { LayoutCertificationError } from '../layout/certification-error.ts'
 import type { RenderOptions } from '../types.ts'
 
 interface CellBox {
@@ -93,65 +96,138 @@ export function renderArchitectureTerminal(
   const xScale = Math.max(BASE_X_PIXELS_PER_CELL, (maxPixelX - minPixelX) / usableBudget)
   const titleLines = positioned.title ? wrapText(displayText(positioned.title.text), terminalBudget) : []
   const titleRows = titleLines.length ? titleLines.length + 1 : 0
-  const projectX = (x: number): number => leftMargin + Math.round((x - minPixelX) / xScale)
-  const projectY = (y: number): number => OUTER_MARGIN + titleRows + Math.round((y - minPixelY) / Y_PIXELS_PER_ROW)
+  const aligned = diagram.alignments.length > 0
+  const pixelItems = aligned ? [...positioned.services, ...positioned.junctions] : []
+  // Quantize each complete authored fixed-axis component once, including
+  // overlapping directives, rather than rounding its members independently.
+  const centerCoordinates = (axis: 'row' | 'column'): Map<string, number> => {
+    const links = new Map<string, string>()
+    const find = (id: string): string => {
+      let root = id
+      while (links.has(root)) root = links.get(root)!
+      while (id !== root) { const next = links.get(id)!; links.set(id, root); id = next }
+      return root
+    }
+    for (const alignment of diagram.alignments) if (alignment.axis === axis) for (const id of alignment.members.slice(1)) {
+      const a = find(alignment.members[0]!), b = find(id)
+      if (a !== b) links.set(b, a)
+    }
+    const centers = new Map<string, number>()
+    for (const item of pixelItems) {
+      const root = find(item.id), value = axis === 'row' ? item.y + item.height / 2 : item.x + item.width / 2
+      centers.set(root, Math.min(centers.get(root) ?? Infinity, value))
+    }
+    return new Map(pixelItems.map(item => [item.id, centers.get(find(item.id))!]))
+  }
+  const rowCenters = aligned ? centerCoordinates('row') : undefined
+  const columnCenters = aligned ? centerCoordinates('column') : undefined
+  const projectBoxes = (expansion: number) => {
+    let originX = leftMargin, originY = OUTER_MARGIN + titleRows
+    const projectX = (x: number): number => originX + Math.round((x - minPixelX) * expansion / xScale)
+    const projectY = (y: number): number => originY + Math.round((y - minPixelY) * expansion / Y_PIXELS_PER_ROW)
+    const serviceBoxes = new Map<string, CellBox>()
+    for (const service of positioned.services) {
+      const labelLines = serviceLabelLines(service.label, service.icon, service.iconText).flatMap(line => wrapText(line, terminalBudget ? Math.max(1, terminalBudget - 8) : undefined))
+      const contentWidth = Math.max(1, ...labelLines.map(visualWidth))
+      serviceBoxes.set(service.id, {
+        id: service.id,
+        kind: 'service',
+        parentId: service.parentId,
+        x: projectX(service.x),
+        y: projectY(service.y),
+        width: Math.max(contentWidth + 2, Math.ceil(service.width / xScale), 5, minimum(service.id).width),
+        height: Math.max(labelLines.length + 2, Math.ceil(service.height / Y_PIXELS_PER_ROW) + 1, 3, minimum(service.id).height),
+        labelLines,
+        icon: service.icon,
+        depth: groupDepth(diagram, service.parentId) + 1,
+      })
+    }
 
-  const serviceBoxes = new Map<string, CellBox>()
-  for (const service of positioned.services) {
-    const labelLines = serviceLabelLines(service.label, service.icon, service.iconText).flatMap(line => wrapText(line, terminalBudget ? Math.max(1, terminalBudget - 8) : undefined))
-    const contentWidth = Math.max(1, ...labelLines.map(visualWidth))
-    serviceBoxes.set(service.id, {
-      id: service.id,
-      kind: 'service',
-      parentId: service.parentId,
-      x: projectX(service.x),
-      y: projectY(service.y),
-      width: Math.max(contentWidth + 2, Math.ceil(service.width / xScale), 5, minimum(service.id).width),
-      height: Math.max(labelLines.length + 2, Math.ceil(service.height / Y_PIXELS_PER_ROW) + 1, 3, minimum(service.id).height),
-      labelLines,
-      icon: service.icon,
-      depth: groupDepth(diagram, service.parentId) + 1,
+    const junctionBoxes = new Map<string, CellBox>()
+    for (const junction of positioned.junctions) {
+      const mark = config.useAscii ? '(*)' : '◉'
+      const label = `${mark} ${junction.id}`
+      junctionBoxes.set(junction.id, {
+        id: junction.id,
+        kind: 'junction',
+        parentId: junction.parentId,
+        x: projectX(junction.x),
+        y: projectY(junction.y),
+        width: Math.max(visualWidth(label) + 2, minimum(junction.id).width),
+        height: Math.max(3, minimum(junction.id).height),
+        labelLines: [label],
+        depth: groupDepth(diagram, junction.parentId) + 1,
+      })
+    }
+
+    if (aligned) {
+      for (const item of [...positioned.services, ...positioned.junctions]) {
+        const box = serviceBoxes.get(item.id) ?? junctionBoxes.get(item.id)!
+        box.x = projectX(columnCenters!.get(item.id)!) - Math.floor((box.width - 1) / 2)
+        box.y = projectY(rowCenters!.get(item.id)!) - Math.floor((box.height - 1) / 2)
+      }
+      // Keep every child and its later containing frame in the same translation.
+      const nodes = [...serviceBoxes.values(), ...junctionBoxes.values()]
+      const shiftX = Math.max(0, OUTER_MARGIN - Math.min(Infinity, ...nodes.map(box => box.x)))
+      const shiftY = Math.max(0, OUTER_MARGIN + titleRows - Math.min(Infinity, ...nodes.map(box => box.y)))
+      originX += shiftX; originY += shiftY
+      for (const box of nodes) { box.x += shiftX; box.y += shiftY }
+    }
+
+    const groupBoxes = buildGroupBoxes(
+      diagram,
+      positioned.groups,
+      serviceBoxes,
+      junctionBoxes,
+      projectX,
+      projectY,
+      xScale / expansion,
+      terminalBudget,
+      Y_PIXELS_PER_ROW / expansion,
+    )
+    for (const group of groupBoxes.values()) {
+      const topDemand = faceDemand.get(group.id)?.T ?? 0
+      group.width = Math.max(group.width, minimum(group.id).width, topDemand ? visualWidth(group.labelLines[0] ?? '') + 3 + topDemand * 3 + 2 : 0)
+      group.height = Math.max(group.height, minimum(group.id).height)
+    }
+    const allBoxes = [...groupBoxes.values(), ...serviceBoxes.values(), ...junctionBoxes.values()]
+    for (const edge of diagram.edges) for (const [endpoint, arrow] of [[edge.source, edge.hasArrowStart], [edge.target, edge.hasArrowEnd]] as const) {
+      const box = allBoxes.find(box => box.id === endpointId(endpoint))
+      if (box) { box.clearance ??= {}; box.clearance[endpoint.side] = Math.max(box.clearance[endpoint.side] ?? 0, arrow ? 2 : 1) }
+    }
+    settleArchitectureBoxes(allBoxes)
+    return { serviceBoxes, junctionBoxes, groupBoxes, allBoxes }
+  }
+  let expansion = 1
+  let projection = projectBoxes(expansion)
+  const losesAlignment = (): boolean => {
+    const byId = new Map([...projection.serviceBoxes, ...projection.junctionBoxes])
+    return diagram.alignments.some(alignment => {
+      const centers = alignment.members.map(id => {
+        const box = byId.get(id)!
+        return alignment.axis === 'row' ? box.y + (box.height - 1) / 2 : box.x + (box.width - 1) / 2
+      })
+      return Math.max(...centers) - Math.min(...centers) > 0.5
     })
   }
-
-  const junctionBoxes = new Map<string, CellBox>()
-  for (const junction of positioned.junctions) {
-    const mark = config.useAscii ? '(*)' : '◉'
-    const label = `${mark} ${junction.id}`
-    junctionBoxes.set(junction.id, {
-      id: junction.id,
-      kind: 'junction',
-      parentId: junction.parentId,
-      x: projectX(junction.x),
-      y: projectY(junction.y),
-      width: Math.max(visualWidth(label) + 2, minimum(junction.id).width),
-      height: Math.max(3, minimum(junction.id).height),
-      labelLines: [label],
-      depth: groupDepth(diagram, junction.parentId) + 1,
-    })
+  while (aligned && losesAlignment()) {
+    // Text and marker envelopes can exceed their pixel-to-cell footprint.
+    // Re-space the same positioned model before painting; never move one
+    // aligned member to an unrelated row or reset a final certificate.
+    expansion *= 2
+    const width = Math.max(1, ...projection.allBoxes.map(box => right(box) + 1))
+    if (terminalBudget !== undefined && width > terminalBudget) throw new AsciiWidthError(terminalBudget, width, 'architecture', 'MINIMUM_GEOMETRY')
+    if (!Number.isSafeInteger(expansion) || expansion > TERMINAL_CERTIFICATION_LIMITS.maxOperations || projection.allBoxes.some(box => !Number.isSafeInteger(box.x + box.width) || !Number.isSafeInteger(box.y + box.height))) throw new LayoutCertificationError([{ strategy: 'architecture-terminal-alignment', violations: ['aligned cell projection exceeds its allocation bound'] }])
+    projection = projectBoxes(expansion)
+    const rightmost = Math.max(1, ...projection.allBoxes.map(box => right(box) + 1))
+    const bottommost = Math.max(1, ...projection.allBoxes.map(box => bottom(box) + 1))
+    if (!Number.isSafeInteger(rightmost * bottommost) || rightmost * bottommost > TERMINAL_CERTIFICATION_LIMITS.maxOperations) throw new LayoutCertificationError([{ strategy: 'architecture-terminal-alignment', violations: ['aligned cell projection exceeds its allocation bound'] }])
   }
-
-  const groupBoxes = buildGroupBoxes(
-    diagram,
-    positioned.groups,
-    serviceBoxes,
-    junctionBoxes,
-    projectX,
-    projectY,
-    xScale,
-    terminalBudget,
-  )
-  for (const group of groupBoxes.values()) {
-    const topDemand = faceDemand.get(group.id)?.T ?? 0
-    group.width = Math.max(group.width, minimum(group.id).width, topDemand ? visualWidth(group.labelLines[0] ?? '') + 3 + topDemand * 3 + 2 : 0)
-    group.height = Math.max(group.height, minimum(group.id).height)
+  if (expansion > 1 && terminalBudget !== undefined) {
+    const width = Math.max(1, ...projection.allBoxes.map(box => right(box) + 1))
+    if (width > terminalBudget) throw new AsciiWidthError(terminalBudget, width, 'architecture', 'MINIMUM_GEOMETRY')
   }
-  const allBoxes = [...groupBoxes.values(), ...serviceBoxes.values(), ...junctionBoxes.values()]
-  for (const edge of diagram.edges) for (const [endpoint, arrow] of [[edge.source, edge.hasArrowStart], [edge.target, edge.hasArrowEnd]] as const) {
-    const box = allBoxes.find(box => box.id === endpointId(endpoint))
-    if (box) { box.clearance ??= {}; box.clearance[endpoint.side] = Math.max(box.clearance[endpoint.side] ?? 0, arrow ? 2 : 1) }
-  }
-  settleArchitectureBoxes(allBoxes)
+  const { serviceBoxes, junctionBoxes, groupBoxes, allBoxes } = projection
   // Crop empty leading geometry before emission so ownership and text coordinates
   // never require reparsing/stripping a serialized result.
   const top = positioned.title ? 0 : Math.min(Infinity, ...allBoxes.map(box => box.y))
@@ -443,6 +519,7 @@ function buildGroupBoxes(
   projectY: (y: number) => number,
   xScale: number,
   terminalBudget?: number,
+  yScale = Y_PIXELS_PER_ROW,
 ): Map<string, CellBox> {
   const positioned = new Map(flattenGroups(positionedGroups).map(group => [group.id, group]))
   const boxes = new Map<string, CellBox>()
@@ -453,7 +530,7 @@ function buildGroupBoxes(
     let x = projectX(source.x)
     let y = projectY(source.y)
     let width = Math.max(8, ...labelLines.map(line => visualWidth(line) + 4), Math.ceil(source.width / xScale))
-    let height = Math.max(labelLines.length + BOX_GAP + 2, Math.ceil(source.height / Y_PIXELS_PER_ROW) + 1)
+    let height = Math.max(labelLines.length + BOX_GAP + 2, Math.ceil(source.height / yScale) + 1)
     const children = [
       ...[...services.values()].filter(child => child.parentId === group.id),
       ...[...junctions.values()].filter(child => child.parentId === group.id),

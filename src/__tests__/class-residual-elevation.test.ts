@@ -232,25 +232,39 @@ ${body}`
     }
   })
 
-  test('flattened headers with zero authored padding retain a clear repaired relationship', () => {
+  test('zero configured namespace padding still reserves shaft and arrow clearance', () => {
     const source = 'classDiagram\n namespace Company.Platform { class API }\n namespace Vendor.Platform { class Worker }\n API --> Worker : invokes'
     const options = { class: { hierarchicalNamespaces: false }, style: { roles: { group: { paddingY: 0 } } } }
     const positioned = layoutClassDiagram(parseClassDiagram(lines(source)), options)
     expect(positioned.namespaces.map(namespace => namespace.id)).toEqual(['Company.Platform', 'Vendor.Platform'])
-    expect(positioned.relationships.map(relation => [relation.from, relation.to, relation.label])).toEqual([['API', 'Worker', 'invokes']])
-    const points = positioned.relationships[0]!.points
-    expect(points.length).toBeGreaterThan(2)
-    for (let index = 1; index < points.length; index++) {
-      const a = points[index - 1]!, b = points[index]!
+    expect(positioned.relationships).toHaveLength(1)
+    const relation = positioned.relationships[0]!
+    expect([relation.from, relation.to, relation.label]).toEqual(['API', 'Worker', 'invokes'])
+    const target = positioned.classes.find(node => node.id === 'Worker')!
+    const header = positioned.namespaces.find(namespace => namespace.id === 'Vendor.Platform')!
+    const end = relation.points.at(-1)!, previous = relation.points.at(-2)!
+    expect(end.y).toBe(target.y)
+    expect(end.x).toBeGreaterThan(target.x)
+    expect(end.x).toBeLessThan(target.x + target.width)
+    expect(previous.x).toBe(end.x)
+    expect(previous.y).toBeLessThan(end.y)
+    // The emitted open arrow reaches eight units behind its tip. Its 1.5-unit
+    // butt stroke adds this normal component at each open tail, beyond the
+    // centreline envelope that the former zero-padding layout overlooked.
+    expect(end.y - header.y - header.headerHeight).toBeGreaterThan(8 + 0.75 * 3 / Math.hypot(8, 3))
+    for (let index = 1; index < relation.points.length; index++) {
+      const a = relation.points[index - 1]!, b = relation.points[index]!
       expect(a.x === b.x || a.y === b.y).toBe(true)
       for (const namespace of positioned.namespaces) {
         const crossesHeader = a.x === b.x
           ? a.x > namespace.x - 0.5 && a.x < namespace.x + namespace.width + 0.5 && Math.max(a.y, b.y) > namespace.y - 0.5 && Math.min(a.y, b.y) < namespace.y + namespace.headerHeight + 0.5
           : a.y > namespace.y - 0.5 && a.y < namespace.y + namespace.headerHeight + 0.5 && Math.max(a.x, b.x) > namespace.x - 0.5 && Math.min(a.x, b.x) < namespace.x + namespace.width + 0.5
-        expect(crossesHeader, namespace.id).toBe(false)
+        expect(crossesHeader, `shaft enters ${namespace.id} header`).toBe(false)
       }
     }
-    expect(renderMermaidSVG(source, options)).toContain('data-from="API" data-to="Worker"')
+    const svg = renderMermaidSVG(source, options)
+    expect(svg).toContain('data-label="invokes"')
+    expect(svg).toContain('data-from="API" data-to="Worker"')
     const result = verifyMermaid(source, { renderOptions: options })
     expect(result.ok).toBe(true)
     expect(result.warnings.some(warning => warning.code === 'INTERNAL_ERROR')).toBe(false)
@@ -297,5 +311,93 @@ CEO --> Designer : oversees`
         }
       }
     }
+  })
+})
+
+describe('Class header bypass carrier ownership', () => {
+  test.each(['vertical', 'horizontal'] as const)('keeps unrelated %s header detours visually distinct', async direction => {
+    const { repairClassHeaderRoutes, classOwnedSurfaceViolations } = await import('../class/owned-surfaces.ts')
+    const { CLASS_STYLE_DEFAULTS } = await import('../class/layout.ts')
+    const { resolveRenderStyle } = await import('../styles.ts')
+    const card = (id: string, x: number, y: number) => ({ id, label: id, x, y, width: 120, height: 60, headerHeight: 40, attrHeight: 10, methodHeight: 10, attributes: [], methods: [] })
+    const p: import('../class/types.ts').PositionedClassDiagram = direction === 'vertical'
+      ? {
+          width: 1000, height: 600, notes: [],
+          classes: [card('S1', 120, 100), card('S2', 300, 100), card('T1', 120, 300), card('T2', 300, 300)],
+          namespaces: [{ id: 'G', name: 'G', label: 'G', classIds: ['T1', 'T2'], x: 100, y: 200, width: 800, height: 200, headerHeight: 28 }],
+          relationships: [
+            { from: 'S1', to: 'T1', type: 'inheritance', markerAt: 'from', points: [{ x: 180, y: 160 }, { x: 180, y: 300 }] },
+            { from: 'S2', to: 'T2', type: 'association', markerAt: 'to', points: [{ x: 360, y: 160 }, { x: 360, y: 300 }] },
+          ],
+        }
+      : {
+          width: 1600, height: 500, notes: [],
+          classes: [card('S1', 20, 180), card('S2', 160, 180), card('T1', 1250, 180), card('T2', 1400, 180)],
+          namespaces: [{ id: 'G', name: 'G', label: 'G', classIds: [], x: 400, y: 200, width: 800, height: 200, headerHeight: 28 }],
+          relationships: [
+            { from: 'S1', to: 'T1', type: 'inheritance', markerAt: 'from', points: [{ x: 140, y: 206 }, { x: 150, y: 206 }, { x: 150, y: 160 }, { x: 320, y: 160 }, { x: 320, y: 206 }, { x: 1250, y: 206 }] },
+            { from: 'S2', to: 'T2', type: 'association', markerAt: 'to', points: [{ x: 280, y: 212 }, { x: 1220, y: 212 }, { x: 1220, y: 260 }, { x: 1390, y: 260 }, { x: 1390, y: 212 }, { x: 1400, y: 212 }] },
+          ],
+        }
+    const before = structuredClone(p), style = resolveRenderStyle({}, CLASS_STYLE_DEFAULTS)
+    repairClassHeaderRoutes(p, style)
+    expect(classOwnedSurfaceViolations(p, style)).toEqual([])
+    const [one, two] = p.relationships
+    let parallelInk = false
+    for (let i = 1; i < one!.points.length; i++) for (let j = 1; j < two!.points.length; j++) {
+      const a = one!.points[i - 1]!, b = one!.points[i]!, c = two!.points[j - 1]!, d = two!.points[j]!
+      const vertical = a.x === b.x
+      if (vertical !== (c.x === d.x)) continue
+      const main = vertical ? 'y' : 'x', fixed = vertical ? 'x' : 'y'
+      if (Math.abs(a[fixed] - c[fixed]) < style.lineWidth && Math.max(Math.min(a[main], b[main]), Math.min(c[main], d[main])) < Math.min(Math.max(a[main], b[main]), Math.max(c[main], d[main]))) parallelInk = true
+    }
+    expect(parallelInk, 'unrelated relationships co-own a positive-length painted trunk').toBe(false)
+    expect(p.classes).toEqual(before.classes)
+    expect(p.namespaces).toEqual(before.namespaces)
+    expect(p.relationships.map(r => [r.from, r.to, r.type, r.markerAt, r.points[0], r.points.at(-1)])).toEqual(before.relationships.map(r => [r.from, r.to, r.type, r.markerAt, r.points[0], r.points.at(-1)]))
+  })
+
+  test('retains proper crossings and common endpoint contacts without sharing positive stems', async () => {
+    const { classHeaderPeerClear, classHeaderDetourCandidates } = await import('../class/header-lanes.ts')
+    const { createClassMarkerAdmissionWork, chargeClassMarkerAdmissionWork } = await import('../class/marker-admission.ts')
+    const { CLASS_STYLE_DEFAULTS } = await import('../class/layout.ts')
+    const { resolveRenderStyle } = await import('../styles.ts')
+    const style = resolveRenderStyle({}, CLASS_STYLE_DEFAULTS), work = createClassMarkerAdmissionWork(), charge = () => chargeClassMarkerAdmissionWork(work)
+    const rel = (from: string, to: string, points: import('../types.ts').Point[]): import('../class/types.ts').PositionedClassRelationship => ({ from, to, type: 'link-solid', markerAt: 'none', points })
+    const crossing = [rel('A', 'B', [{ x: 10, y: 50 }, { x: 90, y: 50 }]), rel('C', 'D', [{ x: 50, y: 10 }, { x: 50, y: 90 }])]
+    expect(classHeaderPeerClear(crossing[0]!.points, 0, crossing, style, charge)).toBe(true)
+    const candidates = classHeaderDetourCandidates({ header: { x: 40, y: 40, width: 20, height: 20 }, a: crossing[0]!.points[0]!, b: crossing[0]!.points[1]!, owner: 0, relationships: crossing, width: 120, height: 120, style, gap: 4, escape: 8, charge })
+    const first = candidates.next().value!, cached = first.peerContext
+    expect(first.peerProof.clear(crossing[0]!.points)).toBe(true)
+    const forged = Object.create(Object.getPrototypeOf(first.peerProof)) as typeof first.peerProof
+    expect(() => forged.clear(crossing[0]!.points)).toThrow()
+    expect(() => Reflect.construct(Object.getPrototypeOf(first.peerProof).constructor, [Symbol('forged'), { active: true }, 0, cached, charge])).toThrow('Unauthorized Class header candidate proof')
+    const second = candidates.next().value!
+    expect(() => first.peerProof.clear(crossing[0]!.points)).toThrow('Stale Class header candidate proof')
+    expect(second.peerProof.clear(crossing[0]!.points)).toBe(true)
+    candidates.return(undefined)
+    expect(() => second.peerProof.clear(crossing[0]!.points)).toThrow('Stale Class header candidate proof')
+    // A request-local index must observe in-place peer edits, not rely on
+    // unchanged point-array identity or reuse a previous successful result.
+    Object.assign(crossing[1]!.points[0]!, { x: 10, y: 50 })
+    Object.assign(crossing[1]!.points[1]!, { x: 90, y: 50 })
+    expect(classHeaderPeerClear(crossing[0]!.points, 0, crossing, style, charge, cached)).toBe(false)
+    Object.assign(crossing[1]!.points[0]!, { x: 50, y: 10 })
+    Object.assign(crossing[1]!.points[1]!, { x: 50, y: 90 })
+    expect(classHeaderPeerClear(crossing[0]!.points, 0, crossing, style, charge, cached)).toBe(true)
+    const shared = [rel('S', 'A', [{ x: 10, y: 10 }, { x: 10, y: 50 }, { x: 0, y: 50 }, { x: 0, y: 80 }]), rel('S', 'B', [{ x: 10, y: 10 }, { x: 10, y: 50 }, { x: 50, y: 50 }, { x: 50, y: 80 }])]
+    expect(classHeaderPeerClear(shared[0]!.points, 0, shared, style, charge)).toBe(false)
+    const unrelated = shared.map((r, i) => ({ ...r, from: `U${i}` }))
+    expect(classHeaderPeerClear(unrelated[0]!.points, 0, unrelated, style, charge)).toBe(false)
+    const endpoint = [rel('S', 'A', [{ x: 10, y: 10 }, { x: 90, y: 10 }]), rel('S', 'B', [{ x: 10, y: 10 }, { x: 10, y: 90 }])]
+    expect(classHeaderPeerClear(endpoint[0]!.points, 0, endpoint, style, charge)).toBe(true)
+    const differentPort = [endpoint[0]!, rel('S', 'B', [{ x: 10, y: 0 }, { x: 10, y: 90 }])]
+    expect(classHeaderPeerClear(differentPort[0]!.points, 0, differentPort, style, charge)).toBe(false)
+    const dashed = shared.map(r => ({ ...r, lineStyle: 'dashed' as const }))
+    expect(classHeaderPeerClear(dashed[0]!.points, 0, dashed, style, charge)).toBe(false)
+    const mixed = [shared[0]!, { ...shared[0]!, lineStyle: 'dashed' as const }]
+    expect(classHeaderPeerClear(mixed[0]!.points, 0, mixed, style, charge)).toBe(false)
+    const reversed = [dashed[0]!, { ...dashed[0]!, from: dashed[0]!.to, to: dashed[0]!.from, points: [...dashed[0]!.points].reverse() }]
+    expect(classHeaderPeerClear(reversed[0]!.points, 0, reversed, style, charge)).toBe(false)
   })
 })

@@ -86,8 +86,8 @@ export function layoutCompoundGraph(
     const members = children[scope]!, local = new Map(members.map((id, index) => [id, index]))
     const nodes = members.map(id => {
       if (id < leafCount) {
-        const { id: identity, width, height, partition, modelOrder } = input.nodes[id]!
-        return { id: identity, width, height, partition, modelOrder }
+        const { id: identity, width, height, partition, modelOrder, minimumPortSpacing } = input.nodes[id]!
+        return { id: identity, width, height, partition, modelOrder, ...(minimumPortSpacing!==undefined?{minimumPortSpacing}:{}) }
       }
       const child = place(id - leafCount + 1, direction)
       return { id: groups[id - leafCount]!.id, width: child.width, height: child.height, partition: groups[id - leafCount]!.partition, modelOrder: groups[id - leafCount]!.modelOrder }
@@ -140,6 +140,11 @@ export function layoutCompoundGraph(
   // Every cross-scope edge participated at its lowest common scope. The
   // family owns boundary routing; omitting that work must not omit the edge's
   // placement influence as the previous filtered retry did.
-  if ((!lifted.size && !ancestorPlan) || input.placementOnly) return result
+  let markerPaint = false
+  if (input.maximumEdgeStrokeWidth !== undefined) for (const edge of input.edges) {
+    if (--routingWork.pairs<0) unsupported('agentic marker metadata work limit')
+    if (edge.markerPaint?.start?.length || edge.markerPaint?.end?.length) { markerPaint=true;break }
+  }
+  if ((!lifted.size && !ancestorPlan && !markerPaint) || input.placementOnly) return result
   return routeCrossHierarchy(input, result, owners, lifted, scopes.map(scope => scope.direction), routingWork, expansionLimit, unsupported, ancestorPlan)
 }

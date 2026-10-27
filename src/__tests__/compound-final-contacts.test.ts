@@ -1,3 +1,4 @@
+
 import { describe, expect, test } from 'bun:test'
 import { assertFinalBoundaryContacts, createBoundaryContactValidator } from '../layout/compound-boundary-routes.ts'
 import type { AgenticLayout, MeasuredGraph } from '../layout/agentic-layered-core.ts'
@@ -143,4 +144,37 @@ describe('final compound route contact closure', () => {
     if (invisible) input.edges[2]!.visible = false
     expect(() => assertFinalBoundaryContacts(input, placed, new Set(rescued), work(), fail)).toThrow('uncertified shared contact')
   })
+})
+
+describe('already executed final current-scene proofs', () => {
+const fail=(s:string):never=>{throw new Error(s)},work=(pairs=1000000)=>({pairs,arcs:65536,swaps:1000000})
+const point=(x:number,y:number)=>({x,y}),input=(count:number)=>({nodes:Array.from({length:2*count},(_,i)=>({id:'N'+i,width:10,height:10})),edges:Array.from({length:count},(_,i)=>({source:2*i,target:2*i+1,minSpan:1})),direction:'TB' as const,padding:0,nodeSpacing:1,layerSpacing:1})
+const placed=(routes:any[])=>({topology:'layered' as const,width:100,height:100,nodes:[],edges:routes.map(points=>({points}))})
+test('retained executed full current proofs close their pairs without spending the reserve twice',()=>{
+ const graph=input(2),scene=placed([[point(0,0),point(100,0)],[point(50,-50),point(50,50)]]),budget=work(26)
+ const proof=new Set<number>()
+ for(let i=0;i<2;i++){
+  budget.pairs-=8 // same original coefficient3+candidate/peer/selection metadata
+  expect(scoreMeasuredRouteCrossings(scene.edges[i]!.points,i,scene.edges.map(r=>({...r,style:'solid'})),graph)).toBe(1)
+  proof.add(i)
+ }
+ expect(budget.pairs).toBe(10)
+
+ assertFinalBoundaryContacts(graph,scene,new Set([0,1]),budget,fail,proof)
+ expect(budget.pairs).toBe(2) // no reset/refund; only the unused final work is absent
+})
+test('an untouched late T collision is still rejected after unrelated proved routes are masked',()=>{
+ const graph=input(3),scene=placed([[point(-30,40),point(-20,40)],[point(5,-10),point(5,10)],[point(0,10),point(5,10)]])
+ expect(()=>assertFinalBoundaryContacts(graph,scene,new Set([0,1]),work(),fail,new Set([0]))).toThrow('uncertified shared contact')
+})
+test('invisible rescued candidate retains directional checks against visible proved peer',()=>{
+ const graph:any=input(2);graph.edges[1].visible=false
+ const scene=placed([[point(0,0),point(10,0)],[point(5,-10),point(5,0)]])
+ expect(()=>assertFinalBoundaryContacts(graph,scene,new Set([1]),work(),fail,new Set([0]))).toThrow('uncertified shared contact')
+})
+test('a nonorthogonal rescued route cannot use a proof-mask shortcut',()=>{
+ const graph=input(2),scene=placed([[point(0,0),point(10,0)],[point(0,0),point(10,0),point(11,5)]])
+ expect(()=>assertFinalBoundaryContacts(graph,scene,new Set([1]),work(),fail,new Set([0,1]))).toThrow('uncertified shared contact')
+})
+
 })

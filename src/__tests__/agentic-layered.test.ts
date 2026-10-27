@@ -1,6 +1,11 @@
+import { scoreMeasuredRouteCrossings } from '../layout/measured-route-safety.ts'
+import { assertFinalBoundaryContacts, createBoundaryContactValidator } from '../layout/compound-boundary-routes.ts'
+import { proposePortalChannel } from '../layout/compound-portal-channel.ts'
+import { proposeOuterChannel } from '../layout/compound-outer-channel.ts'
+import { createPeerGeometryOwner } from '../layout/compound-peer-geometry.ts'
 import { describe, expect, test } from 'bun:test'
 import { layoutAgenticGraph, type MeasuredGraph } from '../layout/agentic-layered.ts'
-import { layoutLayeredGraph } from '../layout/agentic-layered-core.ts'
+import { type AgenticLayout, layoutLayeredGraph } from '../layout/agentic-layered-core.ts'
 import { GraphLayoutUnsupportedError } from '../layout/backend.ts'
 import type { Direction, Point } from '../types.ts'
 import { countOpposingRouteOverlaps, countParallelRouteOverlaps } from '../layout-rubric.ts'
@@ -51,6 +56,38 @@ function crossesInterior(a: Point, b: Point, box: Box): boolean {
 }
 
 describe('owned measured layered layout', () => {
+  test.each(['TD', 'BT', 'LR', 'RL'] as const)('projects terminal leads from the same fractional node borders in %s', direction => {
+    const horizontal = direction === 'LR' || direction === 'RL', reverse = direction === 'BT' || direction === 'RL'
+    const input = measured({ direction, padding: 40.123456789, nodes: [
+      { id: 'a', width: 104.194, height: 36.900000000000006 },
+      { id: 'b', width: 72.742, height: 43.287 },
+      { id: 'c', width: 91.658, height: 36.900000000000006 },
+      { id: 'd', width: 80.082, height: 29.713 },
+    ], edges: [{ source: 0, target: 2, minSpan: 1 }, { source: 1, target: 2, minSpan: 1 }, { source: 1, target: 3, minSpan: 1 }] })
+    const original = structuredClone(input)
+    const output = layoutLayeredGraph(input, () => undefined, reason => { throw new GraphLayoutUnsupportedError(reason) })
+    expect(input).toEqual(original)
+    const target = { ...input.nodes[2]!, ...output.nodes[2]! }, crossSize = horizontal ? target.height : target.width
+    const clamp = (horizontal ? target.y : target.x) + crossSize - Math.min(8, crossSize / 6)
+    const clampedRoute = output.edges[1]!.points
+    expect(horizontal ? clampedRoute.at(-1)!.y : clampedRoute.at(-1)!.x).toBe(clamp)
+    expect(horizontal ? clampedRoute.at(-2)!.y : clampedRoute.at(-2)!.x).toBe(clamp)
+    for (const [index, route] of output.edges.entries()) {
+      const edge = input.edges[index]!
+      for (const source of [true, false]) {
+        const id = source ? edge.source : edge.target, box = { ...input.nodes[id]!, ...output.nodes[id]! }
+        const endpoint = source ? route.points[0]! : route.points.at(-1)!, lead = source ? route.points[1]! : route.points.at(-2)!
+        const high = source !== reverse, face = horizontal ? box.x + (high ? box.width : 0) : box.y + (high ? box.height : 0)
+        expect(horizontal ? endpoint.x : endpoint.y).toBe(face)
+        expect(horizontal ? endpoint.y : endpoint.x).toBe(horizontal ? lead.y : lead.x)
+        expect((horizontal ? lead.x - endpoint.x : lead.y - endpoint.y) * (high ? 1 : -1)).toBeGreaterThan(0)
+      }
+      for (let segment = 1; segment < route.points.length; segment++) {
+        const a = route.points[segment - 1]!, b = route.points[segment]!
+        expect(a.x === b.x || a.y === b.y).toBe(true)
+      }
+    }
+  })
   test('sparse compound visibility preserves terminal leads around an overlapping obstacle union', () => {
     const bounds = { x: 0, y: 0, width: 220, height: 160 }
     const obstacles = [{ x: 0, y: 50, width: 20, height: 40 },
@@ -1140,5 +1177,177 @@ describe('owned measured layered layout', () => {
   test('invalid measured endpoints remain defects instead of unsupported capabilities', () => {
     expect(() => layoutAgenticGraph(measured({ edges: [{ source: 0, target: 99, minSpan: 1 }] }))).toThrow(TypeError)
     expect(() => layoutAgenticGraph(measured({ nodes: [{ id: 'bad', width: NaN, height: 20 }], edges: [] }))).toThrow(TypeError)
+  })
+})
+
+
+describe('bounded complete boundary connectors', () => {
+ const fail=(reason:string):never=>{throw new Error(reason)},budget=()=>({pairs:1_000_000,arcs:65536,swaps:1_000_000})
+ for(const transpose of [false,true])for(const sign of [-1,1])for(const reverse of [false,true])test(`same-axis exterior contacts retain authored order ${transpose}/${sign}/${reverse}`,()=>{
+  const p=(x:number,y:number)=>transpose?{x:y*sign,y:x}:{x,y:y*sign}
+  const r=(x:number,y:number,w:number,h:number)=>{const a=p(x,y),b=p(x+w,y+h);return{x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),width:Math.abs(b.x-a.x),height:Math.abs(b.y-a.y)}}
+  const bounds=r(0,0,100,100),boxes=[r(80,12,12,8),r(62,64,16,16),r(20,40,70,8)],near={port:p(86,20),stub:p(86,28),penalty:0},far={port:p(70,80),stub:p(70,88),penalty:0},source=reverse?far:near,target=reverse?near:far,roots=[source,target],before=structuredClone(roots),work=budget()
+  let allocated=0,firstGuard:Point|undefined,firstQuery:Point|undefined
+  const indexed=createCompoundObstacleIndex(boxes,work,fail),queries={...indexed,containsPoint(x:number,y:number){firstQuery??={x,y};return indexed.containsPoint(x,y)}}
+  const result=proposeOuterChannel(bounds,boxes,[source],[target],[],queries,work,n=>allocated+=n,fail,(a)=>{firstGuard??=a;return true},path=>path)
+  expect(result).toBeDefined();expect(result![0]).toEqual(source.port);expect(result!.at(-1)).toEqual(target.port);expect(firstGuard).toEqual(source.port);expect(firstQuery).toEqual(source.port);expect(allocated).toBe(6)
+  for(let i=1;i<result!.length;i++){
+   const a=result![i-1]!,b=result![i]!
+   expect((a.x===b.x)!==(a.y===b.y)).toBe(true)
+   for(const box of boxes)expect(a.x===b.x?a.x>box.x&&a.x<box.x+box.width&&Math.max(a.y,b.y)>box.y&&Math.min(a.y,b.y)<box.y+box.height:a.y>box.y&&a.y<box.y+box.height&&Math.max(a.x,b.x)>box.x&&Math.min(a.x,b.x)<box.x+box.width).toBe(false)
+  }
+  for(const[from,a,b]of [[source,result![0]!,result![1]!],[target,result!.at(-1)!,result!.at(-2)!]]as const){
+   const dx=from.stub.x-from.port.x,dy=from.stub.y-from.port.y
+   expect((b.x-a.x)*Math.sign(dx)+(b.y-a.y)*Math.sign(dy)).toBeGreaterThanOrEqual(8)
+  }
+  expect(roots).toEqual(before);expect(work.pairs).toBeLessThan(1_000_000);expect(work.arcs).toBeLessThan(65536)
+ })
+ test('same-axis exterior candidates retain peer veto, final admission and failure identity',()=>{
+  const source={port:{x:70,y:80},stub:{x:70,y:88},penalty:0},target={port:{x:86,y:20},stub:{x:86,y:28},penalty:0},bounds={x:0,y:0,width:100,height:100},boxes=[{x:80,y:12,width:12,height:8},{x:62,y:64,width:16,height:16},{x:20,y:40,width:70,height:8}]
+  let guards=0,accepts=0;const work=budget()
+  const rejected=proposeOuterChannel(bounds,boxes,[source],[target],[],createCompoundObstacleIndex(boxes,work,fail),work,()=>{},fail,()=>{guards++;return false},path=>{accepts++;return path})
+  expect(rejected).toBeUndefined();expect(guards).toBeGreaterThan(0);expect(accepts).toBe(0)
+  const finalWork=budget();let proposals=0
+  expect(proposeOuterChannel(bounds,boxes,[source],[target],[],createCompoundObstacleIndex(boxes,finalWork,fail),finalWork,()=>{},fail,()=>true,()=>{proposals++;return undefined})).toBeUndefined()
+  expect(proposals).toBeGreaterThan(0);expect(proposals).toBeLessThanOrEqual(2)
+  const failure=Error('host guard failed'),errorWork=budget()
+  expect(()=>proposeOuterChannel(bounds,boxes,[source],[target],[],createCompoundObstacleIndex(boxes,errorWork,fail),errorWork,()=>{},fail,()=>{throw failure},path=>path)).toThrow(failure)
+  expect(work.pairs).toBeLessThan(1_000_000);expect(finalWork.pairs).toBeLessThan(1_000_000)
+ })
+ test('same-axis exterior proof does not spend after its shared budget fails',()=>{
+  const source={port:{x:70,y:80},stub:{x:70,y:88},penalty:0},target={port:{x:86,y:20},stub:{x:86,y:28},penalty:0},work={pairs:0,arcs:65536,swaps:1_000_000};let queried=0,accepted=0
+  const queries={containsPoint(){queried++;return false},entersSegment(){queried++;return false},projectPoint(){throw Error('not a projection query')}}
+  expect(()=>proposeOuterChannel({x:0,y:0,width:100,height:100},[],[source],[target],[],queries,work,()=>{},fail,()=>true,path=>{accepted++;return path})).toThrow('work limit')
+  expect(queried).toBe(0);expect(accepted).toBe(0);expect(work.pairs).toBeLessThan(0)
+ })
+ test('same-axis exterior cannot cross a sealed header or bypass a successful perpendicular route',()=>{
+  const source={port:{x:70,y:80},stub:{x:70,y:88},penalty:0},target={port:{x:86,y:20},stub:{x:86,y:28},penalty:0},bounds={x:0,y:0,width:100,height:100},header=[{x:0,y:40,width:100,height:8}],work=budget();let accepted=0
+  expect(proposeOuterChannel(bounds,header,[source],[target],[],createCompoundObstacleIndex(header,work,fail),work,()=>{},fail,()=>true,path=>{accepted++;return path})).toBeUndefined()
+  expect(accepted).toBe(0)
+  const oldSource={port:{x:20,y:30},stub:{x:28,y:30},penalty:0},oldTarget={port:{x:80,y:70},stub:{x:80,y:78},penalty:0},boxes=[{x:10,y:20,width:10,height:20},{x:70,y:60,width:20,height:10}],oldWork=budget()
+  const result=proposeOuterChannel(bounds,boxes,[oldSource,source],[oldTarget,target],[],createCompoundObstacleIndex(boxes,oldWork,fail),oldWork,()=>{},fail,()=>true,path=>path)
+  expect(result).toEqual([{x:20,y:30},{x:95,y:30},{x:95,y:89},{x:80,y:89},{x:80,y:70}])
+ })
+ for(const transpose of [false,true])for(const xs of [-1,1])for(const ys of [-1,1])test(`retains real normal leads in reflection ${transpose}/${xs}/${ys}`,()=>{
+  const p=(x:number,y:number)=>transpose?{x:y*ys,y:x*xs}:{x:x*xs,y:y*ys}
+  const r=(x:number,y:number,w:number,h:number)=>{const a=p(x,y),b=p(x+w,y+h);return{x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),width:Math.abs(b.x-a.x),height:Math.abs(b.y-a.y)}}
+  const bounds=r(0,0,100,100),boxes=[r(80,12,12,8),r(62,64,16,16)],source={port:p(80,20),stub:p(80,28),penalty:0},target={port:p(70,80),stub:p(70,88),penalty:0},work=budget();let allocated=0
+  const result=proposePortalChannel(bounds,boxes,source,[target],[],createCompoundObstacleIndex(boxes,work,fail),work,n=>allocated+=n,fail,()=>true,path=>path)
+  expect(result).toBeDefined();expect(result![0]).toEqual(source.port);expect(result!.at(-1)).toEqual(target.port);expect(result!.length).toBe(6);expect(allocated).toBe(6)
+  expect(result![1]!.x===result![0]!.x||result![1]!.y===result![0]!.y).toBe(true)
+ })
+ test('rejects every complete candidate without mutating terminals or refunding work',()=>{
+  const roots=[{port:{x:80,y:20},stub:{x:80,y:28},penalty:0},{port:{x:70,y:80},stub:{x:70,y:88},penalty:0}],before=structuredClone(roots),work=budget();let candidates=0
+  const result=proposePortalChannel({x:0,y:0,width:100,height:100},[{x:80,y:12,width:12,height:8},{x:62,y:64,width:16,height:16}],roots[0]!,roots.slice(1),[],createCompoundObstacleIndex([],work,fail),work,()=>{},fail,()=>true,()=>{candidates++;return undefined})
+  expect(result).toBeUndefined();expect(candidates).toBeGreaterThan(0);expect(candidates).toBeLessThanOrEqual(8);expect(roots).toEqual(before);expect(work.arcs).toBeLessThan(65536)
+ })
+ test('published peer revisions invalidate released predicates and preserve active leases',()=>{
+  const work=budget(),routes=[{style:'solid',points:[{x:0,y:0},{x:10,y:0}]},{style:'solid',points:[{x:50,y:0},{x:60,y:0}]}]
+  const owner=createPeerGeometryOwner(routes,0,100,100,work,()=>{},fail),old=owner.acquire(0)
+  owner.enterQuery(old)
+  expect(()=>owner.publish(0,routes[0]!.points,true)).toThrow('leased')
+  expect(()=>old.release()).toThrow('active query')
+  owner.leaveQuery(old);old.release();owner.publish(0,[{x:0,y:5},{x:10,y:5}],true)
+  expect(()=>old.guard({x:5,y:0},{x:5,y:10},2,2)).toThrow('Stale')
+ })
+})
+
+describe('measured painted route contacts', () => {
+  const input = (width: number | undefined): MeasuredGraph => measured({
+    maximumEdgeStrokeWidth: width,
+    edges: [{ source: 0, target: 1, minSpan: 1 }, { source: 0, target: 2, minSpan: 1 }],
+  })
+  const routes = (a: Point[], b: Point[], style = 'solid') => [{ points: a, style: 'solid' }, { points: b, style }]
+
+  test.each([
+    { name: 'distinct source ports and a narrow vertical overlap', a: [{ x: 781.361, y: 518.7 }, { x: 781.361, y: 562.7 }, { x: 800, y: 562.7 }], b: [{ x: 751.361, y: 518.7 }, { x: 751.361, y: 550.7 }, { x: 780.379, y: 550.7 }, { x: 780.379, y: 601.5 }], style: 'solid' },
+    { name: 'solid and dashed carriers beside a common source', a: [{ x: 1397.784, y: 489.960249676 }, { x: 1361.784, y: 489.960249676 }, { x: 1361.784, y: 439.05 }, { x: 1001.054, y: 439.05 }, { x: 1001.054, y: 478.55 }, { x: 959.054, y: 478.55 }], b: [{ x: 1397.784, y: 502.912812095 }, { x: 1355.784, y: 502.912812095 }, { x: 1355.784, y: 479.35 }, { x: 971.054, y: 479.35 }, { x: 971.054, y: 545.45 }], style: 'dashed' },
+  ])('rejects actual one-pixel ink in $name', ({ a: originalA, b: originalB, style }) => {
+    const a: Point[] = [...originalA], b: Point[] = [...originalB], ink = routes(a, b, style)
+    // These distinct paths share an authored source, not a physical stem.
+    expect(scoreMeasuredRouteCrossings(a, 0, ink, input(1))).toBeUndefined()
+    expect(scoreMeasuredRouteCrossings(b, 1, ink, input(1))).toBeUndefined()
+    expect(scoreMeasuredRouteCrossings(a, 0, ink, input(undefined))).toBe(0)
+  })
+
+  test('retains written boundary contact, proper crossings and actual common terminals', () => {
+    const a = [{ x: 0, y: 0 }, { x: 0, y: 20 }]
+    for (const x of [1, 2]) expect(scoreMeasuredRouteCrossings(a, 0, routes(a, [{ x, y: 2 }, { x, y: 18 }]), input(1))).toBe(0)
+    const crossing = [{ x: -10, y: 10 }, { x: 10, y: 10 }]
+    expect(scoreMeasuredRouteCrossings(a, 0, routes(a, crossing), input(1))).toBe(1)
+    expect(scoreMeasuredRouteCrossings(a, 0, routes(a, [{ x: 0, y: 0 }, { x: 10, y: 0 }]), input(1))).toBe(0)
+    // Both the writer's width and coordinates spell exactly one here.
+    expect(scoreMeasuredRouteCrossings(a, 0, routes(a, [{ x: 1.0000000000002, y: 2 }, { x: 1.0000000000002, y: 18 }]), input(1.0000000000004))).toBe(0)
+    expect(scoreMeasuredRouteCrossings(a, 0, routes(a, [{ x: .2, y: 2 }, { x: .2, y: 18 }]), input(.1))).toBe(0)
+    const decimal = [{ x: .2, y: 0 }, { x: .2, y: 20 }]
+    expect(scoreMeasuredRouteCrossings(decimal, 0, routes(decimal, [{ x: .3, y: 2 }, { x: .3, y: 18 }]), input(.1))).toBe(0)
+    const large = [{ x: 1000000000000.2, y: 0 }, { x: 1000000000000.2, y: 20 }]
+    expect(scoreMeasuredRouteCrossings(large, 0, routes(large, [{ x: 1000000000000.3, y: 2 }, { x: 1000000000000.3, y: 18 }]), input(.10001))).toBeUndefined()
+    for (const width of [1000000000001, 1.2345678901234568e21]) {
+      const written = width === 1000000000001 ? 1000000000001 : 1.23456789012e21
+      expect(scoreMeasuredRouteCrossings(a, 0, routes(a, [{ x: written, y: 2 }, { x: written, y: 18 }]), input(width))).toBe(0)
+    }
+  })
+
+  test('does not discard a short positive support or invisible peer distinction', () => {
+    const a = [{ x: 0, y: 0 }, { x: 0, y: 20 }], b = [{ x: .75, y: 2 }, { x: .75, y: 2.005 }]
+    expect(scoreMeasuredRouteCrossings(a, 0, routes(a, b), input(1))).toBeUndefined()
+    expect(scoreMeasuredRouteCrossings(a, 0, routes(a, b, 'invisible'), input(1))).toBe(0)
+  })
+
+  test('keeps physical peers through the prepared whole-route bounds prune', () => {
+    const a = Array.from({ length: 60 }, (_, y) => ({ x: 0, y })), b = Array.from({ length: 33 }, (_, y) => ({ x: .75, y }))
+    const ink = routes([], b), fail = (reason: string): never => { throw new Error(reason) }
+    const work = { pairs: 1_000_000, arcs: 1000, swaps: 1000 }
+    expect(createBoundaryContactValidator(input(1), 0, ink, work, fail)(a)).toBe(false)
+    expect(work.pairs).toBeLessThan(1_000_000)
+    expect(createBoundaryContactValidator(input(undefined), 0, ink, { pairs: 1_000_000, arcs: 1000, swaps: 1000 }, fail)(a)).toBe(true)
+    const placed: AgenticLayout = { topology: 'layered', width: 10, height: 100, nodes: input(1).nodes.map(() => ({ x: 0, y: 0 })), edges: [{ points: a }, { points: b }] }
+    expect(() => assertFinalBoundaryContacts(input(1), placed, new Set([0]), { pairs: 1_000_000, arcs: 1000, swaps: 1000 }, fail)).toThrow('uncertified shared contact')
+    expect(() => assertFinalBoundaryContacts(input(undefined), placed, new Set([0]), { pairs: 1_000_000, arcs: 1000, swaps: 1000 }, fail)).not.toThrow()
+  })
+
+  test('does not infer zero written support from a tiny raw shared endpoint', () => {
+    // Conditional long-tail formatting reverses the second tiny segment:
+    // the shared endpoint writes1000.12345679, beyond BOTH other endpoints.
+    const a = [{ x: 0, y: 1000.1234567894 }, { x: 0, y: 1000.123456789401 }],
+      b = [{ x: .75, y: 1000.123456789401 }, { x: .75, y: 1000.1234567895 }]
+    expect(scoreMeasuredRouteCrossings(a, 0, routes(a, b), input(1))).toBeUndefined()
+  })
+
+  test('keeps proved axis-disjoint peers within the existing extra-work allowance', () => {
+    const a = [{ x: 0, y: 0 }, { x: 100, y: 0 }],
+      ink = [{ points: a, style: 'solid' }, ...Array.from({ length: 100 }, (_, i) => ({ points: [{ x: i + 1, y: 10 }, { x: i + 1, y: 20 }], style: 'solid' }))],
+      graph = measured({ maximumEdgeStrokeWidth: 1, edges: ink.map(() => ({ source: 0, target: 1, minSpan: 1 })) })
+    let remaining = 300
+    expect(scoreMeasuredRouteCrossings(a, 0, ink, graph, amount => (remaining -= amount) >= 0)).toBe(0)
+    expect(remaining).toBeGreaterThanOrEqual(0)
+  })
+
+  test('charges the same caller allowance and stops at the first refused debit', () => {
+    const a = [{ x: 0, y: 0 }, { x: 0, y: 20 }], b = [{ x: 1, y: 2 }, { x: 1, y: 18 }], ink = routes(a, b)
+    let full = 0
+    expect(scoreMeasuredRouteCrossings(a, 0, ink, input(1), amount => { full += amount })).toBe(0)
+    expect(full).toBeGreaterThan(0)
+    let left = full - 1, stopped = false
+    expect(scoreMeasuredRouteCrossings(a, 0, ink, input(1), amount => {
+      expect(stopped).toBe(false)
+      left -= amount
+      if (left < 0) stopped = true
+      return !stopped
+    })).toBeUndefined()
+    expect(stopped).toBe(true)
+    let legacyVisits = 0
+    expect(scoreMeasuredRouteCrossings(a, 0, ink, input(undefined), () => { legacyVisits++; return false })).toBe(0)
+    expect(legacyVisits).toBe(0)
+    let capacityStopped = false
+    expect(scoreMeasuredRouteCrossings(a, 0, ink, input(1), () => { expect(capacityStopped).toBe(false) }, () => {
+      expect(capacityStopped).toBe(false)
+      capacityStopped = true
+      return false
+    })).toBeUndefined()
+    expect(capacityStopped).toBe(true)
+    const fail = (reason: string): never => { throw new Error(reason) }
+    expect(() => createBoundaryContactValidator(input(1), 0, ink, { pairs: 10000, arcs: 1, swaps: 1000 }, fail)(a)).toThrow('visibility-arc limit')
   })
 })

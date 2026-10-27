@@ -182,3 +182,60 @@ test('snapshot cloning preserves prepared-text Map keys and values alongside res
   expect([...next.references][0]![1].block.lines[0]).toBe('prepared value')
   expect(graphLayoutDecisionsOf(next)).toEqual(graphLayoutDecisionsOf(value))
 })
+
+test('Class cached producer admission remains bound to the actually selected paint backend', async () => {
+  const child = await runChild(
+    process.execPath,
+    [
+      '-e',
+      `${prelude}
+    import './src/agent/families.ts'
+    import './src/scene/builtin-backends.ts'
+    import { spyOn } from 'bun:test'
+    import * as native from './src/layout/agentic-layered.ts'
+    import * as elk from './src/elk-instance.ts'
+    import { DefaultBackend, registerBackend } from './src/scene/backend.ts'
+    import { LayoutCertificationError } from './src/layout/backend.ts'
+    const id = 'backend:test/class-marker-admission-cache'
+    const unregister = registerBackend({ ...DefaultBackend, id,
+      capabilities: DefaultBackend.capabilities.map(claim => ({ ...claim, target: id })) },
+      { compatibility: { core: '^0.4.0', scene: '^2.0.0' } })
+    let nativeCalls = 0, elkCalls = 0, policyCalls = 0
+    const source = 'classDiagram\\nclass S\\nclass T\\nS o-- T\\nS <|-- T'
+    const paths = [
+      [{x:200,y:120},{x:180,y:120},{x:180,y:80},{x:580,y:80},{x:580,y:120},{x:600,y:120}],
+      [{x:200,y:123.865},{x:170,y:123.865},{x:170,y:60},{x:560,y:60},{x:560,y:130},{x:600,y:130}],
+    ]
+    const producer = spyOn(native, 'layoutAgenticGraph').mockImplementation(() => {
+      nativeCalls++
+      return {width:900,height:300,nodes:[{x:200,y:100},{x:600,y:100}],groups:[],edges:paths.map(points=>({points:points.map(p=>({...p}))}))}
+    })
+    const stock = spyOn(elk, 'elkLayoutSync').mockImplementation(() => { elkCalls++; throw Error('strict Native must not invoke ELK') })
+    try { withPerformanceExperiments(['text-spans', 'position-cache'], () => {
+      const options = { graphLayout: { backend: 'agentic', fallback: 'none' } }
+      const host = () => resolveRenderRequestForExecution(source, options, 'svg', undefined,
+        { backendPolicy: { selectBackend: () => { policyCalls++; return id } } })
+      const first = host(), firstResult = positionFamilyForNativeRender(first)
+      assert.equal(firstResult.positioned.relationships.length, 2)
+      decision(first, 'agentic', 'primary')
+      assert.equal(nativeCalls, 1)
+      const normal = resolveRenderRequestForExecution(source, options, 'svg')
+      assert.throws(() => positionFamilyForNativeRender(normal), LayoutCertificationError)
+      assert.equal(nativeCalls, 2)
+      assert.equal(elkCalls, 0)
+      assert.equal(receiptOf(normal).layoutDecisions?.length ?? 0, 0)
+      const hit = host(), hitResult = positionFamilyForNativeRender(hit)
+      assert.deepEqual(hitResult.positioned, firstResult.positioned)
+      assert.equal(nativeCalls, 2)
+      assert.equal(policyCalls, 2)
+      decision(hit, 'agentic', 'primary')
+    }) } finally { producer.mockRestore(); stock.mockRestore(); unregister() }
+    console.log('Class backend-bound admission cache passed')
+  `,
+    ],
+    childOptions,
+  )
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+  expect(child.stdout.trim()).toBe('Class backend-bound admission cache passed')
+}, 30_000)
