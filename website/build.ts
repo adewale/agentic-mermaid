@@ -449,7 +449,7 @@ function renderRichExampleSvg(sample: any, id: string, request = richExampleRend
 // link — rather than a bare source dump. Keyed by family id.
 const FAMILY_AGENT_TASK: Record<BuiltinFamilyId, { prompt: string; trace: string }> = {
   flowchart: { prompt: 'Add a labeled failure branch and verify that every decision exit is named.', trace: 'asFlowchart · mutate(add_edge/set_label) · verify' },
-  zenuml: { prompt: 'Model nested checkout calls with a stock decision and explicit replies.', trace: 'parse → asZenUML → checked participant rename → verify → serialize → Scene render' },
+  zenuml: { prompt: 'Model nested checkout calls with a stock decision and explicit replies.', trace: 'asZenUML · mutate(rename_participant/insert_statement) · verify' },
   eventmodeling: { prompt: 'Insert an event frame and keep explicit source references attached to their authored IDs.', trace: 'asEventModeling · mutate(insert_frame/set_frame) · verify' },
   state: { prompt: 'Add a retry transition from Failed back to Idle, then verify before returning source.', trace: 'asState · mutate(add_transition) · verify' },
   sequence: { prompt: 'Insert the verification call before export and keep participant order stable.', trace: 'asSequence · mutate(add_message) · verify' },
