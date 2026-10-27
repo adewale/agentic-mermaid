@@ -14,6 +14,7 @@ import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { kanbanStatementEnds, parseKanbanDiagram } from '../kanban/parser.ts'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+import { projectEntityMarkers } from '../shared/mermaid-entity-display.ts'
 
 test('Kanban group padding reserves real space around cards independently of node padding', () => {
   const source = 'kanban\n  todo[To do]\n    work[日本 delivery]@{assigned: "Alice"}\n  done[Done]',
@@ -161,6 +162,37 @@ test('Kanban canonical round trips retain order, quoting, identity and metadata'
     }),
     fcParameters({ numRuns: 50, seed: 1202002 }),
   )
+})
+
+test('Kanban directive-like labels and metadata remain literal through portable writes', async () => {
+  const upstream = startUpstreamMermaid()
+  try {
+    const source = 'kanban\n[%%{f]\n task[Card]'
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw Error(JSON.stringify(parsed.error))
+    const written = serializeMermaid(parsed.value)
+    const reference = await upstream.project(written, diagram => diagram.db.getData().nodes.map((node: Record<string, unknown>) => ({ id: node.id, label: node.label, parentId: node.parentId })))
+    expect(reference.ok).toBe(true)
+    if (!reference.ok) throw Error(reference.error)
+    expect(reference.value.map((node: Record<string, unknown>) => ({
+      id: projectEntityMarkers(String(node.id)), label: projectEntityMarkers(String(node.label)),
+      ...(node.parentId === undefined ? {} : { parentId: projectEntityMarkers(String(node.parentId)) }),
+    }))).toEqual([{ id: '%%{f', label: '%%{f' }, { id: 'task', label: 'Card', parentId: '%%{f' }])
+    const edited = mutate(asKanban(parsed.value)!, { kind: 'set_task_metadata', id: 'task', metadata: { ticket: '%%{ticket', details: { note: '%%{deep' } } })
+    if (!edited.ok) throw Error(edited.error.message)
+    const editedSource = serializeMermaid(edited.value)
+    expect(await upstream.publicAccepts(editedSource)).toBe(true)
+    expect(parseKanbanDiagram(editedSource).columns[0]!.tasks[0]!.metadata).toEqual({ ticket: '%%{ticket', details: { note: '%%{deep' } })
+    for (const ticket of ['%%{ticket', '%%{init: {"theme":"dark"}}%%', '100% done']) {
+      const flat = mutate(asKanban(parsed.value)!, { kind: 'set_task_metadata', id: 'task', metadata: { ticket } })
+      if (!flat.ok) throw Error(flat.error.message)
+      const flatSource = serializeMermaid(flat.value)
+      expect(await upstream.project(flatSource, diagram => diagram.db.getData().nodes.find((node: any) => node.id === 'task').ticket)).toEqual({ ok: true, value: ticket })
+      const reloaded = parseRegisteredMermaid(flatSource)
+      if (!reloaded.ok) throw Error(JSON.stringify(reloaded.error))
+      expect(reloaded.value.meta.initDirectives).toEqual([])
+    }
+  } finally { upstream.close() }
 })
 
 test('Kanban typed writes preserve keyword-like identities, labels and membership in Mermaid', async () => {

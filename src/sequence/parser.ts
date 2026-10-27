@@ -108,13 +108,14 @@ export function sequenceActorIdCanSerialize(id: string, context: 'declaration' |
   if (context === 'declaration') return clearSequenceParticipantId(id) && !/:/.test(token) && !token.includes('%%{')
   if (token.startsWith('%') || token.includes('%%')) return false
   const keyword = token.toLowerCase()
-  const leadingWord = /^(\w+)\s/.exec(keyword)?.[1]
-  if (leadingWord && SEQUENCE_SPACED_CENTRAL_RESERVED_SENDERS.has(leadingWord)) return false
+  const leadingWord = /^(\w+)\b/.exec(keyword)?.[1]
+  if (leadingWord && SEQUENCE_SPACED_CENTRAL_RESERVED_SENDERS.has(leadingWord)
+    && (!['title', 'link', 'links', 'properties', 'details'].includes(leadingWord) || /\s/.test(keyword.slice(leadingWord.length, leadingWord.length + 1)))) return false
   if (/^(?:\d+(?:\.\d{1,2})?|\.\d{1,2})(?=\s)/.test(token)) return false
   if (SEQUENCE_SPACED_CENTRAL_RESERVED_SENDERS.has(keyword)
     && !['title', 'link', 'links', 'properties', 'details'].includes(keyword)) return false
   if (context === 'receiver' && ['acctitle', 'accdescr'].includes(keyword)) return false
-  if (/^(?:left|right) of(?:\s|$)/.test(keyword)) return false
+  if (/^(?:left|right) of\b/.test(keyword)) return false
   return mermaidSequenceActorAt(`${token}${context === 'sender' ? '->>Z:' : ':'}`, 0) === token
 }
 

@@ -834,3 +834,30 @@ domain. Explicit named style-class edits remain available where their own target
 grammar applies. Flowchart functional values and Requirement functions or
 meaningful spaces still have no demonstrated portable field spelling under the
 pin. Invalid XML/control-character values remain outside the writable domain.
+
+### Follow-up to #494: generous reads and portable writes
+
+Class and C4 can retain an explicitly empty accessibility description, although
+Mermaid 12.2.0 rejects its empty `accDescr` block. Verification names that
+reader extension. Writers carry the empty value in a native JSON metadata
+comment, which our readers restore and Mermaid ignores with its empty default.
+The non-empty mutation-input requirement is unchanged.
+
+Kanban labels and implicit identities can contain literal `%%{` text. Writers
+shield percent signs with entity codes in labels and IDs, and with YAML hex
+escapes in metadata strings, including nested records. The text survives both
+preprocessing and native round trips without becoming an init directive.
+
+C4 reads titles and accessibility fields inside boundaries as global metadata
+and warns that Mermaid requires them at document scope. Portable writes move
+them after the header while preserving containment. Mermaid's C4 grammar maps
+`accTitle` to its visible title rather than its accessibility-title field;
+native Agentic fields remain distinct. Syntactic portability does not remove
+that upstream accessibility limitation.
+
+Sequence IDs such as `create)` can be declared in the participant-ID lexer
+state but collide with keyword tokens when used as message endpoints. Their
+native message reading remains available with `UNSUPPORTED_SYNTAX`; typed
+editing stays unavailable for those sources. A leading `loop)` already starts
+a block and retains the block-boundary error when no `end` follows. Longer
+ordinary IDs such as `created)` remain writable.

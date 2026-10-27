@@ -73,6 +73,8 @@ describe('#7254/#7255 SVG accessibility', () => {
     ['pie', '"Share": 2', { kind: 'add_slice', label: 'Other', value: 3 }, 'Other'],
     ['stateDiagram-v2', 'A --> B', { kind: 'add_state', id: 'C' }, 'C'],
     ['packet', '0-7: "Payload"', { kind: 'set_field_label', index: 0, label: 'Changed' }, 'Changed'],
+    ['classDiagram', 'class A', { kind: 'add_class', id: 'Changed' }, 'Changed'],
+    ['classDiagram', 'namespace Domain {\nclass A\n}', { kind: 'add_class', id: 'Changed' }, 'Changed'],
   ] as const)('empty description blocks survive writing and unrelated %s edits', async (header, content, op, changedText) => {
     const upstream = startUpstreamMermaid()
     try {
@@ -81,6 +83,7 @@ describe('#7254/#7255 SVG accessibility', () => {
       const original = structuredClone(parsed.value)
       expect(parsed.value.meta.accessibility.descr).toBe('')
       expect(verifyMermaid(parsed.value).ok).toBe(true)
+      if (header === 'classDiagram') expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'class_empty_accessibility_description' }))
       expect(await upstream.publicAccepts(serializeMermaid(parsed.value))).toBe(true)
       const edited = mutate(parsed.value, op)
       expect(edited.ok).toBe(true)
@@ -89,6 +92,7 @@ describe('#7254/#7255 SVG accessibility', () => {
       const written = serializeMermaid(edited.value)
       expect(written).toContain(changedText)
       expect(await upstream.publicAccepts(written), written).toBe(true)
+      if (header === 'classDiagram') expect(verifyMermaid(written).warnings).not.toContainEqual(expect.objectContaining({ syntax: 'class_empty_accessibility_description' }))
       const reread = parseMermaid(written)
       if (!reread.ok) throw new Error(JSON.stringify(reread.error))
       expect(reread.value.meta.accessibility.descr).toBe('')
