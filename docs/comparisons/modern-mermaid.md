@@ -244,7 +244,7 @@ cd ../agentic-mermaid
 bun install --frozen-lockfile --ignore-scripts
 bun run build:browser
 bun run bench --profile full --suites modern-editor --modern-editor-root ../modern-mermaid --out ../modern-mermaid-evidence
-bun eval/modern-mermaid/summarize.mjs ../modern-mermaid-evidence/modern-editor
+bun eval/trident/run.ts source bench:modern-summary ../modern-mermaid-evidence/modern-editor
 bun run website
 bun run bench --profile full --suites editor-preview --out ../agentic-editor-evidence
 ```

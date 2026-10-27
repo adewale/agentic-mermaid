@@ -46,7 +46,7 @@ The audit and controlled rollout changed the plan in twelve ways.
    guarantee is therefore bounded at 24 and the large-count path has expected
    linear work. Portable CI asserts the real branch and its operation counts;
    wall-clock observations are recorded on demand by
-   `eval/palette-performance/run.ts --record` with their machine, protocol, and
+   `bun run bench --suites palette-performance` with their machine, protocol, and
    limitations. Every prototype must
    declare an input-size budget and a degraded-tail rule.
 

@@ -5,7 +5,7 @@ The projects that keep 0.5 honest: browserless renderers to compare on speed and
 ## How the population was chosen
 
 This file describes the dated renderer benchmark population in `population.json`.
-The broader [community inventory](../../docs/mermaid-community.json) also includes
+The broader [community inventory](https://github.com/adewale/trident/blob/main/catalog/mermaid-community.json) also includes
 editors and integrations. Its discovery rules were widened on 23 October 2026;
 the renderer-only inclusion rule below is historical benchmark selection, not
 the current community membership rule.
@@ -46,7 +46,7 @@ exhaustive lists. New assignments cite pinned public APIs or authoring flows.
 Run broad discovery with the authenticated GitHub CLI and Bun:
 
 ```sh
-bun scripts/research/discover-mermaid-community.ts --out /tmp/mermaid-community-candidates.json
+bun ../trident/research/discover-mermaid-community.ts --out /tmp/mermaid-community-candidates.json
 ```
 
 Queries live in the community inventory's `method.discovery`, covering GitHub

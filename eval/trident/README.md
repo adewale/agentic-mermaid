@@ -27,7 +27,10 @@ The generated source workspace uses this checkout's tracked files and Trident's
 protocols. It records both original revisions and the combined driver revision.
 Do not put evidence inside that disposable workspace; default records live in
 this checkout's ignored `bench-report/` and explicit output paths remain external.
-Agentic no longer keeps a copy of the harness. Inside the workspace, `eval/benchmark`
-is Trident; Agentic entry points that Trident runs as suites (`palette-performance`,
-`modern-editor`) refuse outside it, so Trident's CI and pinned-Mermaid checks always
-apply. Shared harness fixes belong in Trident.
+Agentic keeps only its pinned launcher, product-specific fixtures and regression checks.
+Timing, peer discovery/catalogs, external editor comparison and evidence reporting
+belong to Trident. Inside its source workspace, `eval/benchmark` is Trident.
+Use `bun run bench --suites palette-performance`,
+`bun eval/trident/run.ts source bench:endpoint-marker BASE HEAD OUT`, and
+`bun eval/trident/run.ts source bench:modern-summary EVIDENCE_DIRECTORY`.
+Shared harness fixes belong in Trident.

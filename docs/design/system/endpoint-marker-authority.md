@@ -173,7 +173,7 @@ The follow-up audit compares separately built, clean production checkouts at
 `850860e8257e083325e1f2515bc78248c9dd00ed`. Run it with:
 
 ```sh
-bun run eval/endpoint-marker/compare.ts BASE_CHECKOUT HEAD_CHECKOUT OUT_DIR
+bun eval/trident/run.ts source bench:endpoint-marker BASE_CHECKOUT HEAD_CHECKOUT OUT_DIR
 ```
 
 Both checkouts need their Node packages built with `bunx tsup`. The command
