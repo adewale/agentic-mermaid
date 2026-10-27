@@ -56,11 +56,17 @@ function fixtureSources(): Array<{ name: string; source: string }> {
 // oracles; the flowchart/journey layout-stress fixtures add layout cases,
 // pinned by layout-equivalence, and all of them render styled in the
 // transparent test below.
-const GOLDEN_CASES = Array.from({ length: Math.max(BUILTIN_FAMILY_METADATA.length, LOOKS.length) }, (_, i) => {
+const GOLDEN_CASES = [...Array.from({ length: Math.max(BUILTIN_FAMILY_METADATA.length, LOOKS.length) }, (_, i) => {
   const family = BUILTIN_FAMILY_METADATA[i % BUILTIN_FAMILY_METADATA.length]!.id
   const style = LOOKS[i % LOOKS.length]!
   return { family, style, fixture: `${family}-basic.mmd`, golden: `${family}-basic.${style.replace(/[^a-z0-9-]/g, '-')}.svg` }
-})
+}),
+  // Selected reviewed combinations expose actual style/palette consumption;
+  // the registry-derived conformance portfolio owns broader interaction coverage.
+  { family: 'eventmodeling', style: ['hand-drawn', 'github-light'], fixture: 'eventmodeling-basic.mmd', golden: 'eventmodeling-basic.hand-drawn.github-light.svg' },
+  { family: 'eventmodeling', style: ['hand-drawn', 'dracula'], fixture: 'eventmodeling-basic.mmd', golden: 'eventmodeling-basic.hand-drawn.dracula.svg' },
+  { family: 'eventmodeling', style: ['watercolor', 'solarized-light'], fixture: 'eventmodeling-basic.mmd', golden: 'eventmodeling-basic.watercolor.solarized-light.svg' },
+]
 
 /** A line diff (longest common subsequence): `-N: …` is golden line N,
  *  `+N: …` rendered line N; at most `shown` entries. */

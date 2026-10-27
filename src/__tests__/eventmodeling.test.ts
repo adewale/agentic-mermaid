@@ -163,8 +163,8 @@ test('compact/comment-prefixed declarations and explicit relations retain exact 
 })
 
 test('outer routing space and group typography survive public render options', () => {
-  const source = 'eventmodeling\nrf 01 ui A\nrf 02 cmd B\nrf 03 evt C ->> 01'
-  for (const padding of [0, 24])
+  const sources = ['eventmodeling\nrf 01 ui A\nrf 02 cmd B\nrf 03 evt C ->> 01', 'eventmodeling\nrf 01 ui Main ->> 02\nrf 02 evt Source']
+  for (const source of sources) for (const padding of [0, 24])
     for (const nodeSpacing of [48, 80, 200]) {
       const p = layoutEventModeling(parseEventModeling(source), { padding, nodeSpacing })
       for (const edge of p.edges) for (const point of edge.points) expect(point.y).toBeGreaterThan(0)
@@ -257,4 +257,60 @@ test('source-map relation ownership excludes arrow-like literal data', () => {
   if (!parsed.ok) throw Error('expected source')
   expect([...parsed.value.source.edges.keys()]).toEqual(['relation:01:02'])
   expect(parsed.value.source.edges.get('relation:01:02')).toEqual({line: 3, col: 16})
+})
+
+
+test('lane padding, header paint and rounded routes consume the shared style face', () => {
+  const source = 'eventmodeling\ntf 01 ui Main\ntf 02 cmd Save'
+  const roomy = { style: { roles: { group: { paddingX: 90, paddingY: 55, headerFillColor: '#dbf7ef' }, edge: { bendRadius: 24 } } } }
+  const tight = { style: { roles: { group: { paddingX: 0, paddingY: 0 }, edge: { bendRadius: 0 } } } }
+  const r = verifyMermaid(source, { renderOptions: roomy }).layout!
+  const t = verifyMermaid(source, { renderOptions: tight }).layout!
+  expect(r.nodes[0]!.x).toBeGreaterThan(t.nodes[0]!.x)
+  expect(r.groups[0]!.h - r.nodes[0]!.h).toBe(110)
+  const rounded = renderMermaidSVG(source, roomy)
+  const straight = renderMermaidSVG(source, tight)
+  expect(rounded).toContain('#dbf7ef')
+  expect(rounded).toMatch(/data-id="relation:01:02"[^>]*d="[^"]*Q|d="[^"]*Q[^"]*"[^>]*data-id="relation:01:02"/)
+  expect(straight).not.toMatch(/d="[^"]*Q/)
+  expect(r.edges[0]!.path.length).toBeGreaterThan(t.edges[0]!.path.length)
+  expect(r.edges[0]!.from).toBe('01')
+  expect(r.edges[0]!.to).toBe('02')
+})
+
+test('SVG frame wrappers retain lane references across native backends', () => {
+  const source = 'eventmodeling\ntf 01 ui Cart.UI\ntf 02 cmd Cart.Save\ntf 03 ui Cart.UI'
+  for (const style of ['crisp', 'hand-drawn', 'watercolor']) {
+    const svg = renderMermaidSVG(source, { style, seed: 7 })
+    for (const [id, lane] of [['01', 'lane:0'], ['02', 'lane:1'], ['03', 'lane:0']]) {
+      const node = [...svg.matchAll(/<g\b[^>]*>/g)].map(m => m[0]).find(tag => tag.includes(`data-id="${id}"`))
+      expect(node).toContain(`data-parent="${lane}"`)
+    }
+  }
+})
+
+test('pinned multiline blocks and undeclared GWT reference tokens retain owned meaning', async () => {
+  // Mermaid12.2: eventmodeling.spec.ts:46 and parser/tests/eventmodeling.test.ts:11.
+  const source = 'eventmodeling\ntf 01 cmd AddItem\ntf 02 evt ItemAdded [[ItemAddedData]]\ndata ItemAddedData\n{\n  productId: 7\n}\nnote 02\n`md` {\nKeep this note\n}\ngwt 01 given evt ItemAdded when cmd AddItem then evt ItemAdded'
+  const parsed = parseRegisteredMermaid(source)
+  if (!parsed.ok || parsed.value.body.kind !== 'eventmodeling') throw Error('expected native pinned source')
+  expect(parsed.value.body.data.ItemAddedData).toEqual({ text: '  productId: 7' })
+  expect(parsed.value.body.notes).toEqual([{ frame: '02', data: { type: 'md', text: 'Keep this note' } }])
+  expect(parsed.value.body.entities).toEqual([])
+  expect(parsed.value.body.specifications[0]!.given).toEqual([{ type: 'event', entity: 'ItemAdded' }])
+  const upstream = startUpstreamMermaid()
+  try { expect((await upstream.parse(serializeMermaid(parsed.value))).ok).toBe(true) }
+  finally { await upstream.close() }
+  const rejected = mutateChecked(parsed.value, { kind: 'set_specifications', specifications: [{ frame: '01', given: [{ type: 'event', entity: 'then' }], when: [], then: [{ type: 'event', entity: 'ItemAdded' }] }] })
+  expect(rejected.ok).toBe(false)
+  expect(parsed.value.body.entities).toEqual([])
+})
+
+
+test('duplicate diagnostics retain original lines through comments and compact statements', () => {
+  for (const [source, line] of [
+    ['eventmodeling\ntf 01 ui Main\n%% retained source line\nrf 01 evt Duplicate', 4],
+    ['eventmodeling\ntf 01 ui Main rf 01 evt Duplicate', 2],
+    ['eventmodeling\r\ntf 01 ui Main\r\n/* comment */ rf 01 evt Duplicate', 3],
+  ] as const) expect(() => parseEventModeling(source)).toThrow(`Duplicate event modeling frame ID "01" on line ${line}`)
 })

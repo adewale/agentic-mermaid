@@ -152,7 +152,7 @@ export const STABLE_FAMILY_DESCRIPTOR_SEEDS = [
     editorExampleId: 'eventmodeling-basic', editorGlyph: 'EM',
     config: { section: 'eventmodeling', keys: ['padding', 'rowHeight', 'useWidth', 'useMaxWidth', 'theme', 'look', 'layout'], noopKeys: ['useWidth', 'useMaxWidth', 'theme', 'look', 'layout'] },
     semanticChannels: [],
-    sceneRoles: [...documentRoles, ...boxes, { role: 'group', primitives: ['container', 'shape'] }, { role: 'edge', primitives: ['connector'] }, { role: 'defs', primitives: ['document', 'marker'] }],
+    sceneRoles: [...documentRoles.filter(role => role.role !== 'chrome'), { role: 'chrome', primitives: ['document', 'shape'] }, ...boxes, { role: 'group', primitives: ['container', 'shape'] }, { role: 'edge', primitives: ['connector'] }, { role: 'defs', primitives: ['document', 'marker'] }],
     detect: familyDetection.detectsEventmodelingFamily,
     example: 'eventmodeling\ntf 01 ui CartUI\ntf 02 cmd AddItem\ntf 03 evt ItemAdded',
     editorExample: 'eventmodeling\ntf 01 ui CartUI\ntf 02 cmd AddItem\ntf 03 evt ItemAdded\ntf 04 rmo CartItems\ntf 05 ui CartUI',

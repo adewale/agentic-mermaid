@@ -69,6 +69,7 @@ export function parseEventModeling(source: string | string[], observe?: (event: 
     if (!metadata.ok) throw Error(metadata.message)
     if (metadata.value && typeof metadata.value === 'object' && 'title' in metadata.value && typeof metadata.value.title === 'string') body.title = metadata.value.title
   }
+  const frameIds = new Set<string>()
   let index = lines.findIndex(line => line.trim() === 'eventmodeling')
   if (index < 0) throw Error('Expected eventmodeling header')
   let specification: EventSpecification | undefined,
@@ -103,6 +104,14 @@ export function parseEventModeling(source: string | string[], observe?: (event: 
     }
     const frame = line.match(framePattern)
     if (frame) {
+      if (frameIds.has(frame[2]!)) {
+        // Source diagnostics reuse the scanner's mapping only on the error path.
+        const offsets = scanned.offsets ?? eventSourceWithoutComments(text, true).offsets!
+        const statementOffset = lines.slice(0, index).reduce((sum, value) => sum + value.length + 1, 0) + lines[index]!.indexOf(line)
+        const at = sourcePointAt(sourceLineStarts(text), offsets[statementOffset] ?? text.length)
+        throw Error(`Duplicate event modeling frame ID "${frame[2]}" on line ${at.line}`)
+      }
+      frameIds.add(frame[2]!)
       specification = undefined
       let rest = line.slice(frame[0].length).trim()
       const sources: string[] = []
@@ -139,10 +148,15 @@ export function parseEventModeling(source: string | string[], observe?: (event: 
       specification = undefined
       continue
     }
-    const block = line.match(/^(data\s+([_a-zA-Z]\w*)|note\s+(\d{1,3}))\s+([\s\S]+)$/)
+    const block = line.match(/^(data\s+([_a-zA-Z]\w*)|note\s+(\d{1,3}))(?:\s+([\s\S]+))?$/)
     if (block) {
       specification = undefined
-      const values = [block[4]!]
+      let opening = block[4] ?? ''
+      while (!opening.includes('{')) {
+        if (++index >= lines.length) throw Error('Unclosed Event Modeling data block')
+        opening += (opening ? '\n' : '') + lines[index]!.trim()
+      }
+      const values = [opening]
       while (!/^}\s*$/.test(lines[++index] ?? '')) {
         if (index >= lines.length) throw Error('Unclosed Event Modeling data block')
         values.push(lines[index]!)
@@ -200,7 +214,7 @@ export function parseEventModeling(source: string | string[], observe?: (event: 
 }
 const RESERVED_IDENTIFIERS = new Set(['eventmodeling', 'rmo', 'readmodel', 'ui', 'cmd', 'command', 'evt', 'event', 'pcr', 'processor', 'json', 'jsobj', 'figma', 'salt', 'uri', 'md', 'html', 'text', 'tf', 'timeframe', 'rf', 'resetframe', 'entity', 'data', 'note', 'gwt', 'given', 'when', 'then', 'title'])
 export function eventNonportableIdentifiers(body: EventModelingBody): string[] {
-  return [...new Set([...body.frames.map(frame => frame.entity), ...body.entities, ...Object.keys(body.data)].filter(name => name.split('.').some(part => RESERVED_IDENTIFIERS.has(part))))]
+  return [...new Set([...body.frames.map(frame => frame.entity), ...body.entities, ...Object.keys(body.data), ...body.specifications.flatMap(spec => [...spec.given, ...spec.when, ...spec.then].map(value => value.entity))].filter(name => name.split('.').some(part => RESERVED_IDENTIFIERS.has(part))))]
 }
 export function validateEventModeling(body: EventModelingBody, strictIdentifiers = false): void {
   if (strictIdentifiers && eventNonportableIdentifiers(body).length) throw Error('Event Modeling identifiers cannot use reserved Mermaid grammar keywords')
@@ -245,7 +259,7 @@ export function validateEventModeling(body: EventModelingBody, strictIdentifiers
     if (!ids.has(spec.frame) || !spec.given.length || !spec.then.length) throw Error('Invalid Given/When/Then specification')
     for (const value of [...spec.given, ...spec.when, ...spec.then]) {
       record(value, ['type', 'entity'])
-      if (!Object.values(types).includes(value.type) || typeof value.entity !== 'string' || !body.entities.includes(value.entity)) throw Error('Invalid specification type or entity')
+      if (!Object.values(types).includes(value.type) || typeof value.entity !== 'string' || !/^[_a-zA-Z]\w*$/.test(value.entity)) throw Error('Invalid specification type or entity')
     }
   }
 }

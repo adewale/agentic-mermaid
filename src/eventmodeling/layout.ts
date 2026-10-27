@@ -1,3 +1,4 @@
+import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 import { diagramTitleBand, positionDiagramTitle, resolveRenderStyle } from '../styles.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
@@ -21,14 +22,14 @@ export function layoutEventModeling(body: EventModelingBody, options: Readonly<R
   const lanes = eventLanes(body).map(lane => ({ ...lane, block: prepareLane(lane.label), x: pad, y: 0, width: 0, height: 0 }))
   const laneByLabel = new Map(lanes.map(lane => [lane.label, lane]))
   const titleBand = diagramTitleBand(body.title, style)
-  const laneWidth = Math.max(140, ...lanes.map(lane => lane.block.width + 24))
+  const laneWidth = Math.max(140, ...lanes.map(lane => style.groupLabelPaddingX + lane.block.width + style.groupPaddingX))
   const nodes = body.frames.map((frame, index) => {
     const block = prepare(eventFrameText(body, frame))
     return { id: frame.id, frame, block, lane: laneByLabel.get(eventLane(frame))!.id, x: 0, y: 0, width: Math.max(120, block.width + 2 * style.nodePaddingX), height: Math.max(64, block.height + 2 * style.nodePaddingY), index }
   })
   const columnWidth = Math.max(160, ...nodes.map(node => node.width))
   const gap = Math.max(48, options.nodeSpacing ?? 48)
-  const width = Math.max(pad * 2 + laneWidth + Math.max(1, nodes.length) * (columnWidth + gap), (titleBand?.width ?? 0) + 2 * pad)
+  const width = Math.max(pad * 2 + laneWidth + Math.max(1, nodes.length) * columnWidth + Math.max(0, nodes.length - 1) * gap + Math.max(style.groupPaddingX, gap / 2 + style.lineWidth), (titleBand?.width ?? 0) + 2 * pad)
   const members = new Map<string, typeof nodes>()
   for (const node of nodes) {
     const list = members.get(node.lane) ?? []
@@ -39,7 +40,7 @@ export function layoutEventModeling(body: EventModelingBody, options: Readonly<R
   for (const lane of lanes) {
     const owned = members.get(lane.id) ?? []
     lane.y = y
-    lane.height = Math.max(rowHeight, lane.block.height + 32, ...owned.map(node => node.height + 48))
+    lane.height = Math.max(rowHeight, lane.block.height + 2 * style.groupPaddingY, ...owned.map(node => node.height + 2 * style.groupPaddingY))
     lane.width = width - 2 * pad
     for (const node of owned) {
       node.x = pad + laneWidth + node.index * (columnWidth + gap)
@@ -60,8 +61,9 @@ export function layoutEventModeling(body: EventModelingBody, options: Readonly<R
     const targetGutter = to.x - gap / 2
     const routeY = laneById.get(from.lane)!.y - gap / 2
     const points = from.lane === to.lane && to.index === from.index + 1 ? [start, end] : to.index === from.index + 1 ? [start, { x: gutter, y: start.y }, { x: gutter, y: end.y }, end] : [start, { x: gutter, y: start.y }, { x: gutter, y: routeY }, { x: targetGutter, y: routeY }, { x: targetGutter, y: end.y }, end]
-    return { ...edge, points, index }
+    const projection = style.edgeBendRadius > 0 ? projectRoundedConnectorPath(points, style.edgeBendRadius, { precision: 3 }) : undefined
+    return { ...edge, points: projection?.geometry.points ?? points, projection, index }
   })
-  return { width, height: Math.max(y + pad, 2 * pad + 40), lanes, nodes, edges, ...(titleBand ? { title: positionDiagramTitle(titleBand, width, pad) } : {}) }
+  return { style, laneWidth, width, height: Math.max(y + pad, 2 * pad + 40), lanes, nodes, edges, ...(titleBand ? { title: positionDiagramTitle(titleBand, width, pad) } : {}) }
 }
 export type PositionedEventModeling = ReturnType<typeof layoutEventModeling>

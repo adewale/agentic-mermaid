@@ -368,12 +368,12 @@ it('resolved circle and ellipse paths preserve the native stroke traversal for d
 
 it('standalone editor stays within its single-renderer payload budget', async () => {
   const html = new Uint8Array(await Bun.file(join(ROOT, 'editor.html')).arrayBuffer())
-  // Bun 1.4.2 against main cd5dfe4a: 4,430,862 → 4,456,049 raw;
-  // gzip level 9: 1,335,048 → 1,342,660 (+7,612 bytes). Keep 451 raw /
-  // 340 gzip bytes of headroom for the native family. The optional ZenUML
+  // Bun 1.4.2 against main cd5dfe4a: 4,430,862 → 4,457,245 raw;
+  // gzip level 9: 1,335,048 → 1,343,008 (+7,960 bytes). Keep 505 raw /
+  // 492 gzip bytes of headroom for the native family. The optional ZenUML
   // backend is separate; single-engine and relative payload gates also apply.
-  expect(html.byteLength).toBeLessThanOrEqual(4_456_500)
-  expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_343_000)
+  expect(html.byteLength).toBeLessThanOrEqual(4_457_750)
+  expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_343_500)
 })
 
 it('standalone editor renders and verifies with one persistent Blob worker', async () => {

@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "status": "approved",
   "artifact": "src/__tests__/testdata/section-b-brand-evidence.png",
-  "artifactSha256": "aec259d0b086575dff7dd611b03a810681aea6d7b74073541b960270cf1149d6",
+  "artifactSha256": "29090e03c33d599b627d0c78fa50d4a2cce418d787b385b02882a01a9e2ca4dd",
   "reviewedAt": "2026-10-27",
-  "reviewer": "Codex agent, PR #545 Event Modeling enrollment",
-  "scope": "96 family-by-variant cells at 1560x12504. Incremental review against previously approved artifact 032b2c13d1591f1a854022a808370da089e9e241ad7ea8c4366e353ba856ce19: only four formerly empty cells now show Event Modeling. All 92 existing family cells, headings and background are pixel-identical. The Codex agent inspected each new cell at native 520x380: UI, command and event frames stay in three separate bands, connectors reach the frames, all labels remain complete, and sentinel, editorial, technical and dark operations typography and paints apply. This approves these intended additions only. This is agent review, not human approval, deployed-site parity or a general readability proof for arbitrary inputs, fonts, density or displays.",
+  "reviewer": "Codex agent, PR #545 style-consumption follow-up",
+  "scope": "96 family-by-variant cells at 1560x12504. Incremental review against artifact aec259d0b086575dff7dd611b03a810681aea6d7b74073541b960270cf1149d6: only four Event Modeling cells change (sentinel 21890 pixels, editorial 24256, technical 28127, operations 26166). All 92 other cells, headings and background are pixel-identical. Inspected the four native 520x380 cells: group padding now changes measured lanes, sentinel curves consume bend radius, complete frame/lane labels remain legible and arrows retain their targets. This approves those intended changes only. Agent review, not human approval, arbitrary-density readability or deployed-site parity.",
   "audit": "eval/section-b-brand-evidence/stable-families-review.md"
 }

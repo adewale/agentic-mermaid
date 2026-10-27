@@ -1,13 +1,13 @@
 import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import { drawingDocument } from '../shared/scene-document.ts'
-import { diagramTitleFields, resolveRenderStyle } from '../styles.ts'
+import { diagramTitleFields } from '../styles.ts'
 import { serializeMarkerResources, tipAnchoredArrow } from '../scene/marker-resources.ts'
 import { createFillInkResolver } from '../color-resolver.ts'
 import type { RenderContext } from '../types.ts'
 import type { PositionedEventModeling } from './layout.ts'
 const arrow = tipAnchoredArrow('eventmodeling-arrow', { width: 8, height: 8 }, 'end', { fill: 'var(--_line)' }, 'userSpaceOnUse')
 function lowerEventModelingDrawing<T>(marks: DrawingFactory<T>, { positioned: diagram, colors, resolved }: RenderContext<PositionedEventModeling>): DrawingDocument<T> {
-  const style = resolveRenderStyle(resolved.renderOptions, undefined, resolved.styleFace)
+  const style = diagram.style
   const ink = createFillInkResolver(colors)
   const marker = style.edgeStrokeColor ? { ...arrow, paint: { ...arrow.paint, fill: style.edgeStrokeColor } } : arrow
   const parts: T[] = [marks.definitions({ id: 'defs', markerResources: [marker] }, `<defs>${serializeMarkerResources([marker])}</defs>`)]
@@ -32,7 +32,8 @@ function lowerEventModelingDrawing<T>(marks: DrawingFactory<T>, { positioned: di
             }),
             indent: 2,
           },
-          { node: marks.text({ id: `${lane.id}:label`, role: 'label', owner, text: lane.block.text, block: lane.block, x: lane.x + 12, y: lane.y + lane.height / 2, anchor: 'start', fontSize: lane.block.fontSize, fontWeight: lane.block.fontWeight, letterSpacing: lane.block.letterSpacing, paint: { fill: style.groupTextColor ?? ink('var(--_text)', style.groupFillColor ?? 'var(--_group-fill)') } }), indent: 2 },
+          ...(style.groupHeaderFillColor ? [{ node: marks.shape({ id: `${lane.id}:header`, role: 'chrome', owner, geometry: { kind: 'rect' as const, x: lane.x, y: lane.y, width: diagram.laneWidth, height: lane.height, rx: style.groupCornerRadius }, paint: { fill: style.groupHeaderFillColor, stroke: 'none' } }), indent: 2 }] : []),
+          { node: marks.text({ id: `${lane.id}:label`, role: 'label', owner, text: lane.block.text, block: lane.block, x: lane.x + style.groupLabelPaddingX, y: lane.y + lane.height / 2, anchor: 'start', fontSize: lane.block.fontSize, fontWeight: lane.block.fontWeight, letterSpacing: lane.block.letterSpacing, paint: { fill: style.groupTextColor ?? ink('var(--_text)', style.groupHeaderFillColor ?? style.groupFillColor ?? 'var(--_group-fill)') } }), indent: 2 },
         ],
       }),
     )
@@ -42,7 +43,8 @@ function lowerEventModelingDrawing<T>(marks: DrawingFactory<T>, { positioned: di
       marks.connector({
         id: edge.id,
         role: 'edge',
-        geometry: { kind: 'polyline', points: edge.points },
+        geometry: edge.projection?.geometry ?? { kind: 'polyline', points: edge.points },
+        route: { ownership: 'layout', bendRadius: style.edgeBendRadius, ...(edge.projection ? { contours: edge.projection.contours } : {}) },
         lineStyle: 'solid',
         paint: { stroke: style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: String(style.lineWidth) },
         endpoints: { from: edge.from, to: edge.to },
@@ -57,7 +59,7 @@ function lowerEventModelingDrawing<T>(marks: DrawingFactory<T>, { positioned: di
       marks.group({
         id: node.id,
         role: 'node',
-        open: '<g>',
+        open: `<g data-parent="${node.lane}">`,
         close: '</g>',
         children: [
           {

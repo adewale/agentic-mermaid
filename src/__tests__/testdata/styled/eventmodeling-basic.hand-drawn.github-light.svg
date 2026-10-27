@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="809.12" height="514.7" viewBox="0 0 809.12 514.7" style="--bg:#ffffff;--fg:#1f2328;--line:#d1d9e0;--accent:#0969da;--muted:#59636e;--border:#26262b;--font:Caveat;background:#ffffff" class="am-148ltyq1lfv0y9">
+<style>
+  svg.am-148ltyq1lfv0y9 { font-family: var(--font, 'Caveat'), system-ui, sans-serif; }
+  svg.am-148ltyq1lfv0y9 {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #1f2328;
+    --_text-sec:      #59636e;
+    --_text-muted:    #59636e;
+    --_text-faint:    #86888b;
+    --_line:          #d1d9e0;
+    --_arrow:         #0969da;
+    --_node-fill:     #f8f8f9;
+    --_node-stroke:   #26262b;
+    --_group-fill:    #ffffff;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e4e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<rect width="809.12" height="514.7" fill="#ffffff" data-backdrop="page" />
+<g data-backdrop="paper-ruled">
+  <line x1="0" y1="26" x2="809.12" y2="26" stroke="#8f959c" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="52" x2="809.12" y2="52" stroke="#8f959c" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="78" x2="809.12" y2="78" stroke="#8f959c" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="104" x2="809.12" y2="104" stroke="#8f959c" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="130" x2="809.12" y2="130" stroke="#8f959c" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="156" x2="809.12" y2="156" stroke="#8f959c" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="182" x2="809.12" y2="182" stroke="#8f959c" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="208" x2="809.12" y2="208" stroke="#8f959c" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="234" x2="809.12" y2="234" stroke="#8f959c" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="260" x2="809.12" y2="260" stroke="#8f959c" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="286" x2="809.12" y2="286" stroke="#8f959c" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="312" x2="809.12" y2="312" stroke="#8f959c" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="338" x2="809.12" y2="338" stroke="#8f959c" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="364" x2="809.12" y2="364" stroke="#8f959c" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="390" x2="809.12" y2="390" stroke="#8f959c" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="416" x2="809.12" y2="416" stroke="#8f959c" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="442" x2="809.12" y2="442" stroke="#8f959c" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="468" x2="809.12" y2="468" stroke="#8f959c" stroke-width="0.5" opacity="0.14" />
+  <line x1="0" y1="494" x2="809.12" y2="494" stroke="#8f959c" stroke-width="0.5" opacity="0.14" />
+</g>
+<defs>  <marker id="eventmodeling-arrow" markerWidth="8" markerHeight="8" refX="8" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+    <polygon points="0 0, 8 4, 0 8" fill="#8f959c" />
+  </marker></defs>
+<g data-id="lane:0" data-role="group">
+  <path d="M23.85 51.88 C314.03 53.14, 604.21 52.62, 785.32 51.27 M23.71 52.15 C287.51 50.97, 551.47 50.92, 785.03 51.72 M784.15 50.7 C784.95 74.48, 784.62 97.92, 785.45 147.06 M785.72 52.53 C786.3 88.26, 785.5 123.06, 785.86 147.44 M784.98 148.69 C505.88 148.98, 228.53 149.19, 24.5 147.74 M785.07 147.93 C545.2 146.56, 304.85 146.72, 23.87 148.1 M25.99 147.18 C24.66 124.3, 25.65 95.56, 24.02 50.5 M24.59 147.01 C23.73 127.13, 24.01 109.12, 24.85 51.04" fill="none" stroke="#26262b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+  <text paint-order="stroke" stroke="#ffffff" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="36" y="100" text-anchor="start" font-family="Caveat" font-size="12" font-weight="600" fill="#1f2328" data-prepared-text="true" dy="4.2" textLength="83.16" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">UI / Automation</text>
+</g>
+<g data-id="lane:1" data-role="group">
+  <path d="M23.34 196.31 C273.16 197.47, 523.11 197.25, 785.66 195.64 M24.14 196.29 C182.02 194.45, 340.05 193.93, 785.11 196.33 M783.51 194.77 C784.34 220.43, 786.7 245.5, 785.25 300.32 M784.31 195.02 C784.92 226.49, 785.25 256.96, 785.84 298.03 M784.81 299.03 C616.33 296.09, 446.73 296.16, 23.3 298.58 M785.52 298.71 C483.33 296.08, 181.36 295.73, 24.05 298.63 M23.95 297.77 C23.83 264.49, 23.12 228.3, 25.71 196.37 M24.9 298.62 C23.83 267.37, 24.19 235.64, 24.76 196.39" fill="none" stroke="#26262b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+  <text paint-order="stroke" stroke="#ffffff" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="36" y="247.35" text-anchor="start" font-family="Caveat" font-size="12" font-weight="600" fill="#1f2328" data-prepared-text="true" dy="4.2" textLength="132.12" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Command / Read Model</text>
+</g>
+<g data-id="lane:2" data-role="group">
+  <path d="M24.14 347.49 C299.87 348.01, 577.09 348.85, 785.01 346.61 M23.7 347.07 C267.6 348.89, 511.46 349.41, 784.89 346.41 M785.32 348.36 C783.49 384.59, 783.93 418.4, 786.85 443.44 M785 346.11 C785.87 375.19, 785.87 403.65, 784.37 443.38 M785.34 443.5 C481.79 443.3, 177.89 442.54, 24.71 443.07 M784.94 442.53 C556.06 444.25, 327.24 443.75, 23.74 442.66 M25.55 441.69 C24.83 413.9, 25.67 383.69, 24.75 345.11 M24.81 442.03 C25.27 405.69, 23.65 370.21, 23.86 346.04" fill="none" stroke="#26262b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+  <text paint-order="stroke" stroke="#ffffff" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="36" y="394.7" text-anchor="start" font-family="Caveat" font-size="12" font-weight="600" fill="#1f2328" data-prepared-text="true" dy="4.2" textLength="42.12" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Events</text>
+</g>
+<polyline stroke-opacity="0" points="304.12,100 368.12,100 368.12,247.35 392.12,247.35" fill="none" stroke="#8f959c" stroke-width="1" marker-end="url(#eventmodeling-arrow)" data-relationship="inferred" data-direction="forward" data-id="relation:01:02" data-role="edge" data-from="01" data-to="02" role="graphics-symbol" aria-roledescription="relation" aria-label="01 to 02" />
+<path d="M305.24 101.65 C327.47 98.04, 348.65 101.06, 368.17 98.29 M303.19 99.48 C329.11 100.42, 352.16 99.4, 367.86 99.37 M366.39 99.51 C370.09 144.38, 368.38 192.64, 368.23 245.65 M368.71 100.86 C367.08 132.91, 366.92 166.71, 368.72 247.74 M368.9 247.13 C377.26 245.75, 382.26 246.67, 393.88 245.67 M369.08 247.06 C375.51 246.35, 383.21 246.83, 391.43 247.81" fill="none" stroke="#8f959c" stroke-width="1.8" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" />
+<polyline stroke-opacity="0" points="544.479,247.35 576.12,247.35 576.12,394.7 600.12,394.7" fill="none" stroke="#8f959c" stroke-width="1" marker-end="url(#eventmodeling-arrow)" data-relationship="inferred" data-direction="forward" data-id="relation:02:03" data-role="edge" data-from="02" data-to="03" role="graphics-symbol" aria-roledescription="relation" aria-label="02 to 03" />
+<path d="M544.61 247.63 C552.34 246.71, 558.67 246.55, 578.05 248.72 M545.12 247.44 C550.86 247.86, 558.25 248.21, 575.56 247.36 M575.52 249.01 C577.18 302.42, 577.73 357.33, 575.41 393 M576.67 246.74 C574.13 284.62, 575.73 323.99, 575.42 393.86 M575.44 396.26 C583.57 392.82, 587.73 393.27, 599.94 394.61 M577.05 394.9 C586.54 395.43, 594.96 395.67, 600.82 394.08" fill="none" stroke="#8f959c" stroke-width="1.8" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" />
+<g data-parent="lane:0" data-id="01" data-role="node">
+  <path d="M188.79 68.34 C225.53 67.61, 256.97 66.46, 298.91 67.09 M189.87 68.72 C232.32 68.11, 275.98 67.54, 299.62 68.87 M299.12 68 C303.03 66.05, 305.64 70.49, 302.92 72.65 M300.85 67.54 C300.65 66.21, 304.89 68, 303.54 72.18 M304.39 72.39 C305.05 84.25, 302.3 93.54, 302.53 127.63 M304.07 73.91 C303.24 88.84, 303.99 106.36, 304.47 127.37 M304.12 127 C303.66 130.45, 303.43 133.12, 300.63 133.21 M304.44 125.21 C306.03 131.59, 301.38 132.9, 301 133.74 M300.52 131.57 C256.39 132.23, 215.46 130.02, 190.9 131.94 M298.33 131.74 C259.99 132.8, 221.52 131.37, 190.02 132.83 M189.12 132 C184.54 132.35, 185.05 130.14, 183.81 128.88 M189.02 131.89 C184.09 129.93, 185.01 128.93, 182.06 125.88 M184.49 125.4 C182.91 105.9, 185.79 88.65, 185.59 71.55 M184.47 126.39 C184.54 108.3, 184.12 90.58, 183.35 73.06 M184.12 73 C185.63 69.38, 185.32 66.26, 188.43 68.67 M183.05 73.89 C184.88 68.98, 183.75 68.7, 190.89 69.78 M189.12 68 C189.12 68, 189.12 68, 189.12 68 M189.12 68 C189.12 68, 189.12 68, 189.12 68" fill="none" stroke="#26262b" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" />
+  <text paint-order="stroke" stroke="#ffffff" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="244.12" y="100" text-anchor="middle" font-family="Caveat" font-size="13" font-weight="500" fill="#1f2328" data-prepared-text="true"><tspan x="244.12" y="96.1"><tspan x="244.12" text-anchor="middle" data-text-fragment="true">01 · ui</tspan></tspan><tspan x="244.12" y="113">CartUI</tspan></text>
+</g>
+<g data-parent="lane:1" data-id="02" data-role="node">
+  <path d="M396.51 213.89 C435.43 211.36, 468.94 212.12, 540.29 212.76 M396.94 211.75 C442.67 209.71, 490.48 211.28, 539.48 211.25 M539.48 212 C541.06 211.97, 546.4 215.26, 542.61 218.48 M538.89 211.7 C543.95 210.67, 544.62 211.66, 544.22 218.48 M544.75 218.94 C544.46 232.08, 545.23 248.63, 545.94 276.27 M544.5 217.59 C544.4 237.29, 544.48 257.47, 544.21 277.21 M544.48 277.7 C544.29 281.18, 540.91 283.71, 540.74 280.86 M542.55 278.01 C542.35 282.48, 542.71 280.86, 537.98 283.85 M539.02 280.79 C505.33 282.82, 470.61 282.86, 396.1 280.86 M540.18 282.51 C492.16 283.13, 444.43 283.95, 398.04 282.73 M397.12 282.7 C392.63 282.89, 392.62 280.15, 391.72 276.87 M395.79 283.91 C393.41 284.32, 391.85 280.09, 390.72 278.67 M391.13 278.98 C393.25 261.88, 391.66 247.76, 393.15 215.11 M393.01 277.35 C390.78 255.84, 392.16 234.68, 392.03 217.99 M392.12 217 C393.58 211.67, 395.24 211.1, 395.16 212.11 M392.91 218.84 C390.48 214.06, 392.51 210.72, 396.91 211.5 M397.12 212 C397.12 212, 397.12 212, 397.12 212 M397.12 212 C397.12 212, 397.12 212, 397.12 212" fill="none" stroke="#26262b" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" />
+  <text paint-order="stroke" stroke="#ffffff" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="468.2995" y="247.35" text-anchor="middle" font-family="Caveat" font-size="13" font-weight="500" fill="#1f2328" xml:space="preserve" data-prepared-text="true"><tspan x="468.2995" y="235"><tspan x="468.2995" text-anchor="middle" data-text-fragment="true">02 · command</tspan></tspan><tspan x="468.2995" y="251.9">AddItem</tspan><tspan x="468.2995" y="268.8"> description: string </tspan></text>
+</g>
+<g data-parent="lane:2" data-id="03" data-role="node">
+  <path d="M603.36 360.85 C635.92 363.31, 664.41 361.91, 718.83 363.76 M605.34 362.71 C629.64 363.49, 654.36 363.28, 720.22 362.69 M720.14 362.7 C723.4 364.68, 724.43 365.38, 723.91 367.82 M721.85 364.53 C723.73 362.52, 726.85 363.79, 722.96 365.75 M724.16 368.04 C726.32 381.39, 725.38 398.35, 725.66 422.47 M724.7 368.33 C724.09 386.45, 724.77 405.85, 725.4 421.05 M725.14 421.7 C723.69 425.58, 724.83 425.06, 720.41 426.13 M725.69 421.34 C724.68 424.39, 725.45 426.35, 718.57 428.87 M718.49 427.81 C682.04 427.95, 646.23 426.88, 603.37 425.66 M719.83 427.03 C679.83 426.24, 639.05 426.73, 605.61 426.2 M605.12 426.7 C601.18 427.48, 599.12 423.19, 600.04 423.39 M605.94 426.27 C600.31 426.71, 600.84 426.84, 598.1 420.37 M599.19 421.21 C602.32 406.94, 601.47 390.12, 600.09 366.89 M600.96 422.23 C599.98 406.95, 600.36 390.79, 600.11 367.69 M600.12 367.7 C598.83 365.74, 600.92 363.9, 606.94 363.74 M598.76 369.68 C599.56 366.18, 602.74 364.11, 605.92 361.09 M605.12 362.7 C605.12 362.7, 605.12 362.7, 605.12 362.7 M605.12 362.7 C605.12 362.7, 605.12 362.7, 605.12 362.7" fill="none" stroke="#26262b" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" />
+  <text paint-order="stroke" stroke="#ffffff" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="662.63" y="394.7" text-anchor="middle" font-family="Caveat" font-size="13" font-weight="500" fill="#1f2328" data-prepared-text="true"><tspan x="662.63" y="390.8"><tspan x="662.63" text-anchor="middle" data-text-fragment="true">03 · event</tspan></tspan><tspan x="662.63" y="407.7">ItemAdded</tspan></text>
+</g>
+</svg>

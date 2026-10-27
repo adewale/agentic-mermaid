@@ -53,12 +53,22 @@ export const FAMILY_CONFORMANCE_PROFILES: Readonly<Record<DiagramKind, FamilyCon
   eventmodeling: {
     family: 'eventmodeling',
     citizenship: {
-      source: 'eventmodeling\ntitle Cart\ntf 01 ui Cart.UI\ntf 02 cmd Cart.AddItem { description: string }\ntf 03 evt Cart.ItemAdded',
+      source: readFileSync(join(EVAL_ROOT, 'stable-families/fixtures/eventmodeling.mmd'), 'utf8'),
       options: FAMILY_CITIZENSHIP_GALLERY_OPTIONS,
-      count: { nodes: 3, edges: 2, groups: 3 },
-      facts: ['relation 01 -> 02 inferred', 'relation 02 -> 03 inferred'],
-      visibleText: ['Cart.UI', 'Cart.AddItem', 'description: string'],
-      edit: { op: { kind: 'set_title', title: 'Updated cart' }, beforeFacts: ['title "Cart"'], afterFacts: ['title "Updated cart"'] },
+      count: { nodes: 7, edges: 6, groups: 5 },
+      facts: ['relation 01 -> 02 inferred', 'relation 02 -> 03 inferred', 'relation 03 -> 06 explicit', 'relation 04 -> 06 explicit', 'relation 06 -> 07 inferred'],
+      visibleText: ['Cart.UI', 'Cart.AddItem', 'description: string', 'Show the latest cart items'],
+      edit: { op: { kind: 'set_data', id: 'Items', data: { type: 'jsobj', text: 'count: 2' } }, beforeFacts: ['data Items {"type":"jsobj","text":"count: 1"}'], afterFacts: ['data Items {"type":"jsobj","text":"count: 2"}'] },
+      assertDomain: (diagram, layout) => {
+        if (diagram.body.kind !== 'eventmodeling') throw Error('Expected Event Modeling')
+        expect(diagram.body.frames.map(frame => frame.id)).toEqual(['01', '02', '03', '04', '05', '06', '07'])
+        expect(diagram.body.frames[3]!.reset).toBe(true)
+        expect(diagram.body.frames[3]!.sources).toEqual([])
+        expect(diagram.body.frames[5]).toMatchObject({ reset: true, sources: ['03', '04'], dataReference: 'Items' })
+        expect(diagram.body.notes).toEqual([{ frame: '06', data: { text: 'Show the latest cart items' } }])
+        expect(diagram.body.specifications[0]).toMatchObject({ frame: '06', given: [{ type: 'event', entity: 'InitialItems' }], when: [{ type: 'command', entity: 'AddItem' }], then: [{ type: 'event', entity: 'ItemAdded' }] })
+        expect(layout.groups.find(group => group.members.includes('01'))?.members).toEqual(['01', '07'])
+      },
     },
     outlines: { kind: 'automatic', roles: ['node', 'group'] },
     riskFixture: 'eventmodeling-demo.mmd', riskOptions: {},
