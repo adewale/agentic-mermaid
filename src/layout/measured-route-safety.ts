@@ -313,9 +313,11 @@ function orthogonal(points: readonly Point[]): boolean {
 }
 
 /** A bend touching another route must not erase a crossing from the metric.
- * Only an authored common endpoint may be an unmarked contact. */
-export function scoreMeasuredRouteCrossings(points: Point[], index: number, routes: readonly { points: Point[]; style: string }[], input: MeasuredGraph, charge?: MeasuredContactCharge, reserve?: MeasuredContactCharge,witness?:MeasuredSharpContactWitness,prepaidPairBudget:1|3=3): number | undefined {
-  return scoreMeasuredRouteCrossingsWithAdmission(points,index,routes,input,charge,reserve,true,witness,prepaidPairBudget)
+ * Only an authored common endpoint may be an unmarked contact. The private
+ * final Class owner may reuse support separation only while geometry, input
+ * metadata and its charge/reserve callbacks cannot mutate the query. */
+export function scoreMeasuredRouteCrossings(points: Point[], index: number, routes: readonly { points: Point[]; style: string }[], input: MeasuredGraph, charge?: MeasuredContactCharge, reserve?: MeasuredContactCharge,witness?:MeasuredSharpContactWitness,prepaidPairBudget:1|3=3,reuseSharpSupports=false): number | undefined {
+  return scoreMeasuredRouteCrossingsWithAdmission(points,index,routes,input,charge,reserve,true,witness,prepaidPairBudget,reuseSharpSupports)
 }
 
 /** Search ranking only: retains the full-width shaft and legacy crossing
@@ -325,7 +327,7 @@ export function scoreMeasuredRouteProposalCrossings(points:Point[],index:number,
   return scoreMeasuredRouteCrossingsWithAdmission(points,index,routes,input,charge,reserve,false)
 }
 
-function scoreMeasuredRouteCrossingsWithAdmission(points:Point[],index:number,routes:readonly {points:Point[];style:string}[],input:MeasuredGraph,charge:MeasuredContactCharge|undefined,reserve:MeasuredContactCharge|undefined,sharp:boolean,witness?:MeasuredSharpContactWitness,prepaidPairBudget:1|3=3):number|undefined {
+function scoreMeasuredRouteCrossingsWithAdmission(points:Point[],index:number,routes:readonly {points:Point[];style:string}[],input:MeasuredGraph,charge:MeasuredContactCharge|undefined,reserve:MeasuredContactCharge|undefined,sharp:boolean,witness?:MeasuredSharpContactWitness,prepaidPairBudget:1|3=3,reuseSharpSupports=false):number|undefined {
   let score = 0
   let width: number | undefined, widthText: string | undefined
   if (input.maximumEdgeStrokeWidth !== undefined) {
@@ -357,9 +359,10 @@ function scoreMeasuredRouteCrossingsWithAdmission(points:Point[],index:number,ro
   for (let other = 0; other < routes.length; other++) {
     const route = routes[other]!
     if (other === index || route.style === 'invisible') continue
+    let needsSharpContact = !reuseSharpSupports
     if(visiblePeers){
       if(reserve?.(1)===false||charge?.(1)===false)return undefined
-      visiblePeers.push(other)
+      if(needsSharpContact)visiblePeers.push(other)
     }
     const peerEdge = input.edges[other]!
     let contacts: Set<string> | undefined
@@ -381,6 +384,7 @@ function scoreMeasuredRouteCrossingsWithAdmission(points:Point[],index:number,ro
           if(A.x!==B.x&&A.y!==B.y||C.x!==D.x&&C.y!==D.y)return undefined
         }
         if(separated===true)continue
+        needsSharpContact = true
       }
       // Default callers retain their old prepaid three-predicate envelope.
       // Explicit one-predicate callers must pay the remaining work now, even
@@ -411,6 +415,11 @@ function scoreMeasuredRouteCrossingsWithAdmission(points:Point[],index:number,ro
         || (edge.target === peerEdge.source && to && peerFrom) || (edge.target === peerEdge.target && to && peerTo)
       if (!common) (contacts ??= new Set()).add(`${x},${y}`)
     }
+    // Only the private final Class traversal opts in: its local charge and
+    // reserve callbacks cannot mutate the final geometry. Every segment pair
+    // of an omitted peer already proved the SAME support bound that the sharp
+    // pass would repeat. General/live callers retain their original rereads.
+    if(visiblePeers&&reuseSharpSupports&&needsSharpContact)visiblePeers.push(other)
     // Every proper crossing of finite orthogonal routes is a recorded
     // perpendicular contact. A contact-free pair needs no segment preparation.
     if (!contacts && (candidateOrthogonal ??= orthogonal(points)) && orthogonal(route.points)) continue

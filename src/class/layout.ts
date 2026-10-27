@@ -602,7 +602,7 @@ export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions
   // Resolve once, before either callback, from the canonical request options.
   const hasMarkers = diagram.relationships.some(rel => rel.markerAt !== 'none')
   const inkWork = createClassMarkerAdmissionWork()
-  const markerAdmission = canonicalMarkers && hasMarkers ? { colors: resolveDiagramColors(options, options.mermaidConfig ?? {}), work: inkWork } : undefined
+  const markerAdmission = canonicalMarkers && hasMarkers ? { colors: Object.freeze(resolveDiagramColors(options, options.mermaidConfig ?? {})), work: inkWork } : undefined
   if (diagram.classes.length === 0 && !diagram.namespaces.length && !diagram.notes.length) {
     const empty = (): PositionedClassDiagram => withClassTitle({ width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, classes: [], relationships: [], notes: [], namespaces: [] }, diagram.title, style)
     return runMeasuredGraphBackend(options, empty, empty)
@@ -705,7 +705,7 @@ export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions
         const { elkGraph, namespacePaths } = buildClassElkGraph(diagram, options, elkSizes, styleFace, titles, headerInsets)
         result = extractClassLayout(projectClassElkPlacement(elkLayoutSync(elkGraph), namespacePaths), diagram, elkSizes, style, hierarchicalNamespaces, titles)
         const wrapped = wrappedNamespaceTitles(result.namespaces, style)
-        const nextInsets = classMarkerHeaderInsets(result, style, headerInsets, inkWork)
+        const nextInsets = result.namespaces.length ? classMarkerHeaderInsets(result, style, headerInsets, inkWork) : headerInsets
         const minimums = markerAdmission ? classElkMarkerMinimums(result, style, markerAdmission.work) : new Map()
         let nextSizes = elkSizes
         for (const [id, minimum] of minimums) {
@@ -763,13 +763,17 @@ function finishClassLayout(positioned: PositionedClassDiagram, diagram: ClassDia
       }
     }
   }
-  finalizeClassOwnedSurfaces(result, style, inkWork, contacts)
+  finalizeClassSurfaces(result, style, inkWork, contacts, true)
   if (markerAdmission) assertClassMarkerMeaning(result, style, markerAdmission.colors, markerAdmission.work)
   return result
 }
 
 /** Shared final geometric admission for both Class producers. */
 export function finalizeClassOwnedSurfaces(result: PositionedClassDiagram, style: ResolvedRenderStyle, inkWork?: ClassMarkerAdmissionWork, contacts?: readonly ClassElkContact[]): void {
+  finalizeClassSurfaces(result, style, inkWork, contacts)
+}
+
+function finalizeClassSurfaces(result: PositionedClassDiagram, style: ResolvedRenderStyle, inkWork?: ClassMarkerAdmissionWork, contacts?: readonly ClassElkContact[], stableGeometry = false): void {
   if (contacts) projectClassElkContacts(contacts, inkWork)
   const changed = repairClassHeaderRoutes(result, style, inkWork)
   const extra = [...result.namespaces.map(ns => ({ x0: ns.x, y0: ns.y, x1: ns.x + ns.width, y1: ns.y + ns.headerHeight })), ...result.notes.map(n => ({ x0: n.x, y0: n.y, x1: n.x + n.width, y1: n.y + n.height }))]
@@ -789,13 +793,13 @@ export function finalizeClassOwnedSurfaces(result: PositionedClassDiagram, style
   if (violations.length) throw new LayoutCertificationError([{ strategy: 'class-owned-surfaces', violations }])
   const peerWork=inkWork??createClassMarkerAdmissionWork()
   assertClassHeaderPeersClear(result,changed,style,()=>chargeClassMarkerAdmissionWork(peerWork))
-  assertFinalClassSharpContacts(result, style, peerWork)
+  assertFinalClassSharpContacts(result, style, peerWork, stableGeometry)
 }
 
 /** Title bands and leading note seats translate Number coordinates after the
  * root producer proof. Canonical SVG spelling is not translation-invariant;
  * recheck every final sharp pair against the SAME request's remaining work. */
-function assertFinalClassSharpContacts(result: PositionedClassDiagram, style: ResolvedRenderStyle, work: ClassMarkerAdmissionWork): void {
+function assertFinalClassSharpContacts(result: PositionedClassDiagram, style: ResolvedRenderStyle, work: ClassMarkerAdmissionWork, stableGeometry: boolean): void {
   if (style.edgeBendRadius !== 0 || result.relationships.length < 2) return
   const refuse = (message: string): never => { throw new LayoutCertificationError([{ strategy: 'class-final-sharp-contacts', violations: [message] }]) }
   const pay = (amount = 1): void => {
@@ -825,7 +829,7 @@ function assertFinalClassSharpContacts(result: PositionedClassDiagram, style: Re
     // Reserve the shared support-separation visit; the scorer charges the
     // remaining predicates only for pairs not proved disjoint.
     pay(pairBudget * segments * remaining + route.points.length + remaining + routes.length)
-    if (scoreMeasuredRouteCrossings(route.points, index, routes, input, pay, pay, undefined, pairBudget) === undefined) refuse('Final Class routes have an uncertified shared contact')
+    if (scoreMeasuredRouteCrossings(route.points, index, routes, input, pay, pay, undefined, pairBudget, stableGeometry) === undefined) refuse('Final Class routes have an uncertified shared contact')
     // Symmetric finite orthogonal pairs were just checked against every later
     // route. No geometry or source field changes during this local traversal.
     route.style = 'invisible'

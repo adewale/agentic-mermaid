@@ -8,8 +8,7 @@ import { architectureToMermaidGraph, parseArchitectureDiagram } from '../archite
 import { convertToElkFormat } from '../layout-engine.ts'
 import { preprocessMermaidSource } from '../mermaid-source.ts'
 import { measureMultilineText } from '../text-metrics.ts'
-import { renderMermaidSVGWithReceipt } from '../index.ts'
-import { renderMermaidSVG } from '../index.ts'
+import { renderMermaidSVG, renderMermaidSVGWithReceipt } from '../index.ts'
 import { layoutMermaidWithReceipt } from '../agent/index.ts'
 import raynerGroups from './testdata/rayner-528/architecture-groups.json'
 

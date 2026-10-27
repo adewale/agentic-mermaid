@@ -21,27 +21,37 @@ const emitted = (v: number): number => {
   return Number(formatSvgNumber(v))
 }
 const emittedPoint = (p: Point): Point => ({ x: emitted(p.x), y: emitted(p.y) })
+interface WrittenDecimalParts { n: bigint; e: number }
+function writtenDecimalParts(value: number, parts?: Map<number, WrittenDecimalParts>): WrittenDecimalParts {
+  const prior = parts?.get(value)
+  if (prior) return prior
+  const text = formatSvgNumber(value),
+    m = /^(-?)(\d+)(?:\.(\d+))?(?:e([+-]?\d+))?$/.exec(text)!
+  const parsed = { n: BigInt(m[1]! + m[2]! + (m[3] ?? '')), e: Number(m[4] ?? 0) - (m[3]?.length ?? 0) }
+  parts?.set(value, parsed)
+  return parsed
+}
 // Compare written decimal coordinates to a written rectangle face without
 // treating binary addition's one-ULP tail as physical interior or clearance.
-function compareSvgSum(value: number, a: number, b: number): number {
-  value = emitted(value)
-  a = emitted(a)
-  b = emitted(b)
+function compareSvgSum(value: number, a: number, b: number, parts?: Map<number, WrittenDecimalParts>): number {
   const sum = a + b,
     difference = value - sum
   if (Math.abs(difference) > 8 * Number.EPSILON * Math.max(1, Math.abs(value), Math.abs(a), Math.abs(b))) return Math.sign(difference)
-  const parts = [value, a, b].map(v => {
-    const text = formatSvgNumber(v),
-      m = /^(-?)(\d+)(?:\.(\d+))?(?:e([+-]?\d+))?$/.exec(text)!
-    return { n: BigInt(m[1]! + m[2]! + (m[3] ?? '')), e: Number(m[4] ?? 0) - (m[3]?.length ?? 0) }
-  })
-  const scale = Math.min(...parts.map(p => p.e)),
-    n = parts.map(p => p.n * 10n ** BigInt(p.e - scale)),
-    delta = n[0]! - n[1]! - n[2]!
+  const valueParts = writtenDecimalParts(value, parts),
+    aParts = writtenDecimalParts(a, parts),
+    bParts = writtenDecimalParts(b, parts),
+    scale = Math.min(valueParts.e, aParts.e, bParts.e),
+    scaledValue = valueParts.e === scale ? valueParts.n : valueParts.n * 10n ** BigInt(valueParts.e - scale),
+    scaledA = aParts.e === scale ? aParts.n : aParts.n * 10n ** BigInt(aParts.e - scale),
+    scaledB = bParts.e === scale ? bParts.n : bParts.n * 10n ** BigInt(bParts.e - scale),
+    delta = scaledValue - scaledA - scaledB
   return delta < 0n ? -1 : delta > 0n ? 1 : 0
 }
 
-export { compareSvgSum as compareClassSvgSum }
+/** Raw contact/capacity callers compare the fields that the SVG writer emits. */
+export function compareClassSvgSum(value: number, a: number, b: number): number {
+  return compareSvgSum(emitted(value), emitted(a), emitted(b))
+}
 
 /** A face is the exact sum of the two SVG rectangle fields, not a separately
  * rounded long-tail port. Refuse a sum that the existing writer cannot retain. */
@@ -53,7 +63,7 @@ export function addClassSvgNumbers(a: number, b: number): number | undefined {
   const scale = Math.min(...parts.map(p => p.e)),
     sum = parts.reduce((n, p) => n + p.n * 10n ** BigInt(p.e - scale), 0n),
     value = Number(`${sum}e${scale}`)
-  return Number.isFinite(value) && compareSvgSum(value, a, b) === 0 ? value : undefined
+  return Number.isFinite(value) && compareClassSvgSum(value, a, b) === 0 ? value : undefined
 }
 
 const emittedBox = (b: ClassSurfaceBox): ClassSurfaceBox => {
@@ -72,17 +82,18 @@ const expanded = (b: ClassSurfaceBox, d: number): ClassSurfaceBox => ({ x: b.x -
 export function classSegmentEntersBox(a: Point, b: Point, r: ClassSurfaceBox): boolean {
   return writtenSegmentEntersBox(emittedPoint(a), emittedPoint(b), emittedBox(r))
 }
-function writtenSegmentEntersBox(a: Point, b: Point, r: ClassSurfaceBox): boolean {
+function writtenSegmentEntersBox(a: Point, b: Point, r: ClassSurfaceBox, parts?: Map<number, WrittenDecimalParts>): boolean {
   if (!(r.width > 0 && r.height > 0)) return false
   let low = 0,
     high = 1
-  for (const axis of ['x', 'y'] as const) {
+  for (let index = 0; index < 2; index++) {
+    const axis = index === 0 ? 'x' : 'y'
     const size = axis === 'x' ? r.width : r.height,
-      start = r[axis],
-      end = start + size
-    const highA = compareSvgSum(a[axis], start, size),
-      highB = compareSvgSum(b[axis], start, size)
-    if ((a[axis] <= start && b[axis] <= start) || (highA >= 0 && highB >= 0)) return false
+      start = r[axis]
+    if (a[axis] <= start && b[axis] <= start) return false
+    const highA = compareSvgSum(a[axis], start, size, parts),
+      highB = a[axis] === b[axis] ? highA : compareSvgSum(b[axis], start, size, parts)
+    if (highA >= 0 && highB >= 0) return false
     const relativeA = highA === 0 ? size : a[axis] - start,
       relativeB = highB === 0 ? size : b[axis] - start,
       delta = relativeB - relativeA
@@ -125,23 +136,36 @@ interface WrittenClassRoundedBox {
   unrounded?: ClassSurfaceBox
   firstStrip?: ClassSurfaceBox
   secondStrip?: ClassSurfaceBox
+  left?: number
+  right?: number
+  top?: number
+  bottom?: number
 }
 /** The shared rounded predicate preserves both writing stages. Final card
  * inspection reuses these records; mutable repair callers supply fresh ones. */
-function writtenClassRoundedHit(a: WrittenClassPoint, b: WrittenClassPoint, surface: WrittenClassRoundedBox): boolean {
+function writtenClassRoundedHit(a: WrittenClassPoint, b: WrittenClassPoint, surface: WrittenClassRoundedBox, parts?: Map<number, WrittenDecimalParts>): boolean {
   const r = surface.emitted ??= emittedBox(surface.inflation === undefined ? surface.source : expanded(surface.source, surface.inflation))
   const rx = surface.rx ??= Math.min(Math.max(0, surface.radius), r.width / 2),
     ry = surface.ry ??= Math.min(Math.max(0, surface.radius), r.height / 2)
   const clipA = a.clipped ??= emittedPoint(a.emitted),
     clipB = b.clipped ??= emittedPoint(b.emitted)
-  if (!rx || !ry) return writtenSegmentEntersBox(clipA, clipB, surface.unrounded ??= emittedBox(r))
+  if (!rx || !ry) return writtenSegmentEntersBox(clipA, clipB, surface.unrounded ??= emittedBox(r), parts)
   const first = surface.firstStrip ??= emittedBox({ x: r.x + rx, y: r.y, width: r.width - 2 * rx, height: r.height })
-  if (writtenSegmentEntersBox(clipA, clipB, first)) return true
+  if (writtenSegmentEntersBox(clipA, clipB, first, parts)) return true
   // The second strip remains lazy: the first may already establish a hit.
   const second = surface.secondStrip ??= emittedBox({ x: r.x, y: r.y + ry, width: r.width, height: r.height - 2 * ry })
-  if (writtenSegmentEntersBox(clipA, clipB, second)) return true
-  for (const x of [r.x + rx, r.x + r.width - rx]) for (const y of [r.y + ry, r.y + r.height - ry]) if (ellipseHit(a.emitted, b.emitted, x, y, rx, ry)) return true
-  return false
+  if (writtenSegmentEntersBox(clipA, clipB, second, parts)) return true
+  const left = surface.left ??= r.x + rx,
+    right = surface.right ??= r.x + r.width - rx,
+    top = surface.top ??= r.y + ry,
+    bottom = surface.bottom ??= r.y + r.height - ry
+  // A constant normalized axis on/outside both unit circles cannot enter a corner.
+  if (a.emitted.x === b.emitted.x && Math.abs((a.emitted.x - left) / rx) >= 1 && Math.abs((a.emitted.x - right) / rx) >= 1
+    || a.emitted.y === b.emitted.y && Math.abs((a.emitted.y - top) / ry) >= 1 && Math.abs((a.emitted.y - bottom) / ry) >= 1) return false
+  return ellipseHit(a.emitted, b.emitted, left, top, rx, ry)
+    || ellipseHit(a.emitted, b.emitted, left, bottom, rx, ry)
+    || ellipseHit(a.emitted, b.emitted, right, top, rx, ry)
+    || ellipseHit(a.emitted, b.emitted, right, bottom, rx, ry)
 }
 function convexOverlap(left: readonly Point[], right: readonly Point[], charge?: () => void): boolean {
   if (left.length < 3 || right.length < 3) return false
@@ -621,6 +645,8 @@ export function classOwnedSurfaceViolations(diagram: PositionedClassDiagram, sty
     shaftHalf = style.lineWidth / 2
   for (const box of [...diagram.classes, ...diagram.notes, ...headers]) emittedBox(box)
   const nodeMap = new Map(diagram.classes.map(c => [c.id, c]))
+  // Only exact near-boundary fallbacks populate this inspection's parts.
+  const decimalParts = new Map<number, WrittenDecimalParts>()
   const originalCards: Array<WrittenClassRoundedBox | undefined> = [],
     inflatedCards: Array<WrittenClassRoundedBox | undefined> = []
   for (let edge = 0; edge < diagram.relationships.length; edge++) {
@@ -644,9 +670,9 @@ export function classOwnedSurfaceViolations(diagram: PositionedClassDiagram, sty
       if (
         !(
           (a.x === box.x && a.y >= box.y && a.y <= bottom && b.x < a.x && b.y === a.y) ||
-          (compareSvgSum(a.x, box.x, box.width) === 0 && a.y >= box.y && a.y <= bottom && b.x > a.x && b.y === a.y) ||
+          (compareSvgSum(a.x, box.x, box.width, decimalParts) === 0 && a.y >= box.y && a.y <= bottom && b.x > a.x && b.y === a.y) ||
           (a.y === box.y && a.x >= box.x && a.x <= right && b.y < a.y && b.x === a.x) ||
-          (compareSvgSum(a.y, box.y, box.height) === 0 && a.x >= box.x && a.x <= right && b.y > a.y && b.x === a.x)
+          (compareSvgSum(a.y, box.y, box.height, decimalParts) === 0 && a.x >= box.x && a.x <= right && b.y > a.y && b.x === a.x)
         )
       )
         violations.push(`Relationship ${rel.from} -> ${rel.to} lacks an outward Class contact`)
@@ -665,7 +691,7 @@ export function classOwnedSurfaceViolations(diagram: PositionedClassDiagram, sty
         const radius = style.cornerRadius ?? 0,
           cards = terminal ? originalCards : inflatedCards
         const surface = cards[card] ??= { source: cls, ...(terminal ? {} : { inflation: shaftHalf }), radius: terminal ? radius : radius + shaftHalf }
-        if (writtenClassRoundedHit(writtenPoint(i - 1), writtenPoint(i), surface)) violations.push(`Relationship ${rel.from} -> ${rel.to} enters card ${cls.id}`)
+        if (writtenClassRoundedHit(writtenPoint(i - 1), writtenPoint(i), surface, decimalParts)) violations.push(`Relationship ${rel.from} -> ${rel.to} enters card ${cls.id}`)
       }
     }
   }
@@ -716,7 +742,7 @@ export function classMarkerHeaderInsets(diagram: PositionedClassDiagram, style: 
       pay();const node=nodes.get(from?rel.from:rel.to)
       if(!node||node.isInterface||rel.points.length<2)continue
       const a=from?rel.points[0]!:rel.points.at(-1)!,b=from?rel.points[1]!:rel.points.at(-2)!
-      if(compareSvgSum(a.y,node.y,0)!==0||emitted(b.x)!==emitted(a.x)||emitted(b.y)>=emitted(a.y))continue
+      if(compareClassSvgSum(a.y,node.y,0)!==0||emitted(b.x)!==emitted(a.x)||emitted(b.y)>=emitted(a.y))continue
       let reach=half
       const marker=glyphs.get(`${index}:${from?'from':'to'}`)
       for(const piece of marker?.pieces??[]){

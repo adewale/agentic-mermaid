@@ -1,10 +1,10 @@
 import type { RenderedLayout } from '../agent/types.ts'
 import { connectorMarkerPaintRegions, connectorStrokeHasJoins, expandSceneBounds, nodePaintBounds, paintedStrokeExtent, unionSceneBounds, transformedBounds, visitTypedPathSegments, type TypedPathSegment } from './bounds.ts'
 import type { AxisAlignedBox } from '../shared/transformed-bounds.ts'
-import { resolveInlineColorAttribute } from '../theme.ts'
+import { createInlineColorAttributeResolver, resolveInlineColorAttribute } from '../theme.ts'
 import { tryParseCssColor, type RgbaColor } from '../shared/color-math.ts'
 import { inspectScenePaintGeometry, paintPrimitiveSource, scenePrimitiveMatrix, sceneGroupOpacity, type ScenePaintGeometryInspection, type NativeConnectorPaintSource, type ScenePaintGeometry as ScenePaintPrimitive } from './inspection.ts'
-import type { Geometry, SceneDoc, SceneOwner, ScenePoint, SceneTransform, MarkerDescriptor } from './ir.ts'
+import type { Geometry, MarkPaint, SceneDoc, SceneOwner, ScenePoint, SceneTransform, MarkerDescriptor } from './ir.ts'
 import { composeMatrices, inverseMatrix, transformMatrix, transformPoint } from './transforms.ts'
 import { formatSvgNumber, formatSvgNumericAttribute } from '../shared/svg-number.ts'
 import { markerPaintPieces, type MarkerPaintPiece } from './marker-paint-pieces.ts'
@@ -100,6 +100,16 @@ function separatedOrthogonalStroke(
   return true
 }
 
+function possibleShapeFill(piece: Geometry, paint: MarkPaint): boolean {
+  const opacity = sceneGroupOpacity(paint.opacity), fillOpacity = sceneGroupOpacity(paint.fillOpacity)
+  const knownFill = paint.fill ? tryParseCssColor(paint.fill) : null
+  return piece.kind !== 'line' && paint.fill !== 'none' && paint.fill !== 'transparent'
+    && !(opacity < 1 || fillOpacity < 1 || knownFill && knownFill[3] < 1)
+}
+function possibleShapeStroke(piece: Geometry, paint: MarkPaint): boolean {
+  return sceneGroupOpacity(paint.opacity) !== 0 && sceneGroupOpacity(paint.strokeOpacity) !== 0
+    && paintedStrokeExtent(paint, ['polygon', 'polyline', 'path', 'compound'].includes(piece.kind)) !== 0
+}
 /** A filled rectangle's inset is known to be solid, unlike an arbitrary path's
  * conservative envelope. Rounded corners are excluded before transformation.
  */
@@ -134,42 +144,45 @@ function solidInteriors(scene: NativePaintHeader, primitives: readonly ScenePain
     // A translucent wrapper lets what lies beneath show through. Each SVG
     // child replaces the summary paint completely and has its own fill alpha.
     if (primitive.groupOpacity !== undefined) continue
-    const pieces = node.geometry.kind === 'compound' ? node.geometry.children : [node.geometry]
-    const paints = pieces.map((_, index) => node.geometry.kind === 'compound' ? node.childPaints?.[index] ?? node.paint : node.paint)
-    const filled = pieces.map((piece, index) => {
-      const paint = paints[index]!, opacity = sceneGroupOpacity(paint.opacity), fillOpacity = sceneGroupOpacity(paint.fillOpacity)
-      const knownFill = paint.fill ? tryParseCssColor(paint.fill) : null
-      return piece.kind !== 'line' && paint.fill !== 'none' && paint.fill !== 'transparent'
-        && !(opacity < 1 || fillOpacity < 1 || knownFill && knownFill[3] < 1)
-    })
-    const stroked = pieces.map((piece, index) => {
-      const paint = paints[index]!
-      return sceneGroupOpacity(paint.opacity) !== 0 && sceneGroupOpacity(paint.strokeOpacity) !== 0
-        && paintedStrokeExtent(paint, ['polygon', 'polyline', 'path', 'compound'].includes(piece.kind)) !== 0
-    })
-    if (!filled.some(Boolean) && !stroked.some(Boolean)) continue
+    const pieces = node.geometry.kind === 'compound' ? node.geometry.children : undefined
+    const singleGeometry = pieces ? undefined : node.geometry
+    const paints = pieces?.map((_, index) => node.geometry.kind === 'compound' ? node.childPaints?.[index] ?? node.paint : node.paint)
+    const singlePaint = pieces ? undefined : node.geometry.kind === 'compound' ? node.childPaints?.[0] ?? node.paint : node.paint
+    const filled = pieces?.map((piece, index) => possibleShapeFill(piece, paints![index]!))
+    const singleFilled = pieces ? false : possibleShapeFill(singleGeometry!, singlePaint!)
+    const stroked = pieces?.map((piece, index) => possibleShapeStroke(piece, paints![index]!))
+    const singleStroked = pieces ? false : possibleShapeStroke(singleGeometry!, singlePaint!)
+    if (!(filled ? filled.some(Boolean) : singleFilled) && !(stroked ? stroked.some(Boolean) : singleStroked)) continue
     const m = scenePrimitiveMatrix(primitive)!
     const [a, b, c, d, e, f] = m
     const transform: SceneTransform = { kind: 'matrix', a, b, c, d, e, f }
     let bounds: AxisAlignedBox | undefined
-    const partBounds: Array<AxisAlignedBox | undefined> = []
-    pieces.forEach((geometry, index) => {
-      const paint = paints[index]!
-      if (!filled[index] && !stroked[index]) return
+    const partBounds: Array<AxisAlignedBox | undefined> | undefined = pieces ? [] : undefined
+    let singleBounds: AxisAlignedBox | undefined
+    for (let index = 0, count = pieces?.length ?? 1; index < count; index++) {
+      if (pieces && !(index in pieces)) continue
+      const geometry = pieces ? pieces[index]! : singleGeometry!, paint = paints ? paints[index]! : singlePaint!
+      if (!(filled ? filled[index] : singleFilled) && !(stroked ? stroked[index] : singleStroked)) continue
       // Do not keep an invisible sibling's geometry in the possible ink box.
       // Unknown child bounds retain the original conservative primitive box.
       const painted = nodePaintBounds({ kind: 'shape', id: primitive.id, role: primitive.role, geometry, paint }, transform)
-      partBounds[index] = painted ?? primitive.bounds!
-      bounds = unionSceneBounds(bounds, partBounds[index])
-    })
+      const part = painted ?? primitive.bounds!
+      if (partBounds) partBounds[index] = part
+      else singleBounds = part
+      bounds = unionSceneBounds(bounds, part)
+    }
     if (!bounds) continue
-    const candidate = { primitive, bounds, borderWidth: outlines.get(outlineKey(primitive, node.geometry)), ...(node.geometry.kind === 'compound' ? { partBorderWidths: pieces.map(child => outlines.get(outlineKey(primitive, child)) ?? 0), partFilled: filled, partBounds } : {}) }
+    const candidate = { primitive, bounds, borderWidth: outlines.get(outlineKey(primitive, node.geometry)), ...(node.geometry.kind === 'compound' ? {
+      partBorderWidths: pieces ? pieces.map(child => outlines.get(outlineKey(primitive, child)) ?? 0) : [outlines.get(outlineKey(primitive, singleGeometry!)) ?? 0],
+      partFilled: filled ?? [singleFilled], partBounds: partBounds ?? [singleBounds],
+    } : {}) }
     // A rotated/sheared AABB is not a solid rectangle. Keep it out of this
     // exact test instead of interpreting empty corners as painted pixels.
     if (Math.abs(m[1]) > 1e-12 || Math.abs(m[2]) > 1e-12) { surfaces.push(candidate); continue }
     const interiors: AxisAlignedBox[] = [], strokeInteriors: AxisAlignedBox[] = []
-    pieces.forEach((g, index) => {
-      const paint = paints[index]!
+    for (let index = 0, count = pieces?.length ?? 1; index < count; index++) {
+      if (pieces && !(index in pieces)) continue
+      const g = pieces ? pieces[index]! : singleGeometry!, paint = paints ? paints[index]! : singlePaint!
       if (g.kind === 'rect' && m[0] === 1 && m[3] === 1 && m[1] === 0 && m[2] === 0
         && paint.vectorEffect !== 'non-scaling-stroke' && paint.stroke && opaque(paint.stroke)
         && sceneGroupOpacity(paint.opacity) === 1 && sceneGroupOpacity(paint.strokeOpacity) === 1 && !paint.strokeDasharray
@@ -184,12 +197,12 @@ function solidInteriors(scene: NativePaintHeader, primitives: readonly ScenePain
           { x0: g.x + rx, y0: g.y + g.height - half, x1: g.x + g.width - rx, y1: g.y + g.height + half },
         ]) if (band.x0 < band.x1 && band.y0 < band.y1) strokeInteriors.push(transformedBounds(band, transform)!)
       }
-      if (!filled[index] || g.kind !== 'rect' || sceneGroupOpacity(paint.opacity) !== 1 || sceneGroupOpacity(paint.fillOpacity) !== 1 || !paint.fill || !opaque(paint.fill)) return
+      if (!(filled ? filled[index] : singleFilled) || g.kind !== 'rect' || sceneGroupOpacity(paint.opacity) !== 1 || sceneGroupOpacity(paint.fillOpacity) !== 1 || !paint.fill || !opaque(paint.fill)) continue
       const rx = Math.min(g.width / 2, g.rx ?? g.ry ?? 0), ry = Math.min(g.height / 2, g.ry ?? g.rx ?? 0)
       const a = transformPoint({ x: g.x + rx, y: g.y + ry }, m)
       const b = transformPoint({ x: g.x + g.width - rx, y: g.y + g.height - ry }, m)
       interiors.push({ x0: Math.min(a.x, b.x), y0: Math.min(a.y, b.y), x1: Math.max(a.x, b.x), y1: Math.max(a.y, b.y) })
-    })
+    }
     surfaces.push({ ...candidate, interiors, strokeInteriors })
   }
   return surfaces
@@ -352,9 +365,9 @@ function clippedEndpointMarkerBounds(node: NativeConnectorPaintSource, marker: M
 
 /** Strict interior points of an emitted convex polygon fill, rather than
  * corners of its conservative stroke envelope. Clipped-away ink is excluded. */
-function markerInkWitnesses(marker: MarkerDescriptor | undefined, hull: readonly ScenePoint[] | undefined, scene: NativePaintHeader, work: () => boolean): readonly ScenePoint[] | undefined {
+function markerInkWitnesses(marker: MarkerDescriptor | undefined, hull: readonly ScenePoint[] | undefined, resolveColor: (value: string) => string | undefined, work: () => boolean): readonly ScenePoint[] | undefined {
   if (!marker || !hull || marker.geometry?.kind !== 'polygon' || (marker.scale ?? 1) > 1 || sceneGroupOpacity(marker.paint?.opacity) !== 1 || sceneGroupOpacity(marker.paint?.fillOpacity) !== 1 || !marker.paint?.fill) return undefined
-  const fill = resolveInlineColorAttribute(marker.paint.fill, scene.colors)
+  const fill = resolveColor(marker.paint.fill)
   if (!fill || tryParseCssColor(fill)?.[3] !== 1) return undefined
   const points = marker.geometry.points
   if (points.length < 3 || points.length > 64 || points.length !== hull.length) return undefined
@@ -364,25 +377,27 @@ function markerInkWitnesses(marker: MarkerDescriptor | undefined, hull: readonly
   const centroid = (vertices: readonly ScenePoint[]): ScenePoint => ({ x: vertices.reduce((sum, p) => sum + p.x, 0) / vertices.length, y: vertices.reduce((sum, p) => sum + p.y, 0) / vertices.length })
   const local = centroid(points), world = centroid(hull)
   const viewport = marker.viewBox ?? (marker.size ? { x: 0, y: 0, width: marker.size.width, height: marker.size.height } : undefined)
-  return [undefined, ...points.keys()].flatMap(index => {
-    if (!work()) return []
-    const p = index === undefined ? local : { x: (local.x + points[index]!.x) / 2, y: (local.y + points[index]!.y) / 2 }
-    if (marker.overflow !== 'visible' && (!viewport || !(p.x > viewport.x && p.x < viewport.x + viewport.width && p.y > viewport.y && p.y < viewport.y + viewport.height))) return []
-    return [index === undefined ? world : { x: (world.x + hull[index]!.x) / 2, y: (world.y + hull[index]!.y) / 2 }]
-  })
+  const witnesses: ScenePoint[] = []
+  for (let index = -1, length = points.length; index < length; index++) {
+    if (!work()) continue
+    const p = index < 0 ? local : { x: (local.x + points[index]!.x) / 2, y: (local.y + points[index]!.y) / 2 }
+    if (marker.overflow !== 'visible' && (!viewport || !(p.x > viewport.x && p.x < viewport.x + viewport.width && p.y > viewport.y && p.y < viewport.y + viewport.height))) continue
+    witnesses.push(index < 0 ? world : { x: (world.x + hull[index]!.x) / 2, y: (world.y + hull[index]!.y) / 2 })
+  }
+  return witnesses
 }
 
 /** Nonempty actual marker ink is required for a hard hidden-marker claim.
  * This source-space existence proof also admits filled round markers and
  * open stroked line crosses; it does not infer ink from a declared envelope. */
-function markerHasInk(marker: MarkerDescriptor | undefined, witnesses: readonly ScenePoint[] | undefined, scene: NativePaintHeader, work: () => boolean): boolean {
+function markerHasInk(marker: MarkerDescriptor | undefined, witnesses: readonly ScenePoint[] | undefined, resolveColor: (value: string) => string | undefined, work: () => boolean): boolean {
   if (witnesses?.length) return true
   if (!marker?.geometry || sceneGroupOpacity(marker.paint?.opacity) !== 1) return false
   const viewport = marker.viewBox ?? (marker.size ? { x: 0, y: 0, width: marker.size.width, height: marker.size.height } : undefined)
   const visible = (p: ScenePoint): boolean => Number.isFinite(p.x) && Number.isFinite(p.y) && (marker.overflow === 'visible' || !!viewport && p.x > viewport.x && p.x < viewport.x + viewport.width && p.y > viewport.y && p.y < viewport.y + viewport.height)
   const opaque = (color: string | undefined): boolean => {
     if (!color || !work()) return false
-    const value = resolveInlineColorAttribute(color, scene.colors)
+    const value = resolveColor(color)
     return !!value && tryParseCssColor(value)?.[3] === 1
   }
   const g = marker.geometry
@@ -427,8 +442,9 @@ export interface MarkerPolygonProof {
  * Source matrix composition cannot recover the rounding of individual SVG
  * group transforms. Those cases stay unknown; no affine envelope is ink.
  * The canonical region authority supplies the normalized polygon's mapping.
+ * Consumers may share their guarded color resolver; direct calls resolve live.
  */
-export function prepareMarkerPolygonInk(scene: Pick<NativePaintHeader, 'colors'>, node: NativeConnectorPaintSource, marker: MarkerDescriptor | undefined, position: 'start' | 'mid' | 'end', work: () => boolean): MarkerPolygonProof | undefined {
+export function prepareMarkerPolygonInk(scene: Pick<NativePaintHeader, 'colors'>, node: NativeConnectorPaintSource, marker: MarkerDescriptor | undefined, position: 'start' | 'mid' | 'end', work: () => boolean, resolveColor: ((value: string) => string | undefined) | undefined = undefined): MarkerPolygonProof | undefined {
   const pay = (count: number): boolean => { for (let i = 0; i < count; i++) if (!work()) return false; return true }
   if (!pay(3) || !marker || position === 'mid' || (marker.geometry?.kind !== 'polygon' && marker.geometry?.kind !== 'polyline') || marker.geometry.points.length < 3 || marker.geometry.points.length > 64
     || node.transform
@@ -492,7 +508,7 @@ export function prepareMarkerPolygonInk(scene: Pick<NativePaintHeader, 'colors'>
   const paint = marker.paint ?? {}
   const color = (value: string | undefined): RgbaColor | undefined => {
     if (!value || !work()) return undefined
-    const resolved = resolveInlineColorAttribute(value, scene.colors)
+    const resolved = resolveColor ? resolveColor(value) : resolveInlineColorAttribute(value, scene.colors)
     return resolved ? tryParseCssColor(resolved) ?? undefined : undefined
   }
   const fillColor = color(paint.fill), strokeColor = color(paint.stroke)
@@ -777,12 +793,12 @@ function outsideMarkerPolygon(proof: MarkerPolygonProof | undefined, p: Readonly
   return false
 }
 
-function markerMayHaveOpaqueFill(scene: Pick<NativePaintHeader, 'colors'>, marker: MarkerDescriptor | undefined, work: () => boolean): boolean {
+function markerMayHaveOpaqueFill(resolveColor: (value: string) => string | undefined, marker: MarkerDescriptor | undefined, work: () => boolean): boolean {
   if (!work() || !marker) return true
   if (marker.geometry?.kind === 'line' || marker.paint?.fill === 'none' || marker.paint?.fill === 'transparent' || sceneGroupOpacity(marker.paint?.opacity) < 1) return false
   const value = marker.paint?.fill
   if (!value || !work()) return true
-  const resolved = resolveInlineColorAttribute(value, scene.colors), color = resolved ? tryParseCssColor(resolved) : null
+  const resolved = resolveColor(value), color = resolved ? tryParseCssColor(resolved) : null
   return !color || color[3] === 1
 }
 
@@ -966,6 +982,8 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
   }
   type MarkerTarget = { primitive: ScenePaintPrimitive; position: 'start' | 'mid' | 'end'; clipEligible: boolean; anchor: ScenePoint; repaint: string; bounds: AxisAlignedBox; hull?: readonly ScenePoint[]; padding?: number; witnesses?: readonly ScenePoint[]; actualInk: boolean; strokeProof?: MarkerPolygonProof; semantic: boolean; mayFill: boolean }
   const lastMarkers = new Map<string, MarkerTarget>()
+  let markerColor: ReturnType<typeof createInlineColorAttributeResolver> | undefined
+  const resolveMarkerColor = (value: string): string | undefined => (markerColor ??= createInlineColorAttributeResolver())(value, scene.colors)
   for (const primitive of inspection.primitives) {
     const node = paintPrimitiveSource(primitive)
     if (primitive.kind !== 'connector' || node?.kind !== 'connector' || node.lineStyle === 'invisible' || primitive.coverage === 'non-painting') continue
@@ -980,15 +998,15 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
       const descriptor = marker.position === 'start' ? node.markers.start : marker.position === 'end' ? node.markers.end : node.markers.mid.length === 1 ? node.markers.mid[0] : undefined
       const measuredWorld = primitive.coverage === 'measured' && !!inverseMatrix(scenePrimitiveMatrix(primitive)!)
       const knownMapping = descriptor?.units === 'userSpaceOnUse' || knownUnitScale
-      const witnesses = measuredWorld && knownMapping ? markerInkWitnesses(descriptor, marker.hull, scene, work) : undefined
-      const actualInk = measuredWorld && knownMapping && descriptor?.paint?.vectorEffect !== 'non-scaling-stroke' && markerHasInk(descriptor, witnesses, scene, work)
+      const witnesses = measuredWorld && knownMapping ? markerInkWitnesses(descriptor, marker.hull, resolveMarkerColor, work) : undefined
+      const actualInk = measuredWorld && knownMapping && descriptor?.paint?.vectorEffect !== 'non-scaling-stroke' && markerHasInk(descriptor, witnesses, resolveMarkerColor, work)
       const previous = lastMarkers.get(key)
       const semantic = options.outputSupported !== false && !scene.family.startsWith('family:') && (['edge', 'relationship'].includes(primitive.role) && !!node.endpoints?.from && !!node.endpoints.to || previous?.semantic === true)
       const matrix = scenePrimitiveMatrix(primitive)
       const exactWorld = primitive.coverage === 'measured' && primitive.visibility !== 'conditional' && (primitive.groupOpacity ?? 1) === 1 && primitive.ancestors.length === 0
         && !!matrix && matrix[0] === 1 && matrix[1] === 0 && matrix[2] === 0 && matrix[3] === 1 && matrix[4] === 0 && matrix[5] === 0
-      const mayFill = markerMayHaveOpaqueFill(scene, descriptor, work)
-      const strokeProof = semantic && exactWorld ? prepareMarkerPolygonInk(scene, node, descriptor, marker.position, work) : undefined
+      const mayFill = markerMayHaveOpaqueFill(resolveMarkerColor, descriptor, work)
+      const strokeProof = semantic && exactWorld ? prepareMarkerPolygonInk(scene, node, descriptor, marker.position, work, resolveMarkerColor) : undefined
       lastMarkers.set(key, { primitive, position: marker.position, clipEligible: semantic && exactWorld && knownMapping, anchor: marker.anchor, repaint: marker.repaint, bounds: marker.bounds, hull: marker.hull, padding: marker.padding, witnesses, actualInk, strokeProof, semantic, mayFill })
     }
   }
@@ -1017,15 +1035,19 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
       issue({ code: 'POTENTIAL_OCCLUSION', id: target.primitive.id, by: surface.primitive.id, message: 'Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified' })
     }
   }
-  for (const target of lastMarkers.values()) markerCheck(surfaces, target)
+  const markerTargets = Array.from(lastMarkers.values())
+  for (let index = 0; index < markerTargets.length; index++) markerCheck(surfaces, markerTargets[index]!)
   // Prepared text and endpoint markers can hide each other in either paint
   // order. Text bounds already include the actual halo stroke; neither
   // a same owner/color nor a bounds overlap proves glyph-ink separation.
-  for (const target of lastMarkers.values()) {
+  for (let targetIndex = 0; targetIndex < markerTargets.length; targetIndex++) {
+    const target = markerTargets[targetIndex]!
     if (!work()) break
     if (!target.semantic || target.primitive.visibility === 'conditional'
       || target.strokeProof?.fill === 'absent' && target.strokeProof.stroke === 'absent') continue
-    for (const primitive of inspection.primitives) {
+    const primitives = inspection.primitives
+    for (let primitiveIndex = 0; primitiveIndex < primitives.length; primitiveIndex++) {
+      const primitive = primitives[primitiveIndex]!
       if (!work()) break
       if (primitive.kind !== 'text' || primitive.coverage !== 'measured' || primitive.visibility === 'conditional'
         || !primitive.bounds || !overlaps(primitive.bounds, target.bounds)) continue
@@ -1034,10 +1056,12 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
       issue({ code: 'POTENTIAL_OCCLUSION', id: markerLater ? primitive.id : target.primitive.id, by: markerLater ? target.primitive.id : primitive.id, message: markerLater ? 'Later endpoint-marker ink overlaps occupied text; actual text visibility is unverified.' : 'Later occupied text or its halo overlaps an endpoint marker; actual marker ink visibility is unverified.' })
     }
   }
-  for (const earlier of lastMarkers.values()) {
+  for (let earlierIndex = 0; earlierIndex < markerTargets.length; earlierIndex++) {
+    const earlier = markerTargets[earlierIndex]!
     if (exhausted) break
     if (!earlier.semantic || earlier.primitive.visibility === 'conditional') continue
-    for (const later of lastMarkers.values()) {
+    for (let laterIndex = 0; laterIndex < markerTargets.length; laterIndex++) {
+      const later = markerTargets[laterIndex]!
       if (!work()) break
       if (!later.semantic || later.primitive.visibility === 'conditional' || later.primitive.order <= earlier.primitive.order
         || earlier.anchor.x === later.anchor.x && earlier.anchor.y === later.anchor.y && earlier.repaint === later.repaint || !overlaps(earlier.bounds, later.bounds)) continue
@@ -1053,7 +1077,9 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
         // Continue through the finite evidence under the SAME charged budget;
         // restoring one point does not prove every other stroke point visible.
         let restored = false
-        for (const primitive of inspection.primitives) {
+        const primitives = inspection.primitives
+        for (let primitiveIndex = 0; primitiveIndex < primitives.length; primitiveIndex++) {
+          const primitive = primitives[primitiveIndex]!
           if (!work()) break
           const b = primitive.bounds
           if (primitive.order <= later.primitive.order || primitive.coverage === 'non-painting') continue
@@ -1062,7 +1088,8 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
           const source = paintPrimitiveSource(primitive)
           if (source?.kind === 'connector' && Number(source.stroke.opacity) === 0) {
             let markerMayRestore = false
-            for (const marker of lastMarkers.values()) {
+            for (let markerIndex = 0; markerIndex < markerTargets.length; markerIndex++) {
+              const marker = markerTargets[markerIndex]!
               if (!work()) break
               if (marker.primitive.order !== primitive.order || marker.bounds.x0 > proof.x || proof.x > marker.bounds.x1 || marker.bounds.y0 > proof.y || proof.y > marker.bounds.y1) continue
               if (!outsideMarkerPolygon(marker.strokeProof, proof, work)) { markerMayRestore = true; break }
