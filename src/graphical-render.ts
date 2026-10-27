@@ -195,7 +195,9 @@ function renderPositionedWithTextMeasurement(
     assertFinalSvgByteBudget(svg, 'accessibility-projected SVG output')
   }
   if (capture) svg = capture.finish(svg)
-  svg = formatSvgNumbers(scopeSvgStyles(svg))
+  // Scope identity belongs to the canonical written numbers, including late
+  // viewport repairs, so equivalent drawing/Scene paths share identical CSS.
+  svg = scopeSvgStyles(formatSvgNumbers(svg))
   assertFinalSvgByteBudget(svg, 'style-scoped SVG output')
   // Every byte-changing projection must run before the final output-security
   // gate. In particular, compaction must never be able to join an inert split
