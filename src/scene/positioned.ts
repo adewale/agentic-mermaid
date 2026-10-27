@@ -75,6 +75,7 @@ export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: Fa
   // Positioning's ownership proof must still hold after layout observers run.
   // A changed producer executes on its detached graph and cannot publish a
   // drawing under the original producer's private cache entry.
+  producer = nativeDrawingOf(plan.family.lowerScene)
   const cached = cachedNativeDrawing(request, layout, producer === originalNativeDrawingOf(plan.family.lowerScene))
   if (cached) {
     observeCache('native-drawing', 'hit', undefined, 'positioned-owner')

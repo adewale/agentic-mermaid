@@ -401,9 +401,14 @@ describe('simplifyPolyline', () => {
       .toEqual([{ x: 0, y: 0 }, { x: 9, y: 0 }])
   })
 
-  it('removes collinear midpoints but keeps real bends', () => {
-    const bent = [{ x: 0, y: 0 }, { x: 4, y: 0 }, { x: 8, y: 0 }, { x: 8, y: 6 }]
-    expect(simplifyPolyline(bent)).toEqual([{ x: 0, y: 0 }, { x: 8, y: 0 }, { x: 8, y: 6 }])
+  it.each([1, 0.01, 0.001, 0.0001])('removes collinear midpoints but keeps real bends at scale %s', scale => {
+    const bent = [{ x: 0, y: 0 }, { x: 4 * scale, y: 0 }, { x: 8 * scale, y: 0 }, { x: 8 * scale, y: 6 * scale }]
+    expect(simplifyPolyline(bent)).toEqual([{ x: 0, y: 0 }, { x: 8 * scale, y: 0 }, { x: 8 * scale, y: 6 * scale }])
+  })
+
+  it('preserves a distinct final endpoint within the duplicate tolerance', () => {
+    expect(simplifyPolyline([{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10.005, y: 0 }]))
+      .toEqual([{ x: 0, y: 0 }, { x: 10.005, y: 0 }])
   })
 
   it('leaves two-point lines untouched', () => {
