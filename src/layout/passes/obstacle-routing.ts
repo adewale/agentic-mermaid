@@ -23,7 +23,7 @@ import { doglegBetween, routeClearOfNodes } from './shared.ts'
  * endpoint is not worth trading for an edgeThroughNode); self-loops are skipped
  * (their stub is the renderer's). Deterministic; label re-centred on the new route.
  */
-export function reanchorOffOutlineEndpoints(nodes: PositionedNode[], edges: PositionedEdge[], graph: MermaidGraph): void {
+export function reanchorOffOutlineEndpoints(nodes: PositionedNode[], edges: PositionedEdge[], graph: Pick<MermaidGraph, 'direction'>): void {
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
   const f = layoutFlow(graph.direction)
   for (const edge of edges) {

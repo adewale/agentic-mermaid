@@ -5,6 +5,7 @@ import type { LabelMetricsStyle } from '../../route-contracts.ts'
 import { DEFAULTS, layoutDebug, layoutEnvFlag } from '../geometry.ts'
 import { corankFanInSpokes } from './peers.ts'
 import { servedRouteMarkerPaintRegions } from '../route-marker-clearance.ts'
+import { reanchorOffOutlineEndpoints } from './obstacle-routing.ts'
 import { shapeOutline } from '../../shape-outline.ts'
 import { nodePaintBounds, paintedStrokeExtent } from '../../scene/bounds.ts'
 import { shape } from '../../scene/marks.ts'
@@ -342,7 +343,16 @@ export function alignPortLanes(
   const candidateNodes = nodes.map(node => ({ ...node }))
   const candidateEdges = edges.map(edge => ({ ...edge, points: edge.points.map(point => ({ ...point })), ...(edge.labelPosition ? { labelPosition: { ...edge.labelPosition } } : {}) }))
   alignPortLaneCandidate(candidateNodes, candidateEdges, groups, direction, style)
-  if (!portLaneForeignInkClear(candidateNodes, candidateEdges, nodes, edges, style)) return
+  if (!portLaneForeignInkClear(candidateNodes, candidateEdges, nodes, edges, style)) {
+    // Peer sizing can leave incident endpoints stale before this pass. Repair
+    // only changed private routes, then admit the geometry we actually publish.
+    const changedEdges = candidateEdges.filter((edge, index) => {
+      const before = edges[index]!
+      return edge.points.length !== before.points.length || edge.points.some((point, i) => point.x !== before.points[i]!.x || point.y !== before.points[i]!.y)
+    })
+    reanchorOffOutlineEndpoints(candidateNodes, changedEdges, { direction })
+    if (!portLaneForeignInkClear(candidateNodes, candidateEdges, nodes, edges, style)) return
+  }
   // Admit the actual transformed geometry, including every incident run and
   // stretched hop. A node-only lane proof cannot see a reserved header band.
   if (groups.length && !portLaneHeadersClear(candidateNodes, candidateEdges, nodes, edges, groups)) return
@@ -350,7 +360,7 @@ export function alignPortLanes(
   // contacts than it establishes. Keep the prior layout when it does.
   if (portEndpointRate({ nodes: candidateNodes, edges: candidateEdges }, true) + 1e-6 < portEndpointRate({ nodes, edges }, true)) return
   nodes.forEach((node, index) => { node.x = candidateNodes[index]!.x; node.y = candidateNodes[index]!.y })
-  edges.forEach((edge, index) => { edge.points = candidateEdges[index]!.points; edge.labelPosition = candidateEdges[index]!.labelPosition })
+  edges.forEach((edge, index) => { edge.points = candidateEdges[index]!.points; edge.labelPosition = candidateEdges[index]!.labelPosition; edge.routeCertificate = candidateEdges[index]!.routeCertificate })
 }
 
 export function alignPortLaneCandidate(
