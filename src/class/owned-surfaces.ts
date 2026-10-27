@@ -19,20 +19,25 @@ const emitted = (v: number): number => {
   return Number(formatSvgNumber(v))
 }
 const emittedPoint = (p: Point): Point => ({ x: emitted(p.x), y: emitted(p.y) })
+function writtenDecimalParts(value: number): { n: bigint; e: number } {
+  const text = formatSvgNumber(value),
+    m = /^(-?)(\d+)(?:\.(\d+))?(?:e([+-]?\d+))?$/.exec(text)!
+  return { n: BigInt(m[1]! + m[2]! + (m[3] ?? '')), e: Number(m[4] ?? 0) - (m[3]?.length ?? 0) }
+}
 // Compare written decimal coordinates to a written rectangle face without
 // treating binary addition's one-ULP tail as physical interior or clearance.
 function compareSvgSum(value: number, a: number, b: number): number {
   const sum = a + b,
     difference = value - sum
   if (Math.abs(difference) > 8 * Number.EPSILON * Math.max(1, Math.abs(value), Math.abs(a), Math.abs(b))) return Math.sign(difference)
-  const parts = [value, a, b].map(v => {
-    const text = formatSvgNumber(v),
-      m = /^(-?)(\d+)(?:\.(\d+))?(?:e([+-]?\d+))?$/.exec(text)!
-    return { n: BigInt(m[1]! + m[2]! + (m[3] ?? '')), e: Number(m[4] ?? 0) - (m[3]?.length ?? 0) }
-  })
-  const scale = Math.min(...parts.map(p => p.e)),
-    n = parts.map(p => p.n * 10n ** BigInt(p.e - scale)),
-    delta = n[0]! - n[1]! - n[2]!
+  const valueParts = writtenDecimalParts(value),
+    aParts = writtenDecimalParts(a),
+    bParts = writtenDecimalParts(b),
+    scale = Math.min(valueParts.e, aParts.e, bParts.e),
+    scaledValue = valueParts.n * 10n ** BigInt(valueParts.e - scale),
+    scaledA = aParts.n * 10n ** BigInt(aParts.e - scale),
+    scaledB = bParts.n * 10n ** BigInt(bParts.e - scale),
+    delta = scaledValue - scaledA - scaledB
   return delta < 0n ? -1 : delta > 0n ? 1 : 0
 }
 
@@ -56,7 +61,8 @@ function writtenSegmentEntersBox(a: Point, b: Point, r: ClassSurfaceBox): boolea
   if (!(r.width > 0 && r.height > 0)) return false
   let low = 0,
     high = 1
-  for (const axis of ['x', 'y'] as const) {
+  for (let index = 0; index < 2; index++) {
+    const axis = index === 0 ? 'x' : 'y'
     const size = axis === 'x' ? r.width : r.height,
       start = r[axis],
       end = start + size
@@ -120,8 +126,14 @@ function writtenClassRoundedHit(a: WrittenClassPoint, b: WrittenClassPoint, surf
   // The second strip remains lazy: the first may already establish a hit.
   const second = surface.secondStrip ??= emittedBox({ x: r.x, y: r.y + ry, width: r.width, height: r.height - 2 * ry })
   if (writtenSegmentEntersBox(clipA, clipB, second)) return true
-  for (const x of [r.x + rx, r.x + r.width - rx]) for (const y of [r.y + ry, r.y + r.height - ry]) if (ellipseHit(a.emitted, b.emitted, x, y, rx, ry)) return true
-  return false
+  const left = r.x + rx,
+    right = r.x + r.width - rx,
+    top = r.y + ry,
+    bottom = r.y + r.height - ry
+  return ellipseHit(a.emitted, b.emitted, left, top, rx, ry)
+    || ellipseHit(a.emitted, b.emitted, left, bottom, rx, ry)
+    || ellipseHit(a.emitted, b.emitted, right, top, rx, ry)
+    || ellipseHit(a.emitted, b.emitted, right, bottom, rx, ry)
 }
 function convexOverlap(left: readonly Point[], right: readonly Point[]): boolean {
   if (left.length < 3 || right.length < 3) return false
