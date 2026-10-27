@@ -1,3 +1,8 @@
+import type { StyleInput } from '../scene/style-registry.ts'
+import type { ZenUMLAppearance } from './appearance.ts'
+import { snapshotDeclarativeStyleValue, withStyleAdmission } from '../shared/declarative-style.ts'
+import { assertJsonConfigAdmission } from '../shared/json-config-admission.ts'
+
 /** Optional browser-only backend. No ZenUML dependency enters the default graph. */
 export class ZenUMLBackendError extends Error {
   constructor(
@@ -22,19 +27,44 @@ export const ZENUML_CAPABILITIES = Object.freeze({
   backend: '@zenuml/core@3.47.9',
   nativeScene: false,
   styles: false,
-  palettes: false,
+  palettes: true,
+  rolePaints: true,
+  reusableSession: true,
 })
-export interface ZenUMLOptions {
+export interface ZenUMLRenderOptions {
+  timeoutMs?: number
+  /** Named palettes or paint-only node/edge/group/label fragments. Native Look
+   * geometry, fonts and sketch effects are rejected, never silently ignored. */
+  style?: StyleInput | StyleInput[]
+}
+export interface ZenUMLOptions extends ZenUMLRenderOptions {
   /** URL of the shipped zenuml-frame.global.js, served by the consumer. */
   backendURL: string | URL
-  timeoutMs?: number
 }
-/** Render in a disposable iframe: the upstream module injects page-wide CSS
- * during import. That import must never run against the caller's document. */
-export async function renderZenUMLSVG(source: string, options: ZenUMLOptions): Promise<string> {
+export interface ZenUMLRenderer {
+  /** Requests are serialized; at most 32 calls may be pending per session. */
+  render(source: string, options?: ZenUMLRenderOptions): Promise<string>
+  /** Release the isolated backend and reject active and queued requests. */
+  dispose(): void
+}
+
+function captureStyle(style: StyleInput | StyleInput[]): StyleInput | StyleInput[] {
+  try {
+    return withStyleAdmission(() => {
+      const captured = snapshotDeclarativeStyleValue(style)
+      // Native style resolution immediately rejects non-declarative values;
+      // this async consumer must do so before caller-owned objects can change.
+      assertJsonConfigAdmission(captured, 'ZenUML style', { allowUndefinedObjectProperties: true })
+      return captured as StyleInput | StyleInput[]
+    })
+  }
+  catch (error) { throw new ZenUMLBackendError('UNSUPPORTED_APPEARANCE', error instanceof Error ? error.message : String(error)) }
+}
+
+/** An explicitly owned session retains one isolated backend. Every render
+ * still parses and lays out its input; no source/SVG result cache is used. */
+export function createZenUMLRenderer(options: ZenUMLOptions): ZenUMLRenderer {
   if (typeof document === 'undefined' || typeof MessageChannel === 'undefined') throw new ZenUMLBackendError('UNSUPPORTED_RUNTIME', 'ZenUML rendering requires a browser document; use the optional browser backend.')
-  if (options && 'style' in options && options.style !== undefined) throw new ZenUMLBackendError('UNSUPPORTED_APPEARANCE', 'This optional backend uses its fixed upstream theme; Agentic styles and palettes are unavailable.')
-  if (!/^\s*zenuml\b/.test(source) || !source.replace(/^\s*zenuml\b/, '').trim()) throw new ZenUMLBackendError('INVALID_SOURCE', 'Expected a nonempty ZenUML document.')
   let url: URL
   try {
     url = new URL(options.backendURL, document.baseURI)
@@ -42,36 +72,124 @@ export async function renderZenUMLSVG(source: string, options: ZenUMLOptions): P
     throw new ZenUMLBackendError('BACKEND_UNAVAILABLE', 'The ZenUML backend URL is invalid.')
   }
   if (!['http:', 'https:'].includes(url.protocol) || url.origin !== new URL(document.baseURI).origin) throw new ZenUMLBackendError('BACKEND_UNAVAILABLE', 'The ZenUML frame script must be served from the same HTTP(S) origin.')
-  const timeout = options.timeoutMs ?? 30_000
-  if (!Number.isFinite(timeout) || timeout <= 0) throw new ZenUMLBackendError('BACKEND_UNAVAILABLE', 'timeoutMs must be positive and finite.')
-  return new Promise((resolve, reject) => {
-    const frame = document.createElement('iframe'),
-      channel = new MessageChannel()
-    frame.hidden = true
+  const defaultStyle = options.style === undefined ? undefined : captureStyle(options.style)
+  const defaultTimeout = options.timeoutMs ?? 30_000
+  let disposed = false, pending = 0, frameCalls = 0
+  let frame: HTMLIFrameElement | undefined, loaded: Promise<void> | undefined
+  let cancelActive: ((error: ZenUMLBackendError) => void) | undefined
+  const cancelPending = new Set<(error: ZenUMLBackendError) => void>()
+  let queue = Promise.resolve()
+  const unavailable = (message: string) => new ZenUMLBackendError('BACKEND_UNAVAILABLE', message)
+  const releaseFrame = () => {
+    frame?.remove()
+    frame = undefined
+    loaded = undefined
+    frameCalls = 0
+  }
+  const ensureFrame = () => {
+    if (loaded) return loaded
+    frame = document.createElement('iframe')
+    // display:none suppresses SVG text metrics. An offscreen, invisible frame
+    // still measures owned ink without painting into the caller's page.
+    frame.style.cssText = 'position:fixed;left:-100000px;top:0;width:1024px;height:768px;visibility:hidden;pointer-events:none;border:0'
     frame.setAttribute('aria-hidden', 'true')
     frame.setAttribute('sandbox', 'allow-scripts allow-same-origin')
-    const cleanup = () => {
-      clearTimeout(timer)
-      channel.port1.close()
-      channel.port2.close()
-      frame.remove()
-    }
-    const fail = (code: ZenUMLBackendError['code'], message: string) => {
-      cleanup()
-      reject(new ZenUMLBackendError(code, message))
-    }
-    const timer = setTimeout(() => fail('BACKEND_UNAVAILABLE', 'ZenUML backend did not complete before its deadline.'), timeout)
-    channel.port1.onmessage = event => {
-      const value = event.data
-      if (value?.ok === true && typeof value.svg === 'string') {
-        cleanup()
-        resolve(value.svg)
-      } else fail(value?.code === 'INVALID_SOURCE' ? 'INVALID_SOURCE' : 'RENDER_FAILED', String(value?.message ?? 'ZenUML rendering failed.'))
-    }
-    frame.onload = () => frame.contentWindow?.postMessage({ type: 'agentic-zenuml', source }, '*', [channel.port2])
+    loaded = new Promise<void>(resolve => { frame!.onload = () => resolve() })
     // JSON quoting is insufficient for HTML attributes. Escape every delimiter.
     const attribute = url.href.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     frame.srcdoc = `<!doctype html><html><head><script src="${attribute}"></script></head><body></body></html>`
     ;(document.body ?? document.documentElement).append(frame)
+    return loaded
+  }
+  const request = (source: string, appearance: ZenUMLAppearance | undefined, timeout: number) => new Promise<string>((resolve, reject) => {
+    // Upstream retains text measurements in module state. Rotate a session's
+    // frame after bounded work instead of retaining that cache indefinitely.
+    if (frameCalls >= 64) releaseFrame()
+    frameCalls++
+    const channel = new MessageChannel()
+    let completed = false
+    const cleanup = () => {
+      completed = true
+      clearTimeout(timer)
+      channel.port1.close()
+      channel.port2.close()
+      if (cancelActive === fail) cancelActive = undefined
+    }
+    const fail = (error: ZenUMLBackendError) => {
+      if (completed) return
+      cleanup()
+      if (error.code !== 'INVALID_SOURCE') releaseFrame()
+      reject(error)
+    }
+    cancelActive = fail
+    const timer = setTimeout(() => fail(unavailable('ZenUML backend did not complete before its deadline.')), timeout)
+    channel.port1.onmessage = event => {
+      if (completed) return
+      const value = event.data
+      if (value?.ok === true && typeof value.svg === 'string') {
+        cleanup()
+        resolve(value.svg)
+      } else fail(new ZenUMLBackendError(value?.code === 'INVALID_SOURCE' ? 'INVALID_SOURCE' : 'RENDER_FAILED', String(value?.message ?? 'ZenUML rendering failed.')))
+    }
+    void Promise.resolve().then(() => completed ? undefined : ensureFrame()).then(() => {
+      if (!completed && cancelActive === fail) frame?.contentWindow?.postMessage({ type: 'agentic-zenuml', source, appearance }, url.origin, [channel.port2])
+    }).catch(() => fail(unavailable('The ZenUML frame could not be loaded.')))
   })
+  return {
+    async render(source, renderOptions = {}) {
+      if (disposed) throw unavailable('The ZenUML renderer has been disposed.')
+      if (typeof source !== 'string' || !/^\s*zenuml\b/.test(source) || !source.replace(/^\s*zenuml\b/, '').trim()) throw new ZenUMLBackendError('INVALID_SOURCE', 'Expected a nonempty ZenUML document.')
+      const timeout = renderOptions.timeoutMs ?? defaultTimeout
+      if (!Number.isFinite(timeout) || timeout <= 0) throw unavailable('timeoutMs must be positive and finite.')
+      if (pending >= 32) throw unavailable('The ZenUML renderer already has 32 pending requests.')
+      const input = 'style' in renderOptions ? renderOptions.style : defaultStyle
+      const style = input === undefined ? undefined : captureStyle(input)
+      pending++
+      // The shared style registry is only fetched when a caller requests paint.
+      // Start admission now, preserving call order while the module loads.
+      const appearance = style === undefined ? Promise.resolve(undefined) : import('./appearance.ts')
+        .then(api => {
+          try { return api.resolveZenUMLAppearance(style) }
+          catch (error) { throw new ZenUMLBackendError('UNSUPPORTED_APPEARANCE', error instanceof Error ? error.message : String(error)) }
+        }, () => { throw unavailable('The ZenUML palette module could not be loaded.') })
+      // Observe a rejected admission while an earlier queued render is active.
+      void appearance.catch(() => {})
+      let cancel!: (error: ZenUMLBackendError) => void
+      const cancelled = new Promise<never>((_, reject) => { cancel = reject })
+      cancelPending.add(cancel)
+      const job = queue.then(async () => {
+        if (disposed) throw unavailable('The ZenUML renderer has been disposed.')
+        if (style === undefined) return request(source, undefined, timeout)
+        const started = performance.now()
+        let admissionTimer: ReturnType<typeof setTimeout> | undefined
+        const admissionDeadline = new Promise<never>((_, reject) => {
+          admissionTimer = setTimeout(() => reject(unavailable('ZenUML palette admission did not complete before its deadline.')), timeout)
+        })
+        let admitted: ZenUMLAppearance | undefined
+        try { admitted = await Promise.race([appearance, cancelled, admissionDeadline]) }
+        finally { clearTimeout(admissionTimer) }
+        if (disposed) throw unavailable('The ZenUML renderer has been disposed.')
+        return request(source, admitted, Math.max(0, timeout - (performance.now() - started)))
+      })
+      queue = job.then(() => {}, () => {})
+      return Promise.race([job, cancelled]).finally(() => {
+        pending--
+        cancelPending.delete(cancel)
+      })
+    },
+    dispose() {
+      disposed = true
+      const error = unavailable('The ZenUML renderer has been disposed.')
+      cancelActive?.(error)
+      for (const cancel of cancelPending) cancel(error)
+      releaseFrame()
+    },
+  }
+}
+
+/** One-shot rendering shares the session implementation and always releases
+ * its frame. Use createZenUMLRenderer for repeated previews, then dispose it. */
+export async function renderZenUMLSVG(source: string, options: ZenUMLOptions): Promise<string> {
+  const renderer = createZenUMLRenderer(options)
+  try { return await renderer.render(source) } finally { renderer.dispose() }
 }

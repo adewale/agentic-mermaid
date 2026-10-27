@@ -65,15 +65,81 @@ const svg = await renderZenUMLSVG(`zenuml
 })
 ```
 
-The backend script runs in a disposable iframe because its upstream dependency
+The backend script runs in an isolated iframe because its upstream dependency
 injects global CSS when imported. The frame validates syntax through ZenUML's
 own parser, awaits completion, checks SVG bounds and active/external content,
-then returns native SVG. It is removed after success, failure or timeout.
+then returns native SVG. Actual SVG ink bounds expand a viewport that would
+otherwise clip a long title or nested sequence number. The one-shot API removes
+its frame after success, failure or timeout.
 `UNSUPPORTED_RUNTIME`, `BACKEND_UNAVAILABLE`, `INVALID_SOURCE` and
-`RENDER_FAILED` distinguish those outcomes. Passing an Agentic `style` to this optional API returns `UNSUPPORTED_APPEARANCE` instead of silently rendering the vendor theme. The consumer must permit its
+`RENDER_FAILED` distinguish those outcomes. The consumer must permit its
 same-origin frame and script under its CSP. A blocked script expires as
-`BACKEND_UNAVAILABLE`. This entry does not promise Agentic style presets or full
-Mermaid theme equivalence; it uses ZenUML's Mermaid theme.
+`BACKEND_UNAVAILABLE`. A synchronous host Trusted Types refusal also returns
+that typed error and releases the partial frame; this API does not create a
+Trusted Types policy. Failure to load the optional palette module is a backend
+availability error, distinct from an unsupported style input.
+
+### Palettes and owned paint
+
+Pass the existing named palette or a paint-only style stack as `style`:
+
+```ts
+const svg = await renderZenUMLSVG(source, {
+  backendURL: '/assets/zenuml-frame.global.js',
+  style: ['dracula', { roles: { edge: { strokeColor: '#8be9fd' } } }],
+})
+```
+
+The shared style registry admits and composes the input; the existing color
+resolver supplies palette tones and contrast repair. The optional adapter maps
+those paints to explicit participant, message, reply, fragment and frame marks.
+It preserves the backend's measured text, geometry, message direction and dashes.
+Each request captures caller-owned style data before asynchronous admission;
+changing that object after calling `render` cannot repaint the queued request.
+
+Supported role fields are node/group `fillColor`, `borderColor`, `textColor`;
+edge `strokeColor`, `textColor`; and label `textColor`. Named palettes and
+explicit color values use the same syntax as native styles. Unresolved CSS
+variables are unavailable at this standalone boundary. Full Looks, fonts,
+padding, line widths, sketch/wash effects, bindings and constraints return
+`UNSUPPORTED_APPEARANCE`; they are not silently approximated. The upstream
+renderer fixes its own typography and layout, so this is palette/paint
+integration rather than native Scene or full Look support.
+
+### Repeated browser rendering
+
+For previews or batches, explicitly own a reusable renderer:
+
+```ts
+import { createZenUMLRenderer } from 'agentic-mermaid/zenuml'
+const renderer = createZenUMLRenderer({
+  backendURL: '/assets/zenuml-frame.global.js',
+})
+try {
+  const light = await renderer.render(source, { style: 'github-light' })
+  const dark = await renderer.render(source, { style: 'dracula' })
+  // Omitting a per-call style inherits the session's default. An explicit
+  // style: undefined resets that default to the unmodified vendor theme.
+  const vendor = await renderer.render(source, { style: undefined })
+} finally {
+  renderer.dispose()
+}
+```
+
+A session retains at most one frame and one parser, serializes requests, and
+rejects submission above 32 pending calls. Each call parses and lays out its
+source; there is no source/SVG result cache. The frame is replaced after 64
+requests to bound upstream module caches. Invalid syntax can be followed by a
+valid call in the same frame; backend failure or timeout discards the frame
+before the next call. `timeoutMs` bounds an executing request, including palette
+admission and frame startup, rather than time waiting behind earlier requests. Disposal rejects
+active and queued calls, including calls waiting for palette-module admission,
+and releases the frame. Consumers must dispose a session when its owner ends.
+The deadline uses browser timers and cannot preempt synchronous vendor work.
+
+One-shot and session timings describe different lifecycle configurations.
+Browser-lazy loading does not remove npm-install bytes: the optional frame is
+still included in the published package.
 
 The configured reference is Mermaid 12.2.0 plus
 @mermaid-js/mermaid-zenuml 1.0.1 and core 3.47.9, with external registration
@@ -85,4 +151,4 @@ configuration identity and never reclassifies those default-entry failures.
 
 Title edits preserve unrelated YAML values. If an alias couples the title to another configuration value, the edit returns `INVALID_OP` atomically; remove that coupling before editing the title. Generous reads of missing or reordered Given/When/Then clause markers report `UNSUPPORTED_SYNTAX`; export writes the portable clause order.
 
-See [Event Modeling composition and visual contract](design/families/eventmodeling.md) for the concrete #409 reuse trace, aesthetic thesis, style/palette witnesses and remaining limits. `ZENUML_CAPABILITIES` explicitly reports `nativeScene`, `styles` and `palettes` as false; the fixed upstream theme is separate from native style support.
+See [Event Modeling composition and visual contract](design/families/eventmodeling.md) for the concrete #409 reuse trace, aesthetic thesis, style/palette witnesses and remaining limits. `ZENUML_CAPABILITIES` reports palette and role-paint support separately from `nativeScene: false` and `styles: false`; full native Looks remain unavailable.

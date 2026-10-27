@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test'
-import { renderZenUMLSVG, ZenUMLBackendError, ZENUML_CAPABILITIES } from '../zenuml/index.ts'
+import { createZenUMLRenderer, renderZenUMLSVG, ZenUMLBackendError, ZENUML_CAPABILITIES } from '../zenuml/index.ts'
 import { parseRegisteredMermaid, serializeMermaid } from '../agent/core.ts'
 
 test('ZenUML source preservation does not claim native semantic editing', () => {
@@ -13,11 +13,16 @@ test('ZenUML source preservation does not claim native semantic editing', () => 
   expect(ZENUML_CAPABILITIES.typedEditing).toBe(false)
 })
 test('optional ZenUML rejects a non-browser runtime before loading dependencies', async () => {
-  try {
-    await renderZenUMLSVG('zenuml\nAlice->Bob: hello', { backendURL: 'https://example.test/frame.js' })
-    throw Error('expected runtime error')
-  } catch (error) {
-    expect(error).toBeInstanceOf(ZenUMLBackendError)
-    expect((error as ZenUMLBackendError).code).toBe('UNSUPPORTED_RUNTIME')
+  for (const invoke of [
+    () => renderZenUMLSVG('zenuml\nAlice->Bob: hello', { backendURL: 'https://example.test/frame.js' }),
+    () => createZenUMLRenderer({ backendURL: 'https://example.test/frame.js' }),
+  ]) {
+    try {
+      await invoke()
+      throw Error('expected runtime error')
+    } catch (error) {
+      expect(error).toBeInstanceOf(ZenUMLBackendError)
+      expect((error as ZenUMLBackendError).code).toBe('UNSUPPORTED_RUNTIME')
+    }
   }
 })
