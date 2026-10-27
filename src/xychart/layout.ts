@@ -68,7 +68,6 @@ interface XYTextMeasure {
   /** Axis tick labels: categories and values. */
   tick(label: string, fontSize: number): number
   legend(label: string, fontSize: number): number
-  axisTitle(title: string, fontSize: number): number
 }
 
 function xyTextMeasure(style: ResolvedRenderStyle): XYTextMeasure {
@@ -88,7 +87,6 @@ function xyTextMeasure(style: ResolvedRenderStyle): XYTextMeasure {
     wrapTitle: (title, fontSize, maxWidth) => preparePixelText(title, { display: 'literal', transform: style.groupTextTransform, fontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing, maxWidth }),
     tick: (label, fontSize) => block('tick', label, fontSize).width,
     legend: (label, fontSize) => block('legend', label, fontSize).width,
-    axisTitle: (label, fontSize) => block('axisTitle', label, fontSize).width,
   }
 }
 
@@ -130,7 +128,7 @@ export function layoutXYChart(
   const positioned = chart.horizontal ? layoutHorizontal(chart, config, measure, lineReach) : layoutVertical(chart, config, measure, lineReach)
   for (const axis of [positioned.xAxis, positioned.yAxis]) {
     if (axis.title) {
-      const block = axis.title.block = measure.block('axisTitle', axis.title.text, axis.config.titleFontSize)
+      const block = axis.title.block ??= measure.block('axisTitle', axis.title.text, axis.config.titleFontSize)
       // Lines are centered on the anchor, so authored line breaks move it into
       // the room the axis reserved for them, away from the canvas edge. So does
       // a line box taller than the nominal one (accents, stacked marks,
@@ -229,7 +227,7 @@ function layoutVertical(chart: XYChart, config: ResolvedXYChartConfig, measure: 
   const xAxisConfig = fitHorizontalAxisConfig(config.xAxis, chart.xAxis.title, xTickLabels, remainingTopBottomBudget, measure)
   remainingTopBottomBudget = Math.max(0, remainingTopBottomBudget - xAxisConfig.size)
 
-  const yAxisConfig = fitVerticalAxisConfig(config.yAxis, chart.yAxis.title, yTickLabels, remainingLeftBudget, measure)
+  const yAxisConfig = fitVerticalAxisConfig(config.yAxis, chart.yAxis.title, yTickLabels, remainingLeftBudget, measure, totalH)
   remainingLeftBudget = Math.max(0, remainingLeftBudget - yAxisConfig.size)
 
   // Value-axis labels are centered on their ticks, so the end ticks' labels
@@ -348,7 +346,7 @@ function layoutHorizontal(chart: XYChart, config: ResolvedXYChartConfig, measure
   const topAxisConfig = fitTopAxisConfig(config.yAxis, chart.yAxis.title, valueTickLabels, remainingTopBottomBudget, measure)
   remainingTopBottomBudget = Math.max(0, remainingTopBottomBudget - topAxisConfig.size)
 
-  const leftAxisConfig = fitVerticalAxisConfig(config.xAxis, chart.xAxis.title, categoryLabels, remainingLeftBudget, measure)
+  const leftAxisConfig = fitVerticalAxisConfig(config.xAxis, chart.xAxis.title, categoryLabels, remainingLeftBudget, measure, totalH)
   remainingLeftBudget = Math.max(0, remainingLeftBudget - leftAxisConfig.size)
 
   // Marks centered on a plot edge draw past it; keep that ink on the canvas.
@@ -559,8 +557,9 @@ function fitVerticalAxisConfig(
   labels: string[],
   budget: number,
   measure: XYTextMeasure,
+  totalHeight: number,
 ): { config: ResolvedXYAxisRenderConfig; size: number } {
-  return fitAxisConfig(config, title, labels, budget, () => Math.max(...labels.map(label => measure.tick(label, config.labelFontSize))), title ? measure.block('axisTitle', title, config.titleFontSize).height - config.titleFontSize * (LINE_HEIGHT_RATIO - 1) : config.titleFontSize)
+  return fitAxisConfig(config, title, labels, budget, () => Math.max(...labels.map(label => measure.tick(label, config.labelFontSize))), title ? measure.block('axisTitle', title, config.titleFontSize, Math.max(1, totalHeight - 4)).height - config.titleFontSize * (LINE_HEIGHT_RATIO - 1) : config.titleFontSize)
 }
 
 function buildBottomAxisTicks<T extends string | number>(
@@ -712,10 +711,14 @@ function buildLeftAxisTitle(
   // Rotated, the title runs vertically, centered on the plot. Clamp that run
   // inside the canvas, as the bottom axis clamps its end labels, when the
   // title is longer than the room below or above the plot's center.
-  const half = measure.axisTitle(title, config.titleFontSize) / 2
+  // A rotated title's line width consumes canvas height. Use the same wrapped
+  // block for fitting the left gutter, placement and the final text writer.
+  const block = measure.block('axisTitle', title, config.titleFontSize, Math.max(1, totalHeight - 4))
+  const half = block.width / 2
   const center = plotArea.y + plotArea.height / 2
   return {
     text: title,
+    block,
     x: config.titlePadding + config.titleFontSize * 0.8,
     y: 2 * half + 4 >= totalHeight ? totalHeight / 2 : Math.min(totalHeight - 2 - half, Math.max(2 + half, center)),
     rotate: -90,

@@ -144,7 +144,8 @@ test('visual snapshots apply the same backend to source rendering and parsed qua
 })
 
 test('visual snapshots preserve typed native declines and attribute requested fallback', () => {
-  const input = { id: 'compound', family: 'flowchart', source: 'flowchart TD\nsubgraph Group\n A --> B\nend\nGroup --> A' }
+  // A sibling long link reaches the bounded private-rank refusal.
+  const input = { id: 'local-rank-limit', family: 'flowchart', source: `flowchart LR\n A[Source]\n B[Target]\n A ${'-'.repeat(2049)}> B` }
   const declined = snapshotSample(input, 'review-', { graphLayout: { backend: 'agentic' } })
   expect(declined).toMatchObject({ ok: false, errorCode: 'GRAPH_LAYOUT_UNSUPPORTED' })
   expect(declined.svg).toBeUndefined()

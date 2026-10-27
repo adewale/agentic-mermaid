@@ -16,7 +16,7 @@ import { renderMermaidSVGWithReceipt, GraphLayoutUnsupportedError } from '../ind
 import { withRenderStageObserver } from '../render-stages.ts'
 import { resolveRenderRequest, validateSerializableRenderOptions } from '../render-contract.ts'
 import { captureCli } from './helpers/cli-capture.ts'
-import { flowchartMultigraph, releaseBenchCases } from '../../eval/shared/release-bench-cases.ts'
+import { flowchartMultigraph, flowchartSubgraphs } from '../../eval/shared/graph-fixtures.ts'
 import { generatedFlowchartSamples } from '../../eval/layout-compare/generated.ts'
 
 const SOURCE = 'flowchart TD\n A[Start] --> B[Finish]'
@@ -313,7 +313,7 @@ describe('checked graph layout selection', () => {
   })
 
   test('routes the large grouped workload without a dense visibility grid or ELK', () => {
-    const source = releaseBenchCases().find(input => input.id === 'flowchart:subgraphs-12x8')!.source
+    const source = flowchartSubgraphs(12, 8)
     const model = parseFlowchart(source), stages: string[] = []
     const svg = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(source, AGENTIC))
     expect(stages).not.toContain('elk')

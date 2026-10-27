@@ -70,9 +70,9 @@ const HEADER_ESCAPE_GAP = 8
 const expanded = (b: ClassSurfaceBox, d: number): ClassSurfaceBox => ({ x: b.x - d, y: b.y - d, width: b.width + 2 * d, height: b.height + 2 * d })
 /** Exact open-rectangle clipping, including diagonal note connectors. */
 export function classSegmentEntersBox(a: Point, b: Point, r: ClassSurfaceBox): boolean {
-  a = emittedPoint(a)
-  b = emittedPoint(b)
-  r = emittedBox(r)
+  return writtenSegmentEntersBox(emittedPoint(a), emittedPoint(b), emittedBox(r))
+}
+function writtenSegmentEntersBox(a: Point, b: Point, r: ClassSurfaceBox): boolean {
   if (!(r.width > 0 && r.height > 0)) return false
   let low = 0,
     high = 1
@@ -109,14 +109,38 @@ function ellipseHit(a: Point, b: Point, cx: number, cy: number, rx: number, ry: 
   return (ax + t * dx) ** 2 + (ay + t * dy) ** 2 < 1
 }
 function roundedHit(a: Point, b: Point, r: ClassSurfaceBox, radius: number): boolean {
-  a = emittedPoint(a)
-  b = emittedPoint(b)
-  r = emittedBox(r)
-  const rx = Math.min(Math.max(0, radius), r.width / 2),
-    ry = Math.min(Math.max(0, radius), r.height / 2)
-  if (!rx || !ry) return classSegmentEntersBox(a, b, r)
-  if (classSegmentEntersBox(a, b, { x: r.x + rx, y: r.y, width: r.width - 2 * rx, height: r.height }) || classSegmentEntersBox(a, b, { x: r.x, y: r.y + ry, width: r.width, height: r.height - 2 * ry })) return true
-  for (const x of [r.x + rx, r.x + r.width - rx]) for (const y of [r.y + ry, r.y + r.height - ry]) if (ellipseHit(a, b, x, y, rx, ry)) return true
+  return writtenClassRoundedHit({ emitted: emittedPoint(a) }, { emitted: emittedPoint(b) }, { source: r, radius })
+}
+interface WrittenClassPoint {
+  emitted: Point
+  clipped?: Point
+}
+interface WrittenClassRoundedBox {
+  source: ClassSurfaceBox
+  inflation?: number
+  radius: number
+  emitted?: ClassSurfaceBox
+  rx?: number
+  ry?: number
+  unrounded?: ClassSurfaceBox
+  firstStrip?: ClassSurfaceBox
+  secondStrip?: ClassSurfaceBox
+}
+/** The shared rounded predicate preserves both writing stages. Final card
+ * inspection reuses these records; mutable repair callers supply fresh ones. */
+function writtenClassRoundedHit(a: WrittenClassPoint, b: WrittenClassPoint, surface: WrittenClassRoundedBox): boolean {
+  const r = surface.emitted ??= emittedBox(surface.inflation === undefined ? surface.source : expanded(surface.source, surface.inflation))
+  const rx = surface.rx ??= Math.min(Math.max(0, surface.radius), r.width / 2),
+    ry = surface.ry ??= Math.min(Math.max(0, surface.radius), r.height / 2)
+  const clipA = a.clipped ??= emittedPoint(a.emitted),
+    clipB = b.clipped ??= emittedPoint(b.emitted)
+  if (!rx || !ry) return writtenSegmentEntersBox(clipA, clipB, surface.unrounded ??= emittedBox(r))
+  const first = surface.firstStrip ??= emittedBox({ x: r.x + rx, y: r.y, width: r.width - 2 * rx, height: r.height })
+  if (writtenSegmentEntersBox(clipA, clipB, first)) return true
+  // The second strip remains lazy: the first may already establish a hit.
+  const second = surface.secondStrip ??= emittedBox({ x: r.x, y: r.y + ry, width: r.width, height: r.height - 2 * ry })
+  if (writtenSegmentEntersBox(clipA, clipB, second)) return true
+  for (const x of [r.x + rx, r.x + r.width - rx]) for (const y of [r.y + ry, r.y + r.height - ry]) if (ellipseHit(a.emitted, b.emitted, x, y, rx, ry)) return true
   return false
 }
 function convexOverlap(left: readonly Point[], right: readonly Point[], charge?: () => void): boolean {
@@ -582,10 +606,12 @@ export function repairClassNoteSeats(diagram: PositionedClassDiagram, style: Res
 export function classOwnedSurfaceViolations(diagram: PositionedClassDiagram, style: ResolvedRenderStyle): string[] {
   const violations: string[] = [],
     headers = diagram.namespaces.map(ns => ({ id: ns.id, x: ns.x, y: ns.y, width: ns.width, height: ns.headerHeight })),
-    paint = classRelationshipPaintBoxes(diagram, style),
+    paint = classRelationshipPaintBoxes(diagram, style, headers.length > 0 || diagram.notes.length > 0),
     shaftHalf = style.lineWidth / 2
   for (const box of [...diagram.classes, ...diagram.notes, ...headers]) emittedBox(box)
   const nodeMap = new Map(diagram.classes.map(c => [c.id, c]))
+  const originalCards: Array<WrittenClassRoundedBox | undefined> = [],
+    inflatedCards: Array<WrittenClassRoundedBox | undefined> = []
   for (let edge = 0; edge < diagram.relationships.length; edge++) {
     const rel = diagram.relationships[edge]!
     if (rel.points.length < 2) {
@@ -614,16 +640,21 @@ export function classOwnedSurfaceViolations(diagram: PositionedClassDiagram, sty
       )
         violations.push(`Relationship ${rel.from} -> ${rel.to} lacks an outward Class contact`)
     }
+    const writtenPoints: Array<WrittenClassPoint | undefined> = []
+    const writtenPoint = (index: number): WrittenClassPoint => writtenPoints[index] ??= { emitted: emittedPoint(rel.points[index]!) }
     for (let i = 1; i < rel.points.length; i++) {
       const a = rel.points[i - 1]!,
         b = rel.points[i]!
       for (const h of headers) if (classSegmentEntersBox(a, b, expanded(h, shaftHalf))) violations.push(`Relationship ${rel.from} -> ${rel.to} enters namespace header ${h.id}`)
       for (const note of diagram.notes) if (roundedHit(a, b, expanded(note, shaftHalf), 2 + shaftHalf)) violations.push(`Relationship ${rel.from} -> ${rel.to} enters note ${note.for ?? ''}`)
-      for (const cls of diagram.classes) {
+      for (let card = 0; card < diagram.classes.length; card++) {
+        const cls = diagram.classes[card]!
         if (cls.isInterface) continue
         const terminal = (i === 1 && cls.id === rel.from) || (i === rel.points.length - 1 && cls.id === rel.to)
-        const radius = style.cornerRadius ?? 0
-        if (roundedHit(a, b, terminal ? cls : expanded(cls, shaftHalf), terminal ? radius : radius + shaftHalf)) violations.push(`Relationship ${rel.from} -> ${rel.to} enters card ${cls.id}`)
+        const radius = style.cornerRadius ?? 0,
+          cards = terminal ? originalCards : inflatedCards
+        const surface = cards[card] ??= { source: cls, ...(terminal ? {} : { inflation: shaftHalf }), radius: terminal ? radius : radius + shaftHalf }
+        if (writtenClassRoundedHit(writtenPoint(i - 1), writtenPoint(i), surface)) violations.push(`Relationship ${rel.from} -> ${rel.to} enters card ${cls.id}`)
       }
     }
   }

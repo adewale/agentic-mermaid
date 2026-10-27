@@ -10,7 +10,7 @@ import { allocateTerminalRoute, paintTerminalRoute } from '../ascii/terminal-rou
 import type { ColorMode } from '../ascii/types.ts'
 import { renderContractDigest } from '../render-contract.ts'
 import { secureTerminalHtmlOutput } from '../terminal-security.ts'
-import { flowchartTree } from '../../eval/shared/release-bench-cases.ts'
+import { flowchartTree } from '../../eval/shared/graph-fixtures.ts'
 
 const owner = (id: string): TerminalOwner => ({ id, kind: 'node' })
 const inspect = (document: TerminalDocument, colorMode: ColorMode = 'none') => {

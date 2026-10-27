@@ -512,6 +512,7 @@ interface CardinalityBox {
  * consumes these positions; overlap freedom is a layout invariant rather than
  * an SVG-time best effort. */
 function placeClassCardinalityLabels(relationships: PositionedClassRelationship[], classes: PositionedClassNode[], style: ResolvedRenderStyle, width: number, height: number, extraObstacles: readonly CardinalityBox[] = [], preserveExisting = false): void {
+  if (!relationships.some(relationship => relationship.fromCardinality || relationship.toCardinality)) return
   const strictIntersects = (a: CardinalityBox, b: CardinalityBox): boolean => Math.min(a.x1, b.x1) > Math.max(a.x0, b.x0) && Math.min(a.y1, b.y1) > Math.max(a.y0, b.y0)
   const intersects = (a: CardinalityBox, b: CardinalityBox): boolean => Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > 0.5 && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 0.5
   const obstacles: CardinalityBox[] = classes.map(item => ({
