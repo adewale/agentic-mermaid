@@ -120,6 +120,10 @@ export function benchmarkSuites(options: SuiteOptions): SuiteDefinition[] {
       if (options.baseline) {
         add(args, '--baseline', options.baseline)
         if (!existsSync(join(options.baseline, 'package.json'))) prerequisites.push('--baseline must name a built package directory; use --baseline-ref for output identity or --baseline-npm for a published release')
+      } else if (options.baselineTarball) {
+        add(args, '--baseline-tarball', options.baselineTarball)
+        add(args, '--baseline-sha256', options.baselineSha256)
+        if (!options.baselineSha256) prerequisites.push('Release exact-artifact mode requires --baseline-sha256 for the selected baseline tarball')
       } else {
         const selector = options.baselineNpm ?? (options.baselineLock && existsSync(options.baselineLock) ? json(options.baselineLock).requested : 'latest')
         args.push('--baseline-npm', selector)

@@ -20,6 +20,13 @@ every project, preserving the actual published versions and original records.
 They cannot be pooled with the source candidate as one artifact comparison;
 conflicting versions within the same catalog comparison still fail admission.
 
+For a frozen release comparison, supply `--candidate-tarball` and its
+`--candidate-sha256`, plus `--baseline-tarball` and its `--baseline-sha256`.
+Both the Node and browser release suites use those selected archives. The Node
+suite blocks a baseline archive without its digest instead of substituting npm
+`latest`; npm selection is used only when no directory or archive baseline was
+selected.
+
 ## Community output admission
 
 **Question:** which of my Mermaid inputs can this tool return in the requested format, retaining expected labels? **Value: high for compatibility triage; limited for fidelity.**
