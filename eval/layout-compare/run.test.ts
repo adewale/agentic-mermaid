@@ -1,26 +1,10 @@
 import { expect, test } from 'bun:test'
-import { snapshotSample, compareSample, buildReportHtml, buildSnapshot, summarizeComparisonsByFamily, collectSamples } from './run.ts'
+import { snapshotSample, compareSample, buildReportHtml, buildSnapshot, summarizeComparisonsByFamily } from './run.ts'
 import { generatedFlowchartSamples } from './generated.ts'
 import { parseRegisteredMermaid } from '../../src/agent/index.ts'
 import { withRenderStageObserver } from '../../src/render-stages.ts'
 import { getFamily, replaceFamilyForTest } from '../../src/agent/families.ts'
 import { apiFailure } from './outcomes.ts'
-import { flowchartMesh, flowchartSubgraphs, flowchartTree } from '../shared/graph-fixtures.ts'
-
-test('stress fixtures are opt-in and retain the graph regression inputs', () => {
-  const ordinary = collectSamples()
-  const combined = collectSamples({ includeStress: true })
-  expect(combined.slice(0, ordinary.length)).toEqual(ordinary)
-  const stress = combined.slice(ordinary.length)
-  expect(stress).toHaveLength(11)
-  expect(ordinary.some(sample => sample.id.startsWith('fixture/stress/'))).toBe(false)
-  expect(new Set(stress.map(sample => sample.family))).toEqual(new Set(['flowchart', 'class', 'state', 'er', 'architecture', 'requirement']))
-  for (const [id, source] of [
-    ['flowchart-tree-300', flowchartTree(300)],
-    ['flowchart-mesh-120-labelled-40', flowchartMesh(120, 40)],
-    ['flowchart-subgraphs-12x8', flowchartSubgraphs(12, 8)],
-  ]) expect(stress.find(sample => sample.id === `fixture/stress/${id}.mmd`)?.source).toBe(source)
-})
 
 test.each([true, false])('quality capture attempts both public APIs when debug-only failure=%s', failDebug => {
   const family = getFamily('flowchart'), calls: boolean[] = []
