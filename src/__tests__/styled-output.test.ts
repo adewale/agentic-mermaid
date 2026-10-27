@@ -66,6 +66,9 @@ const GOLDEN_CASES = [...Array.from({ length: Math.max(BUILTIN_FAMILY_METADATA.l
   { family: 'eventmodeling', style: ['hand-drawn', 'github-light'], fixture: 'eventmodeling-basic.mmd', golden: 'eventmodeling-basic.hand-drawn.github-light.svg' },
   { family: 'eventmodeling', style: ['hand-drawn', 'dracula'], fixture: 'eventmodeling-basic.mmd', golden: 'eventmodeling-basic.hand-drawn.dracula.svg' },
   { family: 'eventmodeling', style: ['watercolor', 'solarized-light'], fixture: 'eventmodeling-basic.mmd', golden: 'eventmodeling-basic.watercolor.solarized-light.svg' },
+  { family: 'eventmodeling', style: ['hand-drawn', 'github-light'], fixture: '../../stable-families/fixtures/eventmodeling.mmd', golden: 'eventmodeling-rich.hand-drawn.github-light.svg' },
+  { family: 'eventmodeling', style: ['hand-drawn', 'dracula'], fixture: '../../stable-families/fixtures/eventmodeling.mmd', golden: 'eventmodeling-rich.hand-drawn.dracula.svg' },
+  { family: 'eventmodeling', style: ['watercolor', 'solarized-light'], fixture: '../../stable-families/fixtures/eventmodeling.mmd', golden: 'eventmodeling-rich.watercolor.solarized-light.svg' },
 ]
 
 /** A line diff (longest common subsequence): `-N: …` is golden line N,

@@ -39,6 +39,19 @@ rounded path. `data-parent` preserves lane ownership in SVG independently of
 visible proximity. Source IDs, data and references remain semantic identities
 when a style changes their appearance.
 
+Multiple incoming and outgoing relations receive deterministic vertical port
+slots. Node height reserves at least 12px between adjacent arrow approaches;
+thicker edge strokes increase that spacing. A single relation keeps its center
+port. This prevents two declared inputs from painting one coincident arrowhead.
+The same retained slot endpoints feed positioned output, rounded connectors and
+SVG. Owning tests inspect actual arrow pixels for reciprocal/backward routes and
+a twelve-input reset frame, as well as the declared identities and bounds.
+Ports dock outside the centered node outline using the existing
+`paintedStrokeExtent` calculation for flat sides. Text insets, lane margins and
+gutters reserve that stroke extent before drawing. Crisp raster regressions
+exercise 20px outlines, matching and contrasting edge colors, and rounded
+two-input routes; repainting arrows over node borders is not the repair.
+
 The existing styled-output golden workflow includes the same three-frame input
 in patent-drawing, hand-drawn × GitHub Light, hand-drawn × Dracula and watercolor
 × Solarized Light. Comparing the two hand-drawn renders isolates the palette
@@ -53,20 +66,48 @@ ordinary frames, two explicit sources, a referenced multiline payload, a note
 and a Given/When/Then specification. Its typed edit changes the payload while
 independent checks retain frame identity, ownership and relationships.
 
+That existing rich fixture also supplies reviewed hand-drawn × GitHub Light,
+hand-drawn × Dracula and watercolor × Solarized Light goldens. It is not copied
+into a separate gallery. Independent SVG checks inspect owned payload/note/GWT
+text, namespace lane membership and both reset inputs after a checked data edit.
+
+## Correctness and performance evidence
+
+The original pinned Event inventory now collects both files: fifteen parser
+cases pass against fifteen admitted pinned controls. Twenty-six private Langium
+validator/service-registry cases remain explicitly unavailable; collecting them
+does not imply a native validator API or product failure. The parser adapter
+projects actual native frames, reset flags, source references and owned record
+counts, retaining an authored type spelling only when it denotes the native
+type. It supplies no DOM geometry or text measurements.
+
+An exploratory Chromium source profile attributes most small-diagram work to
+shared request admission, drawing, security and paint certification, rather than
+family placement. Its instrumented timings are diagnostic, not peer scores.
+The family scanner did separately show quadratic growth on a valid frame with
+long leading whitespace: it repeatedly sliced and trimmed the same physical
+line. Incremental line tracking removes that repetition while retaining exact
+authored offsets. Comment-only prefixes remain whitespace, so a following title
+retains a literal URL instead of treating its `//` as a comment. The existing
+relative-growth guard protects this bounded-work
+contract; timing campaigns remain in Trident and outside CI.
+
 ## Separate optional backend
 
-ZenUML remains an optional browser renderer using pinned upstream core. It does
-not lower native Scene marks, consume Agentic styles/palettes or provide typed
-editing. Its fixed vendor-theme output and capability limits must be shown
-separately; a successful returned SVG does not establish native aesthetics.
+ZenUML remains an optional browser renderer using pinned upstream core. It
+consumes shared palettes and supported node/edge/group/label paint colors, but
+does not lower native Scene marks or provide typed editing. Native Look
+geometry, typography and sketch effects remain unavailable. Its owned vendor
+paint mapping and capability limits must be shown separately; a successful
+returned SVG does not establish native aesthetics.
 
 ## Limits
 
-The selected fixtures do not establish readability at arbitrary density. A
-20px explicitly authored node border can hide a small arrowhead in Event
-Modeling and existing Flowchart; this is a shared stroke/marker visibility gap,
-not a reason to claim that geometry-floor success proves every painted marker.
-It is not repaired by a family-specific visual exemption here.
+The selected fixtures do not establish readability at arbitrary density or every
+authored stroke-width/Look interaction. Native shape geometry and sketch
+backends have different paint realization limits; named-look goldens and crisp
+stroke-boundary raster checks qualify their stated finite inputs separately.
+They do not create a family-specific exemption from shared paint certification.
 
 Original pinned Mermaid assertions, curated semantic/operation gates and
 Davebench acceptance/timing are separate reports. Green CI does not mean the

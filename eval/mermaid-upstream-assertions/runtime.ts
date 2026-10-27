@@ -219,6 +219,15 @@ class AdapterContext {
     if (/Diagram\.js$/.test(specifier)) return { Diagram }
     if (/diagram-orchestration/.test(specifier)) return { addDiagrams() {} }
     if (/logger/.test(specifier)) return { log: Object.fromEntries(['info', 'warn', 'error', 'debug', 'trace', 'fatal'].map(name => [name, () => {}])), setLogLevel() {} }
+    if (context.family === 'eventmodeling' && /event-modeling-validator\.js$/.test(specifier)) return {
+      // This private class is constructed during suite collection. Admit the
+      // declaration so unrelated real parser cases can run; every private
+      // validator invocation still records an unavailable boundary in its case.
+      EventModelingValidator: class {
+        checkSourceFrameTypes() { return unavailable('EventModelingValidator.checkSourceFrameTypes: private Langium AST validation has no native API adapter') }
+      },
+      registerValidationChecks() { return unavailable('EventModelingValidator.registerValidationChecks: private Langium service registry has no native equivalent') },
+    }
     if (/language\/index|language\/generated|language\/\w+\/module\.js$/.test(specifier)) {
       if (referenceMode) return new Proxy(language, { get(target, key) {
         const value = target[key]

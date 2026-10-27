@@ -273,15 +273,23 @@ function eventSourceWithoutComments(source: string, track: boolean): { text: str
     result += value
     if (offsets) for (let index = 0; index < value.length; index++) offsets.push(at + index)
   }
+  let lineEnd = source.indexOf('\n')
+  if (lineEnd < 0) lineEnd = source.length
+  let leadingWhitespace = true
   for (let i = 0; i < source.length; i++) {
     const char = source[i]!,
       next = source[i + 1]
-    const lineStart = source.lastIndexOf('\n', i - 1) + 1
-    const prefix = source.slice(lineStart, i)
-    const lineEndAt = source.indexOf('\n', i)
-    const lineEnd = lineEndAt < 0 ? source.length : lineEndAt
+    if (i > lineEnd) {
+      // Comments and payloads can jump across physical lines. Rebuild their
+      // prefix once at the jump, never once per character of a long line.
+      leadingWhitespace = !result.slice(result.lastIndexOf('\n') + 1).trim()
+      const nextEnd = source.indexOf('\n', i)
+      lineEnd = nextEnd < 0 ? source.length : nextEnd
+    }
+    const atLineStart: boolean = leadingWhitespace
+    leadingWhitespace &&= /\s/.test(char)
     // These terminals own their complete payload, including URLs and braces.
-    if (!prefix.trim() && /^(?:title(?:[ \t]|$)|accTitle[ \t]*:|accDescr[ \t]*:)/.test(source.slice(i, lineEnd))) {
+    if (atLineStart && (char === 't' || char === 'a') && /^(?:title(?:[ \t]|$)|accTitle[ \t]*:|accDescr[ \t]*:)/.test(source.slice(i, lineEnd))) {
       const end = source.indexOf('%%', i)
       append(source.slice(i, end >= 0 && end < lineEnd ? end : lineEnd), i)
       i = lineEnd - 1
@@ -291,7 +299,9 @@ function eventSourceWithoutComments(source: string, track: boolean): { text: str
       const end = source.indexOf('*/', i + 2)
       if (end < 0) throw Error('Unclosed Event Modeling comment')
       protectedSpans.push([i, end + 2])
-      append(source.slice(i, end + 2).replace(/[^\n]/g, ' '), i)
+      const comment = source.slice(i, end + 2)
+      append(comment.replace(/[^\n]/g, ' '), i)
+      leadingWhitespace = atLineStart || comment.includes('\n')
       i = end + 1
       continue
     }
@@ -300,7 +310,7 @@ function eventSourceWithoutComments(source: string, track: boolean): { text: str
       continue
     }
     if (char === '{') {
-      if (!source.slice(i + 1, lineEnd).trim() && lineEndAt >= 0) {
+      if (!source.slice(i + 1, lineEnd).trim() && lineEnd < source.length) {
         const closing = /^}[ \t]*(?=\n|$)/gm
         closing.lastIndex = lineEnd + 1
         const match = closing.exec(source)
