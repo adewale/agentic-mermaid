@@ -4,7 +4,7 @@ import type { AxisAlignedBox } from '../shared/transformed-bounds.ts'
 import { createInlineColorAttributeResolver, resolveInlineColorAttribute } from '../theme.ts'
 import { tryParseCssColor } from '../shared/color-math.ts'
 import { inspectScenePaintGeometry, paintPrimitiveSource, scenePrimitiveMatrix, sceneGroupOpacity, type ScenePaintGeometryInspection, type NativeConnectorPaintSource, type ScenePaintGeometry as ScenePaintPrimitive } from './inspection.ts'
-import type { Geometry, SceneDoc, SceneOwner, ScenePoint, SceneTransform, MarkerDescriptor } from './ir.ts'
+import type { Geometry, MarkPaint, SceneDoc, SceneOwner, ScenePoint, SceneTransform, MarkerDescriptor } from './ir.ts'
 import { composeMatrices, inverseMatrix, transformMatrix, transformPoint } from './transforms.ts'
 
 export interface PaintViewport { readonly x: number; readonly y: number; readonly width: number; readonly height: number }
@@ -98,6 +98,16 @@ function separatedOrthogonalStroke(
   return true
 }
 
+function possibleShapeFill(piece: Geometry, paint: MarkPaint): boolean {
+  const opacity = sceneGroupOpacity(paint.opacity), fillOpacity = sceneGroupOpacity(paint.fillOpacity)
+  const knownFill = paint.fill ? tryParseCssColor(paint.fill) : null
+  return piece.kind !== 'line' && paint.fill !== 'none' && paint.fill !== 'transparent'
+    && !(opacity < 1 || fillOpacity < 1 || knownFill && knownFill[3] < 1)
+}
+function possibleShapeStroke(piece: Geometry, paint: MarkPaint): boolean {
+  return sceneGroupOpacity(paint.opacity) !== 0 && sceneGroupOpacity(paint.strokeOpacity) !== 0
+    && paintedStrokeExtent(paint, ['polygon', 'polyline', 'path', 'compound'].includes(piece.kind)) !== 0
+}
 /** A filled rectangle's inset is known to be solid, unlike an arbitrary path's
  * conservative envelope. Rounded corners are excluded before transformation.
  */
@@ -132,42 +142,45 @@ function solidInteriors(scene: NativePaintHeader, primitives: readonly ScenePain
     // A translucent wrapper lets what lies beneath show through. Each SVG
     // child replaces the summary paint completely and has its own fill alpha.
     if (primitive.groupOpacity !== undefined) continue
-    const pieces = node.geometry.kind === 'compound' ? node.geometry.children : [node.geometry]
-    const paints = pieces.map((_, index) => node.geometry.kind === 'compound' ? node.childPaints?.[index] ?? node.paint : node.paint)
-    const filled = pieces.map((piece, index) => {
-      const paint = paints[index]!, opacity = sceneGroupOpacity(paint.opacity), fillOpacity = sceneGroupOpacity(paint.fillOpacity)
-      const knownFill = paint.fill ? tryParseCssColor(paint.fill) : null
-      return piece.kind !== 'line' && paint.fill !== 'none' && paint.fill !== 'transparent'
-        && !(opacity < 1 || fillOpacity < 1 || knownFill && knownFill[3] < 1)
-    })
-    const stroked = pieces.map((piece, index) => {
-      const paint = paints[index]!
-      return sceneGroupOpacity(paint.opacity) !== 0 && sceneGroupOpacity(paint.strokeOpacity) !== 0
-        && paintedStrokeExtent(paint, ['polygon', 'polyline', 'path', 'compound'].includes(piece.kind)) !== 0
-    })
-    if (!filled.some(Boolean) && !stroked.some(Boolean)) continue
+    const pieces = node.geometry.kind === 'compound' ? node.geometry.children : undefined
+    const singleGeometry = pieces ? undefined : node.geometry
+    const paints = pieces?.map((_, index) => node.geometry.kind === 'compound' ? node.childPaints?.[index] ?? node.paint : node.paint)
+    const singlePaint = pieces ? undefined : node.geometry.kind === 'compound' ? node.childPaints?.[0] ?? node.paint : node.paint
+    const filled = pieces?.map((piece, index) => possibleShapeFill(piece, paints![index]!))
+    const singleFilled = pieces ? false : possibleShapeFill(singleGeometry!, singlePaint!)
+    const stroked = pieces?.map((piece, index) => possibleShapeStroke(piece, paints![index]!))
+    const singleStroked = pieces ? false : possibleShapeStroke(singleGeometry!, singlePaint!)
+    if (!(filled ? filled.some(Boolean) : singleFilled) && !(stroked ? stroked.some(Boolean) : singleStroked)) continue
     const m = scenePrimitiveMatrix(primitive)!
     const [a, b, c, d, e, f] = m
     const transform: SceneTransform = { kind: 'matrix', a, b, c, d, e, f }
     let bounds: AxisAlignedBox | undefined
-    const partBounds: Array<AxisAlignedBox | undefined> = []
-    pieces.forEach((geometry, index) => {
-      const paint = paints[index]!
-      if (!filled[index] && !stroked[index]) return
+    const partBounds: Array<AxisAlignedBox | undefined> | undefined = pieces ? [] : undefined
+    let singleBounds: AxisAlignedBox | undefined
+    for (let index = 0, count = pieces?.length ?? 1; index < count; index++) {
+      if (pieces && !(index in pieces)) continue
+      const geometry = pieces ? pieces[index]! : singleGeometry!, paint = paints ? paints[index]! : singlePaint!
+      if (!(filled ? filled[index] : singleFilled) && !(stroked ? stroked[index] : singleStroked)) continue
       // Do not keep an invisible sibling's geometry in the possible ink box.
       // Unknown child bounds retain the original conservative primitive box.
       const painted = nodePaintBounds({ kind: 'shape', id: primitive.id, role: primitive.role, geometry, paint }, transform)
-      partBounds[index] = painted ?? primitive.bounds!
-      bounds = unionSceneBounds(bounds, partBounds[index])
-    })
+      const part = painted ?? primitive.bounds!
+      if (partBounds) partBounds[index] = part
+      else singleBounds = part
+      bounds = unionSceneBounds(bounds, part)
+    }
     if (!bounds) continue
-    const candidate = { primitive, bounds, borderWidth: outlines.get(outlineKey(primitive, node.geometry)), ...(node.geometry.kind === 'compound' ? { partBorderWidths: pieces.map(child => outlines.get(outlineKey(primitive, child)) ?? 0), partFilled: filled, partBounds } : {}) }
+    const candidate = { primitive, bounds, borderWidth: outlines.get(outlineKey(primitive, node.geometry)), ...(node.geometry.kind === 'compound' ? {
+      partBorderWidths: pieces ? pieces.map(child => outlines.get(outlineKey(primitive, child)) ?? 0) : [outlines.get(outlineKey(primitive, singleGeometry!)) ?? 0],
+      partFilled: filled ?? [singleFilled], partBounds: partBounds ?? [singleBounds],
+    } : {}) }
     // A rotated/sheared AABB is not a solid rectangle. Keep it out of this
     // exact test instead of interpreting empty corners as painted pixels.
     if (Math.abs(m[1]) > 1e-12 || Math.abs(m[2]) > 1e-12) { surfaces.push(candidate); continue }
     const interiors: AxisAlignedBox[] = [], strokeInteriors: AxisAlignedBox[] = []
-    pieces.forEach((g, index) => {
-      const paint = paints[index]!
+    for (let index = 0, count = pieces?.length ?? 1; index < count; index++) {
+      if (pieces && !(index in pieces)) continue
+      const g = pieces ? pieces[index]! : singleGeometry!, paint = paints ? paints[index]! : singlePaint!
       if (g.kind === 'rect' && m[0] === 1 && m[3] === 1 && m[1] === 0 && m[2] === 0
         && paint.vectorEffect !== 'non-scaling-stroke' && paint.stroke && opaque(paint.stroke)
         && sceneGroupOpacity(paint.opacity) === 1 && sceneGroupOpacity(paint.strokeOpacity) === 1 && !paint.strokeDasharray
@@ -182,12 +195,12 @@ function solidInteriors(scene: NativePaintHeader, primitives: readonly ScenePain
           { x0: g.x + rx, y0: g.y + g.height - half, x1: g.x + g.width - rx, y1: g.y + g.height + half },
         ]) if (band.x0 < band.x1 && band.y0 < band.y1) strokeInteriors.push(transformedBounds(band, transform)!)
       }
-      if (!filled[index] || g.kind !== 'rect' || sceneGroupOpacity(paint.opacity) !== 1 || sceneGroupOpacity(paint.fillOpacity) !== 1 || !paint.fill || !opaque(paint.fill)) return
+      if (!(filled ? filled[index] : singleFilled) || g.kind !== 'rect' || sceneGroupOpacity(paint.opacity) !== 1 || sceneGroupOpacity(paint.fillOpacity) !== 1 || !paint.fill || !opaque(paint.fill)) continue
       const rx = Math.min(g.width / 2, g.rx ?? g.ry ?? 0), ry = Math.min(g.height / 2, g.ry ?? g.rx ?? 0)
       const a = transformPoint({ x: g.x + rx, y: g.y + ry }, m)
       const b = transformPoint({ x: g.x + g.width - rx, y: g.y + g.height - ry }, m)
       interiors.push({ x0: Math.min(a.x, b.x), y0: Math.min(a.y, b.y), x1: Math.max(a.x, b.x), y1: Math.max(a.y, b.y) })
-    })
+    }
     surfaces.push({ ...candidate, interiors, strokeInteriors })
   }
   return surfaces
