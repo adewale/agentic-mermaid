@@ -5,7 +5,8 @@ name: Nightly finder
 # fast-check seeds with a raised minimum run count. A failure never blocks a pull
 # request; it files (or comments on) one issue with the seed and counterexample so
 # it can be fixed and kept as a permanent fast-check `examples` entry. The
-# grammar lane does the same for the seeded Mermaid grammar comparison.
+# grammar lane retains disagreements as evidence and files finite reports of
+# demonstrated export/round-trip failures after reviewed-corpus triage.
 
 on:
   schedule:
@@ -144,8 +145,8 @@ jobs:
 
   # The Mermaid grammar comparison keeps seed 7 in the PR gate and the weekly
   # deep run (modern-mermaid.yml). This lane draws a fresh seed each night for
-  # the families ours parses natively, and files the silent reads it finds:
-  # sources pinned Mermaid rejects that ours reads without verify saying so.
+  # the families ours parses natively. Retained disagreements and the reviewed
+  # corpus go through contract triage before any product issue is filed.
   rolling-seed-grammar:
     name: Rolling-seed Mermaid grammar finder
     runs-on: ubuntu-latest
@@ -191,27 +192,32 @@ jobs:
           echo "Grammar finder seed: $seed"
           bun run eval:mermaid-grammar --native-only --fuzz 15000 --seed "$seed" --workers 4 --output grammar-finder
 
-      - name: File or update the grammar finder issue
+      - name: Classify retained witnesses against reviewed contracts
+        id: triage
         if: ${{ steps.search.outcome == 'success' }}
+        env:
+          MERMAID_UPSTREAM_DIR: ${{ runner.temp }}/mermaid
+          MERMAID_REFERENCE_DIR: ${{ runner.temp }}/mermaid-reference
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: bun run eval/mermaid-modern-compat/grammar-triage-run.ts --summary grammar-finder/summary.json --output grammar-finder/triage
+
+      - name: File finite reports for untracked contract failures
+        if: ${{ steps.triage.outcome == 'success' }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          title=$(bun -e "import { GRAMMAR_FINDER_ISSUE_TITLE } from './scripts/ci/grammar-finder-report.ts'; console.log(GRAMMAR_FINDER_ISSUE_TITLE)")
-          existing=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
-          : > prior.md
-          if [ -n "$existing" ]; then
-            gh issue view "$existing" --json body,comments --jq '.body, .comments[].body' > prior.md
-          fi
-          bun run scripts/ci/grammar-finder-report.ts grammar-finder/summary.json prior.md > finder-body.md
-          if [ ! -s finder-body.md ]; then
-            echo 'No silent read the issue does not already list.'
-          elif [ -n "$existing" ]; then
-            gh issue comment "$existing" --body-file finder-body.md
-          else
-            gh issue create --title "$title" --body-file finder-body.md
-          fi
+          shopt -s nullglob
+          for file in grammar-finder/triage/issue-*.md; do
+            IFS= read -r title < "$file"
+            # This identifies one immutable run attempt, including a closed
+            # report. It does not use issue history to classify source bytes.
+            existing=$(gh issue list --state all --search "\"$title\" in:title" --json number,title --jq ".[] | select(.title == \"$title\") | .number")
+            if [ -z "$existing" ]; then
+              tail -n +3 "$file" > finder-body.md
+              gh issue create --title "$title" --body-file finder-body.md
+            fi
+          done
 
       # summary.json holds the seed, the counts and each reduced read's
       # unreduced input, and in-progress.json, left only by a run that did not
@@ -224,29 +230,27 @@ jobs:
           path: |
             grammar-finder/summary.json
             grammar-finder/in-progress.json
-          retention-days: 30
+            grammar-finder/triage/
+          retention-days: 90
           if-no-files-found: warn
 
-      # Silent reads are findings and never fail the search. It fails only when
-      # the comparison's own instrumentation throws, or on its step timeout, so
-      # here a failure, like a skip or a cancel, means nothing was reported. A
-      # hang in ours shows up as the timeout; the run names the input it was in.
-      - name: Report a search that did not run to completion
-        if: ${{ always() && steps.search.outcome != 'success' }}
+      # Missing/failed triage is not a clean result. Search timeouts retain the
+      # last input; triage/transport failures retain their completed evidence.
+      - name: Report an incomplete search or triage
+        if: ${{ always() && (steps.search.outcome != 'success' || steps.triage.outcome != 'success') }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           SEARCH_OUTCOME: ${{ steps.search.outcome }}
+          TRIAGE_OUTCOME: ${{ steps.triage.outcome }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          title='Nightly finder: the rolling-seed grammar search did not run to completion'
-          body="The rolling-seed Mermaid grammar search ended as \`${SEARCH_OUTCOME:-not started}\` (\`skipped\` means an earlier step failed, such as the reference install; \`failure\` means an instrumentation assertion threw or the 75-minute step timeout hit; \`cancelled\` usually means the 100-minute job timeout), so it reported nothing. The log names the seed. Run: $RUN_URL"
+          title="Grammar finder did not complete (run $GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT)"
+          body="Search: \`${SEARCH_OUTCOME:-not started}\`; triage: \`${TRIAGE_OUTCOME:-not started}\`. The log names the failed stage and replay seed. This run does not establish a clean result. Run: $RUN_URL"
           if [ -s grammar-finder/in-progress.json ]; then
             body="$body"$'\n\nIt was last in this input, which may be what stalled it:\n\n`````json\n'"$(cat grammar-finder/in-progress.json)"$'\n`````'
           fi
-          existing=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
-          if [ -n "$existing" ]; then
-            gh issue comment "$existing" --body "$body"
-          else
+          existing=$(gh issue list --state all --search "\"$title\" in:title" --json number,title --jq ".[] | select(.title == \"$title\") | .number")
+          if [ -z "$existing" ]; then
             gh issue create --title "$title" --body "$body"
           fi
