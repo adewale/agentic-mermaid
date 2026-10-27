@@ -69,11 +69,11 @@ function writtenSegmentEntersBox(a: Point, b: Point, r: ClassSurfaceBox, parts?:
   for (let index = 0; index < 2; index++) {
     const axis = index === 0 ? 'x' : 'y'
     const size = axis === 'x' ? r.width : r.height,
-      start = r[axis],
-      end = start + size
+      start = r[axis]
+    if (a[axis] <= start && b[axis] <= start) return false
     const highA = compareSvgSum(a[axis], start, size, parts),
       highB = a[axis] === b[axis] ? highA : compareSvgSum(b[axis], start, size, parts)
-    if ((a[axis] <= start && b[axis] <= start) || (highA >= 0 && highB >= 0)) return false
+    if (highA >= 0 && highB >= 0) return false
     const relativeA = highA === 0 ? size : a[axis] - start,
       relativeB = highB === 0 ? size : b[axis] - start,
       delta = relativeB - relativeA
