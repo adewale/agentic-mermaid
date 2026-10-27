@@ -1,4 +1,5 @@
 import { harnessFile } from 'trident/unified/harness-paths.ts'
+import { fileURLToPath } from 'node:url'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
@@ -400,7 +401,7 @@ export function benchmarkSuites(options: SuiteOptions): SuiteDefinition[] {
   const portableArgs = [
     'bun',
     'run',
-    'eval/benchmark/portable/run.ts',
+    fileURLToPath(import.meta.resolve('trident/portable/run.ts')),
     '--project',
     options.portableProject ?? 'unconfigured',
     '--artifact-root',
