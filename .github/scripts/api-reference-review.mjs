@@ -23,12 +23,9 @@ try {
     await page.goto(`http://127.0.0.1:${server.address().port}/docs/api/`, { waitUntil: 'networkidle' })
     await page.evaluate(() => document.fonts.ready)
     await page.screenshot({ path: join(output, `${label}-api-top-${viewport.width}.png`) })
-    if (label === 'head') {
-      for (const id of ['resolved-paths-and-text', 'render-options']) {
-        await page.locator(`#${id}`).scrollIntoViewIfNeeded()
-        await page.screenshot({ path: join(output, `${label}-${id}-${viewport.width}.png`) })
-      }
-    }
+    const focus = await page.locator('#vocabulary').count() ? '#vocabulary' : '#versions'
+    await page.locator(focus).evaluate(element => element.scrollIntoView({ block: 'start' }))
+    await page.screenshot({ path: join(output, `${label}-vocabulary-${viewport.width}.png`) })
     await page.close()
   }
 } finally {
