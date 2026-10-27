@@ -481,10 +481,18 @@ for(const transpose of[false,true])test(`actual width1 .74346 shared support ref
  const p=(x:number,y:number)=>transpose?point(y,x):point(x,y)
  expect(check(p(1804.82254011,900.5),p(1804.82254011,929.5625),p(1805.566,915.5),p(1805.566,960.5))).toBe(true)
 })
-test('zero-measure touch and actual written width contact remain permitted',()=>{
+test('distinguishes zero-measure contacts from tiny positive served overlap',()=>{
  expect(check(point(0,0),point(0,10),point(1,2),point(1,8))).toBe(false)
- expect(check(point(.00000000000000001,0),point(.00000000000000001,10),point(1.0000000000000002,2),point(1.0000000000000002,8))).toBe(false)
+ // The right writer rounds to1; the left preserves1e-17. Their exact served
+ // gap1−1e-17 is LESS than width1, unlike the literal0↔1 boundary above.
+ expect(check(point(.00000000000000001,0),point(.00000000000000001,10),point(1.0000000000000002,2),point(1.0000000000000002,8))).toBe(true)
  expect(check(point(0,0),point(0,10),point(.25,10),point(.25,20))).toBe(false)
+})
+for(const transpose of[false,true])for(const row of[{left:1000000000000.2,right:1000000000000.3,width:.10001,overlap:true},{left:1000000000000.1,right:1000000000000.2,width:.1,overlap:false}])test(`uses exact served decimal gap at large coordinates ${transpose}/${row.width}`,()=>{
+ // Both written gaps are EXACTLY 0.1. Binary subtraction respectively gives
+ // .10009765625 and .0999755859375, neither is the served geometry.
+ const p=(x:number,y:number)=>transpose?point(y,x):point(x,y)
+ expect(check(p(row.left,0),p(row.left,10),p(row.right,2),p(row.right,8),row.width)).toBe(row.overlap)
 })
 test('proper perpendicular crossing is not forbidden parallel ink',()=>expect(check(point(0,5),point(10,5),point(5,0),point(5,10))).toBe(false))
 test('longitudinal written endpoint collapse is tested after canonical spelling',()=>{

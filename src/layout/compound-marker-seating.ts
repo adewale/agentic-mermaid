@@ -4,7 +4,7 @@ import type { Point } from '../types.ts'
 import type { ChannelWork } from './channel-tracks.ts'
 import type { RoutingBox } from './compound-visibility.ts'
 import { classMarkerPiecesOverlap } from './measured-marker-overlap.ts'
-import { pointOnMeasuredSegment } from './measured-route-safety.ts'
+import { pointOnMeasuredSegment, writtenCoordinateGapLessThan } from './measured-route-safety.ts'
 export type MarkerPaint = { start?: readonly ClassMarkerPiece[]; end?: readonly ClassMarkerPiece[] }
 /** Internal canonical producer templates; sanity checks do not establish a general arbitrary-polygon language. */
 export function assertMarkerPaint(value: MarkerPaint): void {
@@ -51,9 +51,14 @@ export function writtenParallelSupportsOverlap(a: Point, b: Point, c: Point, d: 
     high = Math.max(vertical ? c.y : c.x, vertical ? d.y : d.x),
     spanError = (Math.abs(lo) + Math.abs(hi) + Math.abs(low) + Math.abs(high)) * 1e-10 + 1e-9
   if (Math.min(hi, high) < Math.max(lo, low) - spanError) return false
-  reserve(10)
-  charge(256)
-  if (Math.abs(Number(formatSvgNumber(fixed)) - Number(formatSvgNumber(otherFixed))) >= writtenWidth) return false
+  // Three bounded canonical spellings plus the shared exact helper's bounded
+  // parse/regex/closure scratch are paid before either allocation path.
+  reserve(27)
+  charge(384)
+  const gap = writtenCoordinateGapLessThan(formatSvgNumber(fixed), formatSvgNumber(otherFixed), formatSvgNumber(writtenWidth), charge)
+  // A non-throwing exhausted caller has no clear proof. Normal seating charges
+  // throw the original work error; neither path can turn uncertainty into clear.
+  if (gap !== true) return gap === undefined
   reserve(20)
   charge(512)
   const A = Number(formatSvgNumber(vertical ? a.y : a.x)),
