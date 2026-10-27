@@ -1,5 +1,20 @@
 import { defineConfig } from 'tsup'
-export default defineConfig({
+export default defineConfig([{
+  entry: { zenuml: 'src/zenuml/index.ts' },
+  format: ['esm'],
+  platform: 'browser',
+  target: 'es2022',
+  splitting: true,
+  clean: false,
+  minify: true,
+  noExternal: [/.*/],
+  external: [],
+  outDir: 'dist',
+  esbuildOptions(options) {
+    options.chunkNames = 'zenuml/chunks/[name]-[hash]'
+    options.assetNames = 'zenuml/assets/[name]-[hash]'
+  },
+}, {
   entry: { 'zenuml-frame': 'src/zenuml/frame.ts' },
   format: ['iife'],
   platform: 'browser',
@@ -12,4 +27,4 @@ export default defineConfig({
   minify: true,
   noExternal: [/.*/],
   outDir: 'dist',
-})
+}])

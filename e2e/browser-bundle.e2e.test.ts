@@ -27,13 +27,15 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { chromium, firefox, webkit, type Browser, type Page } from 'playwright'
 import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
-import { renderMermaidSVG, renderMermaidSVGWithReceipt } from '../src/index.ts'
+import { registerStyle, resolveStyleStack, renderMermaidSVG, renderMermaidSVGWithReceipt } from '../src/index.ts'
 import { serveWithAvailablePort } from './test-port.ts'
 
 const REPO = join(import.meta.dir, '..')
 const BUNDLE = join(REPO, 'dist', 'browser.global.js')
 const LAZY_ENTRY = join(REPO, 'dist', 'browser-lazy', 'index.js')
 const LAZY_METAFILE = join(REPO, 'dist', 'metafile-esm.json')
+const ZENUML_ENTRY = join(REPO, 'dist', 'zenuml.js')
+const ZENUML_FRAME = join(REPO, 'dist', 'zenuml-frame.global.js')
 const BUILD_TIMEOUT_MS = 300_000
 /** The IIFE's `globalName`. Changing it is a breaking change for script-tag consumers. */
 const GLOBAL = 'agenticMermaid'
@@ -52,12 +54,12 @@ function newestBuildInputMtime(): number {
     }
   }
   visit(join(REPO, 'src'))
-  for (const file of ['package.json', 'tsup.config.ts', 'tsup.browser.config.ts', 'tsup.browser-lazy.config.ts']) visit(join(REPO, file))
+  for (const file of ['package.json', 'tsup.config.ts', 'tsup.browser.config.ts', 'tsup.browser-lazy.config.ts', 'tsup.zenuml.config.ts']) visit(join(REPO, file))
   return newest
 }
 
 function ensureBrowserBundle() {
-  const outputs = [BUNDLE, LAZY_ENTRY, LAZY_METAFILE]
+  const outputs = [BUNDLE, LAZY_ENTRY, LAZY_METAFILE, ZENUML_ENTRY, ZENUML_FRAME]
   // Reuse a local dist only when it is newer than every input: a stale bundle
   // could otherwise fake parity with (or mask a break in) the current source.
   if (outputs.every(existsSync) && Math.min(...outputs.map(path => statSync(path).mtimeMs)) >= newestBuildInputMtime()) return
@@ -175,6 +177,65 @@ describe('browser bundle', () => {
     const source = readFileSync(BUNDLE, 'utf8')
     expect(source).not.toMatch(/(?:require\(|from\s*)["']node:/)
   })
+})
+
+describe('directly served optional ZenUML ESM', () => {
+  let browser: Browser, server: ReturnType<typeof serveWithAvailablePort>['server'], base: string
+  beforeAll(async () => {
+    ensureBrowserBundle()
+    const served = serveWithAvailablePort({
+      preferredPort: 4742,
+      fetch(request) {
+        const path = new URL(request.url).pathname
+        if (path === '/') return new Response('<!doctype html><body><div id="output"></div></body>', { headers: { 'content-type': 'text/html' } })
+        if (path.startsWith('/dist/') && !path.includes('..')) return new Response(Bun.file(join(REPO, path)), { headers: { 'content-type': 'text/javascript' } })
+        return new Response('not found', { status: 404 })
+      },
+    })
+    server = served.server
+    base = served.base
+    browser = await chromium.launch()
+  }, BUILD_TIMEOUT_MS)
+  afterAll(async () => { await browser?.close(); server?.stop(true) })
+
+  test('shipped ESM loads palettes and session rendering without a bundler or import map', async () => {
+    const page = await browser.newPage()
+    const requests: string[] = [], failures: string[] = []
+    page.on('request', request => requests.push(new URL(request.url()).pathname))
+    page.on('pageerror', error => failures.push(error.message))
+    await page.goto(base)
+    const disposeStyle = registerStyle({ name: 'palette:test/zenuml-host', colors: { bg: '#123456', fg: '#ffffff' } })
+    let inlineStyle
+    try { inlineStyle = resolveStyleStack('palette:test/zenuml-host')! } finally { disposeStyle() }
+    const result = await page.evaluate(async inlineStyle => {
+      const entry = '/dist/zenuml.js', api = await import(entry)
+      const renderer = api.createZenUMLRenderer({ backendURL: '/dist/zenuml-frame.global.js' })
+      const backgrounds: string[] = []
+      const source = 'zenuml\nAlice->Bob: hello'
+      try {
+        await api.renderZenUMLSVG(source, { backendURL: '/dist/zenuml-frame.global.js' })
+        const initialPaletteRequests = performance.getEntriesByType('resource').filter(entry => entry.name.includes('/zenuml/chunks/appearance-')).length
+        let separateRegistration = 'unexpected-success'
+        try { await renderer.render(source, { style: 'palette:test/zenuml-host' }) }
+        catch (error) { separateRegistration = (error as { code: string }).code }
+        for (const style of ['github-light', 'dracula', inlineStyle]) {
+          document.getElementById('output')!.innerHTML = await renderer.render(source, { style })
+          backgrounds.push(getComputedStyle(document.querySelector('.frame-border-inner')!).fill)
+        }
+        return { backgrounds, initialPaletteRequests, separateRegistration, text: document.getElementById('output')!.textContent, frames: document.querySelectorAll('iframe').length }
+      } finally { renderer.dispose() }
+    }, inlineStyle)
+    expect(result.backgrounds).toEqual(['rgb(255, 255, 255)', 'rgb(40, 42, 54)', 'rgb(18, 52, 86)'])
+    expect(result.text).toContain('hello')
+    expect(result.initialPaletteRequests).toBe(0)
+    expect(result.separateRegistration).toBe('UNSUPPORTED_APPEARANCE')
+    expect(result.frames).toBe(1)
+    expect(await page.locator('iframe').count()).toBe(0)
+    expect(failures).toEqual([])
+    expect(requests).toContain('/dist/zenuml-frame.global.js')
+    expect(requests.some(path => path.startsWith('/dist/zenuml/chunks/appearance-'))).toBe(true)
+    await page.close()
+  }, 30_000)
 })
 
 // The exhaustive byte-parity matrix stays in Chromium so adding a family does

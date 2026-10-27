@@ -106,6 +106,13 @@ padding, line widths, sketch/wash effects, bindings and constraints return
 renderer fixes its own typography and layout, so this is palette/paint
 integration rather than native Scene or full Look support.
 
+The directly served browser entry bundles the same style authority for its own
+module graph. Built-in palette names are available there; host registrations
+in a separate native or `svg-styles` bundle do not cross that module boundary.
+Resolve a custom registered palette through the host's existing
+`resolveStyleStack` and pass the resulting concrete `StyleSpec` inline. This
+does not require a second registration or a duplicate style resolver.
+
 ### Repeated browser rendering
 
 For previews or batches, explicitly own a reusable renderer:
