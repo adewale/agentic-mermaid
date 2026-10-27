@@ -19,9 +19,9 @@ export const ZENUML_AGENT_HOOKS: FamilyOperations = {
       return ok({ kind: 'opaque', family: 'zenuml', source: ctx.opaqueSource })
     }
   },
-  serialize: body => {
+  serialize: (body, meta) => {
     if (body.kind !== 'zenuml') throw Error('Expected native ZenUML')
-    return serializeZenUML(body, false)
+    return serializeZenUML(body, meta === undefined || meta.frontmatter?.title !== body.title)
   },
   mutate: (body, op) => body.kind === 'zenuml'
     ? mutateZenUML(body, op as ZenUMLMutationOp)

@@ -148,11 +148,11 @@ function commitMutation(d: ParsedDiagram, body: ParsedDiagram['body']): Result<P
   let meta = accessibilityMeta
   try {
     if (body.kind === 'eventmodeling') meta = eventModelingMeta(body, accessibilityMeta)
-    if (body.kind === 'zenuml') meta = withBodyTitleMeta(body.title, accessibilityMeta)
+    if (body.kind === 'zenuml') meta = withBodyTitleMeta(body.title, accessibilityMeta, d.body.kind === 'zenuml' && body.title === d.body.title)
   } catch (error) {
     return err({ code: 'INVALID_OP', message: error instanceof Error ? error.message : String(error) })
   }
-  const bodySource = restoreBodyComments(ensureAccessibilityLines(plugin.serialize!(body), meta.accessibility), d.kind, body, meta)
+  const bodySource = restoreBodyComments(ensureAccessibilityLines(plugin.serialize!(body, meta), meta.accessibility), d.kind, body, meta)
   const canonicalSource = wrapperPrefix(meta, 'verbatim', bodySource, d.kind) + bodySource
   // Source locations, exact authored spans, and wrapper ownership describe a
   // particular source artifact. Rebuild all three from the mutated

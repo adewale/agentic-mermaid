@@ -3,7 +3,7 @@ import { matchMermaidFrontmatter } from '../mermaid-source-wrapper.ts'
 import type { ValidDiagramMeta } from './types.ts'
 
 /** Change only the owned title scalar; keep unrelated wrapper bytes intact. */
-export function withBodyTitleMeta(title: string | undefined, meta: ValidDiagramMeta): ValidDiagramMeta {
+export function withBodyTitleMeta(title: string | undefined, meta: ValidDiagramMeta, preserveCoupledTitle = false): ValidDiagramMeta {
   const previous = meta.frontmatter?.title
   if (title === previous || (title === undefined && typeof previous !== 'string')) return meta
   const frontmatter = { ...meta.frontmatter }
@@ -41,7 +41,15 @@ export function withBodyTitleMeta(title: string | undefined, meta: ValidDiagramM
     delete rest.title
     return JSON.stringify(rest)
   }
-  if (unrelated(match.yaml) !== unrelated(yaml)) throw Error('Title edit would change unrelated YAML metadata through an alias')
+  const originalValues = unrelated(match.yaml)
+  try {
+    if (originalValues !== unrelated(yaml)) throw Error('Title edit would change unrelated YAML metadata through an alias')
+  } catch (error) {
+    // An already-authored in-body title can override an aliased wrapper title.
+    // Saving or editing another field must retain both authored meanings.
+    if (preserveCoupledTitle && typeof title === 'string' && !/[\r\n]/.test(title)) return meta
+    throw error
+  }
   const yamlStart = match.source.indexOf('\n') + 1
   return { ...meta, frontmatter, wrapperSource: wrapper.slice(0, yamlStart) + yaml + wrapper.slice(yamlStart + match.yaml.length) }
 }

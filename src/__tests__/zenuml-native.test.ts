@@ -235,6 +235,20 @@ test('title edits preserve one wrapper and unrelated metadata while rejecting co
     if (!cleared.ok || cleared.value.body.kind !== 'zenuml') throw Error('Expected native title removal')
     expect(cleared.value.body.title).toBeUndefined()
   }
+  const override = parseRegisteredMermaid('---\ntitle: &shared Old\nconfig:\n  fontFamily: *shared\n---\nzenuml\ntitle New\nA->B: hello')
+  if (!override.ok) throw Error('Expected authored title override')
+  for (const wrapper of ['verbatim', 'canonical'] as const) {
+    const saved = serializeMermaid(override.value, { wrapper })
+    const again = parseRegisteredMermaid(saved)
+    expect(again.ok && again.value.body.kind === 'zenuml' && again.value.body.title).toBe('New')
+    expect(again.ok && again.value.meta.frontmatter?.fontFamily).toBe('Old')
+  }
+  const renamed = mutateChecked(override.value, { kind: 'rename_participant', id: 'B', newId: 'C' })
+  expect(renamed.ok).toBe(true)
+  if (renamed.ok) {
+    expect(serializeMermaid(renamed.value)).toContain('title: &shared Old')
+    expect(serializeMermaid(renamed.value)).toContain('A->C: hello')
+  }
   const aliased = parseRegisteredMermaid('---\ntitle: &shared Old\nconfig:\n  theme: dark\n  fontFamily: *shared\n---\nzenuml\nA->B: hello')
   if (!aliased.ok) throw Error('Expected source')
   const before = serializeMermaid(aliased.value)

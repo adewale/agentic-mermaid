@@ -326,8 +326,9 @@ export interface FamilyOperations {
    * provenance context preserves authored payloads and original source spans.
    */
   buildSourceMap?: (body: DiagramBody, canonicalSource: string, source?: FamilySourceMapContext) => SourceMap
-  /** Optional: family-specific serializer for a structured body. */
-  serialize?: (body: FamilyParsedBody) => string
+  /** Optional: family-specific serializer. Public save/edit callers pass the
+   * wrapper metadata so body-owned overrides need not duplicate its fields. */
+  serialize?: (body: FamilyParsedBody, meta?: Readonly<ValidDiagramMeta>) => string
   /** Optional: family-specific structured mutation. */
   mutate?: (body: DiagramBody, op: AnyMutationOp) => Result<DiagramBody, MutationError>
   /** Optional: family-specific verify (Tier 1 + Tier 2). Returns warnings only.

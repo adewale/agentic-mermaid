@@ -47,7 +47,7 @@ export interface SerializeOptions {
 export function serializeMermaid(d: ParsedDiagram, opts: SerializeOptions = {}): string {
   if (d.body.kind === 'preserved') return d.body.source
   const mode = opts.wrapper ?? 'verbatim'
-  const bodyMeta = d.body.kind === 'zenuml' ? withBodyTitleMeta(d.body.title, d.meta) : d.body.kind === 'eventmodeling' ? eventModelingMeta(d.body, d.meta) : d.meta
+  const bodyMeta = d.body.kind === 'zenuml' ? withBodyTitleMeta(d.body.title, d.meta, true) : d.body.kind === 'eventmodeling' ? eventModelingMeta(d.body, d.meta) : d.meta
   const renderedBody = renderBody(d.body, d.kind, bodyMeta, d.body.kind === 'extension' && 'descriptorIdentity' in d ? d.descriptorIdentity : undefined)
   // Canonical mode folds universal config into renderMeta. Opaque bodies and
   // source-preserving extension serializers may still contain the authored
@@ -165,7 +165,7 @@ function renderBody(body: FamilyParsedBody, kind: ParsedDiagram['kind'], meta: V
   // core-owned source instead of passing stale data into a new serializer.
   const descriptorMatches = body.kind !== 'extension' || sameExtensionIdentity(parsedDescriptorIdentity, plugin?.identity)
   if (plugin?.serialize && descriptorMatches) {
-    const rendered = plugin.serialize(body)
+    const rendered = plugin.serialize(body, meta)
     const source = ensureAccessibilityLines(rendered, meta.accessibility)
     const accessibilityProblem = body.kind === 'extension' ? undefined : accessibilitySerializationProblem(source, plugin.statementEnds)
     if (accessibilityProblem) throw new AccessibilityTextError(accessibilityProblem)
