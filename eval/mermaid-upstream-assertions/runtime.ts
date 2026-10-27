@@ -51,6 +51,16 @@ export async function initializeReference(): Promise<void> {
   const parserExport = JSON.parse(readFileSync(parserPackage, 'utf8')).exports['.'].import
   language = await import(/* @vite-ignore */ pathToFileURL(resolve(dirname(parserPackage), parserExport)).href)
   const requested = (process.env.AM_ASSERT_FAMILIES ?? knownBuiltinFamilies().join(',')).split(',')
+  let zenReference: any
+  if (requested.includes('zenuml')) {
+    // run.ts fixes cwd to the Agentic checkout. Avoid Vite treating a
+    // new-URL expression as an asset served through its HTTP origin.
+    const helper = pathToFileURL(resolve('eval/mermaid-modern-compat/zenuml-reference.mjs')).href
+    const { createZenUMLReference } = await import(/* @vite-ignore */ helper)
+    const version = JSON.parse(readFileSync(referenceRequire.resolve('mermaid/package.json'), 'utf8')).version
+    zenReference = createZenUMLReference(reference, version)
+    await zenReference.load()
+  }
   if (requested.includes('eventmodeling')) {
     // The runner verifies this checkout's pinned revision and clean tracked
     // source before either mode starts. Execute the original validator itself;
@@ -62,7 +72,7 @@ export async function initializeReference(): Promise<void> {
     const example = getFamily(family)?.example
     if (!example) continue
     try {
-      const diagram = await reference.mermaidAPI.getDiagramFromText(example)
+      const diagram = family === 'zenuml' ? await zenReference.diagram(example) : await reference.mermaidAPI.getDiagramFromText(example)
       referenceDefinitions.set(family, diagram)
     } catch (error) { referenceDefinitions.set(family, error) }
   }
