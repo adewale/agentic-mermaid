@@ -56,29 +56,84 @@ function appendVary(headers: Headers, field: string) {
   headers.set('Vary', values.join(', '))
 }
 
+/** HTTP lists and parameters can contain quoted separators and quoted-pairs. */
+function splitQuoted(value: string, separator: string): string[] | undefined {
+  const parts: string[] = []
+  let start = 0
+  let quoted = false
+  let escaped = false
+  for (let i = 0; i < value.length; i++) {
+    const character = value[i]
+    if (escaped) { escaped = false; continue }
+    if (quoted && character === '\\') { escaped = true; continue }
+    if (character === '"') quoted = !quoted
+    else if (!quoted && character === separator) {
+      parts.push(value.slice(start, i))
+      start = i + 1
+    }
+  }
+  if (quoted || escaped) return undefined
+  parts.push(value.slice(start))
+  return parts
+}
+
+const HTTP_TOKEN = /^[!#$%&'*+\-.^_`|~\da-z]+$/i
+const HTTP_QUALITY = /^(?:0(?:\.\d{0,3})?|1(?:\.0{0,3})?)$/
+
+function parameterValue(raw: string): string | undefined {
+  if (HTTP_TOKEN.test(raw)) return raw
+  if (/^"(?:[^"\\]|\\.)*"$/.test(raw)) return raw.slice(1, -1).replace(/\\(.)/g, '$1')
+  return undefined
+}
+
 function acceptedQuality(accept: string, representation: string): number {
   const [targetType, targetSubtype] = representation.toLowerCase().split('/')
+  // Every negotiated document is emitted as UTF-8 by the website build.
+  const targetParameters = new Map([['charset', 'utf-8']])
   let bestSpecificity = -1
+  let bestParameterCount = -1
   let bestQuality = 0
 
-  for (const entry of accept.split(',')) {
-    const [rawRange, ...parameters] = entry.split(';')
-    const [rangeType, rangeSubtype] = rawRange!.trim().toLowerCase().split('/')
-    if (!rangeType || !rangeSubtype) continue
+  for (const entry of splitQuoted(accept, ',') ?? []) {
+    const [rawRange, ...parameters] = splitQuoted(entry, ';') ?? []
+    const range = rawRange?.trim().toLowerCase().split('/') ?? []
+    const [rangeType, rangeSubtype] = range
+    if (range.length !== 2 || !rangeType || !rangeSubtype || !HTTP_TOKEN.test(rangeType) || !HTTP_TOKEN.test(rangeSubtype)) continue
+    if (rangeType === '*' && rangeSubtype !== '*') continue
     if (rangeType !== '*' && rangeType !== targetType) continue
     if (rangeSubtype !== '*' && rangeSubtype !== targetSubtype) continue
 
-    const specificity = rangeType === '*' ? 0 : rangeSubtype === '*' ? 1 : 2
-    if (specificity <= bestSpecificity) continue
+    const mediaParameters = new Map<string, string>()
+    let quality = 1
+    let seenQuality = false
+    let valid = true
+    for (const parameter of parameters) {
+      if (!parameter.trim()) continue
+      const equals = parameter.indexOf('=')
+      const name = parameter.slice(0, equals).trim().toLowerCase()
+      const rawValue = parameter.slice(equals + 1).trim()
+      if (equals < 1 || !HTTP_TOKEN.test(name)) { valid = false; break }
+      if (name === 'q') {
+        if (seenQuality) { valid = false; break }
+        seenQuality = true
+        quality = HTTP_QUALITY.test(rawValue) ? Number(rawValue) : 0
+        continue
+      }
+      const value = parameterValue(rawValue)
+      if (value === undefined || mediaParameters.has(name)) { valid = false; break }
+      mediaParameters.set(name, name === 'charset' ? value.toLowerCase() : value)
+    }
+    if (!valid || [...mediaParameters].some(([name, value]) => targetParameters.get(name) !== value)) continue
 
-    const qualityParameter = parameters.find(parameter => /^\s*q\s*=/i.test(parameter))
-    const parsedQuality = qualityParameter
-      ? Number(qualityParameter.slice(qualityParameter.indexOf('=') + 1).trim())
-      : 1
-    bestSpecificity = specificity
-    bestQuality = Number.isFinite(parsedQuality) && parsedQuality >= 0 && parsedQuality <= 1
-      ? parsedQuality
-      : 0
+    const specificity = rangeType === '*' ? 0 : rangeSubtype === '*' ? 1 : 2
+    const parameterCount = mediaParameters.size
+    if (specificity > bestSpecificity || (specificity === bestSpecificity && parameterCount > bestParameterCount)) {
+      bestSpecificity = specificity
+      bestParameterCount = parameterCount
+      bestQuality = quality
+    } else if (specificity === bestSpecificity && parameterCount === bestParameterCount) {
+      bestQuality = Math.max(bestQuality, quality)
+    }
   }
 
   return bestQuality

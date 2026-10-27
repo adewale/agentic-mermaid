@@ -529,7 +529,7 @@ describe('Workers Static Assets website contract', () => {
     }
   })
 
-  test('documentation negotiates its actual Markdown asset with representation-specific headers', async () => {
+  test('pages negotiate their actual Markdown assets with representation-specific headers', async () => {
     const worker = await websiteWorker()
     const fetched: Array<{ pathname: string; search: string; method: string }> = []
     const env = { ASSETS: { fetch: async (request: Request) => {
@@ -541,11 +541,21 @@ describe('Workers Static Assets website contract', () => {
         headers: { 'content-type': markdown ? 'text/markdown; charset=utf-8' : 'text/html; charset=utf-8', vary: 'Origin' },
       })
     } } }
-    for (const route of ['/docs/api/', '/docs/api/advanced/', '/warnings/LABEL_OVERFLOW/', '/errors/parse-error/']) {
-      const markdownPath = `${route}index.md`
+    for (const route of ['/', '/docs/api/', '/docs/api/advanced/', '/warnings/LABEL_OVERFLOW/', '/errors/parse-error/']) {
+      const markdownPath = route === '/' ? '/index.md' : `${route}index.md`
       for (const [accept, markdown] of [
         ['text/markdown', true],
+        ['text/markdown;', true],
+        ['text/markdown; ; charset=utf-8; ; q=1; , text/html;q=0.5', true],
         ['text/html;q=0.4, text/markdown;q=0.9', true],
+        ['text/markdown;q=0.1, text/markdown;charset=utf-8;q=0.9, text/html;q=0.5', true],
+        ['text/markdown;charset=utf-8;q=0.9, text/markdown;q=0.1, text/html;q=0.5', true],
+        ['text/markdown;charset="UTF-8", text/html;q=0.5', true],
+        ['text/markdown;charset=iso-8859-1, text/html;q=0.5', false],
+        ['text/markdown;q=0.9, text/markdown;charset=utf-8;q=0, text/html;q=0.5', false],
+        ['application/json; profile="x,text/markdown,bar", text/html;q=0.5', false],
+        [String.raw`application/json; profile="x\",text/markdown; charset=utf-8,bar", text/html;q=0.5`, false],
+        ['text/markdown;q=0.9999, text/html;q=0.5', false],
         ['text/markdown;q=0, text/html', false],
         ['text/*;q=0.5, text/markdown;q=0', false],
         ['text/html, text/markdown', false],
@@ -558,7 +568,8 @@ describe('Workers Static Assets website contract', () => {
         expect(await response.text()).toBe(read(`${route.slice(1)}index.${markdown ? 'md' : 'html'}`))
         expect(response.headers.get('content-type')).toBe(`${markdown ? 'text/markdown' : 'text/html'}; charset=utf-8`)
         expect(response.headers.get('vary')?.toLowerCase().split(/\s*,\s*/)).toEqual(['origin', 'accept'])
-        expect(response.headers.get('link')).toBe(`<${markdownPath}>; rel="alternate"; type="text/markdown"`)
+        const alternatives = (response.headers.get('link') ?? '').split(/,\s*(?=<)/).filter(link => link.includes('rel="alternate"'))
+        expect(alternatives).toEqual([`<${markdownPath}>; rel="alternate"; type="text/markdown"`])
         expect(response.headers.get('content-location')).toBe(markdown ? markdownPath : null)
         expect(response.headers.get('cache-control')).toBe(markdown ? 'public, max-age=300' : 'no-cache')
         expect(response.headers.get('access-control-allow-origin')).toBe(markdown ? '*' : null)
@@ -786,17 +797,38 @@ describe('Workers Static Assets website contract', () => {
     expect(crumbs).toEqual([])
   })
 
-  test('agent entrypoints publish discovery links, the bootstrap and bounded editor assets', () => {
+  test('agent entrypoints publish related discovery links and only equivalent alternates', async () => {
     const home = read('index.html')
     const editor = read('editor/index.html')
     for (const rel of ['index.html', 'docs/index.html', 'examples/index.html', 'editor/index.html']) {
       const html = read(rel)
-      expect(html).toContain('<link rel="alternate" type="text/plain" href="/llms.txt">')
-      expect(html).toContain('<link rel="alternate" type="application/json" href="/capabilities.json">')
-      expect(html).toContain('<link rel="alternate" type="text/markdown" href="/agent-instructions.md">')
-      expect(html).toContain('<link rel="alternate" type="application/json" href="/.well-known/mcp.json">')
+      expect(html).toContain('<link rel="describedby" type="text/plain" href="/llms.txt">')
+      expect(html).toContain('<link rel="describedby" type="application/json" href="/capabilities.json">')
+      expect(html).toContain('<link rel="describedby" type="text/markdown" href="/agent-instructions.md">')
+      expect(html).toContain('<link rel="service-desc" type="application/json" href="/.well-known/mcp.json">')
       expect(html).toContain('<link rel="mcp-server" type="application/mcp-server-card+json" href="/.well-known/mcp/server-card.json">')
       expect(html).toContain('<link rel="ai-catalog" type="application/json" href="/.well-known/ai-catalog.json">')
+    }
+    for (const [rel, markdownPath] of [
+      ['index.html', '/index.md'],
+      ['docs/api/index.html', '/docs/api/index.md'],
+      ['docs/api/advanced/index.html', '/docs/api/advanced/index.md'],
+      ['warnings/LABEL_OVERFLOW/index.html', '/warnings/LABEL_OVERFLOW/index.md'],
+      ['errors/parse-error/index.html', '/errors/parse-error/index.md'],
+      ['docs/index.html', null],
+      ['docs/getting-started/index.html', null],
+      ['editor/index.html', null],
+      ['skills/agentic-mermaid-diagram-workflow/index.html', null],
+      ['404.html', null],
+    ] as const) {
+      const alternatives: Array<{ type: string | null; href: string | null }> = []
+      await new HTMLRewriter().on('head link[rel~="alternate"]', {
+        element(element) { alternatives.push({ type: element.getAttribute('type'), href: element.getAttribute('href') }) },
+      }).transform(new Response(read(rel))).text()
+      expect({ page: rel, alternatives }).toEqual({
+        page: rel, alternatives: markdownPath ? [{ type: 'text/markdown', href: markdownPath }] : [],
+      })
+      if (markdownPath) expect(existsSync(join(SITE, markdownPath.slice(1)))).toBe(true)
     }
     const homeMain = home.slice(home.indexOf('<main'))
     const bootstrap = homeMain.indexOf('data-copy-text="Fetch https://agentic-mermaid.dev/start.md and follow it."')

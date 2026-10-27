@@ -101,15 +101,19 @@ function rewriteUrl(value: string): string {
   return value
 }
 
-const agentDiscoveryLinks = [
-  '<link rel="alternate" type="text/markdown" href="/index.md">',
-  '<link rel="alternate" type="text/plain" href="/llms.txt">',
-  '<link rel="alternate" type="application/json" href="/capabilities.json">',
-  '<link rel="alternate" type="text/markdown" href="/agent-instructions.md">',
-  '<link rel="alternate" type="application/json" href="/.well-known/mcp.json">',
+const relatedAgentLinks = [
+  '<link rel="describedby" type="text/plain" href="/llms.txt">',
+  '<link rel="describedby" type="application/json" href="/capabilities.json">',
+  '<link rel="describedby" type="text/markdown" href="/agent-instructions.md">',
+  '<link rel="service-desc" type="application/json" href="/.well-known/mcp.json">',
   '<link rel="mcp-server" type="application/mcp-server-card+json" href="/.well-known/mcp/server-card.json">',
   '<link rel="ai-catalog" type="application/json" href="/.well-known/ai-catalog.json">',
 ].join('\n')
+
+function agentDiscoveryLinks(route: string): string {
+  const markdownPath = markdownAlternative(route)
+  return (markdownPath ? `<link rel="alternate" type="text/markdown" href="${markdownPath}">\n` : '') + relatedAgentLinks
+}
 
 function addHeadDescription(html: string) {
   if (html.includes('name="description"')) return html
@@ -118,12 +122,13 @@ function addHeadDescription(html: string) {
   return html.replace(/<meta name="viewport"[^>]*>/, '$&\n<meta name="description" content="Agentic Mermaid renders, verifies, and edits Mermaid diagrams locally, with compact agent instructions for CLI, library, and MCP use.">')
 }
 
-function addAgentDiscoveryLinks(html: string) {
-  if (html.includes('rel="alternate" type="application/json" href="/capabilities.json"')) return html
+function addAgentDiscoveryLinks(html: string, route: string) {
+  if (html.includes('rel="describedby" type="application/json" href="/capabilities.json"')) return html
+  const links = agentDiscoveryLinks(route)
   if (/<link rel="stylesheet" href="([^\"]+)"\s*>/.test(html)) {
-    return html.replace(/<link rel="stylesheet" href="([^\"]+)"\s*>/, '<link rel="stylesheet" href="$1">\n' + agentDiscoveryLinks)
+    return html.replace(/<link rel="stylesheet" href="([^\"]+)"\s*>/, '<link rel="stylesheet" href="$1">\n' + links)
   }
-  return html.replace('</head>', agentDiscoveryLinks + '\n</head>')
+  return html.replace('</head>', links + '\n</head>')
 }
 
 function addSkipLink(html: string, target = 'main') {
@@ -163,7 +168,7 @@ function setNavCurrent(html: string, currentHref = '') {
 }
 
 function transformHtml(html: string, currentHref = '', route = ''): string {
-  const transformed = setNavCurrent(ensureMainId(addSkipLink(addFooter(addAgentDiscoveryLinks(addStructuredData(addSocialMeta(addHeadDescription(rewriteAttrs(html)), route), route))))), currentHref)
+  const transformed = setNavCurrent(ensureMainId(addSkipLink(addFooter(addAgentDiscoveryLinks(addStructuredData(addSocialMeta(addHeadDescription(rewriteAttrs(html)), route), route), route)))), currentHref)
   return makePreFocusable(transformed)
 }
 
@@ -177,7 +182,7 @@ function transformEditorHtml(html: string): string {
   out = out.replace(/href="\/beautiful-mermaid\/"/g, 'href="/"')
   out = addHeadDescription(out)
   out = addSocialMeta(out, '/editor/')
-  out = addAgentDiscoveryLinks(out)
+  out = addAgentDiscoveryLinks(out, EDITOR_ROUTE)
   out = addSkipLink(out, 'editor-main')
   return out
 }
@@ -315,10 +320,6 @@ async function externalizeExecutableInlineScripts(html: string) {
 
 async function emitShell(rel: string, title: string, lead: string, body: string, currentHref = '', meta = '', actions = '') {
   let html = pageShell(title, lead, body, currentHref, meta, actions, '/' + rel.replace(/index\.html$/, ''))
-  const markdownPath = markdownAlternative('/' + rel.replace(/index\.html$/, ''))
-  if (markdownPath) {
-    html = html.replace('<link rel="alternate" type="text/markdown" href="/index.md">', `<link rel="alternate" type="text/markdown" href="${markdownPath}">`)
-  }
   if (rel === 'examples/index.html' || rel.startsWith('examples/style-palette/') || rel.startsWith('examples/corpus/')) {
     html = html.replace('</head>', `<link rel="stylesheet" href="/${EXAMPLES_STYLE_REL}">\n</head>`)
   }

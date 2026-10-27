@@ -47,6 +47,12 @@ server card and workflow skill. Negotiated Markdown identifies its asset with
 `Content-Location`, permits cross-origin reads, and uses the existing five-minute
 Markdown cache policy. Explicit `.md` URLs work independently of `Accept`.
 
+Negotiation matches the documents' UTF-8 media parameters and honors more
+specific ranges before their quality values; quoted separators stay inside
+their parameter values. HTML discovery uses `alternate` only for the page's
+equivalent Markdown asset. Agent instructions and capability files are related
+discovery resources, rather than alternate versions of every page.
+
 ```bash
 curl -H 'Accept: text/markdown' https://agentic-mermaid.dev/docs/api/
 curl -I -H 'Accept: text/markdown' https://agentic-mermaid.dev/docs/api/advanced/
