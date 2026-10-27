@@ -51,6 +51,21 @@ describe('canonical shape outline authority', () => {
     const text = source.labelBlock!
     expect((text.width / source.width) ** 2 + (text.height / source.height) ** 2).toBeLessThan(1)
   })
+  test.each(['stadium', 'cylinder'] as const)('%s clipping retains outward cardinal contacts pending diagonal route repair', shape => {
+    const curved = node(shape)
+    for (const [contact, adjacent] of [
+      [{ x: 60, y: 20 }, { x: -40, y: -40 }],
+      [{ x: 60, y: 60 }, { x: -40, y: 120 }],
+      [{ x: 110, y: 40 }, { x: 170, y: 140 }],
+      [{ x: 10, y: 40 }, { x: -50, y: 140 }],
+    ]) {
+      expect(clipEdgeToShape([contact!, adjacent!], curved, true)[0]).toEqual(contact!)
+      expect(clipEdgeToShape([adjacent!, contact!], curved, false)[1]).toEqual(contact!)
+    }
+    // An inward shaft still needs clipping to its actual exit.
+    expect(clipEdgeToShape([{ x: 60, y: 20 }, { x: 60, y: 120 }], curved, true)[0]).toEqual({ x: 60, y: 60 })
+  })
+
   // Node text is inked against the node's fill only where the outline paints
   // it (an open symbol leaves its label on the page), so the two must agree.
   test('paintsNodeFill says exactly which outlines paint the node fill', () => {

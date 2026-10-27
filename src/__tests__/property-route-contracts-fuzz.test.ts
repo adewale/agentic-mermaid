@@ -123,6 +123,9 @@ describe('route-contract structural fuzz (strong oracle on generated structure)'
         }
       }),
       fcParameters({ numRuns: 400, seed: 0x9e3779b9, includeErrorInReport: true, examples: [[{
+        dir: 'TD', nodes: [{ shape: 0, label: 'ok' }, { shape: 2, label: 'warnings' }, { shape: 2, label: 'x' }, { shape: 0, label: 'ok' }, { shape: 3, label: 'process the input' }],
+        parents: [0, 1, 1, 0], extra: [{ from: 4, to: 3, label: '' }],
+      }], [{
         dir: 'TD', nodes: [{ shape: 0, label: 'ok' }, { shape: 1, label: 'ok' }, { shape: 2, label: 'ok' }],
         parents: [0, 0], extra: [{ from: 2, to: 1, label: 'yes' }, { from: 2, to: 1, label: 'yes' }],
       }], [{

@@ -43,6 +43,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Fixed
 
+- Preserve outward curved-node ports while placement leaves a temporary
+  diagonal, allowing the existing route repair to finish instead of refusing
+  valid Flowcharts with stadium or cylinder nodes.
+
 - Preserve Class direction-like label text in portable exports, refuse lossy
   empty Class and unrepresentable Quadrant labels, and share Ishikawa/Sankey
   header handling between direct rendering and typed reads (#548–#552).

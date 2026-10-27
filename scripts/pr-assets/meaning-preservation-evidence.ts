@@ -87,6 +87,13 @@ const stableRepresentativeCues = {
 const ownershipGoldenIds = new Set(['corpus/flowchart/94', 'corpus/flowchart/95', 'corpus/flowchart/96', 'corpus/flowchart/98', 'corpus/state/0', 'corpus/state/1', 'corpus/state/8', 'corpus/state/14', 'corpus/state/16', 'corpus/state/17', 'corpus/state/18', 'corpus/state/19'])
 const fixtures: Fixture[] = [
   {
+    id: 'flowchart-curved-port-diagonal',
+    title: 'A curved cardinal port survives placement until route repair',
+    source: 'flowchart TD\nA["ok"]\nB{"warnings"}\nC{"x"}\nD["ok"]\nE(["process the input"])\nA --> B\nB --> C\nB --> D\nA --> E\nE --> D',
+    captureLayout: true,
+    cue: 'The baseline throws a clipping port-rate error and has no drawing. After, inspect all five cards and five relationships, especially the stadium-to-rectangle connection. The existing structural property checks identities, containment and final route contracts; this witness does not establish general routing or visual superiority.',
+  },
+  {
     id: 'grammar-ishikawa-header',
     title: 'Ishikawa header comment preserves the cause tree',
     source: 'ishikawa%%{\nProblem\nPeople\n  Training\nTools',
