@@ -14,9 +14,9 @@ jobs:
       matrix:
         include:
           - label: base
-            revision: 415ee88f785c883e09ec1640b509f4dc5a57432a
+            revision: cd5dfe4a84ddd7b88e987b3f90045b042c8792ca
           - label: head
-            revision: 5ef04aba025d2b3ee2639cf33e585d5a8ce1fa8b
+            revision: 78c5f0dac3fbf5c6d2cf3515dde10961a8f243bd
     steps:
       - uses: actions/checkout@v7
         with:
