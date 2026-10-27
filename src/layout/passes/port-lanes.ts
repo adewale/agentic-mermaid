@@ -752,6 +752,26 @@ export function alignPortLaneCandidate(
     }
     return out
   }
+  const written = (value: number): number => Number(formatSvgNumber(value))
+  const straightFlowRun = (edge: PositionedEdge): boolean => edge.points.length === 2 &&
+    written(edge.points[0]![cross]) === written(edge.points[1]![cross]) && written(edge.points[0]![main]) !== written(edge.points[1]![main])
+  // This is the same current default-port authority as apply() above, not a
+  // claim that every off-center outline contact is stale. A certified route
+  // keeps its allocation. Otherwise only a genuinely straight current-port
+  // proposal can absorb the move without adding bends.
+  const straightChainPorts = (edge: PositionedEdge, ids: ReadonlySet<string>, delta: number): Point[] | undefined => {
+    if (edge.routeCertificate) return undefined
+    const source = nodeMap.get(edge.source), target = nodeMap.get(edge.target)
+    if (!source || !target) return undefined
+    const stagedSource = ids.has(source.id) ? { ...source, [cross]: source[cross] + delta } : source
+    const stagedTarget = ids.has(target.id) ? { ...target, [cross]: target[cross] + delta } : target
+    const exit = isHorizontal ? (sign > 0 ? 'E' : 'W') : (sign > 0 ? 'S' : 'N')
+    const entry = isHorizontal ? (sign > 0 ? 'W' : 'E') : (sign > 0 ? 'N' : 'S')
+    const a = shapePorts(stagedSource)[exit], b = shapePorts(stagedTarget)[entry]
+    if (![a.x,a.y,b.x,b.y].every(Number.isFinite) || written(a[cross]) !== written(b[cross])) return undefined
+    if (sign > 0 ? written(a[main]) >= written(b[main]) : written(a[main]) <= written(b[main])) return undefined
+    return [a,b]
+  }
   const chainMoveSafe = (chain: PositionedNode[], delta: number): boolean => {
     const ids = new Set(chain.map(n => n.id))
     for (const node of chain) {
@@ -766,13 +786,21 @@ export function alignPortLaneCandidate(
     for (const edge of edges) {
       const sourceMoves = ids.has(edge.source), targetMoves = ids.has(edge.target)
       if (sourceMoves === targetMoves || edge.points.length === 0) continue
+      if (straightFlowRun(edge) && !straightChainPorts(edge, ids, delta)) return false
       const fixed = nodeMap.get(targetMoves ? edge.source : edge.target)
       if (fixed && runCrossesFixedEndpoint(edge, targetMoves, delta, fixed, true)) return false
     }
     return true
   }
-  const moveChain = (chain: PositionedNode[], delta: number): void => {
+  const moveChain = (chain: PositionedNode[], delta: number): boolean => {
     const ids = new Set(chain.map(n => n.id))
+    // Stage the exact arrays that will be published, before changing frames.
+    const straight = new Map<PositionedEdge, Point[]>()
+    for (const edge of edges) if (ids.has(edge.source) !== ids.has(edge.target) && straightFlowRun(edge)) {
+      const points = straightChainPorts(edge, ids, delta)
+      if (!points) return false
+      straight.set(edge, points)
+    }
     for (const node of chain) {
       if (isHorizontal) node.y += delta
       else node.x += delta
@@ -783,12 +811,16 @@ export function alignPortLaneCandidate(
       if (srcTouch && tgtTouch) {
         for (const p of e.points) p[cross] += delta
         if (e.labelPosition) e.labelPosition[cross] += delta
+      } else if (straight.has(e)) {
+        e.points = straight.get(e)!
+        if (e.labelPosition) e.labelPosition[cross] = e.points[0]![cross]
       } else if (tgtTouch) {
         shiftRun(e, true, delta, /* anchorFar */ true)
       } else if (srcTouch) {
         shiftRun(e, false, delta, /* anchorFar */ true)
       }
     }
+    return true
   }
   for (const t of (layoutEnvFlag('APL_NO_CENTER') ? [] : nodes)) {
     if (frozen.has(t.id) || inGroup(t) || !PORT_EXACT.has(t.shape)) continue
@@ -827,7 +859,7 @@ export function alignPortLaneCandidate(
     // Move the hub and any exclusively-owned forward continuation together.
     // That preserves straight owned chains such as CCC→DDDD while still
     // refusing to drag shared downstream merges like A/B→C.
-    moveChain(chain, delta)
+    if (!moveChain(chain, delta)) continue
     for (const node of chain) {
       centeredHubs.add(node.id)
       frozen.add(node.id)

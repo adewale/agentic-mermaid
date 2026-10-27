@@ -12,16 +12,17 @@ import { toMermaidLines } from '../mermaid-source.ts'
 import { withRenderStageObserver } from '../render-stages.ts'
 
 const native = { graphLayout: { backend: 'agentic' as const } }
+const highContrastElk = { graphLayout: { backend: 'elk' as const, fallback: 'none' as const }, style: ['accessible-high-contrast', 'catppuccin-latte'], bg: '#111827', transparent: false, seed: 19, security: 'default' as const, embedFontImport: false }
 const fixture = readFileSync(new URL('../../eval/layout-compare/fixtures/architecture-backends.mmd', import.meta.url), 'utf8')
 const faces = 'architecture-beta\nservice left(disk)[Left]\nservice top(disk)[Top]\nservice bottom(disk)[Bottom]\nservice right(server)[Right]\njunction center\nleft:R --> L:center\ntop:B --> T:center\nbottom:T --> B:center\ncenter:R --> L:right'
 const literalIcons = 'architecture-beta\nservice a "<b>日本 API</b>\\nSecond line" [Backend]\nservice b(database)[Storage]\na:R-->L:b'
 
 describe('Architecture layout backends', () => {
-  test.each([['alignment', fixture], ['four faces', faces], ['literal icons', literalIcons]])('retains authored ports, junctions, alignments and complete routes: %s', (_name, source) => {
+  test.each([['alignment', fixture, native, 'agentic'], ['four faces', faces, native, 'agentic'], ['literal icons', literalIcons, native, 'agentic'], ['high-contrast stock alignment', fixture, highContrastElk, 'elk']] as const)('retains authored ports, junctions, alignments and complete routes: %s', (_name, source, options, backend) => {
     const model = parseArchitectureDiagram(toMermaidLines(source)), original = structuredClone(model)
-    const placed = layoutArchitectureDiagram(model, native)
+    const placed = layoutArchitectureDiagram(model, options)
     expect(model).toEqual(original)
-    expect(layoutArchitectureDiagram(model, native)).toEqual(placed)
+    expect(layoutArchitectureDiagram(model, options)).toEqual(placed)
     expect(placed.services.map(service => [service.id, service.label, service.icon, service.iconText, service.parentId])).toEqual(model.services.map(service => [service.id, service.label, service.icon, service.iconText, service.parentId]))
     expect(placed.junctions.map(junction => junction.id)).toEqual(model.junctions.map(junction => junction.id))
     expect(placed.edges.map(edge => [edge.source, edge.target, edge.hasArrowStart, edge.hasArrowEnd, edge.label])).toEqual(model.edges.map(edge => [edge.source, edge.target, edge.hasArrowStart, edge.hasArrowEnd, edge.label]))
@@ -36,9 +37,15 @@ describe('Architecture layout backends', () => {
       for (let i = 1; i < edge.points.length; i++) expect(edge.points[i - 1]!.x === edge.points[i]!.x || edge.points[i - 1]!.y === edge.points[i]!.y).toBe(true)
     }
     if (source === fixture) expect(new Set(placed.services.filter(service => service.id.startsWith('src')).map(service => service.y)).size).toBe(1)
-    const rendered = renderMermaidSVGWithReceipt(source, native)
-    expect(rendered.receipt.layoutCertification?.status).toBe('passed')
-    expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', role: 'primary' })])
+    const rendered = renderMermaidSVGWithReceipt(source, options)
+    // Curved marker/junction occupied envelopes may remain unverified. Keep
+    // the existing Native certification requirement explicit.
+    if (backend === 'agentic') expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+    else {
+      const status = rendered.receipt.layoutCertification?.status
+      expect(status === 'passed' || status === 'unverified').toBe(true)
+    }
+    expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: backend, role: 'primary' })])
     if (source === literalIcons) {
       expect(rendered.svg).toContain('&lt;b&gt;日本 API&lt;/b&gt;')
       expect(rendered.svg).not.toContain('<b>日本 API</b>')
@@ -50,8 +57,8 @@ describe('Architecture layout backends', () => {
       // Architecture projects pixel placement into cells, then independently
       // builds graphical companion evidence. Attribute both real placements.
       expect(text.receipt.layoutDecisions).toEqual([
-        expect.objectContaining({ selected: 'agentic', role: 'primary' }),
-        expect.objectContaining({ selected: 'agentic', role: 'companion' }),
+        expect.objectContaining({ selected: backend, role: 'primary' }),
+        expect.objectContaining({ selected: backend, role: 'companion' }),
       ])
     }
   })

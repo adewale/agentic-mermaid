@@ -406,17 +406,25 @@ S1["same word ok"] --> D`],
     expect(countParallelRouteOverlaps(positioned.edges)).toBe(0)
   })
 
-  test('port-lane centering retains prior geometry when it would lose contacts without simpler routes', () => {
+  test('port-lane centering preserves contacts and route simplicity across placement proposals', () => {
     const pass = LAYOUT_PIPELINE.find(candidate => candidate.id === 'alignPortLanes')!, run = pass.run
-    const rates: number[] = []
+    const samples: Array<{ before: ReturnType<typeof measureRubricMetrics>; after: ReturnType<typeof measureRubricMetrics> }> = []
     pass.run = context => {
-      run(context)
-      rates.push(measureRubricMetrics(context.graph, { nodes: context.nodes, edges: context.edges, groups: context.groups, width: 0, height: 0 }, ['portRate'], context.style).portRate!)
+      const metrics = () => measureRubricMetrics(context.graph, { nodes: context.nodes, edges: context.edges, groups: context.groups, width: 0, height: 0 }, ['portRate', 'bends', 'straight'], context.style, context.bundled)
+      const before = metrics(), rollback = run(context)
+      samples.push({ before, after: metrics() })
+      return rollback
     }
     try {
       const positioned = layoutGraphSync(parseMermaid('flowchart LR\nN2-->N3\nN1-->N2\nN0-->N3\nN0-->N2'))
       expect(positioned.certification?.status).toBe('passed')
-      expect(rates).toEqual([0.25])
+      expect(samples.length).toBeGreaterThan(0)
+      for (const { before, after } of samples) {
+        expect(after.portRate!).toBeGreaterThanOrEqual(before.portRate!)
+        expect(after.portRate!).toBeGreaterThanOrEqual(0.25)
+        expect(after.bends!).toBeLessThanOrEqual(before.bends!)
+        expect(after.straight!).toBeGreaterThanOrEqual(before.straight!)
+      }
     } finally { pass.run = run }
   })
 
