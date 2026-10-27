@@ -424,7 +424,23 @@ export function repairClassHeaderRoutes(diagram: PositionedClassDiagram, style: 
   // They cannot veto immutable geometry using stale, initially unsafe seats.
   const localBoxes = [...cards.map(c=>{pay();return expanded(c,style.lineWidth/2)}), ...headers, ...furniture.map(c=>{pay();return expanded(c,style.lineWidth/2)})]
   let peerContext: ClassHeaderPeerContext | undefined
-  for (let ri = 0; ri < diagram.relationships.length; ri++) {
+  // Allocate scarce bypass room before flexible carriers can consume it.
+  // Keep authored occurrence order intact; only this repair schedule changes.
+  const order = diagram.relationships.map((relation, ri) => {
+    pay()
+    let slack = Infinity
+    for (const header of headers) for (let i = 1; i < relation.points.length; i++) {
+      pay()
+      const a = emittedPoint(relation.points[i - 1]!), b = emittedPoint(relation.points[i]!)
+      if (!classSegmentEntersBox(a, b, header)) continue
+      const vertical = a.x === b.x
+      if (!vertical && a.y !== b.y) continue
+      const main = vertical ? 'y' : 'x', start = emitted(header[main]), size = emitted(vertical ? header.height : header.width), gap = Math.max(HEADER_DETOUR_GAP, style.lineWidth / 2), lo = emitted(start - gap), hi = emitted(start + size + gap)
+      slack = Math.min(slack, lo - Math.min(a[main], b[main]), Math.max(a[main], b[main]) - hi)
+    }
+    return { ri, slack }
+  }).sort((a, b) => { pay(); return a.slack - b.slack || a.ri - b.ri })
+  for (const { ri } of order) {
     pay()
     const relation = diagram.relationships[ri]!
     for (const header of headers) {

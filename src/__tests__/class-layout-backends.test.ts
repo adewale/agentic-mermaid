@@ -1391,3 +1391,29 @@ test('Class annotation connectors do not co-own an unrelated horizontal carrier'
  expect(n.for).toBe('S')
  expect(n.text).toBe('two lines')
 })
+
+
+test('Class header bypasses reserve tight turn spans before flexible carriers', () => {
+  const card = (id: string, x: number, y: number) => ({ id, label: id, x, y, width: 60, height: 50, headerHeight: 30, attrHeight: 10, methodHeight: 10, attributes: [], methods: [] })
+  const p: PositionedClassDiagram = {
+    width: 1100, height: 450, notes: [],
+    namespaces: [{ id: 'G', name: 'G', label: 'G', classIds: [], x: 100, y: 200, width: 800, height: 150, headerHeight: 28 }],
+    classes: [card('S1', 270, 300), card('S2', 370, 300), card('S3', 470, 300), card('T1', 570, 50), card('T2', 670, 50), card('T3', 770, 50)],
+    relationships: [
+      { from: 'S1', to: 'T1', type: 'link-solid', markerAt: 'none', points: [{ x: 300, y: 300 }, { x: 300, y: 150 }, { x: 600, y: 150 }, { x: 600, y: 100 }] },
+      { from: 'S2', to: 'T2', type: 'link-solid', markerAt: 'none', points: [{ x: 400, y: 300 }, { x: 400, y: 160 }, { x: 700, y: 160 }, { x: 700, y: 100 }] },
+      { from: 'S3', to: 'T3', type: 'link-solid', markerAt: 'none', points: [{ x: 500, y: 300 }, { x: 500, y: 195.5 }, { x: 800, y: 195.5 }, { x: 800, y: 100 }] },
+    ],
+  }, before = structuredClone(p), style = { ...resolveRenderStyle({}, CLASS_STYLE_DEFAULTS), lineWidth: 0.1 }
+  repairClassHeaderRoutes(p, style)
+  for (const rel of p.relationships) for (let i = 1; i < rel.points.length; i++) {
+    const a = rel.points[i - 1]!, b = rel.points[i]!, vertical = a.x === b.x
+    expect(vertical || a.y === b.y).toBe(true)
+    // Independent full-header band expanded by the real 0.05px shaft radius.
+    const enters = vertical ? a.x > 99.95 && a.x < 900.05 && Math.max(a.y, b.y) > 199.95 && Math.min(a.y, b.y) < 228.05 : a.y > 199.95 && a.y < 228.05 && Math.max(a.x, b.x) > 99.95 && Math.min(a.x, b.x) < 900.05
+    expect(enters, 'a tight old turn was stranded behind flexible bypass owners').toBe(false)
+  }
+  expect(p.classes).toEqual(before.classes)
+  expect(p.namespaces).toEqual(before.namespaces)
+  expect(p.relationships.map(r => [r.from, r.to, r.type, r.points[0], r.points.at(-1)])).toEqual(before.relationships.map(r => [r.from, r.to, r.type, r.points[0], r.points.at(-1)]))
+})
