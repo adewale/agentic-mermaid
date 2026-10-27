@@ -423,10 +423,29 @@ distance could enter a neighboring card’s clearance envelope; exits now stop a
 search. The reduced input and the other recovered #362 Architecture cases are
 permanent passing `examples` entries in the grouped-layout property.
 
-The workflow's second job does the same for the Mermaid grammar comparison,
-which keeps seed 7 in the PR gate: it runs the native families at a fresh seed
-and lists each new silent read, reduced, with its seed in one issue
-(`scripts/ci/grammar-finder-report.ts`).
+The grammar lane runs native families at a fresh seed; seed 7 remains in the
+PR comparison. Raw disagreements stay in its complete summary artifact.
+`grammar-triage-run.ts` replays each retained reduction and original witness,
+alongside the reviewed #494 corpus, checking canonical exports with the pinned
+grammar and selected native meaning on reload. Source-only reads must carry a
+source diagnostic and refuse typed edits. Known inputs are checked again;
+matching source bytes alone cannot suppress a changed failure kind.
+
+Reviewed decisions live in `eval/mermaid-modern-compat/corpus/grammar-finder-494.json`.
+They are external counterexamples and authored dispositions, not generated
+output baselines. A reference-pin change invalidates their reporting matches.
+The same corpus replay runs in canonical CI with `--check`, which fails on an
+untracked contract failure. Existing scoped follow-ups remain visible without
+requiring their failure to persist: a repaired input is allowed to improve.
+The PR that fixes a scoped follow-up updates its corpus decisions and removes
+that failure allowance; the historical input and provenance remain.
+
+Only demonstrated, untracked contract failures create issues. Each report owns
+one finite run attempt and family, with sources, evidence and completion
+criteria. Closing it does not reset the corpus; later runs do not append new
+findings to it. Unreviewed generous reads remain visible in the artifact and
+job summary without being called bugs. Search/triage failures create a finite
+incomplete-run report. Evidence is retained for 90 days.
 
 Before the pin was frozen, every unpinned suite was
 swept across 48/24/12 seeds (scaled by runtime; 1,368 suite-runs total) with
