@@ -1,7 +1,7 @@
 export { ISHIKAWA_OP_SCHEMAS, ISHIKAWA_OP_KINDS } from '../ishikawa/ops.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 import type { IshikawaBody, IshikawaMutationOp } from '../ishikawa/types.ts'
-import { parseIshikawaDiagram } from '../ishikawa/parser.ts'
+import { isIshikawaHeader, parseIshikawaDiagram } from '../ishikawa/parser.ts'
 import type { LayoutWarning, MutationError, Result, VerifyOptions } from './types.ts'
 import { ok, err } from './types.ts'
 import { labelOverflowCollector } from './body-utils.ts'
@@ -29,11 +29,14 @@ function assertIshikawaLabel(label: unknown): asserts label is string {
 export function ishikawaUnsupportedSyntaxWarnings(source: string): LayoutWarning[] {
   try {
     parseIshikawaDiagram(source)
-    const lines = source.split(/\r?\n/), header = lines.findIndex(line => /^\s*ishikawa(?:-beta)?\s*$/i.test(line))
+    const lines = source.split(/\r?\n/), header = lines.findIndex(isIshikawaHeader)
     const warnings: LayoutWarning[] = lines.flatMap((line, index) => index > header && NONPORTABLE_LABEL.test(line.trim()) ? [{
       code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'ishikawa_label', line: index + 1,
       message: `Ishikawa label "${line.trim()}" is read literally. The writer shields its keyword prefix for pinned Mermaid.`,
     }] : [])
+    if (lines[header]?.includes('%%{')) warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax: 'ishikawa_header_comment', line: header + 1,
+      message: 'An unclosed directive-looking comment after the Ishikawa header is read as a comment. Pinned Mermaid rejects this spelling; canonical export writes the header on its own.',
+    })
     for (let index = header + 1; index < lines.length; index++) {
       const directive = parseAccessibilityDirective(lines, index)
       if (!directive) continue

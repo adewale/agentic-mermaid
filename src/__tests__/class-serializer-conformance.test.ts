@@ -12,7 +12,7 @@
  */
 import { describe, expect, test } from 'bun:test'
 import { decodeXML } from 'entities'
-import { asClass, describeMermaidFacts, layoutMermaid, mutate, parseRegisteredMermaid as parseMermaid, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { asClass, describeMermaidFacts, layoutMermaid, mutate, parseRegisteredMermaid as parseMermaid, renderMermaidASCII, renderMermaidSVG, serializeMermaid, synthesizeFromGraph, verifyMermaid } from '../agent/index.ts'
 import type { ClassMutationOp, ClassValidDiagram } from '../agent/types.ts'
 import { layoutClassDiagram } from '../class/layout.ts'
 import { parseClassDiagram } from '../class/parser.ts'
@@ -399,6 +399,65 @@ class Free
 Triangle --> Free : points at`
 
 describe('class labeled declaration conformance', () => {
+  test('portable Class direction text retains labels and members across keyword tokens', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const label of ['direction RL', 'prefix direction LRbel', 'direction TB', 'direction BT', 'DIRECTION RL', 'direction#32;RL']) {
+        const source = `classDiagram\nnamespace N["${label}"] {\nclass A["${label}"] {\n+x\n}\n}\nA --> B : ${label}`
+        const diagram = classDiagram(source)
+        const edited = apply(diagram, { kind: 'add_class', id: 'Other' })
+        const written = serializeMermaid(edited, { wrapper: 'canonical' })
+        expect(await upstream.publicAccepts(written), written).toBe(true)
+        const reloaded = classDiagram(written)
+        const classes = (body: typeof edited.body) => body.classes.map(({ id, label, members, namespace }) => ({ id, label, members, namespace })).sort((a, b) => a.id.localeCompare(b.id))
+        expect(classes(reloaded.body)).toEqual(classes(edited.body))
+        expect(reloaded.body.namespaces?.map(({ name, label }) => ({ name, label }))).toEqual(edited.body.namespaces?.map(({ name, label }) => ({ name, label })))
+        expect(reloaded.body.relations.map(({ from, to, label }) => ({ from, to, label }))).toEqual(edited.body.relations.map(({ from, to, label }) => ({ from, to, label })))
+        expect(reloaded.body.classes.find(node => node.id === 'A')?.members).toEqual(['+x'])
+        const projection = await upstream.project(written, d => ({ label: d.db.getClasses().get('A').label, members: d.db.getClasses().get('A').members.length }))
+        expect(projection.ok).toBe(true)
+        if (projection.ok) {
+          expect(decodeXML(projection.value.label.replace(/ﬂ°°/g, '&#').replace(/ﬂ°/g, '&').replace(/¶ß/g, ';'))).toBe(label.replace('#32;', ' '))
+          expect(projection.value.members).toBe(1)
+        }
+      }
+    } finally { upstream.close() }
+  })
+
+  test('explicit empty Class labels remain readable and refuse lossy typed exports', async () => {
+    const source = 'classDiagram\nclass A[""]:::s\nA --> B\n'
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error('Class source must remain readable')
+    expect(parseClassDiagram(source.split('\n')).classes.find(node => node.id === 'A')?.label).toBe('')
+    expect(parsed.value.body.kind).toBe('opaque')
+    expect(serializeMermaid(parsed.value)).toBe(source)
+    expect(renderMermaidSVG(parsed.value)).toBe(renderMermaidSVG(source))
+    expect(renderMermaidASCII(parsed.value)).toBe(renderMermaidASCII(source))
+    expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'class_empty_label' }))
+    expect(mutate(parsed.value, { kind: 'add_class', id: 'Other' }).ok).toBe(false)
+    const editable = classDiagram('classDiagram\nclass A')
+    expect(mutate(editable, { kind: 'add_class', id: 'Empty', label: '' }).ok).toBe(false)
+    expect(synthesizeFromGraph({ kind: 'class', body: { ...editable.body, classes: [{ id: 'A', label: '', members: [] }] } }).ok).toBe(false)
+    for (const label of [undefined, ' ', 'Text']) expect(mutate(editable, { kind: 'add_class', id: 'Control', ...(label === undefined ? {} : { label }) }).ok).toBe(true)
+  })
+
+  test('unrepresentable Class direction identities and inline members cannot silently disappear', () => {
+    for (const [statement, syntax] of [
+      ['class `direction RL`', 'class_direction_identity'],
+      ['namespace `direction RL` {\nclass A\n}', 'class_direction_identity'],
+      ['class A\nA : direction RL{x', 'class_member_direction'],
+    ]) {
+      const source = `classDiagram\n${statement}\n`
+      const parsed = parseMermaid(source)
+      if (!parsed.ok) throw new Error('Native Class source must remain readable')
+      expect(parsed.value.body.kind).toBe('opaque')
+      expect(serializeMermaid(parsed.value)).toBe(source)
+      expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax }))
+      expect(mutate(parsed.value, { kind: 'add_class', id: 'Other' }).ok).toBe(false)
+    }
+    expect(classDiagram('classDiagram\nclass A {\ndirection RL\n}').body.classes[0]!.members).toEqual(['direction RL'])
+  })
+
   test.each([
     ['<--', 'association', 'from'],
     ['-->', 'association', 'to'],
@@ -551,13 +610,19 @@ describe('class namespaces — structured agent body (#118)', () => {
     expect(serializeMermaid(diagram)).toBe(before)
   })
 
-  test.each(['namespace N {\n}', 'namespace N["Meaningful group"] {\n}'])('preserves directly authored empty namespaces as opaque source: %s', namespace => {
-    const source = `classDiagram\n${namespace}\nclass B`
+  test.each(['namespace N {\n}', 'namespace N["Meaningful group"] {\n}'].flatMap(namespace => [false, true].map(withClass => ({ namespace, withClass }))))('preserves and draws directly authored empty namespaces as opaque source: $namespace (withClass=$withClass)', ({ namespace, withClass }) => {
+    const source = `classDiagram\n${namespace}${withClass ? '\nclass B' : ''}`
     const parsed = parseMermaid(source)
     if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
     expect(parsed.value.body.kind).toBe('opaque')
     expect(asClass(parsed.value)).toBeNull()
     expect(serializeMermaid(parsed.value).trimEnd()).toBe(source)
+    const positioned = layoutClassDiagram(renderParse(source))
+    expect(positioned.namespaces).toHaveLength(1)
+    const frame = positioned.namespaces[0]!
+    expect(frame.width).toBeGreaterThan(0)
+    expect(frame.height).toBeGreaterThan(frame.headerHeight)
+    expect(renderMermaidSVG(parsed.value)).toContain(`>${frame.label}</text>`)
   })
 
   test('repeated declarations across namespaces preserve authored source and every rendered group', async () => {

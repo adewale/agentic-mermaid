@@ -27,6 +27,7 @@ import { parserObservationActive, observeParserStatement, observeParserMutation 
 
 /** Mermaid Sankey numeric tokens, including exponent and trailing-dot forms. */
 const NUMBER_RE = /^\+?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/
+export const isSankeyHeader = (line: string): boolean => /^sankey(?:-beta)?\s*$/i.test(line.trim())
 
 export interface SankeyParseOptions {
   /** Frontmatter `title:` — sankey has no in-body title statement. */
@@ -55,7 +56,7 @@ export function parseSankeyDiagram(lines: string[], options: SankeyParseOptions 
   }
 
   const header = lines[headerIndex]!.trim()
-  if (!/^sankey(?:-beta)?\s*$/i.test(header)) {
+  if (!isSankeyHeader(header)) {
     throw new Error(`Sankey diagram must start with "sankey" or "sankey-beta", got: "${header}"`)
   }
   if (parserObservationActive('sankey')) observeParserStatement('sankey', 'header', header, { line: headerIndex + 1, unit: 'physical' })
@@ -75,6 +76,12 @@ export function parseSankeyDiagram(lines: string[], options: SankeyParseOptions 
     let row = lines[i]!.replace(/\r$/, '')
     const rowNumber = i + 1
     const trimmedPhysicalLine = row.trim()
+    // A standalone repeated header is a diagnosed reader extension, not a
+    // CSV record. Quoted records are assembled below before this loop resumes.
+    if (isSankeyHeader(trimmedPhysicalLine)) {
+      if (parserObservationActive('sankey')) observeParserStatement('sankey', 'header', row, { line: rowNumber, unit: 'physical' })
+      continue
+    }
     // Empty lines are explicitly allowed by the upstream syntax page.
     if (trimmedPhysicalLine.length === 0 || trimmedPhysicalLine.startsWith('%%')) continue
 
@@ -210,7 +217,7 @@ function parseCsvRow(line: string, lineNumber: number): string[] {
 
 /** True when a logical CSV record ends inside a quoted field. Doubled quotes
  * are one escaped data character and therefore do not change quote state. */
-function csvQuotedFieldIsOpen(record: string): boolean {
+export function csvQuotedFieldIsOpen(record: string): boolean {
   let open = false
   for (let index = 0; index < record.length; index++) {
     if (record[index] !== '"') continue

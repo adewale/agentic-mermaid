@@ -43,6 +43,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Fixed
 
+- Preserve Class direction-like label text in portable exports, refuse lossy
+  empty Class and unrepresentable Quadrant labels, and share Ishikawa/Sankey
+  header handling between direct rendering and typed reads (#548–#552).
+
 - Canonical writes preserve empty accessibility descriptions using native
   metadata comments, protect directive-looking Kanban labels and metadata,
   and move C4 global metadata out of nested boundaries. Sequence message IDs
@@ -86,6 +90,9 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   avoids declaration-ledger reconciliation and full text inspection evidence;
   strict, verify, extension admission and final paint/security checks remain.
 - An inexpensive Scene admission cannot bypass a later strict cross-check.
+- Class layouts preserve authored `ns:` IDs, actual namespace ancestry, empty
+  namespace frames and freestanding notes. Notes-only terminal output retains
+  its content too.
 
 ### Maintenance
 

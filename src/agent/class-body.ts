@@ -34,7 +34,7 @@ import { classInterfaceSide, createClassInterfaceAllocator } from '../class/inte
 import { decodeXML } from 'entities'
 import type { ClassStatementNode } from '../class/parser.ts'
 import { classCommentRejections, classDiagramHasStatement, MERMAID_DIRECTIVE_RE, parseClassBodyAnnotationToken, parseClassMember, parseClassRelationship, readClassStatements, readsAsClassName, supportedRelationEndpoint, withoutStyleComment } from '../class/parser.ts'
-import { classTextLabel, decodeClassText, memberToString, writeClassText } from '../class/text.ts'
+import { classTextLabel, decodeClassText, hasClassDirectionToken, memberToString, writeClassText } from '../class/text.ts'
 import { toMermaidLines } from '../mermaid-source-wrapper.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
@@ -89,6 +89,7 @@ function writableInlineStyleTarget(id: string): boolean {
  * their stored content. A tag opener spanning the method's `(` is consumed
  * by Mermaid's sanitizer; a name made only of tags is consumed too. */
 function classMemberWriteProblem(member: string): string | undefined {
+  if (/[{}]/.test(member) && hasClassDirectionToken(member)) return `Class member ${JSON.stringify(member)} requires inline syntax, where a greedy Mermaid direction token consumes it; no supported spelling preserves its authored string`
   if (parseClassBodyAnnotationToken(member) !== null) return
   const open = member.indexOf('(')
   if (open < 0 || !member.includes(')', open)) return
@@ -101,6 +102,8 @@ function classMemberWriteProblem(member: string): string | undefined {
 
 function classBodyWriteProblem(body: ClassBody): string | undefined {
   for (const node of body.classes) {
+    if (node.label === '') return 'An explicitly empty Class label has no lossless Mermaid spelling; retain the source without typed editing'
+    if (hasClassDirectionToken(node.id) || node.namespace !== undefined && hasClassDirectionToken(node.namespace)) return 'A Class identity containing a greedy direction token has no lossless Mermaid spelling'
     if (node.style && !writableInlineStyleTarget(node.id)) return `Class inline style target ${JSON.stringify(node.id)} is not an ALPHA identifier in Mermaid's style grammar`
     if (node.style && !portableClassStyleProps(node.style, node.styleDeclarations)) return `Class style on ${JSON.stringify(node.id)} has no supported lossless Mermaid property/value spelling`
     if (node.id.startsWith('"')) return `Class id ${JSON.stringify(node.id)} starts with a double quote and has no supported lossless Mermaid spelling`
@@ -112,6 +115,8 @@ function classBodyWriteProblem(body: ClassBody): string | undefined {
       if (problem) return problem
     }
   }
+  if (body.namespaces?.some(namespace => namespace.label === '')) return 'An explicitly empty Class namespace label has no lossless Mermaid spelling; retain the source without typed editing'
+  if (body.namespaces?.some(namespace => hasClassDirectionToken(namespace.name))) return 'A Class namespace identity containing a greedy direction token has no lossless Mermaid spelling'
   if (Object.keys(body.classDefDeclarations ?? {}).some(name => !Object.hasOwn(body.classDefs ?? {}, name))) return 'Ordered Class declarations require a matching property record'
   for (const node of body.classes) if (node.styleDeclarations && !node.style) return 'Ordered Class declarations require a matching property record'
   for (const [name, style] of Object.entries(body.classDefs ?? {})) {
@@ -328,8 +333,8 @@ export function parseClassBody(lines: string[]): ClassBody | null {
     const cls = classMap.get(id)
     if (cls && cls.className === undefined) cls.className = name
   }
-  if (classBodyWriteProblem(body)) return null
   if (namespaces.length > 0) body.namespaces = namespaces
+  if (classBodyWriteProblem(body)) return null
   // Mermaid cannot write empty namespace blocks. Preserve directly authored
   // ones verbatim instead of promising a portable structured edit.
   if (namespaces.some(namespace => !namespaceHasClasses(body, namespace.name))) return null
@@ -688,6 +693,7 @@ function mutateClassBody(body: ClassBody, op: ClassMutationOp): Result<ClassBody
       if (findClass(op.id)) return err({ code: 'DUPLICATE_CLASS', message: `class ${op.id} already exists` })
       const invalidId = validateClassId(op.id)
       if (invalidId) return err(invalidId)
+      if (op.label === '') return err({ code: 'INVALID_OP', message: 'An explicitly empty Class label has no lossless Mermaid spelling' })
       const invalidMembers = validateClassMembers(op.members ?? [])
       if (invalidMembers) return err(invalidMembers)
       if (op.namespace !== undefined && !NAMESPACE_PATH_RE.test(op.namespace)) {
@@ -960,6 +966,10 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
         })
       }
       const value = node.value
+      if (value.kind === 'class' && value.declaration.label === '' || value.kind === 'namespace' && value.label === '') warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'class_empty_label', line: header + 1 + node.source.line,
+        message: 'An explicitly empty Class label is retained for native rendering. Pinned Mermaid requires nonempty label text, so typed editing is unavailable rather than replacing the label with its identity.',
+      })
       if (value.kind === 'style') for (const reference of value.references) if (!writableInlineStyleTarget(reference.id)) warnings.push({
         code: 'UNSUPPORTED_SYNTAX', syntax: 'class_style_target', line: header + 1 + node.source.line,
         message: `Class inline style target ${JSON.stringify(reference.id)} is outside Mermaid's ALPHA production; quoting does not extend it. Source is preserved; use an explicit named CSS class for this identity.`,
@@ -971,6 +981,10 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
           : 'This style contains text outside the supported SVG attribute domain. Source is preserved, but typed editing is unavailable.',
       })
       const identities = declares(value).concat(value.kind === 'interaction' ? [value.interaction.id] : value.kind === 'note' && value.reference ? [value.reference.id] : [])
+      if (identities.some(hasClassDirectionToken) || value.kind === 'namespace' && hasClassDirectionToken(value.path.join('.'))) warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'class_direction_identity', line: header + 1 + node.source.line,
+        message: 'A greedy Mermaid direction token consumes this identity even inside backticks. Native reading and source are retained; typed editing is unavailable.',
+      })
       for (const id of identities) if (id.startsWith('"')) warnings.push({
         code: 'UNSUPPORTED_SYNTAX', syntax: 'class_id', line: header + 1 + node.source.line,
         message: `Class id ${JSON.stringify(id)} starts with a double quote, which pinned Mermaid treats as syntax even inside backticks. Its source and native rendering are preserved, but typed editing is unavailable.`,
@@ -1029,7 +1043,7 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
       if (value.kind === 'member') {
         const problem = classMemberWriteProblem(value.text)
         if (problem) warnings.push({
-          code: 'UNSUPPORTED_SYNTAX', syntax: 'class_member_html', line: header + 1 + node.source.line,
+          code: 'UNSUPPORTED_SYNTAX', syntax: /[{}]/.test(value.text) && hasClassDirectionToken(value.text) ? 'class_member_direction' : 'class_member_html', line: header + 1 + node.source.line,
           message: `${problem}. Its source and native rendering are preserved, but typed editing is unavailable.`,
         })
         const member = value.text.replace(/#\w+;/g, '#').trim()
