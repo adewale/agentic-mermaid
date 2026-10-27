@@ -181,6 +181,7 @@ function renderBody(
   // serializes through its FamilyDescriptor hook — looked up by DIAGRAM kind,
   // not body kind. State diagrams (BUILD-19) own a dedicated StateBody and the
   // state descriptor emits the stateDiagram-v2 header.
+  if (body.kind === 'opaque' && body.family === 'eventmodeling') return body.source
   if (body.kind === 'opaque') return body.source.endsWith('\n') ? body.source : body.source + '\n'
   if (body.kind === 'preserved') return body.source
   const plugin = getFamily(kind)

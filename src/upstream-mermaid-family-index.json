@@ -272,7 +272,7 @@
       "headers": [
         {
           "value": "eventmodeling",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },

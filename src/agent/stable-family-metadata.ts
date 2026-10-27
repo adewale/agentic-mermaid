@@ -14,6 +14,19 @@ const boxes = [
 ] as const
 export const STABLE_FAMILY_DESCRIPTOR_SEEDS = [
   {
+    id: 'eventmodeling', upstreamId: 'eventmodeling', maturity: 'experimental',
+    label: 'Event Modeling', headers: ['eventmodeling'], narrower: 'asEventModeling',
+    editorDiagramType: 'Event Modeling', editorLabel: 'Event Modeling',
+    editorDescription: 'Time frames, swimlanes and directed information flow.',
+    editorExampleId: 'eventmodeling-basic', editorGlyph: 'EM',
+    config: { section: 'eventmodeling', keys: [], noopKeys: [] },
+    semanticChannels: [],
+    sceneRoles: [...documentRoles, ...boxes, { role: 'group', primitives: ['container', 'shape'] }, { role: 'edge', primitives: ['connector'] }, { role: 'defs', primitives: ['document', 'marker'] }],
+    detect: familyDetection.detectsEventmodelingFamily,
+    example: 'eventmodeling\ntf 01 ui CartUI\ntf 02 cmd AddItem\ntf 03 evt ItemAdded',
+    editorExample: 'eventmodeling\ntf 01 ui CartUI\ntf 02 cmd AddItem\ntf 03 evt ItemAdded\ntf 04 rmo CartItems\ntf 05 ui CartUI',
+  },
+  {
     id: 'packet',
     upstreamId: 'packet',
     maturity: 'stable',

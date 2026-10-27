@@ -8,12 +8,12 @@ import { executeInSandbox } from '../mcp/sandbox.ts'
 
 const CASES = [
   {
-    source: '---\ntitle: Preserved event model\n---\n%%{init: {"theme":"base"}}%%\n%% keep me\neventmodeling\n  opaque { bytes }\n',
+    source: '---\ntitle: Preserved ZenUML\n---\n%%{init: {"theme":"base"}}%%\n%% keep me\nzenuml\n  opaque { bytes }\n',
     code: 'UNSUPPORTED_FAMILY',
     classification: 'unsupported',
     representation: 'opaque',
-    header: 'eventmodeling',
-    family: 'eventmodeling',
+    header: 'zenuml',
+    family: 'zenuml',
   },
   {
     source: '\uFEFF\n%% untouched\nfutureDiagram-v99\n  opaque { bytes }\n',
@@ -117,9 +117,9 @@ describe('forward-compatible unregistered family envelopes', () => {
         code: 'UNKNOWN_HEADER',
       },
       {
-        source: 'eventmod&#101;ling\n  opaque { bytes }\n',
-        authoredHeader: 'eventmod&#101;ling',
-        semanticHeader: 'eventmodeling',
+        source: 'zenum&#108;\n  opaque { bytes }\n',
+        authoredHeader: 'zenum&#108;',
+        semanticHeader: 'zenuml',
         code: 'UNSUPPORTED_FAMILY',
       },
     ] as const

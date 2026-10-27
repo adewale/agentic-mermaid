@@ -103,6 +103,7 @@ function headerFor(kind: DiagramKind): string {
       return 'gitGraph'
     case 'radar':
       return 'radar-beta'
+    case 'eventmodeling': return 'eventmodeling'
     case 'sankey':
       return 'sankey-beta'
     default: {

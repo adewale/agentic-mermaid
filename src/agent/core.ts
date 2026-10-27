@@ -634,3 +634,6 @@ export { asIshikawa } from './types.ts'
 export type { IshikawaBody, IshikawaMutationOp, IshikawaValidDiagram } from './types.ts'
 export { asBlock } from './types.ts'
 export type { BlockBody, BlockMutationOp, BlockValidDiagram } from './types.ts'
+
+export { asEventModeling } from './types.ts'
+export type { EventModelingBody, EventModelingMutationOp, EventModelingValidDiagram } from './types.ts'

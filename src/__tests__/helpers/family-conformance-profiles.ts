@@ -50,6 +50,20 @@ export interface FamilyConformanceProfile {
  * particular test.
  */
 export const FAMILY_CONFORMANCE_PROFILES: Readonly<Record<DiagramKind, FamilyConformanceProfile>> = {
+  eventmodeling: {
+    family: 'eventmodeling',
+    citizenship: {
+      source: 'eventmodeling\ntitle Cart\ntf 01 ui Cart.UI\ntf 02 cmd Cart.AddItem { description: string }\ntf 03 evt Cart.ItemAdded',
+      options: FAMILY_CITIZENSHIP_GALLERY_OPTIONS,
+      count: { nodes: 3, edges: 2, groups: 3 },
+      facts: ['relation 01 -> 02 inferred', 'relation 02 -> 03 inferred'],
+      visibleText: ['Cart.UI', 'Cart.AddItem', 'description: string'],
+      edit: { op: { kind: 'set_title', title: 'Updated cart' }, beforeFacts: ['title "Cart"'], afterFacts: ['title "Updated cart"'] },
+    },
+    outlines: { kind: 'automatic', roles: ['node', 'group'] },
+    riskFixture: 'eventmodeling-demo.mmd', riskOptions: {},
+    textStressSource: 'eventmodeling\ntf 01 ui Cart.UI { 東京 café é 👩‍💻 שלום مرحبا }',
+  },
   packet: {
     family: 'packet',
     citizenship: {

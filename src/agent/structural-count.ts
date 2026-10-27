@@ -1,3 +1,4 @@
+import { eventRelations, eventLane } from '../eventmodeling/parser.ts'
 import { stableFamilyCount } from './stable-family-adapters.ts'
 // ============================================================================
 // countStructuralElements — a family-agnostic faithfulness oracle.
@@ -146,6 +147,7 @@ export function countStructuralElements(d: ParsedDiagram): StructuralCount | nul
       }
       return { nodes: labels.size, edges: body.links.length, groups: 0 }
     }
+    case 'eventmodeling': return { nodes: body.frames.length, edges: eventRelations(body).length, groups: new Set(body.frames.map(eventLane)).size }
     case 'packet':
     case 'kanban':
     case 'requirement':

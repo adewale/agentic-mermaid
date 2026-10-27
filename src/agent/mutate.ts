@@ -1,3 +1,4 @@
+import type { EventModelingValidDiagram, EventModelingMutationOp } from './types.ts'
 import { rebaseBodyComments, restoreBodyComments, snapshotBodyCommentAnchors } from './body-comments.ts'
 import { beginMutationDraft, type MutationDraft } from './mutation-draft.ts'
 import type { PacketMutationOp, PacketValidDiagram, KanbanMutationOp, KanbanValidDiagram, RequirementMutationOp, RequirementValidDiagram, TreemapMutationOp, TreemapValidDiagram, IshikawaMutationOp, IshikawaValidDiagram, BlockMutationOp, BlockValidDiagram } from './types.ts'
@@ -68,6 +69,7 @@ export function mutate(d: PacketValidDiagram, op: PacketMutationOp): Result<Pack
 export function mutate(d: KanbanValidDiagram, op: KanbanMutationOp): Result<KanbanValidDiagram, MutationError>
 export function mutate(d: RequirementValidDiagram, op: RequirementMutationOp): Result<RequirementValidDiagram, MutationError>
 export function mutate(d: TreemapValidDiagram, op: TreemapMutationOp): Result<TreemapValidDiagram, MutationError>
+export function mutate(d: EventModelingValidDiagram, op: EventModelingMutationOp): Result<EventModelingValidDiagram, MutationError>
 export function mutate(d: IshikawaValidDiagram, op: IshikawaMutationOp): Result<IshikawaValidDiagram, MutationError>
 export function mutate(d: BlockValidDiagram, op: BlockMutationOp): Result<BlockValidDiagram, MutationError>
 // General form for callers holding the union (e.g. the CLI): dispatch is by

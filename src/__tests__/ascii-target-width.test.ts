@@ -17,6 +17,7 @@ const htmlDisplayWidth = (output: string): number =>
   )
 
 const LONG_FEASIBLE_SOURCE: Record<DiagramKind, string> = {
+  eventmodeling: 'eventmodeling\ntf 01 ui CartUI { A very descriptive frame label with several words }',
   packet: '---\nconfig:\n  packet:\n    bitsPerRow: 8\n---\npacket\n+8: "A very descriptive packet field label with several words"',
   kanban: 'kanban\nTodo\n  task[A very descriptive Kanban task label with several words]',
   requirement: 'requirementDiagram\nrequirement r {\ntext: "A very descriptive requirement label with several words"\n}',

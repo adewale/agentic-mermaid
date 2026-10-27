@@ -1,3 +1,4 @@
+import { eventRelations } from '../eventmodeling/parser.ts'
 import { stableFamilyFacts } from './stable-family-adapters.ts'
 
 // ============================================================================
@@ -169,6 +170,14 @@ export function describeMermaidFacts(d: ParsedDiagram): string[] {
       d.body.links.forEach((link, i) => add(out, `link#${i} ${clean(link.source)} -> ${clean(link.target)} : ${link.value}`))
       break
     }
+    case 'eventmodeling':
+      if (d.body.title !== undefined) add(out, `title ${JSON.stringify(d.body.title)}`)
+      d.body.frames.forEach((frame, index) => add(out, `frame#${index} ${JSON.stringify(frame)}`))
+      eventRelations(d.body).forEach(edge => add(out, `relation ${edge.from} -> ${edge.to} ${edge.explicit ? 'explicit' : 'inferred'}`))
+      Object.entries(d.body.data).forEach(([id, data]) => add(out, `data ${id} ${JSON.stringify(data)}`))
+      d.body.notes.forEach(note => add(out, `note ${JSON.stringify(note)}`))
+      d.body.specifications.forEach(spec => add(out, `specification ${JSON.stringify(spec)}`))
+      break
     case 'packet':
     case 'kanban':
     case 'requirement':

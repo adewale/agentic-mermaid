@@ -1,6 +1,19 @@
 // Generated from OP_SCHEMAS by scripts/build/generate-sdk-declarations.ts.
 import type { DiagramKind } from '../types.ts'
 export const MUTATION_OPS_BY_FAMILY = {
+  "eventmodeling": [
+    "insert_frame",
+    "remove_frame",
+    "move_frame",
+    "set_frame",
+    "set_entities",
+    "set_notes",
+    "set_specifications",
+    "set_data",
+    "set_title",
+    "set_accessibility_title",
+    "set_accessibility_description"
+  ],
   "flowchart": [
     "add_node",
     "remove_node",

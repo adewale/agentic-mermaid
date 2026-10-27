@@ -1,3 +1,4 @@
+import { eventRelations } from '../eventmodeling/parser.ts'
 import { isStableFamilyBody, stableFamilyCount, stableFamilyTree } from './stable-family-adapters.ts'
 
 // ============================================================================
@@ -110,6 +111,7 @@ export function describeMermaid(d: ParsedDiagram, opts: DescribeOptions = {}): s
     const total = d.body.links.reduce((sum, link) => sum + link.value, 0)
     return `A sankey diagram flowing ${total} across ${d.body.links.length} link(s) between ${nodes.size} node(s).`
   }
+  if (d.body.kind === 'eventmodeling') return `An Event Modeling diagram with ${d.body.frames.length} frames and ${eventRelations(d.body).length} relations.`
   if (isStableFamilyBody(d.body)) {
     const count = stableFamilyCount(d.body)
     return `A ${d.kind} diagram with ${count.nodes} item(s), ${count.groups} group(s) and ${count.edges} relationship(s).`
@@ -272,6 +274,9 @@ export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
       }
       tree.edges.push({ from: link.source, to: link.target, label: String(link.value) })
     }
+  } else if (d.body.kind === 'eventmodeling') {
+    tree.nodes.push(...d.body.frames.map(frame => ({ id: frame.id, label: frame.entity })))
+    tree.edges.push(...eventRelations(d.body))
   } else if (isStableFamilyBody(d.body)) {
     const semantics = stableFamilyTree(d.body)
     tree.nodes.push(...semantics.nodes)
