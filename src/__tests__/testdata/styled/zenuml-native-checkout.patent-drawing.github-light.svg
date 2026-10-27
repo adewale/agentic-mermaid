@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="612.08" height="593.85" viewBox="0 0 612.08 593.85" style="--bg:#ffffff;--fg:#1f2328;--line:#d1d9e0;--accent:#0969da;--muted:#59636e;--surface:#ffffff;--border:#111111;--font:EB Garamond;background:#ffffff" class="am-1jgwe4g0e1wsjr">
+<svg xmlns="http://www.w3.org/2000/svg" width="612.08" height="593.85" viewBox="0 0 612.08 593.85" style="--bg:#ffffff;--fg:#1f2328;--line:#d1d9e0;--accent:#0969da;--muted:#59636e;--surface:#ffffff;--border:#111111;--font:EB Garamond;background:#ffffff" class="am-0x8e66e1o655yn">
 <style>
-  svg.am-1jgwe4g0e1wsjr { font-family: var(--font, 'EB Garamond'), system-ui, sans-serif; }
-  svg.am-1jgwe4g0e1wsjr {
+  svg.am-0x8e66e1o655yn { font-family: var(--font, 'EB Garamond'), system-ui, sans-serif; }
+  svg.am-0x8e66e1o655yn {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #1f2328;
     --_text-sec:      #59636e;
@@ -81,10 +81,10 @@
   <path d="M86.87 136.99 C129.8 136.03, 174.09 136.84, 227.41 136.41" fill="none" stroke="#1f2328" stroke-width="1.9575" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" />
   <text paint-order="stroke" stroke="#ffffff" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="156.97" y="125.75" text-anchor="middle" font-size="12" font-weight="400" fill="#1f2328" data-prepared-text="true" dy="4.2" textLength="56.232" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">checkout()</text>
 </g>
-<g class="message" data-label="reserve()" data-line-style="solid" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="statement:2" data-role="message">
-  <line stroke-opacity="0" x1="226.97" y1="177.7" x2="366.97" y2="177.7" stroke="#1f2328" stroke-width="1.45" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="statement:2:line" data-role="message" data-from="API" data-to="Stock" role="graphics-symbol" aria-roledescription="relation" aria-label="API to Stock: reserve()" />
+<g class="message" data-label="result = reserve()" data-line-style="solid" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="statement:2" data-role="message">
+  <line stroke-opacity="0" x1="226.97" y1="177.7" x2="366.97" y2="177.7" stroke="#1f2328" stroke-width="1.45" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="statement:2:line" data-role="message" data-from="API" data-to="Stock" role="graphics-symbol" aria-roledescription="relation" aria-label="API to Stock: result = reserve()" />
   <path d="M226.48 177.74 C275.01 177.79, 322.87 177.84, 367.54 177.27" fill="none" stroke="#1f2328" stroke-width="1.9575" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" />
-  <text paint-order="stroke" stroke="#ffffff" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="296.97" y="167.05" text-anchor="middle" font-size="12" font-weight="400" fill="#1f2328" data-prepared-text="true" dy="4.2" textLength="51.048" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">reserve()</text>
+  <text paint-order="stroke" stroke="#ffffff" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="296.97" y="167.05" text-anchor="middle" font-size="12" font-weight="400" fill="#1f2328" data-prepared-text="true" dy="4.2" textLength="91.224" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">result = reserve()</text>
 </g>
 <g class="message" data-label="accepted" data-line-style="dashed" data-start-head="none" data-end-head="open" data-central-start="false" data-central-end="false" data-self="false" data-parent-id="statement:3" data-id="statement:4" data-role="message">
   <line stroke-opacity="0" x1="366.97" y1="276.7" x2="226.97" y2="276.7" stroke="#1f2328" stroke-width="1.45" stroke-dasharray="6 4" marker-end="url(#seq-arrow-open)" data-relationship="sequence-message" data-direction="forward" data-id="statement:4:line" data-role="message" data-from="Stock" data-to="API" role="graphics-symbol" aria-roledescription="relation" aria-label="Stock to API: accepted" />

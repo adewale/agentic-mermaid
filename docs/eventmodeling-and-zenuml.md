@@ -98,6 +98,12 @@ direction, activation scopes and creation timing. Outside calls use an internal
 anchor without inventing an authored participant or visible header. Pixel and
 terminal geometry remain in their existing output adapters.
 
+Assignments retain their name and optional type. When a call or constructor
+has an explicit return, its incoming label includes the assignment and the
+return keeps its own label. Self-calls also keep the assignment on their label;
+otherwise an implicit reply carries it. An unrelated callback reply does not
+replace the owning call's result.
+
 Full Looks and palettes use the standard style authority and drawing backends:
 
 ```ts
