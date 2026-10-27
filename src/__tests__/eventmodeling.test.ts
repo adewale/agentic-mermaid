@@ -132,6 +132,33 @@ test('arrowheads dock at the painted outer frame boundary beside thick node outl
   }
 })
 
+test('equivalent palette and role outlines retain the same frame geometry and painted docking', () => {
+  const source = 'eventmodeling\ntf 01 ui Main\ntf 02 cmd Save'
+  const { JSDOM } = createRequire(import.meta.url)('jsdom')
+  for (const [paint, extent] of [['transparent', 0], ['none', 0], ['rgba(20, 30, 40, 0)', 0], ['#000000', 10]] as const) for (const bendRadius of [0, 24]) {
+    const common = { bg: '#ffffff', fg: '#000000', line: '#ff0000', surface: '#ffffff' }
+    const roles = { node: { lineWidth: 20, fillColor: '#ffffff' }, group: { borderColor: '#555555' }, edge: { strokeColor: '#ff0000', bendRadius } }
+    const palette = { embedFontImport: false, style: { colors: { ...common, border: paint }, roles } }
+    const role = { embedFontImport: false, style: { colors: { ...common, border: '#000000' }, roles: { ...roles, node: { ...roles.node, borderColor: paint } } } }
+    const paletteSvg = new JSDOM(renderMermaidSVG(source, palette), { contentType: 'image/svg+xml' })
+    const roleSvg = new JSDOM(renderMermaidSVG(source, role), { contentType: 'image/svg+xml' })
+    try {
+      const selector = '[data-role="node"][data-id="02"] rect'
+      const paletteStroke = paletteSvg.window.document.querySelector(selector)!.getAttribute('stroke')
+      expect(paletteStroke).toBe(paint)
+      expect(roleSvg.window.document.querySelector(selector)!.getAttribute('stroke')).toBe(paletteStroke)
+      const a = layoutMermaidWithReceipt(source, palette).layout
+      const b = layoutMermaidWithReceipt(source, role).layout
+      expect(a).toEqual(b)
+      const target = a.nodes.find(node => node.id === '02')!
+      expect(a.edges[0]!.path.at(-1)![0]).toBeCloseTo(target.x - extent, 8)
+    } finally {
+      paletteSvg.window.close()
+      roleSvg.window.close()
+    }
+  }
+})
+
 test('checked writes preserve identity and reject dangling references atomically', () => {
   const parsed = parseRegisteredMermaid(complex)
   if (!parsed.ok) throw Error('expected native diagram')

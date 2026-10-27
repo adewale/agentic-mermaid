@@ -3,18 +3,19 @@ import { eventModelingStatementEnds, parseEventModeling } from '../eventmodeling
 import { layoutEventModeling } from '../eventmodeling/layout.ts'
 import { lowerEventModelingScene } from '../eventmodeling/renderer.ts'
 import { f, retainedLabelGeometry } from '../positioned-views/geometry.ts'
+import type { DiagramColors } from '../theme.ts'
 export const EVENTMODELING_SVG_HOOKS = {
   normalizeRequest: ctx => {
     const config = ctx.source.config.eventmodeling as Record<string, unknown> | undefined
     const padding = config?.padding
     const rowHeight = config?.rowHeight
-    return { renderOptions: { ...ctx.renderOptions, ...(ctx.renderOptions.padding === undefined && typeof padding === 'number' && Number.isFinite(padding) && padding >= 0 ? { padding } : {}) }, familyConfig: { rowHeight: typeof rowHeight === 'number' && Number.isFinite(rowHeight) && rowHeight >= 0 ? rowHeight : 0 } }
+    return { renderOptions: { ...ctx.renderOptions, ...(ctx.renderOptions.padding === undefined && typeof padding === 'number' && Number.isFinite(padding) && padding >= 0 ? { padding } : {}) }, familyConfig: { rowHeight: typeof rowHeight === 'number' && Number.isFinite(rowHeight) && rowHeight >= 0 ? rowHeight : 0 }, appearance: { family: { palette: ctx.colors } } }
   },
   statementEnds: eventModelingStatementEnds,
   layout: ctx => {
     const body = parseEventModeling(ctx.source.authoredFamilyBody ?? ctx.source.familyBody)
     if (body.title === undefined && typeof ctx.source.frontmatter.title === 'string') body.title = ctx.source.frontmatter.title
-    return layoutResult(layoutEventModeling(body, ctx.renderOptions, ctx.styleFace, ctx.familyConfig?.rowHeight as number | undefined))
+    return layoutResult(layoutEventModeling(body, ctx.renderOptions, ctx.styleFace, ctx.familyConfig?.rowHeight as number | undefined, ctx.familyAppearance?.palette as DiagramColors | undefined))
   },
   projectPositioned: positionedView<ReturnType<typeof layoutEventModeling>>(({ positioned: p }) => ({
     version: 1,

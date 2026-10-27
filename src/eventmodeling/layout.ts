@@ -4,6 +4,7 @@ import { preparePixelText } from '../shared/prepared-text.ts'
 import { diagramTitleBand, positionDiagramTitle, resolveRenderStyle } from '../styles.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import type { RenderOptions } from '../types.ts'
+import { resolveColors, type DiagramColors } from '../theme.ts'
 import type { EventFrame, EventModelingBody } from './types.ts'
 import { eventLane, eventLanes, eventRelations } from './parser.ts'
 
@@ -15,10 +16,12 @@ export function eventFrameText(body: EventModelingBody, identity: string | Event
   const specs = body.specifications.filter(value => value.frame === id).flatMap(value => (['given', 'when', 'then'] as const).filter(key => value[key].length).map(key => `${key}: ${value[key].map(item => `${item.type} ${item.entity}`).join(', ')}`))
   return [`${frame.id} · ${frame.type}${frame.reset ? ' · reset' : ''}`, frame.entity, ...(data ? [data.text] : []), ...notes, ...specs].join('\n')
 }
-export function layoutEventModeling(body: EventModelingBody, options: Readonly<RenderOptions> = {}, styleFace?: Readonly<InternalStyleFace>, rowHeight = 0) {
+export function layoutEventModeling(body: EventModelingBody, options: Readonly<RenderOptions> = {}, styleFace?: Readonly<InternalStyleFace>, rowHeight = 0, palette?: Readonly<DiagramColors>) {
   const style = resolveRenderStyle(options, undefined, styleFace),
     pad = options.padding ?? 24
-  const nodeStroke = paintedStrokeExtent({ stroke: style.nodeBorderColor ?? 'var(--_node-stroke)', strokeWidth: String(style.nodeLineWidth) }, false) ?? 0
+  // Admission retains the canonical palette; reuse drawing's cached tone
+  // projection here so invisible outlines reserve no painted extent.
+  const nodeStroke = paintedStrokeExtent({ stroke: style.nodeBorderColor ?? (palette ? resolveColors(palette).nodeStroke : 'var(--_node-stroke)'), strokeWidth: String(style.nodeLineWidth) }, false) ?? 0
   const prepare = (text: string) => preparePixelText(text, { display: 'literal', fontFamily: options.font, fontSize: style.nodeLabelFontSize, fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing, transform: style.nodeTextTransform, maxWidth: 220 })
   const prepareLane = (text: string) => preparePixelText(text, { display: 'literal', fontFamily: style.groupFont ?? options.font, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing, transform: style.groupTextTransform, maxWidth: 220 })
   const lanes = eventLanes(body).map(lane => ({ ...lane, block: prepareLane(lane.label), x: pad, y: 0, width: 0, height: 0 }))
