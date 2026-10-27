@@ -31,6 +31,9 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Fixed
 
+- Architecture layouts separate expanded aligned group frames and reconcile
+  cross-group alignment after child reordering, preserving complete group contents
+  and routing from the final endpoint positions.
 - XY charts wrap rotated axis titles into the authored canvas height and reserve
   their complete multiline gutter, preserving fixed chart dimensions and text.
 
