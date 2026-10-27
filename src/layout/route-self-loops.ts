@@ -99,8 +99,53 @@ export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode
       const desired = 24 + rank * Math.max(14, pillMain(side) + 8)
       return { d, desired, clear: clearDepth(side, d) }
     }
+    // A side's raw capacity is only a proposal. Its complete marker seats
+    // must also clear the live peer routes before occupancy can be committed.
+    const candidateFor = (side: PortSide, g: { d: number; desired: number; clear: number }): Point[] | null => {
+      const depth = Math.max(Math.min(g.desired, g.clear), 8)
+      const d = g.d
+      const points: Point[] = (() => {
+        switch (side) {
+          case 'W':
+            return [
+              { x: node.x, y: cy - d },
+              { x: node.x - depth, y: cy - d },
+              { x: node.x - depth, y: cy + d },
+              { x: node.x, y: cy + d },
+            ]
+          case 'E':
+            return [
+              { x: node.x + node.width, y: cy - d },
+              { x: node.x + node.width + depth, y: cy - d },
+              { x: node.x + node.width + depth, y: cy + d },
+              { x: node.x + node.width, y: cy + d },
+            ]
+          case 'N':
+            return [
+              { x: cx - d, y: node.y },
+              { x: cx - d, y: node.y - depth },
+              { x: cx + d, y: node.y - depth },
+              { x: cx + d, y: node.y },
+            ]
+          default:
+            return [
+              { x: cx - d, y: node.y + node.height },
+              { x: cx - d, y: node.y + node.height + depth },
+              { x: cx + d, y: node.y + node.height + depth },
+              { x: cx + d, y: node.y + node.height },
+            ]
+        }
+      })()
+      // Clip both endpoints onto non-rectangular outlines before measuring
+      // the actual marker pose. Failed seats leave all live routes unchanged.
+      const clipped = clipEdgeToShape(clipEdgeToShape(points, node, true), node, false)
+      const blocker = routeCandidateMarkerBlocker(edge, clipped, ctx.edges, style)
+      if (blocker) { markerBlockers?.push(blocker); return null }
+      return clipped
+    }
     let chosen: PortSide | null = null
     let geo: { d: number; desired: number; clear: number } | null = null
+    let clipped: Point[] | null = null
     const allocatedOrder = sideOrder
       .map((side, preference) => ({ side, preference, rank: sideRank(side) }))
       .sort((a, b) => a.rank - b.rank || a.preference - b.preference)
@@ -108,61 +153,28 @@ export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode
     for (const side of allocatedOrder) {
       if (!sideHasSlot(side)) continue
       const g = pickGeometry(side)
-      if (g.clear >= Math.min(g.desired, 14)) {
-        chosen = side
-        geo = g
-        break
-      }
+      if (g.clear < Math.min(g.desired, 14)) continue
+      const candidate = candidateFor(side, g)
+      if (!candidate) continue
+      chosen = side
+      geo = g
+      clipped = candidate
+      break
     }
-    if (!chosen || !geo) {
-      // No side offers the minimum arc — keep the widest one (still honest,
-      // still certified; the audit gates verify no overlap was introduced).
+    if (!chosen || !geo || !clipped) {
+      // Preserve the existing widest-side fallback, requiring the same full
+      // marker admission before it can become a certified loop.
       const available = allocatedOrder.filter(sideHasSlot)
       if (available.length === 0) return null
-      chosen = available.reduce((best, side) => (pickGeometry(side).clear > pickGeometry(best).clear ? side : best), available[0]!)
-      geo = pickGeometry(chosen)
+      const side = available.reduce((best, side) => (pickGeometry(side).clear > pickGeometry(best).clear ? side : best), available[0]!)
+      const g = pickGeometry(side)
+      const candidate = candidateFor(side, g)
+      if (!candidate) return null
+      chosen = side
+      geo = g
+      clipped = candidate
     }
     const depth = Math.max(Math.min(geo.desired, geo.clear), 8)
-    const d = geo.d
-
-    const points: Point[] = (() => {
-      switch (chosen) {
-        case 'W':
-          return [
-            { x: node.x, y: cy - d },
-            { x: node.x - depth, y: cy - d },
-            { x: node.x - depth, y: cy + d },
-            { x: node.x, y: cy + d },
-          ]
-        case 'E':
-          return [
-            { x: node.x + node.width, y: cy - d },
-            { x: node.x + node.width + depth, y: cy - d },
-            { x: node.x + node.width + depth, y: cy + d },
-            { x: node.x + node.width, y: cy + d },
-          ]
-        case 'N':
-          return [
-            { x: cx - d, y: node.y },
-            { x: cx - d, y: node.y - depth },
-            { x: cx + d, y: node.y - depth },
-            { x: cx + d, y: node.y },
-          ]
-        default:
-          return [
-            { x: cx - d, y: node.y + node.height },
-            { x: cx - d, y: node.y + node.height + depth },
-            { x: cx + d, y: node.y + node.height + depth },
-            { x: cx + d, y: node.y + node.height },
-          ]
-      }
-    })()
-    // Clip both endpoints onto non-rectangular outlines (diamond facets,
-    // circles, …) — the clip slides the endpoint along its own orthogonal
-    // segment, so orthogonality is preserved.
-    const clipped = clipEdgeToShape(clipEdgeToShape(points, node, true), node, false)
-    const markerBlocker = routeCandidateMarkerBlocker(edge, clipped, ctx.edges, style)
-    if (markerBlocker) { markerBlockers?.push(markerBlocker); return null }
     selfLoopRank.set(sideKey(chosen), sideRank(chosen) + 1)
     setRoutePoints(ctx, edge, clipped)
     if (edge.label && pill) {

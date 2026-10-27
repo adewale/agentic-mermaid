@@ -14,6 +14,8 @@ import { parseMermaid as parseLegacy } from '../parser.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { auditRouteContracts, findRouteHitches } from '../route-contracts.ts'
 import { verifyMermaid } from '../agent/verify.ts'
+import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
+import { createSelfLoopRouter } from '../layout/route-self-loops.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import type { PositionedEdge, PositionedNode, Point } from '../types.ts'
@@ -66,6 +68,20 @@ function clearance(p: Point, n: PositionedNode): number {
   const dx = Math.max(n.x - p.x, 0, p.x - (n.x + n.width))
   const dy = Math.max(n.y - p.y, 0, p.y - (n.y + n.height))
   return Math.hypot(dx, dy)
+}
+
+function expectSeparatedMarkers(edges: PositionedEdge[]): void {
+  const style = resolveRenderStyle({})
+  const markers = edges.flatMap(edge => graphEdgeMarkerPaintRegions(edge, style))
+  for (let i = 0; i < markers.length; i++) {
+    const a = markers[i]!.bounds
+    expect(a).toBeDefined()
+    for (let j = i + 1; j < markers.length; j++) {
+      const b = markers[j]!.bounds
+      expect(b).toBeDefined()
+      expect(a!.x1 <= b!.x0 || b!.x1 <= a!.x0 || a!.y1 <= b!.y0 || b!.y1 <= a!.y0).toBe(true)
+    }
+  }
 }
 
 describe('self-loops are real arcs (typed route class, not a stub)', () => {
@@ -185,6 +201,7 @@ describe('self-loops are real arcs (typed route class, not a stub)', () => {
     expect(loops.length).toBe(2)
     expect(JSON.stringify(loops[0]!.points)).not.toBe(JSON.stringify(loops[1]!.points))
     expect(loops[0]!.labelPosition).not.toEqual(loops[1]!.labelPosition)
+    expectSeparatedMarkers(positioned.edges)
     expect(auditRouteContracts(positioned, graph)).toEqual([])
   })
 
@@ -195,6 +212,7 @@ describe('self-loops are real arcs (typed route class, not a stub)', () => {
     const loops = positioned.edges.filter(edge => edge.source === 'B' && edge.target === 'B')
     const node = positioned.nodes.find(candidate => candidate.id === 'B')!
     expect(loops).toHaveLength(8)
+    expectSeparatedMarkers(positioned.edges)
     expect(new Set(loops.map(edge => JSON.stringify(edge.points))).size).toBe(8)
     expect(new Set(loops.map(edge => `${edge.labelPosition?.x},${edge.labelPosition?.y}`)).size).toBe(8)
     const style = resolveRenderStyle({})
@@ -219,6 +237,27 @@ describe('self-loops are real arcs (typed route class, not a stub)', () => {
     }
     expect(auditRouteContracts(positioned, graph)).toEqual([])
     expect(JSON.stringify(layoutGraphSync(parseLegacy(source)).edges)).toBe(JSON.stringify(positioned.edges))
+  })
+
+  test('all blocked existing loop sides preserve live routes and report marker owners', () => {
+    const node: PositionedNode = { id: 'B', label: 'B', shape: 'rectangle', x: 0, y: 0, width: 80, height: 80 }
+    const loop: PositionedEdge = { source: 'B', target: 'B', points: [{ x: 0, y: 20 }, { x: -10, y: 20 }, { x: -10, y: 40 }, { x: 0, y: 40 }], style: 'solid', hasArrowStart: false, hasArrowEnd: true }
+    const contacts = [
+      [{ x: -10, y: 50 }, { x: 0, y: 50 }],
+      [{ x: 90, y: 50 }, { x: 80, y: 50 }],
+      [{ x: 50, y: -10 }, { x: 50, y: 0 }],
+      [{ x: 50, y: 90 }, { x: 50, y: 80 }],
+    ]
+    const peers: PositionedEdge[] = contacts.map((points, index) => ({ source: `source${index}`, target: `foreign${index}`, points, style: 'solid', hasArrowStart: false, hasArrowEnd: true }))
+    const edges = [loop, ...peers]
+    const before = JSON.stringify(edges)
+    const blockers: import('../types.ts').RouteBlocker[] = []
+    const route = createSelfLoopRouter(new Map([['B', node]]), new Map(), { nodes: [node], edges, style: resolveRenderStyle({}) }, blockers)
+    expect(route(loop)).toBeNull()
+    expect(route(loop)).toBeNull()
+    expect(JSON.stringify(edges)).toBe(before)
+    expect(blockers.length).toBeGreaterThanOrEqual(4)
+    expect(blockers.every(blocker => blocker.kind === 'port' && blocker.id?.startsWith('peer-marker:'))).toBe(true)
   })
 
   test('self-loop layout is deterministic', () => {
