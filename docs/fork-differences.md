@@ -230,3 +230,10 @@ encoded as literal text. `set_message_wrap` and `set_fragment_message_wrap` acce
 ## Upstreaming strategy
 
 The fork should continue extracting small upstreamable PRs from broad fork work. This file is not the backlog: parked fork-port ideas live only under `PARK-3` in `TODO.md` until one is promoted to a focused issue.
+
+## Original upstream assertion runs
+
+The [original assertion runner](../eval/mermaid-upstream-assertions/README.md)
+executes pinned source test bodies rather than harvested input samples. Its
+family breakdown distinguishes native refusals, assertion mismatches, unmapped
+APIs, reference-control failures, skips and collection errors.

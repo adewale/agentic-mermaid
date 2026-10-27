@@ -40,6 +40,88 @@ export interface AgenticGrammarResult {
 const message = (error: unknown): string => String(error instanceof Error ? error.message : error).slice(0, 2000)
 const nativeFamilies = new Set<string>(knownBuiltinFamilies())
 
+/** The public renderer's actual normalization and native parser boundary,
+ * shared by diagnostics and original-assertion adapters. It does no layout. */
+export function parseNativeModel(family: string, source: string): unknown {
+  const request = resolveRenderRequestForExecution(source, {}, 'svg')
+  const selected = resolvedRenderExecutionPlanOf(request).family.id
+  if (selected !== family) throw new Error(`Source routes to ${selected}, not requested family ${family}`)
+  return nativeParserForRequest(family, request)()
+}
+
+function nativeParserForRequest(family: string, request: ReturnType<typeof resolveRenderRequestForExecution>): () => unknown {
+  const normalized = request.source
+  const context = resolvedFamilyRenderContextOf(request)
+  const lines = normalized.familyLines
+  return (): unknown => {
+    switch (family) {
+      case 'flowchart':
+        return parseFlowchartRenderSource(normalizeMermaidSource(normalized.originalText).familyBody, normalized.familyBody)
+      case 'state':
+        return parseMermaid(normalized.familyText)
+      case 'c4': {
+        const authored = normalizeMermaidSource(normalized.originalText)
+        return parseC4Diagram(authored.originalText.slice((authored.wrapperSource ?? '').length))
+      }
+      // As the render hooks do, the envelope's accessibility and the
+      // frontmatter title join the family's own reading.
+      case 'architecture':
+        return withFrontmatterTitle(withAccessibilityFields(parseArchitectureDiagram(architectureSourceLines(normalized)), normalized.accessibility), normalized.frontmatter)
+      case 'class':
+        return parseClassDiagram(lines, normalizeMermaidSource(normalized.originalText).familyLines)
+      case 'er':
+        return withFrontmatterTitle(withAccessibilityFields(parseErDiagram(lines), normalized.accessibility), normalized.frontmatter)
+      case 'gantt':
+        return parseGanttModel(lines)
+      case 'gitgraph': {
+        const config = resolveGitGraphPositionConfig(normalized.config.gitGraph, normalized.config.themeVariables)
+        return parseGitGraph(normalized.familyBody, { mainBranchName: config.mainBranchName, mainBranchOrder: config.mainBranchOrder })
+      }
+      case 'journey':
+        return parseJourneyDiagram(lines, normalized.accessibility)
+      case 'mindmap':
+        return parseMindmap(normalized.familyBody)
+      case 'pie':
+        return parsePieChart(pieFamilyLines(normalized))
+      case 'quadrant':
+        return parseQuadrantChart(lines)
+      case 'radar':
+        return parseRadarChart(normalized.lines)
+      case 'sankey':
+        return parseSankeyDiagram(normalized.body.split(/\r?\n/))
+      case 'sequence':
+        return parseSequenceDiagram(lines, (context.familyConfig as { sequence?: ReturnType<typeof resolveSequenceConfig> } | undefined)?.sequence ?? {})
+      case 'timeline':
+        return parseTimelineDiagram(lines, normalized.accessibility)
+      case 'xychart':
+        return parseXYChart(lines)
+      case 'packet': {
+        const body = parsePacketDiagram(normalized.familyBody, normalized.accessibility)
+        body.title ??= frontmatterTitle(normalized.frontmatter)
+        return body
+      }
+      case 'kanban':
+        return parseKanbanDiagram(normalized.familyBody, normalized.accessibility)
+      case 'requirement': {
+        const body = parseRequirementDiagram(normalized.familyBody)
+        body.title ??= frontmatterTitle(normalized.frontmatter)
+        return body
+      }
+      case 'block':
+        return parseBlockDiagram(normalized.familyBody)
+      case 'treemap': {
+        const body = parseTreemapDiagram(normalized.familyBody)
+        body.title ??= frontmatterTitle(normalized.frontmatter)
+        return body
+      }
+      case 'ishikawa':
+        return parseIshikawaDiagram(normalized.familyBody)
+      default:
+        throw new Error(`Missing renderer-parser adapter for native family ${family}`)
+    }
+  }
+}
+
 function unavailable(reason: string): NativeParserObservation {
   return { statements: { status: 'unavailable', reason }, tokens: { status: 'unavailable', reason }, mutations: { status: 'unavailable', reason } }
 }
@@ -60,77 +142,8 @@ export function inspectAgenticGrammar(family: string, source: string, options: {
     const request = resolveRenderRequestForExecution(source, {}, 'svg')
     const selected = resolvedRenderExecutionPlanOf(request).family.id
     if (selected !== family) throw new Error(`Source routes to ${selected}, not requested family ${family}`)
-    const normalized = request.source
-    const context = resolvedFamilyRenderContextOf(request)
-    const lines = normalized.familyLines
+    const parse = nativeParserForRequest(family, request)
     stage = 'parser'
-    const parse = (): unknown => {
-      switch (family) {
-        case 'flowchart':
-          return parseFlowchartRenderSource(normalizeMermaidSource(normalized.originalText).familyBody, normalized.familyBody)
-        case 'state':
-          return parseMermaid(normalized.familyText)
-        case 'c4': {
-          const authored = normalizeMermaidSource(normalized.originalText)
-          return parseC4Diagram(authored.originalText.slice((authored.wrapperSource ?? '').length))
-        }
-        // As the render hooks do, the envelope's accessibility and the
-        // frontmatter title join the family's own reading.
-        case 'architecture':
-          return withFrontmatterTitle(withAccessibilityFields(parseArchitectureDiagram(architectureSourceLines(normalized)), normalized.accessibility), normalized.frontmatter)
-        case 'class':
-          return parseClassDiagram(lines, normalizeMermaidSource(normalized.originalText).familyLines)
-        case 'er':
-          return withFrontmatterTitle(withAccessibilityFields(parseErDiagram(lines), normalized.accessibility), normalized.frontmatter)
-        case 'gantt':
-          return parseGanttModel(lines)
-        case 'gitgraph': {
-          const config = resolveGitGraphPositionConfig(normalized.config.gitGraph, normalized.config.themeVariables)
-          return parseGitGraph(normalized.familyBody, { mainBranchName: config.mainBranchName, mainBranchOrder: config.mainBranchOrder })
-        }
-        case 'journey':
-          return parseJourneyDiagram(lines, normalized.accessibility)
-        case 'mindmap':
-          return parseMindmap(normalized.familyBody)
-        case 'pie':
-          return parsePieChart(pieFamilyLines(normalized))
-        case 'quadrant':
-          return parseQuadrantChart(lines)
-        case 'radar':
-          return parseRadarChart(normalized.lines)
-        case 'sankey':
-          return parseSankeyDiagram(normalized.body.split(/\r?\n/))
-        case 'sequence':
-          return parseSequenceDiagram(lines, (context.familyConfig as { sequence?: ReturnType<typeof resolveSequenceConfig> } | undefined)?.sequence ?? {})
-        case 'timeline':
-          return parseTimelineDiagram(lines, normalized.accessibility)
-        case 'xychart':
-          return parseXYChart(lines)
-        case 'packet': {
-          const body = parsePacketDiagram(normalized.familyBody, normalized.accessibility)
-          body.title ??= frontmatterTitle(normalized.frontmatter)
-          return body
-        }
-        case 'kanban':
-          return parseKanbanDiagram(normalized.familyBody, normalized.accessibility)
-        case 'requirement': {
-          const body = parseRequirementDiagram(normalized.familyBody)
-          body.title ??= frontmatterTitle(normalized.frontmatter)
-          return body
-        }
-        case 'block':
-          return parseBlockDiagram(normalized.familyBody)
-        case 'treemap': {
-          const body = parseTreemapDiagram(normalized.familyBody)
-          body.title ??= frontmatterTitle(normalized.frontmatter)
-          return body
-        }
-        case 'ishikawa':
-          return parseIshikawaDiagram(normalized.familyBody)
-        default:
-          throw new Error(`Missing renderer-parser adapter for native family ${family}`)
-      }
-    }
     const events: ParserObservation[] = []
     const attempt = (run: () => unknown): { accepted: boolean; raw?: unknown; model?: ReturnType<typeof snapshotParserObservationValue>; error?: string } => {
       try {
