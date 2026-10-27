@@ -1,4 +1,4 @@
-import { projectZenUMLSequence } from '../zenuml/native-sequence.ts'
+import { projectZenUMLSequence, type ZenUMLMessageContext } from '../zenuml/native-sequence.ts'
 import { eventLanes, eventRelations } from '../eventmodeling/parser.ts'
 import { isStableFamilyBody, stableFamilyCount, stableFamilyTree } from './stable-family-adapters.ts'
 
@@ -50,6 +50,8 @@ export interface DescribeTree {
     label: string
     parentId?: string
     value?: number
+    /** Renderer-owned endpoint, not an authored participant. */
+    external?: true
     c4?: ({ category: 'element'; effectiveShape: C4Shape } & Pick<C4Element, 'kind' | 'external' | 'shape' | 'parentId'>) | ({ category: 'boundary' } & Pick<C4Boundary, 'kind' | 'parentId'>)
   }>
   edges: Array<{
@@ -57,6 +59,7 @@ export interface DescribeTree {
     to: string
     label?: string
     sequence?: { fragmentIndex: number; branchIndex: number; fragmentKind: string; branchLabel?: string }
+    zenuml?: Pick<ZenUMLMessageContext, 'kind' | 'sourceId' | 'callAncestors' | 'scopes'> & { id: string }
     c4?: Pick<C4Relationship, 'id' | 'order' | 'index' | 'macro' | 'direction' | 'bidirectional' | 'reversed'> & {
       authoredFrom: string
       authoredTo: string
@@ -280,10 +283,10 @@ export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
       tree.edges.push({ from: link.source, to: link.target, label: String(link.value) })
     }
   } else if (d.body.kind === 'zenuml') {
-    const model = projectZenUMLSequence(d.body)
-    tree.nodes.push(...model.actors.filter(actor => !actor.external).map(actor => ({ id: actor.id, label: actor.label })))
-    const authored = new Set(tree.nodes.map(node => node.id))
-    tree.edges.push(...model.messages.filter(message => authored.has(message.from) && authored.has(message.to)).map(message => ({ from: message.from, to: message.to, label: message.label })))
+    const model = projectZenUMLSequence(d.body, { message: ({ message, kind, sourceId, callAncestors, scopes }) => {
+      tree.edges.push({ from: message.from, to: message.to, label: message.label, zenuml: { id: message.id!, kind, sourceId, callAncestors, scopes } })
+    } })
+    tree.nodes.push(...model.actors.map(actor => ({ id: actor.id, label: actor.external ? 'External caller' : actor.label, ...(actor.external ? { external: true as const } : {}) })))
   } else if (d.body.kind === 'eventmodeling') {
     const lanes = eventLanes(d.body)
     tree.nodes.push(...lanes.map(lane => ({ id: lane.id, label: lane.label })))

@@ -3,15 +3,34 @@ import { setSequenceBlockBoundaries, setSequenceBlockScope, type SequenceBlockBo
 import { prepareDisplayText, type LabelContent } from '../shared/display-text.ts'
 import { normalizeMarkdownEmphasis } from '../multiline-utils.ts'
 import { validateZenUML, walkZenUML } from './native-body.ts'
-import type { ZenUMLAssignment, ZenUMLBody, ZenUMLStatement } from './native-types.ts'
+import type { ZenUMLAssignment, ZenUMLBody, ZenUMLBranch, ZenUMLFragmentType, ZenUMLStatement } from './native-types.ts'
 
 const actorTypes: Record<string, Actor['type']> = { actor: 'actor', boundary: 'boundary', control: 'control', entity: 'entity', database: 'database', collections: 'collections', queue: 'queue', participant: 'participant' }
 const literal = (value: string): LabelContent => ({ value, prepared: prepareDisplayText(value, 'literal') })
-interface Context { owner?: string; returnTo?: string; parentId?: string; blockIndex?: number; section: number }
+export interface ZenUMLSemanticScope {
+  fragmentId: string
+  fragmentIndex: number
+  type: ZenUMLFragmentType
+  branchIndex: number
+  branchKind: ZenUMLBranch['kind']
+  condition?: string
+}
+export interface ZenUMLMessageContext {
+  message: Message
+  kind: 'call' | 'async' | 'reply' | 'creation'
+  sourceId: string
+  callAncestors: readonly string[]
+  scopes: readonly ZenUMLSemanticScope[]
+}
+export interface ZenUMLProjectionObserver {
+  message?(context: ZenUMLMessageContext): void
+  fragment?(context: { fragment: Extract<ZenUMLStatement, { kind: 'fragment' }>; branches: readonly ZenUMLBranch[]; callAncestors: readonly string[]; scopes: readonly ZenUMLSemanticScope[] }): void
+}
+interface Context { owner?: string; returnTo?: string; parentId?: string; blockIndex?: number; section: number; callAncestors: readonly string[]; scopes: readonly ZenUMLSemanticScope[] }
 
 /** Project call-stack semantics directly into the existing sequence model.
  * No vendor DOM, alternate layout engine, or Mermaid string round trip. */
-export function projectZenUMLSequence(body: ZenUMLBody): SequenceDiagram {
+export function projectZenUMLSequence(body: ZenUMLBody, observe?: ZenUMLProjectionObserver): SequenceDiagram {
   validateZenUML(body, true)
   const sequence: SequenceDiagram = { actors: [], messages: [], blocks: [], notes: [], activationEvents: [], boxes: [], ...(body.title === undefined ? {} : { title: body.title, titleContent: literal(body.title) }), ...(body.accessibilityTitle === undefined ? {} : { accessibilityTitle: body.accessibilityTitle }), ...(body.accessibilityDescription === undefined ? {} : { accessibilityDescription: body.accessibilityDescription }) }
   const byId = new Map<string, Actor>(), reserved = new Set(body.participants.map(p => p.id))
@@ -49,10 +68,12 @@ export function projectZenUMLSequence(body: ZenUMLBody): SequenceDiagram {
   }
   if (starter !== undefined) actor(starter)
   const boundaries: SequenceBlockBoundary[] = [], scopes = new Map<number, SequenceBlockScope>(), openScopes: number[] = []
-  const addMessage = (id: string, from: string | undefined, to: string | undefined, label: string, context: Context, reply = false, activate = false) => {
+  const addMessage = (id: string, from: string | undefined, to: string | undefined, label: string, context: Context, kind: ZenUMLMessageContext['kind'], activate = false, sourceId = id) => {
     const source = actor(from), target = actor(to)
+    const reply = kind === 'reply'
     const message: Message = { id, ...(context.parentId ? { parentId: context.parentId } : {}), from: source, to: target, label, labelContent: literal(label), lineStyle: reply ? 'dashed' : 'solid', startHead: 'none', endHead: reply ? 'open' : 'filled', centralStart: false, centralEnd: false, ...(activate && source !== target ? { activate: true } : {}) }
     sequence.messages.push(message)
+    observe?.message?.({ message, kind, sourceId, callAncestors: context.callAncestors, scopes: context.scopes })
   }
   const addNote = (id: string, text: string, ids: string[], context: Context) => {
     const label = normalizeMarkdownEmphasis(text)
@@ -73,9 +94,10 @@ export function projectZenUMLSequence(body: ZenUMLBody): SequenceDiagram {
           const source = actor(from), target = actor(to)
           comments([source, target])
           const self = source === target
-          addMessage(s.id, from, to, self && s.assignment ? `${assignmentLabel(s.assignment)} = ${s.label}` : s.label, context, false, true)
-          visit(s.children, { ...context, owner: to, returnTo: from })
-          if (s.assignment && !self && !directReturns(s.children)) addMessage(derivedId(`${s.id}:reply`), to, from, assignmentLabel(s.assignment), context, true)
+          addMessage(s.id, from, to, self && s.assignment ? `${assignmentLabel(s.assignment)} = ${s.label}` : s.label, context, 'call', true)
+          const childContext = { ...context, owner: to, returnTo: from, callAncestors: observe ? [...context.callAncestors, s.id] : context.callAncestors }
+          visit(s.children, childContext)
+          if (s.assignment && !self && !directReturns(s.children)) addMessage(derivedId(`${s.id}:reply`), to, from, assignmentLabel(s.assignment), childContext, 'reply', false, s.id)
           if (!self) sequence.activationEvents!.push({ actorId: target, kind: 'deactivate', messageIndex: sequence.messages.length })
           break
         }
@@ -86,20 +108,21 @@ export function projectZenUMLSequence(body: ZenUMLBody): SequenceDiagram {
           const participant = byId.get(target)!
           if (participant.createMessageIndex !== undefined) throw Error(`Repeated creation of ZenUML object ${target} cannot share one sequence lifeline`)
           participant.createMessageIndex = sequence.messages.length
-          addMessage(s.id, context.owner, target, `«${s.arguments || 'create'}»`, context, false, true)
-          visit(s.children, { ...context, owner: target, returnTo: context.owner })
-          if (s.assignment && !directReturns(s.children)) addMessage(derivedId(`${s.id}:reply`), target, context.owner, assignmentLabel(s.assignment), context, true)
+          addMessage(s.id, context.owner, target, `«${s.arguments || 'create'}»`, context, 'creation', true)
+          const childContext = { ...context, owner: target, returnTo: context.owner, callAncestors: observe ? [...context.callAncestors, s.id] : context.callAncestors }
+          visit(s.children, childContext)
+          if (s.assignment && !directReturns(s.children)) addMessage(derivedId(`${s.id}:reply`), target, context.owner, assignmentLabel(s.assignment), childContext, 'reply', false, s.id)
           sequence.activationEvents!.push({ actorId: target, kind: 'deactivate', messageIndex: sequence.messages.length })
           break
         }
         case 'message':
           comments([actor(s.from), actor(s.to)])
-          addMessage(s.id, s.from, s.to, s.label, context, s.reply)
+          addMessage(s.id, s.from, s.to, s.label, context, s.reply ? 'reply' : 'async')
           sequence.messages.at(-1)!.endHead = 'open'
           break
         case 'return':
           comments([actor(context.owner), actor(context.returnTo)])
-          addMessage(s.id, context.owner, context.returnTo, s.label, context, true)
+          addMessage(s.id, context.owner, context.returnTo, s.label, context, 'reply')
           break
         case 'fragment': {
           if (pending.length) comments([actor(context.owner)])
@@ -114,6 +137,7 @@ export function projectZenUMLSequence(body: ZenUMLBody): SequenceDiagram {
           boundaries.push({ kind: 'open', blockIndex: index, messageIndex: sequence.messages.length, noteIndex: sequence.notes.length })
           openScopes.push(index)
           const branches = s.type === 'par' ? parallelBranches(s.branches[0]!.statements) : s.branches
+          observe?.fragment?.({ fragment: s, branches, callAncestors: context.callAncestors, scopes: context.scopes })
           for (const [section, branch] of branches.entries()) {
             if (section) {
               const label = branch.kind === 'else-if' ? `else if (${branch.condition ?? ''})` : branch.kind === 'body' ? '' : `${branch.kind}${branch.condition === undefined ? '' : ` (${branch.condition})`}`
@@ -122,7 +146,8 @@ export function projectZenUMLSequence(body: ZenUMLBody): SequenceDiagram {
               scope.dividerNoteIndices.push(sequence.notes.length)
               boundaries.push({ kind: 'divider', blockIndex: index, dividerIndex, messageIndex: sequence.messages.length, noteIndex: sequence.notes.length })
             }
-            visit(branch.statements, { ...context, parentId: s.id, blockIndex: index, section })
+            const condition = section === 0 ? s.condition : branch.condition
+            visit(branch.statements, { ...context, parentId: s.id, blockIndex: index, section, scopes: observe ? [...context.scopes, { fragmentId: s.id, fragmentIndex: index, type: s.type, branchIndex: section, branchKind: branch.kind, ...(condition === undefined ? {} : { condition }) }] : context.scopes })
           }
           openScopes.pop()
           block.endIndex = sequence.messages.length - 1
@@ -136,7 +161,7 @@ export function projectZenUMLSequence(body: ZenUMLBody): SequenceDiagram {
     }
     if (pending.length) comments([actor(context.owner)])
   }
-  visit(body.statements, { owner: starter, section: 0 })
+  visit(body.statements, { owner: starter, section: 0, callAncestors: [], scopes: [] })
   // Fragment-only and note-only diagrams still need a layout anchor. It is
   // explicitly external and has no participant header or lifeline.
   if (!sequence.actors.length && (sequence.blocks.length || sequence.notes.length)) actor(undefined)

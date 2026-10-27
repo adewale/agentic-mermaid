@@ -6,7 +6,7 @@ import { mutateZenUML, serializeZenUML, validateZenUML, zenUMLMeaning } from '..
 import { projectZenUMLSequence } from '../zenuml/native-sequence.ts'
 import { getSequenceBlockBoundaries, getSequenceBlockScope } from '../sequence/parser.ts'
 import { preparedDisplayTextValue } from '../shared/display-text.ts'
-import { mutateChecked, parseRegisteredMermaid, serializeMermaid } from '../agent/core.ts'
+import { checkMermaid, describeMermaidFacts, describeMermaidTree, mutateChecked, parseRegisteredMermaid, serializeMermaid } from '../agent/core.ts'
 
 const rich = `zenuml
 title Checkout ownership
@@ -250,4 +250,39 @@ test('existing Checkout fixture keeps its authored semantics through canonical n
   expect(sequence.messages.map(m => [m.from, m.to, m.label])).toEqual([['Buyer', 'API', 'placeOrder()'], ['API', 'Store', 'reserve()'], ['API', 'Buyer', 'confirmation'], ['API', 'Buyer', 'unavailable'], ['API', 'Buyer', 'accepted']])
   validateZenUML(body, true)
   expect(zenUMLMeaning(parseZenUML(serializeZenUML(body)))).toBe(zenUMLMeaning(body))
+})
+
+test('public Zen facts retain branch guards, membership, call ancestry and message kind', () => {
+  const parse = (source: string) => {
+    const result = parseRegisteredMermaid(source)
+    if (!result.ok || result.value.body.kind !== 'zenuml') throw Error('Expected native Zen')
+    return result.value
+  }
+  const source = 'zenuml\nClient->API.request() {\n if (ready) {\n  API.accept()\n } else {\n  API.reject()\n }\n}'
+  const moved = 'zenuml\nClient->API.request() {\n if (ready) {\n  API.accept()\n  API.reject()\n } else {\n }\n}'
+  const original = parse(source), changed = parse(moved), facts = describeMermaidFacts(original)
+  expect(checkMermaid(changed, { include: facts, exact: true }).ok).toBe(false)
+  expect(facts).toContain('fragment#statement:2 branch#1 else')
+  expect(facts).toContain('message#statement:4 fragment#statement:2 branch#1')
+  expect(describeMermaidFacts(changed)).toContain('message#statement:4 fragment#statement:2 branch#0')
+  const guard = 'zenuml\nA->API.work() {\n if (ready) {\n } else if (backorder) {\n  API.wait()\n }\n}'
+  expect(describeMermaidFacts(parse(guard))).not.toEqual(describeMermaidFacts(parse(guard.replace('backorder', 'unavailable'))))
+  expect(describeMermaidFacts(parse('zenuml\nA->API.foo()'))).not.toEqual(describeMermaidFacts(parse('zenuml\nA->API: foo()')))
+  const nested = parse('zenuml\nClient->API.request() {\n API->Store.write()\n}')
+  const flat = parse('zenuml\nClient->API.request()\nAPI->Store.write()')
+  expect(describeMermaidFacts(nested)).not.toEqual(describeMermaidFacts(flat))
+  expect(describeMermaidFacts(nested)).toContain('message#statement:2 call-parent statement:1')
+})
+
+test('public Zen accessibility tree retains external calls and explicit branch context', () => {
+  const parsed = parseRegisteredMermaid('zenuml\nAPI.request() {\n if (ready) {\n  Store.load()\n } else {\n  Store.wait()\n }\n}')
+  if (!parsed.ok) throw Error('Expected source')
+  const tree = describeMermaidTree(parsed.value)
+  expect(tree.edges.map(edge => edge.label)).toEqual(['request()', 'load()', 'wait()'])
+  expect(tree.nodes.filter(node => !node.external).map(node => node.id)).toEqual(['API', 'Store'])
+  const outside = tree.nodes.find(node => node.external)!
+  expect(outside).toBeDefined()
+  expect(tree.edges[0]!.from).toBe(outside.id)
+  expect(tree.edges[1]!.zenuml?.scopes.at(-1)?.branchIndex).toBe(0)
+  expect(tree.edges[2]!.zenuml?.scopes.at(-1)?.branchIndex).toBe(1)
 })

@@ -172,8 +172,25 @@ export function describeMermaidFacts(d: ParsedDiagram): string[] {
       break
     }
     case 'zenuml': {
-      const model = projectZenUMLSequence(d.body)
+      const model = projectZenUMLSequence(d.body, {
+        message: ({ message, kind, callAncestors, scopes }) => {
+          add(out, `message#${clean(message.id!)} kind ${kind}`)
+          if (callAncestors.length) add(out, `message#${clean(message.id!)} call-parent ${clean(callAncestors.at(-1)!)}`)
+          for (const scope of scopes) add(out, `message#${clean(message.id!)} fragment#${clean(scope.fragmentId)} branch#${scope.branchIndex}`)
+        },
+        fragment: ({ fragment, branches, callAncestors, scopes }) => {
+          add(out, `fragment#${clean(fragment.id)} kind ${fragment.type}`)
+          if (callAncestors.length) add(out, `fragment#${clean(fragment.id)} call-parent ${clean(callAncestors.at(-1)!)}`)
+          const parent = scopes.at(-1)
+          if (parent) add(out, `fragment#${clean(fragment.id)} parent ${clean(parent.fragmentId)} branch#${parent.branchIndex}`)
+          branches.forEach((branch, index) => {
+            const condition = index === 0 ? fragment.condition : branch.condition
+            add(out, `fragment#${clean(fragment.id)} branch#${index} ${branch.kind}${condition === undefined ? '' : ` : ${clean(condition)}`}`)
+          })
+        },
+      })
       for (const actor of model.actors) if (!actor.external) add(out, `participant ${clean(actor.id)} : ${clean(actor.label)}`)
+      for (const actor of model.actors) if (actor.external) add(out, `external-endpoint ${clean(actor.id)}`)
       for (const message of model.messages) {
         add(out, `message ${clean(message.from)} -> ${clean(message.to)} : ${clean(message.label)}`)
         add(out, `message#${clean(message.id!)} ${clean(message.from)} -> ${clean(message.to)} : ${clean(message.label)}${message.lineStyle === 'dashed' ? ' reply' : ''}`)
