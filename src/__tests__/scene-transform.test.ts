@@ -21,7 +21,19 @@ describe('Scene transforms are typed semantic geometry', () => {
     expect(transformedBounds(box, matrix)).toEqual({ x0: 9, y0: -10, x1: 52, y1: 29 })
     expect(first).toEqual({ x0: 9, y0: -5, x1: 42, y1: 29 })
     expect(reads).toHaveLength(12)
+    reads.length = 0
+    expect(transformedBounds(box, { ...matrix, a: 1, b: 0, c: 0, d: 1 })).toEqual({ x0: 8, y0: -4, x1: 19, y1: 3 })
+    expect(reads).toEqual(['x0', 'y0', 'x1', 'y1', 'x0', 'y0', 'x0', 'y1', 'x1', 'y0', 'x1', 'y1'])
     expect(transformedBounds(values, { ...matrix, a: Number.MAX_VALUE })).toBeUndefined()
+  })
+
+  test.each([
+    { name: 'translation', box: { x0: 1, y0: 2, x1: 4, y1: 8 }, e: 10, f: -5, expected: { x0: 11, y0: -3, x1: 14, y1: 3 } },
+    { name: 'inverted translation', box: { x0: 4, y0: 8, x1: 1, y1: 2 }, e: 10, f: -5, expected: { x0: 11, y0: -3, x1: 14, y1: 3 } },
+    { name: 'signed zero', box: { x0: -0, y0: -1, x1: 2, y1: 1 }, e: -0, f: -0, expected: { x0: -0, y0: -1, x1: 2, y1: 1 } },
+    { name: 'translation overflow', box: { x0: 1, y0: 2, x1: Number.MAX_VALUE, y1: 8 }, e: Number.MAX_VALUE, f: -5, expected: undefined },
+  ])('$name preserves the complete transformed extent', ({ box, e, f, expected }) => {
+    expect(transformedBounds(box, { kind: 'matrix', a: 1, b: -0, c: -0, d: 1, e, f })).toEqual(expected)
   })
 
   test.each([

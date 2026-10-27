@@ -397,7 +397,19 @@ export function transformedBounds(box: AxisAlignedBox, transform?: SceneTransfor
   if (!transform) return box
   if (transform.kind === 'rotate') return rotateBoxBounds(box, { x: transform.cx, y: transform.cy }, transform.angle)
   const m = transformMatrix(transform)
-  const corners = [[box.x0, box.y0], [box.x0, box.y1], [box.x1, box.y0], [box.x1, box.y1]]
+  // Observe mutable caller fields in the same corner order before selecting
+  // a translation shortcut. Zero coordinates retain all four signed-zero extrema.
+  const x00 = box.x0, y00 = box.y0, x01 = box.x0, y01 = box.y1,
+    x10 = box.x1, y10 = box.y0, x11 = box.x1, y11 = box.y1
+  if (m[0] === 1 && m[1] === 0 && m[2] === 0 && m[3] === 1
+    && x00 === x01 && y00 === y10 && x10 === x11 && y01 === y11
+    && x00 !== 0 && y00 !== 0 && x10 !== 0 && y01 !== 0
+    && Number.isFinite(x00) && Number.isFinite(y00) && Number.isFinite(x10) && Number.isFinite(y01)) {
+    const first = transformPoint({ x: x00, y: y00 }, m), last = transformPoint({ x: x11, y: y11 }, m)
+    return Number.isFinite(first.x) && Number.isFinite(first.y) && Number.isFinite(last.x) && Number.isFinite(last.y)
+      ? { x0: Math.min(first.x, last.x), y0: Math.min(first.y, last.y), x1: Math.max(first.x, last.x), y1: Math.max(first.y, last.y) } : undefined
+  }
+  const corners = [[x00, y00], [x01, y01], [x10, y10], [x11, y11]]
     .map(([x, y]) => transformPoint({ x: x!, y: y! }, m))
   return corners.every(point => Number.isFinite(point.x) && Number.isFinite(point.y)) ? pointsBounds(corners) : undefined
 }
