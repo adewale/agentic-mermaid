@@ -315,6 +315,43 @@ CEO --> Designer : oversees`
 })
 
 describe('Class header bypass carrier ownership', () => {
+  test.each([
+    { width: 1, markerX: 1000, lane: 31.5, before: 35.5, after: 64.5 },
+    { width: 1, markerX: 30, lane: 68.5, before: 35.5, after: 64.5 },
+    { width: 8, markerX: 1000, lane: 28, before: 32, after: 68 },
+    { width: 8, markerX: 30, lane: 72, before: 32, after: 68 },
+  ])('retains the admitted bypass around marker x=$markerX at width=$width', async ({ width, markerX, lane, before, after }) => {
+    const { repairClassHeaderRoutes, classRelationshipPaintBoxes, classCarrierEntersMarker, classSegmentEntersBox } = await import('../class/owned-surfaces.ts')
+    const { CLASS_STYLE_DEFAULTS } = await import('../class/layout.ts')
+    const { resolveRenderStyle } = await import('../styles.ts')
+    for (const transpose of [false, true]) {
+      const point = (x: number, y: number) => transpose ? { x: y, y: x } : { x, y }
+      const diagram: import('../class/types.ts').PositionedClassDiagram = {
+        width: 1200, height: 1200, classes: [], notes: [],
+        namespaces: [{ id: 'G', name: 'G', label: 'G', classIds: [], x: 40, y: 40, width: 20, height: 20, headerHeight: 20 }],
+        relationships: [
+          { from: 'S', to: 'T', type: 'link-solid', markerAt: 'none', points: [point(50, 0), point(50, 100)] },
+          { from: 'M', to: 'N', type: 'inheritance', markerAt: 'from', points: [point(markerX, 50), point(markerX - 20, 50)] },
+        ],
+      }
+      const style = { ...resolveRenderStyle({}, CLASS_STYLE_DEFAULTS), lineWidth: width },
+        original = structuredClone(diagram.relationships), changed = repairClassHeaderRoutes(diagram, style)
+      // These are the original admitted routes: the nearby triangle excludes
+      // the first side, while the distant triangle leaves that side available.
+      expect([...changed]).toEqual([0])
+      expect(diagram.relationships[0]!.points).toEqual([
+        point(50, 0), point(50, before), point(lane, before), point(lane, after), point(50, after), point(50, 100),
+      ])
+      expect(diagram.relationships[1]).toEqual(original[1])
+      const marker = classRelationshipPaintBoxes(diagram, style, true, undefined, false).find(p => p.edge === 1)!
+      const route = diagram.relationships[0]!.points
+      for (let i = 1; i < route.length; i++) {
+        expect(classCarrierEntersMarker(route[i - 1]!, route[i]!, marker.pieces!, width)).toBe(false)
+        expect(classSegmentEntersBox(route[i - 1]!, route[i]!, { x: 40, y: 40, width: 20, height: 20 })).toBe(false)
+      }
+    }
+  })
+
   test.each(['vertical', 'horizontal'] as const)('keeps unrelated %s header detours visually distinct', async direction => {
     const { repairClassHeaderRoutes, classOwnedSurfaceViolations } = await import('../class/owned-surfaces.ts')
     const { finalClassHeaderNumericSeed } = await import('../class/header-lanes.ts')

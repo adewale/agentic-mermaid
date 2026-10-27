@@ -444,6 +444,34 @@ function simpleClassRoute(route: readonly Point[]): boolean {
   }
   return true
 }
+interface HeaderMarkerSupport { x0: number; y0: number; x1: number; y1: number }
+/** Candidate points are already canonical header coordinates. Full-width
+ * expansion covers every butt strip; unknown arithmetic keeps exact checks. */
+function headerMarkerSupport(points: readonly Point[], width: number, pay: () => void): HeaderMarkerSupport | undefined {
+  pay()
+  if (!(width > 0) || !Number.isFinite(width)) return undefined
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity
+  for (const point of points) {
+    pay()
+    if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) return undefined
+    x0 = Math.min(x0, point.x); y0 = Math.min(y0, point.y)
+    x1 = Math.max(x1, point.x); y1 = Math.max(y1, point.y)
+  }
+  x0 -= width; y0 -= width; x1 += width; y1 += width
+  if (!Number.isFinite(x0) || !Number.isFinite(y0) || !Number.isFinite(x1) || !Number.isFinite(y1)) return undefined
+  for (let i = 0; i < 5; i++) pay()
+  return { x0, y0, x1, y1 }
+}
+function headerMarkerMayMeet(support: HeaderMarkerSupport | undefined, box: ClassSurfaceBox, pay: () => void): boolean {
+  pay()
+  if (!support || !(box.width >= 0 && box.height >= 0)) return true
+  const x1 = box.x + box.width, y1 = box.y + box.height,
+    error = (Math.abs(support.x0) + Math.abs(support.y0) + Math.abs(support.x1) + Math.abs(support.y1)
+      + Math.abs(box.x) + Math.abs(box.y) + Math.abs(x1) + Math.abs(y1)) * 1e-10 + 1e-9,
+    left = box.x - support.x1, right = support.x0 - x1, top = box.y - support.y1, bottom = support.y0 - y1
+  return !Number.isFinite(error) || !Number.isFinite(left) || !Number.isFinite(right) || !Number.isFinite(top) || !Number.isFinite(bottom)
+    || !(left > error || right > error || top > error || bottom > error)
+}
 /** Test every retained band; endpoint ancestry grants no header exemption. */
 export function repairClassHeaderRoutes(diagram: PositionedClassDiagram, style: ResolvedRenderStyle, work?: ClassMarkerAdmissionWork, numeric?: ClassHeaderNumericCapture): Set<number> {
   const changed = new Set<number>()
@@ -463,6 +491,8 @@ export function repairClassHeaderRoutes(diagram: PositionedClassDiagram, style: 
     paint = classRelationshipPaintBoxes(diagram, style, true, pay, false),
     cards = diagram.classes.filter(c => { pay(); return !c.isInterface }),
     furniture: ClassSurfaceBox[] = []
+  // includeText=false above already supplies the stable marker-only roster.
+  const markers = paint
   let titleFloor = 0
   for (const node of diagram.classes) {
     pay()
@@ -514,9 +544,11 @@ export function repairClassHeaderRoutes(diagram: PositionedClassDiagram, style: 
           pay()
           const detour = candidate.points
           if(detour.some(p=>{pay();return p.y<titleFloor}))continue
-          if (localBoxes.some(box => { pay(); return routeEnters(detour, box) }) || paint.some(p => { pay(); return p.kind === 'marker' && detour.some((point, i) => { pay(); return i > 0 && classCarrierEntersMarker(detour[i - 1]!, point, p.pieces ?? [], style.lineWidth) }) })) continue
+          if (localBoxes.some(box => { pay(); return routeEnters(detour, box) })) continue
+          const support = headerMarkerSupport(detour, style.lineWidth, pay)
+          if (markers.some(p => headerMarkerMayMeet(support, p.box, pay) && detour.some((point, i) => { pay(); return i > 0 && classCarrierEntersMarker(detour[i - 1]!, point, p.pieces ?? [], style.lineWidth) }))) continue
           const trial = simplifyOrthogonal([...relation.points.slice(0, segment), ...detour, ...relation.points.slice(segment)])
-          if (!simpleClassRoute(trial) || (style.edgeBendRadius <= 0 && paint.some(p => { pay(); return p.kind === 'marker' && classNewMiterEntersMarker(trial, relation.points, p.pieces ?? [], style.lineWidth) }))) continue
+          if (!simpleClassRoute(trial) || (style.edgeBendRadius <= 0 && markers.some(p => { pay(); return classNewMiterEntersMarker(trial, relation.points, p.pieces ?? [], style.lineWidth) }))) continue
           if (style.edgeBendRadius > 0 && !classNewRoundedCornersClear(trial,relation.points,localBoxes,paint.filter(p=>p.kind==='marker').map(p=>p.pieces??[]),style,pay)) continue
           if (trial[0]!.x !== relation.points[0]!.x || trial[0]!.y !== relation.points[0]!.y || trial.at(-1)!.x !== relation.points.at(-1)!.x || trial.at(-1)!.y !== relation.points.at(-1)!.y) continue
           if ([...cards,...furniture,...headers.filter(h=>h!==header&&!routeEnters(relation.points,h))].some(box=>{pay();return routeEnters(trial,box)})) continue
