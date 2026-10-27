@@ -39,6 +39,7 @@ import { sceneHasOnlyPreparedText } from './scene/serialization.ts'
 import { withTextMeasurementExecution } from './text-measurement-profile.ts'
 import { withSvgInspectionCache } from './svg-inspection-cache.ts'
 import { measureRenderStage } from './render-stages.ts'
+import type { ScenePartCapture } from './scene/part-capture.ts'
 
 export interface ResolvedGraphicalExecution {
   readonly svg: string
@@ -134,15 +135,17 @@ export function renderPositionedMermaidSVG(
   request: ResolvedRenderRequest,
   layout: FamilyLayoutResult,
   securityDiagnostics: OutputSecurityDiagnostic[],
+  capture?: ScenePartCapture,
 ): ResolvedGraphicalExecution {
   return withTextMeasurementExecution(resolvedRenderExecutionPlanOf(request).textMeasurement, () =>
-    renderPositionedWithTextMeasurement(request, layout, securityDiagnostics))
+    renderPositionedWithTextMeasurement(request, layout, securityDiagnostics, capture))
 }
 
 function renderPositionedWithTextMeasurement(
   request: ResolvedRenderRequest,
   layout: FamilyLayoutResult,
   securityDiagnostics: OutputSecurityDiagnostic[],
+  capture?: ScenePartCapture,
 ): ResolvedGraphicalExecution {
   const executionPlan = resolvedRenderExecutionPlanOf(request)
   if ((executionPlan.mode !== 'scene' && executionPlan.mode !== 'family-svg') || !executionPlan.executionDecision) {
@@ -155,14 +158,18 @@ function renderPositionedWithTextMeasurement(
   let preparedText = false
   let layoutCertification: PaintLayoutCertification | undefined
   if (executionPlan.mode === 'scene') {
-    const drawing = measureRenderStage('drawing', () => retainedNativeDrawing(request, layout))
+    const drawing = capture ? undefined : measureRenderStage('drawing', () => retainedNativeDrawing(request, layout))
     const scene = drawing ? undefined : measureRenderStage('scene', () => lowerPositionedFamilyScene(request, layout))
     layoutCertification = measureRenderStage('paint-certification', () => positionedPaintCertification(request, layout))
     if ((effectiveOptions.layoutSafety === 'strict' && layoutCertification.status !== 'passed') || (layoutCertification.status === 'failed' && executionPlan.backend?.inputName === 'default')) throw new PaintLayoutCertificationError(layoutCertification)
-    rawSvg = drawing?.svg ?? measureRenderStage('backend', () => executionPlan.backend!.backend.render(scene!, {
-      seed: effectiveOptions.seed ?? 0,
-      ...(request.appearance.styled ? { style: request.appearance.style } : {}),
-    }))
+    rawSvg = drawing?.svg ?? measureRenderStage('backend', () => {
+      const backendContext = {
+        seed: effectiveOptions.seed ?? 0,
+        ...(request.appearance.styled ? { style: request.appearance.style } : {}),
+      }
+      capture?.begin(backendContext, scene!)
+      return executionPlan.backend!.backend.render(scene!, backendContext)
+    })
     preparedText = executionPlan.backend?.inputName === 'default'
       && !family.id.startsWith('family:') && (drawing?.preparedText ?? sceneHasOnlyPreparedText(scene!))
   } else {
@@ -187,6 +194,7 @@ function renderPositionedWithTextMeasurement(
     svg = injectAccessibility(svg, accessibility, idPrefix, fallbackName)
     assertFinalSvgByteBudget(svg, 'accessibility-projected SVG output')
   }
+  if (capture) svg = capture.finish(svg)
   svg = formatSvgNumbers(scopeSvgStyles(svg))
   assertFinalSvgByteBudget(svg, 'style-scoped SVG output')
   // Every byte-changing projection must run before the final output-security

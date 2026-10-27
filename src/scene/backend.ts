@@ -23,6 +23,7 @@ import {
 import type { PrimitiveCapabilityClaim } from './capabilities.ts'
 import { admitBackendSceneDocument } from './external-data-snapshot.ts'
 import { sceneNodeSerialization } from './serialization.ts'
+import { capturedPart } from './part-capture.ts'
 import {
   canonicalExtensionId,
   createExtensionIdentity,
@@ -142,10 +143,10 @@ export const DefaultBackend: StyleBackend = {
   render(doc: SceneDoc, ctx: StyleBackendContext): string {
     const admitted = admitBackendSceneDocument(doc)
     const pageRect = pageRectFor(admitted, ctx)
-    if (!pageRect) return admitted.parts.map(sceneNodeSerialization).join('\n')
-    return admitted.parts
-      .map((part, i) => (i === 0 ? `${sceneNodeSerialization(part)}\n${pageRect}` : sceneNodeSerialization(part)))
-      .join('\n')
+    return admitted.parts.map((part, i) => {
+      const svg = capturedPart(ctx, part, sceneNodeSerialization(part))
+      return pageRect && i === 0 ? `${svg}\n${pageRect}` : svg
+    }).join('\n')
   },
 }
 
