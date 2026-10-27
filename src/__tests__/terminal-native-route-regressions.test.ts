@@ -174,14 +174,15 @@ A --() \`${name}\``, { useAscii, colorMode: 'none', layoutSafety: 'strict' })
   expect(() => doc.assertMarkers()).not.toThrow()
 })
 
-test.each([false, true])('retains an unroutable dense relationship as an owned, explicitly degraded summary (ASCII=%s)', useAscii => {
+test.each([false, true])('dense parallel relationships retain connected owned ink and physical markers (ASCII=%s)', useAscii => {
   const source = readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-19.mmd', import.meta.url), 'utf8')
   const { doc } = render(source, useAscii)
   const edge = doc.regions().find(region => region.id === 'edge#19:n3->n5')!
-  expect(edge.projectedText).toContain('n3 --> n5')
-  expect(edge.ports!.every(port => port.markerProjection)).toBe(true)
-  expect(doc.diagnostics).toContainEqual(expect.objectContaining({ code: 'TERMINAL_GEOMETRY_COLLISION', feature: 'edge-lane:edge#19:n3->n5' }))
-  expect(doc.diagnostics).toContainEqual(expect.objectContaining({ code: 'TERMINAL_FAMILY_PROJECTION', feature: edge.ports![0]!.markerProjection }))
+  expect(edge).toMatchObject({ from: 'n3', to: 'n5' })
+  expect(hasOwnedRoute(doc, edge)).toBe(true)
+  expect(edge.ports!.some(port => port.markerProjection)).toBe(false)
+  expect(doc.diagnostics.filter(diagnostic => diagnostic.code === 'TERMINAL_GEOMETRY_COLLISION')).toEqual([])
+  expect(visibleEndpointMarkers(doc, edge).map(marker => marker.shape)).toEqual(['arrow'])
   expect(() => doc.assertMarkers()).not.toThrow()
 })
 
@@ -300,7 +301,7 @@ test('non-geometric terminal families explicitly retain their distinct projectio
   expect(gantt.terminalStyle.diagnostics.filter(diagnostic => diagnostic.feature.endsWith('.dependencies'))).toHaveLength(2)
 })
 
-test.each([false, true])('bounded Flowchart routing retains declined relationships without inventing marker ink (ASCII=%s)', useAscii => {
+test.each([false, true])('bounded Flowchart routing connects previously declined parallel relationships (ASCII=%s)', useAscii => {
   for (const source of [
     'graph RL\nN0[N0]\nN1[N1]\nN2[N2]\nN3[N3]\nN4[N4]\nN5[N5]\nN5 --> N1\nN1 --> N4\nN5 --> N0\nN1 --> N4\nN0 --> N5',
     'graph TD\nN0[N0]\nN1[N1]\nN2[N2]\nN3[N3]\nN4[N4]\nN5[N5]\nN6[N6]\nN3 --> N6\nN3 --> N1\nN1 --> N6\nN1 --> N2\nN1 --> N6',
@@ -309,16 +310,14 @@ test.each([false, true])('bounded Flowchart routing retains declined relationshi
     const doc = terminalDocumentOf(result)!
     const edges = doc.regions().filter(region => region.kind === 'edge')
     expect(edges).toHaveLength(parseMermaid(source).edges.length)
-    const projected = edges.filter(edge => edge.projectedText?.includes(' --> '))
-    expect(projected.length).toBeGreaterThan(0)
-    for (const edge of projected) {
-      expect(edge.projectedText).toContain(`${edge.from} --> ${edge.to}`)
-      expect(result.terminalStyle.diagnostics).toContainEqual(expect.objectContaining({ code: 'TERMINAL_FAMILY_PROJECTION', feature: `graph.${edge.id}.route` }))
-      for (const port of edge.ports ?? []) expect(port.markerProjection).toBe(`graph.${edge.id}.route`)
+    for (const edge of edges) {
+      expect(hasOwnedRoute(doc, edge), edge.id).toBe(true)
+      expect(edge.ports!.some(port => port.markerProjection)).toBe(false)
+      visibleEndpointMarkers(doc, edge)
     }
     expect(() => doc.assertMarkers()).not.toThrow()
-    expect(result.receipt.layoutCertification?.status).not.toBe('passed')
-    expect(() => renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none', layoutSafety: 'strict' })).toThrow('Strict terminal layout safety failed')
+    expect(result.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [] })
+    expect(() => renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none', layoutSafety: 'strict' })).not.toThrow()
   }
 })
 
@@ -330,7 +329,10 @@ function render(source: string, useAscii = false) {
 function hasOwnedRoute(doc: TerminalDocument, edge: TerminalRegion): boolean {
   const [start, end] = edge.ports!.map(port => {
     const dx = port.side === 'R' ? 1 : port.side === 'L' ? -1 : 0, dy = port.side === 'B' ? 1 : port.side === 'T' ? -1 : 0
-    return { x: port.x + dx * (port.markerOffset ?? 0), y: port.y + dy * (port.markerOffset ?? 0) }
+    // Unmarked border ink belongs to the node. Its relationship starts at
+    // the outward-adjacent cell; marked endpoints retain the actual glyph.
+    const offset = port.markers?.length ? port.markerOffset ?? 0 : 1
+    return { x: port.x + dx * offset, y: port.y + dy * offset }
   })
   const glyphMasks: Readonly<Record<string, number>> = { '─': 10, '│': 5, '┌': 6, '┐': 12, '└': 3, '┘': 9, '├': 7, '┤': 13, '┬': 14, '┴': 11, '┼': 15, '╌': 10, '┊': 5, '-': 10, '|': 5, '.': 10, ':': 5, '+': 15 }
   const points = new Map<string, number>([...doc.entries()].flatMap(([x, y, cell]) => {
@@ -435,4 +437,46 @@ A --> B : edge`)
     expect([...doc.entries()].some(([x, y, cell]) => Math.abs(x - port.x) + Math.abs(y - port.y) <= 1 && cell.owners.some(owner => owner.kind === 'node' && owner.id === port.nodeId))).toBe(true)
   }
   expect(hasOwnedRoute(doc, edge)).toBe(true)
+})
+
+test.each(['cyclic-labelled-15-chains', 'cyclic-labelled-19'].flatMap(fixture => [false, true].map(useAscii => [fixture, useAscii] as const)))('dense labelled Flow retains complete terminal routes: %s (ASCII=%s)', (fixture, useAscii) => {
+  const source = readFileSync(new URL(`../../eval/layout-compare/fixtures/${fixture}.mmd`, import.meta.url), 'utf8')
+  const result = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none', graphLayout: { backend: 'agentic', fallback: 'none' } })
+  expect(result.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [], budget: { exhausted: false, maxOperations: 1_000_000 } })
+  const parsed = parseMermaid(source), doc = terminalDocumentOf(result)!, regions = doc.regions()
+  const edges = regions.filter(region => region.kind === 'edge')
+  expect(edges).toHaveLength(parsed.edges.length)
+  for (const [index, authored] of parsed.edges.entries()) {
+    const edge = edges.find(region => region.id === `edge#${index}:${authored.source}->${authored.target}`)!
+    expect(edge, `occurrence ${index}`).toBeDefined()
+    expect(edge).toMatchObject({ from: authored.source, to: authored.target })
+    expect(edge.ports).toHaveLength(2)
+    if (authored.label) expect(edge.projectedText).toContain(authored.label)
+  }
+  const affected = fixture === 'cyclic-labelled-15-chains' ? [31] : [19, 25, 22, 42]
+  for (const index of affected) {
+    const authored = parsed.edges[index]!, edge = edges.find(region => region.id === `edge#${index}:${authored.source}->${authored.target}`)!
+    expect(hasOwnedRoute(doc, edge), edge.id).toBe(true)
+    expect(edge.ports!.some(port => port.markerProjection)).toBe(false)
+  }
+})
+
+
+test.each(['TD', 'BT', 'LR', 'RL'])('nested face escape lanes retain parallel and reciprocal routes (%s)', direction => {
+  const source = `flowchart ${direction}
+subgraph Outer[Outer]
+subgraph Inner[Inner]
+A[Source]
+end
+end
+X[Target]
+A --> X
+A --> X
+A --> X
+X --> A`
+  const result = renderMermaidASCIIWithReceipt(source, { colorMode: 'none', layoutSafety: 'strict' })
+  expect(result.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [] })
+  const doc = terminalDocumentOf(result)!, edges = doc.regions().filter(region => region.kind === 'edge')
+  expect(edges).toHaveLength(4)
+  for (const edge of edges) { expect(hasOwnedRoute(doc, edge), edge.id).toBe(true); visibleEndpointMarkers(doc, edge) }
 })
