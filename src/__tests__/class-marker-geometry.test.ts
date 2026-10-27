@@ -611,3 +611,51 @@ describe('yield completeness within the original marker proposal allowance',()=>
   for(const first of [true,false]){const path=routes[1]!.points,a=first?path[0]!:path.at(-1)!,b=first?path[1]!:path.at(-2)!,before=original[1]!.points,c=first?before[0]!:before.at(-1)!,d=first?before[1]!:before.at(-2)!;expect(Math.sign(b.x-a.x)).toBe(Math.sign(d.x-c.x));expect(Math.sign(b.y-a.y)).toBe(Math.sign(d.y-c.y));expect(Math.abs(b.x-a.x)+Math.abs(b.y-a.y)).toBeGreaterThanOrEqual(8)}
  })
 })
+
+describe('internal bend ownership during marker repair',()=>{
+  const fail=(reason:string):never=>{throw Error(reason)}
+  const rect=(x:number,y:number,width:number,height:number)=>({kind:'polygon' as const,points:[{x,y},{x:x+width,y},{x:x+width,y:y+height},{x,y:y+height}]})
+  for(const end of [false,true])for(const kind of ['own','adjacent','both'] as const)test(`repairs ${kind} blocking support at ${end?'end':'start'} without changing endpoint glyph poses`,()=>{
+    const resource=classMarkerResources({lineWidth:1} as any).find(marker=>marker.id==='cls-inherit')!,head=classMarkerPieces(resource,{x:0,y:0},{x:end?-1:1,y:0},end?'end':'start',1)
+    const own=kind!=='adjacent',neighbor=kind!=='own'
+    const marked={points:own?[{x:0,y:0},{x:12,y:0},{x:12,y:-2},{x:100,y:-2},{x:100,y:50},{x:160,y:50}]:[{x:0,y:0},{x:30,y:0},{x:30,y:50},{x:160,y:50}]}
+    if(end)marked.points.reverse()
+    const foreign={points:[{x:0,y:14},{x:12,y:14},{x:12,y:6.25},{x:130,y:6.25},{x:130,y:80},{x:180,y:80}]}
+    const routes=neighbor?[marked,foreign]:[marked],original=structuredClone(routes)
+    const boxes=[{x:-20,y:-.05,width:20,height:.1},{x:160,y:40,width:20,height:20},{x:-20,y:13.95,width:20,height:.1},{x:180,y:70,width:20,height:20}]
+    const markedEdge={source:end?1:0,target:end?0:1,markerPaint:end?{end:head}:{start:head}}
+    const edges=neighbor?[markedEdge,{source:2,target:3}]:[markedEdge]
+    if(own)expect(classMarkerPiecesOverlap(head,[rect(12,-2.5,88,1)])).toBe(true)
+    if(neighbor){expect(classMarkerPiecesOverlap(head,[rect(12,5.75,118,1)])).toBe(true);expect(classMarkerPiecesOverlap(head,[rect(11.5,6.25,1,7.75)])).toBe(false)}
+    const contacts=(a:{x:number;y:number},b:{x:number;y:number},c:{x:number;y:number},d:{x:number;y:number},self:boolean):boolean=>{
+      const vertical=a.x===b.x,otherVertical=c.x===d.x
+      if(vertical===otherVertical){if(vertical?a.x!==c.x:a.y!==c.y)return false;const lo=Math.max(Math.min(vertical?a.y:a.x,vertical?b.y:b.x),Math.min(vertical?c.y:c.x,vertical?d.y:d.x)),hi=Math.min(Math.max(vertical?a.y:a.x,vertical?b.y:b.x),Math.max(vertical?c.y:c.x,vertical?d.y:d.x));return self?lo<=hi:lo<hi}
+      const x=vertical?a.x:c.x,y=vertical?c.y:a.y,inside=x>=Math.min(a.x,b.x)&&x<=Math.max(a.x,b.x)&&y>=Math.min(a.y,b.y)&&y<=Math.max(a.y,b.y)&&x>=Math.min(c.x,d.x)&&x<=Math.max(c.x,d.x)&&y>=Math.min(c.y,d.y)&&y<=Math.max(c.y,d.y)
+      if(!inside)return false
+      return self||!(vertical?y>Math.min(a.y,b.y)&&y<Math.max(a.y,b.y)&&x>Math.min(c.x,d.x)&&x<Math.max(c.x,d.x):x>Math.min(a.x,b.x)&&x<Math.max(a.x,b.x)&&y>Math.min(c.y,d.y)&&y<Math.max(c.y,d.y))
+    }
+    let attempts=0
+    const accept=(index:number,path:{x:number;y:number}[]):boolean=>{
+      attempts++;expect(attempts).toBeLessThanOrEqual(8)
+      for(const first of[true,false]){const p=first?path[0]!:path.at(-1)!,q=first?path[1]!:path.at(-2)!,old=original[index]!.points,a=first?old[0]!:old.at(-1)!,b=first?old[1]!:old.at(-2)!;if(p.x!==a.x||p.y!==a.y||Math.sign(q.x-p.x)!==Math.sign(b.x-a.x)||Math.sign(q.y-p.y)!==Math.sign(b.y-a.y)||Math.abs(q.x-p.x)+Math.abs(q.y-p.y)<8)return false}
+      for(let cursor=1;cursor<path.length;cursor++){
+        const a=path[cursor-1]!,b=path[cursor]!
+        if(a.x!==b.x&&a.y!==b.y)return false
+        for(const box of boxes)if(a.x===b.x?a.x>box.x&&a.x<box.x+box.width&&Math.max(a.y,b.y)>box.y&&Math.min(a.y,b.y)<box.y+box.height:a.y>box.y&&a.y<box.y+box.height&&Math.max(a.x,b.x)>box.x&&Math.min(a.x,b.x)<box.x+box.width)return false
+        for(let later=cursor+2;later<path.length;later++)if(contacts(a,b,path[later-1]!,path[later]!,true))return false
+        for(let other=0;other<routes.length;other++)if(other!==index){const peer=routes[other]!.points;for(let segment=1;segment<peer.length;segment++)if(contacts(a,b,peer[segment-1]!,peer[segment]!,false))return false}
+      }
+      return true
+    }
+    const changed:number[]=[],work={pairs:1_000_000,arcs:65536,swaps:1_000_000}
+    seatMeasuredMarkers(edges,routes,boxes,work,()=>{},fail,accept,index=>changed.push(index),undefined,1,0,{bounds:{x:-30,y:-30,width:240,height:150},obstacles:boxes})
+    expect(changed).toEqual(kind==='both'?[0,1]:kind==='own'?[0]:[1])
+    for(let index=0;index<routes.length;index++){expect(routes[index]!.points[0]).toEqual(original[index]!.points[0]);expect(routes[index]!.points.at(-1)).toEqual(original[index]!.points.at(-1))}
+    for(let index=0;index<routes.length;index++)for(let segment=1;segment<routes[index]!.points.length;segment++){
+      if(index===0&&segment===(end?routes[index]!.points.length-1:1))continue
+      const a=routes[index]!.points[segment-1]!,b=routes[index]!.points[segment]!,box=a.x===b.x?rect(a.x-.5,Math.min(a.y,b.y),1,Math.abs(a.y-b.y)):rect(Math.min(a.x,b.x),a.y-.5,Math.abs(a.x-b.x),1)
+      expect(classMarkerPiecesOverlap(head,[box])).toBe(false)
+    }
+    expect(work.pairs).toBeGreaterThan(0);expect(work.arcs).toBeGreaterThan(0)
+  })
+})

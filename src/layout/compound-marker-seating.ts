@@ -380,13 +380,13 @@ export function seatMeasuredMarkers(
     charge()
     const edge = edges[index]!
     if (edge.visible === false) continue
-    for (let role = 0; role < 2; role++) {
+    endpoint: for (let role = 0; role < 2; role++) {
       charge()
       const template = role === 0 ? edge.markerPaint?.start : edge.markerPaint?.end
       if (!template?.length) continue
-      const path = routes[index]!.points,
-        source = role === 0,
-        p = source ? path[0]! : path.at(-1)!,
+      let path = routes[index]!.points
+      const source = role === 0
+      let p = source ? path[0]! : path.at(-1)!,
         q = source ? path[1]! : path.at(-2)!
       let current = all[poseCursor++]!
       let proposals = 0
@@ -400,9 +400,11 @@ export function seatMeasuredMarkers(
           extentHigh = (vertical ? current.maxX : current.maxY) - origin
         if (carrierWidth !== undefined && ink) {
           let yielded = false
+          do {
+          charge(3)
+          yielded = false
           for (let other = 0; other < ranges.length && !yielded && proposals < 8; other++) {
             charge()
-            if (other === index) continue
             const range = ranges[other]!,
               foreign = routes[other]!.points
             for (let k = range.begin; k < range.end && !yielded && proposals < 8; k++) {
@@ -415,7 +417,22 @@ export function seatMeasuredMarkers(
                 before = foreign[j - 1]!,
                 after = foreign[j + 2]!,
                 horizontal = a.y === b.y
-              if (horizontal !== vertical || !hits(current, blocker)) continue
+              if (horizontal !== vertical) continue
+              // Moving an internal run changes both neighboring legs and its
+              // two corner joins. Require an ACTUAL non-exempt collision in
+              // that exact support, including on the current route itself.
+              charge(4)
+              const own = other === index, incident = own && (source ? j <= 1 : j >= foreign.length - 3)
+              let collision = !incident && hits(current, blocker)
+              if (!collision) for (let neighbor = range.begin; neighbor < range.end; neighbor++) {
+                charge(8)
+                const support = carriers[neighbor]!
+                if (support === blocker || !support.current) continue
+                if (support.join ? support.point !== j && support.point !== j + 1 : support.point < j - 1 || support.point > j + 1) continue
+                if (own && (support.join ? support.point === (source ? 1 : foreign.length - 2) : source ? support.point <= 1 : support.point >= foreign.length - 3)) continue
+                if (hits(current, support)) { collision = true; break }
+              }
+              if (!collision) continue
               // The current glyph has an ACTUAL collision. Its broad span only
               // proposes free events; exact pieces still decide every trial.
               const spanLow = horizontal ? Math.min(a.x, b.x) : Math.min(a.y, b.y),
@@ -610,11 +627,20 @@ export function seatMeasuredMarkers(
               }
             }
           }
-          if (yielded && clear(current, index, source)) {
+          if (!yielded) break
+          // A current-route track edit keeps the glyph pose, but its owned
+          // path array/first bend changed. Never build a later proposal from
+          // the preceding revision. Repeated edits share the ORIGINAL eight.
+          charge(4)
+          path = routes[index]!.points
+          p = source ? path[0]! : path.at(-1)!
+          q = source ? path[1]! : path.at(-2)!
+          if (clear(current, index, source)) {
             records(1)
             seated.push(current)
-            continue
+            continue endpoint
           }
+          } while (proposals < 8)
         }
         let count = 2
         cuts[0] = low
