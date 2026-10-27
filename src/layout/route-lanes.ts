@@ -7,6 +7,7 @@ import { graphEdgeTextBlock } from '../graph-text.ts'
 import { shapeRoutingProfile } from '../shape-outline.ts'
 import { countPointPairCrossings } from '../shared/edge-crossing-pair.ts'
 import { countOpposingRouteOverlaps } from '../shared/edge-overlaps.ts'
+import { routeCandidateMarkerBlocker, routeCandidateMarkersClear } from './route-marker-clearance.ts'
 import { LABEL_PILL_PADDING, labelRect, pillRect } from '../shared/edge-label-geometry.ts'
 import {
   EPS,
@@ -29,7 +30,6 @@ import {
   attachSpan,
   anchorMain,
   type LaneContext,
-  invalidateRouteGeometry,
   setRoutePoints,
   indexRouteNodes,
   facingSide,
@@ -58,16 +58,18 @@ export function repairRectLikeEndpointOverflow(edge: PositionedEdge, node: Posit
   const y1 = boundary.y + boundary.height
   const near = (a: number, b: number) => Math.abs(a - b) <= PORT_TOLERANCE
   const pushStub = (outline: Point, stub: Point) => {
-    invalidateRouteGeometry(ctx, edge)
-    edge.points[idx] = outline
-    if (Math.abs(outline.x - stub.x) <= EPS && Math.abs(outline.y - stub.y) <= EPS) return
-    if (isStart) {
-      const next = edge.points[1]
-      if (!next || Math.abs(next.x - stub.x) > EPS || Math.abs(next.y - stub.y) > EPS) edge.points.splice(1, 0, stub)
-    } else {
-      const prev = edge.points[edge.points.length - 2]
-      if (!prev || Math.abs(prev.x - stub.x) > EPS || Math.abs(prev.y - stub.y) > EPS) edge.points.splice(edge.points.length - 1, 0, stub)
+    const points = [...edge.points]
+    points[idx] = outline
+    if (Math.abs(outline.x - stub.x) > EPS || Math.abs(outline.y - stub.y) > EPS) {
+      if (isStart) {
+        const next = points[1]
+        if (!next || Math.abs(next.x - stub.x) > EPS || Math.abs(next.y - stub.y) > EPS) points.splice(1, 0, stub)
+      } else {
+        const prev = points[points.length - 2]
+        if (!prev || Math.abs(prev.x - stub.x) > EPS || Math.abs(prev.y - stub.y) > EPS) points.splice(points.length - 1, 0, stub)
+      }
     }
+    if (routeCandidateMarkersClear(edge, points, ctx.edges, ctx.style)) setRoutePoints(ctx, edge, points)
   }
 
   if (near(p.x, x0) || near(p.x, x1)) {
@@ -604,6 +606,7 @@ export function tryStraighten(
   ctx: LaneContext,
   axis: Axis = ctx.axis,
   restrictToLane?: number,
+  peerOwner: PositionedEdge = edge,
 ): StraightenAttempt {
   const search = laneSearch(edge, source, target, ctx, axis, restrictToLane)
   if (!search) return { applied: false, blockers: [] }
@@ -617,6 +620,8 @@ export function tryStraighten(
       blockers.push(...proven.blockers)
       continue
     }
+    const markerBlocker = routeCandidateMarkerBlocker(edge, [proven.start, proven.end], ctx.edges, ctx.style, peerOwner)
+    if (markerBlocker) { blockers.push(markerBlocker); continue }
     const current = simplifyPolyline(edge.points)
     if (current.length === 2 && Math.abs(current[0]![axis.cross] - current[1]![axis.cross]) <= EPS) {
       const priorContacts = Number(Boolean(portAt(source, current[0]!))) + Number(Boolean(portAt(target, current[1]!)))

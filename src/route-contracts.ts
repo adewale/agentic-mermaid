@@ -3,7 +3,7 @@
 // separate owners; the pass order and certificate lifecycle remain here.
 import { customTextMeasurementActive } from './text-measurement-profile.ts'
 import { resolveLabelContent } from './shared/display-text.ts'
-import type { Direction, MermaidGraph, Point, PortSide, PositionedEdge, PositionedGroup, PositionedNode, RouteCertificate, RouteClass, RouteInvariant } from './types.ts'
+import type { Direction, MermaidGraph, Point, PortSide, PositionedEdge, PositionedGroup, PositionedNode, RouteBlocker, RouteCertificate, RouteClass, RouteInvariant } from './types.ts'
 import { graphEdgeTextBlock } from './graph-text.ts'
 import { graphEdgeMarkerPaintRegions } from './graph-connectors.ts'
 import { resolveRenderStyle } from './styles.ts'
@@ -62,6 +62,7 @@ import {
 } from './layout/route-lanes.ts'
 import { tightenOuterFeedback, feedbackDetourKind } from './layout/route-feedback.ts'
 import { createSelfLoopRouter } from './layout/route-self-loops.ts'
+import { routeCandidateMarkersClear } from './layout/route-marker-clearance.ts'
 export { PORT_EXACT, shapePorts, diamondFacetPorts, invalidEndpointApproaches, trimBoundaryEndpointRuns, type LabelMetricsStyle, classifyRoutes, simplifyPolyline, type RoutePortAllocation, allocateRoutePorts } from './layout/route-geometry.ts'
 export { directLaneBlockers, findLabelSlot, straightLaneFor, laneContextFor } from './layout/route-lanes.ts'
 export { labelRect } from './shared/edge-label-geometry.ts'
@@ -391,6 +392,7 @@ export function applyRouteContracts(
           if (hasDirectLaneBlocker(unlabeled, jog, Math.min(c1, c2), Math.max(c1, c2), ctx, hopAxis)) continue
           if (hasDirectLaneBlocker(longFirst ? unlabeled : edge, c2, Math.min(jog, tgtMain), Math.max(jog, tgtMain), ctx, axis)) continue
           const route = [axisPoint(axis, srcMain, c1), axisPoint(axis, jog, c1), axisPoint(axis, jog, c2), axisPoint(axis, tgtMain, c2)]
+          if (!routeCandidateMarkersClear(edge, route, ctx.edges, ctx.style)) continue
           const priorContacts = Number(Boolean(portAt(source, edge.points[0]!))) + Number(Boolean(portAt(target, edge.points.at(-1)!)))
           const nextContacts = Number(Boolean(portAt(source, route[0]!))) + Number(Boolean(portAt(target, route.at(-1)!)))
           // Occlusion repair does not consult either count. It ranks a clear
@@ -553,6 +555,7 @@ export function applyRouteContracts(
         axisPoint(axis, srcMain, spCross), axisPoint(axis, gapMain, spCross), axisPoint(axis, gapMain, escCross),
         axisPoint(axis, hopMain, escCross), axisPoint(axis, hopMain, tpCross), axisPoint(axis, tgtMain, tpCross),
       ])
+      if (!routeCandidateMarkersClear(edge, route, ctx.edges, ctx.style)) continue
       // The escape riser (segment C) is the longest lane and the only one that
       // reliably clears the obstacle band — seat the label there.
       const labelLane: [Point, Point] = [axisPoint(axis, gapMain, escCross), axisPoint(axis, hopMain, escCross)]
@@ -623,6 +626,7 @@ export function applyRouteContracts(
     const stubAxis = perpendicularAxis(axis, lane, entryCross)
     if (hasDirectLaneBlocker(unlabeled, portMain, Math.min(lane, entryCross), Math.max(lane, entryCross), ctx, stubAxis)) return false
     const route = [axisPoint(axis, srcMain, lane), axisPoint(axis, portMain, lane), axisPoint(axis, portMain, entryCross)]
+    if (!routeCandidateMarkersClear(edge, route, ctx.edges, ctx.style)) return false
     if (!routeThroughNodeBBox(edge, ctx) &&
       routeAddsCrossings(route, edge, ctx)) return false
     if (edge.label) {
@@ -633,7 +637,8 @@ export function applyRouteContracts(
     setRoutePoints(ctx, edge, route)
     return true
   }
-  const repairSelfLoopArc = createSelfLoopRouter(nodeMap, groupMap, ctx)
+  const loopMarkerBlockers: RouteBlocker[] = []
+  const repairSelfLoopArc = createSelfLoopRouter(nodeMap, groupMap, ctx, loopMarkerBlockers)
 
   const retry: Array<{ edge: PositionedEdge; cert: DraftRouteCertificate }> = []
   for (const edge of positioned.edges) {
@@ -642,7 +647,7 @@ export function applyRouteContracts(
     const source = nodeMap.get(edge.source), target = nodeMap.get(edge.target)
     if (source) normalized = trimOccludedShapeEndpoint(normalized, source, true)
     if (target) normalized = trimOccludedShapeEndpoint(normalized, target, false)
-    setRoutePoints(ctx, edge, normalized)
+    if (routeCandidateMarkersClear(edge, normalized, ctx.edges, ctx.style)) setRoutePoints(ctx, edge, normalized)
     retainBundleRouteAfterRewrite(edge, bundle)
 
     const edgeIndex = edge.edgeIndex ?? -1
@@ -674,6 +679,7 @@ export function applyRouteContracts(
       // Native placement reserves the arc and its label before positioning.
       // Retain that proposal; the same final occupancy/outline auditor still
       // proves it, including distinct contacts and clearance from every loop.
+      loopMarkerBlockers.length = 0
       const side = retained ?? repairSelfLoopArc(edge)
       if (side) {
         cert.invariant = 'self-loop'
@@ -683,6 +689,7 @@ export function applyRouteContracts(
         // Never stamp a self-loop certificate when bounded attachment
         // allocation failed; downstream audits must see an unproven detour.
         cert.invariant = 'explained-detour'
+        if (loopMarkerBlockers.length) cert.directLaneBlockedBy = [...loopMarkerBlockers]
       }
     } else if (routeClass === 'container') {
       cert.invariant = 'container-attach'
@@ -759,7 +766,7 @@ export function applyRouteContracts(
     let normalized = edge.points
     if (sourceNode) normalized = trimOccludedShapeEndpoint(normalized, sourceNode, true)
     if (targetNode) normalized = trimOccludedShapeEndpoint(normalized, targetNode, false)
-    setRoutePoints(ctx, edge, normalized)
+    if (routeCandidateMarkersClear(edge, normalized, ctx.edges, ctx.style)) setRoutePoints(ctx, edge, normalized)
     retainBundleRouteAfterRewrite(edge, bundle)
   }
 
@@ -909,7 +916,7 @@ function scanRouteHitches(positioned: { nodes: PositionedNode[]; edges: Position
     // actual edge. Because the context owns the live edge array, later edges
     // see every earlier closure and cannot be admitted against stale routes.
     const probe: PositionedEdge = close ? edge : { ...edge, points: points.map(p => ({ ...p })) }
-    const attempt = tryStraighten(probe, source, target, ctx, edgeAxis, vertexLane)
+    const attempt = tryStraighten(probe, source, target, ctx, edgeAxis, vertexLane, edge)
     if (attempt.applied) {
       hitches.push({ edge: edgeId(edge), deviationPx: Math.round(crossDeviation(points, edgeAxis) * 10) / 10 })
       if (close) closedEdges.add(edge)
@@ -1407,23 +1414,27 @@ export function separateEdgeLabelPills(
  * point is already on that face with an outward normal shaft: removing the
  * endpoint adds no line, crosses no obstacle and moves contact by less than
  * one pixel, but prevents that tiny run rotating the whole marker sideways. */
-function collapseTinyEndpointSegments(nodes: readonly PositionedNode[], edges: readonly PositionedEdge[]): void {
+function collapseTinyEndpointSegments(nodes: readonly PositionedNode[], edges: readonly PositionedEdge[], style: LabelMetricsStyle): void {
   const nodeMap = indexRouteNodes(nodes)
   for (const edge of edges) {
     const saved = edge.routeCertificate
     let changed = false
+    let candidate = edge.points
     for (const source of [true, false]) {
-      const points = source ? [...edge.points].reverse() : edge.points
+      const points = source ? [...candidate].reverse() : candidate
       const [a, b, c] = points.slice(-3)
       const node = nodeMap.get(source ? edge.source : edge.target)
       if (!node || node.shape !== 'rectangle' || (node.semanticShape !== undefined && node.semanticShape !== 'rect') || !a || !b || !c || Math.hypot(c.x - b.x, c.y - b.y) >= 1) continue
       const vertical = (Math.abs(b.x - node.x) < EPS || Math.abs(b.x - node.x - node.width) < EPS) && Math.abs(c.x - b.x) < EPS && Math.abs(a.y - b.y) < EPS && b.y > node.y && b.y < node.y + node.height && c.y > node.y && c.y < node.y + node.height && (a.x - b.x) * (b.x - node.x - node.width / 2) > 0
       const horizontal = (Math.abs(b.y - node.y) < EPS || Math.abs(b.y - node.y - node.height) < EPS) && Math.abs(c.y - b.y) < EPS && Math.abs(a.x - b.x) < EPS && b.x > node.x && b.x < node.x + node.width && c.x > node.x && c.x < node.x + node.width && (a.y - b.y) * (b.y - node.y - node.height / 2) > 0
       if (!vertical && !horizontal) continue
-      edge.points = source ? edge.points.slice(1) : edge.points.slice(0, -1)
+      candidate = source ? candidate.slice(1) : candidate.slice(0, -1)
       changed = true
     }
-    if (changed) recertifyReroutedEdge(edge, saved, nodeMap.get(edge.source), nodeMap.get(edge.target))
+    if (changed && routeCandidateMarkersClear(edge, candidate, edges, style)) {
+      edge.points = candidate
+      recertifyReroutedEdge(edge, saved, nodeMap.get(edge.source), nodeMap.get(edge.target))
+    }
   }
 }
 
@@ -1436,7 +1447,7 @@ export function closeRouteContracts(positioned: { nodes: PositionedNode[]; edges
   for (let round = 0; round < positioned.edges.length; round++) {
     if (scanRouteHitches(positioned, graph, style, true).length === 0) break
   }
-  collapseTinyEndpointSegments(positioned.nodes, positioned.edges)
+  collapseTinyEndpointSegments(positioned.nodes, positioned.edges, style)
   return positioned.edges.flatMap(edge => (edge.routeCertificate ? [edge.routeCertificate] : []))
 }
 

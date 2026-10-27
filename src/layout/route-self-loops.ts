@@ -1,10 +1,11 @@
 import { resolveLabelContent } from '../shared/display-text.ts'
-import type { Point, PortSide, PositionedEdge, PositionedGroup, PositionedNode } from '../types.ts'
+import type { Point, PortSide, PositionedEdge, PositionedGroup, PositionedNode, RouteBlocker } from '../types.ts'
 import { graphEdgeTextBlock } from '../graph-text.ts'
 import { clipEdgeToShape } from '../shape-clipping.ts'
 import { LABEL_PILL_PADDING, labelRect } from '../shared/edge-label-geometry.ts'
 import { type LaneContext, setRoutePoints, opposite } from './route-geometry.ts'
-export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode>, groupMap: ReadonlyMap<string, PositionedGroup>, ctx: Pick<LaneContext, 'nodes' | 'edges' | 'style' | 'routeChannelGeometry'>): (edge: PositionedEdge) => PortSide | null {
+import { routeCandidateMarkerBlocker } from './route-marker-clearance.ts'
+export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode>, groupMap: ReadonlyMap<string, PositionedGroup>, ctx: Pick<LaneContext, 'nodes' | 'edges' | 'style' | 'routeChannelGeometry'>, markerBlockers?: RouteBlocker[]): (edge: PositionedEdge) => PortSide | null {
   const style = ctx.style
 
   // ---- Self-loop arc routing (plan §State 6; upstream #6336/#6049) --------
@@ -121,7 +122,6 @@ export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode
       chosen = available.reduce((best, side) => (pickGeometry(side).clear > pickGeometry(best).clear ? side : best), available[0]!)
       geo = pickGeometry(chosen)
     }
-    selfLoopRank.set(sideKey(chosen), sideRank(chosen) + 1)
     const depth = Math.max(Math.min(geo.desired, geo.clear), 8)
     const d = geo.d
 
@@ -160,7 +160,11 @@ export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode
     // Clip both endpoints onto non-rectangular outlines (diamond facets,
     // circles, …) — the clip slides the endpoint along its own orthogonal
     // segment, so orthogonality is preserved.
-    setRoutePoints(ctx, edge, clipEdgeToShape(clipEdgeToShape(points, node, true), node, false))
+    const clipped = clipEdgeToShape(clipEdgeToShape(points, node, true), node, false)
+    const markerBlocker = routeCandidateMarkerBlocker(edge, clipped, ctx.edges, style)
+    if (markerBlocker) { markerBlockers?.push(markerBlocker); return null }
+    selfLoopRank.set(sideKey(chosen), sideRank(chosen) + 1)
+    setRoutePoints(ctx, edge, clipped)
     if (edge.label && pill) {
       // Center the pill normally just beyond its outer segment. If a blocker
       // capped two same-side depths close together, shift the later pill only

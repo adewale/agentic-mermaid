@@ -3,6 +3,7 @@ import { shapeRoutingProfile } from '../shape-outline.ts'
 import { labelRect } from '../shared/edge-label-geometry.ts'
 import { EPS, CLEARANCE, shapePorts, invalidEndpointApproaches, isStraightenable, type Axis, axisPoint, simplifyPolyline, attachSpan, anchorMain, type LaneContext, setRoutePoints, facingSide } from './route-geometry.ts'
 import { directLaneBlockers, findLabelSlot, countRouteCrossings, routeAddsCrossings, sharedTrunkConflict } from './route-lanes.ts'
+import { routeCandidateMarkersClear } from './route-marker-clearance.ts'
 
 /**
  * ELK's feedbackEdges routing can wrap a loop around the source's forward
@@ -171,6 +172,7 @@ export function tightenOuterFeedback(edge: PositionedEdge, ctx: LaneContext, nod
     if (invalidEndpointApproaches({ ...edge, points: normalized }, source, target) > 0) return false
     // Same rule as straightening: tightening may never increase crossings.
     if (routeAddsCrossings(normalized, edge, ctx)) return false
+    if (!routeCandidateMarkersClear(edge, normalized, ctx.edges, ctx.style)) return false
     const before = edge.points
     setRoutePoints(ctx, edge, normalized)
     // Re-place the label if its pill sat on a removed segment.
