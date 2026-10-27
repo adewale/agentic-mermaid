@@ -71,7 +71,7 @@ export function projectZenUMLSequence(body: ZenUMLBody, observe?: ZenUMLProjecti
   const addMessage = (id: string, from: string | undefined, to: string | undefined, label: string, context: Context, kind: ZenUMLMessageContext['kind'], activate = false, sourceId = id) => {
     const source = actor(from), target = actor(to)
     const reply = kind === 'reply'
-    const message: Message = { id, ...(context.parentId ? { parentId: context.parentId } : {}), from: source, to: target, label, labelContent: literal(label), lineStyle: reply ? 'dashed' : 'solid', startHead: 'none', endHead: reply ? 'open' : 'filled', centralStart: false, centralEnd: false, ...(activate && source !== target ? { activate: true } : {}) }
+    const message: Message = { id, ...(context.parentId ? { parentId: context.parentId } : {}), from: source, to: target, label, labelContent: literal(label), lineStyle: reply ? 'dashed' : 'solid', startHead: 'none', endHead: reply ? 'open' : 'filled', centralStart: false, centralEnd: false, ...(activate ? { activate: true } : {}) }
     sequence.messages.push(message)
     observe?.message?.({ message, kind, sourceId, callAncestors: context.callAncestors, scopes: context.scopes })
   }
@@ -98,7 +98,7 @@ export function projectZenUMLSequence(body: ZenUMLBody, observe?: ZenUMLProjecti
           const childContext = { ...context, owner: to, returnTo: from, callAncestors: observe ? [...context.callAncestors, s.id] : context.callAncestors }
           visit(s.children, childContext)
           if (s.assignment && !self && !directReturns(s.children)) addMessage(derivedId(`${s.id}:reply`), to, from, assignmentLabel(s.assignment), childContext, 'reply', false, s.id)
-          if (!self) sequence.activationEvents!.push({ actorId: target, kind: 'deactivate', messageIndex: sequence.messages.length })
+          sequence.activationEvents!.push({ actorId: target, kind: 'deactivate', messageIndex: sequence.messages.length })
           break
         }
         case 'create': {

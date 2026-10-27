@@ -11,6 +11,9 @@ import { validateSceneDoc } from '../scene/scene-validation.ts'
 import type { SceneNode } from '../scene/ir.ts'
 import type { RenderOptions } from '../types.ts'
 import { colorPixelCountInRaster, redPixel, renderSvgPixels } from './helpers/raster.ts'
+import { parseZenUML } from '../zenuml/native-parser.ts'
+import { projectZenUMLSequence } from '../zenuml/native-sequence.ts'
+import { layoutSequenceDiagram } from '../sequence/layout.ts'
 
 const checkout = readFileSync(join(import.meta.dir, '../../eval/layout-compare/fixtures/zenuml-native-checkout.mmd'), 'utf8')
 
@@ -140,4 +143,42 @@ Service.run() {
   const regions = terminalDocumentOf(receipt)!.regions()
   for (const expected of [retry, innerNote, fallback]) expect(regions.find(region => region.id === expected.id)?.parentId).toBe(expected.parentId)
   for (const text of ['first', 'second', 'retry', 'inside retry', 'first fallback', 'completed']) expect(receipt.text).toContain(text)
+})
+
+test('nested self-call scopes retain distinct activation ink and balanced adjacent assignments and returns', () => {
+  const nested = 'zenuml\n@Starter(User)\nA.outer() {\n inner() {\n  B.one()\n }\n B.two()\n}'
+  const flat = 'zenuml\n@Starter(User)\nA.outer() {\n inner()\n B.one()\n B.two()\n}'
+  const models = [nested, flat].map(source => projectZenUMLSequence(parseZenUML(source)))
+  const positioned = models.map(model => layoutSequenceDiagram(model))
+  for (const p of positioned) {
+    expect(p.messages.map(m => [m.from, m.to])).toEqual([['User', 'A'], ['A', 'A'], ['A', 'B'], ['A', 'B']])
+    expect(p.activations.filter(a => a.actorId === 'A')).toHaveLength(2)
+  }
+  const inner = positioned.map(p => p.activations.filter(a => a.actorId === 'A').sort((a, b) => b.x - a.x)[0]!)
+  expect(inner[0]!.bottomY).toBeGreaterThan(positioned[0]!.messages[2]!.y)
+  expect(inner[0]!.bottomY).toBeLessThanOrEqual(positioned[0]!.messages[3]!.y)
+  expect(inner[1]!.bottomY).toBeLessThanOrEqual(positioned[1]!.messages[2]!.y)
+  expect(inner[0]!.bottomY).toBeGreaterThan(inner[1]!.bottomY)
+  const svgs = [nested, flat].map(source => renderMermaidSVG(source, { embedFontImport: false }))
+  expect(renderSvgPixels(svgs[0]!).pixels).not.toEqual(renderSvgPixels(svgs[1]!).pixels)
+  const receipts = [nested, flat].map(source => renderMermaidASCIIWithReceipt(source, { useAscii: false, colorMode: 'none' }))
+  expect(receipts[0]!.text).not.toBe(receipts[1]!.text)
+  for (const receipt of receipts) {
+    const bands = terminalDocumentOf(receipt)!.regions().filter(region => region.kind === 'band' && region.parentId === 'A')
+    expect(bands).toHaveLength(2)
+    for (const band of bands) expect(band.ownedCellSpans.length).toBeGreaterThan(0)
+  }
+  const adjacent = projectZenUMLSequence(parseZenUML('zenuml\n@Starter(User)\nA.outer() {\n x = inner()\n inner() {\n  return local\n }\n B.work()\n return result\n}'))
+  expect(adjacent.messages.filter(m => m.lineStyle === 'dashed').map(m => [m.from, m.to, m.label])).toEqual([['A', 'A', 'local'], ['A', 'User', 'result']])
+  const depths = new Map<string, number>()
+  for (let index = 0; index <= adjacent.messages.length; index++) {
+    for (const event of adjacent.activationEvents!.filter(event => event.messageIndex === index)) {
+      expect(event.kind).toBe('deactivate')
+      expect(depths.get(event.actorId) ?? 0).toBeGreaterThan(0)
+      depths.set(event.actorId, depths.get(event.actorId)! - 1)
+    }
+    const message = adjacent.messages[index]
+    if (message?.activate) depths.set(message.to, (depths.get(message.to) ?? 0) + 1)
+  }
+  expect([...depths.values()].every(depth => depth === 0)).toBe(true)
 })
