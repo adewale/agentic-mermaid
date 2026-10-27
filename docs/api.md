@@ -23,6 +23,36 @@ discover installed support. In MCP, use `describe_sdk` for mutation fields and
 `execute` for the documented Code Mode functions. Resolved scenes are currently
 available from the main library entry only, not Code Mode.
 
+## Vocabulary
+
+<!-- BEGIN GENERATED: diagram-terminology -->
+A **family** is a Mermaid diagram type, such as Flowchart or Sequence. A **part** is an identified element of a Scene, such as a shape, connector, text or group. A **resolved primitive** is one painted path or text run; a part can contain many primitives. A **Scene primitive** is a unit of the pre-paint drawing contract, including document structure, shapes, text and markers. Source nodes, edges and other family-specific objects are distinct from drawing parts.
+<!-- END GENERATED: diagram-terminology -->
+
+<!-- BEGIN GENERATED: family-narrowing -->
+Narrowing selects a structured, typed family with an as* helper. It does not select one element or freeze layout coordinates.
+<!-- END GENERATED: family-narrowing -->
+
+The API names stay specific to their layer:
+
+| API name | Meaning |
+|---|---|
+| `ParsedDiagram.kind`, `DiagramKind` | The source family discriminator. Other `kind` fields discriminate operations, Scene parts or resolved primitives. |
+| `SceneNode`, `ShapeMark`, `ConnectorMark`, `TextMark`, `GroupMark` | Existing type names for Scene parts. A Scene node is not necessarily a source node; **mark** in these names means part. |
+| `ResolvedPart.node` | The semantic Scene part paired with its backend-painted `primitives`. |
+| `ResolvedPrimitive` | `ResolvedPath` or `ResolvedText`, after backend painting. |
+| `ScenePrimitive`, `Geometry` | Scene primitive capability names and geometry, before backend painting. These are not `ResolvedPrimitive`. |
+
+A **marker** decorates a path or connector at its start, end or interior
+vertices, such as an arrowhead; it is distinct from the older word *mark*.
+Use source-facing IDs for source objects and Scene IDs for parts. One source
+object can produce several parts, and one part can produce several painted
+primitives. Resolved primitives have no independent stable IDs. Entries in
+`part.primitives` are associated through that part and its source-facing
+identity where available. Entries in `scene.frame` have no containing part
+or independent stable IDs.
+The resolved-scene API's separate `marker-mid` limitation still applies.
+
 ## Versions
 
 <!-- BEGIN GENERATED: api-versions -->
@@ -111,10 +141,10 @@ for (const part of scene.parts) {
 | `width`, `height` | Final viewport dimensions in root SVG user units. |
 | `svg` | Byte-identical to `renderMermaidSVG(input, options)` for the same request. |
 | `colors` | Resolved diagram colors. |
-| `parts` | Top-level non-document Scene parts in Scene order, each with `id`, `role`, `kind`, semantic `node` and painted `primitives`. |
+| `parts` | Top-level non-document Scene parts in Scene order, each with `id`, `role`, `kind`, semantic `node` and painted resolved `primitives`. |
 | `frame` | Painted leaves outside those parts, including style backdrops. |
 
-Primitives describe what the selected backend actually drew, including sketch
+Resolved primitives describe what the selected backend actually drew, including sketch
 strokes. Shapes become local SVG path data; `matrix: [a,b,c,d,e,f]` maps local
 coordinates to root user space. Paint, stroke widths, dashes and text sizes
 are resolved in local units. Paint colors are lowercase six-digit hex or
@@ -130,10 +160,10 @@ lowering. It does not execute interactive/hover rules or fetch fonts.
 `RESOLVED_SCENE_VERSION` changes for removals or semantic changes; additive
 fields keep the version. See the changelog for contract changes.
 
-`part.id` is a Scene mark ID. `part.node.identity?.id` is source-facing identity
+`part.id` is a Scene part ID. `part.node.identity?.id` is source-facing identity
 where provided; they can differ (`node:A` and `A`). Use typed endpoints and
 ownership where available rather than parsing identifier spelling. Ownership
-is not yet populated for every companion mark.
+is not yet populated for every companion part.
 
 The result is detached JSON. This function does not accept host text-measurement
 profiles. Its [types](https://github.com/adewale/agentic-mermaid/blob/main/src/scene/resolved-types.ts) describe every primitive
@@ -164,9 +194,9 @@ if (!verified.ok) throw new Error(JSON.stringify(verified.warnings))
 console.log(serializeMermaid(changed.value))
 ```
 
-Selecting a typed family is called **narrowing**: `asFlowchart` returns the
-structured flowchart or `null`. It does not select one element or freeze other
-elements' coordinates. A structural edit can recompute layout.
+The family narrower `asFlowchart` returns the structured flowchart or `null`.
+As defined in the [vocabulary](#vocabulary), narrowing selects the typed family;
+a structural edit can recompute layout.
 
 ```typescript
 parseRegisteredMermaid(source: string): Result<ParsedDiagram, ParseError[]>

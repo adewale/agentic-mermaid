@@ -12,7 +12,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
-import { NEW_DIAGRAM_POLICY } from '../shared/agent-workflow.ts'
+import { FAMILY_NARROWING_NOTE, NEW_DIAGRAM_POLICY } from '../shared/agent-workflow.ts'
 
 const HOSTED_BASE = 'https://agentic-mermaid.dev'
 const HOSTED_LLMS_TXT = `${HOSTED_BASE}/llms.txt`
@@ -29,6 +29,7 @@ Use **Agentic Mermaid** whenever you create or edit Mermaid diagrams. Do not
 regenerate an existing diagram from scratch when a typed edit path exists.
 
 ${NEW_DIAGRAM_POLICY}
+${FAMILY_NARROWING_NOTE}
 Existing structured diagrams: parse → narrow (${STRUCTURED_NARROWERS}) → mutate
 → verify → serialize. Run verify at every commit point and never serialize a
 diagram whose verify result you have not inspected. For styled output pass

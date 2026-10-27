@@ -1,7 +1,7 @@
 # Shared terminal compositor
 
 The shared terminal compositor is the owned cell drawing used by every built-in
-terminal family. It supplies common composition and encoding primitives; each
+terminal family. It supplies common terminal composition and encoding primitives; each
 family still chooses its layout. Its guarantees apply to native terminal
 artifacts, rather than to every rendering format or every possible layout.
 
@@ -230,7 +230,7 @@ link/title identities. The shared generated-name allocator reserves authored
 node identities, including generated-looking names, and preserves ordinary
 readable IDs where unambiguous. SVG attributes, layout regions and terminal
 ownership consume that same plan. Typed text-mark identity keeps a generated
-title separate from its bounded Scene mark ID. Obtaining semantic identities
+title separate from its bounded Scene part ID. Obtaining semantic identities
 and formatting numeric display values requires neither d3-sankey nor terminal
 cell geometry. This repairs semantic correspondence; it is not a claim that
 the earlier duplicate identities caused missing ribbons or wrong PNG pixels.
@@ -247,7 +247,7 @@ family creates or imports them. Extend existing identity, action and route tests
 at their owning boundaries. Corresponding retained source elements must remain
 unambiguous across output projections; different projections can have different
 visual marks, region inventories and explicit losses. One source element may
-own multiple marks or text occurrences. Public semantic IDs, Scene mark IDs,
+own multiple parts or text occurrences. Public semantic IDs, Scene part IDs,
 SVG resource IDs and action-region namespaces have different responsibilities.
 
 Cell layout remains responsible for grapheme widths, occupied spans, terminal

@@ -50,6 +50,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   Resolved Scene version 2 records this metadata change; SVG artwork and part
   ownership are unchanged.
 
+- Use one vocabulary for diagram families, source objects, Scene parts,
+  resolved primitives and typed-family narrowing across reference docs,
+  website guidance, CLI help and agent discovery, retaining existing API names.
+
 - Sequence terminal output retains fragment headers and dividers inside wide
   participant boxes, including combined `box`/`alt`/note cases, in both ASCII
   and Unicode. The historical witness remains pinned in the test suite.
