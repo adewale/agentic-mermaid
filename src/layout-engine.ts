@@ -78,9 +78,9 @@ import {
   layoutEnvFlag,
 } from './layout/geometry.ts'
 import type { MarginInfo } from './layout/geometry.ts'
-import { directionToElk } from './layout/direction.ts'
+import { directionToElk } from './layout/backend.ts'
 import type { ElkHierarchySegment } from './layout/passes/elk-edges.ts'
-export { directionToElk } from './layout/direction.ts'
+export { directionToElk } from './layout/backend.ts'
 import {
   translateGeometryToNonNegativeOrigin,
   extractEdgesRecursively,

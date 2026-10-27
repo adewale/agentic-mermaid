@@ -1,7 +1,7 @@
 import type { ElkExtendedEdge, ElkNode } from 'elkjs'
 import { elkLayoutSync } from '../elk-instance.ts'
 import { layoutAgenticGraph, type AgenticLayout } from '../layout/agentic-layered.ts'
-import { runMeasuredGraphBackend } from '../layout/measured-backend.ts'
+import { runMeasuredGraphBackend } from '../layout/backend.ts'
 import { measureRenderStage } from '../render-stages.ts'
 import { resolveRoleStyle } from '../scene/roles.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
