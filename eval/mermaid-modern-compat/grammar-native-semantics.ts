@@ -7,11 +7,16 @@ import { projectNativeNumeric, projectReferenceNumeric } from './grammar-native-
 import { projectNativeSequence, projectReferenceSequence } from './grammar-native-sequence.ts'
 import { projectNativeStable, projectReferenceStable } from './grammar-native-stable.ts'
 import type { GrammarReferenceReply, NativeSemanticProjection } from './grammar-types.ts'
+import { zenUMLMeaning } from '../../src/zenuml/native-body.ts'
+import type { ZenUMLBody } from '../../src/zenuml/native-types.ts'
 
 /** Per-family independent RESULT adapters. These projections do not emit or
  * substitute for native token, statement, or builder-operation observations.
  */
 export function projectNativeSemantic(family: string, model: unknown, events: readonly ParserObservation[] = []): NativeSemanticProjection | undefined {
+  // Editing addresses are not authored grammar. This native-only comparison
+  // retains the actual recursive model; the public core exposes no AST oracle.
+  if (family === 'zenuml') return { fields: ['participants', 'starter', 'statements', 'metadata'], value: JSON.parse(zenUMLMeaning(model as ZenUMLBody)) }
   return projectNativeEventModeling(family, model) ?? projectNativeC4(family, model) ?? projectNativeGraphs(family, model) ?? projectNativeSequence(family, model) ?? projectNativeNumeric(family, model) ?? projectNativeLines(family, model) ?? projectNativeStable(family, model, events)
 }
 

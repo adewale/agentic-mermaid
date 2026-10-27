@@ -12,6 +12,8 @@ import type { FlowchartValidDiagram, JourneyMutationOp, ParsedDiagram } from '..
 import { BUILTIN_FAMILY_METADATA } from '../../src/agent/families.ts'
 import { censusDisplayText, labelCensus } from './label-census.ts'
 import { officialCorpusInventory } from '../shared/official-fences.ts'
+import { inspectAgenticGrammar } from './grammar-agentic.ts'
+import { nativeMeaningChanged } from './grammar-triage.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(HERE, '../..')
@@ -27,6 +29,7 @@ let oracle: ReturnType<typeof startModernReference> | undefined
 let admittedReference: ReturnType<typeof admitCurrentReference> | undefined
 const results: Array<{ name: string; origin: string; status: 'passed' | 'failed'; error?: string }> = []
 const diagnostics: Array<{ name: string; origin: string; source: string; reference: ReferenceReply; representation?: string; verifyOk?: boolean; warnings?: string[]; rendered: boolean; error?: string }> = []
+const syntaxQualifications: unknown[] = []
 
 function semantic(name: string, origin: string, check: () => Promise<void>): void {
   test(name, async () => {
@@ -71,6 +74,44 @@ function flow(source: string): FlowchartValidDiagram {
   if (!narrowed) throw new Error(`Expected structured flowchart, got ${parsed.value.body.kind}`)
   return narrowed
 }
+
+semantic('ZenUML official sources, canonical writes and checked edits use the real pinned syntax control', '@zenuml/core@3.47.9 public ZenUml.parse with addon 1.0.1; no AST/action oracle is exposed', async () => {
+  const inputs = officialCorpusInventory().occurrences.filter(input => input.family === 'zenuml')
+  expect(inputs).toHaveLength(32)
+  expect(new Set(inputs.map(input => input.source)).size).toBe(16)
+  for (const input of inputs) {
+    const reference = await accepted(input.source)
+    expect(reference.parserIdentity?.parser).toBe('@zenuml/core@3.47.9')
+    expect(reference.parserAst?.unavailable).toContain('not an AST')
+    const parsed = am.parseRegisteredMermaid(input.source)
+    if (!parsed.ok || parsed.value.body.kind !== 'zenuml') throw Error(`Native ZenUML required: ${input.id}`)
+    const canonical = am.serializeMermaid(parsed.value, { wrapper: 'canonical' })
+    const canonicalReference = await accepted(canonical)
+    const before = inspectAgenticGrammar('zenuml', input.source).native.observation
+    const after = inspectAgenticGrammar('zenuml', canonical).native.observation
+    expect(before.semantic, input.id).toBeDefined()
+    expect(nativeMeaningChanged('zenuml', before, after), input.id).toBe(false)
+    const changed = am.mutateChecked(parsed.value, { kind: 'set_title', title: 'Qualified ZenUML' })
+    if (!changed.ok) throw Error(`${input.id}: ${changed.error.message}`)
+    const checkedSource = am.serializeMermaid(changed.value, { wrapper: 'canonical' })
+    const checkedReference = await accepted(checkedSource)
+    expect(am.renderMermaidSVG(changed.value)).toContain('Qualified ZenUML')
+    syntaxQualifications.push({ family: 'zenuml', id: input.id, source: input.source, reference, canonical, canonicalReference, checkedSource, checkedReference })
+  }
+  const source = readFileSync(join(ROOT, 'eval/layout-compare/fixtures/zenuml-native-checkout.mmd'), 'utf8')
+  const parsed = am.parseRegisteredMermaid(source)
+  if (!parsed.ok || parsed.value.body.kind !== 'zenuml') throw Error('Native Checkout required')
+  const changed = am.mutateChecked(parsed.value, { kind: 'rename_participant', id: 'Stock', newId: 'Inventory' })
+  if (!changed.ok) throw Error(changed.error.message)
+  const written = am.serializeMermaid(changed.value, { wrapper: 'canonical' })
+  await accepted(written)
+  const reloaded = am.parseRegisteredMermaid(written)
+  if (!reloaded.ok) throw Error('Checked ZenUML output must reload natively')
+  const layout = am.layoutMermaid(reloaded.value)
+  expect(layout.edges.filter(edge => edge.label?.text === 'accepted' || edge.label?.text === 'rejected').map(edge => [edge.from, edge.to])).toEqual([['Inventory', 'API'], ['Inventory', 'API']])
+  expect(layout.edges.find(edge => edge.label?.text === 'reserve()')?.to).toBe('Inventory')
+  expect(layout.edges.find(edge => edge.label?.text === 'checkout()')?.from).toBe('Buyer')
+})
 
 function svgGroups(svg: string, id: string): string[] {
   return [...svg.matchAll(/<g\b[^>]*>/g)].map(match => match[0]).filter(tag => tag.includes(`data-id="${id}"`))
@@ -791,7 +832,7 @@ afterAll(async () => {
       diagnostics.push(diagnostic)
     }
     mkdirSync(dirname(reportPath), { recursive: true })
-    writeFileSync(reportPath, JSON.stringify({ schemaVersion: 1, generatedAt: new Date().toISOString(), reference: admittedReference ?? PIN, target, assertions: results, diagnostics, note: 'Only the selected semantic assertions gate success. Diagnostic syntax gaps and upstream-negative acceptance are informational. SVG checks assert authored identity and content, not Mermaid layout or appearance.' }, null, 2) + '\n')
+    writeFileSync(reportPath, JSON.stringify({ schemaVersion: 1, generatedAt: new Date().toISOString(), reference: admittedReference ?? PIN, target, assertions: results, syntaxQualifications, diagnostics, note: 'Only the selected semantic assertions gate success. Diagnostic syntax gaps and upstream-negative acceptance are informational. SVG checks assert authored identity and content, not Mermaid layout or appearance.' }, null, 2) + '\n')
     console.log(`Modern semantic assertions: ${results.filter(result => result.status === 'passed').length}/${results.length}; diagnostic probes: ${diagnostics.length}; ${reportPath}`)
   } finally { oracle?.close() }
 })

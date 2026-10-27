@@ -36,7 +36,8 @@ export interface GrammarReferenceReply {
   accepted: boolean
   error?: string
   preparedSource?: string
-  engine: 'jison' | 'langium' | 'chevrotain' | 'unavailable'
+  engine: 'jison' | 'langium' | 'chevrotain' | 'zenuml-core' | 'unavailable'
+  parserIdentity?: Record<string, string>
   grammarSources: string[]
   tokens: GrammarObservation<GrammarToken[]>
   actions: GrammarObservation<GrammarAction[]>
@@ -53,4 +54,5 @@ export interface GrammarReferencePreparation {
   tokenInstrumentation: string
   actionInstrumentation: string
   astInstrumentation: string
+  parserIdentity?: Record<string, string>
 }

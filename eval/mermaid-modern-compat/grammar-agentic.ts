@@ -1,3 +1,4 @@
+import { parseZenUML } from '../../src/zenuml/native-parser.ts'
 import { parseEventModeling } from '../../src/eventmodeling/parser.ts'
 import { knownBuiltinFamilies, parseRegisteredMermaid, serializeMermaid } from '../../src/agent/core.ts'
 import { architectureSourceLines, parseArchitectureDiagram } from '../../src/architecture/parser.ts'
@@ -11,7 +12,7 @@ import { resolveGitGraphPositionConfig } from '../../src/gitgraph/position.ts'
 import { parseIshikawaDiagram } from '../../src/ishikawa/parser.ts'
 import { parseJourneyDiagram } from '../../src/journey/parser.ts'
 import { parseKanbanDiagram } from '../../src/kanban/parser.ts'
-import { frontmatterTitle, normalizeMermaidSource, withFrontmatterTitle } from '../../src/mermaid-source.ts'
+import { frontmatterTitle, normalizeMermaidSource, preservedMermaidFamilyText, withFrontmatterTitle } from '../../src/mermaid-source.ts'
 import { withAccessibilityFields } from '../../src/shared/accessibility-directives.ts'
 import { parseMindmap } from '../../src/mindmap/parser.ts'
 import { parsePacketDiagram } from '../../src/packet/parser.ts'
@@ -25,7 +26,7 @@ import { parseRequirementDiagram } from '../../src/requirement/parser.ts'
 import { parseSankeyDiagram } from '../../src/sankey/parser.ts'
 import { resolveSequenceConfig } from '../../src/sequence/config.ts'
 import { parseSequenceDiagram } from '../../src/sequence/parser.ts'
-import { type ParserObservation, snapshotParserObservationValue, withParserObservation } from '../../src/shared/parser-observation.ts'
+import { type ParserObservation, observeParserStatement, parserObservationActive, snapshotParserObservationValue, withParserObservation } from '../../src/shared/parser-observation.ts'
 import { parseTimelineDiagram } from '../../src/timeline/parser.ts'
 import { parseTreemapDiagram } from '../../src/treemap/parser.ts'
 import { parseXYChart } from '../../src/xychart/parser.ts'
@@ -56,6 +57,12 @@ function nativeParserForRequest(family: string, request: ReturnType<typeof resol
   const lines = normalized.familyLines
   return (): unknown => {
     switch (family) {
+      case 'zenuml': {
+        const source = preservedMermaidFamilyText(normalized)
+        const body = parseZenUML(source, parserObservationActive('zenuml') ? event => observeParserStatement('zenuml', event.kind, source.slice(event.start, event.end), { offset: event.start, endOffset: event.end, unit: 'normalized' }) : undefined)
+        if (body.unsupportedSource !== undefined) throw Error('Unmodeled ZenUML source remains preserved')
+        return withFrontmatterTitle(withAccessibilityFields(body, normalized.accessibility), normalized.frontmatter)
+      }
       case 'flowchart':
         return parseFlowchartRenderSource(normalizeMermaidSource(normalized.originalText).familyBody, normalized.familyBody)
       case 'state':
@@ -171,7 +178,7 @@ export function inspectAgenticGrammar(family: string, source: string, options: {
         }
       }
       const observation: NativeParserObservation = {
-        statements: { status: 'available', method: 'Actual native consumed classified statements; positions identify the parser-supplied physical or normalized view', value: events.filter(event => event.unit === 'statement') },
+        statements: { status: 'available', method: family === 'zenuml' ? 'Actual native source-span observations recorded at consumption and delivered after successful parsing; coordinates use the supplied render view' : 'Actual native consumed classified statements; positions identify the parser-supplied physical or normalized view', value: events.filter(event => event.unit === 'statement') },
         tokens:
           family === 'flowchart' || family === 'c4'
             ? {
@@ -180,7 +187,7 @@ export function inspectAgenticGrammar(family: string, source: string, options: {
                 value: events.filter(event => event.unit === 'token'),
               }
             : { status: 'unavailable', reason: 'This native parser exposes classified statements, not a homologous lexer token stream' },
-        mutations: { status: 'available', method: 'Actual native builder writes/operations in execution order; values copied at call time, including parent and membership fields', value: events.filter(event => event.unit === 'mutation') },
+        mutations: family === 'zenuml' ? { status: 'unavailable', reason: 'The native ZenUML parser exposes consumed source spans, not builder-operation hooks' } : { status: 'available', method: 'Actual native builder writes/operations in execution order; values copied at call time, including parent and membership fields', value: events.filter(event => event.unit === 'mutation') },
         ...(observed.model !== undefined ? { model: observed.model } : {}),
         ...(semantic ? { semantic } : {}),
         ...(projectionError ? { instrumentationErrors: [`Native semantic projection: ${projectionError}`] } : {}),
@@ -208,7 +215,7 @@ function inspectEnvelope(source: string): Omit<AgenticGrammarResult, 'native'> {
         },
       }
     const diagram = parsed.value
-    const representation = diagram.body.kind === 'preserved' ? 'preserved' : diagram.body.kind === 'opaque' ? 'opaque' : 'structured'
+    const representation = diagram.body.kind === 'preserved' || diagram.body.kind === 'zenuml' && diagram.body.unsupportedSource !== undefined ? 'preserved' : diagram.body.kind === 'opaque' ? 'opaque' : 'structured'
     return {
       envelope: { status: 'accepted', family: diagram.kind, representation },
       // Preserved/opaque bytes are not evidence of native model fidelity.
