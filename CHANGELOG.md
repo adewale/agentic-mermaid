@@ -6,6 +6,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Added
 
+- Serve existing Markdown directly from the canonical API, warning and error
+  page URLs when GET/HEAD requests prefer `text/markdown`, with page-specific
+  discovery, `Content-Location` and cache-safe `Vary: Accept` headers.
+
 - Generate the website's library reference and Markdown download from the
   canonical API documentation, with task-first examples, runtime-derived option
   defaults, source/release version information and a separate advanced reference.
