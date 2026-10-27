@@ -1,6 +1,7 @@
 // Tests for the LayoutPass abstraction (docs/design/system/route-contracts.md §8):
 // production runPipeline enforcement and the geometry its passes produce.
 import { describe, expect, test } from 'bun:test'
+import { readFileSync } from 'node:fs'
 import { complicatedFixtures, simpleFixtures } from '../../eval/visual-rubric/fixtures.ts'
 import type { LayoutPass, MetricBudget, PassContextBase, RubricMetric } from '../layout/pass.ts'
 import * as passContract from '../layout/pass.ts'
@@ -349,6 +350,43 @@ S1["same word ok"] --> D`],
       }
     })
   }
+
+  for (const direction of ['TB', 'BT', 'LR', 'RL'] as const) for (const occupied of [49, 74]) {
+    test(`duplicate lanes preserve a labelled peer's marker seat: ${direction}, peer=${occupied}`, () => {
+      const horizontal = direction === 'LR' || direction === 'RL', reverse = direction === 'BT' || direction === 'RL'
+      const graph = parseMermaid(`flowchart ${direction}\nA-->B\nA-->B\nP-->|label|B`)
+      const point = (main: number, cross: number) => horizontal ? { x: main, y: cross } : { x: cross, y: main }
+      const box = (main: number, cross: number): PositionedNode => ({ id: '', label: '', shape: 'rectangle', ...point(main, cross), width: horizontal ? 40 : 80, height: horizontal ? 80 : 40 })
+      const nodes = [{ ...box(reverse ? 200 : 0, 0), id: 'A' }, { ...box(reverse ? 0 : 200, 0), id: 'B' }, { ...box(reverse ? 200 : 0, 120), id: 'P' }]
+      const start = reverse ? 200 : 40, end = reverse ? 40 : 200, jog = reverse ? 50 : 190
+      const edges: PositionedEdge[] = graph.edges.map((edge, edgeIndex) => ({ ...edge, edgeIndex,
+        points: edgeIndex < 2 ? [point(start, edgeIndex ? 60 : 20), point(end, edgeIndex ? 60 : 20)]
+          : [point(start, 160), point(jog, 160), point(jog, occupied), point(end, occupied)],
+        ...(edge.label ? { labelPosition: point((start + jog) / 2, 160) } : {}),
+      }))
+      const before = edges.map(edge => edge.points)
+      applyParallelDuplicateLanes(nodes, edges, [], graph, new Set(), resolveRenderStyle())
+      const cross = horizontal ? 'y' : 'x'
+      const positions = edges.map(edge => edge.points.at(-1)![cross])
+      // These literal width1 hidden arrowheads have 5px full cross span.
+      // Identical target identity/colors cannot erase a distinct marker seat.
+      for (let i = 0; i < positions.length; i++) for (let j = i + 1; j < positions.length; j++) expect(Math.abs(positions[i]! - positions[j]!)).toBeGreaterThanOrEqual(5)
+      if (occupied === 49) for (let i = 0; i < edges.length; i++) expect(edges[i]!.points).toBe(before[i]!)
+      else {
+        expect(positions.slice(0, 2)).toEqual([33, 47])
+        expect(edges[2]!.points).toBe(before[2]!)
+      }
+    })
+  }
+
+  test('cyclic-19 labelled arrival keeps separated final marker ports', () => {
+    const source = readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-19.mmd', import.meta.url), 'utf8')
+    const graph = parseMermaid(source), positioned = layoutGraphSync(graph)
+    const arrivals = positioned.edges.filter(edge => edge.source === 'n0' && edge.target === 'n4')
+    expect(arrivals).toHaveLength(3)
+    expect(arrivals.map(edge => edge.label)).toEqual(graph.edges.filter(edge => edge.source === 'n0' && edge.target === 'n4').map(edge => edge.label))
+    for (let i = 0; i < arrivals.length; i++) for (let j = i + 1; j < arrivals.length; j++) expect(Math.abs(arrivals[i]!.points.at(-1)!.x - arrivals[j]!.points.at(-1)!.x)).toBeGreaterThanOrEqual(5)
+  })
 
   test('one crossing may resolve one actual collapsed duplicate route, without losing either authored edge', () => {
     const graph = parseMermaid('flowchart LR\nN0-->N1\nN0-->N1\nN0-->N2')
