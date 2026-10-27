@@ -151,8 +151,8 @@ for (const part of scene.parts) {
 
 | `ResolvedScene` field | Meaning |
 |---|---|
-| `version` | `RESOLVED_SCENE_VERSION`, currently `1`. |
-| `family` | The underlying Scene family; State currently lowers through the Flowchart Scene. |
+| `version` | `RESOLVED_SCENE_VERSION`, currently `2`. |
+| `family` | Registered family ID of the input diagram: both `stateDiagram` and `stateDiagram-v2` report `state`, even though State shares Flowchart's internal Scene lowering. Extension IDs retain their `family:` namespace. |
 | `width`, `height` | Final viewport dimensions in root SVG user units. |
 | `svg` | Byte-identical to `renderMermaidSVG(input, options)` for the same request. |
 | `colors` | Resolved diagram colors. |

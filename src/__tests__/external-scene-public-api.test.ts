@@ -229,6 +229,7 @@ describe('public external Scene construction and admission', () => {
       for (const style of [undefined, 'hand-drawn', 'excalidraw']) {
         const options = style ? { style } : {}
         const resolved = mainEntry.renderResolvedScene(source, options)
+        expect(resolved.family).toBe('family:test/safe-scene')
         expect(resolved.svg).toBe(renderMermaidSVG(source, options))
         expect(resolved).toEqual(JSON.parse(JSON.stringify(resolved)))
         const container = resolved.parts.find(part => part.id === 'left-group')!
