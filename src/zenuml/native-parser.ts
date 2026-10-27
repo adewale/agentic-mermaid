@@ -3,6 +3,7 @@ import { parseMermaidYaml } from '../shared/mermaid-yaml.ts'
 import { accessibilityFields, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { assertDiagramWorkLimit } from '../shared/diagram-limits.ts'
 import { sourceLineStarts, sourcePointAt } from '../shared/source-spans.ts'
+import { observeParserMutation, observeParserStatement, parserObservationActive } from '../shared/parser-observation.ts'
 import type { ZenUMLAssignment, ZenUMLBody, ZenUMLBranch, ZenUMLFragmentType, ZenUMLParticipant, ZenUMLStatement } from './native-types.ts'
 
 interface Token { kind: 'text' | 'comment' | 'open' | 'close'; text: string; start: number; end: number }
@@ -146,31 +147,58 @@ export function parseZenUML(source: string | readonly string[], observe?: (event
   const body: ZenUMLBody = { kind: 'zenuml', participants: [], statements: [], ...accessibilityFields(accessibility.accessibility), ...(title === undefined ? {} : { title }) }
   let cursor = 0, serial = 0, depth = 0, inHead = true
   const id = () => `statement:${++serial}`
+  const sourceOf = (token: Token) => ({ offset: originalOffset(token.start), endOffset: originalOffset(token.end), unit: 'physical' as const })
+  const consume = () => {
+    const token = tokens[cursor++]
+    if (token && parserObservationActive('zenuml')) {
+      const source = sourceOf(token)
+      observeParserStatement('zenuml', token.kind, authored.slice(source.offset, source.endOffset), source)
+    }
+    return token
+  }
+  const append = (target: ZenUMLStatement[], statement: ZenUMLStatement, token: Token) => {
+    target.push(statement)
+    if (parserObservationActive('zenuml')) observeParserMutation('zenuml', 'append-statement', statement, sourceOf(token))
+  }
   const parseStatements = (nested: boolean): ZenUMLStatement[] => {
     if (++depth > 128) throw Error('ZenUML nesting exceeds 128 scopes')
     const out: ZenUMLStatement[] = []
     while (cursor < tokens.length) {
-      const token = tokens[cursor++]!
+      const token = consume()!
       if (token.kind === 'close') {
         if (!nested) throw Error('Unmatched ZenUML closing brace')
         depth--; return out
       }
       if (token.kind === 'open') throw Error('ZenUML scope has no owner')
-      if (token.kind === 'comment') { const comment = { kind: 'comment' as const, id: id(), text: token.text }; out.push(comment); report('labels', comment.id, token); continue }
+      if (token.kind === 'comment') { const comment = { kind: 'comment' as const, id: id(), text: token.text }; append(out, comment, token); report('labels', comment.id, token); continue }
       let value = token.text
-      if (!nested && (value === 'title' || value.startsWith('title '))) { body.title = value.slice(5).trim(); report('labels', 'title', token); continue }
+      if (!nested && (value === 'title' || value.startsWith('title '))) {
+        body.title = value.slice(5).trim()
+        if (parserObservationActive('zenuml')) observeParserMutation('zenuml', 'set-title', body.title, sourceOf(token))
+        report('labels', 'title', token); continue
+      }
       const starter = value.match(new RegExp(`^@Starter\\(\\s*(${nameToken})\\s*\\)$`, 'u'))
-      if (!nested && starter && inHead) { body.starter = zenName(starter[1]!); continue }
+      if (!nested && starter && inHead) {
+        body.starter = zenName(starter[1]!)
+        if (parserObservationActive('zenuml')) observeParserMutation('zenuml', 'set-starter', body.starter, sourceOf(token))
+        continue
+      }
       if (!nested && inHead) {
         const declaration = participant(value)
         if (declaration) {
           if (body.participants.some(p => p.id === declaration.id)) throw Error(`Duplicate ZenUML participant: ${declaration.id}`)
           const comments: string[] = []
-          while (out.at(-1)?.kind === 'comment') comments.unshift((out.pop() as Extract<ZenUMLStatement, { kind: 'comment' }>).text)
+          while (out.at(-1)?.kind === 'comment') {
+            const comment = out.pop() as Extract<ZenUMLStatement, { kind: 'comment' }>
+            comments.unshift(comment.text)
+            if (parserObservationActive('zenuml')) observeParserMutation('zenuml', 'claim-participant-comment', { participant: declaration.id, comment })
+          }
           if (comments.length) declaration.comments = comments
           if (declaration.annotations.length > 1) body.unsupportedSource = authored
           report('nodes', declaration.id, token)
-          body.participants.push(declaration); continue
+          body.participants.push(declaration)
+          if (parserObservationActive('zenuml')) observeParserMutation('zenuml', 'append-participant', declaration, sourceOf(token))
+          continue
         }
       }
       inHead = false
@@ -180,7 +208,7 @@ export function parseZenUML(source: string | readonly string[], observe?: (event
       if (/^@(return|reply)(?:\s|$)/.test(value)) {
         reply = true; value = value.replace(/^@(return|reply)\s*/, '')
         if (!value) {
-          const next = tokens[cursor++]
+          const next = consume()
           if (!next || next.kind !== 'text') throw Error('ZenUML reply annotation requires a message')
           value = next.text
         }
@@ -188,7 +216,7 @@ export function parseZenUML(source: string | readonly string[], observe?: (event
       const asynchronous = value.match(asyncPattern)
       if (asynchronous) {
         report('nodes', zenName(asynchronous[1]!), token); report('nodes', zenName(asynchronous[3]!), token)
-        out.push({ kind: 'message', id: statementId, from: zenName(asynchronous[1]!), to: zenName(asynchronous[3]!), label: asynchronous[4]!, reply: reply || asynchronous[2] === '-->' }); continue
+        append(out, { kind: 'message', id: statementId, from: zenName(asynchronous[1]!), to: zenName(asynchronous[3]!), label: asynchronous[4]!, reply: reply || asynchronous[2] === '-->' }, token); continue
       }
       if (reply) throw Error('ZenUML reply annotation requires a directed message')
       const fragment = value.match(/^(if|while|for|forEach|foreach|loop|par|opt|try|critical)\b([\s\S]*)$/)
@@ -198,30 +226,30 @@ export function parseZenUML(source: string | readonly string[], observe?: (event
         const type = fragment[1] as ZenUMLFragmentType
         const condition = readCondition(fragment[2]!)
         if (tokens[cursor]?.kind !== 'open') throw Error(`ZenUML ${type} requires a brace-delimited scope`)
-        cursor++
+        consume()
         const branches: ZenUMLBranch[] = [{ kind: 'body', statements: parseStatements(true) }]
         while (tokens[cursor]?.kind === 'text') {
           const continuation = tokens[cursor]!.text.match(/^(else\s+if|else|catch|finally)\b([\s\S]*)$/)
           if (!continuation) break
           const branchKind = continuation[1] === 'else if' ? 'else-if' : continuation[1] as ZenUMLBranch['kind']
           if (type === 'if' ? !['else-if', 'else'].includes(branchKind) : type === 'try' ? !['catch', 'finally'].includes(branchKind) : true) break
-          cursor++
+          consume()
           const branchCondition = readCondition(continuation[2]!)
-          if (tokens[cursor++]?.kind !== 'open') throw Error('ZenUML branch requires a brace-delimited scope')
+          if (consume()?.kind !== 'open') throw Error('ZenUML branch requires a brace-delimited scope')
           branches.push({ kind: branchKind, ...(branchCondition === undefined ? {} : { condition: branchCondition }), statements: parseStatements(true) })
         }
-        out.push({ kind: 'fragment', id: statementId, type, ...(condition === undefined ? {} : { condition }), branches }); continue
+        append(out, { kind: 'fragment', id: statementId, type, ...(condition === undefined ? {} : { condition }), branches }, token); continue
       }
-      if (/^return\b/.test(value)) { out.push({ kind: 'return', id: statementId, label: value.slice(6).trim() }); continue }
+      if (/^return\b/.test(value)) { append(out, { kind: 'return', id: statementId, label: value.slice(6).trim() }, token); continue }
       const assigned = assignment(value)
       const creation = assigned.rest.match(new RegExp(`^new\\s+(${nameToken})(?:\\s*\\(([\\s\\S]*)\\))?$`, 'u'))
       const takeChildren = () => {
         if (tokens[cursor]?.kind !== 'open') return []
-        cursor++; return parseStatements(true)
+        consume(); return parseStatements(true)
       }
       if (creation) {
         report('nodes', assigned.assignment ? `${assigned.assignment.name}:${zenName(creation[1]!)}` : zenName(creation[1]!), token)
-        out.push({ kind: 'create', id: statementId, constructor: zenName(creation[1]!), ...(creation[2] === undefined ? {} : { arguments: creation[2] }), ...(assigned.assignment ? { assignment: assigned.assignment } : {}), children: takeChildren() }); continue
+        append(out, { kind: 'create', id: statementId, constructor: zenName(creation[1]!), ...(creation[2] === undefined ? {} : { arguments: creation[2] }), ...(assigned.assignment ? { assignment: assigned.assignment } : {}), children: takeChildren() }, token); continue
       }
       const target = assigned.rest.match(callTargetPattern)
       const label = target ? target[3]! : assigned.rest
@@ -230,13 +258,13 @@ export function parseZenUML(source: string | readonly string[], observe?: (event
       if (namePrefix.test(label) && methodText(label) && (target !== null || !reserved.has(namePrefix.exec(label)![1]!))) {
         if (target?.[1]) report('nodes', zenName(target[1]), token)
         if (target?.[2]) report('nodes', zenName(target[2]), token)
-        out.push({ kind: 'call', id: statementId, ...(target?.[1] ? { from: zenName(target[1]) } : {}), ...(target?.[2] ? { to: zenName(target[2]) } : {}), label, ...(assigned.assignment ? { assignment: assigned.assignment } : {}), children: takeChildren() }); continue
+        append(out, { kind: 'call', id: statementId, ...(target?.[1] ? { from: zenName(target[1]) } : {}), ...(target?.[2] ? { to: zenName(target[2]) } : {}), label, ...(assigned.assignment ? { assignment: assigned.assignment } : {}), children: takeChildren() }, token); continue
       }
       // Retain the complete document for anything outside the typed grammar.
       // Consumers must refuse projection; no supported prefix is drawn alone.
-      out.push({ kind: 'opaque', id: statementId, source: value })
+      append(out, { kind: 'opaque', id: statementId, source: value }, token)
       body.unsupportedSource = authored
-      if (tokens[cursor]?.kind === 'open') { cursor++; parseStatements(true) }
+      if (tokens[cursor]?.kind === 'open') { consume(); parseStatements(true) }
     }
     depth--
     if (nested) throw Error('Unclosed ZenUML scope')
@@ -258,7 +286,12 @@ export function parseZenUML(source: string | readonly string[], observe?: (event
   visit(body.statements)
   const remap = new Map<string, string>()
   let address = 0
-  for (const s of statements) { const old = s.id; do { s.id = `statement:${++address}` } while (actors.has(s.id)); remap.set(old, s.id) }
+  for (const s of statements) {
+    const old = s.id
+    do { s.id = `statement:${++address}` } while (actors.has(s.id))
+    remap.set(old, s.id)
+    if (old !== s.id && parserObservationActive('zenuml')) observeParserMutation('zenuml', 'readdress-statement', { from: old, to: s.id })
+  }
   for (const event of observations) {
     if (event.kind !== 'nodes' && event.id !== 'title') event.id = remap.get(event.id) ?? event.id
     observe?.(event)

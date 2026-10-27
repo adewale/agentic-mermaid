@@ -36,7 +36,10 @@ async function assertOperations(family: string, source: string, requireWrite = t
   const native = mutations.status === 'available' ? projectNativeOperations(family, mutations.value) : undefined
   const expected = projectReferenceOperations(family, reference)
   const operationComparison = preparation.actionInstrumentation.startsWith('unavailable:') ? { status: 'unavailable', reason: preparation.actionInstrumentation } : { status: 'compared' }
-  cases.push({ family, source, referenceAccepted: reference.accepted, nativeStatus: local.native.status, operationComparison, native, reference: expected })
+  cases.push({ family, source, referenceAccepted: reference.accepted, nativeStatus: local.native.status, operationComparison,
+    nativeObservation: mutations.status === 'available' ? { status: mutations.status, method: mutations.method, events: mutations.value.length } : mutations,
+    referenceObservation: { actions: reference.actions.status, ast: reference.ast.status, parserIdentity: reference.parserIdentity },
+    native, reference: expected })
   expect(reference.instrumentationErrors ?? []).toEqual([])
   expect(reference.accepted).toBe(true)
   expect(local.native.status).toBe('accepted')
