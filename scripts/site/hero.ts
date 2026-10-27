@@ -121,6 +121,10 @@ const midW = 600
 const rightW = W - PAD * 4 - leftW - midW
 const midX = PAD * 2 + leftW
 const rightX = PAD * 3 + leftW + midW
+const asciiLines = asciiDiagram.trimEnd().split('\n')
+const asciiSize = Math.min(9,
+  (rightW - 44) / (Math.max(1, ...asciiLines.map(line => [...line].length)) * 0.6),
+  (H - 70 - 160) / (Math.max(1, asciiLines.length - 1) * 1.14))
 
 const srcLines = SOURCE.split('\n')
 const opLines = [
@@ -148,7 +152,7 @@ const hero = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3
   <text x="${midX + 24}" y="${H - 72}" font-family="DejaVu Sans Mono, monospace" font-size="14" fill="${SALMON.accent}">verify.ok = true &#183; 0 warnings</text>
 
   ${panel(rightX, rightW, '3 &#183; SAME DIAGRAM, ASCII')}
-  ${monoBlock(asciiDiagram.trimEnd().split('\n'), rightX + 22, 160, 9, SALMON.fg, 1.14)}
+  ${monoBlock(asciiLines, rightX + 22, 160, asciiSize, SALMON.fg, 1.14)}
 </svg>`
 
 // ---- Rasterize ---------------------------------------------------------------
