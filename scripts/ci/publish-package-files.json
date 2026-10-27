@@ -48,6 +48,7 @@
     "dist/chunk-[hash].js",
     "dist/chunk-[hash].js",
     "dist/chunk-[hash].js",
+    "dist/chunk-[hash].js",
     "dist/cli-[hash].js",
     "dist/elk-constructor.js",
     "dist/elk-constructor.node.js",

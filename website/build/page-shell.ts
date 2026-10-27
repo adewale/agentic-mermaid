@@ -1,7 +1,7 @@
 import { escapeHtml, escapeAttr, makePreFocusable } from './html.ts'
 import type { createSiteMetadata } from './metadata.ts'
 
-export function createPageShell(packageVersion: string, agentDiscoveryLinks: string, GENERIC_EDITOR_HREF: string, metadata: ReturnType<typeof createSiteMetadata>) {
+export function createPageShell(packageVersion: string, agentDiscoveryLinks: (route: string) => string, GENERIC_EDITOR_HREF: string, metadata: ReturnType<typeof createSiteMetadata>) {
   const { socialMetaTags, structuredDataTags } = metadata
   function mastheadHtml(currentHref = '') {
     const links = [
@@ -54,7 +54,7 @@ export function createPageShell(packageVersion: string, agentDiscoveryLinks: str
 <link rel="icon" href="/favicon.ico" type="image/x-icon">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/styles.css">
-${agentDiscoveryLinks}
+${agentDiscoveryLinks(route)}
 ${socialMetaTags(escapeAttr(fullTitle), escapeAttr(lead), route)}
 ${structuredDataTags(fullTitle, lead, route || '/')}
 </head>

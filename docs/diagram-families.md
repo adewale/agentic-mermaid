@@ -2,6 +2,10 @@
 
 Agentic Mermaid supports Mermaid's common diagram families through a split pipeline: parse source, layout typed structures, render SVG/PNG/ASCII, and verify structural warnings.
 
+A **family** is a Mermaid diagram type, such as Flowchart or Sequence. Its
+source nodes, edges and other objects are distinct from Scene parts and painted
+resolved primitives. See the [shared vocabulary](./api.md#vocabulary).
+
 ## Capability authority
 
 The roster and per-family capability states come from the `FamilyDescriptor` registry. Agents can discover the live roster and operation shapes through `am capabilities --json`. Library and Code Mode callers can use `describeOps(family)` for the exact mutation schema. This guide keeps examples and family-specific caveats, not a second inventory.

@@ -37,7 +37,30 @@ The MCP server core lives in `src/mcp/hosted-server.ts` (repo root `src/`), shar
 - `/mcp` — hosted MCP (stateless Streamable HTTP; `claude mcp add --transport http agentic-mermaid https://agentic-mermaid.dev/mcp`)
 - `/.well-known/mcp` — standard discovery alias for the same hosted MCP transport.
 
-`GET /` and `HEAD /` select `/index.md` when `Accept` gives `text/markdown` a higher quality than `text/html`; ties and generic browser requests keep HTML. Both representations send `Vary: Accept` and `Link` headers for the Markdown homepage, `llms.txt`, sitemap, MCP server card, and published workflow skill.
+`GET` and `HEAD` select the existing Markdown counterpart when `Accept` gives
+`text/markdown` a higher quality than `text/html`. This applies to `/`,
+`/docs/api/`, `/docs/api/advanced/`, and individual `/warnings/<code>/` and
+`/errors/<kind>/` pages. Ties, absent preferences and generic browser requests
+keep HTML. Both representations send `Vary: Accept` and a page-specific
+Markdown `Link`; the homepage also advertises `llms.txt`, sitemap, the MCP
+server card and workflow skill. Negotiated Markdown identifies its asset with
+`Content-Location`, permits cross-origin reads, and uses the existing five-minute
+Markdown cache policy. Explicit `.md` URLs work independently of `Accept`.
+
+Negotiation matches the documents' UTF-8 media parameters and honors more
+specific ranges before their quality values; quoted separators stay inside
+their parameter values. HTML discovery uses `alternate` only for the page's
+equivalent Markdown asset. Agent instructions and capability files are related
+discovery resources, rather than alternate versions of every page.
+
+```bash
+curl -H 'Accept: text/markdown' https://agentic-mermaid.dev/docs/api/
+curl -I -H 'Accept: text/markdown' https://agentic-mermaid.dev/docs/api/advanced/
+```
+
+Clean-route and production-host redirects still run first. Pages without an
+equivalent published Markdown asset retain their normal HTML response; the
+Worker does not convert arbitrary pages at request time.
 
 ## Commands
 
