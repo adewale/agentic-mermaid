@@ -315,12 +315,14 @@ function markerInkWitnesses(marker: MarkerDescriptor | undefined, hull: readonly
   const centroid = (vertices: readonly ScenePoint[]): ScenePoint => ({ x: vertices.reduce((sum, p) => sum + p.x, 0) / vertices.length, y: vertices.reduce((sum, p) => sum + p.y, 0) / vertices.length })
   const local = centroid(points), world = centroid(hull)
   const viewport = marker.viewBox ?? (marker.size ? { x: 0, y: 0, width: marker.size.width, height: marker.size.height } : undefined)
-  return [undefined, ...points.keys()].flatMap(index => {
-    if (!work()) return []
-    const p = index === undefined ? local : { x: (local.x + points[index]!.x) / 2, y: (local.y + points[index]!.y) / 2 }
-    if (marker.overflow !== 'visible' && (!viewport || !(p.x > viewport.x && p.x < viewport.x + viewport.width && p.y > viewport.y && p.y < viewport.y + viewport.height))) return []
-    return [index === undefined ? world : { x: (world.x + hull[index]!.x) / 2, y: (world.y + hull[index]!.y) / 2 }]
-  })
+  const witnesses: ScenePoint[] = []
+  for (let index = -1, length = points.length; index < length; index++) {
+    if (!work()) continue
+    const p = index < 0 ? local : { x: (local.x + points[index]!.x) / 2, y: (local.y + points[index]!.y) / 2 }
+    if (marker.overflow !== 'visible' && (!viewport || !(p.x > viewport.x && p.x < viewport.x + viewport.width && p.y > viewport.y && p.y < viewport.y + viewport.height))) continue
+    witnesses.push(index < 0 ? world : { x: (world.x + hull[index]!.x) / 2, y: (world.y + hull[index]!.y) / 2 })
+  }
+  return witnesses
 }
 
 /** Nonempty actual marker ink is required for a hard hidden-marker claim.
