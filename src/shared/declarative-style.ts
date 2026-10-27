@@ -100,4 +100,3 @@ export function snapshotDeclarativeStyleValue(value: unknown): unknown {
 
   return snapshot(value, 0)
 }
-

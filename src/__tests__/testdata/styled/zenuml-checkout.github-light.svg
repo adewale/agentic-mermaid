@@ -64,23 +64,23 @@
 <line x1="265.5" y1="68" x2="265.5" y2="414" class="lifeline" stroke-dasharray="5,5" stroke-dashoffset="5" shape-rendering="crispEdges"/>
 <g class="participant" data-participant="Buyer">
   <rect x="8.32421875" y="29" width="83.3515625" height="38" rx="3" class="participant-box"/>
-  
-  
-  
+
+
+
   <text x="50" y="47.75" text-anchor="middle" dominant-baseline="central" class="participant-label">Customer</text>
 </g>
 <g class="participant" data-participant="API">
   <rect x="126" y="29" width="78" height="38" rx="3" class="participant-box"/>
-  
-  
-  
+
+
+
   <text x="165" y="47.75" text-anchor="middle" dominant-baseline="central" class="participant-label">API</text>
 </g>
 <g class="participant" data-participant="Store">
   <rect x="226" y="29" width="78" height="38" rx="3" class="participant-box"/>
-  
-  
-  
+
+
+
   <text x="265" y="47.75" text-anchor="middle" dominant-baseline="central" class="participant-label">Store</text>
 </g>
 <rect x="159" y="87" width="13" height="238" rx="1" class="occurrence" data-participant="API"/>

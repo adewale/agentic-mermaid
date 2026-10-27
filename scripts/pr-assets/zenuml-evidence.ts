@@ -62,7 +62,7 @@ try {
     }
     rows.push(row)
   }
-  const complexSource = readFileSync(join(root, 'eval/layout-compare/fixtures/zenuml-checkout.mmd'), 'utf8')
+  const complexSource = readFileSync(join(root, 'src/__tests__/testdata/zenuml-checkout.mmd'), 'utf8')
   const complex: Record<string, unknown> = { source: complexSource, outcomes: {} }
   for (const role of ['github-light', 'dracula', 'reference']) {
     const result = await page.evaluate(async ({ role, source }) => {

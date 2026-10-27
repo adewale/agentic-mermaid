@@ -8,7 +8,7 @@ const browserTests = process.env.AM_BROWSER_TESTS === '1' ? describe : describe.
 let browser: Browser, server: ReturnType<typeof Bun.serve>, directory: string
 // Authored independent witness: two nested call levels, conditional replies,
 // alias identity, and the final async message returning to the original actor.
-const checkout = readFileSync(join(import.meta.dir, '../../eval/layout-compare/fixtures/zenuml-checkout.mmd'), 'utf8')
+const checkout = readFileSync(join(import.meta.dir, 'testdata/zenuml-checkout.mmd'), 'utf8')
 
 browserTests('optional ZenUML browser backend', () => {
   beforeAll(async () => {
