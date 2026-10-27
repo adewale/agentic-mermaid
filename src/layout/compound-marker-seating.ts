@@ -52,8 +52,9 @@ export function writtenParallelSupportsOverlap(a: Point, b: Point, c: Point, d: 
     spanError = (Math.abs(lo) + Math.abs(hi) + Math.abs(low) + Math.abs(high)) * 1e-10 + 1e-9
   if (Math.min(hi, high) < Math.max(lo, low) - spanError) return false
   // Three bounded canonical spellings plus the shared exact helper's bounded
-  // parse/regex/closure scratch are paid before either allocation path.
-  reserve(27)
+  // parse/regex/closure headers AND fifteen regex capture slots are prepaid.
+  // No uncharged temporary-reference reuse is assumed on the exact path.
+  reserve(42)
   charge(384)
   const gap = writtenCoordinateGapLessThan(formatSvgNumber(fixed), formatSvgNumber(otherFixed), formatSvgNumber(writtenWidth), charge)
   // A non-throwing exhausted caller has no clear proof. Normal seating charges
