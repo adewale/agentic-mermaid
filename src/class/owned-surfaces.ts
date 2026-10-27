@@ -72,7 +72,7 @@ function writtenSegmentEntersBox(a: Point, b: Point, r: ClassSurfaceBox, parts?:
       start = r[axis],
       end = start + size
     const highA = compareSvgSum(a[axis], start, size, parts),
-      highB = compareSvgSum(b[axis], start, size, parts)
+      highB = a[axis] === b[axis] ? highA : compareSvgSum(b[axis], start, size, parts)
     if ((a[axis] <= start && b[axis] <= start) || (highA >= 0 && highB >= 0)) return false
     const relativeA = highA === 0 ? size : a[axis] - start,
       relativeB = highB === 0 ? size : b[axis] - start,
@@ -116,6 +116,10 @@ interface WrittenClassRoundedBox {
   unrounded?: ClassSurfaceBox
   firstStrip?: ClassSurfaceBox
   secondStrip?: ClassSurfaceBox
+  left?: number
+  right?: number
+  top?: number
+  bottom?: number
 }
 /** The shared rounded predicate preserves both writing stages. Final card
  * inspection reuses these records; mutable repair callers supply fresh ones. */
@@ -131,10 +135,13 @@ function writtenClassRoundedHit(a: WrittenClassPoint, b: WrittenClassPoint, surf
   // The second strip remains lazy: the first may already establish a hit.
   const second = surface.secondStrip ??= emittedBox({ x: r.x, y: r.y + ry, width: r.width, height: r.height - 2 * ry })
   if (writtenSegmentEntersBox(clipA, clipB, second, parts)) return true
-  const left = r.x + rx,
-    right = r.x + r.width - rx,
-    top = r.y + ry,
-    bottom = r.y + r.height - ry
+  const left = surface.left ??= r.x + rx,
+    right = surface.right ??= r.x + r.width - rx,
+    top = surface.top ??= r.y + ry,
+    bottom = surface.bottom ??= r.y + r.height - ry
+  // A constant normalized axis on/outside both unit circles cannot enter a corner.
+  if (a.emitted.x === b.emitted.x && Math.abs((a.emitted.x - left) / rx) >= 1 && Math.abs((a.emitted.x - right) / rx) >= 1
+    || a.emitted.y === b.emitted.y && Math.abs((a.emitted.y - top) / ry) >= 1 && Math.abs((a.emitted.y - bottom) / ry) >= 1) return false
   return ellipseHit(a.emitted, b.emitted, left, top, rx, ry)
     || ellipseHit(a.emitted, b.emitted, left, bottom, rx, ry)
     || ellipseHit(a.emitted, b.emitted, right, top, rx, ry)
