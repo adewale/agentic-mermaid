@@ -321,6 +321,35 @@ S1["same word ok"] --> D`],
     }
   })
 
+  for (const direction of ['TB', 'BT', 'LR', 'RL'] as const) for (const mixed of [false, true]) {
+    test(`near-aligned duplicate ports keep exact orthogonal routes: ${direction}, mixed=${mixed}`, () => {
+      const horizontal = direction === 'LR' || direction === 'RL'
+      const reverse = direction === 'BT' || direction === 'RL'
+      const graph = parseMermaid(`flowchart ${direction}\nA-->B\nA${mixed ? '-->|label|' : '-->'}B`)
+      const point = (main: number, cross: number) => horizontal ? { x: main, y: cross } : { x: cross, y: main }
+      const box = (main: number, cross: number): PositionedNode => ({ id: '', label: '', shape: 'rectangle', ...point(main, cross), width: 80, height: 80 })
+      const source = { ...box(reverse ? 300 : 0, 0), id: 'A', label: 'A' }
+      const target = { ...box(reverse ? 0 : 300, 0.0566666666667), id: 'B', label: 'B' }
+      const startMain = reverse ? 300 : 80, endMain = reverse ? 80 : 300
+      const edges: PositionedEdge[] = graph.edges.map((edge, edgeIndex) => ({ ...edge, edgeIndex,
+        points: [point(startMain, 40), point(190, 40), point(190, 40.0566666666667), point(endMain, 40.0566666666667)],
+        ...(edge.label ? { labelPosition: point(190, 40) } : {}),
+      }))
+      applyParallelDuplicateLanes([source, target], edges, [], graph, new Set(), resolveRenderStyle())
+      expect(edges).toHaveLength(2)
+      expect(edges[0]!.points).not.toEqual(edges[1]!.points)
+      for (const edge of edges) {
+        expect(edge.points[0]![horizontal ? 'y' : 'x'] - edge.points.at(-1)![horizontal ? 'y' : 'x']).not.toBe(0)
+        for (let i = 1; i < edge.points.length; i++) {
+          const a = edge.points[i - 1]!, b = edge.points[i]!
+          expect(a.x === b.x || a.y === b.y).toBe(true)
+        }
+        expect(onShapeOutline(source, edge.points[0]!)).toBe(true)
+        expect(onShapeOutline(target, edge.points.at(-1)!)).toBe(true)
+      }
+    })
+  }
+
   test('one crossing may resolve one actual collapsed duplicate route, without losing either authored edge', () => {
     const graph = parseMermaid('flowchart LR\nN0-->N1\nN0-->N1\nN0-->N2')
     const positioned = layoutGraphSync(graph)
