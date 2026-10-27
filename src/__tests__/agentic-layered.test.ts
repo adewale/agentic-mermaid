@@ -1375,8 +1375,10 @@ describe('written sharp join contact closure', () => {
   test.each(cases)('rejects $name', ({ a, b, width, common, reverseShared }) => {
     const input = graph(width, 0, common), routes = [{ points: a, style: 'solid' }, { points: b, style: 'solid' }], before = structuredClone({ input, routes })
     if (reverseShared) { input.edges = [{ source: 0, target: 1, minSpan: 1 }, { source: 1, target: 2, minSpan: 1 }]; before.input.edges = structuredClone(input.edges) }
-    expect(scoreMeasuredRouteCrossings(a, 0, routes, input)).toBeUndefined()
-    expect(scoreMeasuredRouteCrossings(b, 1, routes, input)).toBeUndefined()
+    for (const stable of [false, true]) {
+      expect(scoreMeasuredRouteCrossings(a, 0, routes, input, undefined, undefined, undefined, 3, stable)).toBeUndefined()
+      expect(scoreMeasuredRouteCrossings(b, 1, routes, input, undefined, undefined, undefined, 3, stable)).toBeUndefined()
+    }
     expect(createBoundaryContactValidator(input, 0, routes, budget(), fail)(a)).toBe(false)
     expect({ input, routes }).toEqual(before)
   })
@@ -1398,6 +1400,7 @@ describe('written sharp join contact closure', () => {
     expect(scoreMeasuredRouteCrossings(candidate,0,routes,input,charge,undefined,undefined,basis)).toBe(0)
     expect(remaining).toBeGreaterThanOrEqual(0)
     expect(scoreMeasuredRouteCrossings(candidate,0,routes,input)).toBe(0)
+    expect(scoreMeasuredRouteCrossings(candidate,0,routes,input,undefined,undefined,undefined,basis,true)).toBe(0)
   })
   test('reports only the exact refused supports in caller-owned witness scratch', () => {
     const {a,b}=cases[0]!,routes=[{points:a,style:'solid'},{points:b,style:'solid'}],witness={candidateSegment:-1,peerIndex:-1,peerSegment:-1}

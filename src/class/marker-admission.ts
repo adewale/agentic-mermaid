@@ -5,7 +5,7 @@ import { compareMarkerStrokeInk, MAX_OCCLUSION_OPERATIONS, MAX_OCCLUSION_PAIRS, 
 import { formatSvgNumber, formatSvgNumericAttribute } from '../shared/svg-number.ts'
 import type { AxisAlignedBox } from '../shared/transformed-bounds.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
-import type { DiagramColors } from '../theme.ts'
+import { createInlineColorAttributeResolver, type DiagramColors } from '../theme.ts'
 import type { Point } from '../types.ts'
 import { classRelationshipPaintBoxes } from './owned-surfaces.ts'
 import { classMarkerResources, getMarkerDefId } from './relationship-paint.ts'
@@ -45,6 +45,8 @@ export function assertClassMarkerMeaning(diagram: PositionedClassDiagram, style:
   // Do not substitute an ideal polyline for actual rounded marker tangents.
   if (style.edgeBendRadius > 0 || ledger.exhausted) return
   const work = (): boolean => chargeClassMarkerAdmissionWork(ledger)
+  const resolveColor = createInlineColorAttributeResolver()
+  const resolveMarkerColor = (value: string): string | undefined => resolveColor(value, colors)
   const width = formatSvgNumericAttribute('stroke-width', String(style.lineWidth)),
     resources = classMarkerResources(style),
     markers: MarkerInk[] = []
@@ -98,7 +100,7 @@ export function assertClassMarkerMeaning(diagram: PositionedClassDiagram, style:
     for (const region of connectorMarkerPaintRegions(mark)) {
       if (!work() || !region.bounds) return
       const descriptor = region.position === 'start' ? start : region.position === 'end' ? end : undefined
-      const proof = prepareMarkerPolygonInk({ colors }, mark, descriptor, region.position, work)
+      const proof = prepareMarkerPolygonInk({ colors }, mark, descriptor, region.position, work, resolveMarkerColor)
       if (ledger.exhausted) return
       markers.push({ owner: `relationship ${index} ${rel.from}->${rel.to} ${region.position}`, bounds: region.bounds, proof })
     }
