@@ -72,7 +72,6 @@ function separatedSharpSupportBounds(a:Point,b:Point,c:Point,d:Point,width:numbe
     &&(left>margin||right>margin||top>margin||bottom>margin)
 }
 
-type WrittenComparisonCache=Map<string,Map<string,Map<string,Array<-1|0|1|undefined>>>>
 interface WrittenDecimalPart { readonly n:bigint; readonly e:number }
 function ownedDecimalPart(text:string,parts:Map<string,WrittenDecimalPart>,charge?:MeasuredContactCharge,reserve?:MeasuredContactCharge):WrittenDecimalPart|undefined {
   if(charge?.(1)===false)return undefined
@@ -84,18 +83,12 @@ function ownedDecimalPart(text:string,parts:Map<string,WrittenDecimalPart>,charg
   parts.set(text,part);return part
 }
 
-function writtenGapComparison(a: string, b: string, width: string, charge?: MeasuredContactCharge, reserve?: MeasuredContactCharge, twice = false, parts?:Map<string,WrittenDecimalPart>,comparisons?:WrittenComparisonCache): -1 | 0 | 1 | undefined {
+function writtenGapComparison(a: string, b: string, width: string, charge?: MeasuredContactCharge, reserve?: MeasuredContactCharge, twice = false, parts?:Map<string,WrittenDecimalPart>): -1 | 0 | 1 | undefined {
   if (charge?.(8) === false) return undefined
   const x = Number(a), y = Number(b), w = Number(width), difference = Math.abs(x - y) * (twice ? 2 : 1) - w
   // This only selects exact arithmetic near binary cancellation. It is never
   // a geometric tolerance or an allowance for positive painted overlap.
   if (Math.abs(difference) > 8 * Number.EPSILON * Math.max(1, Math.abs(x), Math.abs(y), w)) return difference < 0 ? -1 : 1
-  let byB:Map<string,Map<string,Array<-1|0|1|undefined>>>|undefined,byWidth:Map<string,Array<-1|0|1|undefined>>|undefined,saved:Array<-1|0|1|undefined>|undefined
-  if(comparisons){
-    if(charge?.(3)===false)return undefined
-    byB=comparisons.get(a);byWidth=byB?.get(b);saved=byWidth?.get(width)
-    const cached=saved?.[twice?1:0];if(cached!==undefined)return cached
-  }
   let A:WrittenDecimalPart,B:WrittenDecimalPart,W:WrittenDecimalPart
   if(parts){
     const x=ownedDecimalPart(a,parts,charge,reserve);if(!x)return undefined;A=x
@@ -114,15 +107,7 @@ function writtenGapComparison(a: string, b: string, width: string, charge?: Meas
   const delta = A.n * 10n ** BigInt(A.e - scale) - B.n * 10n ** BigInt(B.e - scale),
     magnitude = delta < 0n ? -delta : delta
   const comparison = magnitude * (twice ? 2n : 1n) - W.n * 10n ** BigInt(W.e - scale)
-  const result=comparison < 0n ? -1 : comparison > 0n ? 1 : 0
-  if(comparisons){
-    if(!byB){if(reserve?.(3)===false||charge?.(1)===false)return undefined;byB=new Map();comparisons.set(a,byB)}
-    if(!byWidth){if(reserve?.(3)===false||charge?.(1)===false)return undefined;byWidth=new Map();byB!.set(b,byWidth)}
-    if(!saved){if(reserve?.(5)===false||charge?.(1)===false)return undefined;saved=new Array(2);byWidth!.set(width,saved)}
-    if(charge?.(1)===false)return undefined
-    saved[twice?1:0]=result
-  }
-  return result
+  return comparison < 0n ? -1 : comparison > 0n ? 1 : 0
 }
 
 export function writtenCoordinateGapLessThan(a: string, b: string, width: string, charge?: MeasuredContactCharge, reserve?: MeasuredContactCharge): boolean | undefined {
@@ -198,7 +183,7 @@ function sharpOffsetLess(a: number, oa: number, b: number, ob: number, width: st
     if (reserve?.(10) === false || charge?.(64) === false) return undefined
     A=String(a);B=String(b)
   }
-  const comparison = writtenGapComparison(A, B, width, charge, reserve, Math.abs(q) === 1,projection?.parts,projection?.comparisons)
+  const comparison = writtenGapComparison(A, B, width, charge, reserve, Math.abs(q) === 1,projection?.parts)
   return comparison === undefined ? undefined : q > 0 ? comparison < 0 : comparison > 0
 }
 
@@ -287,7 +272,6 @@ interface SharpProjectionRows {
   readonly rows:Point[][]
   readonly rangeStarts:Map<OwnedMeasuredRouteNumericSeed['horizontal'],Map<number,number>>
   readonly parts:Map<string,WrittenDecimalPart>
-  readonly comparisons:WrittenComparisonCache
   readonly texts:Map<number,string>
   readonly strips:Array<Array<SharpBox|undefined>|undefined>
   readonly joins:Array<Array<SharpBox|false|undefined>|undefined>
@@ -575,7 +559,7 @@ export function createOwnedMeasuredRouteContactValidator(routes:readonly {points
   if(seed.routes.length!==routes.length)return false
   let segments=0
   for(const route of routes)segments+=Math.max(0,route.points.length-1)
-  // Four ordinal arrays, four Maps, projection record and returned closure.
+  // Four ordinal arrays, three Maps, projection record and returned closure.
   if(reserve?.(4*routes.length+28+2*segments+4)===false)return undefined
   const rows:Point[][]=new Array(routes.length),offsets:number[]=new Array(routes.length),
     driftHorizontal:OwnedMeasuredRouteNumericSeed['horizontal'][number][]=[],driftVertical:typeof driftHorizontal=[]
@@ -612,7 +596,7 @@ export function createOwnedMeasuredRouteContactValidator(routes:readonly {points
     if(full===undefined)return undefined
     if(full){if(reserve?.(1)===false||charge?.(1)===false)return undefined;fullCandidates[offsets[entry.piece.owner]!+entry.piece.segment]=1;(axis?driftHorizontal:driftVertical).push(entry)}
   }
-  const projection:SharpProjectionRows={rows,rangeStarts:new Map(),parts:new Map(),comparisons:new Map(),texts:new Map(),strips:new Array(routes.length),joins:new Array(routes.length),numericSeed:seed,width,widthText,margin,offsets,driftHorizontal,driftVertical,seen:new Uint32Array(segments),fullCandidates,epoch:0,contactOnly:true}
+  const projection:SharpProjectionRows={rows,rangeStarts:new Map(),parts:new Map(),texts:new Map(),strips:new Array(routes.length),joins:new Array(routes.length),numericSeed:seed,width,widthText,margin,offsets,driftHorizontal,driftVertical,seen:new Uint32Array(segments),fullCandidates,epoch:0,contactOnly:true}
   return (index,witness)=>scoreMeasuredRouteCrossingsWithAdmission(routes[index]!.points,index,routes,input,charge,reserve,true,witness,1,false,projection)!==undefined
 }
 
