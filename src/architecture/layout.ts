@@ -535,14 +535,9 @@ function applyArchitectureSideConstraints(
   const translateUnit = (key: string, axis: SideConstraintAxis, delta: number): void => {
     if (Math.abs(delta) <= ROUTE_EPSILON) return
     const { kind, id } = splitUnitKey(key)
-    if (kind === 'service') {
-      const service = positionedServices.get(id)
-      if (service) service[axis] += delta
-      return
-    }
-    if (kind === 'junction') {
-      const junction = positionedJunctions.get(id)
-      if (junction) junction[axis] += delta
+    if (kind !== 'group') {
+      const item = kind === 'service' ? positionedServices.get(id) : positionedJunctions.get(id)
+      if (item) item[axis] += delta
       return
     }
     const moveGroup = (groupId: string): void => {
@@ -556,6 +551,48 @@ function applyArchitectureSideConstraints(
     moveGroup(id)
   }
   const roots = [...groups.values()].filter(group => !group.parentId)
+  const siblingKeysFor = (parentId?: string): string[] =>
+    siblingRefs(parentId).map(ref => unitKey(ref.kind, ref.id)).filter(key => unitBounds(key) !== undefined)
+
+  // Reuse the same alignment components for authored-side ordering and both
+  // cleanup axes. Nested members constrain their direct child at this level.
+  const alignmentComponents = (siblingKeys: string[], parentId: string | undefined, axis: 'row' | 'column') => {
+    const parent = new Map(siblingKeys.map(key => [key, key]))
+    const find = (key: string): string => {
+      const next = parent.get(key) ?? key
+      if (next === key) return key
+      const root = find(next)
+      parent.set(key, root)
+      return root
+    }
+    for (const alignment of diagram.alignments) {
+      if (alignment.axis !== axis) continue
+      const keys = alignment.members.map(member => {
+        const path = itemPath(member)
+        if (!path) return undefined
+        if (!parentId) return path[0]
+        const index = path.indexOf(unitKey('group', parentId))
+        return index >= 0 ? path[index + 1] : undefined
+      }).filter((key): key is string => key !== undefined && parent.has(key))
+      for (const key of keys.slice(1)) parent.set(find(key), find(keys[0]!))
+    }
+    const members = new Map<string, string[]>()
+    for (const key of siblingKeys) {
+      const root = find(key)
+      const values = members.get(root) ?? []
+      values.push(key)
+      members.set(root, values)
+    }
+    const bounds = (root: string): Bounds => {
+      const values = members.get(root)!.map(key => unitBounds(key)!)
+      const x = Math.min(...values.map(value => value.x))
+      const y = Math.min(...values.map(value => value.y))
+      const right = Math.max(...values.map(value => value.x + value.width))
+      const bottom = Math.max(...values.map(value => value.y + value.height))
+      return { x, y, width: right - x, height: bottom - y }
+    }
+    return { find, members, bounds }
+  }
 
   const grouped = new Map<string, ArchitectureSideConstraint[]>()
   for (const constraint of constraints) {
@@ -571,52 +608,13 @@ function applyArchitectureSideConstraints(
 
   for (const entries of orderedGroups) {
     const { axis, parentId } = entries[0]!
-    const siblingKeys = siblingRefs(parentId).map(ref => unitKey(ref.kind, ref.id)).filter(key => unitBounds(key) !== undefined)
+    const siblingKeys = siblingKeysFor(parentId)
     if (siblingKeys.length < 2) continue
 
     // Preserve declared row/column equal-coordinate components on their fixed
     // axis by moving the component as one packing unit.
-    const parent = new Map(siblingKeys.map(key => [key, key]))
-    const find = (key: string): string => {
-      const current = parent.get(key) ?? key
-      if (current === key) return current
-      const root = find(current)
-      parent.set(key, root)
-      return root
-    }
-    const union = (a: string, b: string): void => {
-      const ra = find(a), rb = find(b)
-      if (ra !== rb) parent.set(rb, ra < rb ? ra : rb)
-    }
-    const fixedAlignment = axis === 'x' ? 'column' : 'row'
-    for (const alignment of diagram.alignments) {
-      if (alignment.axis !== fixedAlignment) continue
-      const directUnits = alignment.members.map(member => {
-        const path = itemPath(member)
-        if (!path) return undefined
-        if (!parentId) return path[0]
-        const parentKey = unitKey('group', parentId)
-        const parentIndex = path.indexOf(parentKey)
-        return parentIndex >= 0 ? path[parentIndex + 1] : undefined
-      }).filter((key): key is string => key !== undefined && parent.has(key))
-      for (let i = 1; i < directUnits.length; i++) union(directUnits[0]!, directUnits[i]!)
-    }
-
-    const componentMembers = new Map<string, string[]>()
-    for (const key of siblingKeys) {
-      const root = find(key)
-      const members = componentMembers.get(root) ?? []
-      members.push(key)
-      componentMembers.set(root, members)
-    }
-    const componentBounds = (root: string): Bounds => {
-      const bounds = componentMembers.get(root)!.map(key => unitBounds(key)!)
-      const minX = Math.min(...bounds.map(bound => bound.x))
-      const minY = Math.min(...bounds.map(bound => bound.y))
-      const maxX = Math.max(...bounds.map(bound => bound.x + bound.width))
-      const maxY = Math.max(...bounds.map(bound => bound.y + bound.height))
-      return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
-    }
+    const { find, members: componentMembers, bounds: componentBounds } =
+      alignmentComponents(siblingKeys, parentId, axis === 'x' ? 'column' : 'row')
 
     const arcs = new Map<string, Set<string>>()
     let intrinsicConflict = false
@@ -673,6 +671,41 @@ function applyArchitectureSideConstraints(
     expandGroupBounds(roots, services, junctions, true)
   }
 
+  // A reorder inside one group can move an aligned member without its peers
+  // in other groups. Reconcile at their lowest common container, translating
+  // whole child groups so their internal ordering and endpoint faces survive.
+  let alignmentsChanged = false
+  for (const alignment of diagram.alignments) {
+    const axis = alignment.axis === 'row' ? 'y' : 'x'
+    const size = axis === 'y' ? 'height' : 'width'
+    const entries = [...new Set(alignment.members)].flatMap(id => {
+      const path = itemPath(id)
+      const item = positionedServices.get(id) ?? positionedJunctions.get(id)
+      return path && item ? [{ path, item }] : []
+    })
+    const align = (values: typeof entries, depth: number): void => {
+      if (values.length < 2) return
+      const limit = Math.min(...values.map(value => value.path.length))
+      while (depth < limit && values.every(value => value.path[depth] === values[0]!.path[depth])) depth++
+      if (depth >= limit) return
+      const units = new Map<string, typeof entries>()
+      for (const value of values) {
+        const key = value.path[depth]!
+        const members = units.get(key) ?? []
+        members.push(value)
+        units.set(key, members)
+      }
+      for (const members of units.values()) align(members, depth + 1)
+      const center = Math.max(...values.map(value => value.item[axis] + value.item[size] / 2))
+      for (const [key, members] of units) {
+        const delta = center - (members[0]!.item[axis] + members[0]!.item[size] / 2)
+        if (delta > ROUTE_EPSILON) { translateUnit(key, axis, delta); alignmentsChanged = changed = true }
+      }
+    }
+    align(entries, 0)
+  }
+  if (alignmentsChanged) expandGroupBounds(roots, services, junctions, true)
+
   // A child reorder can enlarge its parent into a formerly clear sibling (for
   // example two root groups stacked vertically). Resolve those secondary
   // overlaps bottom-up. Row-aligned siblings form one component so cleanup
@@ -686,45 +719,33 @@ function applyArchitectureSideConstraints(
       && a.y < b.y + b.height - ROUTE_EPSILON && b.y < a.y + a.height - ROUTE_EPSILON
 
   for (const context of contexts) {
-    const siblingKeys = siblingRefs(context.parentId).map(ref => unitKey(ref.kind, ref.id)).filter(key => unitBounds(key) !== undefined)
+    const siblingKeys = siblingKeysFor(context.parentId)
     if (siblingKeys.length < 2) continue
-    const parent = new Map(siblingKeys.map(key => [key, key]))
-    const find = (key: string): string => {
-      const current = parent.get(key) ?? key
-      if (current === key) return current
-      const root = find(current)
-      parent.set(key, root)
-      return root
-    }
-    const union = (a: string, b: string): void => {
-      const ra = find(a), rb = find(b)
-      if (ra !== rb) parent.set(rb, ra < rb ? ra : rb)
-    }
-    for (const alignment of diagram.alignments) {
-      if (alignment.axis !== 'row') continue
-      const directUnits = alignment.members.map(member => {
-        const path = itemPath(member)
-        if (!path) return undefined
-        if (!context.parentId) return path[0]
-        const parentIndex = path.indexOf(unitKey('group', context.parentId))
-        return parentIndex >= 0 ? path[parentIndex + 1] : undefined
-      }).filter((key): key is string => key !== undefined && parent.has(key))
-      for (let i = 1; i < directUnits.length; i++) union(directUnits[0]!, directUnits[i]!)
-    }
-    const members = new Map<string, string[]>()
-    for (const key of siblingKeys) {
-      const root = find(key)
-      const values = members.get(root) ?? []
-      values.push(key)
-      members.set(root, values)
-    }
-    const boundsFor = (root: string): Bounds => {
-      const values = members.get(root)!.map(key => unitBounds(key)!)
-      const x = Math.min(...values.map(value => value.x))
-      const y = Math.min(...values.map(value => value.y))
-      const right = Math.max(...values.map(value => value.x + value.width))
-      const bottom = Math.max(...values.map(value => value.y + value.height))
-      return { x, y, width: right - x, height: bottom - y }
+    const { members, bounds: boundsFor } = alignmentComponents(siblingKeys, context.parentId, 'row')
+    // Equal row centers constrain y, not x. Their expanded group frames can
+    // overlap even when the aligned services themselves are clear. Separate
+    // those siblings horizontally, moving column-aligned units together.
+    const { find: column, members: columns } = alignmentComponents(siblingKeys, context.parentId, 'column')
+    for (let pass = 0; pass < siblingKeys.length; pass++) {
+      let moved = false
+      for (const row of members.values()) {
+        const order = [...row].sort((a, b) => unitBounds(a)!.x - unitBounds(b)!.x || compareCodePointStrings(a, b))
+        let cursor = -Infinity
+        const seen = new Set<string>()
+        for (const key of order) {
+          const component = column(key)
+          if (seen.has(component)) continue
+          seen.add(component)
+          const bounds = unitBounds(key)!
+          if (bounds.x < cursor - ROUTE_EPSILON) {
+            const delta = cursor - bounds.x
+            for (const sibling of columns.get(component)!) translateUnit(sibling, 'x', delta)
+            moved = changed = true
+          }
+          cursor = bounds.x + bounds.width + spacing
+        }
+      }
+      if (!moved) break
     }
     const order = [...members.keys()].sort((a, b) => {
       const aa = boundsFor(a), bb = boundsFor(b)

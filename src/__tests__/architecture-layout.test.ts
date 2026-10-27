@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { collectSamples } from '../../eval/layout-compare/run.ts'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { ARCHITECTURE_GROUP_ICON_TITLE_OFFSET, DEFAULT_ARCHITECTURE_VISUAL } from '../architecture/config.ts'
 import { layoutArchitectureDiagram } from '../architecture/layout.ts'
@@ -7,6 +8,9 @@ import { architectureToMermaidGraph, parseArchitectureDiagram } from '../archite
 import { convertToElkFormat } from '../layout-engine.ts'
 import { preprocessMermaidSource } from '../mermaid-source.ts'
 import { measureMultilineText } from '../text-metrics.ts'
+import { renderMermaidSVG } from '../index.ts'
+import { layoutMermaidWithReceipt } from '../agent/index.ts'
+import raynerGroups from './testdata/rayner-528/architecture-groups.json'
 
 function parse(source: string) {
   return parseArchitectureDiagram(preprocessMermaidSource(source).lines)
@@ -78,6 +82,85 @@ function boxesOverlap(
 }
 
 describe('layoutArchitectureDiagram', () => {
+  it.each(raynerGroups)('keeps the original Rayner $id groups separate without losing row alignment or ports', ({ source, style }) => {
+    let svg = ''
+    expect(() => { svg = renderMermaidSVG(source, { style }) }).not.toThrow()
+    const { layout: projected } = layoutMermaidWithReceipt(source, { style, debug: true })
+    for (let i = 0; i < projected.groups.length; i++) {
+      const a = projected.groups[i]!
+      for (const b of projected.groups.slice(i + 1)) {
+        const overlap = a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
+        expect(overlap, `${a.id}/${b.id}`).toBe(false)
+      }
+    }
+    const nodes = ['k1', 'k2', 'k3'].map(id => projected.nodes.find(node => node.id === id)!)
+    expect(nodes[1]!.y + nodes[1]!.h / 2).toBeCloseTo(nodes[0]!.y + nodes[0]!.h / 2)
+    expect(nodes[2]!.y + nodes[2]!.h / 2).toBeCloseTo(nodes[0]!.y + nodes[0]!.h / 2)
+    expect(svg).toContain('data-id="k3"')
+    const authoredEdges = parse(source).edges
+    const anchor = (node: typeof nodes[number], side: string) => ({
+      x: side === 'L' ? node.x : side === 'R' ? node.x + node.w : node.x + node.w / 2,
+      y: side === 'T' ? node.y : side === 'B' ? node.y + node.h : node.y + node.h / 2,
+    })
+    for (const [index, edge] of projected.edges.entries()) {
+      const from = projected.nodes.find(node => node.id === edge.from)!
+      const to = projected.nodes.find(node => node.id === edge.to)!
+      expect(from).toBeDefined()
+      expect(to).toBeDefined()
+      expect(edge.path.length).toBeGreaterThan(1)
+      const start = anchor(from, authoredEdges[index]!.source.side), end = anchor(to, authoredEdges[index]!.target.side)
+      // Public layout boxes and paths round independently to integer units.
+      expect(Math.abs(edge.path[0]![0] - start.x)).toBeLessThanOrEqual(1)
+      expect(Math.abs(edge.path[0]![1] - start.y)).toBeLessThanOrEqual(1)
+      expect(Math.abs(edge.path.at(-1)![0] - end.x)).toBeLessThanOrEqual(1)
+      expect(Math.abs(edge.path.at(-1)![1] - end.y)).toBeLessThanOrEqual(1)
+      expect(edge.route).toMatchObject({
+        sourceAnchored: true, targetAnchored: true, obstacleFree: true,
+        sourceSide: authoredEdges[index]!.source.side, targetSide: authoredEdges[index]!.target.side,
+      })
+      for (const obstacle of projected.nodes.filter(node => node.id !== edge.from && node.id !== edge.to)) {
+        expect(routeCrossesBoxInterior(edge.path.map(([x, y]) => ({ x, y })), {
+          x: obstacle.x, y: obstacle.y, width: obstacle.w, height: obstacle.h,
+        }), `${edge.id} crosses ${obstacle.id}`).toBe(false)
+      }
+    }
+  })
+
+  it.each(['nested', 'columns', 'reversed row', 'reversed columns', 'wide headers'])('keeps expanded aligned group frames separate with %s', variant => {
+    let source = raynerGroups[0]!.source
+    if (variant === 'nested') {
+      source = source.replace('architecture-beta', 'architecture-beta\n  group fleet[Cluster]')
+        .replace(/group (n\d)\[ \]/g, 'group $1[ ] in fleet')
+    } else if (variant === 'columns') source += '\n  align column k1 a\n  align column k2 b\n  align column k3 c'
+    else if (variant === 'reversed columns') source += '\n  align column a k1\n  align column b k2\n  align column c k3'
+    else if (variant === 'reversed row') source = source.replace('align row k1 k2 k3', 'align row k3 k2 k1')
+    else source = source.replace(/group (n\d)\[ \]/g, 'group $1[An intentionally wide group header]')
+    const { layout: projected } = layoutMermaidWithReceipt(source, { style: 'github-light' })
+    const nodes = ['k1', 'k2', 'k3'].map(id => projected.nodes.find(node => node.id === id)!)
+    for (const node of nodes) expect(node.y + node.h / 2).toBeCloseTo(nodes[0]!.y + nodes[0]!.h / 2)
+    const groups = ['n1', 'n2', 'n3'].map(id => projected.groups.find(group => group.id === id)!)
+    for (let i = 0; i < groups.length; i++) for (const other of groups.slice(i + 1)) {
+      const a = groups[i]!
+      expect(a.x < other.x + other.w && other.x < a.x + a.w && a.y < other.y + other.h && other.y < a.y + a.h).toBe(false)
+    }
+    if (variant.includes('columns')) for (const [node, pod] of [['k1', 'a'], ['k2', 'b'], ['k3', 'c']]) {
+      const a = projected.nodes.find(entry => entry.id === node)!, b = projected.nodes.find(entry => entry.id === pod)!
+      expect(a.x + a.w / 2).toBeCloseTo(b.x + b.w / 2)
+    }
+    expect(renderMermaidSVG(source, { style: 'github-light' })).toContain('data-id="k1"')
+  })
+
+  it('retains the authored Output row when transitive columns constrain the preceding layers', () => {
+    const source = collectSamples().find(sample => sample.id === 'corpus/architecture/3')!.source
+    const { layout: projected } = layoutMermaidWithReceipt(source, { debug: true })
+    const row = ['brief', 'analyst', 'delivery'].map(id => projected.nodes.find(node => node.id === id)!)
+    for (const node of row) expect(node.y + node.h / 2).toBeCloseTo(row[0]!.y + row[0]!.h / 2)
+    for (const edge of projected.edges) expect(edge.route).toMatchObject({
+      sourceAnchored: true, targetAnchored: true, obstacleFree: true, placement: 'satisfied',
+    })
+    expect(renderMermaidSVG(source)).toContain('data-id="analyst"')
+  })
+
   it('keeps grouped services and junctions inside their parent frame', () => {
     const result = layout(`architecture-beta
       group app(cloud)[Application]

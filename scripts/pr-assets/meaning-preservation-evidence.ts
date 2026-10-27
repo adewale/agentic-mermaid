@@ -1,3 +1,4 @@
+import raynerGroups from '../../src/__tests__/testdata/rayner-528/architecture-groups.json'
 import raynerTitles from '../../src/__tests__/testdata/rayner-528/xy-axis-titles.json'
 // Same-input production renders at immutable revisions, for PR review only.
 // bun run scripts/pr-assets/meaning-preservation-evidence.ts BASE_SHA HEAD_SHA OUT_DIR [FIXTURE_ID...]
@@ -85,6 +86,19 @@ const stableRepresentativeCues = {
 } as const
 const ownershipGoldenIds = new Set(['corpus/flowchart/94', 'corpus/flowchart/95', 'corpus/flowchart/96', 'corpus/flowchart/98', 'corpus/state/0', 'corpus/state/1', 'corpus/state/8', 'corpus/state/14', 'corpus/state/16', 'corpus/state/17', 'corpus/state/18', 'corpus/state/19'])
 const fixtures: Fixture[] = [
+  {
+    id: 'architecture-alignment-components',
+    title: 'Architecture Output row retains its authored alignment',
+    source: collectSamples().find(sample => sample.id === 'corpus/architecture/3')!.source,
+    captureLayout: true,
+    cue: 'Before, Analyst is displaced 84 units below Brief and Delivery despite the authored row. After, inspect all three on the same row, both straight side-anchored edges and retained group membership. The Output frame and canvas shrink by 84 units; all other node coordinates are controls.',
+  },
+  ...raynerGroups.map(({ id, source, style }) => ({
+    id: `rayner-architecture-${id}`,
+    title: `Rayner traffic-policy: ${id}`,
+    source, renderOptions: { style }, captureLayout: true as const,
+    cue: 'The base refuses this unchanged input because n2 and n3 overlap by 30 units. After, inspect separate sibling frames, a shared row for k1/k2/k3, retained pod membership and connected authored endpoint faces. This finite witness and its geometry assertions do not prove every contradictory alignment has a feasible layout.',
+  })),
   ...raynerTitles.map(({ id, source, style }) => ({
     id: `rayner-xy-title-${id}`,
     title: `Rayner quotient familial: ${id}`,
