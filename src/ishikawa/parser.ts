@@ -3,9 +3,7 @@ import { scanAccessibilityDirectives, requireClosedAccessibility, accessibilityF
 import { observeParserStatement, observeParserMutation } from '../shared/parser-observation.ts'
 import { assertDiagramWorkLimit } from '../shared/diagram-limits.ts'
 import { readAuthoredGrammarAccessibility, readGrammarAuthoredText, readGrammarText } from '../shared/grammar-text.ts'
-import { stripTrailingComment } from '../shared/trailing-comment.ts'
-
-export const isIshikawaHeader = (line: string): boolean => /^ishikawa(?:-beta)?\s*$/i.test(stripTrailingComment(line.trim()))
+export const isIshikawaHeader = (line: string): boolean => /^ishikawa(?:-beta)?\s*(?:%%.*)?$/i.test(line.trim())
 
 /** The first cause establishes the indentation baseline, independently of the effect. */
 export function parseIshikawaDiagram(input: string | readonly string[]): IshikawaBody {
