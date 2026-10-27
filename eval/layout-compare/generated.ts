@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { flowchartMesh, flowchartSubgraphs, flowchartTree } from '../shared/graph-fixtures.ts'
 
 export interface GeneratedFlowchartRange { start: number; count: number }
 
@@ -34,4 +35,30 @@ export function generatedFlowchartSamples({ start, count }: GeneratedFlowchartRa
     }
     return { id: `${kind === 'lcg-v1' ? 'generated-cyclic' : 'generated-sha256-counter-v1'}:${seed}`, family: 'flowchart', source: lines.join('\n') }
   })
+}
+
+/** Product geometry stress inputs; release benchmark enrollment stays in Trident. */
+export function graphStressSamples(): { id: string; family: string; source: string }[] {
+  const lines = (header: string, count: number, row: (index: number) => string[]): string =>
+    [header, ...Array.from({ length: count }, (_, index) => row(index)).flat()].join('\n')
+  const junctions = (count: number): string => lines('architecture-beta', count,
+    index => [`junction j${index}`, ...(index ? [`j${index - 1}:R<-->L:j${index}`] : [])])
+  return [
+    { id: 'architecture-16-junctions', family: 'architecture', source: junctions(16) },
+    { id: 'architecture-32-junctions', family: 'architecture', source: junctions(32) },
+    { id: 'architecture-32-large-junctions', family: 'architecture', source: `---\nconfig:\n  architecture:\n    iconSize: 40\n---\n${junctions(32)}` },
+    { id: 'architecture-40-services', family: 'architecture', source: lines('architecture-beta', 40,
+      index => [`  service s${index}(server)[Service ${index}]`, ...(index ? [`  s${index - 1}:R --> L:s${index}`] : [])]) },
+    { id: 'class-80-classes', family: 'class', source: lines('classDiagram', 80,
+      index => [`  class C${index} {`, `    +int field${index}`, `    +method${index}()`, '  }', ...(index ? [`  C${Math.floor((index - 1) / 2)} <|-- C${index}`] : [])]) },
+    { id: 'er-40-entities', family: 'er', source: lines('erDiagram', 40,
+      index => [`  E${index} {`, '    int id PK', `    string name${index}`, '  }', ...(index ? [`  E${Math.floor((index - 1) / 2)} ||--o{ E${index} : has`] : [])]) },
+    { id: 'flowchart-mesh-120-labelled-40', family: 'flowchart', source: flowchartMesh(120, 40) },
+    { id: 'flowchart-subgraphs-12x8', family: 'flowchart', source: flowchartSubgraphs(12, 8) },
+    { id: 'flowchart-tree-300', family: 'flowchart', source: flowchartTree(300) },
+    { id: 'requirement-100-requirements-99-relations', family: 'requirement', source: lines('requirementDiagram', 100,
+      index => [`  requirement r${index} {`, `    id: R${index}`, `    text: "Requirement ${index}"`, '    risk: medium', '    verifymethod: test', '  }', ...(index ? [`  r${index - 1} - traces -> r${index}`] : [])]) },
+    { id: 'state-80-states', family: 'state', source: lines('stateDiagram-v2', 80,
+      index => [`  S${index} --> S${index + 1}: e${index}`, ...(index % 5 === 0 ? [`  S${index + 1} --> S${Math.max(0, index - 3)}`] : [])]) },
+  ].map(sample => ({ ...sample, id: `fixture/stress/${sample.id}.mmd` }))
 }

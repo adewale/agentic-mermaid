@@ -28,7 +28,7 @@ import { validateSerializableRenderOptions, type RenderRequestReceipt } from '..
 import { compareCodePointStrings } from '../../src/shared/deterministic-order.ts'
 import { namespaceSvgIds } from '../../src/renderer.ts'
 import { attemptApi, failureCode, type ApiFailure } from './outcomes.ts'
-import { generatedFlowchartSamples, type GeneratedFlowchartRange, type GeneratedFlowchartKind } from './generated.ts'
+import { generatedFlowchartSamples, graphStressSamples, type GeneratedFlowchartRange, type GeneratedFlowchartKind } from './generated.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const CORPUS_PATH = join(ROOT, 'eval', 'mermaid-docs-corpus', 'corpus.json')
@@ -63,22 +63,17 @@ export interface Snapshot {
 
 interface SampleInput { id: string; family: string; source: string }
 
-function collectFixtureSamples(directory: string, prefix = ''): SampleInput[] {
-  if (!existsSync(directory)) return []
-  return readdirSync(directory).filter(name => name.endsWith('.mmd')).sort().map(name => {
-    const source = readFileSync(join(directory, name), 'utf8')
-    const parsed = parseMermaid(source)
-    return { id: `fixture/${prefix}${name}`, family: parsed.ok ? parsed.value.kind : 'unknown', source }
-  })
-}
-
 export function collectSamples(options: { includeStress?: boolean } = {}): SampleInput[] {
   const corpus = JSON.parse(readFileSync(CORPUS_PATH, 'utf8')) as Array<{ family: string; source: string; origin: string; index: number }>
   const samples: SampleInput[] = corpus.map(e => ({ id: `corpus/${e.family}/${e.index}`, family: e.family, source: e.source }))
-  samples.push(...collectFixtureSamples(FIXTURES_DIR))
-  // Product-owned scaling regressions remain plain diagnostic fixtures;
-  // release benchmark inventories and execution belong to Trident.
-  if (options.includeStress) samples.push(...collectFixtureSamples(join(FIXTURES_DIR, 'stress'), 'stress/'))
+  if (existsSync(FIXTURES_DIR)) {
+    for (const name of readdirSync(FIXTURES_DIR).filter(f => f.endsWith('.mmd')).sort()) {
+      const source = readFileSync(join(FIXTURES_DIR, name), 'utf8')
+      const parsed = parseMermaid(source)
+      samples.push({ id: `fixture/${name}`, family: parsed.ok ? parsed.value.kind : 'unknown', source })
+    }
+  }
+  if (options.includeStress) samples.push(...graphStressSamples())
   return samples
 }
 
