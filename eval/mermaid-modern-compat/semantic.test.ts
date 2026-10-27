@@ -113,7 +113,7 @@ semantic('ZenUML official sources, canonical writes and checked edits use the re
   if (!reloaded.ok) throw Error('Checked ZenUML output must reload natively')
   const layout = am.layoutMermaid(reloaded.value)
   expect(layout.edges.filter(edge => edge.label?.text === 'accepted' || edge.label?.text === 'rejected').map(edge => [edge.from, edge.to])).toEqual([['Inventory', 'API'], ['Inventory', 'API']])
-  expect(layout.edges.find(edge => edge.label?.text === 'reserve()')?.to).toBe('Inventory')
+  expect(layout.edges.find(edge => edge.label?.text === 'result = reserve()')?.to).toBe('Inventory')
   expect(layout.edges.find(edge => edge.label?.text === 'checkout()')?.from).toBe('Buyer')
 })
 
