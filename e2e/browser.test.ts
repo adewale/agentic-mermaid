@@ -397,8 +397,8 @@ it('resolved circle and ellipse paths preserve the native stroke traversal for d
 
 it('standalone editor stays within its single-renderer payload budget', async () => {
   const html = new Uint8Array(await Bun.file(join(ROOT, 'editor.html')).arrayBuffer())
-  // Retain this branch's existing ceilings while integrating Main's portable
-  // metadata and Sequence fixes. Any excess remains a failed delivery check.
+  // Retain this branch's existing ceilings while integrating Main's meaning
+  // preservation fixes. Any excess remains a failed delivery check.
   // One renderer serves the main/worker realms; the relative payload gate applies.
   expect(html.byteLength).toBeLessThanOrEqual(4_429_400)
   expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_334_500)

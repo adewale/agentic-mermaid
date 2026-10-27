@@ -9,6 +9,23 @@ const upstream = startUpstreamMermaid()
 afterAll(() => upstream.close())
 
 describe('native Ishikawa', () => {
+  test('Ishikawa header comments share one direct and typed reading', async () => {
+    for (const comment of ['%% explanation', '%%{', '%%{beta']) {
+      const source = `ishikawa${comment}\nProblem\nPeople\n  Training\nTools`
+      expect(() => parseIshikawaDiagram(source)).not.toThrow()
+      const parsed = parseRegisteredMermaid(source)
+      if (!parsed.ok || parsed.value.body.kind !== 'ishikawa') throw new Error('Expected typed Ishikawa')
+      const expected = [['Problem', undefined], ['People', 'effect'], ['Training', 'cause-1'], ['Tools', 'effect']]
+      expect(parseIshikawaDiagram(source).nodes.map(node => [node.label, node.parentId])).toEqual(expected)
+      expect(renderMermaidSVG(source)).toBe(renderMermaidSVG(parsed.value))
+      expect(renderMermaidASCII(source)).toBe(renderMermaidASCII(parsed.value))
+      const written = serializeMermaid(parsed.value)
+      expect(await upstream.publicAccepts(written)).toBe(true)
+      expect(parseIshikawaDiagram(written).nodes.map(node => [node.label, node.parentId])).toEqual(expected)
+      expect(verifyMermaid(source).warnings.some(warning => warning.code === 'RENDER_FAILED')).toBe(false)
+    }
+  })
+
   test('accessibility line endings cannot create fishbone nodes or escape the Result contract', async () => {
     const parsed = parseRegisteredMermaid('ishikawa\nEffect\n  Child')
     if (!parsed.ok || parsed.value.body.kind !== 'ishikawa') throw new Error('Expected typed Ishikawa')

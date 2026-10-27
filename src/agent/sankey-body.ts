@@ -19,7 +19,7 @@
 // links) → opaque, so the loud "no rows" render error still surfaces.
 // ============================================================================
 
-import { findSankeyCycle, parseSankeyDiagram } from '../sankey/parser.ts'
+import { csvQuotedFieldIsOpen, findSankeyCycle, isSankeyHeader, parseSankeyDiagram } from '../sankey/parser.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { mermaidEntityPrepass } from '../shared/mermaid-entities.ts'
 import { labelOverflowCollector } from './body-utils.ts'
@@ -42,7 +42,7 @@ function formatNumber(n: number): string {
  */
 export function parseSankeyBody(lines: string[], _accessibility: Accessibility = {}): SankeyBody | null {
   if (lines.some(raw => /^\s*acc(?:Title|Descr)\b/i.test(raw))) return null
-  const sourceLines = lines.some(raw => HEADER_RE.test(raw.trim())) ? lines : ['sankey-beta', ...lines]
+  const sourceLines = ['sankey-beta', ...lines]
   try {
     const diagram = parseSankeyDiagram(sourceLines)
     const body: SankeyBody = {
@@ -277,17 +277,27 @@ export function sankeyUnsupportedSyntaxWarnings(canonicalSource: string, authore
   let last = lines.length - 1
   while (last > header && !lines[last]!.trim()) last--
   const warnings: LayoutWarning[] = []
+  let csvRecord = ''
   for (let index = header + 1; index <= last; index++) {
     const trimmed = lines[index]!.trim()
     if (!trimmed) continue
-    const directive = parseAccessibilityDirective(lines, index)
+    const continuation = csvRecord.length > 0
+    if (!continuation && isSankeyHeader(trimmed)) {
+      warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax: 'sankey_repeated_header', line: index + 1,
+        message: 'A standalone repeated Sankey header is read as a header, not a CSV row. Pinned Mermaid rejects it; canonical export writes one header.',
+      })
+      continue
+    }
+    const directive = continuation ? null : parseAccessibilityDirective(lines, index)
     if (directive === undefined) break
     if (directive) {
       warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax: 'sankey_accessibility', line: index + 1, message: 'Sankey accessibility metadata is carried in native comments on export. External Mermaid ignores this metadata; diagram topology is preserved.' })
       index = directive.endIndex
       continue
     }
-    if (trimmed.startsWith('%%')) continue
+    if (!continuation && trimmed.startsWith('%%')) continue
+    csvRecord = continuation ? `${csvRecord}\n${lines[index]!}` : lines[index]!
+    if (!csvQuotedFieldIsOpen(csvRecord)) csvRecord = ''
     // Mermaid trims whitespace from the end of the source.
     const raw = authoredLine?.(index + 1) ?? lines[index]!
     const row = index === last ? raw.trimEnd() : raw

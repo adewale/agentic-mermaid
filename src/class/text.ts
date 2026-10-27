@@ -5,6 +5,8 @@ import { encodeMermaidAuthoredEntities, encodeMermaidEntities } from '../shared/
 import { prepareDisplayText, replaceDisplayTextTokens, type LabelContent } from '../shared/display-text.ts'
 
 const CLASS_TEXT_TOKENS = /&#(?:\d+|[xX][0-9a-fA-F]+);|#\w+;/g
+const CLASS_DIRECTION_TOKEN = /direction(?=\s+(?:TB|BT|RL|LR))/
+export const hasClassDirectionToken = (text: string): boolean => CLASS_DIRECTION_TOKEN.test(text)
 const decodeClassToken = (text: string): string => text.startsWith('&') ? text : decodeMermaidEntities(text, { subject: 'Class text entity', example: 'class A["I #9829; UML"]' })
 
 /** Literal contexts call this only after their own grammar and display
@@ -35,6 +37,9 @@ export function writeClassText(text: string, content?: LabelContent, reserved = 
     // Mermaid removes a `%%{…}%%` directive from the source before it reads
     // text; `#123;` reads as the brace.
     .replace(/%%\{/g, '%%#123;')
+    // The initial Class lexer greedily takes an entire line containing this
+    // token, before it can enter a quoted label or namespace string state.
+    .replace(new RegExp(CLASS_DIRECTION_TOKEN.source, 'g'), word => `#${word.codePointAt(0)!};${word.slice(1)}`)
 }
 
 /** Convert a class member to its display string */
