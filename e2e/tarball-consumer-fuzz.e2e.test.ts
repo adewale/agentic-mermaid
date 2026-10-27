@@ -273,7 +273,7 @@ console.log(JSON.stringify(entries.map(entry => Object.hasOwn(entry, 'TUFTE_STYL
 
   test('published documentation entry points have no broken relative links', () => {
     expect(haveConsumer).toBe(true)
-    for (const relativeHubPath of ['README.md', 'docs/README.md']) {
+    for (const relativeHubPath of ['README.md', 'docs/README.md', 'docs/api.md', 'docs/api-advanced.md']) {
       const hubPath = join(packageDir, relativeHubPath)
       const hub = readFileSync(hubPath, 'utf8')
       const relativeLinks = [...hub.matchAll(/\]\(([^)]+)\)/g)]

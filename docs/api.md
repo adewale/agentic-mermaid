@@ -136,7 +136,7 @@ ownership where available rather than parsing identifier spelling. Ownership
 is not yet populated for every companion mark.
 
 The result is detached JSON. This function does not accept host text-measurement
-profiles. Its [types](../src/scene/resolved-types.ts) describe every primitive
+profiles. Its [types](https://github.com/adewale/agentic-mermaid/blob/main/src/scene/resolved-types.ts) describe every primitive
 field; the [changelog](../CHANGELOG.md) records availability. Default Sankey
 gradients require a solid-color configuration under this version's paint-server
 limitation.
