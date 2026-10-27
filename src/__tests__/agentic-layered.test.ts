@@ -1,9 +1,11 @@
+import { scoreMeasuredRouteCrossings } from '../layout/measured-route-safety.ts'
+import { assertFinalBoundaryContacts, createBoundaryContactValidator } from '../layout/compound-boundary-routes.ts'
 import { proposePortalChannel } from '../layout/compound-portal-channel.ts'
 import { proposeOuterChannel } from '../layout/compound-outer-channel.ts'
 import { createPeerGeometryOwner } from '../layout/compound-peer-geometry.ts'
 import { describe, expect, test } from 'bun:test'
 import { layoutAgenticGraph, type MeasuredGraph } from '../layout/agentic-layered.ts'
-import { layoutLayeredGraph } from '../layout/agentic-layered-core.ts'
+import { type AgenticLayout, layoutLayeredGraph } from '../layout/agentic-layered-core.ts'
 import { GraphLayoutUnsupportedError } from '../layout/backend.ts'
 import type { Direction, Point } from '../types.ts'
 import { countOpposingRouteOverlaps, countParallelRouteOverlaps } from '../layout-rubric.ts'
@@ -1248,4 +1250,74 @@ describe('bounded complete boundary connectors', () => {
   owner.leaveQuery(old);old.release();owner.publish(0,[{x:0,y:5},{x:10,y:5}],true)
   expect(()=>old.guard({x:5,y:0},{x:5,y:10},2,2)).toThrow('Stale')
  })
+})
+
+describe('measured painted route contacts', () => {
+  const input = (width: number | undefined): MeasuredGraph => measured({
+    maximumEdgeStrokeWidth: width,
+    edges: [{ source: 0, target: 1, minSpan: 1 }, { source: 0, target: 2, minSpan: 1 }],
+  })
+  const routes = (a: Point[], b: Point[], style = 'solid') => [{ points: a, style: 'solid' }, { points: b, style }]
+
+  test.each([
+    { name: 'distinct source ports and a narrow vertical overlap', a: [{ x: 781.361, y: 518.7 }, { x: 781.361, y: 562.7 }, { x: 800, y: 562.7 }], b: [{ x: 751.361, y: 518.7 }, { x: 751.361, y: 550.7 }, { x: 780.379, y: 550.7 }, { x: 780.379, y: 601.5 }], style: 'solid' },
+    { name: 'solid and dashed carriers beside a common source', a: [{ x: 1397.784, y: 489.960249676 }, { x: 1361.784, y: 489.960249676 }, { x: 1361.784, y: 439.05 }, { x: 1001.054, y: 439.05 }, { x: 1001.054, y: 478.55 }, { x: 959.054, y: 478.55 }], b: [{ x: 1397.784, y: 502.912812095 }, { x: 1355.784, y: 502.912812095 }, { x: 1355.784, y: 479.35 }, { x: 971.054, y: 479.35 }, { x: 971.054, y: 545.45 }], style: 'dashed' },
+  ])('rejects actual one-pixel ink in $name', ({ a: originalA, b: originalB, style }) => {
+    const a: Point[] = [...originalA], b: Point[] = [...originalB], ink = routes(a, b, style)
+    // These distinct paths share an authored source, not a physical stem.
+    expect(scoreMeasuredRouteCrossings(a, 0, ink, input(1))).toBeUndefined()
+    expect(scoreMeasuredRouteCrossings(b, 1, ink, input(1))).toBeUndefined()
+    expect(scoreMeasuredRouteCrossings(a, 0, ink, input(undefined))).toBe(0)
+  })
+
+  test('retains written boundary contact, proper crossings and actual common terminals', () => {
+    const a = [{ x: 0, y: 0 }, { x: 0, y: 20 }]
+    for (const x of [1, 2]) expect(scoreMeasuredRouteCrossings(a, 0, routes(a, [{ x, y: 2 }, { x, y: 18 }]), input(1))).toBe(0)
+    const crossing = [{ x: -10, y: 10 }, { x: 10, y: 10 }]
+    expect(scoreMeasuredRouteCrossings(a, 0, routes(a, crossing), input(1))).toBe(1)
+    expect(scoreMeasuredRouteCrossings(a, 0, routes(a, [{ x: 0, y: 0 }, { x: 10, y: 0 }]), input(1))).toBe(0)
+    // Both the writer's width and coordinates spell exactly one here.
+    expect(scoreMeasuredRouteCrossings(a, 0, routes(a, [{ x: 1.0000000000002, y: 2 }, { x: 1.0000000000002, y: 18 }]), input(1.0000000000004))).toBe(0)
+    expect(scoreMeasuredRouteCrossings(a, 0, routes(a, [{ x: .2, y: 2 }, { x: .2, y: 18 }]), input(.1))).toBe(0)
+    const decimal = [{ x: .2, y: 0 }, { x: .2, y: 20 }]
+    expect(scoreMeasuredRouteCrossings(decimal, 0, routes(decimal, [{ x: .3, y: 2 }, { x: .3, y: 18 }]), input(.1))).toBe(0)
+    const large = [{ x: 1000000000000.2, y: 0 }, { x: 1000000000000.2, y: 20 }]
+    expect(scoreMeasuredRouteCrossings(large, 0, routes(large, [{ x: 1000000000000.3, y: 2 }, { x: 1000000000000.3, y: 18 }]), input(.10001))).toBeUndefined()
+  })
+
+  test('does not discard a short positive support or invisible peer distinction', () => {
+    const a = [{ x: 0, y: 0 }, { x: 0, y: 20 }], b = [{ x: .75, y: 2 }, { x: .75, y: 2.005 }]
+    expect(scoreMeasuredRouteCrossings(a, 0, routes(a, b), input(1))).toBeUndefined()
+    expect(scoreMeasuredRouteCrossings(a, 0, routes(a, b, 'invisible'), input(1))).toBe(0)
+  })
+
+  test('keeps physical peers through the prepared whole-route bounds prune', () => {
+    const a = Array.from({ length: 60 }, (_, y) => ({ x: 0, y })), b = Array.from({ length: 33 }, (_, y) => ({ x: .75, y }))
+    const ink = routes([], b), fail = (reason: string): never => { throw new Error(reason) }
+    const work = { pairs: 1_000_000, arcs: 1000, swaps: 1000 }
+    expect(createBoundaryContactValidator(input(1), 0, ink, work, fail)(a)).toBe(false)
+    expect(work.pairs).toBeLessThan(1_000_000)
+    expect(createBoundaryContactValidator(input(undefined), 0, ink, { pairs: 1_000_000, arcs: 1000, swaps: 1000 }, fail)(a)).toBe(true)
+    const placed: AgenticLayout = { topology: 'layered', width: 10, height: 100, nodes: input(1).nodes.map(() => ({ x: 0, y: 0 })), edges: [{ points: a }, { points: b }] }
+    expect(() => assertFinalBoundaryContacts(input(1), placed, new Set([0]), { pairs: 1_000_000, arcs: 1000, swaps: 1000 }, fail)).toThrow('uncertified shared contact')
+    expect(() => assertFinalBoundaryContacts(input(undefined), placed, new Set([0]), { pairs: 1_000_000, arcs: 1000, swaps: 1000 }, fail)).not.toThrow()
+  })
+
+  test('charges the same caller allowance and stops at the first refused debit', () => {
+    const a = [{ x: 0, y: 0 }, { x: 0, y: 20 }], b = [{ x: 1, y: 2 }, { x: 1, y: 18 }], ink = routes(a, b)
+    let full = 0
+    expect(scoreMeasuredRouteCrossings(a, 0, ink, input(1), amount => { full += amount })).toBe(0)
+    expect(full).toBeGreaterThan(0)
+    let left = full - 1, stopped = false
+    expect(scoreMeasuredRouteCrossings(a, 0, ink, input(1), amount => {
+      expect(stopped).toBe(false)
+      left -= amount
+      if (left < 0) stopped = true
+      return !stopped
+    })).toBeUndefined()
+    expect(stopped).toBe(true)
+    let legacyVisits = 0
+    expect(scoreMeasuredRouteCrossings(a, 0, ink, input(undefined), () => { legacyVisits++; return false })).toBe(0)
+    expect(legacyVisits).toBe(0)
+  })
 })

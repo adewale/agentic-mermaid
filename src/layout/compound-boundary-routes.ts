@@ -241,12 +241,16 @@ function readContactBounds(points: readonly Point[], bounds: ContactRouteBounds,
   }
 }
 
-function separatedContactBounds(a: ContactRouteBounds | undefined, b: ContactRouteBounds | undefined, charge: (amount?: number) => void): boolean {
+function separatedContactBounds(a: ContactRouteBounds | undefined, b: ContactRouteBounds | undefined, charge: (amount?: number) => void, width?: number): boolean {
   if (!a?.orthogonal || !b?.orthogonal) return false
-  charge(8)
+  charge(width === undefined ? 8 : 20)
   const left = a.minX - b.maxX, right = b.minX - a.maxX, top = a.minY - b.maxY, bottom = b.minY - a.maxY
+  // Raw bounds may discard a pair only beyond the actual written ink width.
+  // The loose writer-error allowance is broad phase only; scoring stays exact.
+  const margin = width === undefined ? .5 : Math.max(.5, width + (Math.abs(a.minX) + Math.abs(a.maxX) + Math.abs(a.minY) + Math.abs(a.maxY)
+    + Math.abs(b.minX) + Math.abs(b.maxX) + Math.abs(b.minY) + Math.abs(b.maxY) + width) * 1e-10 + 1e-9)
   return Number.isFinite(left) && Number.isFinite(right) && Number.isFinite(top) && Number.isFinite(bottom)
-    && (left > .5 || right > .5 || top > .5 || bottom > .5)
+    && (left > margin || right > margin || top > margin || bottom > margin)
 }
 
 /** Prepare one exact candidate check against the currently selected peers.
@@ -264,25 +268,25 @@ export function createBoundaryContactValidator(
       peerPoints += routes[other]!.points.length; peerCount++
     }
   }
-  const exact = (points: Point[]): boolean => {
-    work.pairs -= 3 * Math.max(0, points.length - 1) * peerSegments + points.length + peerSegments
-    if (work.pairs < 0) fail('agentic local cross-hierarchy crossing-work limit')
-    return scoreMeasuredRouteCrossings(points, index, routes, input) !== undefined
-  }
-  // Small proofs keep their original admission. Larger proofs are prepared
-  // lazily only when the possible subtraction exceeds their comparison work.
-  if (peerSegments < 32) return exact
   const charge = (amount = 1): void => {
     work.pairs -= amount
     if (work.pairs < 0) fail('agentic local cross-hierarchy crossing-work limit')
   }
+  const exact = (points: Point[]): boolean => {
+    work.pairs -= 3 * Math.max(0, points.length - 1) * peerSegments + points.length + peerSegments
+    if (work.pairs < 0) fail('agentic local cross-hierarchy crossing-work limit')
+    return scoreMeasuredRouteCrossings(points, index, routes, input, charge) !== undefined
+  }
+  // Small proofs keep their original admission. Larger proofs are prepared
+  // lazily only when the possible subtraction exceeds their comparison work.
+  if (peerSegments < 32) return exact
   type PeerBounds = ContactRouteBounds & { points: Point[]; style: string; originalStyle: string }
   let selected: { points: Point[]; style: string }[] | undefined
   let peers: (PeerBounds | undefined)[] | undefined
   let candidate: ContactRouteBounds | undefined
   return points => {
     const segments = Math.max(0, points.length - 1)
-    const comparisonWork = 1 + 9 * points.length + 8 * peerCount + routes.length
+    const comparisonWork = 1 + 9 * points.length + (input.maximumEdgeStrokeWidth === undefined ? 8 : 20) * peerCount + routes.length
     const preparationWork = selected ? 0 : 9 * peerPoints + peerCount + 3 * routes.length
     const possibleSubtraction = (3 * segments + 1) * peerSegments
     if (!Number.isSafeInteger(possibleSubtraction) || possibleSubtraction <= comparisonWork + preparationWork) return exact(points)
@@ -309,11 +313,11 @@ export function createBoundaryContactValidator(
       charge()
       const peer = peers![other]
       if (!peer) continue
-      peer.style = separatedContactBounds(candidate, peer, charge) ? 'invisible' : peer.originalStyle
+      peer.style = separatedContactBounds(candidate, peer, charge, input.maximumEdgeStrokeWidth) ? 'invisible' : peer.originalStyle
       if (peer.style !== 'invisible') remaining += Math.max(0, peer.points.length - 1)
     }
     charge(3 * segments * remaining + points.length + remaining)
-    return scoreMeasuredRouteCrossings(points, index, selected, input) !== undefined
+    return scoreMeasuredRouteCrossings(points, index, selected, input, charge) !== undefined
   }
 }
 
@@ -347,7 +351,7 @@ export function assertFinalBoundaryContacts(
     let largest = 0
     for (const index of rescued) { charge();if(currentSceneProven){charge();if(routes[index]!.orthogonal&&input.edges[index]!.visible!==false&&currentSceneProven.has(index))continue} largest = Math.max(largest, routes[index]!.points.length - 1) }
     const possibleSubtraction = (3 * largest + 1) * visibleSegments
-    const preparationWork = 9 * visiblePoints + visibleCount + 2 * routes.length + 8 * visibleCount
+    const preparationWork = 9 * visiblePoints + visibleCount + 2 * routes.length + (input.maximumEdgeStrokeWidth === undefined ? 8 : 20) * visibleCount
     if (Number.isSafeInteger(possibleSubtraction) && possibleSubtraction > preparationWork) {
       reserveContactBounds(work, fail, routes.length)
       charge(routes.length)
@@ -373,11 +377,11 @@ export function assertFinalBoundaryContacts(
       const peer = routes[other]!
       if(currentSceneProven)charge()
       peer.style = input.edges[other]!.visible === false || symmetric && (peer.covered || peer.orthogonal && currentSceneProven?.has(other)) ? 'invisible' : 'solid'
-      if (bounds && other !== index && peer.style !== 'invisible' && separatedContactBounds(bounds[index], bounds[other], charge)) peer.style = 'invisible'
+      if (bounds && other !== index && peer.style !== 'invisible' && separatedContactBounds(bounds[index], bounds[other], charge, input.maximumEdgeStrokeWidth)) peer.style = 'invisible'
       if (other !== index && peer.style !== 'invisible') peerSegments += Math.max(0, peer.points.length - 1)
     }
     charge(3 * Math.max(0, points.length - 1) * peerSegments + points.length + peerSegments + routes.length)
-    if (scoreMeasuredRouteCrossings(points, index, routes, input) === undefined) fail('cross-hierarchy routes have an uncertified shared contact')
+    if (scoreMeasuredRouteCrossings(points, index, routes, input, charge) === undefined) fail('cross-hierarchy routes have an uncertified shared contact')
     if (symmetric) route.covered = true
   }
 }
@@ -458,7 +462,7 @@ function seatFinalMeasuredMarkers(
       let segments=0
       const routes=placed.edges.map((route,other)=>{charge();if(other!==index&&input.edges[other]!.visible!==false)segments+=Math.max(0,route.points.length-1);return {...route,style:input.edges[other]!.visible===false?'invisible':'solid'}})
       charge(3*(candidate.length-1)*segments+candidate.length+segments)
-      return scoreMeasuredRouteCrossings(candidate,index,routes,input)!==undefined
+      return scoreMeasuredRouteCrossings(candidate,index,routes,input,charge)!==undefined
     }
     seatMeasuredMarkers(input.edges, placed.edges, subjects, work, reserveExpanded, fail, validate, index => {
       // Called only AFTER the same accepted array is committed. Every successful
@@ -587,6 +591,14 @@ export function routeCrossHierarchy(
     if (work.arcs < 0) fail('agentic local cross-hierarchy visibility-arc limit')
   }, fail)
   const widthProof = (input as MeasuredGraph & { maximumEdgeStrokeWidth?: number }).maximumEdgeStrokeWidth
+  if (widthProof !== undefined) {
+    reserveContactBounds(work, fail)
+    if (--work.pairs < 0) fail('agentic local cross-hierarchy crossing-work limit')
+  }
+  const chargePhysicalContact = widthProof === undefined ? undefined : (amount: number): void => {
+    work.pairs -= amount
+    if (work.pairs < 0) fail('agentic local cross-hierarchy crossing-work limit')
+  }
   let markerPaint = false
   if(widthProof!==undefined)for(const edge of input.edges){if(--work.pairs<0)fail('agentic marker metadata work limit');if(edge.markerPaint?.start?.length||edge.markerPaint?.end?.length){markerPaint=true;break}}
   const clearance = Math.max(8, input.edgeSpacing ?? 6)
@@ -828,7 +840,7 @@ export function routeCrossHierarchy(
               // Finalized incident edges already own their physical escape rays.
               // Reject occupied rays before shortest-path state merging can hide
               // an available occurrence-specific port behind the same goal state.
-              return scoreMeasuredRouteCrossings(source ? [terminal.port, terminal.stub] : [terminal.stub, terminal.port], index, incident, input) !== undefined
+              return scoreMeasuredRouteCrossings(source ? [terminal.port, terminal.stub] : [terminal.stub, terminal.port], index, incident, input, chargePhysicalContact) !== undefined
             })
           }
           const lateTerminals = (endpoint: number, source: boolean): Terminal[] => {
@@ -1083,7 +1095,7 @@ export function routeCrossHierarchy(
           }
           work.pairs -= 3 * Math.max(0, points.length - 1) * peerSegments + points.length + peerSegments
           if (work.pairs < 0) fail('agentic local cross-hierarchy crossing-work limit')
-          return scoreMeasuredRouteCrossings(points, index, routes, input) !== undefined
+          return scoreMeasuredRouteCrossings(points, index, routes, input, chargePhysicalContact) !== undefined
         },
       })
       routePoints += result.points.length - raw.points.length
