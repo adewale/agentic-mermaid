@@ -1,0 +1,36 @@
+name: API reference review evidence
+on:
+  push:
+    branches: [review/api-reference-evidence]
+permissions:
+  contents: read
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.58.2-noble@sha256:65cefd09a5e943921ecd3a6e5414c603db2eb161e9eb48f2e2ccc63486dc7dc0
+      options: --init --ipc=host
+    strategy:
+      matrix:
+        include:
+          - label: base
+            revision: 9855502f75cbd07dd627d794fca0f02a0f48f2da
+          - label: head
+            revision: bbdc686a796707e777bcb64ee5a908e71747b3ab
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: review
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ matrix.revision }}
+          path: source
+      - run: npm install --global bun@1.4.2
+      - run: bun install --frozen-lockfile && bun run website
+        working-directory: source
+      - run: node review/.github/scripts/api-reference-review.mjs source images ${{ matrix.label }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: api-reference-${{ matrix.label }}-${{ matrix.revision }}
+          path: images/
+          retention-days: 30
