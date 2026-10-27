@@ -54,7 +54,9 @@ export function resolveSvgScene(svg: string, scene: SceneDoc, owners: readonly n
       const [ca, aa] = color(a, style), [cb, ab] = color(b, style)
       const A = tryParseCssColor(ca), B = tryParseCssColor(cb)
       if (!A || !B) return fail(`Unsupported color ${value}`)
-      const sum = w1 + w2, alpha = (aa * w1 + ab * w2) / sum
+      const sum = w1 + w2
+      if (!(sum > 0) || !Number.isFinite(sum)) return fail(`Unsupported color ${value}`)
+      const alpha = (aa * w1 + ab * w2) / sum
       const channel = (i: number) => alpha ? (A[i]! * aa * w1 + B[i]! * ab * w2) / (sum * alpha) : 0
       return [toHex(channel(0), channel(1), channel(2)).toLowerCase(), alpha * Math.min(1, sum)]
     }

@@ -118,7 +118,9 @@ function readInBrowser(svgText: string) {
       }
       case 'circle': case 'ellipse': {
         const x = n('cx'), y = n('cy'), rx = n('rx', n('r')), ry = n('ry', n('r'))
-        return `M${x - rx} ${y}a${rx} ${ry} 0 1 0 ${2 * rx} 0a${rx} ${ry} 0 1 0 ${-2 * rx} 0Z`
+        // An independent top-start, counterclockwise quarter-arc form avoids
+        // Chromium's unstable near-180-degree arc choice after float rounding.
+        return `M${x} ${y - ry}a${rx} ${ry} 0 0 0 ${-rx} ${ry}a${rx} ${ry} 0 0 0 ${rx} ${ry}a${rx} ${ry} 0 0 0 ${rx} ${-ry}a${rx} ${ry} 0 0 0 ${-rx} ${-ry}Z`
       }
       default: return fail('unsupported-element', el.localName)
     }

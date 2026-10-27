@@ -184,6 +184,9 @@ describe('resolved SVG values', () => {
     ['marker-mid', '<path d="M0 0L2 2L4 0" marker-mid="url(#m)" />'],
     ['paint server', '<rect width="2" height="2" fill="url(#gradient)" />'],
     ['image', '<image href="data:image/png;base64,AA==" />'],
+    ['Non-finite', '<rect width="2" height="2" stroke-miterlimit="1e100" />'],
+    ['Non-finite', '<g transform="scale(1e200)"><rect width="2" height="2" transform="scale(1e200)" /></g>'],
+    ['Unsupported color', '<rect width="2" height="2" fill="color-mix(in srgb, red 0%, blue 0%)" />'],
   ])('names the owning part and refused %s feature', (feature, fragment) => {
     expect(() => resolve(`<svg>${fragment}</svg>`)).toThrow(new RegExp(`owned-ink.*${feature}`))
   })

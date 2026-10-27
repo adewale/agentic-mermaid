@@ -4,7 +4,11 @@ import type { Matrix } from './resolved-types.ts'
 import { composeMatrices, parseSvgTransform } from './transforms.ts'
 
 export const IDENTITY: Matrix = [1, 0, 0, 1, 0, 0]
-export const multiply = (a: Matrix, b: Matrix): Matrix => [...composeMatrices(a, b)]
+export const multiply = (a: Matrix, b: Matrix): Matrix => {
+  const matrix: Matrix = [...composeMatrices(a, b)]
+  if (!matrix.every(Number.isFinite)) throw new Error('Non-finite transform')
+  return matrix
+}
 
 export function svgMatrix(value: string | undefined): Matrix {
   if (!value) return [...IDENTITY]
@@ -43,7 +47,9 @@ export function pathData(node: SvgElement, fontSize: number): string {
       const x = n('cx'), y = n('cy'), rx = n('rx', n('r')), ry = n('ry', n('r'))
       // SVG basic ellipses start at the rightmost point and run clockwise.
       // Retain that traversal so dash phase agrees, not just the filled outline.
-      return `M${x + rx} ${y}a${rx} ${ry} 0 1 1 ${-2 * rx} 0a${rx} ${ry} 0 1 1 ${2 * rx} 0Z`
+      // Quarter arcs avoid the numerically unstable 180-degree large-arc
+      // boundary in SVG path implementations after float coordinate rounding.
+      return `M${x + rx} ${y}A${rx} ${ry} 0 0 1 ${x} ${y + ry}A${rx} ${ry} 0 0 1 ${x - rx} ${y}A${rx} ${ry} 0 0 1 ${x} ${y - ry}A${rx} ${ry} 0 0 1 ${x + rx} ${y}Z`
     }
     default: throw new Error(`Unsupported element <${node.tag}>`)
   }

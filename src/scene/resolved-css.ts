@@ -224,7 +224,9 @@ export function computedStyle(node: SvgElement, parent: Record<string, string> |
 /** CSSOM serializes computed SVG numeric values from float storage to six
  * significant digits. Geometry attributes themselves retain their doubles. */
 function computedNumber(value: number): string {
-  return String(Number(Math.fround(value).toPrecision(6)))
+  const rounded = Math.fround(value)
+  if (!Number.isFinite(rounded)) throw new Error('Non-finite computed CSS value')
+  return String(Number(rounded.toPrecision(6)))
 }
 
 export function cssLength(value: string, fontSize: number, rootSize = 16): number {
