@@ -309,7 +309,7 @@ function renderClassBox<T>(marks: DrawingFactory<T>, cls: PositionedClassNode, s
       id: `class:${cls.id}:box`,
       role: 'class-box',
       geometry: { kind: 'rect', x, y, width, height, rx: style.cornerRadius ?? 0, ry: style.cornerRadius ?? 0 },
-      paint: { fill: boxFill, stroke: boxStroke, strokeWidth: String(boxStrokeWidth) },
+      paint: { fill: boxFill, stroke: boxStroke, strokeWidth: String(boxStrokeWidth), ...(local['stroke-dasharray'] !== undefined ? { strokeDasharray: local['stroke-dasharray'] } : {}) },
     }),
   })
 
@@ -322,7 +322,7 @@ function renderClassBox<T>(marks: DrawingFactory<T>, cls: PositionedClassNode, s
       id: `class:${cls.id}:header`,
       role: 'group-header',
       geometry: { kind: 'path', d: headerPath },
-      paint: { fill: headerFill, stroke: boxStroke, strokeWidth: String(boxStrokeWidth) },
+      paint: { fill: headerFill, stroke: boxStroke, strokeWidth: String(boxStrokeWidth), ...(local['stroke-dasharray'] !== undefined ? { strokeDasharray: local['stroke-dasharray'] } : {}) },
     }),
   })
 
@@ -371,7 +371,7 @@ function renderClassBox<T>(marks: DrawingFactory<T>, cls: PositionedClassNode, s
 
   // Divider line between header and attributes
   const attrTop = y + headerHeight
-  children.push({ indent: 2, node: renderDivider(marks, cls.id, 'attrs', x, attrTop, width, style) })
+  children.push({ indent: 2, node: renderDivider(marks, cls.id, 'attrs', x, attrTop, width, style, local['stroke-dasharray']) })
 
   // Attributes
   const memberRowH = 20
@@ -383,7 +383,7 @@ function renderClassBox<T>(marks: DrawingFactory<T>, cls: PositionedClassNode, s
 
   // Divider line between attributes and methods
   const methodTop = attrTop + attrHeight
-  children.push({ indent: 2, node: renderDivider(marks, cls.id, 'methods', x, methodTop, width, style) })
+  children.push({ indent: 2, node: renderDivider(marks, cls.id, 'methods', x, methodTop, width, style, local['stroke-dasharray']) })
 
   // Methods
   for (let i = 0; i < cls.methods.length; i++) {
@@ -402,14 +402,14 @@ function renderClassBox<T>(marks: DrawingFactory<T>, cls: PositionedClassNode, s
 }
 
 /** Compartment divider line (header/attributes and attributes/methods). */
-function renderDivider<T>(marks: DrawingFactory<T>, clsId: string, which: 'attrs' | 'methods', x: number, lineY: number, width: number, style: ResolvedRenderStyle): T {
+function renderDivider<T>(marks: DrawingFactory<T>, clsId: string, which: 'attrs' | 'methods', x: number, lineY: number, width: number, style: ResolvedRenderStyle, strokeDasharray?: string): T {
   const stroke = style.nodeBorderColor ?? 'var(--_node-stroke)'
   const strokeWidth = Math.min(style.nodeLineWidth, STROKE_WIDTHS.innerBox)
   return marks.shape({
     id: `class:${clsId}:divider:${which}`,
     role: 'chrome',
     geometry: { kind: 'line', x1: x, y1: lineY, x2: x + width, y2: lineY },
-    paint: { stroke, strokeWidth: String(strokeWidth) },
+    paint: { stroke, strokeWidth: String(strokeWidth), ...(strokeDasharray !== undefined ? { strokeDasharray } : {}) },
   })
 }
 

@@ -2,7 +2,7 @@
  * Integration tests for class diagrams — end-to-end parse → layout → render.
  */
 import { describe, it, expect } from 'bun:test'
-import { renderMermaidSVG } from '../index.ts'
+import { renderMermaidSVG, renderMermaidSVGWithReceipt } from '../index.ts'
 import { parseClassDiagram } from '../class/parser.ts'
 import { layoutClassDiagram } from '../class/layout.ts'
 
@@ -228,5 +228,30 @@ style Animal fill:#afa,stroke-width:2`
       expect(paint(svg, 'A').width).toBe('2')
       expect(paint(svg, 'B').width).toBe('6')
     } finally { spy.mockRestore() }
+  })
+})
+
+describe('Class authored border dash paint', () => {
+  const shapePaints = (svg: string, id: string) => {
+    const group = [...svg.matchAll(/<g\b([^>]*)>([\s\S]*?)<\/g>/g)].find(m => m[1]!.includes(`data-id="${id}"`) && /class="class-node(?: |")/.test(m[1]!))
+    if (!group) throw new Error('Missing Class card ' + id)
+    return [...group[2]!.matchAll(/<(rect|path|line)\b([^>]*)>/g)].map(m => ({ kind: m[1]!, dash: /\bstroke-dasharray="([^"]*)"/.exec(m[2]!)?.[1] }))
+  }
+  it.each(['agentic', 'elk'] as const)('paints the exact Mineral inline dash on every border part with %s', backend => {
+    const source = 'classDiagram\nclass Animal\nclass Mineral\nstyle Animal fill:#f9f,stroke:#333,stroke-width:4px\nstyle Mineral fill:#bbf,stroke:#f66,stroke-width:2px,color:#fff,stroke-dasharray: 5 5'
+    const model = parseClassDiagram(source.split('\n')), before = structuredClone(model), options = { graphLayout: { backend, fallback: 'none' as const } }
+    const placed = layoutClassDiagram(model, options)
+    expect(model).toEqual(before)
+    expect(placed.classes.find(c => c.id === 'Mineral')!.inlineStyle?.['stroke-dasharray']).toBe('5 5')
+    const rendered = renderMermaidSVGWithReceipt(source, options), svg = rendered.svg
+    expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+    expect(shapePaints(svg, 'Mineral')).toEqual([{ kind: 'rect', dash: '5 5' }, { kind: 'path', dash: '5 5' }, { kind: 'line', dash: '5 5' }, { kind: 'line', dash: '5 5' }])
+    expect(shapePaints(svg, 'Animal').map(s => s.dash)).toEqual([undefined, undefined, undefined, undefined])
+  })
+  it.each(['agentic', 'elk'] as const)('paints inherited dash defaults, named overrides and inline overrides with %s', backend => {
+    const source = 'classDiagram\nclass BaseCard\nclass NamedCard:::custom\nclass InlineCard:::custom\nclassDef default stroke-dasharray:2 3\nclassDef custom stroke-dasharray:6 4\nstyle InlineCard stroke-dasharray:1 2'
+    const rendered = renderMermaidSVGWithReceipt(source, { graphLayout: { backend, fallback: 'none' } }), svg = rendered.svg
+    expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+    for (const [id, expected] of [['BaseCard', '2 3'], ['NamedCard', '6 4'], ['InlineCard', '1 2']]) expect(shapePaints(svg, id!).map(s => s.dash)).toEqual([expected, expected, expected, expected])
   })
 })
