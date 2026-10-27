@@ -5,7 +5,7 @@ import { clipEdgeToShape } from '../../shape-clipping.ts'
 import { nodePaintBounds, paintedStrokeExtent } from '../../scene/bounds.ts'
 import { shape } from '../../scene/marks.ts'
 import { formatSvgNumber } from '../../shared/svg-number.ts'
-import { routeCandidateMarkerBlocker, servedRouteMarkerPaintRegions } from '../route-marker-clearance.ts'
+import { routeCandidateMarkerBlocker, routeMarkerPaintRegions } from '../route-marker-clearance.ts'
 import { retainConstructedBundleRoutes } from '../bundle-routes.ts'
 
 /**
@@ -54,8 +54,8 @@ function bundlePathClear(
     const error = (Math.abs(a.x0) + Math.abs(a.x1) + Math.abs(a.y0) + Math.abs(a.y1) + Math.abs(b.x0) + Math.abs(b.x1) + Math.abs(b.y0) + Math.abs(b.y1)) * 1e-10 + 1e-9
     return !Number.isFinite(error) || a.x1 + error > b.x0 && a.x0 < b.x1 + error && a.y1 + error > b.y0 && a.y0 < b.y1 + error
   }
-  const markers = servedRouteMarkerPaintRegions(edge, style)
-  if (markers.length !== Number(Boolean(edge.hasArrowStart)) + Number(Boolean(edge.hasArrowEnd))) return false
+  const markers = routeMarkerPaintRegions(edge, style)
+  if (!markers || markers.length !== Number(Boolean(edge.hasArrowStart)) + Number(Boolean(edge.hasArrowEnd))) return false
   for (const node of nodes) {
     const border = numericWidth(node.inlineStyle?.['stroke-width'], style.nodeLineWidth)
     if (border === undefined) return false

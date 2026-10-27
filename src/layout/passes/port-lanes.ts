@@ -4,88 +4,169 @@ import { diamondFacetPorts, labelRect, laneContextFor, PORT_EXACT, shapePorts, s
 import type { LabelMetricsStyle } from '../../route-contracts.ts'
 import { DEFAULTS, layoutDebug, layoutEnvFlag } from '../geometry.ts'
 import { corankFanInSpokes } from './peers.ts'
-import { servedRouteMarkerPaintRegions } from '../route-marker-clearance.ts'
 import { reanchorOffOutlineEndpoints } from './obstacle-routing.ts'
+import { graphEdgePathProjection } from '../../graph-connectors.ts'
 import { shapeOutline } from '../../shape-outline.ts'
-import { nodePaintBounds, paintedStrokeExtent } from '../../scene/bounds.ts'
-import { shape } from '../../scene/marks.ts'
-import { formatSvgNumber } from '../../shared/svg-number.ts'
-import { labelHaloExtension } from '../../shared/edge-label-geometry.ts'
+import { expandSceneBounds, geometryBounds, nodePaintBounds, paintedStrokeExtent, unionSceneBounds, visitTypedPathSegments } from '../../scene/bounds.ts'
+import type { Geometry, MarkPaint } from '../../scene/ir.ts'
+import type { AxisAlignedBox } from '../../shared/transformed-bounds.ts'
+import { formatSvgNumber, formatSvgNumericAttribute } from '../../shared/svg-number.ts'
+import { MAX_PREFERENCE_EDGES, MAX_PREFERENCE_NODES } from '../route-geometry.ts'
 import { STROKE_WIDTHS } from '../../styles.ts'
+import { routeMarkerPaintRegions } from '../route-marker-clearance.ts'
+import { labelHaloExtension } from '../../shared/edge-label-geometry.ts'
 
-type PortLaneStyle = LabelMetricsStyle & { nodeLineWidth?: number; cornerRadius?: number }
+type PortLaneStyle = LabelMetricsStyle & { nodeLineWidth?: number; cornerRadius?: number; nodeFillColor?: string; nodeBorderColor?: string }
 
-/** A cosmetic slide must preserve complete foreign paint, not just a clear
- * centerline. This reads the final private candidate once before publication;
- * conservative bounds may retain the original layout without rerouting it. */
-function portLaneForeignInkClear(nodes: PositionedNode[], edges: PositionedEdge[], beforeNodes: PositionedNode[], beforeEdges: PositionedEdge[], style: PortLaneStyle): boolean {
-  const moved = nodes.filter((node, index) => node.x !== beforeNodes[index]!.x || node.y !== beforeNodes[index]!.y)
-  const bounds = new Map<PositionedNode, ReturnType<typeof nodePaintBounds>>()
-  const width = (authored: string | undefined, fallback: number): number | undefined => {
-    if (authored !== undefined && !/^\s*[+]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?(?:px)?\s*$/i.test(authored)) return undefined
-    const value = authored === undefined ? fallback : Number.parseFloat(authored)
-    return Number.isFinite(value) && value >= 0 ? Number(formatSvgNumber(value)) : undefined
+function withinPortLaneBudget(nodes: readonly PositionedNode[], edges: readonly PositionedEdge[], groups: readonly PositionedGroup[]): boolean {
+  if (nodes.length > MAX_PREFERENCE_NODES || edges.length > MAX_PREFERENCE_EDGES) return false
+  let remaining = MAX_PREFERENCE_NODES - nodes.length
+  const fits = (groups: readonly PositionedGroup[]): boolean => groups.every(group => --remaining >= 0 && fits(group.children))
+  return fits(groups)
+}
+
+// Shape arithmetic precedes numeric emission in the renderer. Normalize the
+// resulting geometry, not the input node, before asking the shared ink owner.
+function writtenGeometry(geometry: Geometry): Geometry {
+  if (geometry.kind === 'compound') return { ...geometry, children: geometry.children.map(writtenGeometry) }
+  if (geometry.kind === 'path') return { ...geometry, d: formatSvgNumericAttribute('d', geometry.d) }
+  if (geometry.kind === 'polygon' || geometry.kind === 'polyline') return { ...geometry, points: geometry.points.map(writtenPoint) }
+  return Object.fromEntries(Object.entries(geometry).map(([key, value]) => [key, typeof value === 'number' ? Number(formatSvgNumber(value)) : value])) as Geometry
+}
+
+const writtenPoint = (point: Point): Point => ({ x: Number(formatSvgNumber(point.x)), y: Number(formatSvgNumber(point.y)) })
+const finiteBox = (box: AxisAlignedBox | undefined): box is AxisAlignedBox => !!box && Object.values(box).every(Number.isFinite) && box.x0 <= box.x1 && box.y0 <= box.y1
+const boxesMeet = (a: AxisAlignedBox, b: AxisAlignedBox): boolean => {
+  // Preserve the incoming conservative arithmetic/serialization separator.
+  const error = (Math.abs(a.x0) + Math.abs(a.y0) + Math.abs(a.x1) + Math.abs(a.y1) + Math.abs(b.x0) + Math.abs(b.y0) + Math.abs(b.x1) + Math.abs(b.y1)) * 1e-10 + 1e-9
+  return !Number.isFinite(error) || a.x0 < b.x1 + error && b.x0 < a.x1 + error && a.y0 < b.y1 + error && b.y0 < a.y1 + error
+}
+const routeChanged = (edge: PositionedEdge, previous: PositionedEdge): boolean => edge.points.length !== previous.points.length
+  || edge.points.some((point, index) => point.x !== previous.points[index]!.x || point.y !== previous.points[index]!.y)
+
+/** Optional movement needs a sufficient separator, not another collision
+ * certifier. Unknown paint/geometry or overlapping conservative supports keep
+ * the original layout; every segment and endpoint resource is retained. */
+function edgeInk(edge: PositionedEdge, style: PortLaneStyle, work: () => boolean): { shafts: AxisAlignedBox[]; markers: NonNullable<ReturnType<typeof routeMarkerPaintRegions>>; label?: AxisAlignedBox } | undefined {
+  if (edge.style === 'invisible') return { shafts: [], markers: [] }
+  if (edge.points.length > MAX_PREFERENCE_NODES * MAX_PREFERENCE_EDGES) return undefined
+  if (style.edgeBendRadius !== undefined && !(Number.isFinite(style.edgeBendRadius) && style.edgeBendRadius >= 0)) return undefined
+  // renderEdge forwards these two authored fields; connector paint defaults
+  // are butt caps and miter joins (limit four), owned by paintedStrokeExtent.
+  const paint: MarkPaint = { stroke: edge.inlineStyle?.stroke ?? style.edgeStrokeColor ?? 'var(--_line)',
+    strokeWidth: formatSvgNumericAttribute('stroke-width', edge.inlineStyle?.['stroke-width'] ?? String((style.lineWidth ?? 1) * (edge.style === 'thick' ? 2 : 1))) }
+  const extent = paintedStrokeExtent(paint, edge.points.length > 2 || !!edge.curve || (style.edgeBendRadius ?? 0) > 0)
+  if (extent === undefined || edge.points.length < 2) return undefined
+  if ((edge.hasArrowStart || edge.hasArrowEnd) && paintedStrokeExtent({ ...paint, stroke: 'black' }, false) === undefined) return undefined
+  const supports: AxisAlignedBox[] = []
+  const include = (box: AxisAlignedBox): boolean => {
+    if (!work()) return false
+    const support = expandSceneBounds(box, extent)
+    if (!finiteBox(support)) return false
+    if (extent > 0) supports.push(support)
+    return true
   }
-  const nodeBounds = (node: PositionedNode) => {
-    if (bounds.has(node)) return bounds.get(node)
-    const stroke = width(node.inlineStyle?.['stroke-width'], style.nodeLineWidth ?? STROKE_WIDTHS.innerBox)
-    if (stroke === undefined) return undefined
-    const outline = shapeOutline(node, { fill: '#000', stroke: '#000', strokeWidth: String(stroke) }, style.cornerRadius ?? 0)
-    const result = nodePaintBounds(shape({ id: node.id, role: 'node', geometry: outline.geometry, paint: outline.paint, ...(outline.childPaints ? { childPaints: outline.childPaints } : {}) }))
-    bounds.set(node, result)
-    return result
-  }
-  const overlap = (a: { x0: number; y0: number; x1: number; y1: number }, b: { x0: number; y0: number; x1: number; y1: number }): boolean => {
-    // Inflate uncertainty, never the accepted gap: raw shape/route arithmetic
-    // can spell differently when the common SVG writer serves its decimals.
-    const error = (Math.abs(a.x0) + Math.abs(a.y0) + Math.abs(a.x1) + Math.abs(a.y1) + Math.abs(b.x0) + Math.abs(b.y0) + Math.abs(b.x1) + Math.abs(b.y1)) * 1e-10 + 1e-9
-    return !Number.isFinite(error) || a.x0 < b.x1 + error && b.x0 < a.x1 + error && a.y0 < b.y1 + error && b.y0 < a.y1 + error
-  }
-  const checked = new Set<PositionedNode>()
-  for (const node of moved) {
-    const box = nodeBounds(node)
-    if (!box) return false
-    checked.add(node)
-    for (const other of nodes) {
-      if (checked.has(other)) continue
-      const peer = nodeBounds(other)
-      if (!peer || overlap(box, peer)) return false
+  const projection = graphEdgePathProjection(edge, style)
+  if (projection) {
+    if (!visitTypedPathSegments(formatSvgNumericAttribute('d', projection.geometry.d), segment => include(segment.bounds), work)) return undefined
+  } else {
+    const points = edge.points.map(writtenPoint)
+    for (let index = 1; index < points.length; index++) {
+      const a = points[index - 1]!, b = points[index]!
+      if (!include({ x0: Math.min(a.x, b.x), y0: Math.min(a.y, b.y), x1: Math.max(a.x, b.x), y1: Math.max(a.y, b.y) })) return undefined
     }
   }
-  for (let index = 0; index < edges.length; index++) {
-    const edge = edges[index]!, old = beforeEdges[index]!
-    const changed = edge.points.length !== old.points.length || edge.points.some((p, i) => p.x !== old.points[i]!.x || p.y !== old.points[i]!.y)
-    const subjects = changed ? nodes : moved
-    if (!subjects.length || edge.style === 'invisible') continue
-    const stroke = width(edge.inlineStyle?.['stroke-width'], (style.lineWidth ?? 1) * (edge.style === 'thick' ? 2 : 1))
-    if (stroke === undefined) return false
-    const extent = paintedStrokeExtent({ stroke: '#000', strokeWidth: String(stroke) }, true)
-    if (extent === undefined) return false
-    const radius = style.edgeBendRadius ?? 0
-    if (!(Number.isFinite(radius) && radius >= 0)) return false
-    const pad = extent + radius
-    const markers = servedRouteMarkerPaintRegions(edge, style)
-    for (const node of subjects) {
-      const box = nodeBounds(node)
-      if (!box) return false
-      if (node.id !== edge.source && node.id !== edge.target) for (let i = 1; i < edge.points.length; i++) {
-        const a = edge.points[i - 1]!, b = edge.points[i]!
-        // Curve controls lie inside their adjacent route box; rounded corner
-        // controls extend at most the clamped radius from an incident run.
-        if (overlap(box, { x0: Math.min(a.x, b.x) - pad, y0: Math.min(a.y, b.y) - pad, x1: Math.max(a.x, b.x) + pad, y1: Math.max(a.y, b.y) + pad })) return false
-      }
-      for (const marker of markers) {
-        const owner = marker.position === 'start' ? edge.source : edge.target
-        if (node.id !== owner && (!marker.bounds || overlap(box, marker.bounds))) return false
-      }
-      const label = labelRect(edge, style)
-      if (label) {
-        const halo = labelHaloExtension(edge, style.lineWidth ?? 1)
-        if (overlap(box, { x0: label.x - halo, y0: label.y - halo, x1: label.x + label.w + halo, y1: label.y + label.h + halo })) return false
+  const markers = routeMarkerPaintRegions(edge, style)
+  if (!markers) return undefined
+  for (const marker of markers) if (!work() || !finiteBox(marker.bounds)) return undefined
+  const rect = labelRect(edge, style)
+  const halo = rect ? labelHaloExtension(edge, style.lineWidth ?? 1) : 0
+  const label = rect ? { x0: rect.x - halo, y0: rect.y - halo, x1: rect.x + rect.w + halo, y1: rect.y + rect.h + halo } : undefined
+  if (label && !finiteBox(label)) return undefined
+  return { shafts: supports, markers, ...(label ? { label } : {}) }
+}
+
+function portLaneInkWork(): { remaining: number } {
+  return { remaining: MAX_PREFERENCE_NODES * MAX_PREFERENCE_EDGES }
+}
+
+function portLaneInkClear(nodes: readonly PositionedNode[], edges: readonly PositionedEdge[], beforeNodes: readonly PositionedNode[], beforeEdges: readonly PositionedEdge[], groups: readonly PositionedGroup[], style: PortLaneStyle, budget = portLaneInkWork()): boolean {
+  const changedNodes = nodes.map((node, index) => node.x !== beforeNodes[index]!.x || node.y !== beforeNodes[index]!.y)
+  const changedEdges = edges.map((edge, index) => routeChanged(edge, beforeEdges[index]!))
+  if (!changedNodes.some(Boolean) && !changedEdges.some(Boolean)) return true
+  // The existing bounded quality-exploration scope also bounds this optional
+  // publication proof. Oversized routes/pairs cannot consume unlimited work.
+  const work = (): boolean => --budget.remaining >= 0
+  const supports = new Map<PositionedEdge, ReturnType<typeof edgeInk>>()
+  const ink = (edge: PositionedEdge): ReturnType<typeof edgeInk> => {
+    if (!supports.has(edge)) supports.set(edge, edgeInk(edge, style, work))
+    return supports.get(edge)
+  }
+  const cards = new Map<PositionedNode, AxisAlignedBox | undefined>()
+  const card = (node: PositionedNode): AxisAlignedBox | undefined => {
+    if (!cards.has(node)) {
+      const piece = shapeOutline(node, { fill: node.inlineStyle?.fill ?? style.nodeFillColor ?? 'var(--_node-fill)',
+        stroke: node.inlineStyle?.stroke ?? style.nodeBorderColor ?? 'var(--_node-stroke)',
+        strokeWidth: formatSvgNumericAttribute('stroke-width', node.inlineStyle?.['stroke-width'] ?? String(style.nodeLineWidth ?? STROKE_WIDTHS.innerBox)) }, style.cornerRadius)
+      cards.set(node, nodePaintBounds({ kind: 'shape', id: node.id, role: 'node', geometry: writtenGeometry(piece.geometry), paint: piece.paint, ...(piece.childPaints ? { childPaints: piece.childPaints } : {}) }))
+    }
+    return cards.get(node)
+  }
+  try {
+    // Retain incoming admission of moved-card borders against every other
+    // live card, independently of route ownership.
+    for (let index = 0; index < nodes.length; index++) {
+      if (!changedNodes[index]) continue
+      const box = card(nodes[index]!)
+      if (!finiteBox(box)) return false
+      for (let peerIndex = 0; peerIndex < nodes.length; peerIndex++) {
+        if (peerIndex === index || changedNodes[peerIndex] && peerIndex < index) continue
+        if (!work()) return false
+        const peer = card(nodes[peerIndex]!)
+        if (!finiteBox(peer) || boxesMeet(box, peer)) return false
       }
     }
+    for (let nodeIndex = 0; nodeIndex < nodes.length; nodeIndex++) {
+      const node = nodes[nodeIndex]!
+      for (let edgeIndex = 0; edgeIndex < edges.length; edgeIndex++) {
+        const edge = edges[edgeIndex]!
+        if ((!changedNodes[nodeIndex] && !changedEdges[edgeIndex]) || edge.style === 'invisible') continue
+        if (!work()) return false
+        const route = ink(edge)
+        if (!route) return false
+        const box = card(node)
+        if (!finiteBox(box)) return false
+        if (edge.source !== node.id && edge.target !== node.id) for (const support of route.shafts) if (!work() || boxesMeet(box, support)) return false
+        for (const marker of route.markers) {
+          const owner = marker.position === 'start' ? edge.source : edge.target
+          if (owner !== node.id && (!work() || !finiteBox(marker.bounds) || boxesMeet(box, marker.bounds))) return false
+        }
+        if (route.label && (!work() || boxesMeet(box, route.label))) return false
+      }
+    }
+    return portLaneHeadersClear(nodes, edges, beforeNodes, beforeEdges, groups, ink, card, work)
+  } catch {
+    // Invalid/unsupported artwork is handled by the mandatory final gate.
+    // This optional cosmetic pass must not publish an unproved replacement.
+    return false
   }
-  return true
+}
+
+function portLaneCandidate(nodes: PositionedNode[], edges: PositionedEdge[]): { nodes: PositionedNode[]; edges: PositionedEdge[] } {
+  return { nodes: nodes.map(node => ({ ...node })), edges: edges.map(edge => ({ ...edge, points: edge.points.map(point => ({ ...point })), ...(edge.labelPosition ? { labelPosition: { ...edge.labelPosition } } : {}) })) }
+}
+
+function publishPortLaneCandidate(nodes: PositionedNode[], edges: PositionedEdge[], candidateNodes: PositionedNode[], candidateEdges: PositionedEdge[]): void {
+  nodes.forEach((node, index) => {
+    if (node.x !== candidateNodes[index]!.x) node.x = candidateNodes[index]!.x
+    if (node.y !== candidateNodes[index]!.y) node.y = candidateNodes[index]!.y
+  })
+  edges.forEach((edge, index) => {
+    const candidate = candidateEdges[index]!
+    if (routeChanged(candidate, edge)) edge.points = candidate.points
+    if (candidate.labelPosition?.x !== edge.labelPosition?.x || candidate.labelPosition?.y !== edge.labelPosition?.y) edge.labelPosition = candidate.labelPosition
+    if (candidate.routeCertificate !== edge.routeCertificate) edge.routeCertificate = candidate.routeCertificate
+  })
 }
 
 /**
@@ -147,9 +228,20 @@ export function alignLabeledSourcePort(
   groups: PositionedGroup[],
   graph: MermaidGraph,
   direction: Direction,
-  style: LabelMetricsStyle,
+  style: PortLaneStyle,
 ): void {
   if (layoutEnvFlag('APL_NO_LABELED_SOURCE_PORT')) return
+  if (!withinPortLaneBudget(nodes, edges, groups)) return
+  if (!edges.some(edge => edge.label)) return
+  const candidate = portLaneCandidate(nodes, edges)
+  alignLabeledSourcePortCandidate(candidate.nodes, candidate.edges, groups, graph, direction, style)
+  if (!portLaneInkClear(candidate.nodes, candidate.edges, nodes, edges, groups, style)) return
+  publishPortLaneCandidate(nodes, edges, candidate.nodes, candidate.edges)
+}
+
+function alignLabeledSourcePortCandidate(
+  nodes: PositionedNode[], edges: PositionedEdge[], groups: PositionedGroup[], graph: MermaidGraph, direction: Direction, style: LabelMetricsStyle,
+): void {
   // A labeled source feeding a co-ranked, symmetrized mixed-label fan-in hub
   // must YIELD: its spoke is now part of a symmetric convergence (the hub is
   // centered on its sources' barycenter and the spokes are mirror doglegs).
@@ -294,37 +386,32 @@ export function alignLabeledSourcePort(
  * the whole frame conservatively, as in the shared lane predictor. Unchanged
  * pre-existing defects remain for the final gate; every changed subject must
  * clear the band, including old contacts of a route that the move rewrites. */
-function portLaneHeadersClear(nodes: readonly PositionedNode[], edges: readonly PositionedEdge[], beforeNodes: readonly PositionedNode[], beforeEdges: readonly PositionedEdge[], groups: readonly PositionedGroup[]): boolean {
+function portLaneHeadersClear(nodes: readonly PositionedNode[], edges: readonly PositionedEdge[], beforeNodes: readonly PositionedNode[], beforeEdges: readonly PositionedEdge[], groups: readonly PositionedGroup[], ink: (edge: PositionedEdge) => ReturnType<typeof edgeInk>, card: (node: PositionedNode) => AxisAlignedBox | undefined, work: () => boolean): boolean {
   const changedNodes = nodes.filter((node, index) => node.x !== beforeNodes[index]!.x || node.y !== beforeNodes[index]!.y)
-  const changedEdges = edges.filter((edge, ordinal) => {
-    const previous = beforeEdges[ordinal]!
-    return edge.style !== 'invisible' && (edge.points.length !== previous.points.length
-      || edge.points.some((point, index) => point.x !== previous.points[index]!.x || point.y !== previous.points[index]!.y))
-  })
-  const enters = (a: Point, b: Point, group: PositionedGroup, height: number): boolean => {
-    let low = 0, high = 1
-    for (const [start, delta, min, max] of [
-      [a.x, b.x - a.x, group.x, group.x + group.width],
-      [a.y, b.y - a.y, group.y, group.y + height],
-    ]) {
-      if (delta === 0) { if (start! <= min! || start! >= max!) return false; continue }
-      const first = (min! - start!) / delta!, last = (max! - start!) / delta!
-      low = Math.max(low, Math.min(first, last)); high = Math.min(high, Math.max(first, last))
-      if (low >= high) return false
-    }
-    return low < high
-  }
+  const changedEdges = edges.filter((edge, ordinal) => edge.style !== 'invisible' && routeChanged(edge, beforeEdges[ordinal]!))
   const clear = (group: PositionedGroup): boolean => {
+    if (!work()) return false
     if (!group.concurrencyRegion && group.width !== 0) {
       const height = group.headerHeight ?? group.height
-      if (!Number.isFinite(height) || height < 0) return false
+      if (!Number.isFinite(group.width) || group.width < 0 || !Number.isFinite(height) || height < 0) return false
       if (height > 0 && group.width > 0) {
+        // The semantic reservation stays live. Include its written rectangle
+        // as well, so decimal emission cannot shrink the clearance proof.
+        const band = unionSceneBounds({ x0: group.x, y0: group.y, x1: group.x + group.width, y1: group.y + height },
+          geometryBounds(writtenGeometry({ kind: 'rect', x: group.x, y: group.y, width: group.width, height })))
+        if (!finiteBox(band)) return false
         for (const node of changedNodes) {
-          if (Math.max(node.x, group.x) < Math.min(node.x + node.width, group.x + group.width)
-            && Math.max(node.y, group.y) < Math.min(node.y + node.height, group.y + height)) return false
+          if (!work()) return false
+          const painted = card(node)
+          if (!finiteBox(painted)) return false
+          const footprint = unionSceneBounds(painted, { x0: node.x, y0: node.y, x1: node.x + node.width, y1: node.y + node.height })!
+          if (!finiteBox(footprint) || boxesMeet(footprint, band)) return false
         }
         for (const edge of changedEdges) {
-          for (let index = 1; index < edge.points.length; index++) if (enters(edge.points[index - 1]!, edge.points[index]!, group, height)) return false
+          const supports = ink(edge)
+          if (!supports) return false
+          for (const support of supports.shafts) if (!work() || boxesMeet(support, band)) return false
+          for (const marker of supports.markers) if (!work() || !finiteBox(marker.bounds) || boxesMeet(marker.bounds, band)) return false
         }
       }
     }
@@ -340,27 +427,24 @@ export function alignPortLanes(
   direction: Direction,
   style: PortLaneStyle,
 ): void {
-  const candidateNodes = nodes.map(node => ({ ...node }))
-  const candidateEdges = edges.map(edge => ({ ...edge, points: edge.points.map(point => ({ ...point })), ...(edge.labelPosition ? { labelPosition: { ...edge.labelPosition } } : {}) }))
+  if (!withinPortLaneBudget(nodes, edges, groups)) return
+  const { nodes: candidateNodes, edges: candidateEdges } = portLaneCandidate(nodes, edges)
   alignPortLaneCandidate(candidateNodes, candidateEdges, groups, direction, style)
-  if (!portLaneForeignInkClear(candidateNodes, candidateEdges, nodes, edges, style)) {
-    // Peer sizing can leave incident endpoints stale before this pass. Repair
-    // only changed private routes, then admit the geometry we actually publish.
-    const changedEdges = candidateEdges.filter((edge, index) => {
-      const before = edges[index]!
-      return edge.points.length !== before.points.length || edge.points.some((point, i) => point.x !== before.points[i]!.x || point.y !== before.points[i]!.y)
-    })
-    reanchorOffOutlineEndpoints(candidateNodes, changedEdges, { direction })
-    if (!portLaneForeignInkClear(candidateNodes, candidateEdges, nodes, edges, style)) return
-  }
   // Admit the actual transformed geometry, including every incident run and
   // stretched hop. A node-only lane proof cannot see a reserved header band.
-  if (groups.length && !portLaneHeadersClear(candidateNodes, candidateEdges, nodes, edges, groups)) return
+  const budget = portLaneInkWork()
+  if (!portLaneInkClear(candidateNodes, candidateEdges, nodes, edges, groups, style, budget)) {
+    if (budget.remaining < 0) return
+    // Peer sizing can leave incident endpoints stale before this pass. Repair
+    // only changed private routes, then admit the geometry we actually publish.
+    const changedEdges = candidateEdges.filter((edge, index) => routeChanged(edge, edges[index]!))
+    reanchorOffOutlineEndpoints(candidateNodes, changedEdges, { direction })
+    if (!portLaneInkClear(candidateNodes, candidateEdges, nodes, edges, groups, style, budget)) return
+  }
   // Centering is preparatory, but may not silently break more canonical
   // contacts than it establishes. Keep the prior layout when it does.
   if (portEndpointRate({ nodes: candidateNodes, edges: candidateEdges }, true) + 1e-6 < portEndpointRate({ nodes, edges }, true)) return
-  nodes.forEach((node, index) => { node.x = candidateNodes[index]!.x; node.y = candidateNodes[index]!.y })
-  edges.forEach((edge, index) => { edge.points = candidateEdges[index]!.points; edge.labelPosition = candidateEdges[index]!.labelPosition; edge.routeCertificate = candidateEdges[index]!.routeCertificate })
+  publishPortLaneCandidate(nodes, edges, candidateNodes, candidateEdges)
 }
 
 export function alignPortLaneCandidate(

@@ -217,10 +217,19 @@ function runtimeFamilyEditorSource(source: string, path: string): string {
 }
 
 /** Structural plugin interface works in both esbuild and Bun builds. */
-export function runtimeRenderContractPlugin({ schemaDocumentation = true, terminalAdapter = true, conformanceObservations = true, familyEditorMetadata = true, coalesceRuntimePrimitives = false } = {}) {
+export function runtimeRenderContractPlugin({ schemaDocumentation = true, terminalAdapter = true, conformanceObservations = true, familyEditorMetadata = true, coalesceRuntimePrimitives = false, sourceOnlySceneAdmission = false } = {}) {
   return {
     name: 'runtime-render-contract',
     setup(build: BrowserBuild) {
+      if (sourceOnlySceneAdmission) {
+        // These private consumers accept source/options/output operations,
+        // never Scene input or extension registration. Share native checks;
+        // public Node, Scene and IIFE consumers retain full external admission.
+        const admission = fileURLToPath(new URL('../../src/scene/external-data-snapshot.ts', import.meta.url))
+        const sourceAdmission = fileURLToPath(new URL('../../src/scene/external-data-snapshot.browser.ts', import.meta.url))
+        build.onResolve({ filter: /[\\/]external-data-snapshot\.ts$/ }, args =>
+          resolve(args.resolveDir, args.path) === admission ? { path: sourceAdmission } : undefined)
+      }
       if (coalesceRuntimePrimitives) {
         const grammarPath = fileURLToPath(new URL('../../src/shared/grammar-text.ts', import.meta.url))
         const syntaxPath = resolve(dirname(grammarPath), 'syntax-error.ts')

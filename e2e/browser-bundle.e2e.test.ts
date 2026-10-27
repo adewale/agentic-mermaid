@@ -344,22 +344,22 @@ describe('async family-loaded browser renderer', () => {
     }, BUILD_TIMEOUT_MS)
   }
 
-  test('renders every family with exact strict-mode parity', async () => {
+  test.each([undefined, 'hand-drawn', 'watercolor'] as const)('renders every family with exact strict-mode parity (%s)', async style => {
     const page = await browser.newPage()
     try {
       await page.goto(`${base}/blank.html`)
       for (const family of BUILTIN_FAMILY_METADATA) {
-        const result = await page.evaluate(async ([entryUrl, source]) => {
+        const result = await page.evaluate(async ([entryUrl, source, style]) => {
           try {
             const api = await import(entryUrl)
-            const result = await api.renderMermaidSVGWithReceiptAsync(source, { security: 'strict' })
+            const result = await api.renderMermaidSVGWithReceiptAsync(source, { security: 'strict', ...(style ? { style } : {}) })
             return { svg: result.svg, receipt: result.receipt, error: null }
           } catch (error) {
             return { svg: null, receipt: null, error: String(error) }
           }
-        }, [`${base}/dist/browser-lazy/index.js`, family.example] as const)
+        }, [`${base}/dist/browser-lazy/index.js`, family.example, style] as const)
         expect(result.error, `${family.id} threw in the async browser entry`).toBeNull()
-        const expected = renderMermaidSVGWithReceipt(family.example, { security: 'strict' })
+        const expected = renderMermaidSVGWithReceipt(family.example, { security: 'strict', ...(style ? { style } : {}) })
         expect(result.svg).toBe(expected.svg)
         expect(result.receipt).toEqual(expected.receipt)
       }
