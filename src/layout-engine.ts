@@ -47,6 +47,7 @@ import { layoutAgenticCandidate, layoutAgenticPlacement } from './layout/agentic
 import { customTextMeasurementActive } from './text-measurement-profile.ts'
 import { edgeSelectorIndices } from './shared/edge-selectors.ts'
 import { graphEdgeMarkerPaintRegions } from './graph-connectors.ts'
+import { routeMarkerPaintRegions } from './layout/route-marker-clearance.ts'
 import { DeferredDependencyError, runMeasuredGraphBackend, GraphLayoutUnsupportedError } from './layout/backend.ts'
 import { measureRenderStage } from './render-stages.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
@@ -127,8 +128,9 @@ interface LayoutEngineOptions extends RenderOptions {
   compareRoutePreferences?: boolean
 }
 
+type MarkerPortDemand = { count: number; span: number }
 type ElkConversionOptions = Required<Pick<RenderOptions, 'font' | 'padding' | 'nodeSpacing' | 'layerSpacing'>> &
-  Pick<LayoutEngineOptions, 'preserveSubgraphChildOrder' | 'separateHierarchy' | 'disableCorankFanIn' | 'layoutHints' | 'nodeSizes'> & { stateVisual?: ResolvedStateVisualConfig }
+  Pick<LayoutEngineOptions, 'preserveSubgraphChildOrder' | 'separateHierarchy' | 'disableCorankFanIn' | 'layoutHints' | 'nodeSizes'> & { stateVisual?: ResolvedStateVisualConfig; markerPortExtents?: ReadonlyMap<string, MarkerPortDemand> }
 
 // ============================================================================
 // Layout options
@@ -439,6 +441,31 @@ function balancingElkLabel(dims: BalancingLabel): NonNullable<ElkExtendedEdge['l
   }
 }
 
+/** Reserve the measured cross footprint before implicit ELK ports are placed.
+ * The old zero-size ports could fit their centerlines while scaled endpoint
+ * resources overlapped. Actual returned dimensions remain the render authority;
+ * this sizing proposal is not a replacement for final paint admission. */
+function elkMarkerPortExtents(graph: MermaidGraph, style: ResolvedRenderStyle): ReadonlyMap<string, MarkerPortDemand> {
+  const incoming = new Map<string, { count: number; span: number; known: boolean }>()
+  for (let index = 0; index < graph.edges.length; index++) {
+    const edge = graph.edges[index]!, node = graph.nodes.get(edge.target)
+    if (!node || node.shape !== 'rectangle' || node.semanticShape || edge.style === 'invisible' || edge.source === edge.target) continue
+    const pressure = incoming.get(node.id) ?? { count: 0, span: 0, known: true }
+    pressure.count++
+    const regions = routeMarkerPaintRegions({ ...edge, points: [{ x: 0, y: 0 }, { x: 100, y: 0 }], inlineStyle: resolveEdgeInlineStyle(index, graph) }, style)
+    const marker = regions?.find(region => region.position === 'end')
+    if (edge.hasArrowEnd && (!marker?.bounds || !Object.values(marker.bounds).every(Number.isFinite))) pressure.known = false
+    else if (marker?.bounds) pressure.span = Math.max(pressure.span, marker.bounds.y1 - marker.bounds.y0)
+    incoming.set(node.id, pressure)
+  }
+  const minimums = new Map<string, MarkerPortDemand>()
+  for (const [id, pressure] of incoming) {
+    if (pressure.count < 2 || !pressure.known || pressure.span <= 0) continue
+    minimums.set(id, { count: pressure.count, span: pressure.span })
+  }
+  return minimums
+}
+
 /**
  * Convert a MermaidGraph to ELK's nested JSON input format.
  *
@@ -450,6 +477,9 @@ function mermaidToElk(
   opts: ElkConversionOptions,
   style: ResolvedRenderStyle,
 ): ElkGraphNode {
+  // Projected families replace these temporary graph connectors with their
+  // own measured glyphs/routes; their placement contracts retain their sizes.
+  opts = { ...opts, markerPortExtents: opts.preserveSubgraphChildOrder || opts.stateVisual ? undefined : elkMarkerPortExtents(graph, style) }
   // Collect all node IDs that belong to subgraphs
   const subgraphNodeIds = new Set<string>()
   const subgraphIds = new Set<string>()
@@ -650,7 +680,7 @@ function mermaidToElk(
     }
     const node = graph.nodes.get(id)
     if (node && !subgraphNodeIds.has(id) && !subgraphIds.has(id)) {
-      elkGraph.children!.push(nodeToElkLeaf(id, node, style, routePortHints, graph.direction, opts.stateVisual, opts.nodeSizes?.get(id)))
+      elkGraph.children!.push(nodeToElkLeaf(id, node, style, routePortHints, graph.direction, opts.stateVisual, opts.nodeSizes?.get(id), opts.markerPortExtents?.get(id)))
     }
   }
 
@@ -885,12 +915,23 @@ function elkPortSide(side: 'N' | 'E' | 'S' | 'W'): 'NORTH' | 'EAST' | 'SOUTH' | 
   }
 }
 
-function nodeToElkLeaf(id: string, node: MermaidNode, style: ResolvedRenderStyle, hints: RoutePortHints, direction: Direction = 'TB', stateVisual?: ResolvedStateVisualConfig, placementSize?: { width: number; height: number }): ElkGraphNode {
+function nodeToElkLeaf(id: string, node: MermaidNode, style: ResolvedRenderStyle, hints: RoutePortHints, direction: Direction = 'TB', stateVisual?: ResolvedStateVisualConfig, placementSize?: { width: number; height: number }, markerPortDemand?: MarkerPortDemand): ElkGraphNode {
   const size = placementSize ?? estimateNodeSize(id, resolveLabelContent(node.label, node.labelContent), node.shape, style, direction, stateVisual, node.labelBlock)
+  const horizontal = direction === 'LR' || direction === 'RL'
+  let crossSize = horizontal ? size.height : size.width
+  if (!placementSize && markerPortDemand) {
+    const separation = Math.max(markerPortDemand.span, Math.min(style.cornerRadius ?? 0, (horizontal ? size.width : size.height) / 2))
+    // Already-separated nominal seats retain their exact measured dimensions.
+    // Only a crowded face receives a strict one-pixel separator proposal.
+    if (!(crossSize / (markerPortDemand.count + 1) > separation)) {
+      const extent = (markerPortDemand.count + 1) * (separation + 1)
+      if (Number.isFinite(extent) && extent > crossSize) crossSize = extent
+    }
+  }
   const elkNode: ElkGraphNode = {
     id,
-    width: size.width,
-    height: size.height,
+    width: horizontal ? size.width : crossSize,
+    height: horizontal ? crossSize : size.height,
     labels: [{ text: node.label }],
   }
   const ports = hints.byNode.get(id)
@@ -1101,7 +1142,7 @@ function subgraphToElk(
   for (const nodeId of childNodeOrder) {
     const node = graph.nodes.get(nodeId)
     if (node) {
-      elkNode.children!.push(nodeToElkLeaf(nodeId, node, style, routePortHints, effectiveDirection, opts.stateVisual, opts.nodeSizes?.get(nodeId)))
+      elkNode.children!.push(nodeToElkLeaf(nodeId, node, style, routePortHints, effectiveDirection, opts.stateVisual, opts.nodeSizes?.get(nodeId), opts.markerPortExtents?.get(nodeId)))
     }
   }
 

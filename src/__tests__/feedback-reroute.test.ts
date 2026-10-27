@@ -16,6 +16,9 @@ import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
 import { routeCandidateMarkerBlocker, routeCandidateMarkersClear } from '../layout/route-marker-clearance.ts'
 import { laneContextFor, repairRectLikeEndpointOverflow, tryStraighten } from '../layout/route-lanes.ts'
 import type { Point, PositionedEdge, PositionedNode } from '../types.ts'
+import { routeMarkerPaintRegions } from '../layout/route-marker-clearance.ts'
+import { resolveRenderStyle } from '../styles.ts'
+import { convertToElkFormat } from '../layout-engine.ts'
 
 const cases: [string, string][] = [
   // Shrunk fuzz repro: N1<->N8 reciprocal (feedback N8->N1) with the unrelated
@@ -40,6 +43,71 @@ describe('feedback reroute: a feedback that returns past its target clears a nod
 
 const markerStyle = { edgeLabelFontSize: 12, edgeLabelFontWeight: 400, lineWidth: 1, edgeBendRadius: 0 }
 const marked = (source: string, target: string, points: Point[], start = false, end = true): PositionedEdge => ({ source, target, points, style: 'solid', hasArrowStart: start, hasArrowEnd: end })
+
+describe('measured ELK rectangle fan-in marker capacity', () => {
+  for (const direction of ['LR', 'RL', 'TB', 'BT', 'TD'] as const) for (const thick of [false, true]) {
+    test(`${direction}/${thick ? 'thick' : 'global'}: wide heads clear on actual returned faces`, () => {
+      const graph = parseMermaid(`flowchart ${direction}\nA ${thick ? '==>' : '-->'} T\nB ${thick ? '==>' : '-->'} T`)
+      const options = { styleFace: { edge: { lineWidth: thick ? 2 : 4 }, node: { cornerRadius: 0 } }, graphLayout: { backend: 'elk' as const, fallback: 'none' as const } }
+      const before = structuredClone(graph), positioned = layoutGraphSync(graph, options), style = resolveRenderStyle(options)
+      const regions = positioned.edges.map(edge => routeMarkerPaintRegions(edge, style)![0]!)
+      const a = regions[0]!.bounds!, b = regions[1]!.bounds!
+      const identicalRepaint = regions[0]!.resource === regions[1]!.resource && regions[0]!.repaint === regions[1]!.repaint
+        && regions[0]!.anchor.x === regions[1]!.anchor.x && regions[0]!.anchor.y === regions[1]!.anchor.y
+      expect(a.x1 < b.x0 || b.x1 < a.x0 || a.y1 < b.y0 || b.y1 < a.y0 || identicalRepaint).toBe(true)
+      expect(style.lineWidth * (thick ? 2 : 1)).toBe(4)
+      const input = convertToElkFormat(graph, options), target = input.children!.find(node => node.id === 'T')!
+      const actual = positioned.nodes.find(node => node.id === 'T')!
+      expect([actual.width, actual.height]).toEqual([target.width!, target.height!])
+      expect(direction === 'LR' || direction === 'RL' ? actual.height : actual.width).toBeGreaterThanOrEqual(72)
+      expect(graph).toEqual(before)
+      expect(positioned.edges.map(edge => [edge.source, edge.target])).toEqual([['A', 'T'], ['B', 'T']])
+      expect(hardViolations(assessLayout(graph, positioned))).toEqual([])
+      expect(findRouteHitches(positioned, graph, style)).toEqual([])
+      positioned.edges.forEach(edge => expect(edge.routeCertificate).toBeDefined())
+    })
+  }
+  test('fixed user-space inline heads keep the original dimensions unlike globally scaled heads', () => {
+    const source = 'flowchart LR\nA --> T\nB --> T'
+    const plain = convertToElkFormat(parseMermaid(source), { styleFace: { edge: { lineWidth: 1 }, node: { cornerRadius: 0 } } }).children!.find(node => node.id === 'T')!
+    const fixed = convertToElkFormat(parseMermaid(`${source}\nlinkStyle default stroke-width:4px`), { styleFace: { edge: { lineWidth: 4 }, node: { cornerRadius: 0 } } }).children!.find(node => node.id === 'T')!
+    const scaled = convertToElkFormat(parseMermaid(source), { styleFace: { edge: { lineWidth: 4 }, node: { cornerRadius: 0 } } }).children!.find(node => node.id === 'T')!
+    expect([fixed.width, fixed.height]).toEqual([plain.width, plain.height])
+    expect(scaled.height!).toBeGreaterThan(fixed.height!)
+  })
+  test('cross-hierarchy fan-in retains complete wide head seats through route contracts', () => {
+    const graph = parseMermaid(`flowchart LR
+subgraph Core[Routing core]
+Intake[Intake] --> Validate{Valid?}
+Validate -- yes --> Render[Render SVG]
+Validate -- no --> Repair[Repair source]
+Repair --> Validate
+end
+Render --> Export[Export PNG]
+Render --> Audit[Contrast audit]
+Audit --> Export`)
+    const options = { font: 'DejaVu Sans', padding: 28, styleFace: { node: { lineWidth: 4 }, edge: { lineWidth: 4 }, group: { lineWidth: 4 } }, graphLayout: { backend: 'elk' as const, fallback: 'none' as const } }
+    const positioned = layoutGraphSync(graph, options), style = resolveRenderStyle(options)
+    const heads = positioned.edges.filter(edge => edge.target === 'Export').map(edge => routeMarkerPaintRegions(edge, style)![0]!)
+    const a = heads[0]!.bounds!, b = heads[1]!.bounds!
+    const same = heads[0]!.resource === heads[1]!.resource && heads[0]!.repaint === heads[1]!.repaint
+      && heads[0]!.anchor.x === heads[1]!.anchor.x && heads[0]!.anchor.y === heads[1]!.anchor.y
+    expect(a.x1 < b.x0 || b.x1 < a.x0 || a.y1 < b.y0 || b.y1 < a.y0 || same).toBe(true)
+    expect(positioned.nodes).toHaveLength(6)
+    expect([...positioned.edges].sort((a, b) => a.edgeIndex! - b.edgeIndex!).map(edge => [edge.source, edge.target, edge.label])).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]))
+    expect(hardViolations(assessLayout(graph, positioned))).toEqual([])
+    expect(findRouteHitches(positioned, graph, style)).toEqual([])
+  })
+  test('already clear ordinary five-way faces and explicit measured sizes retain their dimensions', () => {
+    const graph = parseMermaid('flowchart LR\nA --> T\nB --> T\nC --> T\nD --> T\nE --> T')
+    const normal = convertToElkFormat(graph).children!.find(node => node.id === 'T')!
+    expect(normal.height).toBeCloseTo(36.9, 10)
+    const nodeSizes = new Map([['T', { width: 80, height: 36.9 }]])
+    const measured = convertToElkFormat(graph, { styleFace: { edge: { lineWidth: 4 } }, nodeSizes }).children!.find(node => node.id === 'T')!
+    expect([measured.width, measured.height]).toEqual([80, 36.9])
+    expect(nodeSizes.get('T')).toEqual({ width: 80, height: 36.9 })
+  })
+})
 
 for (const direction of ['RL', 'LR', 'BT', 'TB'] as const) {
   test(`optional ${direction} target centering retains separately allocated fan-in marker seats`, () => {
