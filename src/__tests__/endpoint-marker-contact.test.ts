@@ -175,10 +175,14 @@ describe('family-owned endpoint and visible-marker contact (#258)', () => {
           expect(contact.shaft).toBeLessThan(1e-6)
           expect(contact.visible).toBeLessThan(1e-6)
         }
-        // Exact marker contact does not resolve the existing 3px-paint
-        // uncertainty shared by ELK and native. Keep that limitation visible.
+        // The hidden viewport bounds every tip stroke at the attachment
+        // plane, resolving the former un-clipped envelope uncertainty.
+        for (const marker of tags(result.svg).filter(tag => tag.name === 'marker')) {
+          expect(marker.attrs.overflow).not.toBe('visible')
+          expect([0, Number(marker.attrs.markerWidth)]).toContain(Number(marker.attrs.refX))
+        }
         expect(result.receipt.layoutCertification?.scope).toBe('native-scene')
-        expect(result.receipt.layoutCertification?.status).toBe('unverified')
+        expect(result.receipt.layoutCertification?.status).toBe('passed')
       })
     }
   }
