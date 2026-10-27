@@ -368,14 +368,15 @@ it('resolved circle and ellipse paths preserve the native stroke traversal for d
 
 it('standalone editor stays within its single-renderer payload budget', async () => {
   const html = new Uint8Array(await Bun.file(join(ROOT, 'editor.html')).arrayBuffer())
-  // Paired Bun 1.4.2 builds against main 4bb4c345, gzip level 9:
-  // raw 4,430,862 → 4,433,341; gzip 1,335,048 → 1,335,812.
-  // Label admission and shared header fixes add 2,479 raw / 764 gzip bytes.
-  // Retain 159 raw / 38 gzip bytes of headroom for these correctness fixes.
+  // Paired Bun 1.4.2 builds at main 6e5633f5 and its Class preservation
+  // rebase, gzip level 9: raw 4,433,341 → 4,433,594; gzip 1,335,812 → 1,335,873.
+  // Reusing graph-builder metadata avoids duplicate namespace work. Preserving
+  // authored IDs, ancestry and empty content adds 253 raw / 61 gzip bytes.
+  // Retain 106 raw / 77 gzip bytes of headroom for these correctness fixes.
   // One renderer still serves the main/worker realms; the single-engine and
   // relative payload gates also apply.
-  expect(html.byteLength).toBeLessThanOrEqual(4_433_500)
-  expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_335_850)
+  expect(html.byteLength).toBeLessThanOrEqual(4_433_700)
+  expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_335_950)
 })
 
 it('standalone editor renders and verifies with one persistent Blob worker', async () => {

@@ -128,18 +128,28 @@ interface NamespaceInfo {
   path: string
   parentPath?: string
   ns: ClassNamespace
+  ancestors: string[]
 }
 
-function flattenNamespaces(namespaces: ClassNamespace[], parentPath?: string, hierarchical = true): NamespaceInfo[] {
+interface NamespaceLayout extends NamespaceInfo {
+  headerHeight: number
+  labelWidth: number
+}
+
+function flattenNamespaces(namespaces: ClassNamespace[], parent?: NamespaceInfo, hierarchical = true): NamespaceInfo[] {
   const out: NamespaceInfo[] = []
   for (const ns of namespaces) {
-    const path = parentPath ? `${parentPath}.${ns.name}` : ns.name
+    const path = parent ? `${parent.path}.${ns.name}` : ns.name
+    const info: NamespaceInfo = {
+      path,
+      parentPath: hierarchical ? parent?.path : undefined,
+      ns: !hierarchical && ns.label === undefined ? { ...ns, label: path } : ns,
+      ancestors: hierarchical && parent ? [...parent.ancestors, path] : [path],
+    }
     // Flattened siblings no longer convey their ancestry through containment.
     // Keep the full authored path visible unless an explicit label replaces it.
-    if (hierarchical || ns.classIds.length > 0 || ns.label !== undefined || ns.children.length === 0) {
-      out.push({ path, ...(hierarchical && parentPath ? { parentPath } : {}), ns: !hierarchical && ns.label === undefined ? { ...ns, label: path } : ns })
-    }
-    out.push(...flattenNamespaces(ns.children, path, hierarchical))
+    if (hierarchical || ns.classIds.length > 0 || ns.label !== undefined || ns.children.length === 0) out.push(info)
+    out.push(...flattenNamespaces(ns.children, info, hierarchical))
   }
   return out
 }
@@ -151,7 +161,7 @@ function namespaceHeaderHeight(style: ResolvedRenderStyle, title: string | undef
   return style.groupHeaderFontSize + 16 + (lines - 1) * style.groupHeaderFontSize * LINE_HEIGHT_RATIO
 }
 
-function buildClassElkGraph(diagram: ClassDiagram, options: RenderOptions, styleFace?: Readonly<InternalStyleFace>, titles: ReadonlyMap<string, string> = new Map()): { elkGraph: ElkNode; classSizes: ClassSizeMap; namespacePaths: ReadonlyMap<string, string> } {
+function buildClassElkGraph(diagram: ClassDiagram, options: RenderOptions, styleFace?: Readonly<InternalStyleFace>, titles: ReadonlyMap<string, string> = new Map()): { elkGraph: ElkNode; classSizes: ClassSizeMap; namespaceLayouts: ReadonlyMap<string, NamespaceLayout> } {
   const style = resolveRenderStyle(options, CLASS_STYLE_DEFAULTS, styleFace)
   const classSizes: ClassSizeMap = new Map()
 
@@ -209,20 +219,21 @@ function buildClassElkGraph(diagram: ClassDiagram, options: RenderOptions, style
 
   // Resolve each class to at most one namespace compound (parser guarantees
   // single-claim membership; guard again here so layout can't double-place).
-  const namespaceOfClass = new Map<string, string>()
+  const namespaceOfClass = new Map<string, NamespaceInfo>()
   for (const info of namespaces) {
     for (const id of info.ns.classIds) {
-      if (!namespaceOfClass.has(id)) namespaceOfClass.set(id, info.path)
+      if (!namespaceOfClass.has(id)) namespaceOfClass.set(id, info)
     }
   }
 
   // Reserve authored cards before assigning compound IDs. Carry their roles
   // through extraction rather than interpreting an authored ID prefix.
   const generated = generatedIds(hasNamespaces ? classSizes.keys() : [])
-  const namespacePaths = new Map<string, string>()
+  const namespaceLayouts = new Map<string, NamespaceLayout>()
   const elkByPath = new Map<string, ElkNode>()
   for (const info of namespaces) {
-    const headerHeight = namespaceHeaderHeight(style, titles.get(info.path) ?? classTextBlock(resolveLabelContent(info.ns.label ?? info.ns.name, info.ns.labelContent), style, 'group').text)
+    const block = classTextBlock(resolveLabelContent(info.ns.label ?? info.ns.name, info.ns.labelContent), style, 'group')
+    const headerHeight = namespaceHeaderHeight(style, titles.get(info.path) ?? block.text)
     const compound: ElkNode = {
       id: generated(NS_PREFIX + info.path, ['class', 'elk-namespace', info.path]),
       layoutOptions: {
@@ -235,7 +246,7 @@ function buildClassElkGraph(diagram: ClassDiagram, options: RenderOptions, style
       children: [],
       edges: [],
     }
-    namespacePaths.set(compound.id, info.path)
+    namespaceLayouts.set(compound.id, { ...info, headerHeight, labelWidth: block.width })
     elkByPath.set(info.path, compound)
     const parent = info.parentPath ? elkByPath.get(info.parentPath)! : elkGraph
     parent.children!.push(compound)
@@ -245,30 +256,20 @@ function buildClassElkGraph(diagram: ClassDiagram, options: RenderOptions, style
     const size = classSizes.get(cls.id)!
     const leaf: ElkNode = { id: cls.id, width: size.width, height: size.height }
     const host = namespaceOfClass.get(cls.id)
-    ;(host ? elkByPath.get(host)! : elkGraph).children!.push(leaf)
+    ;(host ? elkByPath.get(host.path)! : elkGraph).children!.push(leaf)
   }
 
   // ELK treats empty compounds as leaves and ignores their padding.
-  for (const info of namespaces) {
+  for (const info of namespaceLayouts.values()) {
     const compound = elkByPath.get(info.path)!
     if (compound.children!.length) continue
-    const block = classTextBlock(resolveLabelContent(info.ns.label ?? info.ns.name, info.ns.labelContent), style, 'group')
-    compound.width = block.width + 2 * Math.max(style.groupLabelPaddingX, style.groupPaddingX + 8)
-    compound.height = namespaceHeaderHeight(style, titles.get(info.path) ?? block.text) + 2 * style.groupPaddingY + 8
+    compound.width = info.labelWidth + 2 * Math.max(style.groupLabelPaddingX, style.groupPaddingX + 8)
+    compound.height = info.headerHeight + 2 * style.groupPaddingY + 8
   }
 
   // Host each relationship on the lowest common ancestor compound so its
   // section coordinates come back in that compound's frame (extraction adds
   // the compound's absolute offset — the flowchart INCLUDE_CHILDREN pattern).
-  const parentByPath = new Map(namespaces.map(info => [info.path, info.parentPath]))
-  const ancestorsOf = (classId: string): string[] => {
-    const host = namespaceOfClass.get(classId)
-    if (host === undefined) return []
-    const chain: string[] = []
-    // Dots inside quoted namespace names do not declare ancestors.
-    for (let path: string | undefined = host; path !== undefined; path = parentByPath.get(path)) chain.push(path)
-    return chain.reverse()
-  }
   for (let i = 0; i < diagram.relationships.length; i++) {
     const rel = diagram.relationships[i]!
     const edge: ElkExtendedEdge = { id: `e${i}`, sources: [rel.from], targets: [rel.to] }
@@ -280,8 +281,8 @@ function buildClassElkGraph(diagram: ClassDiagram, options: RenderOptions, style
         edge.labels = [{ text: metrics.text, width: metrics.width + 8, height: metrics.height + 6 }]
       }
     }
-    const fromChain = ancestorsOf(rel.from)
-    const toChain = ancestorsOf(rel.to)
+    const fromChain = namespaceOfClass.get(rel.from)?.ancestors ?? []
+    const toChain = namespaceOfClass.get(rel.to)?.ancestors ?? []
     let lca: string | undefined
     for (let k = 0; k < Math.min(fromChain.length, toChain.length); k++) {
       if (fromChain[k] === toChain[k]) lca = fromChain[k]
@@ -290,14 +291,13 @@ function buildClassElkGraph(diagram: ClassDiagram, options: RenderOptions, style
     ;(lca ? elkByPath.get(lca)! : elkGraph).edges!.push(edge)
   }
 
-  return { elkGraph, classSizes, namespacePaths }
+  return { elkGraph, classSizes, namespaceLayouts }
 }
 
 /** Extract positioned classes, namespaces, and relationships from ELK result. */
-function extractClassLayout(result: ElkNode, diagram: ClassDiagram, classSizes: ClassSizeMap, namespacePaths: ReadonlyMap<string, string>, style: ResolvedRenderStyle, hierarchicalNamespaces: boolean, titles: ReadonlyMap<string, string> = new Map()): PositionedClassDiagram {
+function extractClassLayout(result: ElkNode, diagram: ClassDiagram, classSizes: ClassSizeMap, namespaceLayouts: ReadonlyMap<string, NamespaceLayout>, style: ResolvedRenderStyle, titles: ReadonlyMap<string, string> = new Map()): PositionedClassDiagram {
   const classLookup = new Map<string, ClassNode>()
   for (const cls of diagram.classes) classLookup.set(cls.id, cls)
-  const namespaceInfoByPath = new Map(flattenNamespaces(diagram.namespaces, undefined, hierarchicalNamespaces).map(info => [info.path, info]))
 
   const positionedClasses: PositionedClassNode[] = []
   const positionedNamespaces: PositionedClassNamespace[] = []
@@ -328,21 +328,21 @@ function extractClassLayout(result: ElkNode, diagram: ClassDiagram, classSizes: 
     for (const child of node.children ?? []) {
       const x = (child.x ?? 0) + offsetX
       const y = (child.y ?? 0) + offsetY
-      const path = namespacePaths.get(child.id)
-      if (path !== undefined) {
-        const info = namespaceInfoByPath.get(path)
+      const info = namespaceLayouts.get(child.id)
+      if (info) {
+        const { path, ns } = info
         positionedNamespaces.push({
           id: path,
-          name: info?.ns.name ?? path,
-          label: info?.ns.label ?? info?.ns.name ?? path,
-          ...(info?.ns.labelContent ? { labelContent: info.ns.labelContent } : {}),
-          parentId: info?.parentPath,
-          classIds: info ? [...info.ns.classIds] : [],
+          name: ns.name,
+          label: ns.label ?? ns.name,
+          ...(ns.labelContent ? { labelContent: ns.labelContent } : {}),
+          parentId: info.parentPath,
+          classIds: [...ns.classIds],
           x,
           y,
           width: child.width ?? 0,
           height: child.height ?? 0,
-          headerHeight: namespaceHeaderHeight(style, titles.get(path) ?? classTextBlock(resolveLabelContent(info?.ns.label ?? info?.ns.name ?? path, info?.ns.labelContent), style, 'group').text),
+          headerHeight: info.headerHeight,
           ...(titles.has(path) ? { title: titles.get(path)! } : {}),
         })
         walk(child, x, y)
@@ -603,10 +603,10 @@ export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions
   let titles: Map<string, string> = new Map()
   let positioned: PositionedClassDiagram | undefined
   for (let pass = 0; pass < 3; pass++) {
-    const { elkGraph, classSizes, namespacePaths } = buildClassElkGraph(diagram, options, styleFace, titles)
+    const { elkGraph, classSizes, namespaceLayouts } = buildClassElkGraph(diagram, options, styleFace, titles)
     // Freestanding notes need no engine work when there is no graph to place.
     const result = elkGraph.children?.length || elkGraph.edges?.length ? elkLayoutSync(elkGraph) : { ...elkGraph, width: 0, height: 0 }
-    positioned = extractClassLayout(result, diagram, classSizes, namespacePaths, style, hierarchicalNamespaces, titles)
+    positioned = extractClassLayout(result, diagram, classSizes, namespaceLayouts, style, titles)
     const wrapped = wrappedNamespaceTitles(positioned.namespaces, style)
     if (wrapped.size === titles.size && [...wrapped].every(([path, title]) => titles.get(path) === title)) break
     titles = wrapped
