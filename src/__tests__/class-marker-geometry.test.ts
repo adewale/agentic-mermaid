@@ -3,6 +3,8 @@ import { buildClassEndpointMarkerTemplates } from '../class/marker-measurement.t
 import { classMarkerPiecesOverlap } from '../layout/measured-marker-overlap.ts'
 import { classMarkerPieces, classMarkerResources } from '../class/relationship-paint.ts'
 import { formatSvgNumber } from '../shared/svg-number.ts'
+import { restoreMeasuredEndpointFaces } from '../layout/compound-boundary-routes.ts'
+import { scoreMeasuredRouteCrossings, type MeasuredSharpContactWitness } from '../layout/measured-route-safety.ts'
 
 import { describe, expect, test } from 'bun:test'
 
@@ -773,5 +775,82 @@ describe('coupled sharp Z marker seats', () => {
       expect(fixedGap < 1 && overlap > 0).toBe(false)
     }
     expect(work.pairs).toBeGreaterThan(0); expect(work.arcs).toBeGreaterThan(0)
+  })
+})
+
+
+describe('sharp far-end track repair after endpoint seating', () => {
+  for (const transpose of [false, true]) for (const reverse of [false, true]) for (const unmarked of [false, true]) test(`repairs a far miter beside an unmarked captioned peer transpose=${transpose} reverse=${reverse} repairUnmarked=${unmarked}`, () => {
+    const point = (p: { x: number; y: number }) => transpose ? { x: p.y, y: p.x } : { ...p },
+      rect = (b: { x: number; y: number; width: number; height: number }) => transpose ? { x: b.y, y: b.x, width: b.height, height: b.width } : { ...b },
+      routes = [
+        { points: [{ x: 200, y: 20 }, { x: 100, y: 20 }, { x: 100, y: 80 }, { x: 60, y: 80 }, { x: 60, y: 120 }, { x: 20, y: 120 }].map(point), labelPosition: point(unmarked ? { x: 60, y: 100 } : { x: 80, y: 80 }) },
+        { points: [{ x: 200, y: 60 }, { x: 140, y: 60 }, { x: 140, y: 120.8 }, { x: 60, y: 120.8 }, { x: 60, y: 140 }, { x: 20, y: 140 }].map(point), labelPosition: point(unmarked ? { x: 140, y: 100 } : { x: 100, y: 120.8 }) },
+      ],
+      boxes = [{ x: 200, y: 0, width: 40, height: 40 }, { x: 200, y: 40, width: 40, height: 40 }, { x: 0, y: 100, width: 20, height: 60 }].map(rect),
+      marker = buildClassEndpointMarkerTemplates([{ from: 'A', to: 'T', type: 'composition', markerAt: reverse ? 'to' : 'from' } as any], { lineWidth: 1, edgeStrokeColor: '#333' } as any)[0]!,
+      edges = [
+        { source: reverse ? 2 : 0, target: reverse ? 0 : 2, minSpan: 1, label: transpose ? { width: 4, height: 10 } : { width: 10, height: 4 }, markerPaint: marker },
+        { source: reverse ? 2 : 1, target: reverse ? 1 : 2, minSpan: 1, label: transpose ? { width: 4, height: 10 } : { width: 10, height: 4 } },
+      ],
+      input = { nodes: boxes.map((box, index) => ({ id: String(index), width: box.width, height: box.height })), edges, direction: 'TD' as const, nodeSpacing: 40, layerSpacing: 40, padding: 0, maximumEdgeStrokeWidth: 1, maximumEdgeBendRadius: 0 }
+    if (reverse) for (const route of routes) route.points.reverse()
+    const before = structuredClone(routes), work = { pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 }, changed: number[] = []
+    const accepts = (index: number, path: { x: number; y: number }[], witness?: MeasuredSharpContactWitness): boolean => {
+      const center = routes[index]!.labelPosition
+      let spine = false
+      for (let j = 1; j < path.length; j++) {
+        const a = path[j - 1]!, b = path[j]!
+        if (a.x !== b.x && a.y !== b.y) return false
+        if (a.y === b.y && center.y === a.y && center.x >= Math.min(a.x, b.x) && center.x <= Math.max(a.x, b.x) || a.x === b.x && center.x === a.x && center.y >= Math.min(a.y, b.y) && center.y <= Math.max(a.y, b.y)) spine = true
+        for (const box of boxes) if (a.x === b.x ? a.x > box.x && a.x < box.x + box.width && Math.max(a.y, b.y) > box.y && Math.min(a.y, b.y) < box.y + box.height : a.y > box.y && a.y < box.y + box.height && Math.max(a.x, b.x) > box.x && Math.min(a.x, b.x) < box.x + box.width) return false
+      }
+      return spine && scoreMeasuredRouteCrossings(path, index, routes.map(route => ({ points: route.points, style: 'solid' })), input, undefined, undefined, witness) !== undefined
+    }
+    // Independent finite rectangles: A's outer quarter occupies x60..60.5,
+    // y120..120.5; B's width1 shaft occupies y120.3..121.3. Positive area .1.
+    expect(Math.min(120.5, 121.3) - Math.max(120, 120.3)).toBeGreaterThan(0)
+    const originalWitness: MeasuredSharpContactWitness = { candidateSegment: -1, peerIndex: -1, peerSegment: -1 }
+    expect(accepts(0, routes[0]!.points, originalWitness)).toBe(false)
+    expect(originalWitness.peerIndex).toBe(1)
+    seatMeasuredMarkers(edges, routes, boxes, work, () => {}, reason => { throw Error(reason) }, accepts, index => changed.push(index), undefined, 1, 0, { bounds: rect({ x: 0, y: 0, width: 260, height: 180 }), obstacles: boxes }, (index, witness) => {
+      witness.candidateSegment = witness.peerIndex = witness.peerSegment = -1
+      if (accepts(index, routes[index]!.points, witness)) return false
+      expect(witness.peerIndex).toBeGreaterThanOrEqual(0)
+      return true
+    })
+    expect(changed).toEqual(unmarked ? [1] : [0])
+    expect(routes[unmarked ? 0 : 1]).toEqual(before[unmarked ? 0 : 1])
+    for (let i = 0; i < routes.length; i++) {
+      expect(routes[i]!.points[0]).toEqual(before[i]!.points[0]!)
+      expect(routes[i]!.points.at(-1)).toEqual(before[i]!.points.at(-1)!)
+      expect(routes[i]!.labelPosition).toEqual(before[i]!.labelPosition)
+      expect(accepts(i, routes[i]!.points)).toBe(true)
+    }
+    expect(work.pairs).toBeGreaterThan(0); expect(work.arcs).toBeGreaterThan(0)
+  })
+})
+
+
+describe('exact served endpoint face authority', () => {
+  for (const transpose of [false, true]) for (const distinct of [false, true]) test(`restores only identical written contacts transpose=${transpose} distinct=${distinct}`, () => {
+    const transform = (p: { x: number; y: number }) => transpose ? { x: p.y, y: p.x } : { ...p },
+      rect = (b: { x: number; y: number; width: number; height: number }) => transpose ? { x: b.y, y: b.x, width: b.height, height: b.width } : { ...b },
+      subject = { x: 236.741, y: 2057.500000000001, width: 127.93, height: 88.9 },
+      side = subject.y + subject.height,
+      port = transform({ x: 357.919, y: distinct ? 2146.4000001 : 2146.4000000000005 }),
+      toward = transform({ x: 357.919, y: 2161.4000000000005 }),
+      subjects = [rect({ x: 350, y: 2161.4000000000005, width: 20, height: 20 }), rect(subject)],
+      input = { nodes: subjects.map((b, index) => ({ id: String(index), width: b.width, height: b.height })), edges: [{ source: 0, target: 1, minSpan: 1 }], direction: 'TD' as const, padding: 0, nodeSpacing: 40, layerSpacing: 40 },
+      placed = { topology: 'layered' as const, width: 5000, height: 5000, nodes: subjects.map(b => ({ x: b.x, y: b.y })), edges: [{ points: [toward, port] }] },
+      old = { ...port }, written = formatSvgNumber(transpose ? port.x : port.y), work = { pairs: 10000, arcs: 1000, swaps: 10000 }
+    let reserved = 0
+    restoreMeasuredEndpointFaces(input, placed, subjects, work, amount => { reserved += amount }, reason => { throw Error(reason) })
+    const result = placed.edges[0]!.points[1]!
+    expect(formatSvgNumber(transpose ? result.x : result.y)).toBe(written)
+    expect(port).toEqual(old)
+    if (distinct) { expect(result).toBe(port); expect(reserved).toBe(0) }
+    else { expect(transpose ? result.x : result.y).toBe(side); expect(result).not.toBe(port); expect(reserved).toBe(1) }
+    expect(work.pairs).toBeLessThan(10000); expect(work.arcs).toBeLessThan(1000)
   })
 })
