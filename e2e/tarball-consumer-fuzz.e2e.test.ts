@@ -217,7 +217,7 @@ describe('installed tarball — library', () => {
     writeFileSync(consumer, `
 import { renderResolvedScene, RESOLVED_SCENE_VERSION, type ResolvedScene, type ResolvedPrimitive } from 'agentic-mermaid';
 const scene: ResolvedScene = renderResolvedScene('flowchart LR\\n A --> B');
-const version: 1 = RESOLVED_SCENE_VERSION;
+const version: 2 = RESOLVED_SCENE_VERSION;
 const primitives: ResolvedPrimitive[] = scene.parts.flatMap(part => part.primitives);
 `)
     const types = spawnSync(NODE!, [join(REPO, 'node_modules/typescript/bin/tsc'), '--noEmit', '--skipLibCheck', '--target', 'ESNext', '--module', 'NodeNext', '--moduleResolution', 'NodeNext', consumer], {
@@ -229,12 +229,13 @@ import { renderResolvedScene, renderMermaidSVG } from 'agentic-mermaid';
 const source='flowchart LR\\n A -->|uses ELK| B', options={style:'hand-drawn'};
 const scene=renderResolvedScene(source, options);
 console.log(JSON.stringify({version:scene.version, document:typeof document,
+  families:['stateDiagram', 'stateDiagram-v2', 'flowchart LR'].map(header => renderResolvedScene(header+'\\nA --> B',options).family),
   parts:scene.parts.length>0, equal:scene.svg===renderMermaidSVG(source,options),
   stable:JSON.stringify(scene)===JSON.stringify(renderResolvedScene(source,options)),
   jsonSafe:JSON.stringify(scene)===JSON.stringify(JSON.parse(JSON.stringify(scene)))}));
 `], { cwd: work, encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
     expect({ status: runtime.status, stderr: runtime.stderr }).toEqual({ status: 0, stderr: '' })
-    expect(JSON.parse(runtime.stdout)).toEqual({ version: 1, document: 'undefined', parts: true, equal: true, stable: true, jsonSafe: true })
+    expect(JSON.parse(runtime.stdout)).toEqual({ version: 2, document: 'undefined', families: ['state', 'state', 'flowchart'], parts: true, equal: true, stable: true, jsonSafe: true })
   }, RUN_TIMEOUT_MS)
 
   test('public package entries keep internal Style aliases out of runtime and typed consumers', () => {
