@@ -1,4 +1,4 @@
-import { routeCrossHierarchy } from './compound-boundary-routes.ts'
+import { assertFinalBoundaryContacts, routeCrossHierarchy } from './compound-boundary-routes.ts'
 import { planAncestorBoundaryConnections, projectAncestorBoundaryPlaceholder } from './ancestor-boundary-routes.ts'
 import type { ChannelWork } from './channel-tracks.ts'
 import type { AgenticLayout, MeasuredGraph } from './agentic-layered-core.ts'
@@ -145,6 +145,14 @@ export function layoutCompoundGraph(
     if (--routingWork.pairs<0) unsupported('agentic marker metadata work limit')
     if (edge.markerPaint?.start?.length || edge.markerPaint?.end?.length) { markerPaint=true;break }
   }
-  if ((!lifted.size && !ancestorPlan && !markerPaint) || input.placementOnly) return result
+  if (input.placementOnly) return result
+  if (!lifted.size && !ancestorPlan && !markerPaint) {
+    if (input.maximumEdgeStrokeWidth !== undefined && input.maximumEdgeBendRadius === 0) {
+      if (--routingWork.arcs < 0) unsupported('agentic local cross-hierarchy visibility-arc limit')
+      if (--routingWork.pairs < 0) unsupported('agentic local cross-hierarchy crossing-work limit')
+      assertFinalBoundaryContacts(input,result,new Set(),routingWork,unsupported)
+    }
+    return result
+  }
   return routeCrossHierarchy(input, result, owners, lifted, scopes.map(scope => scope.direction), routingWork, expansionLimit, unsupported, ancestorPlan)
 }

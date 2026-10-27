@@ -167,8 +167,9 @@ test('an untouched late T collision is still rejected after unrelated proved rou
  const graph=input(3),scene=placed([[point(-30,40),point(-20,40)],[point(5,-10),point(5,10)],[point(0,10),point(5,10)]])
  expect(()=>assertFinalBoundaryContacts(graph,scene,new Set([0,1]),work(),fail,new Set([0]))).toThrow('uncertified shared contact')
 })
-test('invisible rescued candidate retains directional checks against visible proved peer',()=>{
+test.each([false,true])('invisible rescued candidate retains directional checks against visible proved peer (known sharp: %s)',knownSharp=>{
  const graph:any=input(2);graph.edges[1].visible=false
+ if(knownSharp){graph.maximumEdgeStrokeWidth=1;graph.maximumEdgeBendRadius=0}
  const scene=placed([[point(0,0),point(10,0)],[point(5,-10),point(5,0)]])
  expect(()=>assertFinalBoundaryContacts(graph,scene,new Set([1]),work(),fail,new Set([0]))).toThrow('uncertified shared contact')
 })

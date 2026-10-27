@@ -201,13 +201,15 @@ function renderEntityBox<T>(marks: DrawingFactory<T>, entity: PositionedErEntity
   const rectStroke = local.stroke ?? style.nodeBorderColor ?? 'var(--_node-stroke)'
   const parsedStrokeWidth = Number.parseFloat(local['stroke-width'] ?? '')
   const rectStrokeWidth = Number.isFinite(parsedStrokeWidth) && parsedStrokeWidth > 0 ? parsedStrokeWidth : style.nodeLineWidth
+  const dasharray = local['stroke-dasharray']
+  const authoredDash = dasharray === undefined ? {} : { strokeDasharray: dasharray }
   children.push({
     indent: 2,
     node: marks.shape({
       id: `entity-rect:${id}`,
       role: 'entity',
       geometry: { kind: 'rect', x, y, width, height, rx: style.cornerRadius ?? 0, ry: style.cornerRadius ?? 0 },
-      paint: { fill: rectFill, stroke: rectStroke, strokeWidth: String(rectStrokeWidth) },
+      paint: { fill: rectFill, stroke: rectStroke, strokeWidth: String(rectStrokeWidth), ...authoredDash },
     }),
   })
 
@@ -220,7 +222,7 @@ function renderEntityBox<T>(marks: DrawingFactory<T>, entity: PositionedErEntity
       id: `entity-header:${id}`,
       role: 'group-header',
       geometry: { kind: 'path', d: headerPath },
-      paint: { fill: headerFill, stroke: rectStroke, strokeWidth: String(rectStrokeWidth) },
+      paint: { fill: headerFill, stroke: rectStroke, strokeWidth: String(rectStrokeWidth), ...authoredDash },
     }),
   })
 
@@ -251,7 +253,7 @@ function renderEntityBox<T>(marks: DrawingFactory<T>, entity: PositionedErEntity
       id: `entity-divider:${id}`,
       role: 'chrome',
       geometry: { kind: 'line', x1: x, y1: attrTop, x2: x + width, y2: attrTop },
-      paint: { stroke: rectStroke, strokeWidth: String(dividerWidth) },
+      paint: { stroke: rectStroke, strokeWidth: String(dividerWidth), ...authoredDash },
     }),
   })
 

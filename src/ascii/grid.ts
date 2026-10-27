@@ -20,7 +20,7 @@ import { drawBox } from './draw.ts'
 import { maxLineWidth, lineCount } from './multiline-utils.ts'
 import { getShapeDimensions } from './shapes/index.ts'
 import { placeCompoundItems } from './compound-placement.ts'
-import { reserveGraphEdgeCapacity, graphRoutingUnits, unsafeGraphContacts, GRAPH_EDGE_APPROACH, allocatedGraphPort, graphEndpointOf } from './graph-capacity.ts'
+import { reserveGraphEdgeCapacity, graphRoutingUnits, unsafeGraphContacts, graphEdgeEscape, allocatedGraphPort, graphEndpointOf } from './graph-capacity.ts'
 
 // ============================================================================
 // Grid coordinate → drawing coordinate conversion
@@ -447,12 +447,12 @@ function reserveProtectedEnvelopes(graph: AsciiGraph): void {
   const approachBounds = (envelope: Envelope, bounds: GridBounds): GridBounds | undefined => {
     const { edge, start } = envelope.approach!, point = allocatedGraphPort(edge, start, bounds)
     if (!point) return undefined
-    const direction = start ? edge.startDir : edge.endDir, dx = direction.x - 1, dy = direction.y - 1
+    const direction = start ? edge.startDir : edge.endDir, dx = direction.x - 1, dy = direction.y - 1, approach = graphEdgeEscape(edge, start)
     // Graph markers occupy one cell: the end marker at distance 1 lies in
     // this exterior run; a start marker at distance 0 lies on its own envelope.
     return {
-      minX: Math.min(point.x + dx, point.x + dx * GRAPH_EDGE_APPROACH), maxX: Math.max(point.x + dx, point.x + dx * GRAPH_EDGE_APPROACH),
-      minY: Math.min(point.y + dy, point.y + dy * GRAPH_EDGE_APPROACH), maxY: Math.max(point.y + dy, point.y + dy * GRAPH_EDGE_APPROACH),
+      minX: Math.min(point.x + dx, point.x + dx * approach), maxX: Math.max(point.x + dx, point.x + dx * approach),
+      minY: Math.min(point.y + dy, point.y + dy * approach), maxY: Math.max(point.y + dy, point.y + dy * approach),
     }
   }
   for (const edge of graph.edges) if (edge.cellAllocation) for (const start of [true, false]) {
@@ -467,6 +467,8 @@ function reserveProtectedEnvelopes(graph: AsciiGraph): void {
     if (a.group && b.group) return isAncestorOrSelf(a.group, b.group) || isAncestorOrSelf(b.group, a.group)
     return false
   }
+  const bendCapacity = (envelope: Envelope) => envelope.approach
+    ? graphEdgeEscape(envelope.approach.edge, envelope.approach.start) / 2 + 1 : 2
   interface Constraint { axis: 'x' | 'y'; index: number; left: Envelope; right: Envelope; clearance: number }
   const active = new Map<string, Constraint>(), declined = new Set<string>()
   const measure = (): void => {
@@ -506,9 +508,10 @@ function reserveProtectedEnvelopes(graph: AsciiGraph): void {
       const a = envelopes[index]!, b = envelopes[next]!, key = `${index}:${next}`
       if (related(a, b) || active.has(key) || declined.has(key)) continue
       const first = a.bounds, second = b.bounds
-      // Cards/frames retain one blank cell. An approach already measures its
-      // required exterior cells; those cells must simply clear other envelopes.
-      const clearance = a.approach || b.approach ? 1 : 2
+      // Independent contacts need separate bend lanes beyond their fixed
+      // normal leads. One blank cell alone leaves the first routed lane
+      // fencing every remaining lead against the neighboring body.
+      const clearance = Math.max(bendCapacity(a), bendCapacity(b))
       if (first.maxX + clearance <= second.minX || second.maxX + clearance <= first.minX
         || first.maxY + clearance <= second.minY || second.maxY + clearance <= first.minY) continue
       const candidates: Array<Constraint & { extra: number }> = []
@@ -644,8 +647,8 @@ export function offsetDrawingForSubgraphs(graph: AsciiGraph): void {
   for (const edge of graph.edges) if (edge.cellAllocation) for (const start of [true, false]) {
     const group = start ? edge.attachFromSubgraph ?? edge.fromSubgraph : edge.attachToSubgraph ?? edge.toSubgraph
     const node = start ? edge.from : edge.to, direction = start ? edge.startDir : edge.endDir
-    if (direction.x === 0) minX = Math.min(minX, (group?.minX ?? node.drawingCoord!.x) - GRAPH_EDGE_APPROACH)
-    if (direction.y === 0) minY = Math.min(minY, (group?.minY ?? node.drawingCoord!.y) - GRAPH_EDGE_APPROACH)
+    if (direction.x === 0) minX = Math.min(minX, (group?.minX ?? node.drawingCoord!.x) - graphEdgeEscape(edge, start))
+    if (direction.y === 0) minY = Math.min(minY, (group?.minY ?? node.drawingCoord!.y) - graphEdgeEscape(edge, start))
   }
 
   const offsetX = -minX

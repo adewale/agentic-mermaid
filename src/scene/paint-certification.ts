@@ -211,7 +211,7 @@ function solidInteriors(scene: NativePaintHeader, primitives: readonly ScenePain
 /** Conservative marker envelopes can overlap empty corners of endpoint shapes.
  * A separating side or radius proves absence; other intersections stay unknown.
  */
-function outsideFilledBody(surface: Surface, bounds: AxisAlignedBox, attached: boolean, hull?: readonly ScenePoint[], padding = 0, work: () => boolean = () => true, witnesses?: readonly ScenePoint[], anchor?: ScenePoint): boolean {
+function outsideFilledBody(surface: Surface, bounds: AxisAlignedBox, attached: boolean, hull?: readonly ScenePoint[], padding = 0, work: () => boolean = () => true, witnesses?: readonly ScenePoint[], anchor?: ScenePoint, strict = false): boolean {
   const shape = paintPrimitiveSource(surface.primitive)
   if (shape?.kind !== 'shape') return false
   const inverse = inverseMatrix(scenePrimitiveMatrix(surface.primitive)!)
@@ -230,7 +230,7 @@ function outsideFilledBody(surface: Surface, bounds: AxisAlignedBox, attached: b
     if (witness && (witness.x < painted.x0 || witness.x > painted.x1 || witness.y < painted.y0 || witness.y > painted.y1)) return true
     const samples = witness ? [transformPoint(witness, inverse)] : corners
     let sampleMargin = witness ? 0 : margin
-    const tolerance = witness ? -1e-8 : 1e-8
+    const tolerance = witness ? -1e-8 : strict ? 0 : 1e-8
     const lineTolerance = witness ? -1e-8 : 0
     // The shape writer admits one compound level only. Never reinterpret
     // nested indices as the root's independently painted siblings.
@@ -302,7 +302,7 @@ function outsideFilledBody(surface: Surface, bounds: AxisAlignedBox, attached: b
     const cross = (a: { x: number; y: number }, b: { x: number; y: number }, p: { x: number; y: number }) => (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x)
     const area = points.reduce((sum, a, i) => { const b = points[(i + 1) % points.length]!; return sum + a.x * b.y - b.x * a.y }, 0)
     const direction = Math.sign(area)
-    if (!direction || !points.every((a, i) => points.every(point => work() && direction * cross(a, points[(i + 1) % points.length]!, point) >= -(witness ? 0 : 1e-8)))) return false
+    if (!direction || !points.every((a, i) => points.every(point => work() && direction * cross(a, points[(i + 1) % points.length]!, point) >= -(witness || strict ? 0 : 1e-8)))) return false
     return points.some((a, i) => {
       const b = points[(i + 1) % points.length]!, length = Math.hypot(b.x - a.x, b.y - a.y)
       return length > 0 && samples.every(p => work() && direction * cross(a, b, p) <= (inset - sampleMargin + tolerance) * length)
@@ -314,6 +314,53 @@ function outsideFilledBody(surface: Surface, bounds: AxisAlignedBox, attached: b
   if (attached) contactWitness = witnesses?.find(witness => work() && outside(shape.geometry, surface.borderWidth ?? 0, shape.paint, true, surface.bounds, witness))
   contactAllowed = contactWitness !== undefined
   return outside(shape.geometry)
+}
+
+/** A hidden, unscaled SVG marker viewport clips ALL resource ink, including
+ * round joins outside a polygon hull. A reference on its vertical boundary
+ * therefore supplies one exact half-plane at a cardinal route endpoint.
+ * Keep this separate from global bounds and from any marker-ink witness. */
+function clippedEndpointMarkerBounds(node: NativeConnectorPaintSource, marker: MarkerDescriptor | undefined, position: 'start' | 'mid' | 'end', bounds: AxisAlignedBox, anchor: ScenePoint, work: () => boolean): AxisAlignedBox | undefined {
+  for (let i = 0; i < 18; i++) if (!work()) return undefined
+  if (!marker || position === 'mid' || node.transform || node.route.closed || node.stroke.nonScaling
+    || marker.overflow === 'visible' || (marker.scale ?? 1) !== 1 || marker.paint?.vectorEffect === 'non-scaling-stroke'
+    || marker.orient !== undefined && marker.orient !== 'auto' && marker.orient !== 'auto-start-reverse'
+    || !marker.size || !marker.ref || !(marker.size.width > 0) || !(marker.size.height > 0)
+    || !Number.isFinite(marker.size.width + marker.size.height + marker.ref.x + marker.ref.y)
+    || marker.ref.y < 0 || marker.ref.y > marker.size.height
+    || marker.ref.x !== 0 && marker.ref.x !== marker.size.width
+    || marker.viewBox && (marker.viewBox.x !== 0 || marker.viewBox.y !== 0 || marker.viewBox.width !== marker.size.width || marker.viewBox.height !== marker.size.height)) return undefined
+  const geometry = node.route.geometry
+  let first: ScenePoint | undefined, next: ScenePoint | undefined
+  const take = (x: number, y: number): boolean => {
+    if (!work() || !Number.isFinite(x) || !Number.isFinite(y) || Number(formatSvgNumber(x)) !== x || Number(formatSvgNumber(y)) !== y) return false
+    if (!first) first = { x, y }
+    else if (x !== first.x || y !== first.y) { next = { x, y }; return false }
+    return true
+  }
+  if (geometry.kind === 'line') {
+    if (!take(position === 'start' ? geometry.x1 : geometry.x2, position === 'start' ? geometry.y1 : geometry.y2)) return undefined
+    take(position === 'start' ? geometry.x2 : geometry.x1, position === 'start' ? geometry.y2 : geometry.y1)
+  } else if (geometry.kind === 'polyline') {
+    for (let i = 0; i < geometry.points.length; i++) {
+      const point = geometry.points[position === 'start' ? i : geometry.points.length - i - 1]!
+      if (!take(point.x, point.y)) break
+    }
+  } else return undefined
+  if (!first || !next || first.x !== anchor.x || first.y !== anchor.y || first.x !== next.x && first.y !== next.y) return undefined
+  // The SVG orient="auto" start marker follows the forward path tangent.
+  const reverse = position === 'end' ? -1 : marker.orient === 'auto-start-reverse' ? -1 : 1
+  const side = marker.ref.x === 0 ? 1 : -1
+  const dx = Math.sign(next.x - first.x) * reverse * side
+  const dy = Math.sign(next.y - first.y) * reverse * side
+  if (!work()) return undefined
+  const clipped = {
+    x0: dx > 0 ? Math.max(bounds.x0, anchor.x) : bounds.x0,
+    y0: dy > 0 ? Math.max(bounds.y0, anchor.y) : bounds.y0,
+    x1: dx < 0 ? Math.min(bounds.x1, anchor.x) : bounds.x1,
+    y1: dy < 0 ? Math.min(bounds.y1, anchor.y) : bounds.y1,
+  }
+  return clipped.x0 <= clipped.x1 && clipped.y0 <= clipped.y1 ? clipped : undefined
 }
 
 /** Strict interior points of an emitted convex polygon fill, rather than
@@ -932,7 +979,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
       }
     }
   }
-  type MarkerTarget = { primitive: ScenePaintPrimitive; anchor: ScenePoint; repaint: string; bounds: AxisAlignedBox; hull?: readonly ScenePoint[]; padding?: number; witnesses?: readonly ScenePoint[]; actualInk: boolean; strokeProof?: MarkerPolygonProof; semantic: boolean; mayFill: boolean }
+  type MarkerTarget = { primitive: ScenePaintPrimitive; position: 'start' | 'mid' | 'end'; clipEligible: boolean; anchor: ScenePoint; repaint: string; bounds: AxisAlignedBox; hull?: readonly ScenePoint[]; padding?: number; witnesses?: readonly ScenePoint[]; actualInk: boolean; strokeProof?: MarkerPolygonProof; semantic: boolean; mayFill: boolean }
   const lastMarkers = new Map<string, MarkerTarget>()
   let markerColor: ReturnType<typeof createInlineColorAttributeResolver> | undefined
   const resolveMarkerColor = (value: string): string | undefined => (markerColor ??= createInlineColorAttributeResolver())(value, scene.colors)
@@ -959,7 +1006,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
         && !!matrix && matrix[0] === 1 && matrix[1] === 0 && matrix[2] === 0 && matrix[3] === 1 && matrix[4] === 0 && matrix[5] === 0
       const mayFill = markerMayHaveOpaqueFill(scene, descriptor, work)
       const strokeProof = semantic && exactWorld ? prepareMarkerPolygonInk(scene, node, descriptor, marker.position, work) : undefined
-      lastMarkers.set(key, { primitive, anchor: marker.anchor, repaint: marker.repaint, bounds: marker.bounds, hull: marker.hull, padding: marker.padding, witnesses, actualInk, strokeProof, semantic, mayFill })
+      lastMarkers.set(key, { primitive, position: marker.position, clipEligible: semantic && exactWorld && knownMapping, anchor: marker.anchor, repaint: marker.repaint, bounds: marker.bounds, hull: marker.hull, padding: marker.padding, witnesses, actualInk, strokeProof, semantic, mayFill })
     }
   }
   const markerCheck = (branch: Tree | undefined, target: MarkerTarget): void => {
@@ -979,6 +1026,11 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
       const connector = paintPrimitiveSource(target.primitive)
       const attached = connector?.kind === 'connector' && endpointRelation(connector, surface.primitive.owner) === 'attached'
       if (outsideFilledBody(surface, target.bounds, attached, target.hull, target.padding, work, target.witnesses, target.anchor)) continue
+      if (target.clipEligible && connector?.kind === 'connector') {
+        const descriptor = target.position === 'start' ? connector.markers.start : target.position === 'end' ? connector.markers.end : undefined
+        const clipped = clippedEndpointMarkerBounds(connector, descriptor, target.position, target.bounds, target.anchor, work)
+        if (clipped && outsideFilledBody(surface, clipped, attached, undefined, 0, work, target.witnesses, target.anchor, true)) continue
+      }
       issue({ code: 'POTENTIAL_OCCLUSION', id: target.primitive.id, by: surface.primitive.id, message: 'Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified' })
     }
   }

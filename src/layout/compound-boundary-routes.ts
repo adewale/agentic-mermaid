@@ -8,7 +8,7 @@ import { createPeerGeometryOwner, type PeerGeometryOwner, type PeerLease } from 
 import type { AgenticLayout, MeasuredGraph } from './agentic-layered-core.ts'
 import type { ChannelWork } from './channel-tracks.ts'
 import type { Direction, Point } from '../types.ts'
-import { scoreMeasuredRouteCrossings, segmentEntersMeasuredBox } from './measured-route-safety.ts'
+import { scoreMeasuredRouteCrossings, scoreMeasuredRouteProposalCrossings, measuredRouteContactPairBudget, segmentEntersMeasuredBox, type MeasuredSharpContactWitness } from './measured-route-safety.ts'
 import { simplifyOrthogonal, type RoutingBox, type Terminal } from './compound-visibility.ts'
 import { createEndpointSparseVisibilityGraph, createSparseAdjacencyStoragePool, createSparseQueryWorkspacePool, createSparseVisibilityGraph, type SparseQueryWorkspacePool } from './compound-sparse-visibility.ts'
 import { createLazyVisibilityGrid } from './compound-lazy-visibility.ts'
@@ -260,6 +260,22 @@ export function createBoundaryContactValidator(
   input: MeasuredGraph, index: number, routes: readonly { points: Point[]; style: string }[],
   work: ChannelWork, fail: (reason: string) => never,
 ): (points: Point[]) => boolean {
+  return prepareBoundaryContactValidator(input,index,routes,work,fail,scoreMeasuredRouteCrossings)
+}
+
+/** Proposal-only search. No success is entered into markerCurrentProofs;
+ * the global ALL-visible/rescued closure below remains mandatory. */
+function createBoundaryProposalContactValidator(
+  input:MeasuredGraph,index:number,routes:readonly {points:Point[];style:string}[],work:ChannelWork,fail:(reason:string)=>never,
+):(points:Point[])=>boolean {
+  return prepareBoundaryContactValidator(input,index,routes,work,fail,scoreMeasuredRouteProposalCrossings)
+}
+
+function prepareBoundaryContactValidator(
+  input:MeasuredGraph,index:number,routes:readonly {points:Point[];style:string}[],work:ChannelWork,fail:(reason:string)=>never,
+  score:typeof scoreMeasuredRouteCrossings,
+):(points:Point[])=>boolean {
+  const pairBudget=measuredRouteContactPairBudget(input,score===scoreMeasuredRouteProposalCrossings?'proposal':'complete')
   let peerSegments = 0, peerPoints = 0, peerCount = 0
   for (let other = 0; other < routes.length; other++) {
     if (--work.pairs < 0) fail('agentic local cross-hierarchy crossing-work limit')
@@ -275,9 +291,9 @@ export function createBoundaryContactValidator(
   if (input.maximumEdgeStrokeWidth !== undefined) reserveContactBounds(work, fail)
   const reserve = input.maximumEdgeStrokeWidth === undefined ? undefined : (amount: number): void => reserveContactBounds(work, fail, amount)
   const exact = (points: Point[]): boolean => {
-    work.pairs -= 3 * Math.max(0, points.length - 1) * peerSegments + points.length + peerSegments
+    work.pairs -= pairBudget * Math.max(0, points.length - 1) * peerSegments + points.length + peerSegments
     if (work.pairs < 0) fail('agentic local cross-hierarchy crossing-work limit')
-    return scoreMeasuredRouteCrossings(points, index, routes, input, charge, reserve) !== undefined
+    return score(points, index, routes, input, charge, reserve,undefined,pairBudget) !== undefined
   }
   // Small proofs keep their original admission. Larger proofs are prepared
   // lazily only when the possible subtraction exceeds their comparison work.
@@ -290,7 +306,7 @@ export function createBoundaryContactValidator(
     const segments = Math.max(0, points.length - 1)
     const comparisonWork = 1 + 9 * points.length + (input.maximumEdgeStrokeWidth === undefined ? 8 : 20) * peerCount + routes.length
     const preparationWork = selected ? 0 : 9 * peerPoints + peerCount + 3 * routes.length
-    const possibleSubtraction = (3 * segments + 1) * peerSegments
+    const possibleSubtraction = (pairBudget * segments + 1) * peerSegments
     if (!Number.isSafeInteger(possibleSubtraction) || possibleSubtraction <= comparisonWork + preparationWork) return exact(points)
     if (!selected) {
       reserveContactBounds(work, fail, 2 * routes.length)
@@ -318,8 +334,8 @@ export function createBoundaryContactValidator(
       peer.style = separatedContactBounds(candidate, peer, charge, input.maximumEdgeStrokeWidth) ? 'invisible' : peer.originalStyle
       if (peer.style !== 'invisible') remaining += Math.max(0, peer.points.length - 1)
     }
-    charge(3 * segments * remaining + points.length + remaining)
-    return scoreMeasuredRouteCrossings(points, index, selected, input, charge, reserve) !== undefined
+    charge(pairBudget * segments * remaining + points.length + remaining)
+    return score(points, index, selected, input, charge, reserve,undefined,pairBudget) !== undefined
   }
 }
 
@@ -334,8 +350,11 @@ export function assertFinalBoundaryContacts(
     work.pairs -= amount
     if (work.pairs < 0) fail('agentic local cross-hierarchy crossing-work limit')
   }
-  if (input.maximumEdgeStrokeWidth !== undefined) reserveContactBounds(work, fail)
+  // Every known-width entry (including markerless/empty-rescue closure)
+  // reserves its own route records, reference array and map callback.
+  if (input.maximumEdgeStrokeWidth !== undefined) reserveContactBounds(work, fail, 2 * placed.edges.length + 3)
   const reserve = input.maximumEdgeStrokeWidth === undefined ? undefined : (amount: number): void => reserveContactBounds(work, fail, amount)
+  const pairBudget=measuredRouteContactPairBudget(input)
   let visibleSegments = 0, visiblePoints = 0, visibleCount = 0
   const routes = placed.edges.map((route, index) => {
     charge()
@@ -350,11 +369,32 @@ export function assertFinalBoundaryContacts(
     if (visible) { visibleSegments += Math.max(0, route.points.length - 1); visiblePoints += route.points.length; visibleCount++ }
     return { ...route, style: visible ? 'solid' : 'invisible', orthogonal, covered: false }
   })
+  // Local scopes have no physical-width metadata. Close their globally
+  // projected routes here too; an untouched route is not a prior proof.
+  let allCandidates: number[] | undefined
+  if (input.maximumEdgeStrokeWidth !== undefined && input.maximumEdgeBendRadius === 0) {
+    reserveContactBounds(work, fail, rescued.size + routes.length + 1)
+    allCandidates = []
+    // Preserve directional checks for old invisible rescues as well as adding
+    // every visible global route. Visibility does not replace that contract.
+    for (const index of rescued) {
+      charge()
+      allCandidates.push(index)
+    }
+    for (let index = 0; index < routes.length; index++) {
+      charge()
+      if (input.edges[index]!.visible !== false) {
+        charge()
+        if (!rescued.has(index)) allCandidates.push(index)
+      }
+    }
+  }
+  const candidates = allCandidates ?? rescued
   let bounds: (ContactRouteBounds | undefined)[] | undefined
   if (visibleSegments >= 32) {
     let largest = 0
-    for (const index of rescued) { charge();if(currentSceneProven){charge();if(routes[index]!.orthogonal&&input.edges[index]!.visible!==false&&currentSceneProven.has(index))continue} largest = Math.max(largest, routes[index]!.points.length - 1) }
-    const possibleSubtraction = (3 * largest + 1) * visibleSegments
+    for (const index of candidates) { charge();if(currentSceneProven){charge();if(routes[index]!.orthogonal&&input.edges[index]!.visible!==false&&currentSceneProven.has(index))continue} largest = Math.max(largest, routes[index]!.points.length - 1) }
+    const possibleSubtraction = (pairBudget * largest + 1) * visibleSegments
     const preparationWork = 9 * visiblePoints + visibleCount + 2 * routes.length + (input.maximumEdgeStrokeWidth === undefined ? 8 : 20) * visibleCount
     if (Number.isSafeInteger(possibleSubtraction) && possibleSubtraction > preparationWork) {
       reserveContactBounds(work, fail, routes.length)
@@ -371,7 +411,7 @@ export function assertFinalBoundaryContacts(
       }
     }
   }
-  for (const index of rescued) {
+  for (const index of candidates) {
     const route = routes[index]!, points = route.points
     const symmetric = route.orthogonal && input.edges[index]!.visible !== false
     if(currentSceneProven){charge();if(symmetric&&currentSceneProven.has(index))continue}
@@ -384,9 +424,37 @@ export function assertFinalBoundaryContacts(
       if (bounds && other !== index && peer.style !== 'invisible' && separatedContactBounds(bounds[index], bounds[other], charge, input.maximumEdgeStrokeWidth)) peer.style = 'invisible'
       if (other !== index && peer.style !== 'invisible') peerSegments += Math.max(0, peer.points.length - 1)
     }
-    charge(3 * Math.max(0, points.length - 1) * peerSegments + points.length + peerSegments + routes.length)
-    if (scoreMeasuredRouteCrossings(points, index, routes, input, charge, reserve) === undefined) fail('cross-hierarchy routes have an uncertified shared contact')
+    charge(pairBudget * Math.max(0, points.length - 1) * peerSegments + points.length + peerSegments + routes.length)
+    if (scoreMeasuredRouteCrossings(points, index, routes, input, charge, reserve,undefined,pairBudget) === undefined) fail('cross-hierarchy routes have an uncertified shared contact')
     if (symmetric) route.covered = true
+  }
+}
+
+/** Restore an emitted-identical endpoint to its subject's exact raw side.
+ * Reflection and group translation may otherwise put it just inside the body.
+ * This runs after all old leases and before constructing marker reservations. */
+export function restoreMeasuredEndpointFaces(input: MeasuredGraph, placed: AgenticLayout, subjects: readonly RoutingBox[], work: ChannelWork, reserveExpanded: (amount: number) => void, fail: (reason: string) => never): void {
+  for (let index = 0; index < input.edges.length; index++) for (let role = 0; role < 2; role++) {
+    work.pairs -= 10
+    if (work.pairs < 0) fail('agentic marker endpoint work limit')
+    const route = placed.edges[index]!.points, edge = input.edges[index]!, source = role === 0
+    if (route.length < 2) continue
+    const endpoint = source ? 0 : route.length - 1, p = route[endpoint]!, q = source ? route[1]! : route.at(-2)!, box = subjects[source ? edge.source : edge.target]!
+    let axis: 'x' | 'y', side: number
+    if (p.x === q.x && p.y !== q.y) { axis = 'y'; side = q.y > p.y ? box.y + box.height : box.y }
+    else if (p.y === q.y && p.x !== q.x) { axis = 'x'; side = q.x > p.x ? box.x + box.width : box.x }
+    else continue
+    if (p[axis] === side) continue
+    work.arcs -= 10
+    work.pairs -= 256
+    if (work.arcs < 0) fail('agentic marker endpoint capacity limit')
+    if (work.pairs < 0) fail('agentic marker endpoint work limit')
+    if (formatSvgNumber(p[axis]) !== formatSvgNumber(side)) continue
+    reserveExpanded(1)
+    if (--work.arcs < 0) fail('agentic marker endpoint capacity limit')
+    work.pairs -= 3
+    if (work.pairs < 0) fail('agentic marker endpoint work limit')
+    route[endpoint] = { x: p.x, y: p.y, [axis]: side }
   }
 }
 
@@ -398,6 +466,7 @@ function seatFinalMeasuredMarkers(
   work: ChannelWork, reserveExpanded: (amount: number) => void, fail: (reason: string) => never,
   rescued: Set<number>, clearance: number, widthProof: number, proveAll = false,
 ): Set<number> {
+    if (proveAll || input.maximumEdgeBendRadius === 0) restoreMeasuredEndpointFaces(input, placed, subjects, work, reserveExpanded, fail)
     work.arcs -= 14
     if (work.arcs<0) fail('agentic marker full-proof capacity limit')
     const charge = (amount = 1): void => { work.pairs -= amount; if (work.pairs < 0) fail('agentic marker full-proof work limit') }
@@ -414,8 +483,20 @@ function seatFinalMeasuredMarkers(
     for(let index=0;index<input.edges.length;index++){if(--work.pairs<0)fail('agentic marker full-proof work limit');const l=input.edges[index]!.label,p=placed.edges[index]!.labelPosition;if(l&&p)seatingObstacles.push({x:p.x-l.width/2-2,y:p.y-l.height/2-2,width:l.width+4,height:l.height+4})}
     const proofBox: RoutingBox = {x:0,y:0,width:0,height:0}
     const paintRectangle = [{kind:'polygon' as const,points:[{x:0,y:0},{x:0,y:0},{x:0,y:0},{x:0,y:0}]}]
-    const validate = (index: number, candidate: Point[]): boolean => {
+    const validate = (index: number, candidate: Point[], witness?: MeasuredSharpContactWitness, contactOnly = false): boolean => {
       const edge = input.edges[index]!, old = placed.edges[index]!
+      charge()
+      if (contactOnly) {
+        // This is the new final contact audit of an UNCHANGED compound path.
+        // Its producer and final owned-surface admission still own geometry.
+        // Flat raw paths and ALL proposed replacements take the full branch.
+        if (candidate !== old.points || edge.visible === false || candidate.length < 2) return false
+        for (let cursor = 0; cursor < candidate.length; cursor++) {
+          charge(3)
+          const point = candidate[cursor]!
+          if (!Number.isFinite(point.x) || !Number.isFinite(point.y) || cursor && point.x !== candidate[cursor-1]!.x && point.y !== candidate[cursor-1]!.y) return false
+        }
+      } else {
       if (selfContact(candidate, work, fail)) return false
       for (let cursor = 0; cursor < candidate.length; cursor++) {
         charge(); const point = candidate[cursor]!
@@ -460,15 +541,31 @@ function seatFinalMeasuredMarkers(
           if (segmentEntersMeasuredBox(a,b,proofBox)) return false
         }
       }
+      }
       // Original exact contact scorer on CURRENT peers; selected metadata is
-      // reserved and scanned before proof, with unchanged coefficient three.
+      // reserved and scanned before proof. Sharp-separated pairs execute only
+      // their support bound; the scorer charges both remaining near predicates.
       work.arcs -= 2*placed.edges.length+1
       if (work.arcs<0) fail('agentic marker full-proof capacity limit')
+      // Only an unchanged committed array may reuse a peer's complete contact
+      // CURRENT positive proof. Every proposed replacement sees all peers.
+      // At the last write of either pair member, its proof saw both arrays;
+      // later writes must pass this same complete admission before publication.
+      charge(3)
+      const unchanged=candidate===old.points&&edge.visible!==false
       let segments=0
-      const routes=placed.edges.map((route,other)=>{charge();if(other!==index&&input.edges[other]!.visible!==false)segments+=Math.max(0,route.points.length-1);return {...route,style:input.edges[other]!.visible===false?'invisible':'solid'}})
-      charge(3*(candidate.length-1)*segments+candidate.length+segments)
-      return scoreMeasuredRouteCrossings(candidate,index,routes,input,charge,reserve)!==undefined
+      const routes=placed.edges.map((route,other)=>{
+        charge()
+        let visible=input.edges[other]!.visible!==false
+        if(unchanged&&visible&&other!==index){charge(2);if(markerCurrentProofs.has(other))visible=false}
+        if(other!==index&&visible)segments+=Math.max(0,route.points.length-1)
+        return {...route,style:visible?'solid':'invisible'}
+      })
+      charge(measuredRouteContactPairBudget(input)*(candidate.length-1)*segments+candidate.length+segments)
+      return scoreMeasuredRouteCrossings(candidate,index,routes,input,charge,reserve,witness,measuredRouteContactPairBudget(input))!==undefined
     }
+    // One additional call-local inspection callback; no retained search proof.
+    reserve(1)
     seatMeasuredMarkers(input.edges, placed.edges, subjects, work, reserveExpanded, fail, validate, index => {
       // Called only AFTER the same accepted array is committed. Every successful
       // marker/yield full proof saw ALL then-current finalized visible routes.
@@ -497,7 +594,21 @@ function seatFinalMeasuredMarkers(
       for(let other=0;other<input.edges.length;other++){charge();const label=input.edges[other]!.label,center=placed.edges[other]!.labelPosition
         if(label&&center&&!markerBoxClear(center.x-label.width/2-2,center.y-label.height/2-2,label.width+4,label.height+4))return false}
       return true
-    }, widthProof, input.maximumEdgeBendRadius??0, {bounds:seatingBounds,obstacles:seatingObstacles})
+    }, widthProof, input.maximumEdgeBendRadius??0, {bounds:seatingBounds,obstacles:seatingObstacles}, input.maximumEdgeBendRadius===0 ? (index,witness) => {
+      charge(5)
+      witness.candidateSegment=witness.peerIndex=witness.peerSegment=-1
+      if(markerCurrentProofs.has(index))return false
+      if(validate(index,placed.edges[index]!.points,witness,!proveAll)){
+        reserve(1)
+        markerCurrentProofs.add(index)
+        return false
+      }
+      // Only an exact sharp refusal owns a support witness. Metric, body,
+      // label, unknown or exhausted results cannot become a repair license.
+      charge(6)
+      if(witness.peerIndex<0||witness.peerIndex>=placed.edges.length||witness.peerIndex===index||witness.candidateSegment<1||witness.candidateSegment>=placed.edges[index]!.points.length||witness.peerSegment<1||witness.peerSegment>=placed.edges[witness.peerIndex]!.points.length)fail('Measured final route violates its owned path or contact reservation')
+      return true
+    } : undefined)
     if(proveAll)for(let index=0;index<placed.edges.length;index++){
       charge(2)
       if(markerCurrentProofs.has(index))continue
@@ -514,7 +625,14 @@ export function finalizeFlatMeasuredMarkers(input: MeasuredGraph, placed: Agenti
   if(input.placementOnly || input.groups?.length || input.maximumEdgeStrokeWidth===undefined)return placed
   let marker=false
   for(const edge of input.edges){if(--work.pairs<0)fail('agentic marker metadata work limit');if(edge.markerPaint?.start?.length||edge.markerPaint?.end?.length){marker=true;break}}
-  if(!marker)return placed
+  if(!marker){
+    if(input.maximumEdgeBendRadius===0){
+      reserveContactBounds(work,fail)
+      if(--work.pairs<0)fail('agentic marker full-proof work limit')
+      assertFinalBoundaryContacts(input,placed,new Set(),work,fail)
+    }
+    return placed
+  }
   const count=input.nodes.length, edges=input.edges.length
   // Body records + both reference arrays, two empty frame views, the set and
   // its slots, and the retained point-reservation closure: reserve before work.
@@ -534,26 +652,8 @@ export function finalizeFlatMeasuredMarkers(input: MeasuredGraph, placed: Agenti
   // Compact that identical ink before interpreting actual terminal tangents;
   // reversals survive and still fail the complete self-contact proof.
   for(const route of placed.edges){if(--work.pairs<0)fail('agentic flat marker path work limit');compactProvedPath(route.points,work,fail)}
-  // Cyclic reflection can express a border as extent-(extent-side), while
-  // its node uses origin+size. Restore the node's exact raw side only when the
-  // actual SVG spelling is IDENTICAL; this never moves an emitted endpoint.
-  for(let index=0;index<edges;index++)for(let role=0;role<2;role++){
-    work.pairs-=20
-    if(work.pairs<0)fail('agentic flat marker endpoint work limit')
-    const route=placed.edges[index]!.points,edge=input.edges[index]!,source=role===0
-    if(route.length<2)continue
-    const p=source?route[0]!:route.at(-1)!,q=source?route[1]!:route.at(-2)!,box=subjects[source?edge.source:edge.target]!
-    if(p.x===q.x&&p.y!==q.y){
-      const side=q.y>p.y?box.y+box.height:box.y
-      if(formatSvgNumber(p.y)===formatSvgNumber(side))p.y=side
-    }else if(p.y===q.y&&p.x!==q.x){
-      const side=q.x>p.x?box.x+box.width:box.x
-      if(formatSvgNumber(p.x)===formatSvgNumber(side))p.x=side
-    }
-  }
   const proofs=seatFinalMeasuredMarkers(input,placed,nodes,frames,subjects,headerGroups,work,reserveExpanded,fail,rescued,Math.max(8,input.edgeSpacing??6),input.maximumEdgeStrokeWidth,true)
-  work.arcs-=2*edges+2 // final route records, reference array and map callback
-  if(work.arcs<0)fail('agentic marker full-proof capacity limit')
+  // The final contact owner reserves its own map/scratch for every entry.
   assertFinalBoundaryContacts(input,placed,rescued,work,fail,proofs)
   // Every current carrier participates in marker proofs, including an
   // unchanged route. The original shortening must preserve all of them.
@@ -734,7 +834,7 @@ export function routeCrossHierarchy(
         // A pending quotient still terminates on an ancestor frame. Its pair is
         // checked when its authored leaf route is finalized below.
         const routes = placed.edges.map((route, other) => ({ ...route, style: input.edges[other]!.visible === false || ancestorPlan?.connections.has(other) || lifted.has(other) && !completed.has(other) ? 'invisible' : 'solid' }))
-        const contactsClear = createBoundaryContactValidator(input, index, routes, work, fail)
+        const contactsClear = createBoundaryProposalContactValidator(input, index, routes, work, fail)
         const accept = (path: Point[]): Point[] | undefined => {
           const candidate = selfContact(path, work, fail) ? removeClosedExcursions(path, work, fail) : path
           if (candidate.length < 2) return
@@ -846,7 +946,7 @@ export function routeCrossHierarchy(
               // Finalized incident edges already own their physical escape rays.
               // Reject occupied rays before shortest-path state merging can hide
               // an available occurrence-specific port behind the same goal state.
-              return scoreMeasuredRouteCrossings(source ? [terminal.port, terminal.stub] : [terminal.stub, terminal.port], index, incident, input, chargePhysicalContact, reservePhysicalContact) !== undefined
+              return scoreMeasuredRouteProposalCrossings(source ? [terminal.port, terminal.stub] : [terminal.stub, terminal.port], index, incident, input, chargePhysicalContact, reservePhysicalContact) !== undefined
             })
           }
           const lateTerminals = (endpoint: number, source: boolean): Terminal[] => {
@@ -1099,9 +1199,9 @@ export function routeCrossHierarchy(
             if (--work.pairs < 0) fail('agentic local cross-hierarchy obstacle-work limit')
             if (segmentEntersMeasuredBox(points[cursor - 1]!, points[cursor]!, obstacle)) return false
           }
-          work.pairs -= 3 * Math.max(0, points.length - 1) * peerSegments + points.length + peerSegments
+          work.pairs -= measuredRouteContactPairBudget(input,'proposal') * Math.max(0, points.length - 1) * peerSegments + points.length + peerSegments
           if (work.pairs < 0) fail('agentic local cross-hierarchy crossing-work limit')
-          return scoreMeasuredRouteCrossings(points, index, routes, input, chargePhysicalContact, reservePhysicalContact) !== undefined
+          return scoreMeasuredRouteProposalCrossings(points, index, routes, input, chargePhysicalContact, reservePhysicalContact) !== undefined
         },
       })
       routePoints += result.points.length - raw.points.length
@@ -1114,7 +1214,7 @@ export function routeCrossHierarchy(
   // Marker seating runs after ALL old graph/query leases and before final
   // pair closure. It includes primary/local routes, not only boundary rescues.
   if(markerPaint)markerCurrentProofs=seatFinalMeasuredMarkers(input,placed,nodes,frames,subjects,headerGroups,work,reserveExpanded,fail,rescued,clearance,widthProof!)
-  if (rescued.size) assertFinalBoundaryContacts(input, placed, rescued, work, fail, markerCurrentProofs)
+  if (rescued.size || widthProof !== undefined && input.maximumEdgeBendRadius === 0) assertFinalBoundaryContacts(input, placed, rescued, work, fail, markerCurrentProofs)
   const boundaryRoutes = [...lifted.keys()]
   if (ancestorPlan?.connections.size) {
     for (const index of ancestorPlan.connections.keys()) if (!lifted.has(index)) boundaryRoutes.push(index)

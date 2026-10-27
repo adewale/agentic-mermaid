@@ -16,6 +16,33 @@ describe('renderResolvedScene', () => {
     expect(result).toEqual(JSON.parse(JSON.stringify(result)))
   })
 
+  test.each([
+    { family: 'class', source: 'classDiagram\nclass A\nclass B\nA <|-- B : inherits\nclassDef default fill:#ffeecc,stroke:#112233,stroke-width:3px,stroke-dasharray:7 3\nclassDef accent fill:#bbf,stroke:#f66,stroke-width:2px\nclass B accent\nstyle B stroke-dasharray:5 5,color:#fff', a: 'class:A', b: 'class:B', relationship: 'rel:A->B#0' },
+    { family: 'er', source: 'erDiagram\nA ||--o{ B : links\nclassDef default fill:#ffeecc,stroke:#112233,stroke-width:3px,stroke-dasharray:7 3\nclassDef accent fill:#bbf,stroke:#f66,stroke-width:2px\nclass B accent\nstyle B stroke-dasharray:5 5,color:#fff', a: 'entity:A', b: 'entity:B', relationship: 'rel:A-B#0' },
+  ])('keeps $family authored paint and dashes identical to public SVG', ({ source, a, b, relationship }) => {
+    for (const backend of ['agentic', 'elk'] as const) {
+      const options = { graphLayout: { backend, fallback: 'none' as const }, bg: '#ffffff', fg: '#102030', seed: 7, compact: true, idPrefix: 'resolved-paint-', font: 'Inter' }
+      const result = renderResolvedScene(source, options)
+      expect(result.svg).toBe(renderMermaidSVG(source, options))
+      expect(result.colors).toMatchObject({ bg: '#ffffff', fg: '#102030' })
+      const first = result.parts.find(part => part.id === a)!, second = result.parts.find(part => part.id === b)!
+      expect(first.node.kind).toBe('group')
+      expect(second.node.kind).toBe('group')
+      if (first.node.kind !== 'group' || second.node.kind !== 'group') throw new Error('Expected owned entity groups')
+      const firstBox = first.node.children.find(child => child.node.kind === 'shape' && child.node.geometry.kind === 'rect')?.node
+      const secondBox = second.node.children.find(child => child.node.kind === 'shape' && child.node.geometry.kind === 'rect')?.node
+      if (firstBox?.kind !== 'shape' || secondBox?.kind !== 'shape') throw new Error('Expected retained body rectangles')
+      expect(firstBox.paint).toMatchObject({ fill: '#ffeecc', stroke: '#112233', strokeWidth: '3', strokeDasharray: '7 3' })
+      expect(secondBox.paint).toMatchObject({ fill: '#bbf', stroke: '#f66', strokeWidth: '2', strokeDasharray: '5 5' })
+      expect(first.primitives.find(primitive => primitive.kind === 'path')?.paint).toMatchObject({ fill: '#ffeecc', stroke: '#112233', strokeWidth: 3, dashArray: [7, 3] })
+      expect(second.primitives.find(primitive => primitive.kind === 'path')?.paint).toMatchObject({ fill: '#bbbbff', stroke: '#ff6666', strokeWidth: 2, dashArray: [5, 5] })
+      expect(second.primitives).toContainEqual(expect.objectContaining({ kind: 'text', text: 'B', paint: expect.objectContaining({ fill: '#ffffff' }) }))
+      const edge = result.parts.find(part => part.id === relationship)!
+      expect(edge.node.kind === 'connector' && edge.node.endpoints).toMatchObject({ from: 'A', to: 'B' })
+      expect(result).toEqual(JSON.parse(JSON.stringify(result)))
+    }
+  })
+
   test('preserves parallel and reciprocal connector identities beside nested Unicode labels', () => {
     const source = 'flowchart LR\nsubgraph Outer["外 é"]\nsubgraph Inner[Inner]\nA["First 界"]\nend\nB[Second]\nend\nA -->|one| B\nA -->|two| B\nB -->|back| A'
     const result = renderResolvedScene(source)

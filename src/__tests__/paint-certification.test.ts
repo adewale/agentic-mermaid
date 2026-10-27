@@ -30,6 +30,46 @@ const label = () => {
 }
 const surface = (fill = '#fff') => marks.shape({ id: 'cover', role: 'node', geometry: { kind: 'rect', x: 10, y: 10, width: 80, height: 60 }, paint: { fill } })
 
+test.each(['default-hidden', 'explicit-hidden', 'user-space', 'start', 'reverse-start', 'vertical', 'borderless', 'matched-viewbox', 'visible', 'interior-ref', 'entering', 'tiny-entering', 'scale-hint', 'viewbox', 'rotated', 'diagonal', 'written-mismatch', 'unknown-width', 'unsupported-output'] as const)('a clipped endpoint viewport proves complete marker containment only for %s', mode => {
+  const start = mode === 'start' || mode === 'reverse-start', vertical = mode === 'vertical'
+  const marker: MarkerDescriptor = tipAnchoredArrow('viewport-arrow', { width: 8, height: 5 }, start && mode !== 'reverse-start' ? 'start' : 'end', { fill: '#111', stroke: '#111', strokeWidth: '0.75', strokeLinejoin: 'round' }, mode === 'user-space' ? 'userSpaceOnUse' : undefined)
+  if (mode === 'reverse-start') marker.orient = 'auto-start-reverse'
+  if (mode === 'explicit-hidden') marker.overflow = 'hidden'
+  if (mode === 'visible') marker.overflow = 'visible'
+  if (mode === 'interior-ref') marker.ref = { x: 7, y: 2.5 }
+  if (mode === 'scale-hint') marker.scale = 2
+  if (mode === 'viewbox') marker.viewBox = { x: 0, y: 0, width: 16, height: 5 }
+  if (mode === 'matched-viewbox') marker.viewBox = { x: 0, y: 0, width: 8, height: 5 }
+  if (mode === 'rotated') marker.orient = 90
+  const borderless = mode === 'borderless' || mode === 'tiny-entering'
+  const anchor = mode === 'entering' ? 61 : mode === 'tiny-entering' ? 60.000000001 : 60
+  const points = vertical ? [{ x: 40, y: 20 }, { x: 40, y: anchor }] : start ? [{ x: anchor, y: 40 }, { x: 20, y: 40 }] : [{ x: 20, y: 40 }, { x: anchor, y: 40 }]
+  if (mode === 'diagonal') points[0]!.y = 30
+  if (mode === 'written-mismatch') points[1]!.y = 40.00000000000001
+  const edge = marks.connector({ id: 'viewport-edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'polyline', points }, paint: { stroke: '#111', strokeWidth: mode === 'unknown-width' ? 'var(--host)' : mode === 'viewbox' ? '4' : '2' }, endpoints: start ? { from: 'viewport-node', to: 'outside' } : { from: 'outside', to: 'viewport-node' }, markers: start ? { start: marker } : { end: marker } })
+  const card = marks.shape({ id: 'viewport-node', role: 'node', geometry: vertical ? { kind: 'rect', x: 20, y: 60, width: 40, height: 30 } : { kind: 'rect', x: 60, y: 20, width: 30, height: 40, ...(borderless ? { rx: 5, ry: 5 } : {}) }, paint: { fill: '#fff', stroke: borderless ? 'none' : '#888', strokeWidth: '0.75' } })
+  const proof = certifyScenePaint(scene([edge, card]), undefined, { outputSupported: mode !== 'unsupported-output' })
+  if (['default-hidden', 'explicit-hidden', 'user-space', 'start', 'reverse-start', 'vertical', 'borderless', 'matched-viewbox'].includes(mode)) expect(proof.status).toBe('passed')
+  else expect(proof.status).not.toBe('passed')
+})
+
+test.each(['agentic', 'elk'] as const)('public %s thick-arrow and borderless-state markers retain clipping and actual meaning', backend => {
+  for (const source of ['flowchart LR\nA ==> B', 'stateDiagram-v2\nstate fork_state <<fork>>\n[*] --> fork_state\nfork_state --> State2\nfork_state --> State3\nstate join_state <<join>>\nState2 --> join_state\nState3 --> join_state\njoin_state --> State4\nState4 --> [*]']) {
+    const result = renderMermaidSVGWithReceipt(source, { graphLayout: { backend, fallback: 'none' } })
+    expect(result.receipt.layoutCertification?.status).toBe(backend === 'elk' && source.startsWith('stateDiagram') ? 'unverified' : 'passed')
+    expect(result.svg).toContain('marker-end="url(#arrowhead)"')
+    expect(result.svg).toContain('refX="8"')
+    expect(result.svg).not.toContain('overflow="visible"')
+    if (source.startsWith('flowchart')) {
+      expect(result.svg).toContain('data-id="edge:A-&gt;B#0"')
+      expect(result.svg).toContain('stroke-width="2"')
+    } else {
+      expect(result.svg).toContain('data-id="edge:_start-&gt;fork_state#0"')
+      expect(result.svg).toContain('data-id="edge:State3-&gt;join_state#0"')
+    }
+  }
+})
+
 test.each(['ellipse', 'circle'] as const)('a supporting line proves a diagonal marker outside a %s while retaining an entering marker as uncertain', kind => {
   const rx = kind === 'circle' ? 20 : 30, ry = 20, cx = 60, cy = 40
   const point = { x: cx - rx / Math.SQRT2, y: cy - ry / Math.SQRT2 }

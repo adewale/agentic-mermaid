@@ -24,9 +24,9 @@ import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle, diagramTit
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { elkLayoutSync } from '../elk-instance.ts'
-import { directionToElk } from '../layout/direction.ts'
+import { directionToElk } from '../layout/backend.ts'
 import { layoutAgenticGraph } from '../layout/agentic-layered.ts'
-import { runMeasuredGraphBackend } from '../layout/measured-backend.ts'
+import { runMeasuredGraphBackend } from '../layout/backend.ts'
 import { LayoutCertificationError } from '../layout/certification-error.ts'
 import { measureRenderStage } from '../render-stages.ts'
 import { checkedAuthoredStyle } from '../shared/style-props.ts'
@@ -472,8 +472,27 @@ function buildErElkGraph(
   options: RenderOptions,
   entitySizes: EntitySizeMap,
   styleFace?: Readonly<InternalStyleFace>,
+  work: ErGeometryWork = { operations: 0 },
 ): { elkGraph: ElkNode; entitySizes: EntitySizeMap } {
   const style = resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace)
+  // ER cardinalities are real endpoint ink, unlike ELK's zero-sized ports.
+  // Reserve their normal reach before ELK chooses nearby return channels.
+  // Match Native's conservative per-card incidence capacity as well: ELK may
+  // place every incidence on one face, including both ends of a self-loop.
+  let markerClearance = 0
+  const spans = new Map<string, number>()
+  for (const rel of diagram.relationships) {
+    const role = resolveRoleStyle(styleFace, 'relationship', { category: rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })
+    for (const [id, cardinality] of [[rel.entity1, rel.cardinality1], [rel.entity2, rel.cardinality2]] as const) {
+      // Canonical cardinalities contain at most four shape bounds; debit
+      // their construction, union and this retained capacity record together.
+      erCharge(work, 12)
+      const bound = erCardinalityEnvelope(cardinality, style.lineWidth)
+      if (!bound) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
+      markerClearance = Math.max(markerClearance, bound.x1 + (role?.bendRadius ?? style.edgeBendRadius) + (role?.lineWidth ?? style.lineWidth) / 2)
+      if (entitySizes.has(id)) spans.set(id, (spans.get(id) ?? 0) + bound.y1 - bound.y0 + style.lineWidth + .25)
+    }
+  }
 
   const elkGraph: ElkNode = {
     id: 'root',
@@ -486,6 +505,9 @@ function buildErElkGraph(
       'elk.layered.spacing.nodeNodeBetweenLayers': String(options.layerSpacing ?? ER.layerSpacing),
       'elk.padding': `[top=${ER.padding},left=${ER.padding},bottom=${ER.padding},right=${ER.padding}]`,
       'elk.edgeRouting': 'ORTHOGONAL',
+      // Locked ELK's default is 10px. Preserve it when it already contains
+      // all cardinality ink plus the actual carrier half-width/bend margin.
+      ...(markerClearance > 10 ? { 'elk.layered.spacing.edgeNodeBetweenLayers': String(markerClearance) } : {}),
       'elk.edgeLabels.placement': 'CENTER',
     },
     children: [],
@@ -493,8 +515,9 @@ function buildErElkGraph(
   }
 
   for (const entity of diagram.entities) {
-    const size = entitySizes.get(entity.id)!
-    elkGraph.children!.push({ id: entity.id, width: size.width, height: size.height })
+    const size = entitySizes.get(entity.id)!, span = (spans.get(entity.id) ?? 0) + 2 * Math.max(8, style.cornerRadius ?? 0)
+    erCharge(work)
+    elkGraph.children!.push({ id: entity.id, width: Math.max(size.width, span), height: Math.max(size.height, span) })
   }
 
   const entityIds = new Set(diagram.entities.map(entity => entity.id))
@@ -526,10 +549,11 @@ function extractErLayout(
   for (const entity of diagram.entities) entityLookup.set(entity.id, entity)
 
   const positionedEntities: PositionedErEntity[] = []
+  const defaultStyle = checkedAuthoredStyle(diagram.classDefs.get('default'), 'classDef default')
   for (const child of result.entities) {
     const entity = entityLookup.get(child.id)
     if (entity) {
-      const classStyle: Record<string, string> = {}
+      const classStyle: Record<string, string> = { ...defaultStyle }
       for (const name of entity.className?.split(/[ \t]+/) ?? []) Object.assign(classStyle, checkedAuthoredStyle(diagram.classDefs.get(name), `classDef ${name}`))
       positionedEntities.push({
         id: entity.id,
@@ -1147,7 +1171,7 @@ export function layoutErDiagram(
   const elkPlacement = (): ErPlacement => {
     // A fallback is not a fresh request or a fresh geometry-work allowance.
     erCharge(work, 0)
-    const { elkGraph } = buildErElkGraph(diagram, options, entitySizes, styleFace)
+    const { elkGraph } = buildErElkGraph(diagram, options, entitySizes, styleFace, work)
     const placed = elkLayoutSync(elkGraph)
     return { width: placed.width, height: placed.height, entities: placed.children ?? [], routes: new Map((placed.edges ?? []).map(edge => {
       const section = edge.sections?.[0]

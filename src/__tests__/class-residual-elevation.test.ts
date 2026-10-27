@@ -401,3 +401,57 @@ describe('Class header bypass carrier ownership', () => {
     expect(classHeaderPeerClear(reversed[0]!.points, 0, reversed, style, charge)).toBe(false)
   })
 })
+
+describe('final served Class sharp contact admission', () => {
+  const card = (id: string, x: number, y: number, width = 10, height = 20) => ({ id, label: id, x, y, width, height, headerHeight: height, attrHeight: 0, methodHeight: 0, attributes: [], methods: [] })
+  const rel = (from: string, to: string, points: { x: number; y: number }[]) => ({ from, to, type: 'association' as const, markerAt: 'none' as const, points })
+  const parallel = (): import('../class/types.ts').PositionedClassDiagram => ({ width: 140, height: 60, notes: [], namespaces: [], classes: [card('S', -10, -10), card('T', 100, -10)], relationships: [rel('S', 'T', [{ x: 0, y: 2e-11 }, { x: 100, y: 2e-11 }]), rel('S', 'T', [{ x: 0, y: 1.00000000002 }, { x: 100, y: 1.00000000002 }])] })
+  test('rechecks all final served rows after a common Number translation creates positive ink', async () => {
+    const { finalizeClassOwnedSurfaces, CLASS_STYLE_DEFAULTS } = await import('../class/layout.ts')
+    const { createClassMarkerAdmissionWork } = await import('../class/marker-admission.ts')
+    const { resolveRenderStyle } = await import('../styles.ts')
+    const { formatSvgNumber } = await import('../shared/svg-number.ts')
+    const style = { ...resolveRenderStyle({}, CLASS_STYLE_DEFAULTS), lineWidth: 1, edgeBendRadius: 0, cornerRadius: 0 }, scene = parallel(), work = createClassMarkerAdmissionWork()
+    expect(() => finalizeClassOwnedSurfaces(scene, style, work)).not.toThrow()
+    const before = work.operations
+    // The title/note owners use this same Number addition. Both original
+    // served rows are exactly one pixel apart, with no positive strip overlap.
+    for (const c of scene.classes) c.y += 20
+    for (const r of scene.relationships) for (const p of r.points) p.y += 20
+    expect(scene.relationships.map(r => formatSvgNumber(r.points[0]!.y))).toEqual(['20.00000000002', '21'])
+    const unchanged = structuredClone(scene)
+    expect(() => finalizeClassOwnedSurfaces(scene, style, work)).toThrow('uncertified shared contact')
+    expect(work.operations).toBeGreaterThan(before)
+    expect(scene).toEqual(unchanged)
+  })
+  test('keeps proper crossings and a legitimate common physical corner contact', async () => {
+    const { finalizeClassOwnedSurfaces, CLASS_STYLE_DEFAULTS } = await import('../class/layout.ts')
+    const { createClassMarkerAdmissionWork } = await import('../class/marker-admission.ts')
+    const { resolveRenderStyle } = await import('../styles.ts')
+    const style = { ...resolveRenderStyle({}, CLASS_STYLE_DEFAULTS), lineWidth: 1, edgeBendRadius: 0, cornerRadius: 0 }
+    const crossed: import('../class/types.ts').PositionedClassDiagram = { width: 140, height: 140, notes: [], namespaces: [], classes: [card('A', -10, 45, 10, 10), card('B', 100, 45, 10, 10), card('C', 45, -10, 10, 10), card('D', 45, 100, 10, 10)], relationships: [rel('A', 'B', [{ x: 0, y: 50 }, { x: 100, y: 50 }]), rel('C', 'D', [{ x: 50, y: 0 }, { x: 50, y: 100 }])] }
+    const corner: import('../class/types.ts').PositionedClassDiagram = { width: 140, height: 140, notes: [], namespaces: [], classes: [card('S', -10, 0), card('T', 100, -10), card('U', -10, -110, 20, 10)], relationships: [rel('S', 'T', [{ x: 0, y: 0 }, { x: 100, y: 0 }]), rel('S', 'U', [{ x: 0, y: 0 }, { x: 0, y: -100 }])] }
+    for (const scene of [crossed, corner]) {
+      const before = structuredClone(scene), work = createClassMarkerAdmissionWork()
+      expect(() => finalizeClassOwnedSurfaces(scene, style, work)).not.toThrow()
+      expect(scene).toEqual(before)
+      expect(work.operations).toBeGreaterThan(0)
+    }
+  })
+  test('retains rounded geometry scope and spends only the existing request work', async () => {
+    const { finalizeClassOwnedSurfaces, CLASS_STYLE_DEFAULTS } = await import('../class/layout.ts')
+    const { createClassMarkerAdmissionWork } = await import('../class/marker-admission.ts')
+    const { MAX_OCCLUSION_OPERATIONS } = await import('../scene/paint-certification.ts')
+    const { resolveRenderStyle } = await import('../styles.ts')
+    const scene = parallel(), style = { ...resolveRenderStyle({}, CLASS_STYLE_DEFAULTS), lineWidth: 1, edgeBendRadius: 0, cornerRadius: 0 }
+    for (const c of scene.classes) c.y += 20
+    for (const r of scene.relationships) for (const p of r.points) p.y += 20
+    expect(() => finalizeClassOwnedSurfaces(structuredClone(scene), { ...style, edgeBendRadius: 8 })).not.toThrow()
+    const work = createClassMarkerAdmissionWork(); work.operations = MAX_OCCLUSION_OPERATIONS - 1
+    const before = structuredClone(scene)
+    expect(() => finalizeClassOwnedSurfaces(scene, style, work)).toThrow('work limit')
+    expect(work.exhausted).toBe(true)
+    expect(work.operations).toBe(MAX_OCCLUSION_OPERATIONS)
+    expect(scene).toEqual(before)
+  })
+})

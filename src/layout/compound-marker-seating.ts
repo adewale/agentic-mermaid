@@ -4,7 +4,7 @@ import type { Point } from '../types.ts'
 import type { ChannelWork } from './channel-tracks.ts'
 import type { RoutingBox } from './compound-visibility.ts'
 import { classMarkerPiecesOverlap } from './measured-marker-overlap.ts'
-import { pointOnMeasuredSegment, writtenCoordinateGapLessThan } from './measured-route-safety.ts'
+import { pointOnMeasuredSegment, writtenCoordinateGapLessThan, type MeasuredSharpContactWitness } from './measured-route-safety.ts'
 export type MarkerPaint = { start?: readonly ClassMarkerPiece[]; end?: readonly ClassMarkerPiece[] }
 /** Internal canonical producer templates; sanity checks do not establish a general arbitrary-polygon language. */
 export function assertMarkerPaint(value: MarkerPaint): void {
@@ -87,6 +87,7 @@ export function seatMeasuredMarkers(
   carrierWidth?: number,
   carrierBendRadius = 0,
   ink?: { bounds: RoutingBox; obstacles: readonly RoutingBox[] },
+  inspectContact?: (index: number, witness: MeasuredSharpContactWitness) => boolean,
 ): void {
   work.arcs -= 18
   if (work.arcs < 0) fail('agentic marker seating capacity limit')
@@ -124,7 +125,7 @@ export function seatMeasuredMarkers(
       }
     }
   }
-  const eventCapacity = 4 * (markerCount + segmentCount + 4 * straightCount + (ink?.obstacles.length ?? 0)) + 4
+  const eventCapacity = 4 * (markerCount + segmentCount + 4 * straightCount + (ink?.obstacles.length ?? 0)) + 8
   records(eventCapacity)
   charge(eventCapacity)
   const cuts = new Float64Array(eventCapacity)
@@ -381,42 +382,15 @@ export function seatMeasuredMarkers(
     }
     return true
   }
-  let poseCursor = 0
-  for (let index = 0; index < edges.length; index++) {
-    charge()
-    const edge = edges[index]!
-    if (edge.visible === false) continue
-    endpoint: for (let role = 0; role < 2; role++) {
-      charge()
-      const template = role === 0 ? edge.markerPaint?.start : edge.markerPaint?.end
-      if (!template?.length) continue
-      let path = routes[index]!.points
-      const source = role === 0
-      let p = source ? path[0]! : path.at(-1)!,
-        q = source ? path[1]! : path.at(-2)!
-      let current = all[poseCursor++]!
-      let proposals = 0
-      if (!clear(current, index, source)) {
-        const box = subjects[source ? edge.source : edge.target]!,
-          vertical = q.x === p.x
-        const low = vertical ? box.x : box.y,
-          high = low + (vertical ? box.width : box.height),
-          origin = vertical ? p.x : p.y
-        const extentLow = (vertical ? current.minX : current.minY) - origin,
-          extentHigh = (vertical ? current.maxX : current.maxY) - origin
-        // First execute the complete legacy foreign-track and face-seat
-        // strategy. Added own/adjacent rescue runs only after that strategy
-        // would decline, retaining every proposal already spent.
-        for (let rescue = 0; rescue < 2; rescue++) {
-        charge()
-        if (carrierWidth !== undefined && ink) {
-          let yielded = false
-          do {
-          charge(3)
-          yielded = false
+  let proposals = 0
+  records(3 * edges.length + 2)
+  charge(3 * edges.length)
+  const spent = new Uint8Array(3 * edges.length)
+  const yieldTrack = (index: number, source: boolean, current: Pose | undefined, vertical: boolean, rescue: number, obstacleInput: { bounds: RoutingBox; obstacles: readonly RoutingBox[] }, contactOwner = -1, contact?: MeasuredSharpContactWitness, repairRoute = -1): boolean => {
+    let yielded = false
           for (let other = 0; other < ranges.length && !yielded && proposals < 8; other++) {
             charge()
-            if (rescue === 0 && other === index) continue
+            if (contact ? other !== repairRoute : rescue === 0 && other === index) continue
             const range = ranges[other]!,
               foreign = routes[other]!.points
             for (let k = range.begin; k < range.end && !yielded && proposals < 8; k++) {
@@ -429,13 +403,21 @@ export function seatMeasuredMarkers(
                 before = foreign[j - 1]!,
                 after = foreign[j + 2]!,
                 horizontal = a.y === b.y
+              let collision = false
+              if (contact) {
+                charge(5)
+                const segment = other === contactOwner ? contact.candidateSegment : contact.peerSegment
+                // Incoming segment i ends at point[i]. The three changed
+                // strips cover i=j..j+2, including both moved corner joins.
+                collision = segment >= j && segment <= j + 2
+              } else {
               if (horizontal !== vertical) continue
               // Moving an internal run changes both neighboring legs and its
               // two corner joins. Require an ACTUAL non-exempt collision in
               // that exact support, including on the current route itself.
               charge(4)
               const own = other === index, incident = own && (source ? j <= 1 : j >= foreign.length - 3)
-              let collision = !incident && hits(current, blocker)
+              collision = !incident && hits(current!, blocker)
               if (rescue === 0 && !collision) continue
               // Current ranges store every strip in point order, followed by
               // the existing joins in strictly increasing point order. Borrow
@@ -444,7 +426,7 @@ export function seatMeasuredMarkers(
                 charge(8)
                 const support = carriers[range.begin + j + (side === 0 ? -1 : 1)]!
                 if (own && (source ? support.point <= 1 : support.point >= foreign.length - 3)) continue
-                if (hits(current, support)) collision = true
+                if (hits(current!, support)) collision = true
               }
               if (!collision) {
                 charge(3)
@@ -463,16 +445,17 @@ export function seatMeasuredMarkers(
                   const support = carriers[cursor]!
                   if (support.point > j + 1) break
                   if (own && support.point === (source ? 1 : foreign.length - 2)) continue
-                  if (hits(current, support)) collision = true
+                  if (hits(current!, support)) collision = true
                 }
               }
+              }
               if (!collision) continue
-              // The current glyph has an ACTUAL collision. Its broad span only
-              // proposes free events; exact pieces still decide every trial.
+              // An actual glyph collision or exact failed contact selects this
+              // support. Free events only propose coordinates; full proofs decide.
               const spanLow = horizontal ? Math.min(a.x, b.x) : Math.min(a.y, b.y),
                 spanHigh = horizontal ? Math.max(a.x, b.x) : Math.max(a.y, b.y)
-              // Any ACTUAL current glyph collision can justify a paid internal
-              // track proposal; partial face coverage is not infeasibility.
+              // Partial face coverage is not infeasibility; the existing paid
+              // internal-track constructor also serves the exact contact witness.
               if (horizontal ? before.x !== a.x || after.x !== b.x : before.y !== a.y || after.y !== b.y) continue
               const labelSize = edges[other]!.label,
                 label = labelSize ? routes[other]!.labelPosition : undefined
@@ -500,8 +483,8 @@ export function seatMeasuredMarkers(
               const oldFixed = horizontal ? a.y : a.x,
                 prior = horizontal ? before.y : before.x,
                 next = horizontal ? after.y : after.x
-              let lower = horizontal ? ink.bounds.y : ink.bounds.x,
-                upper = lower + (horizontal ? ink.bounds.height : ink.bounds.width)
+              let lower = horizontal ? obstacleInput.bounds.y : obstacleInput.bounds.x,
+                upper = lower + (horizontal ? obstacleInput.bounds.height : obstacleInput.bounds.width)
               if (oldFixed === prior || oldFixed === next) continue
               if (oldFixed > prior) lower = Math.max(lower, prior)
               else upper = Math.min(upper, prior)
@@ -556,7 +539,16 @@ export function seatMeasuredMarkers(
                   eventCount++
                 }
               }
-              for (const box of ink.obstacles) {
+              if (contact) {
+                charge(12)
+                const peerIndex = other === contactOwner ? contact.peerIndex : contactOwner,
+                  peerSegment = other === contactOwner ? contact.peerSegment : contact.candidateSegment,
+                  peer = carriers[ranges[peerIndex]!.begin + peerSegment - 1]!
+                // This is a wall for choosing a proposal, not a contact proof.
+                // Its inflated incoming strip also contains its miter corner.
+                emit((horizontal ? peer.minY : peer.minX) - half - 0.01, (horizontal ? peer.maxY : peer.maxX) + half + 0.01)
+              }
+              for (const box of obstacleInput.obstacles) {
                 charge(5)
                 if (horizontal ? box.x + box.width + half < spanLow || box.x - half > spanHigh : box.y + box.height + half < spanLow || box.y - half > spanHigh) continue
                 emit((horizontal ? box.y : box.x) - half, (horizontal ? box.y + box.height : box.x + box.width) + half)
@@ -699,6 +691,42 @@ export function seatMeasuredMarkers(
               }
             }
           }
+    return yielded
+  }
+  let poseCursor = 0
+  for (let index = 0; index < edges.length; index++) {
+    charge()
+    const edge = edges[index]!
+    if (edge.visible === false) continue
+    endpoint: for (let role = 0; role < 2; role++) {
+      charge()
+      const template = role === 0 ? edge.markerPaint?.start : edge.markerPaint?.end
+      if (!template?.length) continue
+      let path = routes[index]!.points
+      const source = role === 0
+      let p = source ? path[0]! : path.at(-1)!,
+        q = source ? path[1]! : path.at(-2)!
+      let current = all[poseCursor++]!
+      proposals = 0
+      if (!clear(current, index, source)) {
+        const box = subjects[source ? edge.source : edge.target]!,
+          vertical = q.x === p.x
+        const low = vertical ? box.x : box.y,
+          high = low + (vertical ? box.width : box.height),
+          origin = vertical ? p.x : p.y
+        const extentLow = (vertical ? current.minX : current.minY) - origin,
+          extentHigh = (vertical ? current.maxX : current.maxY) - origin
+        // First execute the complete legacy foreign-track and face-seat
+        // strategy. Added own/adjacent rescue runs only after that strategy
+        // would decline, retaining every proposal already spent.
+        for (let rescue = 0; rescue < 2; rescue++) {
+        charge()
+        if (carrierWidth !== undefined && ink) {
+          let yielded = false
+          do {
+          charge(3)
+          yielded = false
+          yielded = yieldTrack(index, source, current, vertical, rescue, ink)
           if (!yielded) break
           // A current-route track edit keeps the glyph pose, but its owned
           // path array/first bend changed. Never build a later proposal from
@@ -710,6 +738,8 @@ export function seatMeasuredMarkers(
           if (clear(current, index, source)) {
             records(1)
             seated.push(current)
+            charge()
+            spent[2 * index + role] = proposals
             continue endpoint
           }
           } while (rescue === 1 && proposals < 8)
@@ -983,6 +1013,36 @@ export function seatMeasuredMarkers(
       }
       records(1)
       seated.push(current)
+      charge()
+      spent[2 * index + role] = proposals
+    }
+  }
+  if (inspectContact && ink && carrierWidth !== undefined && carrierBendRadius === 0) {
+    records(1)
+    const witness: MeasuredSharpContactWitness = { candidateSegment: -1, peerIndex: -1, peerSegment: -1 }
+    for (let index = 0; index < routes.length; index++) {
+      charge()
+      if (edges[index]!.visible === false) continue
+      while (inspectContact(index, witness)) {
+        let repaired = false
+        for (let side = 0; side < 2 && !repaired; side++) {
+          charge(3)
+          const other = side === 0 ? index : witness.peerIndex,
+            paint = edges[other]!.markerPaint,
+            marked = !!(paint?.start?.length || paint?.end?.length)
+          for (let role = 0; role < (marked ? 2 : 1) && !repaired; role++) {
+            charge(4)
+            if (marked && !(role === 0 ? paint?.start?.length : paint?.end?.length)) continue
+            const slot = marked ? 2 * other + role : 2 * edges.length + other
+            proposals = spent[slot]!
+            if (proposals >= 8) continue
+            repaired = yieldTrack(other, role === 0, undefined, false, 1, ink, index, witness, other)
+            charge()
+            spent[slot] = proposals
+          }
+        }
+        if (!repaired) fail('No physically clear measured sharp contact repair at occurrence ' + index)
+      }
     }
   }
 }

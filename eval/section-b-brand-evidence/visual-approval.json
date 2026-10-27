@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "status": "approved",
   "artifact": "src/__tests__/testdata/section-b-brand-evidence.png",
-  "artifactSha256": "032b2c13d1591f1a854022a808370da089e9e241ad7ea8c4366e353ba856ce19",
-  "reviewedAt": "2026-10-21",
-  "reviewer": "Codex agent, PR #456 category keys and authored GitGraph merge label",
-  "scope": "92 family-by-variant cells at 1560x12504. Incremental review against previously approved artifact 49fe0f51a79d80e9ca4f5ce34afe6df78209b0322999a7c9061ae59400c407c5: 119,422 pixels change in five cells (sentinel Pie 309; sentinel GitGraph 27,468; editorial GitGraph 30,443; technical GitGraph 30,739; operations GitGraph 30,463). The other 87 cells, all headings and background are pixel-identical. The Codex agent inspected all five before/after pairs at native 520x380. The Pie Pro key now matches its role-overridden mark. GitGraph rails are opaque; the authored merge label replaces the synthetic message, shortening the canvas and increasing its fitted display size. Labels and branches remain readable without overlap. This approves these intended changes only. This is agent review, not human approval, deployed-site parity or a general readability proof for arbitrary inputs, fonts, density or displays.",
-  "audit": "eval/section-b-brand-evidence/stable-families-review.md"
+  "artifactSha256": "540df3a8b83cca9e73ce34ab56afeb83d00e2852b88a0b53b60fb7b3ea476350",
+  "reviewedAt": "2026-10-27",
+  "reviewer": "Codex agent, PR #449 final Class cardinality and Requirement shaft correctness review",
+  "scope": "92 family-by-variant cells at 1560\u00d712504, generated from 6a665b29 after the final Class and ER default-style fixes. Incremental review against 032b2c13d1591f1a854022a808370da089e9e241ad7ea8c4366e353ba856ce19: exactly 587 pixels change in 8 cells. Four Class cells move source cardinality 1 away from the aggregation marker and its halo (166 pixels); captions, paths, markers, nodes and other text retain their meaning. Four Requirement cells now paint the authored verifies shaft dashed (421 pixels), preserving ports, arrow and labels. The other 84 cells, headings, background and empty cells are pixel-identical. All 8 before/after pairs were inspected at native 520\u00d7380 size. All 92 actual SVGs and individual native PNGs also match the independently diagnosed a276 capture byte-for-byte. This is agent review, not human approval, backend parity or an exhaustive readability/font-outline proof.",
+  "audit": "eval/section-b-brand-evidence/correctness-paint-review.md"
 }

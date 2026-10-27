@@ -104,13 +104,15 @@ describeBrowser('native PNG and browser marker contact', () => {
     } finally { await page.close() }
   }, 120_000)
 
-  test('Architecture marker viewports clip wide tip strokes at the attachment plane', async () => {
+  test('marker viewports clip wide tip strokes at the attachment plane', async () => {
     const page = await browser.newPage()
     try {
-      await page.setContent(renderMermaidSVG('architecture-beta\njunction j\nservice b(database)[B]\nj:R<-->L:b', { embedFontImport: false, architecture: { visual: { junctionOuterRadius: 20, edgeLineWidth: 3 } } }))
-      const overflow = await page.locator('marker').evaluateAll(markers => markers.map(marker => getComputedStyle(marker).overflow))
-      expect(overflow.length).toBeGreaterThan(0)
-      expect(overflow.every(value => value === 'hidden')).toBe(true)
+      for (const source of ['architecture-beta\njunction j\nservice b(database)[B]\nj:R<-->L:b', 'flowchart LR\nA ==> B', 'stateDiagram-v2\nstate fork_state <<fork>>\n[*] --> fork_state']) {
+        await page.setContent(renderMermaidSVG(source, { embedFontImport: false, architecture: { visual: { junctionOuterRadius: 20, edgeLineWidth: 3 } } }))
+        const overflow = await page.locator('marker').evaluateAll(markers => markers.map(marker => getComputedStyle(marker).overflow))
+        expect(overflow.length).toBeGreaterThan(0)
+        expect(overflow.every(value => value === 'hidden')).toBe(true)
+      }
     } finally { await page.close() }
   })
 

@@ -1,6 +1,6 @@
 import { immutableDecision } from './decision-evidence.ts'
 export { retainGraphLayoutDecision, graphLayoutDecisionsOf, transferGraphLayoutDecisions } from './decision-evidence.ts'
-import type { RenderOptions } from '../types.ts'
+import type { Direction, RenderOptions } from '../types.ts'
 import { LayoutCertificationError } from './certification-error.ts'
 export { DeferredDependencyError, LayoutCertificationError, type LayoutCertificationAttempt } from './certification-error.ts'
 export { withRenderStageObserver, measureRenderStage, type RenderStage, type RenderStageSample } from '../render-stages.ts'
@@ -88,4 +88,16 @@ export function runMeasuredGraphBackend<T>(
   retainDecision?.(result, decision)
   emitGraphLayoutDecision(decision)
   return result
+}
+
+/** Shared Mermaid-to-ELK direction mapping, without depending on the graph engine. */
+export function directionToElk(dir: Direction): string {
+  switch (dir) {
+    case 'LR': return 'RIGHT'
+    case 'RL': return 'LEFT'
+    case 'BT': return 'UP'
+    case 'TD':
+    case 'TB':
+    default: return 'DOWN'
+  }
 }

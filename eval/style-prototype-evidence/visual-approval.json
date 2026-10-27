@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
   "status": "approved",
-  "reviewedAt": "2026-10-21",
-  "reviewer": "Codex agent, reviewing native before/after cookbook renders for PR #456",
-  "scope": "Agent visual review at native 900px width of the changed Vercel prototype before/after pair. Both images remain 900×643; exactly 357 pixels change within (821, 52)–(841, 97), covering the two legend samples. The bar key now matches the off-white bars, and the line key matches the blue bound series. Plot geometry, values, labels, axes and the rest of the image are pixel-identical. All five other cookbook screenshots are byte-identical to their previously reviewed versions and retain their prior approval. This records an agent review, not human approval, endorsement or exhaustive design-system equivalence.",
+  "reviewedAt": "2026-10-27",
+  "reviewer": "Codex agent, PR #449 correctness review of actual rounded connector axes",
+  "scope": "Agent visual review of the Cupertino prototype at native 900px width. Both images remain 900\u00d7191; exactly 44 pixels change within (156, 98)\u2013(772, 132). An actual old 513371a5 SVG raster reproduces the prior golden pixel-for-pixel. The corrected rounded projection retains exact L/Q join axes: 45 nonzero line/quadratic tangent vectors and 14 written outward node contacts pass. All 7 authored edges, 6 nodes, labels, markers and layout topology are retained. The other 5 cookbook screenshots are byte-identical to prior approvals. This is agent review, not human approval or exhaustive rendering parity.",
   "artifacts": [
     {
       "id": "cupertino-prototype",
       "path": "docs/assets/style-cookbook/cupertino-prototype.png",
-      "sha256": "23ea4871312dd1902c41a335c264dd8c1e5244eb3f382dde06603aec953e4182"
+      "sha256": "25b7fbc78483a71af6f27ff3d2a5780ca57969f3d4038a0c4df32d50f79f4dda"
     },
     {
       "id": "vercel-inspired-prototype",
@@ -21,5 +21,6 @@
       "sha256": "9f06cfbeb1b7b76ff6f0d1d0781431230b9f52a63edea015dae467fb5aa0d7cf"
     }
   ],
-  "limitations": "These are static documentation prototypes, not built-in Looks, BrandPacks, endorsements, proprietary-asset reproductions, or exhaustive design-system equivalence claims."
+  "limitations": "These are static documentation prototypes, not built-in Looks, BrandPacks, endorsements, proprietary-asset reproductions, or exhaustive design-system equivalence claims.",
+  "audit": "eval/style-prototype-evidence/rounded-axis-correctness-review.md"
 }

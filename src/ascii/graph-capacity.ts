@@ -3,6 +3,10 @@ import { Up, Down, Left, Right } from './types.ts'
 import { maxLineWidth, lineCount } from './multiline-utils.ts'
 
 export const GRAPH_EDGE_APPROACH = 2
+/** Keep each allocated face's normal leads clear before their independent
+ * bend lanes. Marker glyphs still occupy only their original face cells. */
+export const graphEdgeEscape = (edge: AsciiEdge, start: boolean): number =>
+  (start ? edge.cellAllocation?.startEscape : edge.cellAllocation?.endEscape) ?? GRAPH_EDGE_APPROACH
 interface Bounds { minX: number; minY: number; maxX: number; maxY: number }
 export type GraphEndpoint = AsciiNode | AsciiSubgraph
 type Endpoint = GraphEndpoint
@@ -116,16 +120,25 @@ export function reserveGraphEdgeCapacity(graph: AsciiGraph, measure: () => Reado
     const demand = edge.startDir === Left || edge.startDir === Right ? lineCount(edge.text) : Math.max(1, maxLineWidth(edge.text))
     edge.cellAllocation = { startOffset: slot(from, edge.startDir, demand), endOffset: slot(to, edge.endDir, demand) }
   }
+  for (const edge of graph.edges) if (edge.cellAllocation) {
+    for (const start of [true, false]) {
+      const endpoint = graphEndpointOf(edge, start), face = start ? edge.startDir : edge.endDir
+      const count = faces.get(endpoint)!.get(face)!.count
+      const approach = GRAPH_EDGE_APPROACH + 2 * (count - 1)
+      if (start) edge.cellAllocation.startEscape = approach
+      else edge.cellAllocation.endEscape = approach
+    }
+  }
   // An individually valid child face is insufficient: its outward marker
   // approach must fit inside the enclosing frame without touching that
   // frame's own ports. Reserve the occupied approach and one clear cell.
   for (const [endpoint, perFace] of faces) {
     const parent = isGroup(endpoint) ? endpoint.parent : parentFor.get(endpoint)
     if (!parent) continue
-    for (const face of perFace.keys()) {
+    for (const [face, demand] of perFace) {
       const side = face === Left ? 'left' : face === Right ? 'right' : face === Up ? 'top' : 'bottom'
       parent.insets ??= {}
-      parent.insets[side] = Math.max(parent.insets[side] ?? 2, GRAPH_EDGE_APPROACH + 1 + 1)
+      parent.insets[side] = Math.max(parent.insets[side] ?? 2, GRAPH_EDGE_APPROACH + 2 * (demand.count - 1) + 1 + 1)
     }
   }
   // Card demand fills its own grid dimensions. Container demand first measures
@@ -150,7 +163,10 @@ export function reserveGraphEdgeCapacity(graph: AsciiGraph, measure: () => Reado
         requests.set(index, Math.max(requests.get(index) ?? 0, deficit))
       }
       const sizes = horizontal ? graph.columnWidth : graph.rowHeight
-      const index = horizontal ? face === Left ? logical.minX - 1 : logical.maxX + 1 : face === Up ? logical.minY - 1 : logical.maxY + 1
+      // A node's first two tracks paint its body; logical.max is the
+      // trailing escape track. Growing max + 1 can enlarge the next body
+      // while leaving the immediate outward corridor unchanged.
+      const index = horizontal ? face === Left ? logical.minX - 1 : logical.maxX : face === Up ? logical.minY - 1 : logical.maxY
       if (index >= 0) sizes.set(index, Math.max(sizes.get(index) ?? 0, GRAPH_EDGE_APPROACH + 1 + demand.count * 2))
     }
   }
@@ -171,7 +187,7 @@ export function reserveGraphEdgeCapacity(graph: AsciiGraph, measure: () => Reado
     const label = horizontal ? maxLineWidth(edge.text) : lineCount(edge.text)
     // Each endpoint keeps its straight marker approach, one bend and one
     // label-clearance cell. Multiline labels add their separate adjacent run.
-    const required = label + 2 * (GRAPH_EDGE_APPROACH + 1 + 1) + (horizontal && lineCount(edge.text) > 1 ? 4 : 0)
+    const required = label + graphEdgeEscape(edge, true) + graphEdgeEscape(edge, false) + 4 + (horizontal && lineCount(edge.text) > 1 ? 4 : 0)
     const deficit = Math.max(0, required - (after[min] - before[max]))
     const requests = horizontal ? columns : rows
     requests.set(spacer, Math.max(requests.get(spacer) ?? 0, deficit))

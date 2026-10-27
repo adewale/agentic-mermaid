@@ -402,6 +402,10 @@ jobs:
           npm install --global bun@1.4.2
           test "$(bun --version)" = "1.4.2"
 
+      - name: Install GitHub CLI for payload label checks
+        if: ${{ matrix.suite == 'payload' && github.event_name == 'pull_request' }}
+        run: apt-get install -y --no-install-recommends gh
+
       - name: Setup Bun
         if: ${{ matrix.suite != 'browser' && matrix.suite != 'browser-site' && matrix.suite != 'payload' }}
         uses: oven-sh/setup-bun@v2

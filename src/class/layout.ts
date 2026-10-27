@@ -1,3 +1,5 @@
+import { measuredRouteContactPairBudget, scoreMeasuredRouteCrossings } from '../layout/measured-route-safety.ts'
+import type { MeasuredGraph } from '../layout/agentic-layered-core.ts'
 import { resolveDiagramColors } from '../color-resolver.ts'
 import { connectorMarkerPaintRegions } from '../scene/bounds.ts'
 import { connector } from '../scene/marks.ts'
@@ -41,8 +43,8 @@ import { elkLayoutSync } from '../elk-instance.ts'
 import { layoutAgenticGraph } from '../layout/agentic-layered.ts'
 import { GraphLayoutUnsupportedError } from '../layout/backend.ts'
 import { LayoutCertificationError } from '../layout/certification-error.ts'
-import { directionToElk } from '../layout/direction.ts'
-import { runMeasuredGraphBackend } from '../layout/measured-backend.ts'
+import { directionToElk } from '../layout/backend.ts'
+import { runMeasuredGraphBackend } from '../layout/backend.ts'
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { getFrontmatterScalar } from '../mermaid-source.ts'
 import { measureRenderStage } from '../render-stages.ts'
@@ -357,6 +359,21 @@ function projectClassElkPlacement(result: ElkNode, namespacePaths: ReadonlyMap<s
 }
 
 /** Project either measured placement through Class-owned card/marker rules. */
+/** Renderer class cards inherit default paint, then their one assigned class,
+ * then inline paint. The source grammar stores a single assigned class name;
+ * repeated assignments already resolve to the last one in the parser.
+ * Generated interface occurrences use their separate circle/label renderer. */
+function classNodePaint(diagram: ClassDiagram, cls: ClassNode): Record<string, string> | undefined {
+  const defaults = cls.isInterface ? undefined : diagram.classDefs.get('default'),
+    named = cls.className ? diagram.classDefs.get(cls.className) : undefined
+  if (!defaults && !named && !cls.inlineStyle) return undefined
+  return {
+    ...checkedAuthoredStyle(defaults, 'classDef default'),
+    ...checkedAuthoredStyle(named, `classDef ${cls.className}`),
+    ...checkedAuthoredStyle(cls.inlineStyle, `style ${cls.id}`),
+  }
+}
+
 function extractClassLayout(result: ClassPlacement, diagram: ClassDiagram, classSizes: ClassSizeMap, style: ResolvedRenderStyle, hierarchicalNamespaces: boolean, titles: ReadonlyMap<string, string> = new Map()): PositionedClassDiagram {
   const classLookup = new Map<string, ClassNode>()
   for (const cls of diagram.classes) classLookup.set(cls.id, cls)
@@ -389,7 +406,7 @@ function extractClassLayout(result: ClassPlacement, diagram: ClassDiagram, class
     }
     const cls = classLookup.get(child.id)
     if (cls) {
-      const size = classSizes.get(cls.id)!
+      const size = classSizes.get(cls.id)!, local = classNodePaint(diagram, cls)
       positionedClasses.push({
         id: cls.id,
         ...(cls.isInterface ? { isInterface: true } : {}),
@@ -408,11 +425,7 @@ function extractClassLayout(result: ClassPlacement, diagram: ClassDiagram, class
         ...(cls.className ? { className: cls.className } : {}),
         ...(cls.href ? { href: cls.href } : {}),
         ...(cls.tooltip !== undefined ? { tooltip: cls.tooltip } : {}),
-        ...((cls.className && diagram.classDefs.get(cls.className)) || cls.inlineStyle
-          ? {
-              inlineStyle: { ...(cls.className ? checkedAuthoredStyle(diagram.classDefs.get(cls.className), `classDef ${cls.className}`) : {}), ...checkedAuthoredStyle(cls.inlineStyle, `style ${cls.id}`) },
-            }
-          : {}),
+        ...(local ? { inlineStyle: local } : {}),
       })
     }
   }
@@ -637,8 +650,8 @@ export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions
         nativeClassSizes.set(id,{...old,width,height,methodHeight:old.methodHeight+(height-old.height)})
       }
       const markerNodeStrokes = diagram.classes.map(cls => {
-        const local = { ...(cls.className ? checkedAuthoredStyle(diagram.classDefs.get(cls.className), `classDef ${cls.className}`) : {}), ...checkedAuthoredStyle(cls.inlineStyle, `style ${cls.id}`) }
-        const parsed = Number.parseFloat(local['stroke-width'] ?? '')
+        const local = classNodePaint(diagram, cls)
+        const parsed = Number.parseFloat(local?.['stroke-width'] ?? '')
         return Number.isFinite(parsed) && parsed > 0 ? parsed : style.nodeLineWidth
       })
       const placed = measureRenderStage('agentic', () =>
@@ -776,6 +789,47 @@ export function finalizeClassOwnedSurfaces(result: PositionedClassDiagram, style
   if (violations.length) throw new LayoutCertificationError([{ strategy: 'class-owned-surfaces', violations }])
   const peerWork=inkWork??createClassMarkerAdmissionWork()
   assertClassHeaderPeersClear(result,changed,style,()=>chargeClassMarkerAdmissionWork(peerWork))
+  assertFinalClassSharpContacts(result, style, peerWork)
+}
+
+/** Title bands and leading note seats translate Number coordinates after the
+ * root producer proof. Canonical SVG spelling is not translation-invariant;
+ * recheck every final sharp pair against the SAME request's remaining work. */
+function assertFinalClassSharpContacts(result: PositionedClassDiagram, style: ResolvedRenderStyle, work: ClassMarkerAdmissionWork): void {
+  if (style.edgeBendRadius !== 0 || result.relationships.length < 2) return
+  const refuse = (message: string): never => { throw new LayoutCertificationError([{ strategy: 'class-final-sharp-contacts', violations: [message] }]) }
+  const pay = (amount = 1): void => {
+    for (let i = 0; i < amount; i++) if (!chargeClassMarkerAdmissionWork(work)) refuse('Class final sharp contact work limit')
+  }
+  // Map/arrays/records and callbacks are local to this immutable final snapshot.
+  pay(2 * result.classes.length + 3 * result.relationships.length + 8)
+  const indices = new Map(result.classes.map((node, index) => [node.id, index]))
+  const input: MeasuredGraph = {
+    nodes: [],
+    edges: result.relationships.map(rel => {
+      const source = indices.get(rel.from), target = indices.get(rel.to)
+      if (source === undefined || target === undefined) refuse('Undeclared final Class endpoint')
+      return { source: source!, target: target!, minSpan: 1 }
+    }),
+    direction: 'TB', padding: 0, nodeSpacing: 0, layerSpacing: 0,
+    maximumEdgeStrokeWidth: style.lineWidth, maximumEdgeBendRadius: 0,
+  }
+  const routes = result.relationships.map(rel => ({ points: rel.points, style: 'solid' }))
+  pay()
+  const pairBudget = measuredRouteContactPairBudget(input)
+  let remaining = 0
+  for (const route of routes) { pay(); remaining += Math.max(0, route.points.length - 1) }
+  for (let index = 0; index + 1 < routes.length; index++) {
+    const route = routes[index]!, segments = Math.max(0, route.points.length - 1)
+    remaining -= segments
+    // Reserve the shared support-separation visit; the scorer charges the
+    // remaining predicates only for pairs not proved disjoint.
+    pay(pairBudget * segments * remaining + route.points.length + remaining + routes.length)
+    if (scoreMeasuredRouteCrossings(route.points, index, routes, input, pay, pay, undefined, pairBudget) === undefined) refuse('Final Class routes have an uncertified shared contact')
+    // Symmetric finite orthogonal pairs were just checked against every later
+    // route. No geometry or source field changes during this local traversal.
+    route.style = 'invisible'
+  }
 }
 
 /** The diagram's title takes a band above everything the layout placed. */

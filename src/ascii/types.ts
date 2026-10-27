@@ -159,7 +159,7 @@ export interface AsciiEdge {
   attachFromSubgraph?: AsciiSubgraph
   attachToSubgraph?: AsciiSubgraph
   /** Physical face slots reserved from complete incident demand before paint. */
-  cellAllocation?: { startOffset: number; endOffset: number }
+  cellAllocation?: { startOffset: number; endOffset: number; startEscape?: number; endEscape?: number }
   /** Final cell route and label origin, consumed unchanged by drawing. */
   cellRoute?: { points: DrawingCoord[]; label?: DrawingCoord }
 }

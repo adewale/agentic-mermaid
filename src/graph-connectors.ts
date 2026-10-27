@@ -51,12 +51,15 @@ function crossMarkerResources(color?: string, fixed = false): readonly MarkerDes
   const suffix = `${color ? `-${markerSuffix(color)}` : ''}${fixed ? '-fixed' : ''}`
   const stroke = color ?? 'var(--_arrow)'
   const pad = 1.25
+  const strokeWidth = 1.25
   const a = pad
   const b = size - pad
-  const common = { shape: 'cross' as const, size: { width: size, height: size }, ...(fixed ? { units: 'userSpaceOnUse' as const } : {}), orient: 'auto' as const, geometry: { kind: 'compound' as const, children: [{ kind: 'line' as const, x1: a, y1: a, x2: b, y2: b }, { kind: 'line' as const, x1: a, y1: b, x2: b, y2: a }] }, paint: { stroke, strokeWidth: '1.25', strokeLinecap: 'round' as const } }
+  const common = { shape: 'cross' as const, size: { width: size, height: size }, ...(fixed ? { units: 'userSpaceOnUse' as const } : {}), orient: 'auto' as const, geometry: { kind: 'compound' as const, children: [{ kind: 'line' as const, x1: a, y1: a, x2: b, y2: b }, { kind: 'line' as const, x1: a, y1: b, x2: b, y2: a }] }, paint: { stroke, strokeWidth: String(strokeWidth), strokeLinecap: 'round' as const } }
+  // Attach the complete round-cap envelope, rather than its line centre.
+  // Marker units scale the cap and reference together for every edge width.
   return [
-    { ...common, id: `crosshead${suffix}`, ref: { x: b, y: size / 2 } },
-    { ...common, id: `crosshead-start${suffix}`, ref: { x: pad, y: size / 2 } },
+    { ...common, id: `crosshead${suffix}`, ref: { x: b + strokeWidth / 2, y: size / 2 } },
+    { ...common, id: `crosshead-start${suffix}`, ref: { x: a - strokeWidth / 2, y: size / 2 } },
   ]
 }
 
