@@ -1373,6 +1373,18 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     }
     forbidden.sort((a, b) => { charge(); return a[0] - b[0] || a[1] - b[1] })
     for (const [lo, hi] of forbidden) { charge(); if (candidate > lo && candidate < hi) candidate = hi }
+    if (candidate > high) {
+      // Preserve the existing forward seat priority. A crowded port near the
+      // end of its face can still have a free slot on the other side; inspect
+      // the same forbidden intervals backwards before declining that face.
+      candidate = Math.max(low, Math.min(current, high))
+      for (let i = forbidden.length - 1; i >= 0; i--) {
+        charge()
+        const [lo, hi] = forbidden[i]!
+        if (candidate > lo && candidate < hi) candidate = lo
+      }
+      if (candidate < low) throw new ErRouteGeometryError(terminal.rel.entity1, terminal.rel.entity2)
+    }
     if (candidate === current) continue
     if (candidate > high) throw new ErRouteGeometryError(terminal.rel.entity1, terminal.rel.entity2)
     const points = terminal.rel.points.map(point => ({ ...point })), step = terminal.end ? -1 : 1, first = terminal.end ? points.length - 1 : 0

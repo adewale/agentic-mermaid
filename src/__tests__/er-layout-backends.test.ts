@@ -183,12 +183,14 @@ const mixedFrameNormals = 'erDiagram\ndirection LR\nsubgraph TOP\n direction TB\
 
 const frameOnlyNormals = 'erDiagram\ndirection LR\nsubgraph Tall\n subgraph N0\n  subgraph N1\n   subgraph N2\n    subgraph N3\n     subgraph N4\n      subgraph N5\n       subgraph N6\n       end\n      end\n     end\n    end\n   end\n  end\n end\nend\nsubgraph Flat\nend\nTall ||--|| Flat : links'
 
-test.each([...['TB', 'BT', 'LR', 'RL'].flatMap(direction => ['agentic', 'elk'].map(backend => ({ direction, backend: backend as 'agentic' | 'elk', framesOnly: false, vocabulary: false }))), ...(['agentic', 'elk'] as const).map(backend => ({ direction: 'LR', backend, framesOnly: true, vocabulary: false })), ...(['agentic', 'elk'] as const).map(backend => ({ direction: 'LR', backend, framesOnly: false, vocabulary: true }))])('ER rebuilt frame routes retain actual normal contacts in $direction with $backend framesOnly=$framesOnly vocabulary=$vocabulary', ({ direction, backend, framesOnly, vocabulary }) => {
+const siblingFrameNormals = "erDiagram\n    subgraph title1\n        A1 ||--|| A2 : links\n    end\n\n    subgraph title2\n        B1 ||--|| B2 : links\n    end\n\n    subgraph title3\n        C1 ||--|| C2 : links\n    end\n\n    title1 ||--|| title2 : links\n    title2 ||--|| title3 : links\n    title2 ||--|| C2 : links"
+
+test.each([...['TB', 'BT', 'LR', 'RL'].flatMap(direction => ['agentic', 'elk'].map(backend => ({ direction, backend: backend as 'agentic' | 'elk', framesOnly: false, vocabulary: false }))), ...(['agentic', 'elk'] as const).map(backend => ({ direction: 'LR', backend, framesOnly: true, vocabulary: false })), ...(['agentic', 'elk'] as const).map(backend => ({ direction: 'LR', backend, framesOnly: false, vocabulary: true }))].map(entry => ({ ...entry, siblings: false })).concat(...(['agentic', 'elk'] as const).map(backend => ({ direction: 'LR', backend, framesOnly: false, vocabulary: false, siblings: true }))))('ER rebuilt frame routes retain actual normal contacts in $direction with $backend framesOnly=$framesOnly vocabulary=$vocabulary siblings=$siblings', ({ direction, backend, framesOnly, vocabulary, siblings }) => {
   const mixed = vocabulary ? mixedFrameNormals.replace('I1 ||--|| F1', 'I1 }|--o| F1').replace('I2 ||--|| F2 : links', 'I2 }o--|| F2').replace('A ||--|| TOP', 'A u--o{ TOP').replace('TOP ||--|| B', 'TOP |o--|{ B').replace('B1 ||--|| B2 : links', 'B1 }o--o{ B2') : mixedFrameNormals
-  const source = (framesOnly ? frameOnlyNormals : mixed).replace('direction LR', `direction ${direction}`), options = { graphLayout: { backend } }
+  const source = siblings ? siblingFrameNormals : (framesOnly ? frameOnlyNormals : mixed).replace('direction LR', `direction ${direction}`), options = { graphLayout: { backend, ...(siblings ? { fallback: 'none' as const } : {}) } }
   const model = parseErDiagram(toMermaidLines(source)), original = structuredClone(model)
   const placed = layoutErDiagram(model, options), rendered = renderMermaidSVGWithReceipt(source, options)
-  if (!framesOnly) {
+  if (!framesOnly && !siblings) {
     // TOP explicitly says TB and B1 -> B2 is an authored dependency between
     // its direct child frames, even when the diagram's outer flow differs.
     const first = placed.groups.find(group => group.id === 'B1')!, second = placed.groups.find(group => group.id === 'B2')!
