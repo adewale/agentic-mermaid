@@ -23,12 +23,11 @@ export function documentationPage(source: string, file: string) {
   let prose = ''
   let markdown = ''
   for (const line of source.match(/[^\n]*\n|[^\n]+$/g) ?? []) {
-    const delimiter = /^\s*(`{3,}|~{3,})/.exec(line)?.[1]
-    if (delimiter) {
+    const boundary = /^ {0,3}(`{3,}|~{3,})(.*)/.exec(line)
+    if (boundary && (!fence || (boundary[1]![0] === fence[0] && boundary[1]!.length >= fence.length && !boundary[2]!.trim()))) {
       markdown += rewriteProse(prose)
       prose = ''
-      if (!fence) fence = delimiter
-      else if (delimiter[0] === fence[0] && delimiter.length >= fence.length) fence = ''
+      fence = fence ? '' : boundary[1]!
       markdown += line
     } else if (fence) {
       markdown += line

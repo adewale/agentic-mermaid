@@ -19,7 +19,7 @@ describe('delivered library reference', () => {
   })
 
   test('relocated links reach published pages or repository files without changing code', () => {
-    const page = documentationPage('# Advanced API\n\nHost rendering.\n\n[API](./api.md#editing), [types](../src/types.ts), [fonts](./custom-fonts.md), [local](#host).\n\n`[API](./api.md)` and ``a `tick`\n[API](./api.md)``\n\n```ts\nconst link = "[API](./api.md)"\n```\n', 'docs/api-advanced.md')
+    const page = documentationPage('# Advanced API\n\nHost rendering.\n\n[API](./api.md#editing), [types](../src/types.ts), [fonts](./custom-fonts.md), [local](#host).\n\n`[API](./api.md)` and ``a `tick`\n[API](./api.md)``\n\n```ts\n```not-a-closing-fence\nconst link = "[API](./api.md)"\n```\n', 'docs/api-advanced.md')
     const document = new JSDOM(page.html).window.document
     expect([...document.querySelectorAll('a')].map(a => a.getAttribute('href'))).toEqual([
       '/docs/api/#editing',
