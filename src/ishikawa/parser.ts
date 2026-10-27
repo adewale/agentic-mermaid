@@ -3,6 +3,9 @@ import { scanAccessibilityDirectives, requireClosedAccessibility, accessibilityF
 import { observeParserStatement, observeParserMutation } from '../shared/parser-observation.ts'
 import { assertDiagramWorkLimit } from '../shared/diagram-limits.ts'
 import { readAuthoredGrammarAccessibility, readGrammarAuthoredText, readGrammarText } from '../shared/grammar-text.ts'
+import { stripTrailingComment } from '../shared/trailing-comment.ts'
+
+export const isIshikawaHeader = (line: string): boolean => /^ishikawa(?:-beta)?\s*$/i.test(stripTrailingComment(line.trim()))
 
 /** The first cause establishes the indentation baseline, independently of the effect. */
 export function parseIshikawaDiagram(input: string | readonly string[]): IshikawaBody {
@@ -10,7 +13,7 @@ export function parseIshikawaDiagram(input: string | readonly string[]): Ishikaw
   requireClosedAccessibility(scanned)
   const lines = scanned.familyLines
   const first = lines.findIndex(line => line.trim() && !line.trim().startsWith('%%'))
-  if (!/^ishikawa(?:-beta)?\s*$/i.test(lines[first]?.trim() ?? '')) throw new Error('Ishikawa source must start with ishikawa')
+  if (!isIshikawaHeader(lines[first] ?? '')) throw new Error('Ishikawa source must start with ishikawa')
   const body: IshikawaBody = { kind: 'ishikawa', nodes: [], ...accessibilityFields(readAuthoredGrammarAccessibility(scanned.accessibility)) }
   const stack: { level: number; node: IshikawaNode }[] = []
   let base: number | undefined

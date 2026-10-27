@@ -837,6 +837,21 @@ pin. Invalid XML/control-character values remain outside the writable domain.
 
 ### Follow-up to #494: generous reads and portable writes
 
+The #548–#552 repairs align direct source rendering with typed admission.
+Ishikawa header comments are classified by its native parser. Standalone
+repeated Sankey headers are diagnosed and ignored outside quoted CSV records;
+header-looking lines inside a quoted field remain payload. Canonical exports
+write one header. Malformed CSV data rows still fail explicitly.
+
+Class text escapes greedy `direction TB/BT/RL/LR` tokens before statement
+construction. Greedy direction tokens in identities or raw inline members
+have no lossless spelling and remain diagnosed source-only reads. Explicitly
+empty Class labels and quote-requiring
+Quadrant labels starting with a literal backtick have no supported lossless
+token in the pinned grammar. They retain native source rendering and a syntax
+diagnostic, with typed editing and synthesis refused. Absent Class labels,
+nonempty whitespace labels and writable bare Quadrant backticks remain distinct.
+
 Class and C4 can retain an explicitly empty accessibility description, although
 Mermaid 12.2.0 rejects its empty `accDescr` block. Verification names that
 reader extension. Writers carry the empty value in a native JSON metadata

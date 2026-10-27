@@ -87,6 +87,20 @@ const stableRepresentativeCues = {
 const ownershipGoldenIds = new Set(['corpus/flowchart/94', 'corpus/flowchart/95', 'corpus/flowchart/96', 'corpus/flowchart/98', 'corpus/state/0', 'corpus/state/1', 'corpus/state/8', 'corpus/state/14', 'corpus/state/16', 'corpus/state/17', 'corpus/state/18', 'corpus/state/19'])
 const fixtures: Fixture[] = [
   {
+    id: 'grammar-ishikawa-header',
+    title: 'Ishikawa header comment preserves the cause tree',
+    source: 'ishikawa%%{\nProblem\nPeople\n  Training\nTools',
+    captureLayout: true,
+    cue: 'The baseline throws at the header. After, inspect Problem, both main causes and Training attached to People. The owning test checks exact parent links and equal direct/typed SVG and ASCII. This is one diagnosed header-comment extension, not general recovery from malformed headers.',
+  },
+  {
+    id: 'grammar-sankey-repeated-header',
+    title: 'Sankey repeated headers retain literal CSV node names',
+    source: 'sankey\nsankey-beta\nA,B,2\nsankey\n"sankey",B,3',
+    captureLayout: true,
+    cue: 'The baseline rejects the repeated bare header as a one-column CSV row. After, inspect A and the quoted node named sankey feeding B with values 2 and 3. Quoted header-like data is retained; only standalone header statements are ignored and diagnosed. The owning test protects a header-looking physical line inside a quoted multiline field.',
+  },
+  {
     id: 'architecture-alignment-components',
     title: 'Architecture Output row retains its authored alignment',
     source: collectSamples().find(sample => sample.id === 'corpus/architecture/3')!.source,
