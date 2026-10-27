@@ -39,9 +39,9 @@ function compareSvgSum(value: number, a: number, b: number, parts?: Map<number, 
     aParts = writtenDecimalParts(a, parts),
     bParts = writtenDecimalParts(b, parts),
     scale = Math.min(valueParts.e, aParts.e, bParts.e),
-    scaledValue = valueParts.n * 10n ** BigInt(valueParts.e - scale),
-    scaledA = aParts.n * 10n ** BigInt(aParts.e - scale),
-    scaledB = bParts.n * 10n ** BigInt(bParts.e - scale),
+    scaledValue = valueParts.e === scale ? valueParts.n : valueParts.n * 10n ** BigInt(valueParts.e - scale),
+    scaledA = aParts.e === scale ? aParts.n : aParts.n * 10n ** BigInt(aParts.e - scale),
+    scaledB = bParts.e === scale ? bParts.n : bParts.n * 10n ** BigInt(bParts.e - scale),
     delta = scaledValue - scaledA - scaledB
   return delta < 0n ? -1 : delta > 0n ? 1 : 0
 }
