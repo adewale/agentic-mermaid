@@ -52,21 +52,29 @@ export function writtenCoordinateGapLessThan(a: string, b: string, width: string
 }
 
 function sharesWrittenShaft(a: Point, b: Point, c: Point, d: Point, width: number, widthText: string, charge?: MeasuredContactCharge): boolean | undefined {
-  if (charge?.(4) === false) return undefined
   const vertical = a.x === b.x
+  // Axis classification is already reserved by the original segment-pair
+  // check. Only parallel pairs execute the additional writer-error proof.
   if ((c.x === d.x) !== vertical || (!vertical && (a.y !== b.y || c.y !== d.y))) return false
-  if (charge?.(12) === false) return undefined
-  const fixed = vertical ? a.x : a.y,
-    other = vertical ? c.x : c.y
-  // Broad phase only: contain the writer's twelve-significant-digit rounding.
-  const error = (Math.abs(fixed) + Math.abs(other) + width) * 1e-10 + 1e-9
-  if (Math.abs(fixed - other) > width + error) return false
-  const A = vertical ? a.y : a.x,
-    B = vertical ? b.y : b.x,
-    C = vertical ? c.y : c.x,
-    D = vertical ? d.y : d.x
-  const spanError = (Math.abs(A) + Math.abs(B) + Math.abs(C) + Math.abs(D)) * 1e-10 + 1e-9
-  if (Math.min(Math.max(A, B), Math.max(C, D)) < Math.max(Math.min(A, B), Math.min(C, D)) - spanError) return false
+  // The original paid shaft predicate already classifies axes, distance and
+  // span. Add two writer-error bound visits only for parallel support.
+  if (charge?.(2) === false) return undefined
+  const fixed = vertical ? a.x : a.y, other = vertical ? c.x : c.y,
+    distance = Math.abs(fixed - other), error = (Math.abs(fixed) + Math.abs(other) + width) * 1e-10 + 1e-9
+  if (distance > width + error) return false
+  const A = vertical ? a.y : a.x, B = vertical ? b.y : b.x, C = vertical ? c.y : c.x, D = vertical ? d.y : d.x,
+    span = Math.min(Math.max(A, B), Math.max(C, D)) - Math.max(Math.min(A, B), Math.min(C, D)),
+    spanError = (Math.abs(A) + Math.abs(B) + Math.abs(C) + Math.abs(D)) * 1e-10 + 1e-9
+  if (span < -spanError) return false
+  // A shared raw end spells identically; robust other ends stay opposite.
+  if (span === 0) {
+    if (charge?.(2) === false) return undefined
+    if (Math.abs(A - B) > 2 * spanError && Math.abs(C - D) > 2 * spanError) return false
+  }
+  if (charge?.(2) === false) return undefined
+  if (distance < width - error && span > spanError) return true
+  if (charge?.(6) === false) return undefined
+  if (!Number.isFinite(fixed) || !Number.isFinite(other) || !Number.isFinite(A) || !Number.isFinite(B) || !Number.isFinite(C) || !Number.isFinite(D)) return undefined
   // Prepay bounded numeric spellings before invoking the canonical writer.
   if (charge?.(256) === false) return undefined
   const gap = writtenCoordinateGapLessThan(formatSvgNumber(fixed), formatSvgNumber(other), widthText, charge)
@@ -97,9 +105,18 @@ export function scoreMeasuredRouteCrossings(points: Point[], index: number, rout
   let score = 0
   let width: number | undefined, widthText: string | undefined
   if (input.maximumEdgeStrokeWidth !== undefined) {
-    if (charge?.(128) === false) return undefined
-    widthText = formatSvgNumber(input.maximumEdgeStrokeWidth)
-    width = Number(widthText)
+    const value = input.maximumEdgeStrokeWidth
+    if (Number.isSafeInteger(value) && value > 0) {
+      // Safe integers have no fractional tail: the canonical writer is the
+      // identity, with at most sixteen digits (one for the common small case).
+      if (charge?.(value < 10 ? 2 : 17) === false) return undefined
+      width = value
+      widthText = String(value)
+    } else {
+      if (charge?.(128) === false) return undefined
+      widthText = formatSvgNumber(value)
+      width = Number(widthText)
+    }
     if (!Number.isFinite(width) || width <= 0) throw new TypeError('Measured stroke width must be finite and positive')
   }
   let candidateOrthogonal: boolean | undefined

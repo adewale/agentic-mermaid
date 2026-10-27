@@ -1283,6 +1283,10 @@ describe('measured painted route contacts', () => {
     expect(scoreMeasuredRouteCrossings(decimal, 0, routes(decimal, [{ x: .3, y: 2 }, { x: .3, y: 18 }]), input(.1))).toBe(0)
     const large = [{ x: 1000000000000.2, y: 0 }, { x: 1000000000000.2, y: 20 }]
     expect(scoreMeasuredRouteCrossings(large, 0, routes(large, [{ x: 1000000000000.3, y: 2 }, { x: 1000000000000.3, y: 18 }]), input(.10001))).toBeUndefined()
+    for (const width of [1000000000001, 1.2345678901234568e21]) {
+      const written = width === 1000000000001 ? 1000000000001 : 1.23456789012e21
+      expect(scoreMeasuredRouteCrossings(a, 0, routes(a, [{ x: written, y: 2 }, { x: written, y: 18 }]), input(width))).toBe(0)
+    }
   })
 
   test('does not discard a short positive support or invisible peer distinction', () => {
@@ -1301,6 +1305,23 @@ describe('measured painted route contacts', () => {
     const placed: AgenticLayout = { topology: 'layered', width: 10, height: 100, nodes: input(1).nodes.map(() => ({ x: 0, y: 0 })), edges: [{ points: a }, { points: b }] }
     expect(() => assertFinalBoundaryContacts(input(1), placed, new Set([0]), { pairs: 1_000_000, arcs: 1000, swaps: 1000 }, fail)).toThrow('uncertified shared contact')
     expect(() => assertFinalBoundaryContacts(input(undefined), placed, new Set([0]), { pairs: 1_000_000, arcs: 1000, swaps: 1000 }, fail)).not.toThrow()
+  })
+
+  test('does not infer zero written support from a tiny raw shared endpoint', () => {
+    // Conditional long-tail formatting reverses the second tiny segment:
+    // the shared endpoint writes1000.12345679, beyond BOTH other endpoints.
+    const a = [{ x: 0, y: 1000.1234567894 }, { x: 0, y: 1000.123456789401 }],
+      b = [{ x: .75, y: 1000.123456789401 }, { x: .75, y: 1000.1234567895 }]
+    expect(scoreMeasuredRouteCrossings(a, 0, routes(a, b), input(1))).toBeUndefined()
+  })
+
+  test('keeps proved axis-disjoint peers within the existing extra-work allowance', () => {
+    const a = [{ x: 0, y: 0 }, { x: 100, y: 0 }],
+      ink = [{ points: a, style: 'solid' }, ...Array.from({ length: 100 }, (_, i) => ({ points: [{ x: i + 1, y: 10 }, { x: i + 1, y: 20 }], style: 'solid' }))],
+      graph = measured({ maximumEdgeStrokeWidth: 1, edges: ink.map(() => ({ source: 0, target: 1, minSpan: 1 })) })
+    let remaining = 300
+    expect(scoreMeasuredRouteCrossings(a, 0, ink, graph, amount => (remaining -= amount) >= 0)).toBe(0)
+    expect(remaining).toBeGreaterThanOrEqual(0)
   })
 
   test('charges the same caller allowance and stops at the first refused debit', () => {

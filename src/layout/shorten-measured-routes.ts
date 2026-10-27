@@ -76,6 +76,7 @@ export function shortenMeasuredRoutes(input: MeasuredGraph, placed: AgenticLayou
           comparisons -= count * count
           if (comparisons < 0) return placed
           const nextCrossings = scoreMeasuredRouteCrossings(candidate, index, ink, input, chargeContact)
+          if (comparisons < 0) return placed
           if (nextCrossings === undefined) continue
           let labelPosition = anchor, labelBox = labels[index]
           if (anchor && edge.label && !candidate.slice(1).some((point, cursor) => pointOnMeasuredSegment(anchor, candidate[cursor]!, point))) {

@@ -79,6 +79,7 @@ export function compactMeasuredLoops(input: MeasuredGraph, placed: AgenticLayout
         if (!labelPosition) continue
       }
       const value = scoreMeasuredRouteCrossings(proposed, index, ink, input, chargeContact)
+      if (work.loopPairs < 0) return placed
       if (value === undefined || value > before) continue
       route.points = proposed
       ink[index]!.points = proposed
