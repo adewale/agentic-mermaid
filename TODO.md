@@ -331,6 +331,13 @@ named revision, not completion of these 0.6 contracts. Keep the feature draft an
 opt-in while qualifying it; this deferral does not change package versions,
 publish a release or authorize a default switch.
 
+Correctness implementation is the focus through Friday 30 October; performance
+experiments are paused during this work.
+
+- [x] Add independent Class development models over 8–24 cards and full public-SVG occurrence checks for six 8-card engine/wrapper arms. Repair the two new Native TB refusals by retrying a blocked content domain inside a known canonical host outline; retain rounded-corner, unknown-shape and cumulative-budget controls. These are development inputs, not held-out qualification or broad parity.
+- [ ] Close same-emission lifetime authority before expanding paint-proof coverage. Independent controls expose false passes when emitted geometry or ownership is later mutated/reused; snapshot prototypes must pass those controls and preserve existing certified cases under the original shared budget. Header, resource and getter custody require separate evidence.
+- [ ] Integrate and acquire the separately developed Trident painted-attachment observer. Its local controls repair zero-area fill and unresolved-carrier omissions; local observer correctness does not establish Mermaid/Pele parity, whole-route continuity or whole-head visibility.
+
 - [x] Retain explicit ELK, checked native selection, typed fallback and immutable execution receipts.
 - [x] Native Flowchart/State measured placement and independent nested scopes; flat Requirement and Architecture adapters, Class cards and independent namespaces, plus ER frames and boundary relations.
 - [x] Close the retained seed228 crossing gap in the256-case development population (11 versus12 crossings;75 versus74 bends).
