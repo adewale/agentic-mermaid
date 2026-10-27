@@ -17,6 +17,82 @@ const EVAL_ROOT = join(ROOT, 'eval')
 export const COMPLEXITY_STRATA = ['minimal', 'representative', 'dense', 'text-stress', 'family-risk', 'corpus-outlier'] as const
 export type ComplexityStratum = (typeof COMPLEXITY_STRATA)[number]
 
+interface AuthoredClassRelationship {
+  from: string
+  to: string
+  arrow: string
+  type: 'association' | 'dependency' | 'aggregation' | 'inheritance' | 'link-solid'
+  markerAt: 'from' | 'to' | 'none'
+  marker?: string
+  label?: string
+  fromCardinality?: string
+  toCardinality?: string
+}
+
+/** Development inputs, not the sequestered 0.6 holdout. Expectations are authored
+ * before source construction; neither a parser nor layout supplies this model. */
+export function classDevelopmentCase(count: number, variant: number, directed = true) {
+  if (!Number.isInteger(count) || count < 8 || count > 24 || !Number.isInteger(variant) || variant < 0 || variant > 7) throw new RangeError('Bounded Class development case')
+  const split = Math.floor(count / 3)
+  const classes = Array.from({ length: count }, (_, index) => ({
+    id: index === 0 ? 'ns:Domain' : index === 1 ? 'class-namespace:Domain' : `C${index}`,
+    label: index < 2 ? 'Shared record' : `Record ${index}${variant % 2 ? ' café 東京 with retained payload and ownership' : ''}`,
+    namespace: index === count - 1 ? undefined : index < split ? 'Domain' : index < 2 * split ? 'Domain.Inner' : 'App',
+    attribute: `+String field${index}`,
+    method: `+read${index}() String`,
+    methodDisplay: `+ read${index}(): String`,
+  }))
+  const namespaces = [
+    { id: 'Domain', name: 'Domain', parentId: undefined },
+    { id: 'Domain.Inner', name: 'Inner', parentId: 'Domain' },
+    { id: 'App', name: 'App', parentId: undefined },
+  ].map(namespace => ({ ...namespace, classIds: classes.filter(cls => cls.namespace === namespace.id).map(cls => cls.id) }))
+  const kinds = [
+    { arrow: '-->', type: 'association', markerAt: 'to', marker: 'cls-arrow' },
+    { arrow: '..>', type: 'dependency', markerAt: 'to', marker: 'cls-arrow' },
+    { arrow: 'o--', type: 'aggregation', markerAt: 'from', marker: 'cls-aggregation' },
+    { arrow: '<|--', type: 'inheritance', markerAt: 'from', marker: 'cls-inherit' },
+  ] as const
+  const relationships: AuthoredClassRelationship[] = Array.from({ length: count - 2 }, (_, index) => ({
+    ...kinds[(index + variant) % kinds.length]!,
+    from: classes[index]!.id,
+    to: classes[index + 1]!.id,
+    label: `step ${index}`,
+    fromCardinality: '1',
+    toCardinality: '*',
+  }))
+  // Identical occurrences and a reciprocal must remain a multiset, not a set.
+  relationships.push({ ...relationships[0]! })
+  relationships.push({ ...relationships[0]!, from: classes[1]!.id, to: classes[0]!.id })
+  const self: AuthoredClassRelationship = { from: classes[2]!.id, to: classes[2]!.id, arrow: '--', type: 'link-solid', markerAt: 'none' }
+  const notes = [
+    { for: classes[0]!.id, text: `Keep record identity ${variant}` },
+    { for: classes.at(-1)!.id, text: `Isolated declaration ${variant} remains authored` },
+  ]
+  const quote = (id: string) => `\`${id}\``
+  const declaration = (cls: (typeof classes)[number]) => [`class ${quote(cls.id)}["${cls.label}"] {`, cls.attribute, cls.method, '}']
+  const direction = variant % 2 ? 'LR' : 'TB'
+  const body = [
+    'classDiagram',
+    ...(directed ? [`direction ${direction}`] : []),
+    'namespace Domain {',
+    ...classes.filter(cls => cls.namespace === 'Domain').flatMap(declaration),
+    'namespace Inner {',
+    ...classes.filter(cls => cls.namespace === 'Domain.Inner').flatMap(declaration),
+    '}',
+    '}',
+    'namespace App {',
+    ...classes.filter(cls => cls.namespace === 'App').flatMap(declaration),
+    '}',
+    ...declaration(classes.at(-1)!),
+    ...relationships.map(rel => `${quote(rel.from)} "${rel.fromCardinality}" ${rel.arrow} "${rel.toCardinality}" ${quote(rel.to)} : ${rel.label}`),
+    `${quote(self.from)} ${self.arrow} ${quote(self.to)}`,
+    ...notes.map(note => `note for ${quote(note.for)} "${note.text}"`),
+  ].join('\n')
+  const prefix = variant % 3 === 0 ? '%% retained development prefix\n' : variant % 3 === 1 ? '%%{init: {"class":{"hierarchicalNamespaces":true}}}%%\n%% retained development prefix\n' : '---\ntitle: Class development\n---\n%% retained development prefix\n'
+  return { source: prefix + body, bodySource: body, directed, expected: { classes, namespaces, relationships: [...relationships, self], notes, direction: (directed ? direction : 'TB') as 'LR' | 'TB' } }
+}
+
 export const FAMILY_CITIZENSHIP_GALLERY_OPTIONS = { style: 'publication-figure', seed: 17, security: 'strict', embedFontImport: false } as const satisfies RenderOptions
 
 export interface FamilyCitizenshipWitness {
