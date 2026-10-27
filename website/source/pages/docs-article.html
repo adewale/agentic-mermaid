@@ -53,7 +53,7 @@
   <h2>Guide: editing a diagram without regenerating it</h2>
   <p>A render-only tool makes an agent rebuild the whole diagram to move one node. Agentic Mermaid keeps the diagram structured, so an edit is five small steps, and <code>verify</code> gates the last one.</p>
   <p>Most diagram tools render and stop. You hand them source, they hand back a picture, and to change one node you send the whole source again. That is fine for a person editing by hand and wasteful for an agent editing in a loop, where every regeneration risks moving nodes that were already correct.</p>
-  <p>The fix is to treat an existing diagram as structured data, not a string. A typed surface exposes the parts an agent can name and change, and refuses edits it cannot make safely. The loop has five steps.</p>
+  <p>The fix is to treat an existing diagram as structured data, not a string. A typed surface exposes source nodes, edges and other family-specific objects an agent can name and change, and refuses edits it cannot make safely. These source objects are distinct from drawing parts; see the <a href="/docs/api/#vocabulary">shared vocabulary</a>. The loop has five steps.</p>
 
   <h2>1 &middot; Parse</h2>
   <p>Read the source into its family model. Inspect the parsed body and diagnostics before choosing an edit.<label class="snref" for="sn1"></label><input class="mtoggle" type="checkbox" id="sn1"><span class="sidenote">Preserved source and structured edit support are different capabilities. A preserved body can round-trip without exposing typed operations.</span></p>

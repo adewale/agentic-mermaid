@@ -17,7 +17,7 @@ import { SUPPORTED_PROTOCOL_VERSIONS } from '../../src/mcp/hosted-server.ts'
 import { HTTP_SSE_PROTOCOL_VERSIONS, STDIO_PROTOCOL_VERSIONS } from '../../src/mcp/server.ts'
 import { HOSTED_MCP_TOOL_NAMES, inlineToolList, LOCAL_MCP_TOOL_NAMES } from '../../src/mcp/tool-names.ts'
 import { CLI_RENDER_FORMATS, SHARED_RENDER_OPTION_FIELD_DESCRIPTORS } from '../../src/render-contract.ts'
-import { EXISTING_DIAGRAM_WORKFLOW, NEW_DIAGRAM_POLICY } from '../../src/shared/agent-workflow.ts'
+import { DIAGRAM_TERMINOLOGY, EXISTING_DIAGRAM_WORKFLOW, FAMILY_NARROWING_NOTE, NEW_DIAGRAM_POLICY } from '../../src/shared/agent-workflow.ts'
 import { PACKAGE_VERSION } from '../../src/version.ts'
 
 const ticked = (values: readonly string[]): string => values.map(value => `\`${value}\``).join(', ')
@@ -73,6 +73,8 @@ const apiVersions = (): string => {
  * `warning-summaries:<tier>` / `warning-table:<tier>` take a warning tier.
  */
 export const DOC_BLOCKS: Readonly<Record<string, (argument?: string) => string>> = {
+  'diagram-terminology': () => DIAGRAM_TERMINOLOGY,
+  'family-narrowing': () => FAMILY_NARROWING_NOTE,
   'api-versions': apiVersions,
   'render-options': renderOptionsTable,
   'agent-workflow': () => `${NEW_DIAGRAM_POLICY} ${EXISTING_DIAGRAM_WORKFLOW}`,

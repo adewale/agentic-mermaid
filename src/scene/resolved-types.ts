@@ -15,11 +15,15 @@ export interface ResolvedScene {
   /** Byte-identical to renderMermaidSVG with the same input and options. */
   svg: string
   colors: DiagramColors
+  /** Identified Scene parts paired with the artwork painted for each part. */
   parts: ResolvedPart[]
+  /** Resolved primitives outside those parts, including style backdrops. */
   frame: ResolvedPrimitive[]
 }
 
+/** One Scene part and its backend-painted paths/text; not a source node. */
 export interface ResolvedPart {
+  /** Scene part ID; source-facing identity, when available, is node.identity. */
   id: string
   role: SceneRole
   kind: SceneNode['kind']
@@ -27,6 +31,7 @@ export interface ResolvedPart {
   primitives: ResolvedPrimitive[]
 }
 
+/** A painted path or text run, distinct from pre-paint Scene geometry. */
 export type ResolvedPrimitive = ResolvedPath | ResolvedText
 
 export interface ResolvedPaint {

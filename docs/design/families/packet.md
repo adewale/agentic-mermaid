@@ -14,7 +14,7 @@ Leading wrappers are preserved by the shared source envelope.
 
 ## Placement and aesthetics
 
-The native placement algorithm splits ranges at bitsPerRow and retains field ownership through prepared text and rectangular Scene marks. Ascending and descending bitOrder mirror each row independently. Terminal placement computes its own cell tracks, rather than scaling SVG coordinates.
+The native placement algorithm splits ranges at bitsPerRow and retains field ownership through prepared text and rectangular Scene parts. Ascending and descending bitOrder mirror each row independently. Terminal placement computes its own cell tracks, rather than scaling SVG coordinates.
 
 SVG fragments expose their field identity, semantic label and inclusive bit range. The Editor offers a native field selector and keyboard inspection: selecting one field highlights all its row fragments and reports bit length, inclusive bit range and zero-based byte offsets. This changes only the preview; canonical SVG exports retain their styles and geometry. No additional field-description syntax is introduced.
 

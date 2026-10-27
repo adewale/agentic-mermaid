@@ -1,8 +1,8 @@
 // ============================================================================
-// SceneGraph IR — the post-layout semantic render-mark tree (SPEC §3.1).
+// SceneGraph IR — semantic drawing parts after layout (SPEC §3.1).
 //
 // Family renderers lower their positioned results to a SceneDoc instead of
-// exposing SVG strings as Scene authority. Each mark carries semantic fields
+// exposing SVG strings as Scene authority. Each part carries semantic fields
 // (role, geometry, paints, channels, stable id) consumed by graphical
 // backends. Backend-private serialization is a canonical projection rather
 // than a replay of construction-time SVG byte order.
@@ -20,7 +20,7 @@ import type { LabelDisplay } from '../multiline-utils.ts'
 import type { PixelTextBlock } from '../shared/prepared-text.ts'
 import type { DisplayRun, LabelContent } from '../shared/display-text.ts'
 
-/** Version of the extension-facing Scene document/mark behavioral contract. */
+/** Version of the extension-facing Scene document/part behavioral contract. */
 export { SCENE_CONTRACT_VERSION } from './version.ts'
 import type { SceneRole } from './roles.ts'
 
@@ -68,7 +68,7 @@ export type Geometry =
   | { kind: 'path'; d: string }
   | { kind: 'compound'; children: Geometry[] }
 
-/** The resolved paint attached to a mark — already cascaded (theme tokens,
+/** The resolved paint attached to a part — already cascaded (theme tokens,
  *  classDef, inline style, role defaults) by the family lowering. Internal
  *  scenes may reference a declared typed gradient through `url(#safe-id)`;
  *  arbitrary/external fetching paints remain forbidden. */
@@ -93,17 +93,17 @@ export type SceneTransform =
   /** SVG affine matrix: x' = a*x + c*y + e, y' = b*x + d*y + f. */
   | { kind: 'matrix'; a: number; b: number; c: number; d: number; e: number; f: number }
 
-/** Semantic subject whose artwork this mark contributes. This is an authored
+/** Semantic subject whose artwork this part contributes. This is an authored
  * identity or an explicit family identity, never a guessed id-prefix parent. */
 export interface SceneOwner {
   id: string
   role: SceneRole
 }
 
-/** Inert attributes a family adds to a mark's SVG element: CSS hook classes
+/** Inert attributes a family adds to a part's SVG element: CSS hook classes
  *  and `data-*` inspection metadata. The SVG writer emits them beside the
  *  attributes it derives from the typed fields; none of them can change what
- *  the mark draws, so they are outside paint certification. */
+ *  the part draws, so they are outside paint certification. */
 export interface MarkAttributes {
   /** Space-separated CSS class tokens (`[A-Za-z0-9_-]`). */
   className?: string
@@ -112,10 +112,10 @@ export interface MarkAttributes {
   data?: Readonly<Record<string, string>>
   /** Emitted as `aria-hidden="true"` on artwork with no accessible meaning. */
   ariaHidden?: true
-  /** Emitted as `tabindex="0"` on a mark that carries a followable link. */
+  /** Emitted as `tabindex="0"` on a part that carries a followable link. */
   tabIndex?: 0
   /** Emitted as `aria-label` when the drawn text abbreviates or wraps the
-   *  authored name. Relation marks take theirs from typed accessibility. */
+   *  authored name. Relation parts take theirs from typed accessibility. */
   ariaLabel?: string
 }
 
@@ -125,14 +125,14 @@ export interface SceneNodeBase {
    *  (§8 seed contract). */
   id: string
   role: SceneRole
-  /** Typed DOM identity mirrored as data-id/data-role on structured SVG marks.
+  /** Typed DOM identity mirrored as data-id/data-role on rendered SVG elements.
    * An owned shape may omit it only inside its matching semantic group. */
   identity?: SvgSemanticIdentity
   /** Explicit subject, or the nearest enclosing semantic group's identity. */
   owner?: SceneOwner
   /** Artwork shown only in an interactive state, such as a tooltip. */
   visibility?: 'conditional'
-  /** Typed accessibility semantics mirrored into ARIA on relation marks. */
+  /** Typed accessibility semantics mirrored into ARIA on relation parts. */
   accessibility?: SvgSemanticAccessibility
   channels?: SemanticChannels
   /** Semantic geometry transform applied by every backend. */
@@ -191,7 +191,7 @@ export interface MarkerDescriptor {
   scale?: number
 }
 
-/** A safe same-document SVG linear gradient. Paint marks reference it through
+/** A safe same-document SVG linear gradient. Parts reference this paint through
  * `url(#id)`; the descriptor, not raw `<defs>` markup, remains the resource
  * authority for validation and backend serialization. */
 export interface LinearGradientDescriptor {
@@ -446,14 +446,14 @@ export interface TextMark extends SceneNodeBase {
   spans?: readonly { text: string; fill: string }[]
   paint: MarkPaint
   /** Ink the family chose for this text on the page, when `paint.fill` was
-   *  instead chosen against the data mark the text sits on (a value label
+   *  instead chosen against the data part the text sits on (a value label
    *  inside a bar). A backend that puts the glyphs back on the page, as the
    *  sketch looks do with their page-colored halo over hatched or washed
    *  fills, paints this ink so the label stays readable. */
   pageFill?: string
 }
 
-/** A semantic wrapper (<g ...>...</g>) whose children are scene nodes.
+/** A semantic wrapper (<g ...>...</g>) whose children are Scene parts (SceneNode).
  *  Serialization is reconstructed from open/close/children + per-child indent,
  *  so styled backends can restyle children while keeping wrapper semantics
  *  (classes, data-* attributes, ARIA). */
@@ -479,16 +479,17 @@ export interface DocumentMark extends SceneNodeBase {
   /** Closed non-paint purpose, validated against the actual document elements.
    * Hidden or conditional artwork is not metadata. */
   nonPaint?: 'accessibility' | 'stylesheet' | 'interaction-metadata'
-  /** Typed marker resources owned by the definitions mark. Backends may
+  /** Typed marker resources owned by the definitions part. Backends may
    * reserialize these without inspecting the private SVG definition string. */
   markerResources?: readonly MarkerDescriptor[]
   /** Typed, fragment-local paint resources. External URLs remain forbidden. */
   gradientResources?: readonly LinearGradientDescriptor[]
 }
 
+/** A Scene part. Existing *Mark names describe drawing parts, not source nodes. */
 export type SceneNode = ShapeMark | ConnectorMark | TextMark | GroupMark | DocumentMark
 
-/** The lowered document: an ordered flat list of top-level semantic marks. */
+/** The lowered document: an ordered flat list of top-level Scene parts. */
 export interface SceneDoc {
   family: string
   width: number
