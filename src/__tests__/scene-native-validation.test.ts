@@ -4,10 +4,191 @@ import { createNativeSceneValidator, SCENE_VALIDATION_LIMITS, SceneValidationErr
 import { deferredTerminalProjectionInput, withDeferredTerminalProjections } from '../scene/deferred-terminal-projection.ts'
 import { serializeLinearGradientResources } from '../scene/gradient-resources.ts'
 import type { LinearGradientDescriptor, SceneDoc } from '../scene/ir.ts'
+import { drawNative } from '../scene/native-drawing.ts'
+import { certifyNativePaint } from '../scene/paint-certification.ts'
+import { serializeMarkerResource, tipAnchoredArrow } from '../scene/marker-resources.ts'
+import type { DrawingProducer } from '../scene/drawing.ts'
+import { scanSvgStartTags } from '../svg-structure.ts'
 
 const header: Omit<SceneDoc, 'parts'> = { family: 'flowchart', width: 200, height: 100, colors: { bg: '#fff', fg: '#111' }, transparent: false }
 const shape = (id = 'A') => marks.shape({ id, role: 'node', geometry: { kind: 'rect', x: 10, y: 10, width: 20, height: 20 }, paint: { fill: '#111' } })
 const label = (text: string, id = 'label') => marks.text({ id, role: 'label', text, x: 10, y: 20, fontSize: 0.1, anchor: 'start', paint: { fill: '#111' } })
+
+test.each(['clear', 'covered', 'non-enumerable-paint', 'mutate-after-emission', 'getter-after-emission', 'same-object-two-writes'] as const)('native paint certifies actual emitted occurrences for %s', mode => {
+  const marker = tipAnchoredArrow('occurrence-arrow', { width: 8, height: 5 }, 'end', { fill: '#000' }, 'userSpaceOnUse')
+  const context = { positioned: { width: 200, height: 100 }, colors: header.colors, resolved: { renderOptions: {} } }
+  const geometry = { kind: 'rect' as const, x: mode === 'clear' ? 90 : 40, y: 10, width: 35, height: 70 }
+  let getterX = geometry.x
+  if (mode === 'getter-after-emission') Object.defineProperty(geometry, 'x', { enumerable: true, configurable: true, get() { return getterX } })
+  const paint = { fill: '#fff' }
+  if (mode === 'non-enumerable-paint') Object.defineProperty(paint, 'fill', { value: '#fff', enumerable: false, writable: false, configurable: false })
+  const fields = { id: 'cover', role: 'node' as const, geometry, paint }
+  const producer: DrawingProducer = factory => {
+    const open = factory.documentOpen({ id: 'root', width: 200, height: 100, colors: header.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">')
+    const definitions = factory.definitions({ id: 'markers' }, `<defs>${serializeMarkerResource(marker)}</defs>`)
+    const edge = factory.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 20, y1: 40, x2: 50, y2: 40 }, paint: { stroke: '#000' }, endpoints: { from: 'outside', to: 'cover' }, markers: { end: marker } })
+    const first = factory.shape(fields)
+    if (mode === 'mutate-after-emission' || mode === 'same-object-two-writes') geometry.x = 90
+    if (mode === 'getter-after-emission') getterX = 90
+    // Reuse the SAME fields and geometry objects. The first occurrence remains
+    // the opaque rectangle already emitted at x40, even after another write.
+    const parts = [open, definitions, edge, first]
+    if (mode === 'same-object-two-writes') {
+      fields.id = 'later'
+      parts.push(factory.shape(fields))
+    }
+    parts.push(factory.documentClose())
+    return { ...header, parts }
+  }
+  const drawing = drawNative(producer, context, 'flowchart')
+  const rectangles = scanSvgStartTags(drawing.svg).filter(tag => tag.name === 'rect').map(tag => Object.fromEntries(tag.attributes.map(attribute => [attribute.name, attribute.value])))
+  const first = rectangles.find(rectangle => rectangle['data-id'] === 'cover')!
+  expect(first).toMatchObject({ x: mode === 'clear' ? '90' : '40', y: '10', width: '35', height: '70', fill: '#fff' })
+  if (mode === 'same-object-two-writes') expect(rectangles.find(rectangle => rectangle['data-id'] === 'later')).toMatchObject({ x: '90' })
+  // The literal user-space arrow fill occupies x42..50, y37.5..42.5.
+  // It is entirely inside the EMITTED x40..75 opaque first rectangle in
+  // every non-clear case. Later aliases cannot make those pixels visible.
+  const proof = certifyNativePaint(drawing.header, drawing.paint)
+  if (mode === 'clear') expect(proof.status).toBe('passed')
+  else expect(proof.status).not.toBe('passed')
+})
+
+test.each(['after-connector', 'before-connector'] as const)('native marker paint retains actual resource bytes when its descriptor changes %s', when => {
+  const marker = tipAnchoredArrow('resource-arrow', { width: 8, height: 5 }, 'end', { fill: '#000' }, 'userSpaceOnUse')
+  const context = { positioned: { width: 200, height: 100 }, colors: header.colors, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => {
+    const open = factory.documentOpen({ id: 'root', width: 200, height: 100, colors: header.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">')
+    const definitions = factory.definitions({ id: 'markers' }, `<defs>${serializeMarkerResource(marker)}</defs>`)
+    if (when === 'before-connector') marker.paint!.fill = 'none'
+    const edge = factory.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 20, y1: 40, x2: 50, y2: 40 }, paint: { stroke: '#000' }, endpoints: { from: 'outside', to: 'cover' }, markers: { end: marker } })
+    if (when === 'after-connector') marker.paint!.fill = 'none'
+    return { ...header, parts: [open, definitions, edge,
+      factory.shape({ id: 'cover', role: 'node', geometry: { kind: 'rect', x: 40, y: 10, width: 35, height: 70 }, paint: { fill: '#fff' } }),
+      factory.documentClose(),
+    ] }
+  }
+  const drawing = drawNative(producer, context, 'flowchart')
+  const tags = scanSvgStartTags(drawing.svg)
+  const polygon = tags.find(tag => tag.name === 'polygon')!
+  expect(Object.fromEntries(polygon.attributes.map(attribute => [attribute.name, attribute.value]))).toMatchObject({ points: '0 0, 8 2.5, 0 5', fill: '#000' })
+  expect(drawing.svg).toContain('marker-end="url(#resource-arrow)"')
+  // The emitted resource remains opaque. Its later descriptor cannot make
+  // the fully covered actual arrow disappear from the proof obligation.
+  expect(certifyNativePaint(drawing.header, drawing.paint).status).not.toBe('passed')
+})
+
+test('native emitted group ownership is retained or refused after owner mutation', () => {
+  const owner = { id: 'cover', role: 'node' as const }
+  const context = { positioned: { width: 200, height: 100 }, colors: header.colors, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => {
+    const open = factory.documentOpen({ id: 'root', width: 200, height: 100, colors: header.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">')
+    const artwork = factory.shape({ id: 'cover-artwork', role: 'node', identity: false, owner, geometry: { kind: 'rect', x: 90, y: 10, width: 35, height: 70 }, paint: { fill: '#fff' } })
+    const group = factory.group({ id: 'cover', role: 'node', owner, open: '<g data-id="cover">', close: '</g>', children: [{ node: artwork, indent: 2 }] })
+    owner.id = 'different'
+    return { ...header, parts: [open, group, factory.documentClose()] }
+  }
+  const drawing = drawNative(producer, context, 'flowchart')
+  expect(scanSvgStartTags(drawing.svg).some(tag => tag.name === 'g' && tag.attributes.some(attribute => attribute.name === 'data-id' && attribute.value === 'cover'))).toBe(true)
+  const proof = certifyNativePaint(drawing.header, drawing.paint)
+  if (proof.status === 'passed') {
+    const artwork = drawing.paint.primitives.find(primitive => primitive.id === 'cover-artwork')!
+    expect(artwork.owner).toEqual({ id: 'cover', role: 'node' })
+  } else expect(proof.status).toBe('unverified')
+})
+
+test.each(['after-drawing', 'after-document-open'] as const)('native actual stylesheet cannot be replaced by palette mutation %s', when => {
+  const colors = { bg: '#fff', fg: '#111', surface: '#fff' }
+  const marker = tipAnchoredArrow('palette-arrow', { width: 8, height: 5 }, 'end', { fill: '#000' }, 'userSpaceOnUse')
+  const context = { positioned: { width: 200, height: 100 }, colors, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => {
+    const open = factory.documentOpen({ id: 'root', width: 200, height: 100, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100" style="--bg:#fff;--fg:#111;--surface:#fff">')
+    if (when === 'after-document-open') colors.surface = '#ffffff00'
+    return { ...header, colors, parts: [open,
+      factory.definitions({ id: 'markers' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
+      factory.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 20, y1: 40, x2: 50, y2: 40 }, paint: { stroke: '#000' }, endpoints: { from: 'outside', to: 'cover' }, markers: { end: marker } }),
+      factory.shape({ id: 'cover', role: 'node', geometry: { kind: 'rect', x: 40, y: 10, width: 35, height: 70 }, paint: { fill: 'var(--surface)' } }),
+      factory.documentClose(),
+    ] }
+  }
+  const drawing = drawNative(producer, context, 'flowchart')
+  if (when === 'after-drawing') colors.surface = '#ffffff00'
+  const tags = scanSvgStartTags(drawing.svg)
+  const root = tags.find(tag => tag.name === 'svg')!
+  expect(root.attributes.find(attribute => attribute.name === 'style')?.value).toBe('--bg:#fff;--fg:#111;--surface:#fff')
+  const body = tags.find(tag => tag.name === 'rect' && tag.attributes.some(attribute => attribute.name === 'data-id' && attribute.value === 'cover'))!
+  expect(Object.fromEntries(body.attributes.map(attribute => [attribute.name, attribute.value]))).toMatchObject({ x: '40', width: '35', fill: 'var(--surface)' })
+  // The SAME emitted stylesheet still makes the covering body opaque white.
+  expect(certifyNativePaint(drawing.header, drawing.paint).status).not.toBe('passed')
+})
+
+test.each([4_000, 50_000])('a clear admitted immutable native polyline retains final paint certification with %i points', pointCount => {
+  const colors = Object.freeze({ bg: '#fff', fg: '#111' })
+  const points = Array.from({ length: pointCount }, (_, index) => Object.freeze({ x: index + 40, y: 40 }))
+  Object.freeze(points)
+  const geometry = Object.freeze({ kind: 'polyline' as const, points })
+  const fields = Object.freeze({ id: 'clear-polyline', role: 'chrome' as const, geometry, paint: Object.freeze({ fill: 'none', stroke: '#111', strokeWidth: '1' }) })
+  const width = Math.max(5_000, pointCount + 80)
+  const context = { positioned: { width, height: 100 }, colors, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => ({ ...header, width, colors, parts: [
+    factory.documentOpen({ id: 'root', width, height: 100, colors, transparent: false, font: 'Inter', hasMonoFont: false }, `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="100">`),
+    factory.shape(fields),
+    factory.documentClose(),
+  ] })
+  const drawing = drawNative(producer, context, 'flowchart')
+  const polyline = scanSvgStartTags(drawing.svg).find(tag => tag.name === 'polyline')!
+  const attributes = Object.fromEntries(polyline.attributes.map(attribute => [attribute.name, attribute.value]))
+  expect(attributes).toMatchObject({ fill: 'none', stroke: '#111', 'stroke-width': '1' })
+  expect(attributes.points!.trim().split(/\s+/)).toHaveLength(pointCount)
+  expect(Object.isFrozen(points) && points.every(point => Object.isFrozen(point))).toBe(true)
+  const proof = certifyNativePaint(drawing.header, drawing.paint)
+  expect(proof.status, JSON.stringify(proof.issues)).toBe('passed')
+})
+
+test.each(['different-viewport', 'transparent-root'] as const)('native paint cannot certify unsupported emitted root context for %s', mode => {
+  const marker = tipAnchoredArrow('viewport-custody-arrow', { width: 8, height: 5 }, 'end', { fill: '#000' }, 'userSpaceOnUse')
+  const context = { positioned: { width: 200, height: 100 }, colors: header.colors, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => ({ ...header, parts: [
+    factory.documentOpen({ id: 'root', width: 200, height: 100, colors: header.colors, transparent: false, font: 'Inter', hasMonoFont: false }, mode === 'different-viewport'
+      ? '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="100">'
+      : '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100" opacity="0">'),
+    factory.definitions({ id: 'markers' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
+    factory.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 20, y1: 40, x2: 50, y2: 40 }, paint: { stroke: '#000' }, endpoints: { from: 'outside', to: 'cover' }, markers: { end: marker } }),
+    factory.shape({ id: 'cover', role: 'node', geometry: { kind: 'rect', x: 90, y: 10, width: 35, height: 70 }, paint: { fill: '#fff' } }),
+    factory.documentClose(),
+  ] })
+  const drawing = drawNative(producer, context, 'flowchart')
+  const root = scanSvgStartTags(drawing.svg).find(tag => tag.name === 'svg')!
+  expect(Object.fromEntries(root.attributes.map(attribute => [attribute.name, attribute.value]))).toMatchObject(mode === 'different-viewport' ? { width: '30', height: '100' } : { width: '200', height: '100', opacity: '0' })
+  expect(root.attributes.some(attribute => attribute.name === 'viewBox')).toBe(false)
+  // The narrow standalone viewport clips the marker's x42..50 fill; opacity0
+  // instead hides it inside a matching viewport. Neither emitted root is
+  // described by the typed 200px opaque canvas used for paint checking.
+  expect(certifyNativePaint(drawing.header, drawing.paint).status).not.toBe('passed')
+})
+
+test('native paint inspects the same document occurrence roster that it emits', () => {
+  const marker = tipAnchoredArrow('roster-arrow', { width: 8, height: 5 }, 'end', { fill: '#000' }, 'userSpaceOnUse')
+  const context = { positioned: { width: 200, height: 100 }, colors: header.colors, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => {
+    const open = factory.documentOpen({ id: 'root', width: 200, height: 100, colors: header.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">')
+    const definitions = factory.definitions({ id: 'markers' }, `<defs>${serializeMarkerResource(marker)}</defs>`)
+    const edge = factory.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 20, y1: 40, x2: 50, y2: 40 }, paint: { stroke: '#000' }, endpoints: { from: 'outside', to: 'cover' }, markers: { end: marker } })
+    const cover = factory.shape({ id: 'cover', role: 'node', geometry: { kind: 'rect', x: 40, y: 10, width: 35, height: 70 }, paint: { fill: '#fff' } })
+    const clear = factory.shape({ id: 'other', role: 'node', geometry: { kind: 'rect', x: 90, y: 10, width: 35, height: 70 }, paint: { fill: '#fff' } })
+    const close = factory.documentClose()
+    const coveredParts = [open, definitions, edge, cover, close]
+    const clearParts = [open, definitions, edge, clear, close]
+    let reads = 0
+    return { ...header, get parts() { return ++reads <= 2 ? coveredParts : clearParts } }
+  }
+  const drawing = drawNative(producer, context, 'flowchart')
+  const cover = scanSvgStartTags(drawing.svg).find(tag => tag.name === 'rect' && tag.attributes.some(attribute => attribute.name === 'data-id' && attribute.value === 'cover'))!
+  expect(cover).toBeDefined()
+  expect(Object.fromEntries(cover.attributes.map(attribute => [attribute.name, attribute.value]))).toMatchObject({ x: '40', width: '35', fill: '#fff' })
+  // This emitted occurrence covers the complete black marker. Inspecting a
+  // different fragment returned by a later roster read cannot certify it.
+  expect(certifyNativePaint(drawing.header, drawing.paint).status).not.toBe('passed')
+})
 
 test('native admission resolves companion labels and owners submitted after connectors', () => {
   const validator = createNativeSceneValidator(header)

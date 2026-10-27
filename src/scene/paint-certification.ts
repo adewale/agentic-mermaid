@@ -8,6 +8,8 @@ import type { Geometry, MarkPaint, SceneDoc, SceneOwner, ScenePoint, SceneTransf
 import { composeMatrices, inverseMatrix, transformMatrix, transformPoint } from './transforms.ts'
 import { formatSvgNumber, formatSvgNumericAttribute } from '../shared/svg-number.ts'
 import { markerPaintPieces, type MarkerPaintPiece } from './marker-paint-pieces.ts'
+import { nativeEmissionWorkOf, hasNativeEmissionOccurrence, MAX_OCCLUSION_OPERATIONS } from './native-paint-emission.ts'
+export { MAX_OCCLUSION_OPERATIONS } from './native-paint-emission.ts'
 
 export interface PaintViewport { readonly x: number; readonly y: number; readonly width: number; readonly height: number }
 export interface PaintCertificationIssue {
@@ -41,7 +43,6 @@ export function retainRenderedPaintCertification(layout: RenderedLayout, certifi
 export function renderedPaintCertification(layout: RenderedLayout): PaintLayoutCertification | undefined { return layout.paintCertification ?? renderedCertificates.get(layout) }
 
 export const MAX_OCCLUSION_PAIRS = 100_000
-export const MAX_OCCLUSION_OPERATIONS = 400_000
 const MAX_ISSUES = 64
 const TOLERANCE = 0.5
 /** Floating-point noise in layout arithmetic (a legend top at -3.6e-15); ink
@@ -840,8 +841,14 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
     if (failure) failed = true
     else unverified = true
   }
+  const emissionWork = nativeEmissionWorkOf(inspection)
+  if (emissionWork && scene !== emissionWork.header) {
+    issue({ code: 'OUTPUT_SCOPE', message: 'Retained emission is paired with a different document header' })
+    scene = emissionWork.header
+  }
   let x0 = 0, y0 = 0, x1 = scene.width, y1 = scene.height, conditional = 0
   for (const primitive of inspection.primitives) {
+    if (!emissionWork && hasNativeEmissionOccurrence(primitive)) issue({ code: 'OUTPUT_SCOPE', message: 'Native paint occurrences have no bound emission context' })
     if (primitive.visibility === 'conditional') { conditional++; continue }
     if (primitive.coverage === 'unmeasured') issue({ code: 'UNMEASURED_PAINT', id: primitive.id, message: primitive.reason ?? 'Paint geometry is unavailable' })
     if (primitive.text && primitive.coverage !== 'non-painting' && primitive.text.measurement !== 'prepared') issue({ code: 'UNPREPARED_TEXT', id: primitive.id, message: 'Text was not retained from layout preparation' })
@@ -880,7 +887,8 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
     for (const value of projection.labels ?? []) if (value.text.trim() && value.visibility !== 'hidden' && value.visibility !== 'semantic') label(value.id, value.bounds, value.container)
   }
   const surfaces = tree(solidInteriors(scene, inspection.primitives))
-  let pairs = 0, operations = 0, exhausted = false
+  if (emissionWork?.uncertain) issue({ code: 'OUTPUT_SCOPE', message: 'Emitted document context or marker resource differs from retained paint evidence' })
+  let pairs = 0, operations = emissionWork?.operations ?? 0, exhausted = emissionWork?.exhausted ?? false
   const work = (): boolean => {
     if (operations >= MAX_OCCLUSION_OPERATIONS) { exhausted = true; return false }
     operations++

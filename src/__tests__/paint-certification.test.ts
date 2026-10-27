@@ -11,7 +11,7 @@ import { renderMermaidSVGWithReceipt, renderMermaidASCIIWithReceipt } from '../i
 import { lowerPositionedFamilyScene, renderedSvgDigest } from '../graphical-render.ts'
 import { resolveRenderRequestForExecution, resolvedRenderExecutionPlanOf } from '../render-contract.ts'
 import { positionResolvedFamily } from '../positioning.ts'
-import { inspectScenePrimitives, scenePrimitiveSource } from '../scene/inspection.ts'
+import { inspectScenePrimitives, scenePrimitiveSource, inspectNativePaintGeometry } from '../scene/inspection.ts'
 import { sceneNodeSerialization } from '../scene/serialization.ts'
 import { serializeMarkerResource, tipAnchoredArrow } from '../scene/marker-resources.ts'
 import { drawNative } from '../scene/native-drawing.ts'
@@ -300,6 +300,23 @@ test('a zero-opacity group cannot repaint an earlier occluded endpoint marker', 
   expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'MARKER_OCCLUDED', id: 'relationship', by: 'cover' }))
   expect(certifyScenePaint(scene([hidden])).checks.markers).toBe(0)
   expect(certifyScenePaint(scene([edge, surface(), repaint])).status).toBe('passed')
+})
+
+test('private emission custody cannot be discarded while fresh generic Native inspection remains available', () => {
+  const header = scene([])
+  const node = marks.shape({ id: 'surface', role: 'node', geometry: { kind: 'rect', x: 10, y: 10, width: 20, height: 20 }, paint: { fill: '#fff' } })
+  const generic = inspectNativePaintGeometry(header, [{ node }])
+  expect(certifyNativePaint(header, generic).status).toBe('passed')
+  const producer: DrawingProducer = factory => ({ ...header, parts: [
+    factory.documentOpen({ id: 'root', width: header.width, height: header.height, colors: header.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'),
+    factory.shape({ id: node.id, role: node.role, geometry: node.geometry, paint: node.paint }),
+    factory.documentClose(),
+  ] })
+  const drawing = drawNative(producer, { positioned: { width: header.width, height: header.height }, colors: header.colors, resolved: { renderOptions: {} } }, 'flowchart')
+  expect(certifyNativePaint(drawing.header, drawing.paint).status).toBe('passed')
+  expect(certifyNativePaint(drawing.header, { ...drawing.paint }).status).toBe('unverified')
+  expect(certifyNativePaint(drawing.header, { ...drawing.paint, primitives: [...drawing.paint.primitives] }).status).toBe('unverified')
+  expect(certifyNativePaint({ ...drawing.header }, drawing.paint).status).toBe('unverified')
 })
 
 test.each(['full', 'compound', 'fill-opacity-zero', 'thin', 'partial', 'repaint', 'dashed', 'translucent', 'unknown-width', 'unknown-opacity', 'non-scaling', 'scaled', 'rotated', 'sheared', 'circle', 'ellipse', 'polygon', 'marker-none', 'marker-unknown'] as const)('%s endpoint stroke cannot hide a fully covered marker behind its contact exemption', mode => {
