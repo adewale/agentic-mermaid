@@ -34,3 +34,10 @@ test('a new failure on a previously reviewed source gets a finite actionable rep
   expect(report).toContain('Done when every retained failure')
   expect(report).not.toContain('portable-export: Known rejected token')
 })
+
+test('grammar reports keep parser error text inside a complete code fence', () => {
+  const detail = 'Rejected token\n```\n@someone\n![untrusted](https://example.test/image)'
+  const result = { ...row, disposition: 'defect' as const, defects: [{ kind: 'portable-export' as const, detail }] }
+  const report = grammarFinderReport({ ...summary, contractFindings: [result] }, 'https://example.test/run/3')
+  expect(report).toContain('````\nportable-export: ' + detail + '\n````')
+})

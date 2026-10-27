@@ -20,7 +20,7 @@ export function grammarFinderReport(summary: GrammarFinderSummary, runUrl: strin
   let body = `This run found ${findings.length} retained input(s) with untracked grammar contract failures: ${runUrl}\n\n`
   body += `Seed: \`${summary.seed}\`; mutations per family: ${summary.mutationsPerFamily}. The run's \`grammar-finder-summary\` artifact retains all sources, canonical outputs, classifications and tracked failures. This issue covers this finite retained set; later runs do not append new inputs.\n`
   for (const row of findings) {
-    const section = `\n### ${row.family}\n\n${block(JSON.stringify(row.source))}\n\n${row.defects.filter(item => !item.trackedBy).map(item => `- ${item.kind}: ${item.detail}`).join('\n')}\n\nCanonical output:\n${block(row.canonical ?? '(no structured output)')}\n`
+    const section = `\n### ${row.family}\n\n${block(JSON.stringify(row.source))}\n\n${row.defects.filter(item => !item.trackedBy).map(item => block(`${item.kind}: ${item.detail}`)).join('\n')}\n\nCanonical output:\n${block(row.canonical ?? '(no structured output)')}\n`
     if (body.length + section.length > 55_000) { body += '\nFurther witnesses are retained in the artifact.\n'; break }
     body += section
   }
