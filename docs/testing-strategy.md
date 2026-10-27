@@ -601,7 +601,7 @@ table here, which would drift. In broad strokes:
   `bun run bench:dave` runs just the full browser comparison (three rounds,
   the same first 30 warm-up attempts, all 1,095 pinned fence occurrences
   including duplicates and unsupported families). It builds and packs the
-  checkout, then reuses the publication scorecard against pinned Pele 1.6.0
+  checkout, then reuses the publication scorecard against pinned Pele 1.9.0
   and Mermaid 12.2.0. Chromium and initial npm access are required;
   `--executable /path/to/chromium`, `--out DIR`, `--rounds N` and
   `--case occurrence-id,...` are forwarded to the browser runner. A case
