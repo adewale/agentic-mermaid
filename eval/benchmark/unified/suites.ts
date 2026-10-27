@@ -35,7 +35,8 @@ export function benchmarkSuites(options: SuiteOptions): SuiteDefinition[] {
   const root = options.harnessRoot,
     out = (id: string) => join(options.out, id.replaceAll(':', '-'))
   const pkg = json(join(root, 'package.json')) as { scripts: Record<string, string> }
-  if (existsSync(join(root, 'eval/benchmark/scripts.json'))) Object.assign(pkg.scripts, json(join(root, 'eval/benchmark/scripts.json')))
+  const localScripts = existsSync(join(root, 'eval/benchmark/scripts.json')) ? json(join(root, 'eval/benchmark/scripts.json')) as Record<string, string> : pkg.scripts
+  Object.assign(pkg.scripts, localScripts)
   const built = existsSync(join(options.packageRoot ?? options.root, 'dist/index.js'))
   const upstream = options.mermaidDir ?? mermaidUpstreamDirectory()
   const reference = options.referenceDir ?? mermaidOracleDirectory()
@@ -84,8 +85,8 @@ export function benchmarkSuites(options: SuiteOptions): SuiteDefinition[] {
     prerequisites: [],
     policy: 'Requires the completed sibling community artifacts; fresh-process CLI variants use matched fixed inputs. Child RSS/CPU are a separate post-latency diagnostic pass; source aliases are not additional independent engines.',
   })
-  for (const [script, command] of Object.entries(pkg.scripts)) {
-    if (!script.startsWith('bench:') || script === 'bench:charts' || script === 'bench:modern-summary' || script === 'bench:peers:qualify' || script === 'bench:performance-profile' || script === 'bench:endpoint-marker' || /eval\/benchmark\/(?:commands|portable\/(?:run|build)|unified\/(?:run|pr-campaign|project-update|update-scorecard)|suite)\.ts/.test(command)) continue
+  for (const [script, command] of Object.entries(localScripts)) {
+    if (!script.startsWith('bench:') || ['bench:test', 'bench:typecheck', 'bench:lint'].includes(script) || script === 'bench:charts' || script === 'bench:modern-summary' || script === 'bench:peers:qualify' || script === 'bench:performance-profile' || script === 'bench:endpoint-marker' || /eval\/benchmark\/(?:commands|portable\/(?:run|build)|unified\/(?:run|pr-campaign|project-update|update-scorecard)|suite)\.ts/.test(command)) continue
     const id = script.slice('bench:'.length),
       args = ['bun', 'run', script],
       prerequisites: string[] = []
