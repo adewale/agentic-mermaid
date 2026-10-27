@@ -1,4 +1,5 @@
-import { scoreMeasuredRouteCrossings } from '../layout/measured-route-safety.ts'
+import { measuredRouteContactPairBudget, scoreMeasuredRouteCrossings } from '../layout/measured-route-safety.ts'
+import { layoutCompoundGraph } from '../layout/agentic-compound-core.ts'
 import { assertFinalBoundaryContacts, createBoundaryContactValidator } from '../layout/compound-boundary-routes.ts'
 import { proposePortalChannel } from '../layout/compound-portal-channel.ts'
 import { proposeOuterChannel } from '../layout/compound-outer-channel.ts'
@@ -1349,5 +1350,137 @@ describe('measured painted route contacts', () => {
     expect(capacityStopped).toBe(true)
     const fail = (reason: string): never => { throw new Error(reason) }
     expect(() => createBoundaryContactValidator(input(1), 0, ink, { pairs: 10000, arcs: 1, swaps: 1000 }, fail)(a)).toThrow('visibility-arc limit')
+  })
+})
+
+describe('written sharp join contact closure', () => {
+  const path = (values: readonly (readonly [number, number])[]): Point[] => values.map(([x, y]) => ({ x, y }))
+  const fail = (reason: string): never => { throw Error(reason) }
+  const budget = () => ({ pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 })
+  const graph = (width = 1, radius: number | undefined = 0, commonSource = false): MeasuredGraph => measured({
+    nodes: [{ id: 'a', width: 10, height: 20 }, { id: 'b', width: 10, height: 20 }, { id: 'c', width: 10, height: 50 }],
+    edges: [{ source: 0, target: commonSource ? 1 : 2, minSpan: 1 }, { source: commonSource ? 0 : 1, target: 2, minSpan: 1 }],
+    maximumEdgeStrokeWidth: width, maximumEdgeBendRadius: radius,
+  })
+  const cases = [
+    { name: '13: separated collinear ends meet through their outer miters', width: 1, common: false, reverseShared: false,
+      a: path([[636.974, 869.2], [507.414, 869.2], [507.414, 1119], [250, 1119], [250, 1131.45], [184, 1131.45]]),
+      b: path([[636.974, 760.3], [501.414, 760.3], [501.414, 1078.7], [250, 1078.7], [250, 1118.2], [184, 1118.2]]) },
+    { name: '38: opposite vertical spans merely touch before their corners merge', width: 1, common: false, reverseShared: true,
+      a: path([[430.496, 369.5], [430.496, 384.5], [543.735, 384.5], [543.735, 434.8], [543.258437581, 434.8], [543.258437581, 449.8]]),
+      b: path([[556.211, 449.8], [556.211, 434.8], [647.502, 434.8], [647.502, 384.5], [544.421, 384.5], [544.421, 215.3], [386.641, 215.3], [386.641, 200.3]]) },
+    { name: 'a shared physical source cannot excuse a remote wide join', width: 22, common: true, reverseShared: false,
+      a: path([[0, 0], [10, 0], [10, 30]]), b: path([[0, 0], [0, -30]]) },
+  ]
+  test.each(cases)('rejects $name', ({ a, b, width, common, reverseShared }) => {
+    const input = graph(width, 0, common), routes = [{ points: a, style: 'solid' }, { points: b, style: 'solid' }], before = structuredClone({ input, routes })
+    if (reverseShared) { input.edges = [{ source: 0, target: 1, minSpan: 1 }, { source: 1, target: 2, minSpan: 1 }]; before.input.edges = structuredClone(input.edges) }
+    expect(scoreMeasuredRouteCrossings(a, 0, routes, input)).toBeUndefined()
+    expect(scoreMeasuredRouteCrossings(b, 1, routes, input)).toBeUndefined()
+    expect(createBoundaryContactValidator(input, 0, routes, budget(), fail)(a)).toBe(false)
+    expect({ input, routes }).toEqual(before)
+  })
+  test('completes a separated field by paying only its executed contact predicates', () => {
+    const candidate=path([[0,0],[10,0]]),input=graph(),edges=[input.edges[0]!],routes=[{points:candidate,style:'solid'}]
+    input.edges=edges
+    for(let i=0;i<40;i++){
+      edges.push({source:1,target:2,minSpan:1})
+      routes.push({points:path([[100+i,100],[100+i,110]]),style:'solid'})
+    }
+    const basis=measuredRouteContactPairBudget(input)
+    let remaining=250-basis*40-candidate.length-40,stopped=false
+    const charge=(amount:number)=>{
+      expect(stopped).toBe(false)
+      remaining-=amount
+      if(remaining<0)stopped=true
+      return !stopped
+    }
+    expect(scoreMeasuredRouteCrossings(candidate,0,routes,input,charge,undefined,undefined,basis)).toBe(0)
+    expect(remaining).toBeGreaterThanOrEqual(0)
+    expect(scoreMeasuredRouteCrossings(candidate,0,routes,input)).toBe(0)
+  })
+  test('reports only the exact refused supports in caller-owned witness scratch', () => {
+    const {a,b}=cases[0]!,routes=[{points:a,style:'solid'},{points:b,style:'solid'}],witness={candidateSegment:-1,peerIndex:-1,peerSegment:-1}
+    expect(scoreMeasuredRouteCrossings(a,0,routes,graph(),undefined,undefined,witness)).toBeUndefined()
+    expect(witness).toEqual({candidateSegment:3,peerIndex:1,peerSegment:4})
+    witness.candidateSegment=witness.peerIndex=witness.peerSegment=-1
+    expect(scoreMeasuredRouteCrossings(a,0,routes,graph(),()=>false,undefined,witness)).toBeUndefined()
+    expect(witness).toEqual({candidateSegment:-1,peerIndex:-1,peerSegment:-1})
+  })
+  test('keeps subnormal offset signs under exact served-decimal authority', () => {
+    // Exact a+W/2=1.49e-322 lies below b=1.5e-322. Binary
+    // subtraction has the opposite sign and its relative error underflows.
+    const width=2.1e-322,a=path([[-1,0],[4.4e-323,0],[4.4e-323,1]]),b=path([[1.5e-322,-5e-323],[1,-5e-323]])
+    expect(scoreMeasuredRouteCrossings(a,0,[{points:a,style:'solid'},{points:b,style:'solid'}],graph(width))).toBe(0)
+    // A real low offset 0 versus high offset +W/2 also reverses binary
+    // sign: exact 2.1e-322 < 1.1e-322 + 2.03e-322/2.
+    const tinyJoin=path([[-1,0],[1.1e-322,0],[1.1e-322,1]]),tinyStrip=path([[2.1e-322,-5e-323],[1,-5e-323]])
+    expect(scoreMeasuredRouteCrossings(tinyJoin,0,[{points:tinyJoin,style:'solid'},{points:tinyStrip,style:'solid'}],graph(2.03e-322))).toBeUndefined()
+    const overlap=path([[1.4e-322,-5e-323],[1,-5e-323]])
+    expect(scoreMeasuredRouteCrossings(a,0,[{points:a,style:'solid'},{points:overlap,style:'solid'}],graph(width))).toBeUndefined()
+  })
+  test('retains ordinary proper crossings through collinear subdivision and real common terminals', () => {
+    const input = graph(), horizontal = path([[0, 5], [5, 5], [10, 5]]), vertical = path([[5, 0], [5, 10]])
+    expect(scoreMeasuredRouteCrossings(horizontal, 0, [{ points: horizontal, style: 'solid' }, { points: vertical, style: 'solid' }], input)).toBe(1)
+    const a = path([[0, 0], [10, 0]]), b = path([[0, 0], [0, -10]])
+    expect(scoreMeasuredRouteCrossings(a, 0, [{ points: a, style: 'solid' }, { points: b, style: 'solid' }], graph(1, 0, true))).toBe(0)
+    const bent = path([[0, 0], [10, 0], [10, 10]]), separated = path([[30, 20], [40, 20]])
+    expect(scoreMeasuredRouteCrossings(bent, 0, [{ points: bent, style: 'solid' }, { points: separated, style: 'solid' }], input)).toBe(0)
+  })
+  test('uses exact served cardinality for raw drift and rechecks the resulting parallel ink', () => {
+    const a=path([[1000.0000000000001,0],[1000,10]]),far=path([[1020,0],[1020,10]]),input=graph()
+    expect(scoreMeasuredRouteCrossings(a,0,[{points:a,style:'solid'},{points:far,style:'solid'}],input)).toBe(0)
+    const overlapping=path([[1000.4,2],[1000.4,8]])
+    expect(scoreMeasuredRouteCrossings(a,0,[{points:a,style:'solid'},{points:overlapping,style:'solid'}],input)).toBeUndefined()
+    const stillDiagonal=path([[1000.0001,0],[1000,10]])
+    expect(scoreMeasuredRouteCrossings(stillDiagonal,0,[{points:stillDiagonal,style:'solid'},{points:far,style:'solid'}],input)).toBeUndefined()
+  })
+  test('does not borrow a cardinal support bound for an acute diagonal miter', () => {
+    // The actual 120-degree miter reaches x=sqrt(3)/2, beyond the
+    // width-sized raw-path separation from the peer at x=1.2.
+    const a=path([[-10,0],[0,0],[-5,8.660254037844386]]),b=path([[1.2,-2],[1.2,2]]),input=graph(),routes=[{points:a,style:'solid'},{points:b,style:'solid'}]
+    expect(scoreMeasuredRouteCrossings(a,0,routes,input)).toBeUndefined()
+    expect(scoreMeasuredRouteCrossings(b,1,routes,input)).toBeUndefined()
+    expect(createBoundaryContactValidator(input,0,routes,budget(),fail)(a)).toBe(false)
+  })
+  test('does not claim sharp join authority for absent or rounded geometry metadata', () => {
+    const { a, b } = cases[0]!, routes = [{ points: a, style: 'solid' }, { points: b, style: 'solid' }]
+    const unknown = graph(); delete unknown.maximumEdgeBendRadius
+    expect(scoreMeasuredRouteCrossings(a, 0, routes, unknown)).toBe(0)
+    expect(scoreMeasuredRouteCrossings(a, 0, routes, graph(1, 8))).toBe(0)
+  })
+  test('compares half-width offsets as exact served decimals at a nonbinary boundary', () => {
+    // The writer preserves W (eleven fractional digits). Its exact half is
+    // 9.234567890105; formatting the DERIVED half would change it to 9.23456789011.
+    const width = 18.46913578021, a = path([[-40, 0], [0, 0], [0, 40]]), b = path([[width, -40], [width, -1]])
+    expect(scoreMeasuredRouteCrossings(a, 0, [{ points: a, style: 'solid' }, { points: b, style: 'solid' }], graph(width))).toBe(0)
+    const shifted = path([[18.4691357802, -40], [18.4691357802, -1]])
+    expect(scoreMeasuredRouteCrossings(a, 0, [{ points: a, style: 'solid' }, { points: shifted, style: 'solid' }], graph(width))).toBeUndefined()
+  })
+  test('does not let a raw metric miss excuse a contact created by actual SVG spelling', () => {
+    const a = path([[-10, 1000], [1.0000000000001, 1000], [1.0000000000001, 1010]]), b = path([[1, 990], [1, 999.9999999999999]])
+    // Served endpoints both become (1,1000): the positive corner/strip
+    // intersection is [1,1.5] x [999.5,1000], not a proper interior crossing.
+    expect(scoreMeasuredRouteCrossings(a, 0, [{ points: a, style: 'solid' }, { points: b, style: 'solid' }], graph())).toBeUndefined()
+  })
+  test('checks globally projected untouched local routes without lifted edges or marker metadata', () => {
+    const { a, b } = cases[0]!, input = graph(), original = structuredClone({ a, b })
+    input.padding = 0
+    input.nodes = input.nodes.map(node => ({ ...node, parent: 0 }))
+    input.groups = [{ id: 'scope', minWidth: 0, headerHeight: 0, padding: { top: 0, right: 0, bottom: 0, left: 0 } }]
+    let placements = 0
+    const flat = (local: MeasuredGraph): AgenticLayout => {
+      placements++
+      return local.nodes.length === 3
+        ? { topology: 'layered', width: 700, height: 1200, nodes: [{ x: 636.974, y: 860 }, { x: 636.974, y: 750 }, { x: 174, y: 1100 }], edges: [{ points: a.map(p => ({ ...p })) }, { points: b.map(p => ({ ...p })) }] }
+        : { topology: 'layered', width: 700, height: 1200, nodes: [{ x: 0, y: 0 }], edges: [] }
+    }
+    const work = budget()
+    expect(() => layoutCompoundGraph(input, flat, fail, 32768, work)).toThrow('uncertified shared contact')
+    expect(placements).toBe(2)
+    const placed: AgenticLayout = { topology: 'layered', width: 700, height: 1200, nodes: [], edges: [{ points: a }, { points: b }] }
+    expect(() => assertFinalBoundaryContacts(input, placed, new Set(), budget(), fail)).toThrow('uncertified shared contact')
+    expect({ a, b }).toEqual(original)
+    expect(work.pairs).toBeLessThan(1_000_000)
   })
 })
