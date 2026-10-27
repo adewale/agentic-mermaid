@@ -1,3 +1,4 @@
+import { projectZenUMLSequence } from '../zenuml/native-sequence.ts'
 import { eventRelations } from '../eventmodeling/parser.ts'
 import { stableFamilyFacts } from './stable-family-adapters.ts'
 
@@ -168,6 +169,17 @@ export function describeMermaidFacts(d: ParsedDiagram): string[] {
     }
     case 'sankey': {
       d.body.links.forEach((link, i) => add(out, `link#${i} ${clean(link.source)} -> ${clean(link.target)} : ${link.value}`))
+      break
+    }
+    case 'zenuml': {
+      const model = projectZenUMLSequence(d.body)
+      for (const actor of model.actors) if (!actor.external) add(out, `participant ${clean(actor.id)} : ${clean(actor.label)}`)
+      for (const message of model.messages) {
+        add(out, `message ${clean(message.from)} -> ${clean(message.to)} : ${clean(message.label)}`)
+        add(out, `message#${clean(message.id!)} ${clean(message.from)} -> ${clean(message.to)} : ${clean(message.label)}${message.lineStyle === 'dashed' ? ' reply' : ''}`)
+        if (message.parentId) add(out, `message#${clean(message.id!)} parent ${clean(message.parentId)}`)
+      }
+      for (const block of model.blocks) add(out, `fragment ${clean(block.id!)} ${block.type} : ${clean(block.label)}`)
       break
     }
     case 'eventmodeling':

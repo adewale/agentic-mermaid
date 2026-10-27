@@ -50,6 +50,29 @@ export interface FamilyConformanceProfile {
  * particular test.
  */
 export const FAMILY_CONFORMANCE_PROFILES: Readonly<Record<DiagramKind, FamilyConformanceProfile>> = {
+  zenuml: {
+    family: 'zenuml',
+    citizenship: {
+      source: readFileSync(join(EVAL_ROOT, 'layout-compare/fixtures/zenuml-native-checkout.mmd'), 'utf8'),
+      options: FAMILY_CITIZENSHIP_GALLERY_OPTIONS,
+      count: { nodes: 4, edges: 7, groups: 1 },
+      facts: ['participant Buyer : Customer', 'message Buyer -> API : checkout()', 'message API -> Buyer : ready'],
+      visibleText: ['Customer', 'checkout()', 'reserve()', 'accepted', 'rejected'],
+      edit: { op: { kind: 'rename_participant', id: 'Stock', newId: 'Inventory' }, beforeFacts: ['message API -> Stock : reserve()', 'message Stock -> API : accepted', 'message Stock -> API : rejected'], afterFacts: ['message API -> Inventory : reserve()', 'message Inventory -> API : accepted', 'message Inventory -> API : rejected'] },
+      assertDomain: (diagram, layout) => {
+        if (diagram.body.kind !== 'zenuml') throw Error('Expected native ZenUML')
+        expect(diagram.body.participants.slice(0, 2).map(participant => participant.id)).toEqual(['Buyer', 'API'])
+        expect(diagram.body.participants.length).toBe(3)
+        const store = diagram.body.participants[2]!.id
+        expect(['Stock', 'Inventory']).toContain(store)
+        expect(layout.edges.map(edge => [edge.from, edge.to])).toEqual([['Buyer', 'API'], ['API', store], [store, 'API'], [store, 'API'], ['API', 'ticket:Ticket'], ['ticket:Ticket', 'API'], ['API', 'Buyer']])
+        expect(layout.edges.filter(edge => edge.parentId).length).toBe(2)
+      },
+    },
+    outlines: { kind: 'automatic', roles: ['actor', 'block'] },
+    riskFixture: '../../../eval/layout-compare/fixtures/zenuml-native-checkout.mmd', riskOptions: {},
+    textStressSource: 'zenuml\nA->B: 東京 café é 👩‍💻 שלום مرحبا',
+  },
   eventmodeling: {
     family: 'eventmodeling',
     citizenship: {

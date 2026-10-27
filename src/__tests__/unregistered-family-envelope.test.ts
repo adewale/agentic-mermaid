@@ -8,12 +8,12 @@ import { executeInSandbox } from '../mcp/sandbox.ts'
 
 const CASES = [
   {
-    source: '---\ntitle: Preserved ZenUML\n---\n%%{init: {"theme":"base"}}%%\n%% keep me\nzenuml\n  opaque { bytes }\n',
+    source: '---\ntitle: Preserved Swimlane\n---\n%%{init: {"theme":"base"}}%%\n%% keep me\nswimlane-beta\n  opaque { bytes }\n',
     code: 'UNSUPPORTED_FAMILY',
     classification: 'unsupported',
     representation: 'opaque',
-    header: 'zenuml',
-    family: 'zenuml',
+    header: 'swimlane-beta',
+    family: 'swimlane',
   },
   {
     source: '\uFEFF\n%% untouched\nfutureDiagram-v99\n  opaque { bytes }\n',
@@ -117,9 +117,9 @@ describe('forward-compatible unregistered family envelopes', () => {
         code: 'UNKNOWN_HEADER',
       },
       {
-        source: 'zenum&#108;\n  opaque { bytes }\n',
-        authoredHeader: 'zenum&#108;',
-        semanticHeader: 'zenuml',
+        source: 'swimlane&#45;beta\n  opaque { bytes }\n',
+        authoredHeader: 'swimlane&#45;beta',
+        semanticHeader: 'swimlane-beta',
         code: 'UNSUPPORTED_FAMILY',
       },
     ] as const

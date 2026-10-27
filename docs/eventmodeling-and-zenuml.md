@@ -45,117 +45,115 @@ Agentic paints the title, while the upstream renderer currently omits it.
 The maturity remains `experimental` under the pinned policy; upstream stability
 classification is unresolved. This is not a complete-library support claim.
 
-## Optional ZenUML rendering
+## Native ZenUML
 
-ZenUML remains losslessly preserved in the core parser. It has no native Agentic
-semantic model or typed edits. The optional entry provides an asynchronous,
-browser-only rendering backend using exact **@zenuml/core 3.47.9**. No DOM shim,
-Node renderer, terminal renderer, CLI, MCP or hosted ZenUML render path is
-advertised. Existing synchronous APIs retain their unsupported-family error.
+ZenUML uses the same public authoring and output surfaces as the other native
+families: `parseRegisteredMermaid`, `asZenUML`, `createMermaid`, checked mutations,
+serialization, facts, accessibility trees, verification, SVG/PNG, terminal, CLI,
+MCP and the browser editor. The family remains experimental.
 
-Serve the shipped `dist/zenuml-frame.global.js` as a static asset and call:
+The authored model retains participant declarations and aliases, annotations,
+stereotypes, starter, nested calls, assignments, object creation, explicit
+messages/replies, returns, comments and control branches. Implicit participants
+are resolved by the shared semantic projection; they need no invented source
+declarations. Statement IDs are local editing addresses, while participant IDs
+are authored identities. Unsupported constructs preserve the whole source and
+refuse structured edits and partial rendering.
 
 ```ts
-import { renderZenUMLSVG } from 'agentic-mermaid/zenuml'
-const svg = await renderZenUMLSVG(`zenuml
-  title Demo
-  Alice->John: Hello John
-  John->Alice: Great!`, {
-  backendURL: new URL('/assets/zenuml-frame.global.js', location.href),
+const parsed = parseRegisteredMermaid(`zenuml
+Buyer as Customer
+API
+Stock
+Buyer->API.checkout() {
+  Stock.reserve()
+}`)
+if (parsed.ok) {
+  const zen = asZenUML(parsed.value)
+  if (zen) {
+    const changed = mutateChecked(zen, {
+      kind: 'rename_participant', id: 'Stock', newId: 'Inventory',
+    })
+    if (changed.ok) console.log(serializeMermaid(changed.value))
+  }
+}
+```
+
+`upsert_participant`, `remove_participant`, `rename_participant`,
+`insert_statement`, `set_statement` and `remove_statement` validate references
+and reparse canonical output before committing. Renaming updates nested
+endpoints and the starter atomically. Title and accessibility edits use the
+existing metadata authority, preserving unrelated YAML. An alias coupling the
+title to another configuration value returns `INVALID_OP` without changing the
+input. Writers emit portable ZenUML; reference checks use the real parser in
+**@zenuml/core 3.47.9**, alongside Mermaid **12.2.0** and the first-party addon
+**1.0.1**. The addon's no-op parser shim does not establish syntax correctness.
+
+### Shared rendering, Looks and palettes
+
+Zen owns authored semantics. Its direct Sequence-model projection reuses the
+existing measured Sequence layout, Scene lowering, positioned geometry and
+terminal compositor. It preserves nested parent identities, call/return
+direction, activation scopes and creation timing. Outside calls use an internal
+anchor without inventing an authored participant or visible header. Pixel and
+terminal geometry remain in their existing output adapters.
+
+Full Looks and palettes use the standard style authority and drawing backends:
+
+```ts
+const svg = renderMermaidSVG(source, {
+  style: ['hand-drawn', 'dracula'],
 })
 ```
 
-The backend script runs in an isolated iframe because its upstream dependency
-injects global CSS when imported. The frame validates syntax through ZenUML's
-own parser, awaits completion, checks SVG bounds and active/external content,
-then returns native SVG. Actual SVG ink bounds expand a viewport that would
-otherwise clip a long title or nested sequence number. The one-shot API removes
-its frame after success, failure or timeout.
-`UNSUPPORTED_RUNTIME`, `BACKEND_UNAVAILABLE`, `INVALID_SOURCE` and
-`RENDER_FAILED` distinguish those outcomes. The consumer must permit its
-same-origin frame and script under its CSP. A blocked script expires as
-`BACKEND_UNAVAILABLE`. A synchronous host Trusted Types refusal also returns
-that typed error and releases the partial frame; this API does not create a
-Trusted Types policy. Failure to load the optional palette module is a backend
-availability error, distinct from an unsupported style input.
+The reviewed checkout fixture also exercises `patent-drawing` with
+`github-light` and `watercolor` with `solarized-light`, including aliases,
+branch returns, nested activations and object creation. Role overrides follow
+the ordinary native Scene path. The family declares only Scene primitives that
+its native model can actually produce. It does not promise Sequence features
+that Zen does not model, such as participant boxes or destroy statements.
 
-### Palettes and owned paint
+### Asynchronous entry and upstream migration
 
-Pass the existing named palette or a paint-only style stack as `style`:
+`agentic-mermaid/zenuml` now renders natively in Node and browsers, without a
+backend URL or iframe:
 
 ```ts
-const svg = await renderZenUMLSVG(source, {
-  backendURL: '/assets/zenuml-frame.global.js',
-  style: ['dracula', { roles: { edge: { strokeColor: '#8be9fd' } } }],
-})
-```
-
-The shared style registry admits and composes the input; the existing color
-resolver supplies palette tones and contrast repair. The optional adapter maps
-those paints to explicit participant, message, reply, fragment and frame marks.
-It preserves the backend's measured text, geometry, message direction and dashes.
-Each request captures caller-owned style data before asynchronous admission;
-changing that object after calling `render` cannot repaint the queued request.
-
-Supported role fields are node/group `fillColor`, `borderColor`, `textColor`;
-edge `strokeColor`, `textColor`; and label `textColor`. Named palettes and
-explicit color values use the same syntax as native styles. Unresolved CSS
-variables are unavailable at this standalone boundary. Full Looks, fonts,
-padding, line widths, sketch/wash effects, bindings and constraints return
-`UNSUPPORTED_APPEARANCE`; they are not silently approximated. The upstream
-renderer fixes its own typography and layout, so this is palette/paint
-integration rather than native Scene or full Look support.
-
-The directly served browser entry bundles the same style authority for its own
-module graph. Built-in palette names are available there; host registrations
-in a separate native or `svg-styles` bundle do not cross that module boundary.
-Resolve a custom registered palette through the host's existing
-`resolveStyleStack` and pass the resulting concrete `StyleSpec` inline. This
-does not require a second registration or a duplicate style resolver.
-
-### Repeated browser rendering
-
-For previews or batches, explicitly own a reusable renderer:
-
-```ts
-import { createZenUMLRenderer } from 'agentic-mermaid/zenuml'
-const renderer = createZenUMLRenderer({
-  backendURL: '/assets/zenuml-frame.global.js',
-})
+import { createZenUMLRenderer, renderZenUMLSVG } from 'agentic-mermaid/zenuml'
+const svg = await renderZenUMLSVG(source, { style: ['watercolor', 'solarized-light'] })
+const renderer = createZenUMLRenderer({ style: 'github-light' })
 try {
-  const light = await renderer.render(source, { style: 'github-light' })
-  const dark = await renderer.render(source, { style: 'dracula' })
-  // Omitting a per-call style inherits the session's default. An explicit
-  // style: undefined resets that default to the unmodified vendor theme.
-  const vendor = await renderer.render(source, { style: undefined })
+  const preview = await renderer.render(source, { style: ['hand-drawn', 'dracula'] })
 } finally {
   renderer.dispose()
 }
 ```
 
-A session retains at most one frame and one parser, serializes requests, and
-rejects submission above 32 pending calls. Each call parses and lays out its
-source; there is no source/SVG result cache. The frame is replaced after 64
-requests to bound upstream module caches. Invalid syntax can be followed by a
-valid call in the same frame; backend failure or timeout discards the frame
-before the next call. `timeoutMs` bounds an executing request, including palette
-admission and frame startup, rather than time waiting behind earlier requests. Disposal rejects
-active and queued calls, including calls waiting for palette-module admission,
-and releases the frame. Consumers must dispose a session when its owner ends.
-The deadline uses browser timers and cannot preempt synchronous vendor work.
+Sessions serialize requests, admit at most 32 pending calls, capture options at
+submission and retain no source/SVG result cache. Disposal rejects active and
+queued calls. `timeoutMs` includes asynchronous dependency loading after a
+request starts; it excludes queue time and cannot interrupt synchronous layout.
+The separately built entry has its own style registry. Built-in names and
+inline `StyleSpec` values work; custom names registered in another bundle must
+be resolved there and passed inline.
 
-One-shot and session timings describe different lifecycle configurations.
-Browser-lazy loading does not remove npm-install bytes: the optional frame is
-still included in the published package.
+The previous isolated browser renderer remains explicitly available as
+`createUpstreamZenUMLRenderer` and `renderUpstreamZenUMLSVG`, with
+`backendURL` pointing to the shipped `dist/zenuml-frame.global.js`. It retains
+the upstream geometry and paint-only palette adapter; full native Looks and
+checked editing belong to the native path. Passing `backendURL` to the native
+entry reports the migration rather than silently selecting the old renderer.
+The published package still includes that optional frame: lazy loading avoids
+requests, not installation bytes.
 
-The configured reference is Mermaid 12.2.0 plus
-@mermaid-js/mermaid-zenuml 1.0.1 and core 3.47.9, with external registration
-awaited before rendering. That first-party configuration is a positive control,
-not an independent renderer vote. The addon's parser shim is not a syntax oracle.
-Historical default-core Dave results retain all 32 ZenUML failures and their
-original 1,095-occurrence denominator. Optional backend evidence uses a separate
-configuration identity and never reclassifies those default-entry failures.
+Historical benchmark results retain their recorded implementation and
+configuration. Native default-entry results, explicit upstream results and
+configured Mermaid reference results are separate measurements.
 
-Title edits preserve unrelated YAML values. If an alias couples the title to another configuration value, the edit returns `INVALID_OP` atomically; remove that coupling before editing the title. Generous reads of missing or reordered Given/When/Then clause markers report `UNSUPPORTED_SYNTAX`; export writes the portable clause order.
-
-See [Event Modeling composition and visual contract](design/families/eventmodeling.md) for the concrete #409 reuse trace, aesthetic thesis, style/palette witnesses and remaining limits. `ZENUML_CAPABILITIES` reports palette and role-paint support separately from `nativeScene: false` and `styles: false`; full native Looks remain unavailable.
+See [Event Modeling composition and visual contract](design/families/eventmodeling.md)
+for the #409 reuse trace and Event style witnesses. Generous Event reads of
+missing or reordered Given/When/Then markers report `UNSUPPORTED_SYNTAX`;
+export writes the portable clause order. `EVENT_SOURCE_TYPE` warns when an
+explicit source violates the pinned domain rule; rendering preserves the
+authored connection. Private Langium service-registry wiring is not a native
+Agentic contract.

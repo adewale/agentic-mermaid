@@ -52,6 +52,7 @@ describe('metamorphic: relations across all renderable families', () => {
   // would pass silently. Regenerate by probing build(kRange[0], 'q0') if a
   // generator legitimately changes.
   const BASE_COUNTS: Record<string, { nodes: number; edges: number; groups: number }> = {
+    zenuml: { nodes: 1, edges: 0, groups: 0 },
     eventmodeling: { nodes: 1, edges: 0, groups: 1 },
     packet: { nodes: 1, edges: 0, groups: 0 },
     kanban: { nodes: 1, edges: 0, groups: 1 },

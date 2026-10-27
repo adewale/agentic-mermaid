@@ -212,5 +212,5 @@ Agentic Mermaid is a fork of Beautiful Mermaid by [Luki Labs](https://github.com
 
 MIT
 
-Native Event Modeling and optional browser ZenUML rendering have separate
+Native Event Modeling and ZenUML authoring and rendering have documented
 [capability and runtime contracts](docs/eventmodeling-and-zenuml.md).

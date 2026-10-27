@@ -1,6 +1,5 @@
+import { withBodyTitleMeta } from '../agent/body-title-meta.ts'
 import { unknownOpMessage } from '../agent/mutation-ops.ts'
-import { parseMermaidYaml, readYamlMappingRanges } from '../shared/mermaid-yaml.ts'
-import { matchMermaidFrontmatter } from '../mermaid-source-wrapper.ts'
 import { appendNativeAccessibilityLines } from '../shared/accessibility-directives.ts'
 import type { ValidDiagramMeta } from '../agent/types.ts'
 import type { EventData, EventModelingBody, EventModelingMutationOp } from './types.ts'
@@ -113,46 +112,6 @@ function eventModelMeaning(body: EventModelingBody): string {
   ])
 }
 
-/** Change only the owned title scalar; keep unrelated wrapper bytes intact. */
 export function eventModelingMeta(body: EventModelingBody, meta: ValidDiagramMeta): ValidDiagramMeta {
-  const previous = meta.frontmatter?.title
-  if (body.title === previous || (body.title === undefined && typeof previous !== 'string')) return meta
-  const frontmatter = { ...meta.frontmatter }
-  if (body.title === undefined) delete frontmatter.title
-  else frontmatter.title = body.title
-  if (meta.wrapperSource === undefined) return { ...meta, frontmatter }
-  const wrapper = meta.wrapperSource
-  const match = matchMermaidFrontmatter(wrapper)
-  if (!match) return { ...meta, frontmatter, wrapperSource: body.title === undefined ? wrapper : `---\ntitle: ${JSON.stringify(body.title)}\n---\n${wrapper}` }
-  const range = readYamlMappingRanges(match.yaml).find(field => field.name === 'title')
-  let yaml = match.yaml
-  if (range) {
-    if (body.title === undefined) {
-      let start = range.keyStart, end = range.valueEnd
-      if (yaml.trimStart().startsWith('{')) {
-        const comma = yaml.slice(end).match(/^\s*,/)
-        if (comma) end += comma[0].length
-        else {
-          const preceding = yaml.slice(0, start).match(/,\s*$/)
-          if (preceding) start -= preceding[0].length
-        }
-      }
-      yaml = yaml.slice(0, start) + yaml.slice(end)
-    }
-    else yaml = yaml.slice(0, range.valueStart) + JSON.stringify(body.title) + (/[\r\n]$/.test(yaml.slice(range.valueStart, range.valueEnd)) ? '\n' : '') + yaml.slice(range.valueEnd)
-  } else if (body.title !== undefined) yaml = `title: ${JSON.stringify(body.title)}\n${yaml}`
-  // YAML aliases can couple the title scalar to unrelated configuration.
-  // Never commit an apparently local edit that changes another resolved value.
-  const unrelated = (source: string) => {
-    const parsed = parseMermaidYaml(source)
-    if (!parsed.ok) throw Error(parsed.message)
-    if (parsed.value == null) return '{}'
-    if (typeof parsed.value !== 'object' || Array.isArray(parsed.value)) throw Error('Expected metadata mapping')
-    const rest = { ...parsed.value } as Record<string, unknown>
-    delete rest.title
-    return JSON.stringify(rest)
-  }
-  if (unrelated(match.yaml) !== unrelated(yaml)) throw Error('Title edit would change unrelated YAML metadata through an alias')
-  const yamlStart = match.source.indexOf('\n') + 1
-  return { ...meta, frontmatter, wrapperSource: wrapper.slice(0, yamlStart) + yaml + wrapper.slice(yamlStart + match.yaml.length) }
+  return withBodyTitleMeta(body.title, meta)
 }

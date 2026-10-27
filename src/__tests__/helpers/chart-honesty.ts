@@ -25,6 +25,7 @@ export interface HonestySample {
 const titled = (title: string, body: string): string => `---\ntitle: ${title}\n---\n${body}`
 
 export const HONESTY_SAMPLES: Record<DiagramKind, readonly HonestySample[]> = {
+  zenuml: [{ name: 'nested calls and branch returns', source: 'zenuml\nBuyer->API.checkout() {\n  Store.reserve() {\n    return confirmation\n  }\n}\nAPI->Buyer: accepted', expectText: ['Buyer', 'checkout()', 'reserve()', 'confirmation', 'accepted'] }],
   eventmodeling: [{ name: 'namespace return and full inline data', source: 'eventmodeling\ntf 01 ui Cart.UI\ntf 02 cmd Cart.AddItem { description: string }\ntf 03 evt Stock.Changed\ntf 04 evt Cart.ItemAdded', expectText: ['Cart.UI', 'description: string', 'Cart.ItemAdded'] }],
   packet: [
     {

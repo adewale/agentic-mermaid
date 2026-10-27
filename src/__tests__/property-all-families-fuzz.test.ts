@@ -196,6 +196,12 @@ function structuredBodyInventory(d: ParsedDiagram): SemanticInventory {
           ),
         ),
       }
+    case 'zenuml':
+      return {
+        nodes: sorted(body.participants.map(p => item(p.id, p.label))),
+        edges: sorted(body.statements.flatMap(statement => statement.kind === 'message' ? [edge(statement.from, statement.to, statement.label)] : [])),
+        groups: [],
+      }
     case 'sequence':
       return {
         nodes: sorted(body.participants.map(p => item(p.id, p.label))),

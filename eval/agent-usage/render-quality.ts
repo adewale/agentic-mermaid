@@ -34,6 +34,8 @@ export interface AgentUsageRenderQualitySummary {
 }
 
 const EXPECTED_VISIBLE_LABELS: Record<string, string[]> = {
+  zenuml_rename_inventory: ['Customer', 'API', 'Inventory', 'checkout()', 'reserve()'],
+  author_zenuml_source: ['Customer', 'API', 'Inventory', 'checkout()', 'reserve()'],
   eventmodeling_add_read_model: ['Cart.UI', 'Cart.AddItem', 'Cart.ItemAdded', 'Cart.Items', 'description: string'],
   cache_between_api_and_db: ['API', 'Cache', 'DB'],
   state_add_done_transition: ['Processing', 'done'],

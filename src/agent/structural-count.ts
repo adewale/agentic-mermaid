@@ -1,3 +1,4 @@
+import { projectZenUMLSequence } from '../zenuml/native-sequence.ts'
 import { eventRelations, eventLanes } from '../eventmodeling/parser.ts'
 import { stableFamilyCount } from './stable-family-adapters.ts'
 // ============================================================================
@@ -146,6 +147,10 @@ export function countStructuralElements(d: ParsedDiagram): StructuralCount | nul
         labels.add(link.target)
       }
       return { nodes: labels.size, edges: body.links.length, groups: 0 }
+    }
+    case 'zenuml': {
+      const model = projectZenUMLSequence(body)
+      return { nodes: model.actors.filter(actor => !actor.external).length, edges: model.messages.length, groups: model.blocks.length }
     }
     case 'eventmodeling': return { nodes: body.frames.length, edges: eventRelations(body).length, groups: eventLanes(body).length }
     case 'packet':

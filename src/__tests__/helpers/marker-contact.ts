@@ -35,6 +35,7 @@ export function markerContact(family: string, marker: MarkerDescriptor): MarkerC
       if (marker.id === 'cls-lollipop' && geometry?.kind === 'circle') return { intent: 'surface-bound', attachment: 'tangent', point: { x: geometry.cx + geometry.r, y: geometry.cy } }
       if (['triangle', 'diamond', 'diamond-open', 'open-arrow'].includes(marker.shape)) return tip('surface-bound')
       break
+    case 'zenuml':
     case 'sequence':
       if (marker.shape === 'cross' && marker.size) return { intent: 'path-only', attachment: 'center', point: { x: marker.size.width / 2, y: marker.size.height / 2 } }
       if (marker.shape === 'arrow' || marker.shape === 'open-arrow') return tip('path-only')

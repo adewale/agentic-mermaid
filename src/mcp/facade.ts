@@ -389,6 +389,7 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
     asKanban: mermaid.asKanban,
     asRequirement: mermaid.asRequirement,
     asTreemap: mermaid.asTreemap,
+    asZenUML: mermaid.asZenUML,
     asEventModeling: mermaid.asEventModeling,
     asIshikawa: mermaid.asIshikawa,
     asBlock: mermaid.asBlock,

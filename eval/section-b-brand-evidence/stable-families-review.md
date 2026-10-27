@@ -107,3 +107,17 @@ goldens were independently reviewed in the existing styled-output workflow.
 
 This is agent review of these finite renders. It does not establish human
 approval, arbitrary density, extreme custom Look fidelity or deployed parity.
+
+
+## PR #545 native Zen enrollment, 27 October 2026
+
+The 25-family sheet has 100 cells at 1560 × 14024, digest `22f0c15f725e19a135a8233cf3960ea786dffbc178813432bf2551498f07c578`.
+Matching each family and variant across the changed sheet height found 91
+existing cells pixel-identical; five cells each differ by one antialiasing
+pixel. The four added Zen cells were inspected
+at native 520 × 380: the sentinel, warm editorial, light technical and dark
+operations retain distinct typography, spacing, corner shape, strokes and
+palettes. Both participant headers and message labels remain readable, with
+reciprocal arrows touching the intended lifelines. The richer checkout fixture
+has separate reviewed SVG goldens for branch returns, nested activation and
+creation. This is bounded agent review, not human approval or deployed parity.

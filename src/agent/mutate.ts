@@ -1,3 +1,4 @@
+import { withBodyTitleMeta } from './body-title-meta.ts'
 import { eventModelingMeta } from '../eventmodeling/body.ts'
 import type { EventModelingValidDiagram, EventModelingMutationOp } from './types.ts'
 import { rebaseBodyComments, restoreBodyComments, snapshotBodyCommentAnchors } from './body-comments.ts'
@@ -147,6 +148,7 @@ function commitMutation(d: ParsedDiagram, body: ParsedDiagram['body']): Result<P
   let meta = accessibilityMeta
   try {
     if (body.kind === 'eventmodeling') meta = eventModelingMeta(body, accessibilityMeta)
+    if (body.kind === 'zenuml') meta = withBodyTitleMeta(body.title, accessibilityMeta)
   } catch (error) {
     return err({ code: 'INVALID_OP', message: error instanceof Error ? error.message : String(error) })
   }

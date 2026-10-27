@@ -18,6 +18,7 @@ import * as agentTypes from '../agent/types.ts'
 
 /** A label-carrying edit each family accepts; `text` is the label under test. */
 const LABEL_EDIT_BY_FAMILY: Record<DiagramKind, (text: string) => Record<string, unknown>> = {
+  zenuml: text => ({ kind: 'insert_statement', statement: { kind: 'message', id: 'added', from: 'Zebra', to: 'Other', label: text, reply: false } }),
   eventmodeling: text => ({ kind: 'insert_frame', frame: { id: '99', reset: true, type: 'event', entity: 'Zebra', sources: [], data: { text } } }),
   packet: text => ({ kind: 'add_field', label: text, bits: 8 }),
   kanban: text => ({ kind: 'add_column', id: 'Zebra', label: text }),

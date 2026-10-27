@@ -1,3 +1,5 @@
+import { ZENUML_SVG_HOOKS } from './svg-family-hooks/zenuml.ts'
+import { renderZenUMLTerminal } from './ascii/zenuml.ts'
 import { EVENTMODELING_SVG_HOOKS } from './svg-family-hooks/eventmodeling.ts'
 import { renderEventModelingTerminal } from './ascii/eventmodeling.ts'
 import { PACKET_SVG_HOOKS } from './svg-family-hooks/packet.ts'
@@ -72,6 +74,8 @@ import { SEQUENCE_SVG_HOOKS } from './svg-family-hooks/sequence.ts'
 import { STATE_SVG_HOOKS } from './svg-family-hooks/state.ts'
 import { TIMELINE_SVG_HOOKS } from './svg-family-hooks/timeline.ts'
 import { XYCHART_SVG_HOOKS } from './svg-family-hooks/xychart.ts'
+
+export const ZENUML_RENDER_HOOKS = { ...ZENUML_SVG_HOOKS, renderAscii: nativeTerminalRenderer(ctx => renderZenUMLTerminal(ctx.source.authoredFamilyBody ?? ctx.source.familyBody, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth)) }
 
 export const EVENTMODELING_RENDER_HOOKS = { ...EVENTMODELING_SVG_HOOKS, renderAscii: nativeTerminalRenderer(ctx => renderEventModelingTerminal(ctx.source.authoredFamilyBody ?? ctx.source.familyBody, ctx.config, ctx.colorMode, ctx.theme)) }
 
@@ -284,5 +288,6 @@ export const BUILTIN_RENDER_HOOKS = /* @__PURE__ */ Object.freeze({
   gantt: GANTT_RENDER_HOOKS,
   mindmap: MINDMAP_RENDER_HOOKS,
   gitgraph: GITGRAPH_RENDER_HOOKS,
+  zenuml: ZENUML_RENDER_HOOKS,
   eventmodeling: EVENTMODELING_RENDER_HOOKS,
 }) satisfies Readonly<Record<DiagramKind, BuiltinRenderHooks>>

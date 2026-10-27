@@ -1,3 +1,4 @@
+import { withBodyTitleMeta } from './body-title-meta.ts'
 import { eventModelingMeta } from '../eventmodeling/body.ts'
 import { configDirective } from '../shared/pinned-mermaid-config/merge.js'
 import { canonicalWrapperConfig } from './wrapper-portability.ts'
@@ -46,7 +47,7 @@ export interface SerializeOptions {
 export function serializeMermaid(d: ParsedDiagram, opts: SerializeOptions = {}): string {
   if (d.body.kind === 'preserved') return d.body.source
   const mode = opts.wrapper ?? 'verbatim'
-  const bodyMeta = d.body.kind === 'eventmodeling' ? eventModelingMeta(d.body, d.meta) : d.meta
+  const bodyMeta = d.body.kind === 'zenuml' ? withBodyTitleMeta(d.body.title, d.meta) : d.body.kind === 'eventmodeling' ? eventModelingMeta(d.body, d.meta) : d.meta
   const renderedBody = renderBody(d.body, d.kind, bodyMeta, d.body.kind === 'extension' && 'descriptorIdentity' in d ? d.descriptorIdentity : undefined)
   // Canonical mode folds universal config into renderMeta. Opaque bodies and
   // source-preserving extension serializers may still contain the authored
@@ -155,7 +156,7 @@ function renderBody(body: FamilyParsedBody, kind: ParsedDiagram['kind'], meta: V
   // serializes through its FamilyDescriptor hook — looked up by DIAGRAM kind,
   // not body kind. State diagrams (BUILD-19) own a dedicated StateBody and the
   // state descriptor emits the stateDiagram-v2 header.
-  if (body.kind === 'opaque' && body.family === 'eventmodeling') return body.source
+  if (body.kind === 'opaque' && (body.family === 'eventmodeling' || body.family === 'zenuml')) return body.source
   if (body.kind === 'opaque') return body.source.endsWith('\n') ? body.source : body.source + '\n'
   if (body.kind === 'preserved') return body.source
   const plugin = getFamily(kind)

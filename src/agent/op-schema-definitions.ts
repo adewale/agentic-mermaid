@@ -1,3 +1,4 @@
+import { ZENUML_OP_SCHEMAS } from '../zenuml/native-ops.ts'
 import { EVENTMODELING_OP_SCHEMAS } from '../eventmodeling/ops.ts'
 import { KANBAN_OP_SCHEMAS } from '../kanban/ops.ts'
 import { PACKET_OP_SCHEMAS } from '../packet/ops.ts'
@@ -402,6 +403,7 @@ const C4_SCHEMA: Record<string, OpSpec> = {
 }
 
 export const OP_SCHEMAS: Record<DiagramKind, Record<string, OpSpec>> = {
+  zenuml: ZENUML_OP_SCHEMAS,
   eventmodeling: EVENTMODELING_OP_SCHEMAS,
   flowchart: FLOWCHART_SCHEMA,
   state: STATE_SCHEMA,

@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "status": "approved",
   "artifact": "src/__tests__/testdata/section-b-brand-evidence.png",
-  "artifactSha256": "bbb35fe92bab6c51dc72245066d02f3f11f859eb5c2aac22690a9114ecbde119",
+  "artifactSha256": "22f0c15f725e19a135a8233cf3960ea786dffbc178813432bf2551498f07c578",
   "reviewedAt": "2026-10-27",
-  "reviewer": "Codex agent, PR #545 painted-connection follow-up",
-  "scope": "96 family-by-variant cells at 1560x12504. Incremental review against artifact 29090e03c33d599b627d0c78fa50d4a2cce418d787b385b02882a01a9e2ca4dd: only four Event Modeling cells change (sentinel 17054 pixels, editorial 12889, technical 11328, operations 10104). All 92 other cells, headings and background are pixel-identical. Inspected all four native 520x380 cells: connectors dock at the painted frame border, arrowheads remain visible, labels retain their measured spacing, and the distinct typography/palettes remain legible. This approves those intended changes only. Agent review, not human approval, arbitrary-density readability or deployed-site parity.",
+  "reviewer": "Codex agent, PR #545 native Zen integration",
+  "scope": "100 family-by-variant cells at 1560x14024. Compared by family and variant with the previous 24-family sheet, 91 existing cells are pixel-identical; five cells each differ by one antialiasing pixel. Inspected the four added native 520x380 Zen cells: sentinel, warm editorial, light technical and dark operations have distinct type, padding, corners, line weight and palettes; participants, labels and reciprocal endpoints remain legible. Agent review of these finite fixtures, not human approval, arbitrary-density readability or deployed-site parity.",
   "audit": "eval/section-b-brand-evidence/stable-families-review.md"
 }

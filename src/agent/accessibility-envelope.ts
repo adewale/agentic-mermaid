@@ -84,7 +84,7 @@ export function ensureAccessibilityLines(source: string, accessibility: Accessib
       .split(/\r?\n/)
       .find(line => line.trim() && !line.trimStart().startsWith('%%'))
       ?.trim() ?? ''
-  const native = /^(?:eventmodeling|block(?:-beta)?|sankey(?:-beta)?|mindmap|ishikawa(?:-beta)?)(?:\s|$)/i.test(header)
+  const native = /^(?:zenuml|eventmodeling|block(?:-beta)?|sankey(?:-beta)?|mindmap|ishikawa(?:-beta)?)(?:\s|$)/i.test(header)
   const present = new Set<string>()
   const physical = source.split(/\r?\n/)
   for (let index = 0; index < physical.length; index++) {
@@ -139,6 +139,7 @@ export function adoptStatementAccessibility(meta: { accessibility: Accessibility
  * fields and the metadata envelope remains the sole authority. */
 export function accessibilityFromBody(body: DiagramBody): Accessibility | undefined {
   switch (body.kind) {
+    case 'zenuml':
     case 'timeline':
     case 'journey':
     case 'architecture':

@@ -180,7 +180,7 @@
       "headers": [
         {
           "value": "zenuml",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },

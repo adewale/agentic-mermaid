@@ -1,3 +1,4 @@
+import { projectZenUMLSequence } from '../zenuml/native-sequence.ts'
 import { eventLanes, eventRelations } from '../eventmodeling/parser.ts'
 import { isStableFamilyBody, stableFamilyCount, stableFamilyTree } from './stable-family-adapters.ts'
 
@@ -110,6 +111,10 @@ export function describeMermaid(d: ParsedDiagram, opts: DescribeOptions = {}): s
     }
     const total = d.body.links.reduce((sum, link) => sum + link.value, 0)
     return `A sankey diagram flowing ${total} across ${d.body.links.length} link(s) between ${nodes.size} node(s).`
+  }
+  if (d.body.kind === 'zenuml') {
+    const model = projectZenUMLSequence(d.body)
+    return `A ZenUML interaction with ${model.actors.filter(actor => !actor.external).length} participants, ${model.messages.length} messages and ${model.blocks.length} control scopes.`
   }
   if (d.body.kind === 'eventmodeling') return `An Event Modeling diagram with ${d.body.frames.length} frames and ${eventRelations(d.body).length} relations.`
   if (isStableFamilyBody(d.body)) {
@@ -274,6 +279,11 @@ export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
       }
       tree.edges.push({ from: link.source, to: link.target, label: String(link.value) })
     }
+  } else if (d.body.kind === 'zenuml') {
+    const model = projectZenUMLSequence(d.body)
+    tree.nodes.push(...model.actors.filter(actor => !actor.external).map(actor => ({ id: actor.id, label: actor.label })))
+    const authored = new Set(tree.nodes.map(node => node.id))
+    tree.edges.push(...model.messages.filter(message => authored.has(message.from) && authored.has(message.to)).map(message => ({ from: message.from, to: message.to, label: message.label })))
   } else if (d.body.kind === 'eventmodeling') {
     const lanes = eventLanes(d.body)
     tree.nodes.push(...lanes.map(lane => ({ id: lane.id, label: lane.label })))

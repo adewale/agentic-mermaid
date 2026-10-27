@@ -451,6 +451,22 @@ function nativeSceneRole(role: SceneRole, ...primitives: readonly CoreScenePrimi
   return { role, primitives }
 }
 
+const SEQUENCE_SCENE_ROLES = [
+      nativeSceneRole('prelude', 'document'),
+      nativeSceneRole('title', 'text'),
+      nativeSceneRole('defs', 'document', 'marker'),
+      nativeSceneRole('chrome', 'document', 'shape'),
+      nativeSceneRole('actor', 'container', 'shape'),
+      nativeSceneRole('lifeline', 'container', 'connector'),
+      nativeSceneRole('activation', 'container', 'shape'),
+      nativeSceneRole('message', 'container', 'connector'),
+      nativeSceneRole('block', 'container', 'connector', 'shape'),
+      nativeSceneRole('group', 'container', 'shape'),
+      nativeSceneRole('note', 'container', 'shape'),
+      nativeSceneRole('label', 'text'),
+      nativeSceneRole('icon', 'container', 'shape', 'text'),
+    ]
+
 const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
   {
     id: 'flowchart',
@@ -650,21 +666,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     semanticChannels: ['category'],
     detect: familyDetection.detectsSequenceFamily,
     detectLoose: familyDetection.detectsSequenceFamilyLoose,
-    sceneRoles: [
-      nativeSceneRole('prelude', 'document'),
-      nativeSceneRole('title', 'text'),
-      nativeSceneRole('defs', 'document', 'marker'),
-      nativeSceneRole('chrome', 'document', 'shape'),
-      nativeSceneRole('actor', 'container', 'shape'),
-      nativeSceneRole('lifeline', 'container', 'connector'),
-      nativeSceneRole('activation', 'container', 'shape'),
-      nativeSceneRole('message', 'container', 'connector'),
-      nativeSceneRole('block', 'container', 'connector', 'shape'),
-      nativeSceneRole('group', 'container', 'shape'),
-      nativeSceneRole('note', 'container', 'shape'),
-      nativeSceneRole('label', 'text'),
-      nativeSceneRole('icon', 'container', 'shape', 'text'),
-    ],
+    sceneRoles: SEQUENCE_SCENE_ROLES,
     example: 'sequenceDiagram\n  participant U as User\n  participant S as Server\n  U->>S: request\n  S-->>U: response',
     editorExample: `sequenceDiagram
   participant User
@@ -1336,6 +1338,22 @@ gitGraph LR:
   Rel(api, db, "Reads and writes", "SQL")`,
   },
   ...STABLE_FAMILY_DESCRIPTOR_SEEDS,
+  {
+    id: 'zenuml', upstreamId: 'zenuml', maturity: 'experimental',
+    label: 'ZenUML', headers: ['zenuml'], narrower: 'asZenUML',
+    editorDiagramType: 'ZenUML', editorLabel: 'ZenUML interactions',
+    editorDescription: 'Nested calls, replies and control scopes with checked native edits.',
+    editorExampleId: 'zenuml-checkout', editorGlyph: 'ZU',
+    config: { section: 'zenuml', keys: [], noopKeys: [] },
+    semanticChannels: ['category'],
+    sceneRoles: SEQUENCE_SCENE_ROLES.filter(cell => cell.role !== 'group').map(cell => ({
+      role: cell.role,
+      primitives: cell.primitives.filter(primitive => !(cell.role === 'chrome' && primitive === 'shape') && !(cell.role === 'icon' && primitive === 'text')),
+    })),
+    detect: familyDetection.detectsZenumlFamily,
+    example: 'zenuml\nAlice->Bob: Hello\nBob->Alice: Reply',
+    editorExample: 'zenuml\ntitle Checkout\nBuyer as Customer\nAPI\nStore\nBuyer->API.placeOrder() {\n  Store.reserve()\n  if (inStock) {\n    return confirmation\n  } else {\n    return unavailable\n  }\n}\nAPI->Buyer: accepted',
+  },
 ] as const satisfies readonly BuiltinFamilyDescriptorSeed[]
 
 export type BuiltinFamilyId = (typeof BUILTIN_FAMILY_DESCRIPTOR_SEEDS)[number]['id']

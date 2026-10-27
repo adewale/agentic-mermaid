@@ -1,6 +1,17 @@
 // Generated from OP_SCHEMAS by scripts/build/generate-sdk-declarations.ts.
 import type { DiagramKind } from '../types.ts'
 export const MUTATION_OPS_BY_FAMILY = {
+  "zenuml": [
+    "upsert_participant",
+    "remove_participant",
+    "rename_participant",
+    "insert_statement",
+    "remove_statement",
+    "set_statement",
+    "set_title",
+    "set_accessibility_title",
+    "set_accessibility_description"
+  ],
   "eventmodeling": [
     "insert_frame",
     "remove_frame",

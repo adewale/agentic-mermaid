@@ -19,6 +19,24 @@ import type { PositionedDiagram, RenderContext, RenderOptions } from '../types.t
 /** Extra syntax broadens role coverage beyond each descriptor's minimal
  * discovery example. This is test stimulus, not a family/capability roster. */
 const RICH_SCENE_FIXTURES: Partial<Record<BuiltinFamilyId, string>> = {
+  zenuml: `zenuml
+title Request lifecycle
+@Actor User as Customer
+API
+@Database Store
+Audit
+@Starter(User)
+API.request() {
+  Store.persist() {
+    // Keep the complete request note
+    User->Audit: forward across active API and Store
+    if(accepted) {
+      return saved
+    } else {
+      return retry
+    }
+  }
+}`,
   eventmodeling: 'eventmodeling\ntitle Cart\ntf 01 ui CartUI\ntf 02 cmd AddItem\ntf 03 evt ItemAdded',
   packet: '---\ntitle: Protocol fields\n---\npacket\n+8: "Source"\n+8: "Destination"\n+48: "Payload"',
   kanban: '---\ntitle: Delivery board\n---\nkanban\nTodo[To do]\n  task[Build parser]@{assigned: Alice, ticket: ID-42, priority: High}\nDone[Completed]\n  other[Research]',
@@ -188,6 +206,7 @@ sankey-beta
 }
 
 const CAPABILITY_MUTATIONS: Readonly<Record<BuiltinFamilyId, AnyMutationOp>> = {
+  zenuml: { kind: 'insert_statement', statement: { kind: 'message', id: 'added', from: 'B', to: 'A', label: 'acknowledged', reply: false } },
   eventmodeling: { kind: 'insert_frame', frame: { id: '99', reset: true, type: 'event', entity: 'Created', sources: [] } },
   packet: { kind: 'add_field', label: 'Capability witness', bits: 8 },
   kanban: { kind: 'add_column', id: 'CapabilityWitness', label: 'Capability witness' },
