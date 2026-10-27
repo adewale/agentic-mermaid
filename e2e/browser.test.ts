@@ -433,13 +433,17 @@ it('standalone editor renders and verifies with one persistent Blob worker', asy
     const parity = await standalone.evaluate(async examples => {
       const results = []
       for (const example of examples) {
-        const artifact = await (globalThis as any).__mermaid.renderMermaidSVGWithReceipt(example.source)
-        results.push({ id: example.id, equal: artifact.svg === example.svg })
+        const artifact = await (globalThis as any).__mermaid.renderMermaidSVGWithReceipt(example.source, example.options)
+        results.push({ id: example.id, style: example.options.style, svg: artifact.svg, receipt: artifact.receipt })
       }
       return results
-    }, BUILTIN_FAMILY_METADATA.map(family => ({ id: family.id, source: family.example,
-      svg: renderMermaidSVG(family.example, { security: 'strict', embedFontImport: false }) })))
-    expect(parity).toEqual(BUILTIN_FAMILY_METADATA.map(family => ({ id: family.id, equal: true })))
+    }, BUILTIN_FAMILY_METADATA.flatMap(family => [undefined, 'hand-drawn', 'watercolor'].map(style => ({
+      id: family.id, source: family.example, options: { security: 'strict' as const, embedFontImport: false, ...(style ? { style } : {}) },
+    }))))
+    expect(parity).toEqual(BUILTIN_FAMILY_METADATA.flatMap(family => [undefined, 'hand-drawn', 'watercolor'].map(style => {
+      const expected = renderMermaidSVGWithReceipt(family.example, { security: 'strict', embedFontImport: false, ...(style ? { style } : {}) })
+      return { id: family.id, style, svg: expected.svg, receipt: expected.receipt }
+    })))
     await standalone.locator('#code-editor').fill('flowchart LR\nSecond --> Verified')
     await standalone.waitForFunction(() => document.getElementById('preview-inner')?.textContent?.includes('Second') && document.getElementById('status-text')?.textContent === 'OK')
     expect(standalone.workers()).toEqual([worker])

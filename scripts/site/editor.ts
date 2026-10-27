@@ -179,7 +179,7 @@ async function generateEditorHtml(): Promise<string> {
       plugins: [
         // This worker accepts render/verify/terminal requests only. The
         // main-thread adapter owns option inspection and validation.
-        runtimeRenderContractPlugin({ schemaDocumentation: false, conformanceObservations: false }),
+        runtimeRenderContractPlugin({ schemaDocumentation: false, conformanceObservations: false, sourceOnlySceneAdmission: true }),
         {
           name: 'hosted-worker-dependencies',
           setup(build) {
@@ -203,8 +203,10 @@ async function generateEditorHtml(): Promise<string> {
     entrypoints: [fileURLToPath(new URL(runtimeDirectory ? '../../src/browser-hosted.ts' : '../../src/browser-standalone.ts', import.meta.url))],
     // The private facade uses schema properties for its field list and the
     // canonical validator for admission; it never presents schema prose.
-    // Published browser/Node inspectors keep their documented metadata.
-    plugins: [runtimeRenderContractPlugin({ schemaDocumentation: false, conformanceObservations: false, familyEditorMetadata: Boolean(runtimeDirectory) }),
+    // Its workers accept only source/options/output operations, including
+    // render/verify, terminal and PNG. Public Scene/Node/IIFE admission and
+    // published inspectors retain their full contracts.
+    plugins: [runtimeRenderContractPlugin({ schemaDocumentation: false, conformanceObservations: false, familyEditorMetadata: Boolean(runtimeDirectory), sourceOnlySceneAdmission: true }),
       ...(!runtimeDirectory ? [{
         name: 'standalone-worker-families',
         setup(build: Bun.PluginBuilder) {
