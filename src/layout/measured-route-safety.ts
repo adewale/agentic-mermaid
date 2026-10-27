@@ -185,6 +185,9 @@ function sharpPoint(p: Point, charge?: MeasuredContactCharge, reserve?: Measured
   return { x: Number(x), y: Number(y) }
 }
 
+/** Internal paid projection for owned numeric snapshots; integer inputs may be borrowed. */
+export { sharpPoint as projectMeasuredRoutePoint }
+
 function sharpStrip(a: Point, b: Point, reserve?: MeasuredContactCharge): SharpBox | undefined {
   if (reserve?.(9) === false) return undefined
   if (a.x === b.x && a.y === b.y) return undefined
