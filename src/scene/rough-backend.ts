@@ -1,4 +1,5 @@
 import { serializeTransform } from './transforms.ts'
+import { capturedPart } from './part-capture.ts'
 import { formatSvgNumber } from '../shared/svg-number.ts'
 // ============================================================================
 // RoughBackend (SPEC §3.2/§11 phase 3) — rough.js-backed sketch serialization
@@ -553,7 +554,7 @@ export function createSketchBackend(id: string, sketcher?: GeometrySketcher): St
       const out: string[] = []
       for (let i = 0; i < admitted.parts.length; i++) {
         const part = admitted.parts[i]!
-        out.push(drawNodeStyled(part, walk))
+        out.push(capturedPart(ctx, part, drawNodeStyled(part, walk)))
         if (i === 0 && part.kind === 'document' && part.element === 'open') {
           const pageRect = pageRectFor(admitted, ctx)
           if (pageRect) out.push(pageRect)

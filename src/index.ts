@@ -131,6 +131,11 @@ export type {
   BackendCapabilityConformanceStatus, BackendCapabilityConformanceResult,
 } from './scene/backend-conformance.ts'
 export { SCENE_CONTRACT_VERSION } from './scene/ir.ts'
+export { renderResolvedScene } from './resolved-scene.ts'
+export { RESOLVED_SCENE_VERSION } from './scene/resolved-types.ts'
+export type {
+  ResolvedScene, ResolvedPart, ResolvedPrimitive, ResolvedPaint, ResolvedPath, ResolvedText, Matrix,
+} from './scene/resolved-types.ts'
 export type {
   SceneDoc, SceneNode, SceneNodeBase, SemanticChannels, SceneRole, Geometry, MarkPaint,
   ShapeMark, TextMark, GroupMark, DocumentMark, ConnectorMark, LinearGradientDescriptor,
