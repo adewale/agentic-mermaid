@@ -17,6 +17,8 @@ export interface MeasuredGraph {
     id: string; parent?: number; partition?: number; modelOrder?: number; direction?: Direction; minWidth: number
     /** Measured painted header strip, excluding blank content padding. */
     paintStrokeWidth?: number
+    /** Actual canonical rounded-rectangle frame radius; absent means unknown. */
+    paintCornerRadius?: number
     headerHeight?: number
     padding: { top: number; right: number; bottom: number; left: number }
   }[]
@@ -113,6 +115,7 @@ export function layoutLayeredGraph(
   for (const node of input.nodes) if (node.paintCornerRadius !== undefined && !finiteSize(node.paintCornerRadius,false)) throw new TypeError('Invalid measured node corner radius')
   for (const node of input.nodes) if (node.minimumPortSpacing !== undefined && !finiteSize(node.minimumPortSpacing,true)) throw new TypeError('Invalid measured node port spacing')
   for (const group of input.groups ?? []) if (group.paintStrokeWidth !== undefined && !finiteSize(group.paintStrokeWidth,true)) throw new TypeError('Invalid measured group paint stroke')
+  for (const group of input.groups ?? []) if (group.paintCornerRadius !== undefined && !finiteSize(group.paintCornerRadius,false)) throw new TypeError('Invalid measured group corner radius')
   for (const edge of input.edges) if (edge.markerPaint !== undefined) assertMarkerPaint(edge.markerPaint)
   if (!['TD', 'TB', 'BT', 'LR', 'RL'].includes(input.direction)) throw new TypeError('Invalid measured graph direction')
   if (input.groups?.length) {

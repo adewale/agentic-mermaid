@@ -1697,3 +1697,84 @@ describe('marker reservation cache keeps boundary-role identity', () => {
     expect(rendered.receipt.layoutDecisions?.every(d=>d.selected==='agentic')).toBe(true)
   })
 })
+
+describe('painted host padding corridors', () => {
+  const input = (radius: number | undefined): MeasuredGraph => ({
+    nodes: [
+      { id: 'A', width: 100, height: 60, parent: 0, paintStrokeWidth: 1 },
+      { id: 'B', width: 100, height: 60, parent: 1, paintStrokeWidth: 1 },
+    ],
+    groups: [
+      { id: 'Parent', minWidth: 0, headerHeight: 20, padding: { top: 36, right: 16, bottom: 16, left: 16 }, paintStrokeWidth: 1, paintCornerRadius: radius },
+      { id: 'Child', parent: 0, minWidth: 0, headerHeight: 20, padding: { top: 36, right: 16, bottom: 16, left: 16 }, paintStrokeWidth: 1, paintCornerRadius: radius },
+    ],
+    edges: [{ source: 0, target: 1, minSpan: 1, label: { width: 40, height: 20 } }],
+    maximumEdgeStrokeWidth: 1, maximumEdgeBendRadius: 0,
+    direction: 'TB', padding: 40, nodeSpacing: 40, layerSpacing: 80,
+  })
+  const fail = (reason: string): never => { throw new GraphLayoutUnsupportedError(reason) }
+  const budget = () => ({ pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 })
+
+  test.each([{ radius: 0 }, { radius: 4 }])('routes through blank padding inside the actual radius-$radius host outline', ({ radius }) => {
+    const graph = input(radius), before = structuredClone(graph)
+    const output = layoutLayeredGraph(graph, () => undefined, fail), host = output.groups![0]!, route = output.edges[0]!
+    expect(graph).toEqual(before)
+    expect(output.nodes).toHaveLength(2)
+    expect(output.groups).toHaveLength(2)
+    expect(output.edges).toHaveLength(1)
+    expect(output.boundaryRoutes).toEqual([0])
+    expect(layoutLayeredGraph(graph, () => undefined, fail)).toEqual(output)
+    const nodes = output.nodes.map((point, index) => ({ ...graph.nodes[index]!, ...point }))
+    for (const [point, node] of [[route.points[0]!, nodes[0]!], [route.points.at(-1)!, nodes[1]!]] as const) {
+      expect(point.x >= node.x && point.x <= node.x + node.width && point.y >= node.y && point.y <= node.y + node.height).toBe(true)
+      expect(point.x === node.x || point.x === node.x + node.width || point.y === node.y || point.y === node.y + node.height).toBe(true)
+    }
+    // This route really uses the side padding excluded by the original domain.
+    expect(route.points.some(point => point.x > host.x + host.width - 16 || point.x < host.x + 16)).toBe(true)
+    const insidePaintedHost = (point: Point) => {
+      // Remove the frame's half-stroke. Testing every vertex of each expanded
+      // sharp segment rectangle proves its entire ink is in this convex inset.
+      const left = host.x + .5, top = host.y + .5, right = host.x + host.width - .5, bottom = host.y + host.height - .5
+      const r = Math.max(0, radius - .5)
+      const dx = Math.max(left + r - point.x, 0, point.x - (right - r)), dy = Math.max(top + r - point.y, 0, point.y - (bottom - r))
+      return point.x >= left && point.x <= right && point.y >= top && point.y <= bottom && dx * dx + dy * dy <= r * r
+    }
+    for (let i = 1; i < route.points.length; i++) {
+      const a = route.points[i - 1]!, b = route.points[i]!
+      expect(a.x === b.x || a.y === b.y).toBe(true)
+      const ink = { x: Math.min(a.x, b.x) - .5, y: Math.min(a.y, b.y) - .5, width: Math.abs(b.x - a.x) + 1, height: Math.abs(b.y - a.y) + 1 }
+      for (const x of [ink.x, ink.x + ink.width]) for (const y of [ink.y, ink.y + ink.height]) expect(insidePaintedHost({ x, y })).toBe(true)
+      for (const node of nodes) expect(intersects(ink, { x: node.x + .5, y: node.y + .5, width: node.width - 1, height: node.height - 1 })).toBe(false)
+      for (const group of output.groups!) expect(intersects(ink, { x: group.x - .5, y: group.y - .5, width: group.width + 1, height: 21 })).toBe(false)
+    }
+    const label = route.labelPosition!
+    expect(label).toBeDefined()
+    expect(route.points.some((b, i) => i > 0 && (route.points[i - 1]!.x === b.x ? label.x === b.x && label.y >= Math.min(route.points[i - 1]!.y, b.y) && label.y <= Math.max(route.points[i - 1]!.y, b.y) : label.y === b.y && label.x >= Math.min(route.points[i - 1]!.x, b.x) && label.x <= Math.max(route.points[i - 1]!.x, b.x)))).toBe(true)
+    for (const x of [label.x - 22, label.x + 22]) for (const y of [label.y - 12, label.y + 12]) expect(insidePaintedHost({ x, y })).toBe(true)
+  })
+
+  test('unknown host corner geometry retains the original corridor refusal', () => {
+    const graph = input(0)
+    delete graph.groups![0]!.paintCornerRadius
+    const before = structuredClone(graph)
+    expect(() => layoutLayeredGraph(graph, () => undefined, fail)).toThrow('cross-hierarchy route has no bounded clear corridor')
+    expect(graph).toEqual(before)
+  })
+
+  test('padding retry spends the same supplied arc ledger without replenishment', () => {
+    const unknown = input(0)
+    delete unknown.groups![0]!.paintCornerRadius
+    const firstAttempt = { ...budget(), arcs: 2400 }
+    expect(() => layoutLayeredGraph(unknown, () => undefined, fail, firstAttempt)).toThrow('cross-hierarchy route has no bounded clear corridor')
+    expect(firstAttempt.arcs).toBeGreaterThan(0)
+    const retry = { ...budget(), arcs: 2400 }
+    expect(() => layoutLayeredGraph(input(0), () => undefined, fail, retry)).toThrow('cross-hierarchy visibility-arc limit')
+    expect(retry.arcs).toBeLessThan(0)
+    expect(retry.pairs).toBeLessThan(firstAttempt.pairs)
+    expect(retry.swaps).toBeLessThan(firstAttempt.swaps)
+  })
+
+  test('invalid supplied group radii remain defects rather than fallback geometry', () => {
+    for (const radius of [-1, NaN, Infinity, -Infinity]) expect(() => layoutLayeredGraph(input(radius), () => undefined, fail)).toThrow('Invalid measured group corner radius')
+  })
+})

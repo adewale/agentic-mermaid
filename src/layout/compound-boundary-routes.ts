@@ -715,7 +715,7 @@ export function routeCrossHierarchy(
   let solidIndexFactory: ReturnType<typeof createOwnedCompoundObstacleIndexFactory> | undefined
   let peerOwner: PeerGeometryOwner | undefined
   let markerCurrentProofs: Set<number> | undefined
-  for (const [index, endpoints] of lifted) {
+  for (const [index, endpoints] of lifted) for (let paddingAttempt = 0; paddingAttempt < 2; paddingAttempt++) {
     let peerLease: PeerLease | undefined
     let publishPeer = false
     let graphs: { retire: () => void }[] | undefined
@@ -771,7 +771,13 @@ export function routeCrossHierarchy(
       let solidIndex: CompoundObstacleQueries | undefined
       const solidQueries = () => solidIndex ??= (solidIndexFactory ??= createOwnedCompoundObstacleIndexFactory(work, fail))(solidObstacles)
       const host = endpoints.host, frame = host < 0 ? undefined : frames[host], pad = host < 0 ? undefined : headerGroups[host]!.padding
-      const bounds = frame && pad ? { x: frame.x + pad.left, y: frame.y + pad.top, width: frame.width - pad.left - pad.right, height: frame.height - pad.top - pad.bottom }
+      work.pairs -= 8 // Painted host eligibility, stroke/corner inset and domain selection.
+      if (work.pairs < 0) fail('agentic local cross-hierarchy obstacle-work limit')
+      const hostRadius = host < 0 ? undefined : groups[host]!.paintCornerRadius
+      const paddingInset = widthProof === undefined || hostRadius === undefined ? Infinity : (widthProof + (groups[host]!.paintStrokeWidth ?? 0)) / 2 + hostRadius + 1
+      const bounds = frame && pad ? paddingAttempt === 0
+        ? { x: frame.x + pad.left, y: frame.y + pad.top, width: frame.width - pad.left - pad.right, height: frame.height - pad.top - pad.bottom }
+        : { x: frame.x + paddingInset, y: frame.y + pad.top, width: frame.width - 2 * paddingInset, height: frame.height - pad.top - paddingInset }
         : { x: 0, y: 0, width: placed.width, height: placed.height }
       const sources = crossingSource ? terminals(subjects[edge.source]!, directions[owners[edge.source]! + 1]!, true, clearance) : []
       const targets = crossingTarget ? terminals(subjects[edge.target]!, directions[owners[edge.target]! + 1]!, false, clearance) : []
@@ -1137,7 +1143,18 @@ export function routeCrossHierarchy(
           if (!(error instanceof BoundaryRouteDecline)) throw error
           decline = error.reason
         }
-        if (!points) fail(decline)
+        if (!points) {
+          // Content padding is blank routing space. Retry inside the host's
+          // painted border (including corners) only after the original content
+          // domain is blocked. Missing canonical radius keeps the old refusal.
+          // Each strategy has bounded probes; both attempts share the original
+          // cumulative work/vertex ledgers without replenishing any global cap.
+          if (paddingAttempt === 0 && frame && pad && widthProof !== undefined
+            && groups[host]!.paintStrokeWidth !== undefined && paddingInset < pad.left
+            && paddingInset < pad.right && paddingInset < pad.bottom
+            && decline === 'cross-hierarchy route has no bounded clear corridor') continue
+          fail(decline)
+        }
         rescued.add(index)
       }
       const finalPoints = points
@@ -1156,6 +1173,7 @@ export function routeCrossHierarchy(
     // including primary/direct successes with no sparse lease of their own.
     if (publishPeer && peerOwner) peerOwner.publish(index, placed.edges[index]!.points,
       input.edges[index]!.visible !== false && !ancestorPlan?.connections.has(index))
+    break
   }
   if (ancestorPlan?.connections.size) {
     const finalized = new Set<number>()

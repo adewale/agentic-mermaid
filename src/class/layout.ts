@@ -657,7 +657,7 @@ export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions
       const placed = measureRenderStage('agentic', () =>
         layoutAgenticGraph({
           nodes: diagram.classes.map((cls, index) => ({ id: cls.id, width: nativeClassSizes.get(cls.id)!.width, height: nativeClassSizes.get(cls.id)!.height, paintStrokeWidth: markerNodeStrokes[index], ...(!cls.isInterface && (paintBackendId===undefined||paintBackendId==='backend:default') ? {paintCornerRadius:style.cornerRadius??0} : {}), ...(nativeMinimums?.has(cls.id) ? { minimumPortSpacing: nativeMinimums.get(cls.id)!.portSpacing } : {}), ...(membership.has(cls.id) ? { parent: membership.get(cls.id)! } : {}) })),
-          groups: groups.map(group => ({ ...group, paintStrokeWidth: style.groupLineWidth })),
+          groups: groups.map(group => ({ ...group, paintStrokeWidth: style.groupLineWidth, ...((paintBackendId === undefined || paintBackendId === 'backend:default') ? { paintCornerRadius: style.groupCornerRadius } : {}) })),
           edges: diagram.relationships.map((rel, index) => {
             const source = indices.get(rel.from),
               target = indices.get(rel.to)

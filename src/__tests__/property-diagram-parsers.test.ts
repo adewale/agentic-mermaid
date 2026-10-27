@@ -8,7 +8,6 @@ import { renderMermaidSVGWithReceipt } from '../index.ts'
 import * as classLayout from '../class/layout.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { formatSvgNumber } from '../shared/svg-number.ts'
-import { GraphLayoutUnsupportedError } from '../layout/backend.ts'
 
 import { parseClassDiagram } from '../class/parser.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
@@ -248,7 +247,7 @@ describe('property-based class parsing', () => {
 
   for (const variant of [0, 1, 2])
     for (const backend of ['agentic', 'elk'] as const) {
-      it(`checks authored 8-class occurrences or the retained typed Native boundary, ${backend}, wrapper ${variant}`, () => {
+      it(`retains authored 8-class occurrences, ${backend}, wrapper ${variant}`, () => {
         const sample = classDevelopmentCase(8, variant),
           expected = sample.expected
         const original = classLayout.layoutClassDiagram
@@ -269,15 +268,6 @@ describe('property-based class parsing', () => {
             seed: 608,
             style: { formatVersion: 1, name: 'class-development', stroke: 'crisp', strokeWidth: 1 },
           })
-        } catch (error) {
-          // TODO(0.6): route these two enrolled TB inputs without the current
-          // cross-hierarchy corridor refusal. They
-          // earn no rendered coverage. A future admitted route must pass every
-          // assertion below; no test requires this refusal to remain forever.
-          if (backend !== 'agentic' || variant === 1 || !(error instanceof GraphLayoutUnsupportedError)) throw error
-          expect(error.reason).toBe('cross-hierarchy route has no bounded clear corridor')
-          expect(model).toEqual(before)
-          return
         } finally {
           observer.mockRestore()
         }
