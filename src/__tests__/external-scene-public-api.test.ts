@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import * as mainEntry from '../index.ts'
 
 // Intentionally import every extension-facing dependency from the published
 // agent entry. A synthetic family must not reach into marks.ts or any built-in
@@ -210,6 +211,19 @@ describe('public external Scene construction and admission', () => {
     const unregister = registerFamily(family)
     try {
       const source = 'safeScene\n  opaque extension payload'
+      expect(mainEntry).toHaveProperty('renderResolvedScene', expect.any(Function))
+      for (const style of [undefined, 'hand-drawn', 'excalidraw']) {
+        const options = style ? { style } : {}
+        const resolved = mainEntry.renderResolvedScene(source, options)
+        expect(resolved.svg).toBe(renderMermaidSVG(source, options))
+        expect(resolved).toEqual(JSON.parse(JSON.stringify(resolved)))
+        const container = resolved.parts.find(part => part.id === 'left-group')!
+        expect(container.node.kind).toBe('group')
+        expect(container.primitives.length).toBeGreaterThan(0)
+        expect(resolved.parts.some(part => part.id === 'left-node')).toBe(false)
+        const edge = resolved.parts.find(part => part.id === 'external-edge')!
+        expect(edge.primitives.some(primitive => primitive.kind === 'path' && primitive.marker)).toBe(true)
+      }
       const precise = renderMermaidSVG(source)
       const rough = renderMermaidSVG(source, { style: { stroke: 'jittered', roughness: 0.9 } })
       const hybrid = renderMermaidSVG(source, { style: { stroke: 'freehand', strokeWidth: 1.4 } })

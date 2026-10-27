@@ -72,6 +72,65 @@ const svg = renderMermaidSVG(`flowchart TD
 `ParsedDiagram` envelope returned by `parseRegisteredMermaid` and returns an SVG
 string.
 
+### Resolved paths and text
+
+```ts
+import { renderResolvedScene } from 'agentic-mermaid'
+
+const scene = renderResolvedScene('flowchart LR\n A --> B', { style: 'hand-drawn' })
+// scene.svg === renderMermaidSVG(source, options)
+for (const part of scene.parts) {
+  console.log(part.id, part.node, part.primitives)
+}
+```
+
+`renderResolvedScene(input, options?)` accepts the same source or parsed
+diagram and options as `renderMermaidSVG`. It is synchronous and requires no
+DOM, network or browser. Its version-1 result is deterministic JSON data:
+
+- `family`, `width`, `height`, `colors` and the byte-identical `svg`.
+- `parts` in top-level Scene order, excluding document marks. Each contains
+  `id`, `role`, `kind`, the original semantic `node`, and its painted
+  `primitives` in document order.
+- `frame` for painted leaves outside those parts, including style backdrops.
+
+Primitives describe what the selected backend actually drew, including sketch
+strokes. Shapes become local SVG path data; `matrix: [a,b,c,d,e,f]` maps local
+coordinates to root user space. Paint, stroke widths, dashes and text sizes
+are resolved in local units. Paint colors are lowercase six-digit hex or
+`none`; color alpha is folded into fill/stroke opacity, while `opacity`
+includes group opacity. Markers follow their decorated path with
+`marker: true`. Multiline labels become separate text runs, retaining font,
+anchor, baseline and text-length fitting.
+
+Hidden artwork is omitted. Filters, clip paths, masks, marker-mid, paint
+servers, unsupported elements and unresolved live palettes throw an error
+naming the owning part (or `frame`). This API requires a family with Scene
+lowering. It does not execute interactive/hover rules or fetch fonts.
+`RESOLVED_SCENE_VERSION` changes for removals or semantic changes; additive
+fields keep the version. See the changelog for contract changes.
+
+The Chromium comparison in `scripts/resolved-scene-oracle.ts` independently
+reads computed SVG values. It accepts a JSON array of
+`{ source, style? }`, with `--compare` for the API comparison or
+`--self-test` for planted comparison defects. Set `CHROMIUM` to a local
+browser executable if Playwright's downloaded Chromium is unavailable.
+Use `--worker-bundle dist/browser.global.js` after `bun run build:browser` to
+check the shipped bundle in a real browser Worker with no DOM.
+
+```sh
+bun scripts/resolved-scene-corpus.ts families /tmp/all-families.json
+bun scripts/resolved-scene-oracle.ts /tmp/all-families.json --compare
+bun scripts/resolved-scene-corpus.ts rayner /path/to/rayner /tmp/rayner.json
+bun scripts/resolved-scene-oracle.ts /tmp/rayner.json --compare --self-test
+```
+
+The family corpus uses solid-color Sankey links because its default gradients
+are explicitly outside this API's scope. The oracle uses internal emission
+boundaries for ownership, asserts byte equality with the public SVG renderer,
+and lets Chromium compute the primitive values. Existing layout failures remain
+failures; the script does not skip them.
+
 ### PNG
 
 ```ts

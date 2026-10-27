@@ -335,13 +335,14 @@ it('shipped sketch looks paint readable label ink against an opaque halo', async
 
 it('standalone editor stays within its single-renderer payload budget', async () => {
   const html = new Uint8Array(await Bun.file(join(ROOT, 'editor.html')).arrayBuffer())
-  // Paired Bun 1.4.2 builds against merged PR512 c394219c (Bun gzip level 9):
-  // raw 4,426,949 → 4,427,844; gzip 1,333,752 → 1,334,065.
-  // Linked drawing retention and producer revalidation measure 4,428,732 B
-  // raw / 1,334,238 B gzip with Bun 1.4.2. Keep 268 B / 262 B headroom.
+  // Paired Bun 1.4.2 builds against merged PR532 e8cb92ec, gzip level 9:
+  // raw 4,428,971 → 4,429,138; gzip 1,334,388 → 1,334,489.
+  // The new synchronous resolved-scene API adds 167 raw / 101 gzip bytes to
+  // shared emission hooks; capture-only resolution is absent from this editor.
+  // Retain 262 raw bytes of headroom. The gzip limit stays unchanged (11 B).
   // One renderer still serves the main/worker realms; the single-engine and
   // relative payload gates also apply.
-  expect(html.byteLength).toBeLessThanOrEqual(4_429_000)
+  expect(html.byteLength).toBeLessThanOrEqual(4_429_400)
   expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_334_500)
 })
 
