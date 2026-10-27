@@ -1,0 +1,20 @@
+[
+  {
+    "id": "income-30000",
+    "origin": "https://github.com/adewale/rayner/blob/bd6f4d980f68d1a0b59f5f17fd16c5b955e9f824/scenes/explainers/quotient-familial/scene.snapshots/07af9bd5f563f78c.json",
+    "source": "---\nconfig:\n  xyChart:\n    width: 540\n    height: 250\n---\nxychart-beta\n x-axis [\"0 enfant\", \"1 enfant\", \"2 enfants\", \"3 enfants\"]\n y-axis \"Avantage (barres), plafond (ligne), €\" 0 --> 10000\n bar [0.00, 632.34, 770.66, 770.66]\n line [0.00, 1791.00, 3582.00, 7164.00]",
+    "style": "pen-and-ink"
+  },
+  {
+    "id": "income-65673.88",
+    "origin": "https://github.com/adewale/rayner/blob/bd6f4d980f68d1a0b59f5f17fd16c5b955e9f824/scenes/explainers/quotient-familial/scene.snapshots/5add3a8c53e8a1ad.json",
+    "source": "---\nconfig:\n  xyChart:\n    width: 540\n    height: 250\n---\nxychart-beta\n x-axis [\"0 enfant\", \"1 enfant\", \"2 enfants\", \"3 enfants\"]\n y-axis \"Avantage (barres), plafond (ligne), €\" 0 --> 10000\n bar [0.00, 1970.67, 2603.01, 3867.68]\n line [0.00, 1791.00, 3582.00, 7164.00]",
+    "style": "pen-and-ink"
+  },
+  {
+    "id": "income-150000",
+    "origin": "https://github.com/adewale/rayner/blob/bd6f4d980f68d1a0b59f5f17fd16c5b955e9f824/scenes/explainers/quotient-familial/scene.snapshots/99555c01a3d7630f.json",
+    "source": "---\nconfig:\n  xyChart:\n    width: 540\n    height: 250\n---\nxychart-beta\n x-axis [\"0 enfant\", \"1 enfant\", \"2 enfants\", \"3 enfants\"]\n y-axis \"Avantage (barres), plafond (ligne), €\" 0 --> 20000\n bar [0.00, 3417.26, 6834.52, 13669.04]\n line [0.00, 1791.00, 3582.00, 7164.00]",
+    "style": "pen-and-ink"
+  }
+]

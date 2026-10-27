@@ -1,3 +1,4 @@
+import raynerTitles from '../../src/__tests__/testdata/rayner-528/xy-axis-titles.json'
 // Same-input production renders at immutable revisions, for PR review only.
 // bun run scripts/pr-assets/meaning-preservation-evidence.ts BASE_SHA HEAD_SHA OUT_DIR [FIXTURE_ID...]
 import { execFileSync } from 'node:child_process'
@@ -84,6 +85,12 @@ const stableRepresentativeCues = {
 } as const
 const ownershipGoldenIds = new Set(['corpus/flowchart/94', 'corpus/flowchart/95', 'corpus/flowchart/96', 'corpus/flowchart/98', 'corpus/state/0', 'corpus/state/1', 'corpus/state/8', 'corpus/state/14', 'corpus/state/16', 'corpus/state/17', 'corpus/state/18', 'corpus/state/19'])
 const fixtures: Fixture[] = [
+  ...raynerTitles.map(({ id, source, style }) => ({
+    id: `rayner-xy-title-${id}`,
+    title: `Rayner quotient familial: ${id}`,
+    source, renderOptions: { style }, captureLayout: true as const,
+    cue: 'The base refuses this unchanged 540 × 250 input with an off-canvas rotated title. After, inspect the complete wrapped y-axis title, its clearance from tick labels, and unchanged bars and cap line. The glyph/layout assertions cover these inputs; they do not establish readability of arbitrarily small charts.',
+  })),
   {
     id: 'flowchart-mixed-parallel-feedback',
     title: 'Mixed parallel edges retain separate visible shafts around feedback',
