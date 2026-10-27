@@ -74,7 +74,8 @@ export function parseEventModeling(source: string | string[], observe?: (event: 
   let specification: EventSpecification | undefined,
     section: 'given' | 'when' | 'then' = 'given',
     specificationStart = 0,
-    sectionOrder = -1
+    sectionOrder = -1,
+    sectionHasValue = false
   for (index++; index < lines.length; index++) {
     let line = lines[index]!.trim()
     const statementStart = observe ? starts[index]! + lines[index]!.indexOf(line) : 0
@@ -159,6 +160,7 @@ export function parseEventModeling(source: string | string[], observe?: (event: 
     if (gwt) {
       section = 'given'
       sectionOrder = -1
+      sectionHasValue = false
       specificationStart = statementStart
       specification = { frame: gwt[1]!, given: [], when: [], then: [] }
       body.specifications.push(specification)
@@ -171,8 +173,9 @@ export function parseEventModeling(source: string | string[], observe?: (event: 
         const keyword = tokens.shift()!
         if (keyword === 'given' || keyword === 'when' || keyword === 'then') {
           const order = ['given', 'when', 'then'].indexOf(keyword)
-          if (observe && (order <= sectionOrder || (sectionOrder < 0 && order !== 0))) report('labels', 'unsupported-gwt', specificationStart, statementStart + line.length)
+          if (observe && (order <= sectionOrder || (sectionOrder < 0 && order !== 0) || (sectionOrder >= 0 && !sectionHasValue))) report('labels', 'unsupported-gwt', specificationStart, statementStart + line.length)
           sectionOrder = order
+          sectionHasValue = false
           section = keyword
           continue
         }
@@ -180,6 +183,7 @@ export function parseEventModeling(source: string | string[], observe?: (event: 
         const name = tokens.shift()
         if (!name || !/^[_a-zA-Z]\w*$/.test(name)) throw Error('Invalid specification entity')
         specification[section].push({ type: eventType(keyword), entity: name })
+        sectionHasValue = true
       }
       if (observe) report('labels', `gwt:${specification.frame}:${body.specifications.length - 1}`, specificationStart, statementStart + line.length)
       continue

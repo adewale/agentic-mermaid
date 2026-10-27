@@ -242,7 +242,7 @@ test('title changes preserve unrelated wrapper fields/comments and metadata-look
 test('generous Given/When/Then reads warn for missing and reordered clause markers', async () => {
   const upstream = startUpstreamMermaid()
   try {
-    for (const clauses of ['cmd A then evt A', 'given cmd A then evt A given evt A', 'given cmd A then evt A when cmd A']) {
+    for (const clauses of ['cmd A then evt A', 'given cmd A then evt A given evt A', 'given cmd A then evt A when cmd A', 'given cmd A when then evt A']) {
       const source = `eventmodeling\nentity A\ntf 01 ui Main\ngwt 01 ${clauses}`
       expect((await upstream.parse(source)).ok).toBe(false)
       expect(verifyMermaid(source).warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toBe(true)
