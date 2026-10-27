@@ -225,6 +225,49 @@ browserTests('optional ZenUML browser backend', () => {
     await page.close()
   }, 30_000)
 
+  test('reentrant option getters reserve FIFO position and queue capacity before calling user code', async () => {
+    const page = await browser.newPage()
+    await page.goto(`http://localhost:${server.port}`)
+    const result = await page.evaluate(async () => {
+      const entry = '/index.js', api = await import(entry)
+      const bounded = []
+      const outcome = (operation: Promise<string>) => operation.then(() => 'success', (error: { message: string }) => error.message)
+      for (const field of ['style', 'timeoutMs']) {
+        const renderer = api.createZenUMLRenderer({ backendURL: '/frame.js' })
+        const calls: Promise<string>[] = []
+        const reenter = () => {
+          for (let index = 0; index < 32; index++) calls.push(outcome(renderer.render(`zenuml\nA->B: nested_${index}`)))
+        }
+        const options = field === 'style'
+          ? { style: Object.defineProperty({}, 'roles', { enumerable: true, get() { reenter(); return { node: { fillColor: '#aabbcc' } } } }) }
+          : Object.defineProperty({}, 'timeoutMs', { get() { reenter(); return 1000 } })
+        calls.push(outcome(renderer.render('zenuml\nA->B: outer', options)))
+        renderer.dispose()
+        const messages = await Promise.all(calls)
+        bounded.push({ limited: messages.filter(message => message.includes('32 pending')).length, disposed: messages.filter(message => message.includes('disposed')).length })
+      }
+      const renderer = api.createZenUMLRenderer({ backendURL: '/frame.js' })
+      try {
+        const order: string[] = [], calls: Promise<void>[] = []
+        const style = Object.defineProperty({}, 'roles', { enumerable: true, get() {
+          calls.push(renderer.render('zenuml\nA->B: nested').then(() => { order.push('nested') }))
+          return { node: { fillColor: '#aabbcc' } }
+        } })
+        calls.push(renderer.render('zenuml\nA->B: outer', { style }).then(() => { order.push('outer') }))
+        await Promise.all(calls)
+        const rejected = await outcome(renderer.render('zenuml\nA->B: invalid', { style: Object.defineProperty({}, 'roles', { enumerable: true, get() { throw Error('rejected getter') } }) }))
+        const valid = await renderer.render('zenuml\nA->B: after rejection')
+        return { bounded, order, rejected, recovered: valid.includes('after rejection') }
+      } finally { renderer.dispose() }
+    })
+    expect(result.bounded).toEqual([{ limited: 1, disposed: 32 }, { limited: 1, disposed: 32 }])
+    expect(result.order).toEqual(['outer', 'nested'])
+    expect(result.rejected).toContain('rejected getter')
+    expect(result.recovered).toBe(true)
+    expect(await page.locator('iframe').count()).toBe(0)
+    await page.close()
+  }, 30_000)
+
   test('disposal rejects queued work while optional palette admission is waiting for its module', async () => {
     const page = await browser.newPage()
     await page.goto(`http://localhost:${server.port}`)

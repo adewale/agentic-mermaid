@@ -78,7 +78,16 @@ export function createZenUMLRenderer(options: ZenUMLOptions): ZenUMLRenderer {
   let frame: HTMLIFrameElement | undefined, loaded: Promise<void> | undefined
   let cancelActive: ((error: ZenUMLBackendError) => void) | undefined
   const cancelPending = new Set<(error: ZenUMLBackendError) => void>()
-  let queue = Promise.resolve()
+  const queue: Array<() => Promise<void>> = []
+  let draining = false
+  const drain = () => {
+    if (draining) return
+    draining = true
+    queueMicrotask(async () => {
+      try { while (queue.length) await queue.shift()!() }
+      finally { draining = false }
+    })
+  }
   const unavailable = (message: string) => new ZenUMLBackendError('BACKEND_UNAVAILABLE', message)
   const releaseFrame = () => {
     frame?.remove()
@@ -139,43 +148,73 @@ export function createZenUMLRenderer(options: ZenUMLOptions): ZenUMLRenderer {
     async render(source, renderOptions = {}) {
       if (disposed) throw unavailable('The ZenUML renderer has been disposed.')
       if (typeof source !== 'string' || !/^\s*zenuml\b/.test(source) || !source.replace(/^\s*zenuml\b/, '').trim()) throw new ZenUMLBackendError('INVALID_SOURCE', 'Expected a nonempty ZenUML document.')
-      const timeout = renderOptions.timeoutMs ?? defaultTimeout
-      if (!Number.isFinite(timeout) || timeout <= 0) throw unavailable('timeoutMs must be positive and finite.')
       if (pending >= 32) throw unavailable('The ZenUML renderer already has 32 pending requests.')
-      const input = 'style' in renderOptions ? renderOptions.style : defaultStyle
-      const style = input === undefined ? undefined : captureStyle(input)
+      // Reserve capacity and FIFO position before reading caller-owned getters.
       pending++
-      // The shared style registry is only fetched when a caller requests paint.
-      // Start admission now, preserving call order while the module loads.
-      const appearance = style === undefined ? Promise.resolve(undefined) : import('./appearance.ts')
-        .then(api => {
-          try { return api.resolveZenUMLAppearance(style) }
-          catch (error) { throw new ZenUMLBackendError('UNSUPPORTED_APPEARANCE', error instanceof Error ? error.message : String(error)) }
-        }, () => { throw unavailable('The ZenUML palette module could not be loaded.') })
-      // Observe a rejected admission while an earlier queued render is active.
-      void appearance.catch(() => {})
-      let cancel!: (error: ZenUMLBackendError) => void
-      const cancelled = new Promise<never>((_, reject) => { cancel = reject })
-      cancelPending.add(cancel)
-      const job = queue.then(async () => {
-        if (disposed) throw unavailable('The ZenUML renderer has been disposed.')
-        if (style === undefined) return request(source, undefined, timeout)
-        const started = performance.now()
-        let admissionTimer: ReturnType<typeof setTimeout> | undefined
-        const admissionDeadline = new Promise<never>((_, reject) => {
-          admissionTimer = setTimeout(() => reject(unavailable('ZenUML palette admission did not complete before its deadline.')), timeout)
-        })
-        let admitted: ZenUMLAppearance | undefined
-        try { admitted = await Promise.race([appearance, cancelled, admissionDeadline]) }
-        finally { clearTimeout(admissionTimer) }
-        if (disposed) throw unavailable('The ZenUML renderer has been disposed.')
-        return request(source, admitted, Math.max(0, timeout - (performance.now() - started)))
-      })
-      queue = job.then(() => {}, () => {})
-      return Promise.race([job, cancelled]).finally(() => {
+      let timeout: number, style: StyleInput | StyleInput[] | undefined
+      let appearance: Promise<ZenUMLAppearance | undefined>
+      let resolve!: (svg: string) => void, reject!: (error: unknown) => void
+      const result = new Promise<string>((yes, no) => { resolve = yes; reject = no })
+      let rejectCancelled!: (error: ZenUMLBackendError) => void
+      const cancelled = new Promise<never>((_, no) => { rejectCancelled = no })
+      void cancelled.catch(() => {})
+      let settled = false
+      const release = () => {
+        settled = true
         pending--
         cancelPending.delete(cancel)
-      })
+        const index = queue.indexOf(job)
+        if (index >= 0) queue.splice(index, 1)
+      }
+      const fail = (error: unknown) => {
+        if (settled) return
+        release()
+        reject(error)
+      }
+      const cancel = (error: ZenUMLBackendError) => {
+        rejectCancelled(error)
+        fail(error)
+      }
+      const job = async () => {
+        if (settled) return
+        try {
+          if (disposed) throw unavailable('The ZenUML renderer has been disposed.')
+          let svg: string
+          if (style === undefined) svg = await request(source, undefined, timeout)
+          else {
+            const started = performance.now()
+            let admissionTimer: ReturnType<typeof setTimeout> | undefined
+            const admissionDeadline = new Promise<never>((_, no) => {
+              admissionTimer = setTimeout(() => no(unavailable('ZenUML palette admission did not complete before its deadline.')), timeout)
+            })
+            let admitted: ZenUMLAppearance | undefined
+            try { admitted = await Promise.race([appearance, cancelled, admissionDeadline]) }
+            finally { clearTimeout(admissionTimer) }
+            if (disposed) throw unavailable('The ZenUML renderer has been disposed.')
+            svg = await request(source, admitted, Math.max(0, timeout - (performance.now() - started)))
+          }
+          if (!settled) { release(); resolve(svg) }
+        } catch (error) { fail(error) }
+      }
+      cancelPending.add(cancel)
+      queue.push(job)
+      try {
+        timeout = renderOptions.timeoutMs ?? defaultTimeout
+        if (!Number.isFinite(timeout) || timeout <= 0) throw unavailable('timeoutMs must be positive and finite.')
+        const input = 'style' in renderOptions ? renderOptions.style : defaultStyle
+        style = input === undefined ? undefined : captureStyle(input)
+        if (!settled) {
+          // The shared style registry is fetched only for a paint request.
+          appearance = style === undefined ? Promise.resolve(undefined) : import('./appearance.ts')
+            .then(api => {
+              try { return api.resolveZenUMLAppearance(style!) }
+              catch (error) { throw new ZenUMLBackendError('UNSUPPORTED_APPEARANCE', error instanceof Error ? error.message : String(error)) }
+            }, () => { throw unavailable('The ZenUML palette module could not be loaded.') })
+          void appearance.catch(() => {})
+        }
+      } catch (error) { fail(error) }
+      drain()
+      return result
     },
     dispose() {
       disposed = true
