@@ -19,7 +19,7 @@ import { labelHaloExtension } from '../../shared/edge-label-geometry.ts'
 
 type PortLaneStyle = LabelMetricsStyle & { nodeLineWidth?: number; cornerRadius?: number; nodeFillColor?: string; nodeBorderColor?: string }
 
-function withinPortLaneBudget(nodes: readonly PositionedNode[], edges: readonly PositionedEdge[], groups: readonly PositionedGroup[]): boolean {
+export function withinPortLaneBudget(nodes: readonly PositionedNode[], edges: readonly PositionedEdge[], groups: readonly PositionedGroup[]): boolean {
   if (nodes.length > MAX_PREFERENCE_NODES || edges.length > MAX_PREFERENCE_EDGES) return false
   let remaining = MAX_PREFERENCE_NODES - nodes.length
   const fits = (groups: readonly PositionedGroup[]): boolean => groups.every(group => --remaining >= 0 && fits(group.children))
@@ -87,11 +87,11 @@ function edgeInk(edge: PositionedEdge, style: PortLaneStyle, work: () => boolean
   return { shafts: supports, markers, ...(label ? { label } : {}) }
 }
 
-function portLaneInkWork(): { remaining: number } {
+export function portLaneInkWork(): { remaining: number } {
   return { remaining: MAX_PREFERENCE_NODES * MAX_PREFERENCE_EDGES }
 }
 
-function portLaneInkClear(nodes: readonly PositionedNode[], edges: readonly PositionedEdge[], beforeNodes: readonly PositionedNode[], beforeEdges: readonly PositionedEdge[], groups: readonly PositionedGroup[], style: PortLaneStyle, budget = portLaneInkWork()): boolean {
+export function portLaneInkClear(nodes: readonly PositionedNode[], edges: readonly PositionedEdge[], beforeNodes: readonly PositionedNode[], beforeEdges: readonly PositionedEdge[], groups: readonly PositionedGroup[], style: PortLaneStyle, budget = portLaneInkWork()): boolean {
   const changedNodes = nodes.map((node, index) => node.x !== beforeNodes[index]!.x || node.y !== beforeNodes[index]!.y)
   const changedEdges = edges.map((edge, index) => routeChanged(edge, beforeEdges[index]!))
   if (!changedNodes.some(Boolean) && !changedEdges.some(Boolean)) return true

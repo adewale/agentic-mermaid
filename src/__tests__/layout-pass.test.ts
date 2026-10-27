@@ -371,7 +371,7 @@ S1["same word ok"] --> D`],
       // These literal width1 hidden arrowheads have 5px full cross span.
       // Identical target identity/colors cannot erase a distinct marker seat.
       for (let i = 0; i < positions.length; i++) for (let j = i + 1; j < positions.length; j++) expect(Math.abs(positions[i]! - positions[j]!)).toBeGreaterThanOrEqual(5)
-      if (occupied === 49) for (let i = 0; i < edges.length; i++) expect(edges[i]!.points).toBe(before[i]!)
+      if (occupied === 49) expect(edges[2]!.points).toBe(before[2]!)
       else {
         expect(positions.slice(0, 2)).toEqual([33, 47])
         expect(edges[2]!.points).toBe(before[2]!)
@@ -386,6 +386,78 @@ S1["same word ok"] --> D`],
     expect(arrivals).toHaveLength(3)
     expect(arrivals.map(edge => edge.label)).toEqual(graph.edges.filter(edge => edge.source === 'n0' && edge.target === 'n4').map(edge => edge.label))
     for (let i = 0; i < arrivals.length; i++) for (let j = i + 1; j < arrivals.length; j++) expect(Math.abs(arrivals[i]!.points.at(-1)!.x - arrivals[j]!.points.at(-1)!.x)).toBeGreaterThanOrEqual(5)
+  })
+
+  test('seeded separation sample78 preserves the three live circle-marker seats', () => {
+    const source = "flowchart RL\n  N0[\\n0\\]\n  N1((n1))\n  N2{n2}\n  N3(n3)\n  N0 --> N1\n  N3 --> N0\n  N1 --> N2\n  N0 --> N1\n  N3 -- go --> N1\n  N0 -- go --> N2\n  N2 --> N1"
+    const graph = parseMermaid(source), positioned = layoutGraphSync(graph)
+    const pair = positioned.edges.filter(edge => edge.source === 'N0' && edge.target === 'N1')
+    expect(pair).toHaveLength(2)
+    const gap = (a: {x:number;y:number}, b: {x:number;y:number}) => Math.hypot(a.x-b.x,a.y-b.y)
+    expect(gap(pair[0]!.points[0]!,pair[1]!.points[0]!)).toBeGreaterThanOrEqual(11)
+    expect(gap(pair[0]!.points.at(-1)!,pair[1]!.points.at(-1)!)).toBeGreaterThanOrEqual(11)
+    expect(positioned.edges.map(edge=>[edge.source,edge.target,edge.label])).toEqual(graph.edges.map(edge=>[edge.source,edge.target,edge.label]))
+  })
+
+  for (const [flipX,flipY] of [[false,false],[true,false],[false,true],[true,true]] as const) test(`margin-endpoint slots clear the live labelled circle arrival (${flipX},${flipY})`, () => {
+    const source = "flowchart RL\n  N0[\\n0\\]\n  N1((n1))\n  N2{n2}\n  N3(n3)\n  N0 --> N1\n  N3 --> N0\n  N1 --> N2\n  N0 --> N1\n  N3 -- go --> N1\n  N0 -- go --> N2\n  N2 --> N1"
+    const graph = parseMermaid(source)
+    graph.direction = flipX ? 'LR' : 'RL'
+    const originals: PositionedNode[] = [
+      {"id": "N3", "label": "n3", "shape": "rounded", "x": 426.53999999999996, "y": 102.73749999999998, "width": 60, "height": 36.900000000000006},
+      {"id": "N0", "label": "n0", "shape": "lean-l", "x": 301.77, "y": 62.9375, "width": 76.77, "height": 36.900000000000006},
+      {"id": "N1", "label": "n1", "shape": "circle", "x": 180.76999999999998, "y": 91.60999999999999, "width": 73, "height": 73},
+      {"id": "N2", "label": "n2", "shape": "diamond", "x": 52.000000000000014, "y": 47.34, "width": 80.77, "height": 80.77},
+    ]
+    const originalsRoutes = [
+      {"points": [[307.52774999999997, 81.3875], [265.77, 81.3875], [265.77, 106.21], [246.47, 106.21]]},
+      {"points": [[426.53999999999996, 115.0375], [390.53999999999996, 115.0375], [390.53999999999996, 81.3875], [372.78225, 81.3875]]},
+      {"points": [[180.76999999999998, 128.10999999999999], [92.38500000000002, 128.10999999999999]]},
+      {"points": [[310.40662499999996, 90.61250000000001], [277.77, 90.61250000000001], [277.77, 120.80999999999999], [253.0325502446344, 120.80999999999999]]},
+      {"points": [[426.53999999999996, 127.33749999999999], [335.29999999999995, 127.33749999999999], [335.29999999999995, 138.8375], [265.77, 138.8375], [265.77, 135.40999999999997], [253.0325502446344, 135.40999999999997]], "labelPosition": [312.53499999999997, 137.9875]},
+      {"points": [[304.648875, 72.1625], [214.29999999999995, 72.1625], [214.29999999999995, 51], [144.76999999999998, 51], [144.76999999999998, 74.26333333333334], [119.30833333333335, 74.26333333333334]], "labelPosition": [191.53499999999997, 50.15]},
+      {"points": [[52.000000000000014, 87.725], [40.000000000000014, 87.725], [40.000000000000014, 172.3], [265.77, 172.3], [265.77, 150.01], [246.46999999999997, 150.01]]},
+    ]
+    const nodes = originals.map(node=>({...node, x:flipX?-node.x-node.width:node.x, y:flipY?-node.y-node.height:node.y,
+      shape:node.shape==='lean-l'&&flipX!==flipY?'lean-r' as const:node.shape}))
+    const reflect = (p: readonly number[]) => ({x:flipX?-p[0]!:p[0]!,y:flipY?-p[1]!:p[1]!})
+    const edges: PositionedEdge[] = graph.edges.map((edge,edgeIndex)=>({...edge,edgeIndex,points:originalsRoutes[edgeIndex]!.points.map(reflect),
+      ...('labelPosition' in originalsRoutes[edgeIndex]! ? {labelPosition:reflect(originalsRoutes[edgeIndex]!.labelPosition!)} : {})}))
+    const before = edges.map(edge=>edge.points)
+    const beforeLabels = edges.map(edge=>edge.labelPosition && {...edge.labelPosition})
+    const beforeCrossings = rubric.countEdgeCrossings(edges)
+    applyParallelDuplicateLanes(nodes,edges,[],graph,new Set(),resolveRenderStyle())
+    const first=edges[0]!,second=edges[3]!
+    expect(Math.hypot(first.points[0]!.x-second.points[0]!.x,first.points[0]!.y-second.points[0]!.y)).toBeGreaterThanOrEqual(11)
+    expect(Math.hypot(first.points.at(-1)!.x-second.points.at(-1)!.x,first.points.at(-1)!.y-second.points.at(-1)!.y)).toBeGreaterThanOrEqual(11)
+    for(let i=0;i<edges.length;i++) if(i!==0&&i!==3) expect(edges[i]!.points).toBe(before[i]!)
+    expect(edges.map(edge=>edge.labelPosition)).toEqual(beforeLabels)
+    expect(rubric.countEdgeCrossings(edges)).toBeLessThanOrEqual(beforeCrossings)
+    // Default literal width-one hidden arrow viewport: eight pixels behind
+    // its tip and five across. These all have horizontal terminal tangents.
+    const markers=edges.map(edge=>{
+      const tip=edge.points.at(-1)!,previous=edge.points.at(-2)!
+      expect(tip.y).toBe(previous.y)
+      const back=tip.x+(previous.x>tip.x?8:-8)
+      return {x0:Math.min(tip.x,back),x1:Math.max(tip.x,back),y0:tip.y-2.5,y1:tip.y+2.5}
+    })
+    for(const index of [0,3]) for(let peer=0;peer<markers.length;peer++) if(peer!==index){
+      const a=markers[index]!,b=markers[peer]!
+      expect(a.x0<b.x1&&b.x0<a.x1&&a.y0<b.y1&&b.y0<a.y1).toBe(false)
+    }
+    for(const edge of [first,second]) for(let i=1;i<edge.points.length;i++) expect(edge.points[i-1]!.x===edge.points[i]!.x||edge.points[i-1]!.y===edge.points[i]!.y).toBe(true)
+  })
+
+  test('three blocked marker domains retain every original route atomically', () => {
+    const graph=parseMermaid('flowchart TB\nA-->B\nA-->B\nP0-->|a|B\nP1-->|b|B\nP2-->|c|B')
+    const nodes:PositionedNode[]=[{id:'A',label:'A',shape:'rectangle',x:0,y:0,width:80,height:40},{id:'B',label:'B',shape:'rectangle',x:0,y:200,width:80,height:40},
+      ...[0,1,2].map(index=>({id:`P${index}`,label:'P',shape:'rectangle' as const,x:120+120*index,y:0,width:80,height:40}))]
+    const edges:PositionedEdge[]=graph.edges.map((edge,edgeIndex)=>({...edge,edgeIndex,points:edgeIndex<2?[{x:edgeIndex?60:20,y:40},{x:edgeIndex?60:20,y:200}]:
+      [{x:160+120*(edgeIndex-2),y:40},{x:160+120*(edgeIndex-2),y:190},{x:[49,7,73][edgeIndex-2]!,y:190},{x:[49,7,73][edgeIndex-2]!,y:200}]}))
+    const before=JSON.stringify(edges),refs=edges.map(edge=>edge.points)
+    applyParallelDuplicateLanes(nodes,edges,[],graph,new Set(),resolveRenderStyle())
+    expect(JSON.stringify(edges)).toBe(before)
+    for(let i=0;i<edges.length;i++)expect(edges[i]!.points).toBe(refs[i]!)
   })
 
   test('one crossing may resolve one actual collapsed duplicate route, without losing either authored edge', () => {
