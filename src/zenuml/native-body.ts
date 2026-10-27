@@ -86,9 +86,9 @@ export function serializeZenUML(body: ZenUMLBody, includeTitleWrapper = true): s
   if (body.unsupportedSource !== undefined) return body.unsupportedSource
   const lines = ['zenuml']
   appendNativeAccessibilityLines(lines, body)
-  if (body.title !== undefined) {
+  if (body.title !== undefined && includeTitleWrapper) {
     if (/[\r\n]/.test(body.title)) {
-      if (includeTitleWrapper) lines.unshift(`---\ntitle: ${JSON.stringify(body.title)}\n---`)
+      lines.unshift(`---\ntitle: ${JSON.stringify(body.title)}\n---`)
     } else lines.push(`title ${body.title}`)
   }
   for (const p of body.participants) {
