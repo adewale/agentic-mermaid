@@ -549,10 +549,11 @@ function extractErLayout(
   for (const entity of diagram.entities) entityLookup.set(entity.id, entity)
 
   const positionedEntities: PositionedErEntity[] = []
+  const defaultStyle = checkedAuthoredStyle(diagram.classDefs.get('default'), 'classDef default')
   for (const child of result.entities) {
     const entity = entityLookup.get(child.id)
     if (entity) {
-      const classStyle: Record<string, string> = {}
+      const classStyle: Record<string, string> = { ...defaultStyle }
       for (const name of entity.className?.split(/[ \t]+/) ?? []) Object.assign(classStyle, checkedAuthoredStyle(diagram.classDefs.get(name), `classDef ${name}`))
       positionedEntities.push({
         id: entity.id,
