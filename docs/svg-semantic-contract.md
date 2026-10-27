@@ -24,10 +24,14 @@ generated suffixes. Ordinary readable names stay compatible, while ambiguous
 generated names receive deterministic collision suffixes. SVG semantic attributes,
 graphical layout regions and terminal ownership consume the same plan.
 Scene part IDs and SVG resource IDs keep their separate namespaces. Source
-objects, Scene parts and resolved primitives have different identities and
-cardinalities; see the [shared vocabulary](./api.md#vocabulary). Existing
-`SceneNode` and `*Mark` type names refer to parts. A marker is an endpoint
-decoration, not another spelling for part.
+objects and Scene parts need not have a one-to-one correspondence, and a part
+can contain several resolved primitives. Those primitives have no independent
+stable IDs; their containing part provides the association. Primitives in
+`scene.frame` have no containing part. See the
+[shared vocabulary](./api.md#vocabulary). Existing `SceneNode` and `*Mark` type
+names refer to parts. A marker decorates a path or connector at its start, end
+or interior vertices; it is not another spelling for part. Resolved-scene
+export separately rejects unsupported marker placement such as `marker-mid`.
 
 XML attributes preserve authored TAB, LF and CR with numeric character
 references. Attribute readers decode serialized values exactly once; typed

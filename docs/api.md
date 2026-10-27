@@ -43,10 +43,15 @@ The API names stay specific to their layer:
 | `ResolvedPrimitive` | `ResolvedPath` or `ResolvedText`, after backend painting. |
 | `ScenePrimitive`, `Geometry` | Scene primitive capability names and geometry, before backend painting. These are not `ResolvedPrimitive`. |
 
-A **marker** is an endpoint decoration such as an arrowhead; it is distinct
-from the older word *mark*. Use source IDs for source objects and Scene IDs
-for parts. One source object can produce several parts, and one part can
-produce several painted primitives.
+A **marker** decorates a path or connector at its start, end or interior
+vertices, such as an arrowhead; it is distinct from the older word *mark*.
+Use source-facing IDs for source objects and Scene IDs for parts. One source
+object can produce several parts, and one part can produce several painted
+primitives. Resolved primitives have no independent stable IDs. Entries in
+`part.primitives` are associated through that part and its source-facing
+identity where available. Entries in `scene.frame` have no containing part
+or independent stable IDs.
+The resolved-scene API's separate `marker-mid` limitation still applies.
 
 ## Versions
 

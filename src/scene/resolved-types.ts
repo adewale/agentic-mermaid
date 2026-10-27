@@ -31,7 +31,9 @@ export interface ResolvedPart {
   primitives: ResolvedPrimitive[]
 }
 
-/** A painted path or text run, distinct from pre-paint Scene geometry. */
+/** A painted path or text run, distinct from pre-paint Scene geometry.
+ * No independent stable ID. Entries in part.primitives are part-associated;
+ * entries in scene.frame have no containing part. */
 export type ResolvedPrimitive = ResolvedPath | ResolvedText
 
 export interface ResolvedPaint {
