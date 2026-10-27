@@ -249,9 +249,9 @@ function ellipseBox(cx: number, cy: number, radius: number, r: ClassSurfaceBox):
     dy = cy - Math.max(r.y, Math.min(r.y + r.height, cy))
   return dx * dx + dy * dy < radius * radius
 }
-export function classRelationshipPaintBoxes(diagram: PositionedClassDiagram, style: ResolvedRenderStyle): { box: ClassSurfaceBox; edge: number; kind: 'label' | 'cardinality' | 'marker'; endpoint?: 'from' | 'to'; pieces?: ClassMarkerPiece[] }[] {
+export function classRelationshipPaintBoxes(diagram: PositionedClassDiagram, style: ResolvedRenderStyle, options: { markers?: boolean } = {}): { box: ClassSurfaceBox; edge: number; kind: 'label' | 'cardinality' | 'marker'; endpoint?: 'from' | 'to'; pieces?: ClassMarkerPiece[] }[] {
   const result: { box: ClassSurfaceBox; edge: number; kind: 'label' | 'cardinality' | 'marker'; endpoint?: 'from' | 'to'; pieces?: ClassMarkerPiece[] }[] = [],
-    resources = classMarkerResources(style),
+    resources = options.markers === false ? undefined : classMarkerResources(style),
     halo = RELATION_LABEL_HALO_WIDTH / 2
   diagram.relationships.forEach((rel, edge) => {
     if (rel.label && rel.labelPosition && rel.labelBlock) result.push({ edge, kind: 'label', box: { x: rel.labelPosition.x - rel.labelBlock.width / 2 - halo, y: rel.labelPosition.y - 8 - rel.labelBlock.height / 2 - halo, width: rel.labelBlock.width + 2 * halo, height: rel.labelBlock.height + 2 * halo } })
@@ -260,6 +260,7 @@ export function classRelationshipPaintBoxes(diagram: PositionedClassDiagram, sty
         p = rel[`${side}CardinalityPosition`]
       if (block && p) result.push({ edge, kind: 'cardinality', box: { x: p.x - block.width / 2 - halo, y: p.y - block.height / 2 - halo, width: block.width + 2 * halo, height: block.height + 2 * halo } })
     }
+    if (!resources) return
     const startId = rel.markerAt === 'from' || rel.markerAt === 'both' ? getMarkerDefId(rel.fromType ?? rel.type) : null,
       endId = rel.markerAt === 'to' || rel.markerAt === 'both' ? getMarkerDefId(rel.toType ?? rel.type) : null
     const first = emittedPoint(rel.points[0] ?? { x: 0, y: 0 }),
@@ -333,8 +334,9 @@ function simpleClassRoute(route: readonly Point[]): boolean {
 }
 /** Test every retained band; endpoint ancestry grants no header exemption. */
 export function repairClassHeaderRoutes(diagram: PositionedClassDiagram, style: ResolvedRenderStyle): void {
-  const headers = diagram.namespaces.map(ns => ({ x: ns.x, y: ns.y, width: ns.width, height: ns.headerHeight })),
-    paint = classRelationshipPaintBoxes(diagram, style)
+  if (!diagram.namespaces.length) return
+  const headers = diagram.namespaces.map(ns => ({ x: ns.x, y: ns.y, width: ns.width, height: ns.headerHeight }))
+  let cachedPaint: ReturnType<typeof classRelationshipPaintBoxes> | undefined
   for (let ri = 0; ri < diagram.relationships.length; ri++) {
     const relation = diagram.relationships[ri]!
     for (const header of headers) {
@@ -359,6 +361,7 @@ export function repairClassHeaderRoutes(diagram: PositionedClassDiagram, style: 
         for (const lane of lanes) {
           const detour = [before, { ...before, [cross]: lane }, { ...after, [cross]: lane }, after]
           if (detour.some(p => p.x < 0 || p.y < 0 || p.x > diagram.width || p.y > diagram.height)) continue
+          const paint = cachedPaint ??= classRelationshipPaintBoxes(diagram, style)
           const boxes = [...diagram.classes.filter(c => !c.isInterface), ...headers, ...diagram.notes, ...paint.filter(p => p.edge !== ri && p.kind !== 'marker').map(p => p.box)]
           if (boxes.some(box => routeEnters(detour, box)) || paint.some(p => p.edge !== ri && p.kind === 'marker' && detour.some((point, i) => i > 0 && classCarrierEntersMarker(detour[i - 1]!, point, p.pieces ?? [], style.lineWidth)))) continue
           const trial = simplifyOrthogonal([...relation.points.slice(0, segment), ...detour, ...relation.points.slice(segment)])
@@ -378,6 +381,7 @@ export function repairClassHeaderRoutes(diagram: PositionedClassDiagram, style: 
           if (trial[0]!.x !== relation.points[0]!.x || trial[0]!.y !== relation.points[0]!.y || trial.at(-1)!.x !== relation.points.at(-1)!.x || trial.at(-1)!.y !== relation.points.at(-1)!.y) continue
           if ([...diagram.classes.filter(c => !c.isInterface), ...diagram.notes, ...headers.filter(h => h !== header && !routeEnters(relation.points, h)), ...paint.filter(p => p.edge !== ri && p.kind !== 'marker').map(p => p.box)].some(box => routeEnters(trial, box))) continue
           relation.points = trial
+          cachedPaint = undefined // Later detours inspect the newly accepted geometry.
           segment += Math.max(0, detour.length - 2)
           break
         }
@@ -439,7 +443,7 @@ export function repairClassNoteSeats(diagram: PositionedClassDiagram, style: Res
 export function classOwnedSurfaceViolations(diagram: PositionedClassDiagram, style: ResolvedRenderStyle): string[] {
   const violations: string[] = [],
     headers = diagram.namespaces.map(ns => ({ id: ns.id, x: ns.x, y: ns.y, width: ns.width, height: ns.headerHeight })),
-    paint = classRelationshipPaintBoxes(diagram, style),
+    paint = classRelationshipPaintBoxes(diagram, style, { markers: headers.length > 0 || diagram.notes.length > 0 }),
     shaftHalf = style.lineWidth / 2
   for (const box of [...diagram.classes, ...diagram.notes, ...headers]) emittedBox(box)
   const nodeMap = new Map(diagram.classes.map(c => [c.id, c]))
@@ -496,6 +500,7 @@ export function classOwnedSurfaceViolations(diagram: PositionedClassDiagram, sty
 
 /** Only existing marker/header conflicts request more content inset in the existing sizing loop. */
 export function classMarkerHeaderInsets(diagram: PositionedClassDiagram, style: ResolvedRenderStyle, current: ReadonlyMap<string, number>): Map<string, number> {
+  if (!diagram.namespaces.length) return new Map(current)
   const next = new Map(current),
     paint = classRelationshipPaintBoxes(diagram, style).filter(p => p.kind === 'marker'),
     groups = new Map(diagram.namespaces.map(ns => [ns.id, ns])),
