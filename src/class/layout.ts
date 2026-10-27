@@ -1,4 +1,4 @@
-import { scoreMeasuredRouteCrossings } from '../layout/measured-route-safety.ts'
+import { measuredRouteContactPairBudget, scoreMeasuredRouteCrossings } from '../layout/measured-route-safety.ts'
 import type { MeasuredGraph } from '../layout/agentic-layered-core.ts'
 import { resolveDiagramColors } from '../color-resolver.ts'
 import { connectorMarkerPaintRegions } from '../scene/bounds.ts'
@@ -804,15 +804,17 @@ function assertFinalClassSharpContacts(result: PositionedClassDiagram, style: Re
     maximumEdgeStrokeWidth: style.lineWidth, maximumEdgeBendRadius: 0,
   }
   const routes = result.relationships.map(rel => ({ points: rel.points, style: 'solid' }))
+  pay()
+  const pairBudget = measuredRouteContactPairBudget(input)
   let remaining = 0
   for (const route of routes) { pay(); remaining += Math.max(0, route.points.length - 1) }
   for (let index = 0; index + 1 < routes.length; index++) {
     const route = routes[index]!, segments = Math.max(0, route.points.length - 1)
     remaining -= segments
-    // The original exact scorer's segment-pair, route and contact preparation
-    // allowance is retained; its additional written-geometry work is paid live.
-    pay(3 * segments * remaining + route.points.length + remaining + routes.length)
-    if (scoreMeasuredRouteCrossings(route.points, index, routes, input, pay, pay) === undefined) refuse('Final Class routes have an uncertified shared contact')
+    // Reserve the shared support-separation visit; the scorer charges the
+    // remaining predicates only for pairs not proved disjoint.
+    pay(pairBudget * segments * remaining + route.points.length + remaining + routes.length)
+    if (scoreMeasuredRouteCrossings(route.points, index, routes, input, pay, pay, undefined, pairBudget) === undefined) refuse('Final Class routes have an uncertified shared contact')
     // Symmetric finite orthogonal pairs were just checked against every later
     // route. No geometry or source field changes during this local traversal.
     route.style = 'invisible'
