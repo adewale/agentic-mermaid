@@ -21,6 +21,7 @@ export function assignChannelTracks(
   extent: number,
   work: ChannelWork,
   unsupported: (reason: string) => never,
+  minimumTerminalLead?: number,
 ): number {
   const epsilon = 0.01
   const active = segments.filter(step => Math.abs(step.sourceCross - step.targetCross) > epsilon)
@@ -78,7 +79,7 @@ export function assignChannelTracks(
     step.targetEscape = rightDistance < leftDistance || (rightDistance === leftDistance && step.sourceCross > step.targetCross) ? right : left
     escapes = true
   }
-  const margin = Math.max(12, spacing)
+  const margin = Math.max(12, spacing, minimumTerminalLead ?? 0)
   const needed = 2 * margin + maxTrack * spacing + (escapes ? spacing : 0)
   const gap = Math.max(baseGap, needed), slack = (gap - needed) / 2
   for (const step of segments) {

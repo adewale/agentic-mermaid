@@ -29,6 +29,8 @@ export interface MeasuredGraph {
   nodeSpacing: number
   layerSpacing: number
   edgeSpacing?: number
+  /** Actual endpoint artwork lead reserved independently of peer-obstacle clearance. */
+  minimumTerminalLead?: number
   /** Actual maximum painted edge stroke, supplied by the producer. Absence keeps legacy routing. */
   maximumEdgeStrokeWidth?: number
   maximumEdgeBendRadius?: number
@@ -104,6 +106,7 @@ export function layoutLayeredGraph(
     throw new TypeError('Measured graph spacing must be finite and nonnegative')
   }
   if (input.edgeSpacing !== undefined && !finiteSize(input.edgeSpacing, true)) throw new TypeError('Measured edge spacing must be finite and positive')
+  if (input.minimumTerminalLead !== undefined && !finiteSize(input.minimumTerminalLead, true)) throw new TypeError('Measured terminal lead must be finite and positive')
   if (input.maximumEdgeStrokeWidth !== undefined && !finiteSize(input.maximumEdgeStrokeWidth, true)) throw new TypeError('Measured maximum edge stroke width must be finite and positive')
   if (input.maximumEdgeBendRadius !== undefined && !finiteSize(input.maximumEdgeBendRadius,false)) throw new TypeError('Invalid measured edge bend radius')
   for (const node of input.nodes) if (node.paintStrokeWidth !== undefined && !finiteSize(node.paintStrokeWidth,true)) throw new TypeError('Invalid measured node paint stroke')
@@ -708,7 +711,10 @@ export function layoutLayeredGraph(
     channels[vertices[from]!.rank]!.push(step)
     return step
   }))
-  const gaps = channels.map(channel => assignChannelTracks(channel, halfGap, input.edgeSpacing ?? 6, crossExtent, routingWork, unsupported))
+  const gaps = channels.map(channel => {
+    if (input.minimumTerminalLead !== undefined) { routingWork.pairs -= 3; if (routingWork.pairs < 0) unsupported('agentic terminal-lead work limit') }
+    return assignChannelTracks(channel, halfGap, input.edgeSpacing ?? 6, crossExtent, routingWork, unsupported, input.minimumTerminalLead)
+  })
   const main = new Float64Array(vertices.length)
   let mainExtent = 0
   for (let index = 0; index < bands.length; index++) {

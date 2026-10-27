@@ -5,7 +5,7 @@ import { assertFinalBoundaryContacts, createBoundaryContactValidator } from '../
 import { proposePortalChannel } from '../layout/compound-portal-channel.ts'
 import { proposeOuterChannel } from '../layout/compound-outer-channel.ts'
 import { createPeerGeometryOwner } from '../layout/compound-peer-geometry.ts'
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, test, spyOn } from 'bun:test'
 import { layoutAgenticGraph, type MeasuredGraph } from '../layout/agentic-layered.ts'
 import { type AgenticLayout, layoutLayeredGraph } from '../layout/agentic-layered-core.ts'
 import { GraphLayoutUnsupportedError } from '../layout/backend.ts'
@@ -1579,4 +1579,121 @@ describe('written sharp join contact closure', () => {
     }
   })
 
+})
+
+describe('Native graph preparation reserves actual styled marker room', () => {
+  const source = `flowchart LR
+  subgraph Core["Routing core"]
+    Intake["Intake"] --> Validate{"Valid?"}
+    Validate -- yes --> Render["Render SVG"]
+    Validate -- no --> Repair["Repair source"]
+    Repair --> Validate
+  end
+  Render --> Export["Export PNG"]
+  Render --> Audit["Contrast audit"]
+  Audit --> Export`
+  const overlaps = (a: readonly number[], b: readonly number[]) => a[0]! < b[2]! && b[0]! < a[2]! && a[1]! < b[3]! && b[1]! < a[3]!
+  for (const direction of ['LR', 'RL', 'TB', 'BT'] as const) test(`global width4 preserves distinct heads and foreign card/carrier clearance: ${direction}`, async () => {
+    const engine = await import('../layout-engine.ts'), original = engine.layoutGraphSync
+    let result: ReturnType<typeof original> | undefined, graph: Parameters<typeof original>[0] | undefined, before: Parameters<typeof original>[0] | undefined
+    const observe = spyOn(engine, 'layoutGraphSync').mockImplementation((...args: Parameters<typeof original>) => {
+      graph = args[0]; before = structuredClone(graph)
+      expect(args[1]?.styleFace?.edge?.lineWidth).toBe(4)
+      result = original(...args)
+      return result
+    })
+    let svg: string
+    try {
+      const api = await import('../index.ts')
+      const rendered = api.renderMermaidSVGWithReceipt(source.replace('flowchart LR', `flowchart ${direction}`), {
+        graphLayout: { backend: 'agentic', fallback: 'none' }, padding: 28, font: 'DejaVu Sans', seed: 60131,
+        style: { formatVersion: 1, name: 'native-marker-room-owner', stroke: 'crisp', strokeWidth: 4 },
+      })
+      svg = rendered.svg
+    } finally { observe.mockRestore() }
+    expect(result).toBeDefined()
+    expect(svg).toContain('id="arrowhead" markerWidth="8" markerHeight="5"')
+    expect(svg.match(/class="edge"[^>]*stroke-width="4"/g)).toHaveLength(7)
+    const placed = result!, edge = (from: string, to: string) => placed.edges.find(e => e.source === from && e.target === to)!
+    const node = (id: string) => placed.nodes.find(n => n.id === id)!
+    // Literal native SVG arrow viewport is8x5, scaled by global strokeWidth4.
+    // Full viewport and4px butt strips are conservative actual paint supports.
+    const marker = (e: typeof placed.edges[number]) => {
+      const tip = e.points.at(-1)!, near = e.points.slice(0, -1).reverse().find(p => p.x !== tip.x || p.y !== tip.y)!
+      expect(tip.x === near.x || tip.y === near.y).toBe(true)
+      const dx = Math.sign(tip.x - near.x), dy = Math.sign(tip.y - near.y)
+      return dx ? [Math.min(tip.x, tip.x - dx * 32), tip.y - 10, Math.max(tip.x, tip.x - dx * 32), tip.y + 10]
+        : [tip.x - 10, Math.min(tip.y, tip.y - dy * 32), tip.x + 10, Math.max(tip.y, tip.y - dy * 32)]
+    }
+    const a = marker(edge('Render', 'Export')), b = marker(edge('Audit', 'Export')), c = marker(edge('Render', 'Audit'))
+    expect(overlaps(a, b)).toBe(false)
+    const audit = node('Audit'), body = [audit.x - 2, audit.y - 2, audit.x + audit.width + 2, audit.y + audit.height + 2]
+    expect(overlaps(a, body)).toBe(false)
+    expect(overlaps(b, body)).toBe(false)
+    const foreign = edge('Render', 'Export')
+    for (let i = 1; i < foreign.points.length; i++) {
+      const p = foreign.points[i - 1]!, q = foreign.points[i]!
+      const strip = p.x === q.x ? [p.x - 2, Math.min(p.y, q.y), p.x + 2, Math.max(p.y, q.y)]
+        : [Math.min(p.x, q.x), p.y - 2, Math.max(p.x, q.x), p.y + 2]
+      expect(overlaps(c, strip)).toBe(false)
+    }
+    expect(graph).toEqual(before)
+    expect(placed.edges.map(e => [e.source, e.target, e.label])).toEqual(graph!.edges.map(e => [e.source, e.target, e.label]))
+  })
+})
+
+
+describe('measured endpoint lead admission and work', () => {
+  const line = (): MeasuredGraph => ({ nodes: [{id:'A',width:40,height:30},{id:'B',width:40,height:30}], edges:[{source:0,target:1,minSpan:1}], direction:'LR',padding:0,nodeSpacing:24,layerSpacing:48 })
+  for (const invalid of [0,-1,NaN,Infinity]) test(`rejects invalid terminal lead ${invalid}`, () => {
+    expect(() => layoutAgenticGraph({...line(),minimumTerminalLead:invalid})).toThrow(TypeError)
+  })
+  test('new lead predicates consume the original supplied routing allowance', () => {
+    const work={pairs:2,arcs:100,swaps:100}
+    expect(() => layoutLayeredGraph({...line(),minimumTerminalLead:36},()=>undefined,reason=>{throw new Error(reason)},work)).toThrow('terminal-lead work limit')
+    expect(work.pairs).toBeLessThan(0)
+  })
+  test('default known small heads retain the existing adequate gap and inline4 uses fixed units', async () => {
+    const {renderMermaidSVGWithReceipt}=await import('../index.ts')
+    const options={graphLayout:{backend:'agentic' as const,fallback:'none' as const},embedFontImport:false}
+    const ordinary=renderMermaidSVGWithReceipt('flowchart LR\nA-->B',options).svg
+    expect(ordinary).toContain('markerWidth="8" markerHeight="5"')
+    const inline=renderMermaidSVGWithReceipt('flowchart LR\nA-->B\nlinkStyle 0 stroke-width:4px',options).svg
+    expect(inline).toContain('markerWidth="8" markerHeight="8"')
+    expect(inline).toContain('markerUnits="userSpaceOnUse"')
+  })
+  test('one hundred opaque tint changes retain ordinary Native support', async () => {
+    const {renderMermaidSVGWithReceipt}=await import('../index.ts')
+    const source='flowchart LR\n'+Array.from({length:100},(_,i)=>`N${i}-->N${i+1}`).join('\n')+'\n'+Array.from({length:100},(_,i)=>`linkStyle ${i} stroke:#${(i+4096).toString(16).padStart(6,'0')}`).join('\n')
+    const rendered=renderMermaidSVGWithReceipt(source,{graphLayout:{backend:'agentic',fallback:'none'},embedFontImport:false})
+    expect(rendered.svg.match(/class="edge"/g)).toHaveLength(100)
+    expect(rendered.receipt.layoutDecisions?.every(d=>d.selected==='agentic')).toBe(true)
+  })
+})
+
+
+describe('Native preparation ledger custody', () => {
+  for (const hostile of [false,true]) test(`prepared requests retain the owned quota with explicit work hostile=${hostile}`, async () => {
+    const native=await import('../layout/agentic-layered.ts'),producer=await import('../layout/agentic-producer-core.ts'),core=await import('../layout/agentic-layered-core.ts'),forest=await import('../layout/measured-forest.ts')
+    const original=core.layoutLayeredGraph,observed:unknown[]=[]
+    const supplied=hostile?Object.defineProperties({pairs:0,arcs:0,swaps:0},{pairs:{get:()=>1e9,set:()=>{}},arcs:{get:()=>1e9,set:()=>{}},swaps:{get:()=>1e9,set:()=>{}}}):{pairs:1,arcs:65536,swaps:1_000_000}
+    const raw=spyOn(core,'layoutLayeredGraph').mockImplementation((...args:Parameters<typeof original>)=>{observed.push(args[3]);expect(args[3]).not.toBe(supplied);expect(args[3]!.pairs).toBeLessThan(1_000_000);return original(...args)})
+    const owned=spyOn(native,'layoutAgenticCandidate').mockImplementation((graph,options,style,bindings)=>producer.layoutNativeGraphCandidate(graph,options,style,input=>producer.layoutLayeredGraph(input,forest.layoutMeasuredForest,reason=>{throw new GraphLayoutUnsupportedError(reason)},supplied),bindings))
+    try{
+      const api=await import('../index.ts'),render=()=>api.renderMermaidSVGWithReceipt(`flowchart LR\nLedger${hostile}A-->Ledger${hostile}B`,{graphLayout:{backend:'agentic',fallback:'none'},embedFontImport:false})
+      if(hostile){expect(render().svg).toContain('<svg');expect(observed.length).toBeGreaterThan(0)}
+      else{expect(render).toThrow('marker preparation work limit');expect(supplied.pairs).toBeLessThan(0);expect(observed).toHaveLength(0)}
+    }finally{owned.mockRestore();raw.mockRestore()}
+  })
+})
+
+describe('marker reservation cache keeps boundary-role identity', () => {
+  for (const ancestorFirst of [false,true]) test(`ordinary and ancestor-start use distinct reservations, ancestorFirst=${ancestorFirst}`,async()=>{
+    const {renderMermaidSVGWithReceipt}=await import('../index.ts')
+    const relations=ancestorFirst?'G <--> A\nX <--> Y':'X <--> Y\nG <--> A'
+    const rendered=renderMermaidSVGWithReceipt('flowchart LR\nsubgraph G\nA\nend\n'+relations,{graphLayout:{backend:'agentic',fallback:'none'},embedFontImport:false})
+    expect(rendered.svg).toContain('data-id="G"')
+    expect(rendered.svg).toContain('data-from="G" data-to="A"')
+    expect(rendered.receipt.layoutDecisions?.every(d=>d.selected==='agentic')).toBe(true)
+  })
 })

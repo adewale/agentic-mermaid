@@ -97,7 +97,7 @@ export function layoutCompoundGraph(
       const endpoints = lifted.get(index) ?? edge
       return { ...edge, source: local.get(endpoints.source)!, target: local.get(endpoints.target)! }
     })
-    const flat: MeasuredGraph = { nodes, edges, padding: 0, direction, nodeSpacing: input.nodeSpacing, layerSpacing: input.layerSpacing, edgeSpacing: input.edgeSpacing, ...(input.placementOnly ? { placementOnly: true } : {}) }
+    const flat: MeasuredGraph = { nodes, edges, padding: 0, direction, nodeSpacing: input.nodeSpacing, layerSpacing: input.layerSpacing, edgeSpacing: input.edgeSpacing, ...(input.minimumTerminalLead !== undefined ? { minimumTerminalLead: input.minimumTerminalLead } : {}), ...(input.placementOnly ? { placementOnly: true } : {}) }
     if (lifted.size && hosted[scope]!.some(index => lifted.has(index))) flat.compactPrivateRanks = true
     const placed = layout(flat)
     expandedVertices += placed.expandedVertices ?? nodes.length
