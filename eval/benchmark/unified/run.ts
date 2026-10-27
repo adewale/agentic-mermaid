@@ -94,32 +94,48 @@ async function subprocess(command: string[], cwd: string, env: NodeJS.ProcessEnv
     launchError: string | undefined
   const normalized = command[0] === 'bun' ? [bun(), ...command.slice(1)] : command
   const child = spawn(normalized[0]!, normalized.slice(1), { cwd, env, detached: process.platform !== 'win32', stdio: ['ignore', 'pipe', 'pipe'] })
+  let spawned = false, pendingSignal: NodeJS.Signals | undefined
+  let tree: ReturnType<typeof subprocessTreeTerminator> | undefined
   const fallbackKill = (signal: NodeJS.Signals) => {
     try {
       if (process.platform !== 'win32' && child.pid) process.kill(-child.pid, signal)
       else child.kill(signal)
-    } catch {}
+    } catch { try { child.kill(signal) } catch {} }
   }
-  const tree = child.pid ? subprocessTreeTerminator(child.pid, fallbackKill) : undefined
-  const kill = (signal: NodeJS.Signals) => (tree ? tree.signal(signal) : fallbackKill(signal))
+  const kill = (signal: NodeJS.Signals) => {
+    if (!spawned) { if (pendingSignal !== 'SIGKILL') pendingSignal = signal; return }
+    if (tree) tree.signal(signal)
+    fallbackKill(signal)
+  }
+  // Cancellation can arrive before Bun has completed its asynchronous spawn.
+  // Bind process ownership and deliver any pending signal once the PID exists.
+  child.once('spawn', () => {
+    spawned = true
+    if (pendingSignal === 'SIGKILL' && process.platform === 'linux') fallbackKill('SIGSTOP')
+    tree = child.pid ? subprocessTreeTerminator(child.pid, fallbackKill) : undefined
+    if (pendingSignal) kill(pendingSignal)
+  })
   let force: ReturnType<typeof setTimeout> | undefined
-  const terminate = (signal: NodeJS.Signals) => {
-    kill(signal)
+  const terminate = () => {
+    // Stop the owned group before discovering descendants so a Bun script
+    // cannot fork a detached process while cancellation is being delivered.
+    if (spawned && process.platform === 'linux') fallbackKill('SIGSTOP')
+    kill('SIGKILL')
     force ??= setTimeout(() => kill('SIGKILL'), 2000)
   }
   const onTerm = () => {
     cancelledSignal = 'SIGTERM'
-    terminate('SIGTERM')
+    terminate()
   }
   const onInt = () => {
     cancelledSignal = 'SIGINT'
-    terminate('SIGINT')
+    terminate()
   }
   process.once('SIGTERM', onTerm)
   process.once('SIGINT', onInt)
   const timer = setTimeout(() => {
     timedOut = true
-    terminate('SIGTERM')
+    terminate()
   }, timeoutMs)
   const append = (chunk: Buffer) => {
     stream.write(chunk)
@@ -296,7 +312,7 @@ export async function runUnified(options: RunnerOptions): Promise<UnifiedReport>
           ...owning.gaps,
           ...(run.timedOut ? [`Suite exceeded ${options.timeoutMs}ms; entire child process group terminated`] : []),
           ...(run.launchError ? [run.launchError] : []),
-          ...(run.cancelledSignal ? [`Controller received ${run.cancelledSignal}; forwarded to the active process group`] : []),
+          ...(run.cancelledSignal ? [`Controller received ${run.cancelledSignal}; terminated the active benchmark process group`] : []),
           ...(suite.kind === 'test' && !counts ? ['Owning test counts unavailable; inspect the run log'] : []),
           ...(suite.kind === 'script' ? ['Process completion is recorded; detailed per-input qualification remains in the owning suite artifacts.'] : []),
         ],

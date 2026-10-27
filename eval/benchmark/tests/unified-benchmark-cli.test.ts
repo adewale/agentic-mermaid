@@ -73,12 +73,21 @@ describe('unified benchmark CLI preflight', () => {
 
 describe('unified suite execution lifecycle', () => {
   test('continues after a timeout and retains both failures and later evidence', async () => {
-    const { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } = await import('node:fs')
+    const { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readlinkSync, rmSync, existsSync } = await import('node:fs')
     const { tmpdir } = await import('node:os')
     const { join } = await import('node:path')
     const { runUnified } = await import('../unified/run.ts')
     const directory = mkdtempSync(join(tmpdir(), 'am-unified-lifecycle-'))
     const detachedPid = join(directory, 'detached.pid')
+    const ownedProcesses = async () => {
+      const { execFileSync } = await import('node:child_process')
+      return execFileSync('ps', ['-eo', 'pid=,stat=,args='], { encoding: 'utf8' }).split('\n').filter(line => {
+        const fields = /^\s*(\d+)\s+(\S+)\s+/.exec(line)
+        if (!fields || fields[2]!.startsWith('Z')) return false
+        if (line.includes(directory)) return true
+        try { return readlinkSync('/proc/' + fields[1] + '/cwd') === directory } catch { return false }
+      })
+    }
     try {
       for (const path of ['src/__tests__', 'docs/project', 'eval/mermaid-upstream-suite-bench', 'eval/agent-usage']) mkdirSync(join(directory, path), { recursive: true })
       writeFileSync(join(directory, 'docs/project/upstream-mermaid-policy.json'), JSON.stringify({ pin: { version: 'fixture', commit: 'fixture' } }))
@@ -138,11 +147,20 @@ describe('unified suite execution lifecycle', () => {
       const cancelling = runUnified({ ...options, harnessRoot: directory, root: directory, out: join(directory, 'cancelled'), timeoutMs: 5000, selected: ['slow-fixture', 'after-fixture'] })
       process.emit('SIGTERM')
       const cancelled = await cancelling
+      if (process.platform === 'linux') {
+        await new Promise(resolve => setTimeout(resolve, 500))
+        expect(await ownedProcesses()).toEqual([])
+      }
       expect(cancelled.suites.find(suite => suite.id === 'slow-fixture')?.status).toBe('failed')
       expect(cancelled.suites.find(suite => suite.id === 'after-fixture')?.status).toBe('blocked')
       expect(cancelled.suites.find(suite => suite.id === 'after-fixture')?.elapsedMs).toBeUndefined()
       expect(cancelled.suites.find(suite => suite.id === 'after-fixture')?.result?.gaps.join(' ')).toContain('SIGTERM')
     } finally {
+      if (process.platform === 'linux') {
+        for (const line of await ownedProcesses()) {
+          try { process.kill(Number(line.trim().split(/\s+/)[0]), 'SIGKILL') } catch {}
+        }
+      }
       try {
         process.kill(Number(readFileSync(detachedPid, 'utf8')), 'SIGKILL')
       } catch {}
