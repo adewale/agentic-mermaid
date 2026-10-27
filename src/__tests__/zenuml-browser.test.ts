@@ -10,10 +10,10 @@ let browser: Browser, server: ReturnType<typeof Bun.serve>, directory: string
 // alias identity, and the final async message returning to the original actor.
 const checkout = readFileSync(join(import.meta.dir, 'testdata/zenuml-checkout.mmd'), 'utf8')
 
-browserTests('optional ZenUML browser backend', () => {
+browserTests('explicit upstream ZenUML browser backend', () => {
   beforeAll(async () => {
     directory = mkdtempSync(join(tmpdir(), 'am-zenuml-test-'))
-    const result = await Bun.build({ entrypoints: [join(import.meta.dir, '../zenuml/index.ts')], outdir: directory, target: 'browser', splitting: true })
+    const result = await Bun.build({ entrypoints: [join(import.meta.dir, '../zenuml/upstream.ts')], outdir: directory, target: 'browser', splitting: true })
     if (!result.success) throw Error(result.logs.join('\n'))
     const frame = await Bun.build({ entrypoints: [join(import.meta.dir, '../zenuml/frame.ts')], outdir: directory, target: 'browser', format: 'iife' })
     if (!frame.success) throw Error(frame.logs.join('\n'))
@@ -24,7 +24,7 @@ browserTests('optional ZenUML browser backend', () => {
         if (path === '/') return new Response('<!doctype html><html><body><style>.message-label{font:31px monospace}</style><p class="message-label" id="host">Host control</p><div id="output"></div></body></html>', { headers: { 'Content-Type': 'text/html' } })
         if (path === '/trusted') return new Response('<!doctype html><html><body></body></html>', { headers: { 'Content-Type': 'text/html', 'Content-Security-Policy': "require-trusted-types-for 'script'" } })
         if (path === '/frame.js') return new Response(Bun.file(join(directory, 'frame.js')), { headers: { 'Content-Type': 'text/javascript' } })
-        if (path === '/index.js') return new Response(Bun.file(join(directory, 'index.js')), { headers: { 'Content-Type': 'text/javascript' } })
+        if (path === '/index.js') return new Response(Bun.file(join(directory, 'upstream.js')), { headers: { 'Content-Type': 'text/javascript' } })
         if (/^\/[\w-]+\.js$/.test(path) && existsSync(join(directory, path.slice(1)))) return new Response(Bun.file(join(directory, path.slice(1))), { headers: { 'Content-Type': 'text/javascript' } })
         return new Response('missing', { status: 404 })
       },
@@ -43,14 +43,14 @@ browserTests('optional ZenUML browser backend', () => {
       const entry = '/index.js'
       const api = await import(entry)
       const before = document.head.innerHTML + getComputedStyle(document.getElementById('host')!).font
-      const svg = await api.renderZenUMLSVG('zenuml\ntitle Demo\nAlice->John: Hello John, how are you?\nJohn->Alice: Great!\nAlice->John: See you later!', { backendURL: '/frame.js', timeoutMs: 10_000 })
+      const svg = await api.renderUpstreamZenUMLSVG('zenuml\ntitle Demo\nAlice->John: Hello John, how are you?\nJohn->Alice: Great!\nAlice->John: See you later!', { backendURL: '/frame.js', timeoutMs: 10_000 })
       document.getElementById('output')!.style.width = '200px'
       document.getElementById('output')!.innerHTML = svg
       const bounds = document.querySelector('#output svg')!.getBoundingClientRect()
       const after = document.head.innerHTML + getComputedStyle(document.getElementById('host')!).font
       const failure = async (source: string, backendURL: string, style?: string) => {
         try {
-          await api.renderZenUMLSVG(source, { backendURL, timeoutMs: 1000, ...(style ? { style } : {}) })
+          await api.renderUpstreamZenUMLSVG(source, { backendURL, timeoutMs: 1000, ...(style ? { style } : {}) })
           return 'unexpected-success'
         } catch (error) {
           return (error as { code: string }).code
@@ -81,7 +81,7 @@ browserTests('optional ZenUML browser backend', () => {
     await page.goto(`http://localhost:${server.port}`)
     const results = await page.evaluate(async source => {
       const entry = '/index.js', api = await import(entry)
-      const renderer = api.createZenUMLRenderer({ backendURL: '/frame.js' })
+      const renderer = api.createUpstreamZenUMLRenderer({ backendURL: '/frame.js' })
       const hostBefore = document.head.innerHTML + getComputedStyle(document.getElementById('host')!).font
       const snapshots = []
       const observe = (svg: string) => {
@@ -174,7 +174,7 @@ browserTests('optional ZenUML browser backend', () => {
     await page.goto(`http://localhost:${server.port}`)
     const result = await page.evaluate(async () => {
       const entry = '/index.js', api = await import(entry)
-      const renderer = api.createZenUMLRenderer({ backendURL: '/frame.js', timeoutMs: 10_000 })
+      const renderer = api.createUpstreamZenUMLRenderer({ backendURL: '/frame.js', timeoutMs: 10_000 })
       const outcome = async (operation: Promise<string>) => {
         try { return { svg: await operation } } catch (error) { return { code: (error as { code: string }).code } }
       }
@@ -198,7 +198,7 @@ browserTests('optional ZenUML browser backend', () => {
       renderer.dispose()
       const cancelled = await Promise.all([active, queued])
       const disposed = await outcome(renderer.render('zenuml\nT->U: disposed'))
-      const bounded = api.createZenUMLRenderer({ backendURL: '/frame.js' })
+      const bounded = api.createUpstreamZenUMLRenderer({ backendURL: '/frame.js' })
       const pending = Array.from({ length: 32 }, () => outcome(bounded.render('zenuml\nA->B: pending')))
       const excess = await outcome(bounded.render('zenuml\nA->B: excess'))
       bounded.dispose()
@@ -233,7 +233,7 @@ browserTests('optional ZenUML browser backend', () => {
       const bounded = []
       const outcome = (operation: Promise<string>) => operation.then(() => 'success', (error: { message: string }) => error.message)
       for (const field of ['style', 'timeoutMs']) {
-        const renderer = api.createZenUMLRenderer({ backendURL: '/frame.js' })
+        const renderer = api.createUpstreamZenUMLRenderer({ backendURL: '/frame.js' })
         const calls: Promise<string>[] = []
         const reenter = () => {
           for (let index = 0; index < 32; index++) calls.push(outcome(renderer.render(`zenuml\nA->B: nested_${index}`)))
@@ -246,7 +246,7 @@ browserTests('optional ZenUML browser backend', () => {
         const messages = await Promise.all(calls)
         bounded.push({ limited: messages.filter(message => message.includes('32 pending')).length, disposed: messages.filter(message => message.includes('disposed')).length })
       }
-      const renderer = api.createZenUMLRenderer({ backendURL: '/frame.js' })
+      const renderer = api.createUpstreamZenUMLRenderer({ backendURL: '/frame.js' })
       try {
         const order: string[] = [], calls: Promise<void>[] = []
         const style = Object.defineProperty({}, 'roles', { enumerable: true, get() {
@@ -274,7 +274,7 @@ browserTests('optional ZenUML browser backend', () => {
     await page.evaluate(async () => {
       const entry = '/index.js', api = await import(entry)
       const state = globalThis as unknown as { renderer: { render(source: string, options: object): Promise<string>; dispose(): void }; pending: Promise<string> }
-      state.renderer = api.createZenUMLRenderer({ backendURL: '/frame.js' })
+      state.renderer = api.createUpstreamZenUMLRenderer({ backendURL: '/frame.js' })
     })
     const held: Route[] = []
     await page.route('**/*.js', route => { held.push(route) })
@@ -293,7 +293,7 @@ browserTests('optional ZenUML browser backend', () => {
     expect(result).toEqual({ outcome: 'BACKEND_UNAVAILABLE', frames: 0 })
     const timedAdmission = await page.evaluate(async () => {
       const entry = '/index.js', api = await import(entry)
-      const renderer = api.createZenUMLRenderer({ backendURL: '/frame.js', timeoutMs: 1 })
+      const renderer = api.createUpstreamZenUMLRenderer({ backendURL: '/frame.js', timeoutMs: 1 })
       try { await renderer.render('zenuml\nA->B: deadline', { style: 'dracula' }); return 'unexpected-success' }
       catch (error) { return (error as { code: string }).code }
       finally { renderer.dispose() }
@@ -303,7 +303,7 @@ browserTests('optional ZenUML browser backend', () => {
     await page.unroute('**/*.js')
     const failedImport = await page.evaluate(async () => {
       const entry = '/index.js', api = await import(entry)
-      try { await api.renderZenUMLSVG('zenuml\nA->B: missing palette', { backendURL: '/frame.js', style: 'dracula' }); return 'unexpected-success' }
+      try { await api.renderUpstreamZenUMLSVG('zenuml\nA->B: missing palette', { backendURL: '/frame.js', style: 'dracula' }); return 'unexpected-success' }
       catch (error) { return (error as { code: string }).code }
     })
     expect(failedImport).toBe('BACKEND_UNAVAILABLE')
@@ -316,7 +316,7 @@ browserTests('optional ZenUML browser backend', () => {
     await page.goto(`http://localhost:${server.port}/trusted`)
     const result = await page.evaluate(async () => {
       const entry = '/index.js', api = await import(entry)
-      const renderer = api.createZenUMLRenderer({ backendURL: '/frame.js', timeoutMs: 10_000 })
+      const renderer = api.createUpstreamZenUMLRenderer({ backendURL: '/frame.js', timeoutMs: 10_000 })
       const errors = []
       try {
         for (const label of ['first', 'second']) {

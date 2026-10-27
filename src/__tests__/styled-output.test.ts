@@ -69,6 +69,9 @@ const GOLDEN_CASES = [...Array.from({ length: Math.max(BUILTIN_FAMILY_METADATA.l
   { family: 'eventmodeling', style: ['hand-drawn', 'github-light'], fixture: '../../stable-families/fixtures/eventmodeling.mmd', golden: 'eventmodeling-rich.hand-drawn.github-light.svg' },
   { family: 'eventmodeling', style: ['hand-drawn', 'dracula'], fixture: '../../stable-families/fixtures/eventmodeling.mmd', golden: 'eventmodeling-rich.hand-drawn.dracula.svg' },
   { family: 'eventmodeling', style: ['watercolor', 'solarized-light'], fixture: '../../stable-families/fixtures/eventmodeling.mmd', golden: 'eventmodeling-rich.watercolor.solarized-light.svg' },
+  { family: 'zenuml', style: ['patent-drawing', 'github-light'], fixture: 'zenuml-native-checkout.mmd', golden: 'zenuml-native-checkout.patent-drawing.github-light.svg' },
+  { family: 'zenuml', style: ['hand-drawn', 'dracula'], fixture: 'zenuml-native-checkout.mmd', golden: 'zenuml-native-checkout.hand-drawn.dracula.svg' },
+  { family: 'zenuml', style: ['watercolor', 'solarized-light'], fixture: 'zenuml-native-checkout.mmd', golden: 'zenuml-native-checkout.watercolor.solarized-light.svg' },
 ]
 
 /** A line diff (longest common subsequence): `-N: …` is golden line N,
