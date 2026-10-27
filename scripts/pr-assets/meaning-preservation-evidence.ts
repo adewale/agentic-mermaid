@@ -101,6 +101,41 @@ const fixtures: Fixture[] = [
     cue: 'The baseline rejects the repeated bare header as a one-column CSV row. After, inspect A and the quoted node named sankey feeding B with values 2 and 3. Quoted header-like data is retained; only standalone header statements are ignored and diagnosed. The owning test protects a header-looking physical line inside a quoted multiline field.',
   },
   {
+    id: 'class-elk-authored-prefix',
+    title: 'An authored ns: ID remains a Class card',
+    source: 'classDiagram\nclass `ns:Domain`["Authored card"]\nnote for `ns:Domain` "Owned note"',
+    captureLayout: true,
+    cue: 'Before, Authored card disappears and a phantom Domain namespace takes its place. After, inspect the complete Class card and the note attached to it. The layout sidecars distinguish the authored class ID ns:Domain from namespace ownership; this finite witness does not prove every Class layout.',
+  },
+  {
+    id: 'class-elk-compound-collision',
+    title: 'Namespace compounds cannot consume authored Class IDs',
+    source: 'classDiagram\nnamespace Domain {\nclass `ns:Domain`["First card"]\nclass Peer\n}\nclass `ns:Domain#1`["Suffix card"]\n`ns:Domain` --> Peer : inside relation',
+    captureLayout: true,
+    cue: 'The baseline refuses this input after confusing the compound and authored card. After, inspect First card and Peer inside Domain, Suffix card outside it, and the complete inside relation. Public identities and membership in the sidecars supplement the pixels.',
+  },
+  {
+    id: 'class-elk-quoted-ancestry',
+    title: 'Quoted dotted namespace names do not invent a parent',
+    source: 'classDiagram\nnamespace `Root.Left` {\nclass Left\n}\nnamespace `Root.Right` {\nclass Right\n}\nLeft --> Right : crossing',
+    captureLayout: true,
+    cue: 'Before, relationship hosting crashes while looking for an undeclared Root parent. After, inspect both sibling frames and the connected crossing relationship. The layout sidecars retain both roots without inventing a Root group; this is not an arbitrary compound-routing guarantee.',
+  },
+  {
+    id: 'class-elk-empty-content',
+    title: 'Empty Class namespace and freestanding note remain visible',
+    source: 'classDiagram\nnamespace Empty["Authored empty namespace"] {\n}\nnote "Freestanding note"',
+    captureLayout: true,
+    cue: 'Before, both marks disappear. After, inspect the complete empty frame and freestanding note. Mermaid 12.2.0 rejects the empty namespace; this demonstrates generous source preservation, with the existing portability warning and source-only edit policy retained.',
+  },
+  {
+    id: 'class-elk-notes-only',
+    title: 'Class notes remain visible without cards',
+    source: 'classDiagram\nnote "First freestanding note"\nnote "Second freestanding note"',
+    captureLayout: true,
+    cue: 'Before, the drawing is empty. After, inspect both complete note boxes and their separation. The existing note-placement path sizes this document without invoking ELK on an empty graph.',
+  },
+  {
     id: 'architecture-alignment-components',
     title: 'Architecture Output row retains its authored alignment',
     source: collectSamples().find(sample => sample.id === 'corpus/architecture/3')!.source,
@@ -963,6 +998,11 @@ const fixtures: Fixture[] = [
   },
 ]
 const terminalFixtures = [
+  {
+    id: 'terminal-class-notes-only',
+    source: 'classDiagram\nnote "First freestanding note"\nnote "Second freestanding note"',
+    cue: 'Before, terminal output is empty. After, both notes retain their text and owned frames in ASCII and Unicode. The owning terminal regression checks both encodings; browser font coverage in this review page is a visual limitation.',
+  },
   {
     id: 'terminal-approach-envelopes',
     source: 'flowchart LR\nsubgraph Outer[Outer 日本<br>complete]\nsubgraph Inner[Inner 👩‍💻]\ndirection TD\nA[First 界界👩‍💻 é]\nB[Last]\nend\nX[Outside wide track 日本語]\nend\nsubgraph Sibling[Sibling é<br>wide 日本]\nC[Sibling card]\nend\nA -->|one界| X\nA -->|two| X\nX -->|return| A\nX -->|back| B\nX -->|branch| C\nB -->|self| B',

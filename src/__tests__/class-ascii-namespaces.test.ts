@@ -36,6 +36,17 @@ function contained(child: ReturnType<typeof bounds>, parent: ReturnType<typeof b
 }
 
 describe('Class terminal namespace frames (B05/CL4)', () => {
+  test.each([true, false])('draws freestanding notes without classes or namespaces (ASCII=%s)', useAscii => {
+    const result = renderMermaidASCIIWithReceipt('classDiagram\nnote "First freestanding note"\nnote "Second freestanding note"', { useAscii, colorMode: 'none' })
+    expect(result.text).toContain('First freestanding note')
+    expect(result.text).toContain('Second freestanding note')
+    const document = terminalDocumentOf(result)!
+    const notes = document.regions().filter(region => region.kind === 'node')
+    expect(notes).toHaveLength(2)
+    const boxes = notes.map(bounds).sort((a, b) => a.top - b.top)
+    expect(boxes[1]!.top).toBeGreaterThan(boxes[0]!.bottom)
+  })
+
   test.each([13, 33, 37, 38] as const)('reserves final card faces and opposing routing lanes (case %s)', ordinal => {
     for (const useAscii of [false, true]) {
       const result = renderMermaidASCIIWithReceipt(namespacePackingCases[ordinal]!, { useAscii, colorMode: 'none' })
