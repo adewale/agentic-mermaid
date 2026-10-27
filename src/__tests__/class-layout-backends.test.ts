@@ -7,6 +7,8 @@ import { renderMermaidASCII } from '../ascii/index.ts'
 import * as classLayoutModule from '../class/layout.ts'
 import { CLASS_STYLE_DEFAULTS, classTextBlock, finalizeClassOwnedSurfaces, layoutClassDiagram } from '../class/layout.ts'
 import { parseClassDiagram } from '../class/parser.ts'
+import { assertClassElkSelfContactsClear, constructClassElkSelfContacts } from '../class/elk-contacts.ts'
+import { createClassMarkerAdmissionWork } from '../class/marker-admission.ts'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
 import { withRenderStageObserver } from '../render-stages.ts'
@@ -1333,6 +1335,93 @@ test.each([false,true])('ELK contacts use the exact written rectangle face after
     expect(rendered.svg).toContain('data-id="S"')
     expect(rendered.svg).toContain('data-id="T"')
   } finally {spy.mockRestore()}
+})
+
+describe('ELK rectangular self-loop endpoint construction', () => {
+  const fixture = (): PositionedClassDiagram => ({
+    width: 15000, height: 1000, namespaces: [], notes: [],
+    classes: [{id:'C2',label:'C2',x:13038.936000000002,y:248.7,width:464.11,height:96.7,headerHeight:32.9,attrHeight:28,methodHeight:35.8,attributes:[],methods:[]}],
+    relationships: [{from:'C2',to:'C2',type:'link-solid',markerAt:'none',points:[{x:13348.342666666667,y:248.7},{x:13348.34266666667,y:238.7},{x:13193.639333333334,y:238.7},{x:13193.639333333334,y:248.7}]}],
+  })
+  const style = () => ({...resolveRenderStyle({},CLASS_STYLE_DEFAULTS),cornerRadius:0,edgeBendRadius:0,lineWidth:1})
+  for (const transpose of [false, true]) for (const reflected of [false, true]) for (const drift of [false, true]) {
+    test(`keeps literal normal contacts transpose=${transpose} reflected=${reflected} drift=${drift}`, () => {
+      const source = `classDiagram\nnamespace G_${Number(transpose)}${Number(reflected)}${Number(drift)} {\nclass C2\n}\nC2 -- C2`
+      const original = classLayoutModule.layoutClassDiagram
+      let placed: PositionedClassDiagram | undefined
+      const observer = spyOn(classLayoutModule, 'layoutClassDiagram').mockImplementation((...args: Parameters<typeof original>) => {
+        placed = original(...args)
+        return placed
+      })
+      const solver = spyOn(elk, 'elkLayoutSync').mockImplementation((input: any) => {
+        const graph = structuredClone(input), group = graph.children[0], node = group.children[0]
+        const point = (x: number, y: number) => transpose ? { x: reflected ? 500 - y : y, y: x } : { x, y: reflected ? 500 - y : y }
+        const rectangle = (x: number, y: number, width: number, height: number) => {
+          const low = point(x, reflected ? y + height : y)
+          return { ...low, width: transpose ? height : width, height: transpose ? width : height }
+        }
+        Object.assign(graph, { width: transpose ? 1000 : 15000, height: transpose ? 15000 : 1000 })
+        Object.assign(group, transpose ? { x: 176.7, y: 4865.066000000001, width: 500, height: 9000 } : { x: 4865.066000000001, y: 176.7, width: 9000, height: 500 })
+        Object.assign(node, rectangle(8173.870000000001, 72, 464.11, 96.7))
+        group.edges[0].sections = [{ id: 'loop-section', startPoint: point(8483.276666666667, 72), bendPoints: [point(drift ? 8483.276666666668 : 8483.276666666667, 61.99999999999999), point(8328.573333333334, 61.99999999999999)], endPoint: point(8328.573333333334, 72) }]
+        return graph
+      })
+      try {
+        const rendered = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'elk', fallback: 'none' }, style: { formatVersion: 1, name: 'self-normal', stroke: 'crisp', strokeWidth: 1 } })
+        expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+        const points = rendered.svg.match(/<polyline\b[^>]*class="class-relationship"[^>]*\spoints="([^"]+)"/)![1]!.split(' ').map(point => point.split(',').map(Number))
+        const cross = transpose ? 1 : 0, main = transpose ? 0 : 1
+        expect(points).toHaveLength(4)
+        expect(points[0]![cross]).toBe(points[1]![cross])
+        expect(points[2]![cross]).toBe(points[3]![cross])
+        expect(points[1]![main]).toBe(points[2]![main])
+        expect(Math.sign(points[1]![main]! - points[0]![main]!)).toBe(reflected ? 1 : -1)
+        expect(placed!.relationships[0]!.points[0]).toEqual(transpose ? { x: reflected ? 604.7 : 248.7, y: 13348.342666666667 } : { x: 13348.342666666667, y: reflected ? 604.7 : 248.7 })
+      } finally { observer.mockRestore(); solver.mockRestore() }
+    })
+  }
+  test.each(['rounded-carrier','rounded-card','corner','label','marker','cardinality','nonparallel-inner','reversed-inner','narrow-loop','nonself'] as const)('retains the original unsupported %s loop', kind => {
+    const scene=fixture(),paint=style(),rel=scene.relationships[0]!,node=scene.classes[0]!
+    if(kind==='rounded-carrier')paint.edgeBendRadius=8
+    if(kind==='rounded-card')paint.cornerRadius=8
+    if(kind==='corner')rel.points[0]!.x=node.x
+    if(kind==='label')rel.label='retained spine'
+    if(kind==='marker')rel.markerAt='to'
+    if(kind==='cardinality')rel.fromCardinality='1'
+    if(kind==='nonparallel-inner')rel.points[2]!.y+=1
+    if(kind==='reversed-inner')rel.points[2]!.x=rel.points[1]!.x+1
+    if(kind==='narrow-loop'){rel.points[3]!.x=rel.points[0]!.x-.25;rel.points[2]!.x=rel.points[3]!.x}
+    if(kind==='nonself')rel.to='Other'
+    const before=structuredClone(scene),points=rel.points
+    expect(constructClassElkSelfContacts(scene,paint,createClassMarkerAdmissionWork())).toBeUndefined()
+    expect(scene).toEqual(before)
+    expect(rel.points).toBe(points)
+  })
+  test.each([0,1000])('exhaustion with %s work left publishes no candidate', remaining => {
+    const scene=fixture(),before=structuredClone(scene),work=createClassMarkerAdmissionWork()
+    work.operations=400000-remaining
+    expect(()=>constructClassElkSelfContacts(scene,style(),work)).toThrow('work limit')
+    expect(work.exhausted).toBe(true)
+    expect(scene).toEqual(before)
+  })
+  test('keeps an already-written axial original array and point records', () => {
+    const scene=fixture(),rel=scene.relationships[0]!
+    rel.points[1]!.x=rel.points[0]!.x
+    const before=structuredClone(scene),points=rel.points,bend=points[1]
+    expect(constructClassElkSelfContacts(scene,style(),createClassMarkerAdmissionWork())).toBeUndefined()
+    expect(scene).toEqual(before)
+    expect(rel.points).toBe(points)
+    expect(rel.points[1]).toBe(bend)
+  })
+  test('rechecks a newly constructed self carrier against a final foreign marker', () => {
+    const scene=fixture(),paint=style(),work=createClassMarkerAdmissionWork(),changed=constructClassElkSelfContacts(scene,paint,work)
+    expect([...changed!]).toEqual([0])
+    const x=(scene.relationships[0]!.points[0]!.x+scene.relationships[0]!.points[3]!.x)/2
+    const card=(id:string,y:number)=>({id,label:id,x:x-10,y,width:20,height:2,headerHeight:2,attrHeight:0,methodHeight:0,attributes:[],methods:[]})
+    scene.classes.push(card('F',200),card('T',244.7))
+    scene.relationships.push({from:'F',to:'T',type:'inheritance',markerAt:'to',points:[{x,y:202},{x,y:244.7}]})
+    expect(()=>assertClassElkSelfContactsClear(scene,paint,changed,work)).toThrow('unproved final support')
+  })
 })
 
 test('a Class caption follows its own repaired header spine instead of remaining free-floating', () => {

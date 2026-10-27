@@ -472,6 +472,9 @@ function headerMarkerMayMeet(support: HeaderMarkerSupport | undefined, box: Clas
   return !Number.isFinite(error) || !Number.isFinite(left) || !Number.isFinite(right) || !Number.isFinite(top) || !Number.isFinite(bottom)
     || !(left > error || right > error || top > error || bottom > error)
 }
+// Also used for a fresh, fail-closed final proof. Complete full-width endpoint
+// envelopes include sharp joins; overlap is unproved, not a collision claim.
+export { headerMarkerSupport as classCarrierSupportBounds, headerMarkerMayMeet as classCarrierBoundsMayMeetMarker }
 /** Test every retained band; endpoint ancestry grants no header exemption. */
 export function repairClassHeaderRoutes(diagram: PositionedClassDiagram, style: ResolvedRenderStyle, work?: ClassMarkerAdmissionWork, numeric?: ClassHeaderNumericCapture): Set<number> {
   const changed = new Set<number>()

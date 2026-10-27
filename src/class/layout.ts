@@ -8,7 +8,7 @@ import { assertClassDiagramWork } from '../shared/diagram-limits.ts'
 import { type DisplayTextInput, prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
 import { type PixelTextBlock, preparePixelText } from '../shared/prepared-text.ts'
 import { repairClassAnnotationSeats } from './annotation-seats.ts'
-import { type ClassElkContact, projectClassElkContacts, retainClassElkContacts } from './elk-contacts.ts'
+import { type ClassElkContact, assertClassElkSelfContactsClear, constructClassElkSelfContacts, projectClassElkContacts, retainClassElkContacts } from './elk-contacts.ts'
 import { assertClassHeaderPeersClear, finalClassHeaderNumericSeed, type ClassHeaderNumericCapture } from './header-lanes.ts'
 import { classInterfaceMarker } from './interface-occurrences.ts'
 import { assertClassMarkerMeaning, type ClassMarkerAdmissionWork, chargeClassMarkerAdmissionWork, createClassMarkerAdmissionWork } from './marker-admission.ts'
@@ -721,13 +721,13 @@ export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions
         headerInsets = nextInsets
         elkSizes = nextSizes
       }
-      return finishClassLayout(result!, diagram, style, markerAdmission, inkWork, true)
+      return finishClassLayout(result!, diagram, style, markerAdmission, inkWork, true, paintBackendId === undefined || paintBackendId === 'backend:default')
     },
     true,
   )
 }
 
-function finishClassLayout(positioned: PositionedClassDiagram, diagram: ClassDiagram, style: ResolvedRenderStyle, markerAdmission?: { colors: ReturnType<typeof resolveDiagramColors>; work: ClassMarkerAdmissionWork }, inkWork?: ClassMarkerAdmissionWork, elk = false): PositionedClassDiagram {
+function finishClassLayout(positioned: PositionedClassDiagram, diagram: ClassDiagram, style: ResolvedRenderStyle, markerAdmission?: { colors: ReturnType<typeof resolveDiagramColors>; work: ClassMarkerAdmissionWork }, inkWork?: ClassMarkerAdmissionWork, elk = false, literalRectangles = false): PositionedClassDiagram {
   for (const cls of positioned!.classes) {
     cls.labelBlock = classTextBlock(resolveLabelContent(cls.label, cls.labelContent), style, 'node')
     cls.attributeBlocks = cls.attributes.map(classMemberBlock)
@@ -743,6 +743,7 @@ function finishClassLayout(positioned: PositionedClassDiagram, diagram: ClassDia
       if (text !== undefined) rel[`${side}CardinalityBlock`] = preparePixelText(resolveLabelContent(text, rel[`${side}CardinalityContent`]), { fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing })
     }
   }
+  const endpointChanges = elk && literalRectangles && inkWork ? constructClassElkSelfContacts(positioned, style, inkWork) : undefined
   const contacts = elk ? retainClassElkContacts(positioned, inkWork) : undefined
   const result = withClassTitle(positioned!, diagram.title, style)
   if (result.classes.some(node => node.isInterface)) {
@@ -763,7 +764,7 @@ function finishClassLayout(positioned: PositionedClassDiagram, diagram: ClassDia
       }
     }
   }
-  finalizeClassSurfaces(result, style, inkWork, contacts, true)
+  finalizeClassSurfaces(result, style, inkWork, contacts, true, endpointChanges)
   if (markerAdmission) assertClassMarkerMeaning(result, style, markerAdmission.colors, markerAdmission.work)
   return result
 }
@@ -773,7 +774,7 @@ export function finalizeClassOwnedSurfaces(result: PositionedClassDiagram, style
   finalizeClassSurfaces(result, style, inkWork, contacts)
 }
 
-function finalizeClassSurfaces(result: PositionedClassDiagram, style: ResolvedRenderStyle, inkWork?: ClassMarkerAdmissionWork, contacts?: readonly ClassElkContact[], stableGeometry = false): void {
+function finalizeClassSurfaces(result: PositionedClassDiagram, style: ResolvedRenderStyle, inkWork?: ClassMarkerAdmissionWork, contacts?: readonly ClassElkContact[], stableGeometry = false, endpointChanges?: ReadonlySet<number>): void {
   if (contacts) projectClassElkContacts(contacts, inkWork)
   const peerWork=inkWork??createClassMarkerAdmissionWork()
   let numeric:ClassHeaderNumericCapture|undefined
@@ -795,6 +796,7 @@ function finalizeClassSurfaces(result: PositionedClassDiagram, style: ResolvedRe
     if (contacts && (result.classes[0]?.x !== oldLeft || result.classes[0]?.y !== oldTop)) projectClassElkContacts(contacts, inkWork)
   }
   if (!result.relationships.some(rel => rel.markerAt !== 'none') && changed.size) repairClassAnnotationSeats(result, style, inkWork ?? createClassMarkerAdmissionWork(), changed)
+  assertClassElkSelfContactsClear(result,style,endpointChanges,peerWork)
   const violations = classOwnedSurfaceViolations(result, style)
   if (violations.length) throw new LayoutCertificationError([{ strategy: 'class-owned-surfaces', violations }])
   // The private snapshot has one complete sharp authority. General/live and
@@ -805,7 +807,7 @@ function finalizeClassSurfaces(result: PositionedClassDiagram, style: ResolvedRe
     if(!chargeClassMarkerAdmissionWork(peerWork))throw new LayoutCertificationError([{strategy:'class-final-sharp-contacts',violations:['Class final contact capture work limit']}])
     seed=finalClassHeaderNumericSeed(numeric,result.relationships,style,()=>chargeClassMarkerAdmissionWork(peerWork))
   }
-  assertFinalClassSharpContacts(result, style, peerWork, stableGeometry,changed.size>0,seed)
+  assertFinalClassSharpContacts(result, style, peerWork, stableGeometry,changed.size>0||!!endpointChanges?.size,seed)
 }
 
 /** Title bands and leading note seats translate Number coordinates after the
