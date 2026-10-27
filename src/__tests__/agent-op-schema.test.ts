@@ -266,6 +266,8 @@ describe('schema covers every mutable family (§11)', () => {
     treemap: { kind: 'add_node', label: 'Investment', value: 10 },
     ishikawa: { kind: 'set_effect', label: 'Release delay' },
     block: { kind: 'add_block', block: { id: 'service', label: 'Service', type: 'square' } },
+    eventmodeling: { kind: 'add_frame', id: '1', entityType: 'ui', entity: 'Screen' },
+    zenuml: { kind: 'add_participant', id: 'A' },
   }
 
   test('every family in MUTATION_OPS_BY_FAMILY has a schema and builds a valid op', () => {

@@ -15,6 +15,8 @@ const ALL_KINDS: BuiltinFamilyId[] = BUILTIN_FAMILY_METADATA.map(f => f.id)
 // What verify says about the blank diagram createMermaid returns. Mindmap
 // grammar requires a root, so its blank slate carries a placeholder root node.
 const BLANK_VERIFY = {
+  eventmodeling: 'EMPTY_DIAGRAM',
+  zenuml: 'EMPTY_DIAGRAM',
   packet: 'EMPTY_DIAGRAM',
   kanban: 'EMPTY_DIAGRAM',
   requirement: 'EMPTY_DIAGRAM',
@@ -87,7 +89,9 @@ function renders(source: string): boolean {
 // Read generously: Mermaid rejects bare class and C4 headers, but their meaning
 // (an empty diagram) is clear, so ours reads them typed and draws them, and
 // verify says Mermaid rejects it (upstream-rejection-parity.test.ts).
-const BLANK_GENEROUS_READS: ReadonlySet<BuiltinFamilyId> = new Set(['class', 'c4', 'kanban', 'requirement', 'treemap', 'ishikawa'])
+// ZenUML is an assembled external Mermaid renderer; default-core parser rejection
+// cannot define whether an empty native ZenUML document is meaningful.
+const BLANK_GENEROUS_READS: ReadonlySet<BuiltinFamilyId> = new Set(['class', 'c4', 'kanban', 'requirement', 'treemap', 'ishikawa', 'zenuml'])
 
 describe('a blank diagram survives a save wherever Mermaid accepts it', () => {
   for (const kind of ALL_KINDS) {
@@ -217,6 +221,8 @@ describe('buildMermaid', () => {
         { kind: 'set_effect', label: 'Delay' },
         { kind: 'add_cause', label: 'Process' },
       ],
+      eventmodeling: [{ kind: 'add_frame', id: '01', entityType: 'ui', entity: 'CartUI' }],
+      zenuml: [{ kind: 'add_participant', id: 'A' }, { kind: 'add_participant', id: 'B' }, { kind: 'add_message', from: 'A', to: 'B', text: 'hello' }],
       block: [
         { kind: 'set_columns', columns: 2 },
         { kind: 'add_block', block: { id: 'api', label: 'API' } },
@@ -248,6 +254,8 @@ describe('buildMermaid', () => {
       requirement: ['Respond quickly', '"suite" - verifies -> "speed"'],
       treemap: ['"Build": 60', '"Learn": 40'],
       ishikawa: ['\nDelay\n  Process'],
+      eventmodeling: ['tf 01 ui CartUI'],
+      zenuml: ['A->B: hello'],
       block: ['columns 2', 'API', 'Store'],
     } satisfies Record<BuiltinFamilyId, string[]>
     for (const [kind, ops] of cases) {

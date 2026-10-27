@@ -25,6 +25,8 @@ export interface HonestySample {
 const titled = (title: string, body: string): string => `---\ntitle: ${title}\n---\n${body}`
 
 export const HONESTY_SAMPLES: Record<DiagramKind, readonly HonestySample[]> = {
+  eventmodeling: [{ name: 'Timeline and full data labels', source: 'eventmodeling\ntf 01 ui CartUI\ntf 02 cmd AddBook { full description }\ntf 03 evt BookAdded', expectText: ['CartUI', 'full description', 'BookAdded'] }],
+  zenuml: [{ name: 'Nested calls retain messages and replies', source: 'zenuml\nClient->API.checkout() {\n Store.reserve()\n return confirmation\n}', expectText: ['Client', 'API', 'Store', 'reserve()', 'confirmation'] }],
   packet: [
     {
       name: 'word wrapping, narrow bit labels and long title',

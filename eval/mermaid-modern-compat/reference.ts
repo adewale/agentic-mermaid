@@ -20,6 +20,8 @@ export interface ReferenceProvenance {
   tags: string[]
   parserVersion: string
   domVersion: string
+  zenAddonVersion: string
+  zenCoreVersion: string
 }
 
 export const currentReferencePin = (JSON.parse(readFileSync(new URL('../../docs/project/upstream-mermaid-policy.json', import.meta.url), 'utf8')) as { pin: { version: string; commit: string } }).pin
@@ -44,6 +46,11 @@ export function admitModernReference(upstream: string, referenceDir: string): Re
   const parser = JSON.parse(readFileSync(parserPath, 'utf8')) as { version: string }
   const sourceParser = JSON.parse(readFileSync(join(upstream, 'packages/parser/package.json'), 'utf8')) as { version: string }
   const dom = JSON.parse(readFileSync(require.resolve('jsdom/package.json'), 'utf8')) as { version: string }
+  const zenAddon = JSON.parse(readFileSync(join(referenceDir, 'node_modules/@mermaid-js/mermaid-zenuml/package.json'), 'utf8')) as { version: string }
+  const sourceZenAddon = JSON.parse(readFileSync(join(upstream, 'packages/mermaid-zenuml/package.json'), 'utf8')) as { version: string }
+  const zenCore = JSON.parse(readFileSync(join(dirname(require.resolve('@zenuml/core')), '../package.json'), 'utf8')) as { version: string }
+  const sourceZenVersion = readFileSync(join(upstream, 'pnpm-lock.yaml'), 'utf8').match(/  packages\/mermaid-zenuml:\n[\s\S]*?'@zenuml\/core':\n\s+specifier:[^\n]*\n\s+version: ([\d.]+)/)?.[1]
+  if (zenAddon.version !== sourceZenAddon.version || zenCore.version !== sourceZenVersion) throw new Error(`Use the pinned Mermaid ZenUML addon/engine: ${sourceZenAddon.version}/${sourceZenVersion}`)
   const source = JSON.parse(readFileSync(join(upstream, 'packages/mermaid/package.json'), 'utf8')) as { version: string }
   if (Number(installed.version.split('.')[0]) < 12 || source.version !== installed.version) {
     throw new Error(`Use matching Mermaid >=12: source=${source.version}, installed=${installed.version}`)
@@ -56,12 +63,12 @@ export function admitModernReference(upstream: string, referenceDir: string): Re
   const tags = git('tag', '--points-at', 'HEAD').split('\n').filter(Boolean)
   if (!tags.includes(`mermaid@${installed.version}`)) throw new Error(`The source checkout must be at release tag mermaid@${installed.version}`)
   if (git('status', '--porcelain')) throw new Error('The Mermaid source checkout must be clean to bind the corpus to its recorded commit')
-  return { version: installed.version, commit, tags, parserVersion: parser.version, domVersion: dom.version }
+  return { version: installed.version, commit, tags, parserVersion: parser.version, domVersion: dom.version, zenAddonVersion: zenAddon.version, zenCoreVersion: zenCore.version }
 }
 
 /** One independent Node/jsdom process; no sanitizer shim or runtime dependency bump. */
 export function startModernReference(referenceDir: string): { parse(source: string): Promise<ReferenceReply>; close(): void } {
-  const child = spawn('node', [join(dirname(fileURLToPath(import.meta.url)), 'reference-worker.mjs'), referenceDir], { stdio: ['pipe', 'pipe', 'pipe'] })
+  const child = spawn('node', ['--experimental-import-meta-resolve', join(dirname(fileURLToPath(import.meta.url)), 'reference-worker.mjs'), referenceDir], { stdio: ['pipe', 'pipe', 'pipe'] })
   const pending: Array<{ resolve(value: ReferenceReply): void; reject(error: Error): void; timer: ReturnType<typeof setTimeout> }> = []
   let stderr = ''
   let stopped: Error | undefined

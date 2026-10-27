@@ -322,6 +322,24 @@ describe('homepage prompt eval contract', () => {
 
 describe('stored agent-usage eval', () => {
 
+  test('native-family task oracles distinguish retained payload and scoped call ownership', () => {
+    const event = 'eventmodeling\ntf 1 ui Shop.Cart\ntf 2 cmd Shop.AddItem ->> 1 { sku: Book }\ntf 3 evt Shop.ItemAdded ->> 2'
+    for (const id of ['author_eventmodeling_source', 'eventmodeling_add_item_event']) {
+      expect(checkAgentUsageTaskSource(id, event)).toBe(true)
+      expect(checkAgentUsageTaskSource(id, event.replace('->> 2', '->> 1'))).toBe(false)
+      expect(checkAgentUsageTaskSource(id, event.replace('sku: Book', 'sku: Other'))).toBe(false)
+      expect(checkAgentUsageTaskSource(id, event.replace('evt Shop.ItemAdded', 'cmd Shop.ItemAdded'))).toBe(false)
+    }
+    const zen = 'zenuml\nClient->Shop.checkout() {\n  Inventory.reserve()\n  Payment.charge()\n  return receipt\n}'
+    for (const id of ['author_zenuml_source', 'zenuml_add_nested_reservation']) {
+      expect(checkAgentUsageTaskSource(id, zen)).toBe(true)
+      expect(checkAgentUsageTaskSource(id, zen.replace('  Inventory.reserve()\n', '') + '\nInventory.reserve()')).toBe(false)
+      expect(checkAgentUsageTaskSource(id, zen.replace('Inventory.reserve()\n  Payment.charge()', 'Payment.charge()\n  Inventory.reserve()'))).toBe(false)
+      expect(checkAgentUsageTaskSource(id, zen.replace('return receipt', 'return rejected'))).toBe(false)
+      expect(checkAgentUsageTaskSource(id, zen.replace('Inventory.reserve()', 'Payment->Inventory.reserve()'))).toBe(false)
+    }
+  })
+
   test('create cases cover every supported family and pass the authoring oracle', async () => {
     // Authoring (create) coverage mirrors the mutate coverage above: the two
     // author_* cases in DEFAULT_CASES (flowchart, sequence) plus CREATE_CASES

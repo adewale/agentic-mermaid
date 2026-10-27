@@ -156,14 +156,6 @@ describe('forward-compatible family classification', () => {
         expected: { code: 'UNSUPPORTED_FAMILY', classification: 'unsupported', family: 'usecase', header: 'usecase-beta' },
       },
       {
-        source: 'eventmodeling\n  preserved future payload\n',
-        expected: { code: 'UNSUPPORTED_FAMILY', classification: 'unsupported', family: 'eventmodeling', header: 'eventmodeling' },
-      },
-      {
-        source: 'zenuml\n  preserve external grammar\n',
-        expected: { code: 'UNSUPPORTED_FAMILY', classification: 'unsupported', family: 'zenuml', header: 'zenuml' },
-      },
-      {
         source: 'c4-beta\n  preserve the future dialect\n',
         expected: { code: 'UNKNOWN_HEADER', classification: 'unknown', family: undefined, header: 'c4-beta' },
       },

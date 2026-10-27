@@ -93,6 +93,41 @@ function structuredBodyInventory(d: ParsedDiagram): SemanticInventory {
     }
   }
   switch (body.kind) {
+    case 'eventmodeling': {
+      // Independently interpret the authored domain bands and incoming-source
+      // rule; do not borrow the renderer's layout or lane/edge helpers.
+      const lane = (frame: typeof body.frames[number]): string => {
+        const path = frame.entity.split('.'), namespace = path.slice(0, -1).join('.')
+        const band = frame.entityType === 'event' ? 'Events' : ['command', 'readmodel'].includes(frame.entityType) ? 'Command / Read Model' : 'UI / Automation'
+        return namespace ? `${namespace} · ${band}` : band
+      }
+      const lanes = [...new Set(body.frames.map(lane))]
+      return {
+        nodes: sorted(body.frames.map(frame => {
+          const data = frame.data ?? body.data.find(value => value.id === frame.dataReference)?.value
+          const labels = [`${frame.id} · ${frame.entityType}`, frame.entity.split('.').at(-1)!, ...(data ? [data.text] : []), ...body.notes.filter(note => note.frame === frame.id).map(note => note.text)]
+          for (const spec of body.specifications.filter(spec => spec.frame === frame.id)) labels.push(...(['given', 'when', 'then'] as const).map(section => `${section}: ${spec[section].map(value => `${value.entityType} ${value.entity}`).join(', ')}`))
+          return item(frame.id, labels.join('\n'))
+        })),
+        edges: sorted(body.frames.flatMap((frame, index) => {
+          const sources = frame.sources.length ? frame.sources : frame.reset ? [] : body.frames.slice(0, index).reverse().filter(previous => lane(previous) !== lane(frame)).slice(0, 1).map(previous => previous.id)
+          return sources.map(source => edge(source, frame.id))
+        })),
+        groups: sorted(lanes.map(name => group(`lane:${name}`, name, body.frames.filter(frame => lane(frame) === name).map(frame => frame.id)))),
+      }
+    }
+    case 'zenuml':
+      return {
+        nodes: sorted(body.participants.map(actor => item(actor.id, actor.label))),
+        edges: sorted(body.statements.map(statement => {
+          // This generator exercises declarations and explicit flat messages.
+          // A future richer generator must add its independent AST projection
+          // rather than silently borrowing the production sequence adapter.
+          if (statement.kind !== 'message' || !statement.from || statement.children.length || statement.assignment) throw new Error('ZenUML fuzz inventory requires an explicit flat message')
+          return edge(statement.from, statement.to, statement.text)
+        })),
+        groups: [],
+      }
     case 'packet':
       return { nodes: sorted(body.fields.flatMap(field => Array.from({ length: Math.floor(field.end / 32) - Math.floor(field.start / 32) + 1 }, (_, index) => item(`${field.id}:row-${Math.floor(field.start / 32) + index}`, field.label)))), edges: [], groups: [] }
     case 'kanban':

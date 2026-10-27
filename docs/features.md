@@ -29,6 +29,10 @@ capability evidence. Run `am capabilities --json` for the current roster and
 per-family operation shapes. (The Section A capability report is no longer
 published.)
 
+Native [Event Modeling and ZenUML](./native-eventmodeling-and-zenuml.md) use the
+same synchronous, DOM-free renderer and typed editing loop. Their upstream
+maturity classification remains separate from implemented capabilities.
+
 **Structured-or-opaque rule:** every family either has a structured body
 or preserves source verbatim. Constructs are never silently dropped.
 

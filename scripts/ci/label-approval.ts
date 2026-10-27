@@ -56,10 +56,61 @@ export function staleApprovalLabels(attached: readonly string[], events: readonl
   })
 }
 
-function gh(args: string[]): string {
-  const result = Bun.spawnSync(['gh', ...args], { stdout: 'pipe', stderr: 'pipe' })
-  if (result.exitCode !== 0) throw new Error(`gh ${args.join(' ')} failed: ${result.stderr.toString()}`)
-  return result.stdout.toString()
+async function github(path: string, method: 'GET' | 'DELETE' = 'GET'): Promise<unknown> {
+  const token = process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN
+  if (!token) throw new Error('A GitHub token is required to check head-specific label approval')
+  let response: Response
+  try {
+    response = await fetch(`https://api.github.com/${path}`, {
+      method,
+      redirect: 'error',
+      signal: AbortSignal.timeout(30_000),
+      headers: { authorization: `Bearer ${token}`, accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'agentic-mermaid-label-approval' },
+    })
+  } catch { throw new Error('GitHub label approval request failed before receiving a response') }
+  if (!response.ok) throw new Error(`GitHub label approval request failed: HTTP ${response.status}`)
+  if (response.status === 204) return undefined
+  try { return await response.json() } catch { throw new Error('GitHub label approval returned invalid JSON') }
+}
+
+async function githubPages(path: string): Promise<unknown[]> {
+  const rows: unknown[] = []
+  for (let page = 1; page <= 1000; page++) {
+    const batch = await github(`${path}?per_page=100&page=${page}`)
+    if (!Array.isArray(batch)) throw new Error('GitHub label approval expected a paginated array')
+    rows.push(...batch)
+    if (batch.length < 100) return rows
+  }
+  throw new Error('GitHub label approval pagination exceeded 1000 pages; no approval inferred')
+}
+
+function record(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('GitHub label approval expected a response object')
+  return value as Record<string, unknown>
+}
+
+function timestamp(value: unknown): string {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/.test(value) || !Number.isFinite(Date.parse(value)) || new Date(value).toISOString().slice(0, 19) !== value.slice(0, 19)) {
+    throw new Error('GitHub label approval has no valid event timestamp; no approval inferred')
+  }
+  return value
+}
+
+function labelName(value: unknown): string {
+  const name = record(value).name
+  if (typeof name !== 'string' || !name) throw new Error('GitHub label approval has no valid label name')
+  return name
+}
+
+function labelEvents(values: readonly unknown[]): LabelEvent[] {
+  return values.flatMap(value => {
+    const row = record(value)
+    if (typeof row.event !== 'string') throw new Error('GitHub label approval has no valid event kind')
+    if (row.event !== 'labeled' && row.event !== 'unlabeled') return []
+    const actor = row.actor === null || row.actor === undefined ? undefined : record(row.actor).login
+    if (actor !== undefined && (typeof actor !== 'string' || !actor)) throw new Error('GitHub label approval has no valid event actor')
+    return [{ event: row.event, label: labelName(row.label), actor: typeof actor === 'string' ? actor : 'unknown', createdAt: timestamp(row.created_at) }]
+  })
 }
 
 const USAGE = 'Usage: bun run scripts/ci/label-approval.ts check --label <no-red-green|payload-growth-approved> | expire  (in a pull_request workflow run)\n'
@@ -75,13 +126,12 @@ if (import.meta.main) {
     process.exit(2)
   }
 
-  const attached = gh(['api', '--paginate', `repos/${repo}/issues/${pr}/labels`, '--jq', '.[].name']).split('\n').filter(Boolean)
-  const events: LabelEvent[] = gh([
-    'api', '--paginate', `repos/${repo}/issues/${pr}/events`,
-    '--jq', '.[] | select(.event == "labeled" or .event == "unlabeled") | {event, label: .label.name, actor: (.actor.login // "unknown"), createdAt: .created_at}',
-  ]).split('\n').filter(Boolean).map(line => JSON.parse(line) as LabelEvent)
+  const attached = (await githubPages(`repos/${repo}/issues/${pr}/labels`)).map(labelName)
+  const events = labelEvents(await githubPages(`repos/${repo}/issues/${pr}/events`))
   // A re-run keeps its run's created_at, so it still dates the triggering event.
-  const since = action === 'opened' ? undefined : gh(['api', `repos/${repo}/actions/runs/${runId}`, '--jq', '.created_at']).trim()
+  // Missing metadata must never become undefined: that means the opened head
+  // to labelApproval and would incorrectly approve a stale attached label.
+  const since = action === 'opened' ? undefined : timestamp(record(await github(`repos/${repo}/actions/runs/${runId}`)).created_at)
 
   if (mode === 'check') {
     const verdict = labelApproval(label!, attached, events, since)
@@ -94,7 +144,7 @@ if (import.meta.main) {
 
   const stale = staleApprovalLabels(attached, events, since)
   for (const name of stale) {
-    gh(['api', '-X', 'DELETE', `repos/${repo}/issues/${pr}/labels/${name}`])
+    await github(`repos/${repo}/issues/${pr}/labels/${encodeURIComponent(name)}`, 'DELETE')
     process.stdout.write(`Removed ${name}: ${labelApproval(name, attached, events, since).message}\n`)
   }
   if (stale.length === 0) process.stdout.write('No approval label predates this head.\n')

@@ -4,6 +4,8 @@ import { parseBlockDiagram } from '../../src/block/parser.ts'
 import { parseC4Diagram } from '../../src/c4/parser.ts'
 import { parseClassDiagram } from '../../src/class/parser.ts'
 import { parseErDiagram } from '../../src/er/parser.ts'
+import { parseEventModeling } from '../../src/eventmodeling/parser.ts'
+import { parseZenUml } from '../../src/zenuml/parser.ts'
 import { parseGanttModel } from '../../src/gantt/parser.ts'
 import { parseGitGraph } from '../../src/gitgraph/parser.ts'
 import { resolveGitGraphPositionConfig } from '../../src/gitgraph/position.ts'
@@ -116,6 +118,10 @@ function nativeParserForRequest(family: string, request: ReturnType<typeof resol
       }
       case 'ishikawa':
         return parseIshikawaDiagram(normalized.familyBody)
+      case 'eventmodeling':
+        return parseEventModeling(normalized.familyBody)
+      case 'zenuml':
+        return parseZenUml(normalized.familyBody)
       default:
         throw new Error(`Missing renderer-parser adapter for native family ${family}`)
     }

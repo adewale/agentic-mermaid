@@ -50,6 +50,17 @@ async function assertOperations(family: string, source: string, requireWrite = t
 describe('actual native builder operations agree with the pinned modern reference in declared scopes', () => {
   for (const family of knownBuiltinFamilies()) test(`${family}: canonical operations retain operand values and order`, () => assertOperations(family, getFamily(family)!.example))
 
+  for (const family of ['eventmodeling', 'zenuml']) test(`${family}: real reference observations preserve unobserved acceptance and semantic results`, async () => {
+    const source = getFamily(family)!.example
+    await oracle.prepare(family, source)
+    const observed = await oracle.parse(family, source)
+    const control = await oracle.control(family, source)
+    expect(observed.accepted).toBe(true)
+    expect(control.accepted).toBe(true)
+    expect(observed.snapshot).toEqual(control.snapshot)
+    expect(projectReferenceOperations(family, observed)?.operations.length).toBeGreaterThan(0)
+  })
+
   const stableCorpora: Record<string, readonly { id: string; source: string }[]> = {
     packet: packetCases.filter(fixture => fixture.reference.ok),
     kanban: kanbanCases.filter(fixture => fixture.reference.ok),
@@ -83,6 +94,9 @@ describe('actual native builder operations agree with the pinned modern referenc
     })
 
   test.each([
+    ['eventmodeling', 'eventmodeling\nrf 01 ui Cart.UI\nrf 02 cmd Cart.Add { productId: 7 }\nrf 03 evt Cart.Added ->> 02\nrf 04 rmo Cart.Summary ->> 03'],
+    ['zenuml', 'zenuml\nClient->API.checkout() {\n Inventory.reserve() {\n  return reservation\n }\n return receipt\n}'],
+    ['zenuml', 'zenuml\nA as Alice\nJ as John\nA->J: Hello John\nJ->A: Great!'],
     ['packet', 'packet\n+4: "Version"\n+36: "Payload spanning words"\n+24: "Trailer"'],
     ['packet', '---\ntitle: Register fields\n---\npacket\n+1: "EN"\n+7: "Mode"'],
     ['kanban', 'kanban\n  todo[To do]\n  :::column-class\n    work[Original label]@{label: "Ship parser", assigned: Alice, ticket: ID-42, priority: High}\n    :::task-class\n    ::icon(bomb)\n      deeper[Still in the same column]\n  done[Done]\n    research[Research]'],

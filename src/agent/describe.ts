@@ -1,3 +1,4 @@
+import { nativeDomainCount, nativeDomainTree } from './native-domain-readback.ts'
 import { isStableFamilyBody, stableFamilyCount, stableFamilyTree } from './stable-family-adapters.ts'
 
 // ============================================================================
@@ -109,6 +110,10 @@ export function describeMermaid(d: ParsedDiagram, opts: DescribeOptions = {}): s
     }
     const total = d.body.links.reduce((sum, link) => sum + link.value, 0)
     return `A sankey diagram flowing ${total} across ${d.body.links.length} link(s) between ${nodes.size} node(s).`
+  }
+  if (d.body.kind === 'eventmodeling' || d.body.kind === 'zenuml') {
+    const count = nativeDomainCount(d.body)
+    return `${d.kind}: ${count.nodes} nodes, ${count.edges} edges, ${count.groups} groups`
   }
   if (isStableFamilyBody(d.body)) {
     const count = stableFamilyCount(d.body)
@@ -272,6 +277,10 @@ export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
       }
       tree.edges.push({ from: link.source, to: link.target, label: String(link.value) })
     }
+  } else if (d.body.kind === 'eventmodeling' || d.body.kind === 'zenuml') {
+    const semantics = nativeDomainTree(d.body)
+    tree.nodes.push(...semantics.nodes)
+    tree.edges.push(...semantics.edges)
   } else if (isStableFamilyBody(d.body)) {
     const semantics = stableFamilyTree(d.body)
     tree.nodes.push(...semantics.nodes)

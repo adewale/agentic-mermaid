@@ -36,7 +36,7 @@ export interface GrammarReferenceReply {
   accepted: boolean
   error?: string
   preparedSource?: string
-  engine: 'jison' | 'langium' | 'chevrotain' | 'unavailable'
+  engine: 'jison' | 'langium' | 'chevrotain' | 'antlr' | 'unavailable'
   grammarSources: string[]
   tokens: GrammarObservation<GrammarToken[]>
   actions: GrammarObservation<GrammarAction[]>

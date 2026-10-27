@@ -19,6 +19,8 @@ import type { PositionedDiagram, RenderContext, RenderOptions } from '../types.t
 /** Extra syntax broadens role coverage beyond each descriptor's minimal
  * discovery example. This is test stimulus, not a family/capability roster. */
 const RICH_SCENE_FIXTURES: Partial<Record<BuiltinFamilyId, string>> = {
+  eventmodeling: 'eventmodeling\ntitle Event stream\ntf 01 ui Cart\ntf 02 cmd Add\ntf 03 evt Added',
+  zenuml: 'zenuml\ntitle Nested flow\n@Actor A\n@Database DB\nC\nA->DB.read() {\n // Query data\n A->C: forward across DB\n if(active) {\n  DB->A: row\n } else {\n  DB->A: empty\n }\n return rows\n}',
   packet: '---\ntitle: Protocol fields\n---\npacket\n+8: "Source"\n+8: "Destination"\n+48: "Payload"',
   kanban: '---\ntitle: Delivery board\n---\nkanban\nTodo[To do]\n  task[Build parser]@{assigned: Alice, ticket: ID-42, priority: High}\nDone[Completed]\n  other[Research]',
   requirement: '---\ntitle: Acceptance evidence\n---\nrequirementDiagram\nrequirement speed {\nid: R1\ntext: "Responses retain authored meaning"\nrisk: high\nverifymethod: test\n}\nelement suite {\ntype: conformance suite\ndocref: "Acceptance specification"\n}\nsuite - verifies -> speed',
@@ -187,6 +189,8 @@ sankey-beta
 }
 
 const CAPABILITY_MUTATIONS: Readonly<Record<BuiltinFamilyId, AnyMutationOp>> = {
+  eventmodeling: { kind: 'set_frame_entity', id: '02', entity: 'AddBook' },
+  zenuml: { kind: 'set_participant_label', id: 'Client', label: 'Customer' },
   packet: { kind: 'add_field', label: 'Capability witness', bits: 8 },
   kanban: { kind: 'add_column', id: 'CapabilityWitness', label: 'Capability witness' },
   requirement: { kind: 'add_requirement', requirement: { name: 'CapabilityWitness', text: 'Capability witness' } },

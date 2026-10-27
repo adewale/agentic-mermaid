@@ -27,6 +27,8 @@ const REPO = join(import.meta.dir, '..', '..')
 
 /** One declared, representative edit per built-in family; each introduces "zebra". */
 const TYPED_EDIT_BY_FAMILY: Record<DiagramKind, { kind: string } & Record<string, unknown>> = {
+  eventmodeling: { kind: 'add_frame', id: '99', entityType: 'ui', entity: 'Zebra' },
+  zenuml: { kind: 'add_participant', id: 'Zebra' },
   c4: { kind: 'add_element', element: { id: 'Zebra', label: 'Zebra', kind: 'system' } },
   flowchart: { kind: 'add_node', id: 'Zebra', label: 'Zebra' },
   state: { kind: 'add_state', id: 'Zebra' },
@@ -320,6 +322,8 @@ const badWidth: SharedRenderOptions = { mermaidConfig: { sankey: { nodeWidth: '1
       asRequirement: 'requirementDiagram\\nrequirement evidence {\\nid: R1\\ntext: "Retain evidence"\\nrisk: high\\nverifymethod: test\\n}',
       asTreemap: 'treemap\\n"Build"\\n  "Engineering": 60',
       asIshikawa: 'ishikawa\\nEffect\\nCause',
+      asEventModeling: 'eventmodeling\\ntf 01 ui Cart',
+      asZenUml: 'zenuml\\nA->B: Hello',
       asBlock: 'block\\ncolumns 2\\nA B\\nA --> B',
     }
     for (const narrower of advertised) {

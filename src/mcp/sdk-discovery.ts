@@ -54,15 +54,15 @@ declare const mermaid: {
   createMermaid(kind: DiagramKind, opts?: CreateMermaidOptions): ValidDiagram
   buildMermaid(kind: DiagramKind, ops: MutationOp[], opts?: CreateMermaidOptions): Result<ValidDiagram, { code: string; message: string; opIndex: number }>
 ${NARROWERS}
-  mutate(diagram: ValidDiagram, op: MutationOp): Result<ValidDiagram>
+  mutate(d: ValidDiagram, op: MutationOp): Result<ValidDiagram>
   verifyMermaid(input: ParsedDiagram | string, opts?: { suppress?: string[]; labelCharCap?: number; renderOptions?: SharedRenderOptions }): VerifyResult
-  analyzeMermaid(diagram: ValidDiagram): Record<string, unknown>
+  analyzeMermaid(d: ValidDiagram): Record<string, unknown>
   analyzeMermaidSource(source: string): Result<Record<string, unknown>>
-  describeMermaidFacts(diagram: ValidDiagram): string[]
+  describeMermaidFacts(d: ValidDiagram): string[]
   describeMermaidFactsSource(source: string): Result<string[]>
-  checkMermaid(diagram: ValidDiagram, spec: CheckMermaidSpec): CheckMermaidResult
+  checkMermaid(d: ValidDiagram, spec: CheckMermaidSpec): CheckMermaidResult
   checkMermaidSource(source: string, spec: CheckMermaidSpec): Result<CheckMermaidResult>
-  serializeMermaid(diagram: ParsedDiagram): string
+  serializeMermaid(d: ParsedDiagram): string
   renderMermaidSVG(input: ParsedDiagram | string, opts?: SvgRenderOptions): string
   renderMermaidSVGWithReceipt(input: ParsedDiagram | string, opts?: SvgRenderOptions): RenderedSvg
   renderMermaidASCII(input: ParsedDiagram | string, opts?: AsciiRenderOptions): string

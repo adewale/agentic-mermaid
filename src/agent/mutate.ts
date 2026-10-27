@@ -1,3 +1,4 @@
+import type { EventModelingValidDiagram, EventModelingMutationOp, ZenUmlValidDiagram, ZenUmlMutationOp } from './types.ts'
 import { rebaseBodyComments, restoreBodyComments, snapshotBodyCommentAnchors } from './body-comments.ts'
 import { beginMutationDraft, type MutationDraft } from './mutation-draft.ts'
 import type { PacketMutationOp, PacketValidDiagram, KanbanMutationOp, KanbanValidDiagram, RequirementMutationOp, RequirementValidDiagram, TreemapMutationOp, TreemapValidDiagram, IshikawaMutationOp, IshikawaValidDiagram, BlockMutationOp, BlockValidDiagram } from './types.ts'
@@ -73,6 +74,8 @@ export function mutate(d: BlockValidDiagram, op: BlockMutationOp): Result<BlockV
 // General form for callers holding the union (e.g. the CLI): dispatch is by
 // registry at runtime either way, so kind-agnostic call sites don't need a
 // per-family narrowing cascade.
+export function mutate(d: EventModelingValidDiagram, op: EventModelingMutationOp): Result<EventModelingValidDiagram, MutationError>
+export function mutate(d: ZenUmlValidDiagram, op: ZenUmlMutationOp): Result<ZenUmlValidDiagram, MutationError>
 export function mutate(d: MutableValidDiagram, op: AnyMutationOp): Result<MutableValidDiagram, MutationError>
 export function mutate(d: ParsedDiagram, op: AnyMutationOp): Result<ParsedDiagram, MutationError>
 export function mutate(d: ParsedDiagram, op: AnyMutationOp): Result<ParsedDiagram, MutationError> {

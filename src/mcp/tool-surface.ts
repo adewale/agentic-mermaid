@@ -377,20 +377,16 @@ function unknownMethod(id: number | string | null, method: string): JsonRpcRespo
 
 export function createExecuteTool(options: { sdkDeclaration: string; hosted?: boolean }): McpToolDefinition {
   const hostedNote = options.hosted
-    ? `Prefer render/verify or mutate/build. SVG/ASCII/layout enforce
-security:'strict', embedFontImport:false.
-
-`
+    ? `SVG/ASCII/layout: security:'strict',embedFontImport:false.\n`
     : ''
   const timeoutDescription = options.hosted
     ? 'Optional CPU-time budget (default 5000ms, max 30000ms).'
     : 'Optional hard timeout (default 5000ms).'
-  const runtime = options.hosted ? 'an isolated sandbox' : 'a sandboxed node:vm context'
+  const runtime = options.hosted ? 'isolated sandbox' : 'node:vm'
   return {
     name: 'execute',
     title: 'Execute Mermaid SDK code',
-    description: `Run JavaScript in ${runtime}; return a value. Combine edits.
-No promises, async/await, dynamic import, or type annotations.
+    description: `Sync JavaScript (${runtime}); return a value. No promises/imports/TypeScript.
 ${hostedNote}SDK:
 ${options.sdkDeclaration}`,
     inputSchema: {

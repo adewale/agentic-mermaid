@@ -1,3 +1,8 @@
+import { EVENTMODELING_SVG_HOOKS } from './svg-family-hooks/eventmodeling.ts'
+import { ZENUML_SVG_HOOKS } from './svg-family-hooks/zenuml.ts'
+import { renderEventModelingTerminal } from './ascii/eventmodeling.ts'
+import { parseZenUml } from './zenuml/parser.ts'
+import { projectZenUmlSequence } from './zenuml/projection.ts'
 import { PACKET_SVG_HOOKS } from './svg-family-hooks/packet.ts'
 import { preservedMermaidFamilyText } from './mermaid-source.ts'
 import { renderPacketTerminal } from './ascii/packet.ts'
@@ -259,7 +264,12 @@ export const ISHIKAWA_RENDER_HOOKS = /* @__PURE__ */ { ...ISHIKAWA_SVG_HOOKS, re
 
 export const BLOCK_RENDER_HOOKS = /* @__PURE__ */ { ...BLOCK_SVG_HOOKS, renderAscii: /* @__PURE__ */ nativeTerminalRenderer(ctx => renderBlockTerminal(ctx.source.familyBody, ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, ctx.options.targetWidth)) }
 
+export const EVENTMODELING_RENDER_HOOKS = /* @__PURE__ */ { ...EVENTMODELING_SVG_HOOKS, renderAscii: /* @__PURE__ */ nativeTerminalRenderer(renderEventModelingTerminal) }
+export const ZENUML_RENDER_HOOKS = /* @__PURE__ */ { ...ZENUML_SVG_HOOKS, renderAscii: /* @__PURE__ */ nativeTerminalRenderer(ctx => renderSequenceTerminal('', ctx.config, ctx.colorMode, ctx.theme, (ctx.familyConfig?.sequence as ReturnType<typeof resolveSequenceConfig>) ?? {}, ctx.options.targetWidth, undefined, projectZenUmlSequence(parseZenUml(ctx.source.authoredFamilyBody ?? ctx.source.familyBody)))) }
+
 export const BUILTIN_RENDER_HOOKS = /* @__PURE__ */ Object.freeze({
+  eventmodeling: EVENTMODELING_RENDER_HOOKS,
+  zenuml: ZENUML_RENDER_HOOKS,
   flowchart: FLOWCHART_RENDER_HOOKS,
   state: STATE_RENDER_HOOKS,
   sequence: SEQUENCE_RENDER_HOOKS,

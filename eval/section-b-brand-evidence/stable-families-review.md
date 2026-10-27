@@ -1,5 +1,28 @@
 # Stable-family visual review
 
+## Event Modeling and ZenUML enrollment, 2026-10-27
+
+The Codex agent inspected all eight new cells at their native 520 × 380 size:
+both families in the sentinel, warm editorial, light technical and dark
+operations variants. Event Modeling keeps the three ordered lanes, all frame
+labels and directed contacts. ZenUML keeps Client and API, the checkout call,
+receipt reply and activation, with the expected opposite message directions.
+The expanded sheet contains 100 cells at 1560 × 14024.
+
+After aligning the four variant bands, 87 previous cells are pixel-identical.
+Five previous cells each differ at one antialiased heading pixel: editorial
+Journey and Architecture; technical Pie, Quadrant and Radar. Their diagram
+bodies and the other 87 bodies remain pixel-identical. No previous diagram
+geometry change is approved by this enrollment.
+
+The approval binds the exact PNG bytes. Reproduce with
+`bun run gallery:section-b`; the owning test also regenerates the complete
+sheet. This is agent review of small examples, not human approval, deployed
+site parity or a proof for arbitrary density, fonts or displays. Independent
+identity, marker, style and layout checks protect the corresponding contracts.
+
+The older reviews below retain their original populations and dates.
+
 Reviewed 2026-10-19 by the Codex agent, after production-code freeze.
 This is agent review, not human approval or deployed-site parity.
 

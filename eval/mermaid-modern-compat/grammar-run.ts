@@ -10,6 +10,7 @@ import { projectNativeOperations, projectReferenceOperations } from './grammar-n
 import { projectReferenceSemantic } from './grammar-native-semantics.ts'
 import { startGrammarReference } from './grammar-reference.ts'
 import { announces, ourReading, readsAsFamily, reduceSilentRead, SILENT_READ_DEFINITION, type SilentReadExample, spellSource, verifyCodes } from './grammar-silent-reads.ts'
+import { externalFirstPartyFamilies } from '../shared/upstream-family-sources.ts'
 import type { GrammarObservation, GrammarReferenceReply } from './grammar-types.ts'
 import { admitModernReference } from './reference.ts'
 
@@ -45,7 +46,7 @@ const native = new Set<string>(knownBuiltinFamilies())
 const families = option('--families', allFamilies.filter(family => !args.includes('--native-only') || native.has(family)).join(','))
   .split(',')
   .filter(Boolean)
-for (const family of families) if (!harvested.expectedFamilies.has(family)) throw new Error(`Unknown core family: ${family}`)
+for (const family of families) if (!harvested.expectedFamilies.has(family)) throw new Error(`Unknown documented family: ${family}`)
 mkdirSync(output, { recursive: true })
 
 interface Counters {
@@ -530,7 +531,7 @@ async function worker(): Promise<void> {
   }
 }
 
-console.log(`Mermaid ${reference.version}: ${families.length} core families, ${fuzz} mutations EACH, seed ${seed}, ${workers} workers`)
+console.log(`Mermaid ${reference.version}: ${families.length} diagram families, ${fuzz} mutations EACH, seed ${seed}, ${workers} workers`)
 await Promise.all(Array.from({ length: Math.min(workers, families.length) }, worker))
 results.sort((a, b) => a.family.localeCompare(b.family))
 const silentReads = {
@@ -564,7 +565,9 @@ const summary = {
     unsupported: 'Source-preserved or opaque success is never counted as native grammar or semantic fidelity.',
     silentReads: `${SILENT_READ_DEFINITION} The first ${SILENT_REDUCTIONS} per family, corpus before mutations, are reduced by line and then code point while they stay silent reads; each distinct reduction is listed once.`,
   },
-  coreFamiliesAvailable: allFamilies.length,
+  coreFamiliesAvailable: allFamilies.filter(family => !externalFirstPartyFamilies.includes(family)).length,
+  externalFirstPartyFamilies: allFamilies.filter(family => externalFirstPartyFamilies.includes(family)),
+  documentedFamiliesAvailable: allFamilies.length,
   familiesAssessed: families.length,
   mutationsPerFamily: fuzz,
   seed,

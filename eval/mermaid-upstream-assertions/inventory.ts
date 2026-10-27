@@ -1,7 +1,6 @@
 import { readdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-
-const directories: Record<string, string> = { gitgraph: 'git', journey: 'user-journey', quadrant: 'quadrant-chart' }
+import { upstreamFamilySourceDirectory } from '../shared/upstream-family-sources.ts'
 
 /** Inventory files, not harvested literals. Vitest expands their loops and
  * parameter tables; the original test bodies and expectations are untouched. */
@@ -15,7 +14,7 @@ export function upstreamSpecFiles(upstream: string, families: readonly string[])
     }
   }
   for (const family of families) {
-    walk(join(upstream, 'packages/mermaid/src/diagrams', directories[family] ?? family), family)
+    walk(upstreamFamilySourceDirectory(upstream, family), family)
     const parser = join(upstream, 'packages/parser/tests', `${family === 'gitgraph' ? 'gitGraph' : family}.test.ts`)
     const parent = join(upstream, 'packages/parser/tests')
     if (readdirSync(parent).includes(parser.slice(parent.length + 1))) files.push({ family, path: resolve(parser) })

@@ -41,6 +41,8 @@ const optionsArb = fc.record({
 })
 
 const FAMILY_SOURCES: Record<DiagramKind, (label: string) => string> = {
+  eventmodeling: label => `eventmodeling\ntf 01 ui Cart {${label}}`,
+  zenuml: label => `zenuml\nA->B: ${label}`,
   packet: label => `packet\n+16: ${JSON.stringify(label)}`,
   kanban: label => `kanban\nTodo\n  task["${label}"]`,
   requirement: label => `requirementDiagram\nrequirement r {\ntext: "${label}"\n}`,

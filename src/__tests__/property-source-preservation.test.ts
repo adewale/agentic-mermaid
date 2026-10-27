@@ -31,6 +31,22 @@ function edit(diagram: ParsedDiagram, op: AnyMutationOp): ParsedDiagram {
 const wrapperArb = fc.constantFrom('', '%% wrapper\n', '---\ntitle: Preserve\n---\n%% wrapper\n', '%%{init: {"theme":"dark"}}%%\n')
 
 describe('source comments across serialization and edit sequences', () => {
+  test('ZenUML envelope comments stay distinct from drawn comments and quoted call text', () => {
+    const diagram = parse('zenuml\nA->B.work() {\n  %% retained envelope\n  // drawn note\n  C.save("%% literal")\n  return done\n}')
+    expect(diagram.body.kind).toBe('zenuml')
+    if (diagram.body.kind !== 'zenuml') return
+    const call = diagram.body.statements[0]
+    expect(call?.kind).toBe('message')
+    if (call?.kind !== 'message') return
+    expect(call.children.map(statement => statement.kind)).toEqual(['comment', 'message', 'return'])
+    expect(call.children[0]).toMatchObject({ kind: 'comment', text: 'drawn note' })
+    expect(call.children[1]).toMatchObject({ kind: 'message', text: 'save("%% literal")' })
+    const output = serializeMermaid(reload(diagram))
+    expect(output.split('%% retained envelope')).toHaveLength(2)
+    expect(output).toContain('// drawn note')
+    expect(describeMermaidFacts(parse(output))).toEqual(describeMermaidFacts(diagram))
+  })
+
   for (const family of Object.values(METAMORPHIC_FAMILIES)) {
     test(`${family.family}: parser-identified comment occurrences survive without changing facts`, () => {
       fc.assert(fc.property(

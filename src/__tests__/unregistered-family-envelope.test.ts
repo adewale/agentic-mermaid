@@ -8,12 +8,12 @@ import { executeInSandbox } from '../mcp/sandbox.ts'
 
 const CASES = [
   {
-    source: '---\ntitle: Preserved event model\n---\n%%{init: {"theme":"base"}}%%\n%% keep me\neventmodeling\n  opaque { bytes }\n',
+    source: '---\ntitle: Preserved Venn model\n---\n%%{init: {"theme":"base"}}%%\n%% keep me\nvenn-beta\n  opaque { bytes }\n',
     code: 'UNSUPPORTED_FAMILY',
     classification: 'unsupported',
     representation: 'opaque',
-    header: 'eventmodeling',
-    family: 'eventmodeling',
+    header: 'venn-beta',
+    family: 'venn',
   },
   {
     source: '\uFEFF\n%% untouched\nfutureDiagram-v99\n  opaque { bytes }\n',
@@ -117,9 +117,9 @@ describe('forward-compatible unregistered family envelopes', () => {
         code: 'UNKNOWN_HEADER',
       },
       {
-        source: 'eventmod&#101;ling\n  opaque { bytes }\n',
-        authoredHeader: 'eventmod&#101;ling',
-        semanticHeader: 'eventmodeling',
+        source: 've&#110;n-beta\n  opaque { bytes }\n',
+        authoredHeader: 've&#110;n-beta',
+        semanticHeader: 'venn-beta',
         code: 'UNSUPPORTED_FAMILY',
       },
     ] as const

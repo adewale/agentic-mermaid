@@ -52,6 +52,16 @@ export function referenceLabels(family: string, reply: ReferenceReply): Referenc
       fields('getActors', pairs(db.getActors), 'description')
       fields('getMessages', rows(db.getMessages).filter(message => typeof message.from === 'string' && typeof message.to === 'string' && message.type !== 2), 'message')
       break
+    case 'eventmodeling':
+      rows(row(db.getEventModel).frames).forEach((frame, index) => {
+        add(`getEventModel.frames[${index}].entityIdentifier`, text(frame.entityIdentifier).split('.').at(-1))
+        if (typeof frame.dataInlineValue === 'string') add(`getEventModel.frames[${index}].dataInlineValue`, frame.dataInlineValue.slice(1, -1))
+      })
+      break
+    case 'zenuml':
+      fields('getZenModel.participants', rows(row(db.getZenModel).participants), 'label')
+      fields('getZenModel.messages', rows(row(db.getZenModel).messages), 'label')
+      break
     case 'timeline':
     case 'journey':
     case 'gantt':

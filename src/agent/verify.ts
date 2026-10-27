@@ -775,7 +775,9 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
     d.body.kind === 'requirement' ||
     d.body.kind === 'block' ||
     d.body.kind === 'treemap' ||
-    d.body.kind === 'ishikawa'
+    d.body.kind === 'ishikawa' ||
+    d.body.kind === 'eventmodeling' ||
+    d.body.kind === 'zenuml'
   ) {
     // QUAL-1: verify.layout is now truthful — the real positioned layout from
     // the family adapters (was emptyRenderedLayout). #33 adds zero-noise

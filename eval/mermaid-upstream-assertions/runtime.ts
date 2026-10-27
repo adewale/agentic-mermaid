@@ -30,7 +30,13 @@ function deferred(name: string): any {
       return deferred(`${name}.${String(key)}`)
     },
     apply() { return unavailable(name) },
-    construct() { return unavailable(`new ${name}`) },
+    construct() {
+      // Original suites may instantiate a private helper while registering
+      // describe/it callbacks. Keep the opaque handle until a case actually
+      // uses it, so one unavailable helper cannot erase the file's callbacks.
+      // Case-time construction still fails and is recorded by the guard.
+      return active ? unavailable(`new ${name}`) : deferred(`new ${name}`)
+    },
   })
 }
 
@@ -38,6 +44,11 @@ export async function initializeReference(): Promise<void> {
   if (!referenceMode || reference) return
   const entry = referenceRequire.resolve('mermaid')
   reference = (await import(/* @vite-ignore */ pathToFileURL(entry).href)).default
+  const addonPackage = referenceRequire.resolve.paths('@mermaid-js/mermaid-zenuml')?.map(directory => join(directory, '@mermaid-js/mermaid-zenuml/package.json')).find(existsSync)
+  if (!addonPackage) throw new Error('Independent pinned ZenUML addon dependency is unavailable')
+  const addonExport = JSON.parse(readFileSync(addonPackage, 'utf8')).exports['.'].import
+  const addon = (await import(/* @vite-ignore */ pathToFileURL(resolve(dirname(addonPackage), addonExport)).href)).default
+  await reference.registerExternalDiagrams([addon])
   reference.initialize({ startOnLoad: false, securityLevel: 'strict', logLevel: 'fatal' })
   // Read the packaged entry's own import, rather than guessing a chunk name.
   const source = readFileSync(entry, 'utf8')
@@ -234,7 +245,7 @@ class AdapterContext {
     }
     if (/\.jison$|[Pp]arser\.[jt]s$|\/parser\.[jt]s$/.test(specifier)) {
       // The modern parser modules return promises; Jison's parse is synchronous.
-      const parser = !referenceMode && !specifier.endsWith('.jison') && ['architecture', 'packet', 'pie', 'radar', 'gitgraph', 'treemap'].includes(this.family)
+      const parser = !referenceMode && !specifier.endsWith('.jison') && ['architecture', 'packet', 'pie', 'radar', 'gitgraph', 'treemap', 'eventmodeling'].includes(this.family)
         ? new Proxy(this.parser, { get(target, key) { return key === 'parse' ? async (source: string) => target.parse(source) : target[key] } })
         : this.parser
       return { default: parser, parser }

@@ -14,6 +14,8 @@ import { isCssColorToken, sequenceRectColor } from './colors.ts'
 import { type ParticipantEvent, SequenceParticipantFold } from './participants.ts'
 import { isSequenceCommentLine, type SequenceSourceSpan, scanSequenceStatementLines } from './statements.ts'
 import type { Actor, Block, Message, Note, SequenceActorType, SequenceBoxGroup, SequenceDiagram, SequenceMessageHead } from './types.ts'
+import { setSequenceBlockBoundaries, setSequenceBlockScope, type SequenceBlockBoundary } from './block-structure.ts'
+export { getSequenceBlockBoundaries, getSequenceBlockScope, type SequenceBlockBoundary, type SequenceBlockScope } from './block-structure.ts'
 
 // Mermaid's half-arrow heads have multi-character spellings. Keep complete
 // tokens here, longest first in the regex, so a prefix cannot leak into an
@@ -131,39 +133,6 @@ export interface ParsedSequenceMessageLine {
   wrap?: boolean
   centralStart: boolean
   centralEnd: boolean
-}
-
-export interface SequenceBlockScope {
-  /** Lexical boundaries, including fragments without any messages. */
-  endMessageExclusive: number
-  endNoteExclusive: number
-  /** Note cursor at each else/and/option boundary, aligned with block.dividers. */
-  dividerNoteIndices: number[]
-  /** Indices into `diagram.notes` for notes authored inside this block's lexical scope. */
-  noteIndices: number[]
-  /** Indices into `diagram.blocks` for direct child blocks authored inside this block. */
-  childBlockIndices: number[]
-  /** Lexical section containing each direct child (zero is the first section). */
-  childSectionIndices: number[]
-}
-
-const blockScopes = new WeakMap<Block, SequenceBlockScope>()
-export interface SequenceBlockBoundary {
-  kind: 'open' | 'divider' | 'close'
-  blockIndex: number
-  messageIndex: number
-  noteIndex: number
-  dividerIndex?: number
-}
-const blockBoundaries = new WeakMap<SequenceDiagram, SequenceBlockBoundary[]>()
-
-export function getSequenceBlockBoundaries(diagram: SequenceDiagram): readonly SequenceBlockBoundary[] | undefined {
-  return blockBoundaries.get(diagram)
-}
-
-/** Return the lexical scope (owned notes and direct child blocks) recorded for `block` during parsing. */
-export function getSequenceBlockScope(block: Block): SequenceBlockScope | undefined {
-  return blockScopes.get(block)
 }
 
 /** One message-line grammar shared by renderer and agent parsers. */
@@ -527,7 +496,7 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
           endIndex: Math.max(diagram.messages.length - 1, completed.startIndex),
           dividers: completed.dividers,
         }
-        blockScopes.set(blockObj, {
+        setSequenceBlockScope(blockObj, {
           endMessageExclusive: diagram.messages.length,
           endNoteExclusive: diagram.notes.length,
           dividerNoteIndices: completed.dividerNoteIndices,
@@ -573,8 +542,7 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
     ...(createdAt.has(id) ? { createMessageIndex: createdAt.get(id)! } : {}),
     ...(destroyedAt.has(id) ? { destroyMessageIndex: destroyedAt.get(id)! } : {}),
   }))
-  blockBoundaries.set(diagram, boundaries.map(({ blockId, ...boundary }) => ({ ...boundary, blockIndex: blockIndexById.get(blockId)! })),
-  )
+  setSequenceBlockBoundaries(diagram, boundaries.map(({ blockId, ...boundary }) => ({ ...boundary, blockIndex: blockIndexById.get(blockId)! })))
   return diagram
 }
 

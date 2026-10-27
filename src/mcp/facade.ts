@@ -391,6 +391,8 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
     asTreemap: mermaid.asTreemap,
     asIshikawa: mermaid.asIshikawa,
     asBlock: mermaid.asBlock,
+    asEventModeling: mermaid.asEventModeling,
+    asZenUml: mermaid.asZenUml,
 
     mutate: mermaid.mutate,
     verifyMermaid: mermaid.verifyMermaid,

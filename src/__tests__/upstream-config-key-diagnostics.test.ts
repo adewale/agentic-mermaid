@@ -36,6 +36,17 @@ const FAMILIES = BUILTIN_FAMILY_METADATA.flatMap(family => {
 })
 
 describe('config diagnostics for official Mermaid keys', () => {
+  it('diagnoses unwired Event Modeling sizing as compatibility fields', () => {
+    const diagnostics = familyConfigDiagnostics('eventmodeling', [{ eventmodeling: { padding: 32, rowHeight: 96 } }], getInstalledFamilyDescriptor('eventmodeling')?.config)
+    expect(diagnostics).toHaveLength(2)
+    for (const field of ['eventmodeling.padding', 'eventmodeling.rowHeight']) {
+      expect(diagnostics.find(diagnostic => diagnostic.field === field)).toMatchObject({
+        code: 'INEFFECTIVE_CONFIG',
+        message: expect.stringContaining('accepted for Mermaid compatibility but has no effect'),
+      })
+    }
+  })
+
   it('never calls a pinned upstream key unknown or undocumented', () => {
     const misreported: string[] = []
     let checked = 0

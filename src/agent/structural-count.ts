@@ -1,3 +1,4 @@
+import { nativeDomainCount } from './native-domain-readback.ts'
 import { stableFamilyCount } from './stable-family-adapters.ts'
 // ============================================================================
 // countStructuralElements — a family-agnostic faithfulness oracle.
@@ -146,6 +147,9 @@ export function countStructuralElements(d: ParsedDiagram): StructuralCount | nul
       }
       return { nodes: labels.size, edges: body.links.length, groups: 0 }
     }
+    case 'eventmodeling':
+    case 'zenuml':
+      return nativeDomainCount(body)
     case 'packet':
     case 'kanban':
     case 'requirement':

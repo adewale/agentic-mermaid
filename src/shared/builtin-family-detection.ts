@@ -51,3 +51,6 @@ export const detectsRequirementFamily = (line: string) => /^requirement(?:diagra
 export const detectsTreemapFamily = (line: string) => /^treemap(?:-beta)?\s*$/.test(line)
 export const detectsIshikawaFamily = (line: string) => /^ishikawa(?:-beta)?\s*$/.test(line)
 export const detectsBlockFamily = (line: string) => /^block(?:-beta)?\s*$/.test(line)
+
+export const detectsEventmodelingFamily = (line: string) => /^eventmodeling\s*$/.test(line)
+export const detectsZenumlFamily = (line: string) => /^zenuml\s*$/.test(line)

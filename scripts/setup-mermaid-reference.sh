@@ -98,6 +98,8 @@ if ! up tag --points-at HEAD | grep -qxF "$TAG"; then
 fi
 PARSER_VERSION=$(json_field "$UPSTREAM/packages/parser/package.json" version)
 [ -n "$PARSER_VERSION" ] || die "$UPSTREAM/packages/parser/package.json has no version"
+ZEN_ADDON_VERSION=$(json_field "$UPSTREAM/packages/mermaid-zenuml/package.json" version)
+ZEN_CORE_VERSION=$(bun -e 'const text = await Bun.file(process.argv[1]).text(); const version = text.match(/  packages\/mermaid-zenuml:\n[\s\S]*?\x27@zenuml\/core\x27:\n\s+specifier:[^\n]*\n\s+version: ([\d.]+)/)?.[1]; if (!version) throw Error("Missing locked ZenUML engine"); process.stdout.write(version)' "$UPSTREAM/pnpm-lock.yaml")
 
 # --- Independent npm reference --------------------------------------------------
 # Resolve the installed versions the way reference.ts does, parser via mermaid.
@@ -112,7 +114,9 @@ installed_versions() {
       const mermaid = reference.resolve("mermaid/package.json")
       const parser = createRequire(mermaid).resolve.paths("@mermaid-js/parser")
         .map(directory => join(directory, "@mermaid-js/parser/package.json")).find(existsSync)
-      process.stdout.write([version(mermaid), parser ? version(parser) : "-", version(reference.resolve("jsdom/package.json"))].join(" "))
+      const addonEntry = join(process.argv[1], "node_modules/@mermaid-js/mermaid-zenuml/package.json")
+      const zenEntry = reference.resolve("@zenuml/core").replace(/\/dist\/[^/]+$/, "/package.json")
+      process.stdout.write([version(mermaid), parser ? version(parser) : "-", version(reference.resolve("jsdom/package.json")), version(addonEntry), version(zenEntry)].join(" "))
     } catch {}
   ' "$REFERENCE"
 }
@@ -122,14 +126,14 @@ foreign_dependencies() {
   node -e '
     const { readFileSync } = require("node:fs")
     const manifest = JSON.parse(readFileSync(process.argv[1], "utf8"))
-    const ours = new Set(["mermaid", "@mermaid-js/parser", "jsdom"])
+    const ours = new Set(["mermaid", "@mermaid-js/parser", "jsdom", "@mermaid-js/mermaid-zenuml", "@zenuml/core"])
     const declared = ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"]
       .flatMap(field => Object.keys(manifest[field] ?? {}))
     process.stdout.write(declared.filter(name => !ours.has(name)).join(" "))
   ' "$1"
 }
 
-expected="$VERSION $PARSER_VERSION $JSDOM_VERSION"
+expected="$VERSION $PARSER_VERSION $JSDOM_VERSION $ZEN_ADDON_VERSION $ZEN_CORE_VERSION"
 # `npm ls --all` also catches a tree an interrupted install left incomplete.
 if [ "$(installed_versions)" = "$expected" ] && npm ls --prefix "$REFERENCE" --all >/dev/null 2>&1; then
   echo "Mermaid reference already installed"
@@ -147,10 +151,11 @@ else
   fi
   mkdir -p "$REFERENCE"
   npm install --prefix "$REFERENCE" --save-exact --no-audit --no-fund --ignore-scripts \
-    "mermaid@$VERSION" "@mermaid-js/parser@$PARSER_VERSION" "jsdom@$JSDOM_VERSION"
+    "mermaid@$VERSION" "@mermaid-js/parser@$PARSER_VERSION" "jsdom@$JSDOM_VERSION" \
+    "@mermaid-js/mermaid-zenuml@$ZEN_ADDON_VERSION" "@zenuml/core@$ZEN_CORE_VERSION"
   actual=$(installed_versions)
-  [ "$actual" = "$expected" ] || die "$REFERENCE resolves mermaid/parser/jsdom '${actual:-none}', expected '$expected'"
+  [ "$actual" = "$expected" ] || die "$REFERENCE resolves mermaid/parser/jsdom/Zen addon/core '${actual:-none}', expected '$expected'"
 fi
 
 echo "MERMAID_UPSTREAM_DIR=$UPSTREAM  ($TAG at $COMMIT)"
-echo "MERMAID_REFERENCE_DIR=$REFERENCE  (mermaid $VERSION, @mermaid-js/parser $PARSER_VERSION, jsdom $JSDOM_VERSION)"
+echo "MERMAID_REFERENCE_DIR=$REFERENCE  (mermaid $VERSION, @mermaid-js/parser $PARSER_VERSION, jsdom $JSDOM_VERSION, Zen addon $ZEN_ADDON_VERSION/core $ZEN_CORE_VERSION)"

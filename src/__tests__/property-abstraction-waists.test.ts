@@ -69,6 +69,8 @@ function headerFor(kind: DiagramKind): string {
       return 'treemap'
     case 'ishikawa':
       return 'ishikawa'
+    case 'eventmodeling': return 'eventmodeling'
+    case 'zenuml': return 'zenuml'
     case 'block':
       return 'block'
     case 'c4':

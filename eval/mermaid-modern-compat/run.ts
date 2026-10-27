@@ -4,6 +4,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { decodeXML } from 'entities'
 import { canonical, harvestModernCorpus, type Sample } from './corpus.ts'
+import { externalFirstPartyFamilies } from '../shared/upstream-family-sources.ts'
 import { admitModernReference, type ReferenceReply as Reference, startModernReference } from './reference.ts'
 import { labelCensus } from './label-census.ts'
 import { BUILTIN_FAMILY_METADATA } from '../../src/agent/families.ts'
@@ -275,6 +276,8 @@ const summary = {
     mermaidVersion: referencePackage.version,
     referenceParserVersion: referenceAdmission.parserVersion,
     referenceDomVersion: referenceAdmission.domVersion,
+    referenceZenAddonVersion: referenceAdmission.zenAddonVersion,
+    referenceZenCoreVersion: referenceAdmission.zenCoreVersion,
     upstreamCommit,
     upstreamTags,
     agenticCommit,
@@ -288,7 +291,8 @@ const summary = {
   },
   methodology: {
     docs: docFiles,
-    expectedCoreFamilies: expectedFamilies.size,
+    expectedCoreFamilies: [...expectedFamilies].filter(family => !externalFirstPartyFamilies.includes(family)).length,
+    externalFirstPartyFamilies: [...expectedFamilies].filter(family => externalFirstPartyFamilies.includes(family)),
     includesInfoProbe: true,
     includesSpecs: argv.includes('--specs'),
     skippedInterpolatedTemplates,
@@ -302,7 +306,8 @@ const summary = {
     samples: base.length,
     upstreamAccepted: valid.length,
     upstreamRejected: base.length - valid.length,
-    coreFamilies: expectedFamilies.size,
+    coreFamilies: [...expectedFamilies].filter(family => !externalFirstPartyFamilies.includes(family)).length,
+    documentedFamilies: expectedFamilies.size,
     nativeFamilies: [...nativeFamilies].sort(),
     nativeFamiliesWithAcceptedInput: nativeRows.length,
     nativeFamilyBalancedRenderRate: nativeRows.length ? nativeRows.reduce((sum, row) => sum + row.rendered / row.upstreamAccepted, 0) / nativeRows.length : null,

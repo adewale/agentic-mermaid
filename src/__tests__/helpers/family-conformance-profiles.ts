@@ -50,6 +50,34 @@ export interface FamilyConformanceProfile {
  * particular test.
  */
 export const FAMILY_CONFORMANCE_PROFILES: Readonly<Record<DiagramKind, FamilyConformanceProfile>> = {
+  eventmodeling: {
+    family: 'eventmodeling', citizenship: {
+      source: 'eventmodeling\ntitle Shopping cart\ntf 01 ui Shop.Cart\ntf 02 cmd Shop.AddItem { sku: Book }\ntf 03 evt Shop.ItemAdded\ntf 04 rmo Shop.CartItems ->> 03\ntf 05 ui Shop.Cart',
+      options: FAMILY_CITIZENSHIP_GALLERY_OPTIONS,
+      count: { nodes: 5, edges: 4, groups: 3 },
+      facts: ['frame 01 time ui "Shop.Cart"', 'edge 03 -> 04 explicit', 'frame 02 data " sku: Book "'],
+      visibleText: ['ItemAdded', 'CartItems', 'sku: Book'],
+      edit: { op: { kind: 'set_frame_entity', id: '02', entity: 'Shop.AddBook' }, beforeFacts: ['frame 02 time command "Shop.AddItem"'], afterFacts: ['frame 02 time command "Shop.AddBook"'] },
+      assertDomain: (_diagram, layout) => { expect(layout.edges.map(edge => [edge.from, edge.to])).toEqual([['01', '02'], ['02', '03'], ['03', '04'], ['04', '05']]); expect(layout.groups.find(group => group.id === 'lane:Shop · UI / Automation')?.members).toEqual(['01', '05']) },
+    },
+    // Lane borders use the shared line paint; frame borders use automatic node ink.
+    riskFixture: 'eventmodeling-demo.mmd', riskOptions: {}, outlines: { kind: 'automatic', roles: ['node'] },
+    textStressSource: 'eventmodeling\ntitle 東京 café é 👩‍💻\ntf 01 ui Cart { שלום مرحبا 長いラベル }\ntf 02 cmd Add { café 東京 }',
+  },
+  zenuml: {
+    family: 'zenuml', citizenship: {
+      source: 'zenuml\ntitle Checkout\n@Actor User\nUser->API.checkout() {\n Store.reserve() {\n  return reservation\n }\n return confirmation\n}',
+      options: FAMILY_CITIZENSHIP_GALLERY_OPTIONS,
+      count: { nodes: 3, edges: 4, groups: 0 },
+      facts: ['edge User -> API : checkout()', 'edge API -> Store : reserve()', 'edge Store -> API : reservation', 'edge API -> User : confirmation'],
+      visibleText: ['API', 'Store', 'reserve()', 'confirmation'],
+      edit: { op: { kind: 'set_participant_label', id: 'User', label: 'Shopper' }, beforeFacts: ['participant User actor "User"'], afterFacts: ['participant User actor "Shopper"'] },
+      assertDomain: (_diagram, layout) => expect(layout.edges.map(edge => [edge.from, edge.to])).toEqual([['User', 'API'], ['API', 'Store'], ['Store', 'API'], ['API', 'User']]),
+    },
+    riskFixture: 'zenuml-demo.mmd', riskOptions: {}, outlines: { kind: 'automatic', roles: ['actor', 'activation'] },
+    textStressSource: 'zenuml\ntitle 東京 café é 👩‍💻\nA as שלום مرحبا\nB as 長いラベル\nA->B: café 東京 👩‍💻',
+  },
+
   packet: {
     family: 'packet',
     citizenship: {

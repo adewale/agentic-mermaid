@@ -1,6 +1,7 @@
 import { normalizeBrTags } from '../../src/multiline-utils.ts'
 import type { ParserObservation } from '../../src/shared/parser-observation.ts'
 import { projectNativeC4Operations, projectReferenceC4Operations } from './grammar-native-c4.ts'
+import { projectNativeDomainOperations, projectReferenceDomainOperations } from './grammar-native-domains.ts'
 import { projectNativeStableOperations, projectReferenceStableOperations } from './grammar-native-stable.ts'
 import { REFERENCE_SEQUENCE_SIGNALS as SIGNALS } from './grammar-sequence-kinds.ts'
 import type { GrammarReferenceReply } from './grammar-types.ts'
@@ -56,6 +57,8 @@ function account(result: NativeOperationProjection, kind: string, selected: bool
  * Operations are never sorted; ignored implementation-specific work is counted.
  */
 export function projectNativeOperations(family: string, events: readonly ParserObservation[]): NativeOperationProjection | undefined {
+  const domain = projectNativeDomainOperations(family, events)
+  if (domain) return domain
   if (family === 'c4') return projectNativeC4Operations(events)
   const stable = projectNativeStableOperations(family, events)
   if (stable) return stable
@@ -205,6 +208,8 @@ export function projectNativeOperations(family: string, events: readonly ParserO
  * calls. Getter snapshots, returned IR and canonical serialization are unused.
  */
 export function projectReferenceOperations(family: string, reply: GrammarReferenceReply): NativeOperationProjection | undefined {
+  const domain = projectReferenceDomainOperations(family, reply)
+  if (domain) return domain
   if (family === 'c4') return projectReferenceC4Operations(reply)
   const stable = projectReferenceStableOperations(family, reply)
   if (stable) return stable

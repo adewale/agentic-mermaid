@@ -16,9 +16,11 @@ describe('am capabilities', () => {
     expect(Array.isArray(cap.families)).toBe(true)
     expect(Array.isArray(cap.warningCodes)).toBe(true)
     expect(cap.outputFormats).toEqual([...CLI_RENDER_FORMATS])
-    // Six additional native families publish their actual schemas and examples.
-    // Keep discovery below 96 KiB; imported corpora never belong in this payload.
-    expect(Buffer.byteLength(JSON.stringify(cap), 'utf8')).toBeLessThan(96 * 1024)
+    // All 25 native families publish their actual schemas and examples.
+    // Event Modeling and ZenUML add 9,358 bytes including list separators;
+    // the combined PR536/535 discovery payload measures 98,909 bytes.
+    // Keep discovery below 100 KiB; imported corpora never belong here.
+    expect(Buffer.byteLength(JSON.stringify(cap), 'utf8')).toBeLessThan(100 * 1024)
   })
 
   it('includes every registered family in the families list', () => {

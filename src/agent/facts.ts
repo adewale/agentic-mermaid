@@ -1,3 +1,4 @@
+import { nativeDomainFacts } from './native-domain-readback.ts'
 import { stableFamilyFacts } from './stable-family-adapters.ts'
 
 // ============================================================================
@@ -169,6 +170,9 @@ export function describeMermaidFacts(d: ParsedDiagram): string[] {
       d.body.links.forEach((link, i) => add(out, `link#${i} ${clean(link.source)} -> ${clean(link.target)} : ${link.value}`))
       break
     }
+    case 'eventmodeling':
+    case 'zenuml':
+      out.push(...nativeDomainFacts(d.body)); break
     case 'packet':
     case 'kanban':
     case 'requirement':

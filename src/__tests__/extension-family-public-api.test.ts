@@ -98,37 +98,44 @@ describe('registered family public layout and verify APIs', () => {
       expect(() => registerFamily(descriptorWithId(id, header))).toThrow(/reserved by the core family\/preservation envelope/)
     }
 
+    for (const family of ['zenuml', 'eventmodeling'] as const) {
+      const nativeAlias = extensionDescriptor(`native-alias-${family}`, `nativeAlias${family}`)
+      expect(() => registerFamily({ ...nativeAlias, aliases: [family] })).toThrow(`Family header "${family}" is already owned by "${family}"`)
+      expect(detectRegisteredFamilyFromFirstLine(family)).toBe(family)
+      expect(detectRegisteredFamilyFromFirstLine(family, 'loose')).toBe(family)
+    }
+
     const alias = extensionDescriptor('upstream-alias', 'upstreamAliasDiagram')
     expect(() =>
       registerFamily({
         ...alias,
-        aliases: ['zenuml'],
-        detect: line => line === 'upstreamaliasdiagram' || line === 'zenuml',
+        aliases: ['venn-beta'],
+        detect: line => line === 'upstreamaliasdiagram' || line === 'venn-beta',
       }),
-    ).toThrow(/alias "zenuml" is an upstream public header/)
+    ).toThrow(/alias "venn-beta" is an upstream public header/)
 
     const hiddenStrict = extensionDescriptor('hidden-strict', 'hiddenStrictDiagram')
     const unregisterStrict = registerFamily({
       ...hiddenStrict,
-      detect: line => line === 'hiddenstrictdiagram' || line === 'zenuml',
+      detect: line => line === 'hiddenstrictdiagram' || line === 'venn-beta',
     })
-    expect(detectRegisteredFamilyFromFirstLine('zenuml')).toBeNull()
+    expect(detectRegisteredFamilyFromFirstLine('venn-beta')).toBeNull()
     unregisterStrict()
 
     const hiddenLoose = extensionDescriptor('hidden-loose', 'hiddenLooseDiagram')
     const unregisterLoose = registerFamily({
       ...hiddenLoose,
-      detectLoose: line => line === 'hiddenloosediagram' || line === 'eventmodeling',
+      detectLoose: line => line === 'hiddenloosediagram' || line === 'wardley-beta',
     })
-    expect(detectRegisteredFamilyFromFirstLine('eventmodeling', 'loose')).toBeNull()
+    expect(detectRegisteredFamilyFromFirstLine('wardley-beta', 'loose')).toBeNull()
     unregisterLoose()
 
-    const multiFamily = extensionDescriptor('multi-upstream', 'zenuml')
+    const multiFamily = extensionDescriptor('multi-upstream', 'venn-beta')
     expect(() =>
       registerFamily({
         ...multiFamily,
-        headers: ['zenuml', 'eventmodeling'],
-        detect: line => line === 'zenuml' || line === 'eventmodeling',
+        headers: ['venn-beta', 'wardley-beta'],
+        detect: line => line === 'venn-beta' || line === 'wardley-beta',
       }),
     ).toThrow(/cannot claim upstream headers from multiple Mermaid families/)
   })

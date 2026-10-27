@@ -11,6 +11,8 @@ import {
   asBlock,
   asTreemap,
   asIshikawa,
+  asEventModeling,
+  asZenUml,
   asC4,
   asClass,
   asEr,
@@ -80,6 +82,9 @@ function promptTask(task: string, context: string, source?: string): string {
 }
 
 const C4_CACHE_INPUT = 'C4Container\nSystem_Boundary(platform, "Platform") {\n  Container(api, "API", "TypeScript", "Serves requests")\n  ContainerDb(db, "DB", "PostgreSQL", "Stores records")\n}\nRel(api, db, "Reads", "SQL")'
+
+const EVENT_MODEL_INPUT = 'eventmodeling\ntf 1 ui Shop.Cart\ntf 2 cmd Shop.AddItem ->> 1 { sku: Book }'
+const ZEN_UML_INPUT = 'zenuml\nInventory\nClient->Shop.checkout() {\n  Payment.charge()\n  return receipt\n}'
 
 export const DEFAULT_CASES: AgentUsageEvalCase[] = [
   {
@@ -562,6 +567,42 @@ export const DEFAULT_CASES: AgentUsageEvalCase[] = [
       return { source: mermaid.serializeMermaid(r1.value) }
     `,
   },
+  {
+    id: 'eventmodeling_add_item_event',
+    family: 'eventmodeling',
+    prompt: promptTask('Append event frame 3 for Shop.ItemAdded, with explicit source frame 2, using structured mutation, verify, then serialize.', 'Keep UI frame 1 for Shop.Cart and command frame 2 for Shop.AddItem, its explicit source 1 and sku: Book payload.', EVENT_MODEL_INPUT),
+    input: EVENT_MODEL_INPUT,
+    script: `
+      const parsed = mermaid.parseRegisteredMermaid(${JSON.stringify(EVENT_MODEL_INPUT)})
+      if (!parsed.ok) return { error: 'parse' }
+      const model = mermaid.asEventModeling(parsed.value)
+      if (!model) return { error: 'not-eventmodeling' }
+      const changed = mermaid.mutate(model, { kind: 'add_frame', id: '3', entityType: 'event', entity: 'Shop.ItemAdded', sources: ['2'] })
+      if (!changed.ok) return { error: changed.error }
+      const verify = mermaid.verifyMermaid(changed.value)
+      if (!verify.ok) return { error: 'verify', warnings: verify.warnings }
+      return { source: mermaid.serializeMermaid(changed.value) }
+    `,
+  },
+  {
+    id: 'zenuml_add_nested_reservation',
+    family: 'zenuml',
+    prompt: promptTask('Insert Inventory.reserve() before Payment.charge() inside Shop.checkout using structured mutation, verify, then serialize.', 'Keep the Client caller, Shop.checkout scope, Payment.charge() and final return receipt. Inventory is already declared; do not add a top-level call.', ZEN_UML_INPUT),
+    input: ZEN_UML_INPUT,
+    script: `
+      const parsed = mermaid.parseRegisteredMermaid(${JSON.stringify(ZEN_UML_INPUT)})
+      if (!parsed.ok) return { error: 'parse' }
+      const model = mermaid.asZenUml(parsed.value)
+      if (!model) return { error: 'not-zenuml' }
+      const call = model.body.statements.find(statement => statement.kind === 'message' && statement.to === 'Shop')
+      if (!call) return { error: 'missing-checkout' }
+      const changed = mermaid.mutate(model, { kind: 'add_call', to: 'Inventory', method: 'reserve()', parentId: call.id, index: 0 })
+      if (!changed.ok) return { error: changed.error }
+      const verify = mermaid.verifyMermaid(changed.value)
+      if (!verify.ok) return { error: 'verify', warnings: verify.warnings }
+      return { source: mermaid.serializeMermaid(changed.value) }
+    `,
+  },
 ]
 
 // Knowledge-proof cases: the correct output depends on facts only the
@@ -747,6 +788,18 @@ export const CREATE_CASES: AgentUsageEvalCase[] = [
     'A fishbone with effect Slow release; Process has Manual checks, and Tooling has Slow builds and Cold caches.',
     'ishikawa\nSlow release\nProcess\n  Manual checks\nTooling\n  Slow builds\n  Cold caches',
   ),
+  authorCase(
+    'author_eventmodeling_source', 'eventmodeling',
+    'Create a new Event Modeling diagram as source, parse it, verify it, then return the source.',
+    'A shopping flow: UI frame 1 Shop.Cart; command frame 2 Shop.AddItem with explicit source 1 and payload sku: Book; event frame 3 Shop.ItemAdded with explicit source 2.',
+    EVENT_MODEL_INPUT + '\ntf 3 evt Shop.ItemAdded ->> 2',
+  ),
+  authorCase(
+    'author_zenuml_source', 'zenuml',
+    'Create a new ZenUML diagram as source, parse it, verify it, then return the source.',
+    'Client calls Shop.checkout(); inside that call Shop invokes Inventory.reserve(), then Payment.charge(), then returns receipt to Client. All calls are synchronous.',
+    'zenuml\nInventory\nClient->Shop.checkout() {\n  Inventory.reserve()\n  Payment.charge()\n  return receipt\n}',
+  ),
 ]
 
 /** The live-model suite: exactly one create and one mutate case per family. */
@@ -856,6 +909,8 @@ const STRUCTURED_CASES = new Set([
   'block_rename_database',
   'treemap_update_design_value',
   'ishikawa_add_cache_cause',
+  'eventmodeling_add_item_event',
+  'zenuml_add_nested_reservation',
 ])
 
 type MutableFamily = Extract<SdkCall, { verb: 'narrow' }>['family']
@@ -968,6 +1023,8 @@ function checkTrace(id: string, input: string | undefined, trace: SdkCall[]): bo
   if (id === 'block_rename_database') return checkMutationTrace(id, input, 'block', trace) && hasMutationOps(trace, input, ['rename_block'])
   if (id === 'treemap_update_design_value') return checkMutationTrace(id, input, 'treemap', trace) && hasMutationOps(trace, input, ['set_value'])
   if (id === 'ishikawa_add_cache_cause') return checkMutationTrace(id, input, 'ishikawa', trace) && hasMutationOps(trace, input, ['add_cause'])
+  if (id === 'eventmodeling_add_item_event') return checkMutationTrace(id, input, 'eventmodeling', trace) && hasMutationOps(trace, input, ['add_frame'])
+  if (id === 'zenuml_add_nested_reservation') return checkMutationTrace(id, input, 'zenuml', trace) && hasMutationOps(trace, input, ['add_call'])
   return false
 }
 
@@ -1137,6 +1194,22 @@ function ishikawaGoal(source: string): boolean {
     tooling = nodes?.find(n => n.label === 'Tooling' && n.parentId === effect?.id)
   return Boolean(nodes?.length === 6 && effect && process && tooling && nodes.some(n => n.label === 'Manual checks' && n.parentId === process.id) && ['Slow builds', 'Cold caches'].every(label => nodes.some(n => n.label === label && n.parentId === tooling.id)))
 }
+function eventModelingGoal(source: string): boolean {
+  const body = narrow(source, asEventModeling)?.body
+  return Boolean(body?.frames.length === 3 && body.frames.every((frame, index) =>
+    frame.id === String(index + 1) && frame.entity === ['Shop.Cart', 'Shop.AddItem', 'Shop.ItemAdded'][index]
+    && frame.entityType === ['ui', 'command', 'event'][index] && !frame.reset
+    && frame.sources.join(',') === ['', '1', '2'][index])
+    && body.frames[1]?.data?.text.trim() === 'sku: Book')
+}
+function zenUmlGoal(source: string): boolean {
+  const body = narrow(source, asZenUml)?.body, call = body?.statements[0]
+  if (body?.statements.length !== 1 || call?.kind !== 'message' || call.from !== 'Client' || call.to !== 'Shop' || call.text !== 'checkout()' || call.mode !== 'sync' || call.children.length !== 3) return false
+  const [reserve, charge, reply] = call.children
+  return Boolean(reserve?.kind === 'message' && reserve.to === 'Inventory' && (reserve.from ?? 'Shop') === 'Shop' && reserve.text === 'reserve()' && reserve.mode === 'sync' && !reserve.children.length
+    && charge?.kind === 'message' && charge.to === 'Payment' && (charge.from ?? 'Shop') === 'Shop' && charge.text === 'charge()' && charge.mode === 'sync' && !charge.children.length
+    && reply?.kind === 'return' && reply.text === 'receipt')
+}
 const CREATE_ORACLES: Record<string, (source: string) => boolean> = {
   author_state_source: s => {
     const t = new Set(narrow(s, asState)?.body.transitions.map(x => `${x.from}->${x.to}`))
@@ -1212,6 +1285,8 @@ const CREATE_ORACLES: Record<string, (source: string) => boolean> = {
   author_block_source: blockGoal,
   author_treemap_source: treemapGoal,
   author_ishikawa_source: ishikawaGoal,
+  author_eventmodeling_source: eventModelingGoal,
+  author_zenuml_source: zenUmlGoal,
 }
 
 function checkTask(id: string, input: string | undefined, value: unknown, trace: SdkCall[], sourceOnly = false): boolean {
@@ -1222,6 +1297,10 @@ function checkTask(id: string, input: string | undefined, value: unknown, trace:
   }
   if (id === 'author_auth_flow_source') return checkAuthFlowSourceTask(value)
   if (id === 'author_api_sequence_source') return checkApiSequenceSourceTask(value)
+  if (id === 'eventmodeling_add_item_event' || id === 'zenuml_add_nested_reservation') {
+    const source = serializedSource(value, trace)
+    return Boolean(source && (id === 'eventmodeling_add_item_event' ? eventModelingGoal(source) : zenUmlGoal(source)))
+  }
   if (id === 'packet_add_checksum') {
     const source = serializedSource(value, trace)
     return Boolean(source && packetGoal(source))

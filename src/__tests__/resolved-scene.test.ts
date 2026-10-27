@@ -9,6 +9,37 @@ import raynerGroups from './testdata/rayner-528/architecture-groups.json'
 import { createScenePartCapture } from '../scene/part-capture.ts'
 
 describe('renderResolvedScene', () => {
+  test.each([
+    {
+      family: 'eventmodeling',
+      source: 'eventmodeling\nrf 01 ui Cart.UI\nrf 02 cmd Cart.Add { productId: 7 }\nrf 03 evt Cart.Added ->> 02',
+      edges: [['02', '03']],
+      words: ['productId: 7', 'Added'],
+    },
+    {
+      family: 'zenuml',
+      source: 'zenuml\nClient->API.checkout() {\n Inventory.reserve() { return reservation }\n return receipt\n}',
+      edges: [['Client', 'API'], ['API', 'Inventory'], ['Inventory', 'API'], ['API', 'Client']],
+      words: ['checkout()', 'reserve()', 'reservation', 'receipt'],
+    },
+  ])('resolves actual $family artwork while retaining authored endpoint and text ownership', ({ source, edges, words }) => {
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) throw new Error('Expected a native diagram')
+    for (const style of [undefined, 'hand-drawn']) {
+      const options = { ...(style ? { style } : {}), seed: 7 }
+      const resolved = renderResolvedScene(source, options)
+      expect(resolved.svg).toBe(renderMermaidSVG(source, options))
+      expect(renderResolvedScene(parsed.value, options)).toEqual(resolved)
+      expect(resolved).toEqual(JSON.parse(JSON.stringify(resolved)))
+      const nodes = resolved.parts.flatMap(part => part.node.kind === 'group' ? part.node.children.map(child => child.node) : [part.node])
+      expect(nodes.filter(node => node.kind === 'connector' && node.endpoints?.from).map(node => node.kind === 'connector' && [node.endpoints?.from, node.endpoints?.to])).toEqual(edges.map(edge => [...edge]))
+      const visible = resolved.parts.flatMap(part => part.primitives).filter(primitive => primitive.kind === 'text').map(primitive => primitive.text).join('\n')
+      for (const word of words) expect(visible).toContain(word)
+      expect(resolved.parts.some(part => part.primitives.some(primitive => primitive.kind === 'path' && primitive.marker))).toBe(true)
+    }
+  })
+
   test.each([...raynerTitles, ...raynerGroups])('keeps original Rayner $id as a resolved-scene acceptance case', ({ source, style }) => {
     const result = renderResolvedScene(source, { style })
     expect(result.svg).toBe(renderMermaidSVG(source, { style }))

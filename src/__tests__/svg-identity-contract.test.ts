@@ -37,7 +37,7 @@ function primaryNodeIdentities(family: DiagramKind, tuples: IdentityTuple[]): Id
     if (family === 'packet' || family === 'kanban' || family === 'requirement' || family === 'block' || family === 'ishikawa' || family === 'treemap') return role === 'node'
     if (family === 'c4') return role === 'node' && !id.startsWith('c4:')
     if (family === 'flowchart' || family === 'state') return role === 'node' && !id.startsWith('node-shape:')
-    if (family === 'sequence') return role === 'actor' && !id.startsWith('actor:')
+    if (family === 'sequence' || family === 'zenuml') return role === 'actor' && !id.startsWith('actor:')
     if (family === 'class') return role === 'class-box' && !id.startsWith('class:')
     if (family === 'er') return role === 'entity' && !id.startsWith('entity-')
     if (family === 'architecture') return (role === 'service' || role === 'junction') && !/^(?:service-|junction-)/.test(id)
@@ -54,7 +54,7 @@ function primaryNodeIdentities(family: DiagramKind, tuples: IdentityTuple[]): Id
 }
 function primaryGroupIdentities(family: DiagramKind, tuples: IdentityTuple[]): IdentityTuple[] {
   return tuples.filter(({ id, role }) => {
-    if (family === 'kanban' || family === 'treemap' || family === 'block') return role === 'group'
+    if (family === 'kanban' || family === 'treemap' || family === 'block' || family === 'eventmodeling') return role === 'group'
     if (family === 'c4') return role === 'group' && !id.startsWith('c4:')
     if (family === 'flowchart' || family === 'state') return role === 'group' && !id.startsWith('group-')
     if (family === 'class') return role === 'group' && !id.startsWith('namespace-')
@@ -79,7 +79,7 @@ function expectedNodePairs(family: DiagramKind, layout: ReturnType<typeof layout
   if (family === 'radar') return sortedPairs(layout.nodes.filter(node => node.role === 'mark' && node.id.startsWith('dot:')).map(node => ({ id: node.id, role: 'point' })))
   return sortedPairs(
     layout.nodes.map((node, index) => {
-      if (family === 'sequence') return { id: node.id, role: 'actor' }
+      if (family === 'sequence' || family === 'zenuml') return { id: node.id, role: 'actor' }
       if (family === 'class') return { id: node.id, role: 'class-box' }
       if (family === 'er') return { id: node.id, role: 'entity' }
       if (family === 'architecture') return { id: node.id, role: node.role === 'mark' ? 'junction' : 'service' }

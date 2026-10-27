@@ -1,3 +1,7 @@
+import type { EventModelingBody, EventModelingMutationOp } from '../eventmodeling/types.ts'
+import type { ZenUmlBody, ZenUmlMutationOp } from '../zenuml/types.ts'
+export type { EventModelingBody, EventModelingMutationOp } from '../eventmodeling/types.ts'
+export type { ZenUmlBody, ZenUmlMutationOp } from '../zenuml/types.ts'
 import type { C4Body, C4MutationOp } from '../c4/types.ts'
 import type { LabelContent } from '../shared/display-text.ts'
 
@@ -45,7 +49,7 @@ export function err<E, T = never>(error: E): Result<T, E> {
 
 // ---- Families -------------------------------------------------------------
 
-export type DiagramKind = 'flowchart' | 'state' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart' | 'architecture' | 'pie' | 'quadrant' | 'gantt' | 'mindmap' | 'gitgraph' | 'radar' | 'sankey' | 'c4' | 'packet' | 'kanban' | 'requirement' | 'treemap' | 'ishikawa' | 'block'
+export type DiagramKind = 'flowchart' | 'state' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart' | 'architecture' | 'pie' | 'quadrant' | 'gantt' | 'mindmap' | 'gitgraph' | 'radar' | 'sankey' | 'c4' | 'packet' | 'kanban' | 'requirement' | 'treemap' | 'ishikawa' | 'block' | 'eventmodeling' | 'zenuml'
 
 /** Runtime extensions are open but must pass the registry's namespace validator. */
 export type ExternalFamilyId = `family:${string}`
@@ -946,6 +950,8 @@ export type DiagramBody =
   | TreemapBody
   | IshikawaBody
   | BlockBody
+  | EventModelingBody
+  | ZenUmlBody
   /**
    * Opaque body — the parser understood the family header but encountered
    * unmodeled syntax. `source` is the ORIGINAL body with indentation, blank
@@ -1084,6 +1090,8 @@ export type RequirementValidDiagram = ValidDiagram & { body: RequirementBody }
 export type TreemapValidDiagram = ValidDiagram & { body: TreemapBody }
 export type IshikawaValidDiagram = ValidDiagram & { body: IshikawaBody }
 export type BlockValidDiagram = ValidDiagram & { body: BlockBody }
+export type EventModelingValidDiagram = ValidDiagram & { body: EventModelingBody }
+export type ZenUmlValidDiagram = ValidDiagram & { body: ZenUmlBody }
 export type MutableValidDiagram =
   | FlowchartValidDiagram
   | StateValidDiagram
@@ -1108,6 +1116,11 @@ export type MutableValidDiagram =
   | TreemapValidDiagram
   | IshikawaValidDiagram
   | BlockValidDiagram
+  | EventModelingValidDiagram
+  | ZenUmlValidDiagram
+
+export function asEventModeling(d: ParsedDiagram): EventModelingValidDiagram | null { return d.body.kind === 'eventmodeling' ? d as EventModelingValidDiagram : null }
+export function asZenUml(d: ParsedDiagram): ZenUmlValidDiagram | null { return d.body.kind === 'zenuml' ? d as ZenUmlValidDiagram : null }
 
 export function asPacket(d: ParsedDiagram): PacketValidDiagram | null {
   return d.body.kind === 'packet' ? (d as PacketValidDiagram) : null
@@ -1582,6 +1595,8 @@ export type AnyMutationOp =
   | TreemapMutationOp
   | IshikawaMutationOp
   | BlockMutationOp
+  | EventModelingMutationOp
+  | ZenUmlMutationOp
 
 // ---- Branded Finite -------------------------------------------------------
 
@@ -1989,6 +2004,8 @@ export interface ValidDiagramPayload {
     | TreemapBody
     | IshikawaBody
     | BlockBody
+    | EventModelingBody
+    | ZenUmlBody
     | ExtensionDiagramBody
     | { kind: 'opaque'; family: DiagramKind; source: string; diagnostic?: { code: 'GITGRAPH_DUPLICATE_COMMIT_ID'; id: string } }
 }

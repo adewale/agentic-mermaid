@@ -11,8 +11,8 @@ const referenceDir = resolve(process.argv[2]);
 const upstreamDir = resolve(process.argv[3]);
 const requireReference = createRequire(join(referenceDir, 'package.json'));
 const { JSDOM } = requireReference('jsdom');
-const dom = new JSDOM('<!doctype html><html><body></body></html>');
-for (const key of ['window', 'document', 'navigator', 'HTMLElement', 'SVGElement', 'Element', 'Node', 'Option']) {
+const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'https://reference.invalid' });
+for (const key of ['window', 'document', 'location', 'localStorage', 'navigator', 'HTMLElement', 'SVGElement', 'Element', 'Node', 'Option']) {
   Object.defineProperty(globalThis, key, { configurable: true, value: dom.window[key] });
 }
 console.log = console.info = console.debug = console.warn = console.error = () => {};
@@ -54,8 +54,12 @@ export { getDiagram };
 `;
 const runtime = await import(`data:text/javascript;base64,${Buffer.from(releaseSource).toString('base64')}`);
 const mermaid = runtime.default;
+const { default: zenAddon } = await import(import.meta.resolve('@mermaid-js/mermaid-zenuml', pathToFileURL(join(referenceDir, 'package.json')).href));
+await mermaid.registerExternalDiagrams([zenAddon]);
 mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', logLevel: 'fatal' });
 const langium = await import(import.meta.resolve('@mermaid-js/parser', coreUrl));
+import { loadZenReference } from './reference-zenuml.mjs';
+const zen = await loadZenReference(referenceDir);
 
 function plain(value, seen = new Set(), depth = 0) {
   if (typeof value === 'function' || value === undefined) return undefined;
@@ -191,12 +195,17 @@ async function prepare(family, source) {
   await mermaid.parse(source);
   const diagram = await mermaid.mermaidAPI.getDiagramFromText(source);
   const value = await definition(diagram.type, diagram.parser);
-  const { engine, grammarSources } = value;
+  if (family === 'zenuml') {
+    zen.parse(source);
+    value.engine = 'antlr';
+    value.grammarSources = ['packages/mermaid-zenuml/src/parser.ts', '@zenuml/core@3.49.2:ANTLR sequenceParser'];
+  }
   prepared.set(family, value);
+  const { engine, grammarSources } = value;
   return {
     family, type: value.type, engine, grammarSources,
     tokenInstrumentation: engine === 'jison' ? 'actual parse lexer.lex stream' : engine === 'langium' ? 'same upstream Langium Lexer.tokenize on prepared input (separate syntax pass)' : engine === 'chevrotain' ? 'pinned upstream Chevrotain lexer on prepared input (separate syntax pass)' : 'unavailable: no exposed reference lexer',
-    actionInstrumentation: engine === 'jison' ? 'actual grammar yy method calls with original return values' : 'actual Mermaid model-population DB method calls; includes internal builder calls',
+    actionInstrumentation: engine === 'antlr' ? 'actual pinned ZenUML ANTLR statement-rule commits before context release' : engine === 'jison' ? 'actual grammar yy method calls with original return values' : 'actual Mermaid model-population DB method calls; includes internal builder calls',
     astInstrumentation: engine === 'langium' ? 'same upstream LangiumParser AST on prepared input (separate syntax pass)' : engine === 'chevrotain' ? 'actual Mermaid DB getAST plus pinned upstream CST parser' : 'unavailable: Jison grammars expose model actions, not a common AST',
   };
 }
@@ -338,6 +347,14 @@ async function parse({ family, source, unobserved = false }) {
     ast: unavailable(reference.engine === 'jison' ? 'Jison parser has a yy action interface, not a common AST' : 'No accepted AST observed'),
   };
   try {
+    if (family === 'zenuml') {
+      const result = zen.parse(source, !unobserved);
+      reply.accepted = true;
+      reply.preparedSource = source.replace(/^\s*zenuml\b/, '');
+      reply.snapshot = { data: { getZenModel: result.model }, errors: {} };
+      if (!unobserved) reply.actions = available('actual pinned ZenUML ANTLR exitRule calls; completed statement operands copied before context release', result.actions);
+      return reply;
+    }
     const diagram = await runtime.parseSelectedGrammar(reference.type, source, unobserved ? undefined : async (type, parser, db, input, run) => {
       const selected = await definition(type, parser);
       reply.type = type;
@@ -354,6 +371,10 @@ async function parse({ family, source, unobserved = false }) {
     reply.type = diagram.type;
     reply.accepted = true;
     reply.snapshot = snapshot(diagram.db);
+    // The actual language-service parser supplies semantic data without DOM
+    // measurement. Populate this result view with and without observation so
+    // an instrumentation control cannot differ merely because hooks ran.
+    if (family === 'eventmodeling') reply.snapshot.data.getEventModel = plain(await langium.parse('eventmodeling', source));
   } catch (error) { reply.error = String(error?.message ?? error).slice(0, 3000); }
   return reply;
 }

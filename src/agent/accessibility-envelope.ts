@@ -142,6 +142,8 @@ export function accessibilityFromBody(body: DiagramBody): Accessibility | undefi
     case 'treemap':
     case 'ishikawa':
     case 'block':
+    case 'eventmodeling':
+    case 'zenuml':
       return {
         ...(body.accessibilityTitle !== undefined ? { title: body.accessibilityTitle } : {}),
         ...(body.accessibilityDescription !== undefined ? { descr: body.accessibilityDescription } : {}),
@@ -170,6 +172,8 @@ export function attachAccessibilityToBody(body: DiagramBody, accessibility: Acce
     case 'treemap':
     case 'ishikawa':
     case 'block':
+    case 'eventmodeling':
+    case 'zenuml':
       if (accessibility.title !== undefined) body.accessibilityTitle = accessibility.title
       if (accessibility.descr !== undefined) body.accessibilityDescription = accessibility.descr
       break

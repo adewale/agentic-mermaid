@@ -447,6 +447,8 @@ function renderRichExampleSvg(sample: any, id: string, request = richExampleRend
 // Examples page carries the agentic narrative — prompt, trace, render, deep
 // link — rather than a bare source dump. Keyed by family id.
 const FAMILY_AGENT_TASK: Record<BuiltinFamilyId, { prompt: string; trace: string }> = {
+  eventmodeling: { prompt: 'Change a command entity while retaining frame identity, namespace and explicit sources.', trace: 'asEventModeling · mutate(set_frame_entity) · verify · serialize' },
+  zenuml: { prompt: 'Rename a participant without redirecting nested calls or returns.', trace: 'asZenUml · mutate(rename_participant) · verify · serialize' },
   flowchart: { prompt: 'Add a labeled failure branch and verify that every decision exit is named.', trace: 'asFlowchart · mutate(add_edge/set_label) · verify' },
   state: { prompt: 'Add a retry transition from Failed back to Idle, then verify before returning source.', trace: 'asState · mutate(add_transition) · verify' },
   sequence: { prompt: 'Insert the verification call before export and keep participant order stable.', trace: 'asSequence · mutate(add_message) · verify' },
@@ -489,6 +491,8 @@ function exampleFamilyDescription(familyId: string, fallback: string) {
 }
 
 const STYLE_THEME_PAIR_BY_FAMILY: Record<BuiltinFamilyId, { look: string; theme: string; seed: number }> = {
+  eventmodeling: { look: 'ops-schematic', theme: 'github-light', seed: 0 },
+  zenuml: { look: 'publication-figure', theme: 'github-light', seed: 0 },
   flowchart: { look: 'watercolor', theme: 'paper', seed: 4 },
   state: { look: 'chalkboard', theme: 'dusk', seed: 2 },
   architecture: { look: 'blueprint', theme: 'nord', seed: 1 },

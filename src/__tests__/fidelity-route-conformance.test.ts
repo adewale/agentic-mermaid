@@ -19,7 +19,7 @@ const OPTIONS = Object.freeze({
 // A trimmed edge label, an unknown XYChart statement, and an unsupported family.
 const NATIVE_SOURCE = 'flowchart TD\n  A -->|" a "| B\n'
 const XYCHART_UNKNOWN_STATEMENT_SOURCE = 'xychart-beta\n  bar [1, 2]\n  frob official-data-lost\n'
-const UNSUPPORTED_FAMILY_SOURCE = 'eventmodeling\n  preserved experimental payload'
+const UNSUPPORTED_FAMILY_SOURCE = 'venn-beta\n  preserved experimental payload'
 const ALTERNATE_OPTIONS = Object.freeze({
   security: 'strict' as const,
   padding: 31,

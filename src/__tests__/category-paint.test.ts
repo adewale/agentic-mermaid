@@ -22,6 +22,8 @@ type ColorPolicy = { readonly mark: (node: ColorMark) => boolean; readonly expla
 // cardinalities and sequence participants are identified by geometry and text.
 // These policies specify which marks actually use hue to identify peers.
 const CATEGORY_COLORS: Record<DiagramKind, ColorPolicy> = {
+  eventmodeling: { explanation: 'frame types and namespace bands are labeled explicitly' },
+  zenuml: { explanation: 'participant identity uses names and lifeline position' },
   pie: { mark: n => n.role === 'pie-slice' || n.role === 'legend', explanation: 'slice fills and keyed legend swatches' },
   radar: { mark: n => n.role === 'point' || n.role === 'legend', explanation: 'opaque vertex dots and keyed legend swatches; overlapping area washes are secondary' },
   xychart: { mark: n => n.role === 'bar' || n.role === 'series' || n.role === 'point' || n.role === 'legend', explanation: 'bar fills, line strokes, point dots and keyed legend samples' },

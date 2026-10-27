@@ -87,6 +87,18 @@ const stableRepresentativeCues = {
 const ownershipGoldenIds = new Set(['corpus/flowchart/94', 'corpus/flowchart/95', 'corpus/flowchart/96', 'corpus/flowchart/98', 'corpus/state/0', 'corpus/state/1', 'corpus/state/8', 'corpus/state/14', 'corpus/state/16', 'corpus/state/17', 'corpus/state/18', 'corpus/state/19'])
 const fixtures: Fixture[] = [
   {
+    id: 'native-eventmodeling', title: 'Native Event Modeling retains reset, data and namespace ownership',
+    source: 'eventmodeling\ntitle Order lifecycle\ntf 01 ui Shop.Cart\ntf 02 cmd Shop.AddItem { sku: Book }\ntf 03 evt Shop.ItemAdded\nrf 04 evt Inventory.StockChanged\ntf 05 rmo Shop.CartItems ->> 03 ->> 04\ntf 06 ui Shop.Cart',
+    captureLayout: true,
+    cue: 'Before: preserve the real unsupported-family error. After: inspect all six frame IDs, the complete sku payload, namespace lane re-entry, and two explicit incoming sources for frame 05. Reset frame 04 has no inferred predecessor. Compare owned frame IDs, lane parents and connector endpoints in the layout sidecar. These are Agentic geometry and typography, not Mermaid pixel matching.',
+  },
+  {
+    id: 'native-zenuml', title: 'Native ZenUML retains nested calls, alternatives and directed replies',
+    source: 'zenuml\ntitle Checkout\n@Actor Customer\nCustomer->Shop.checkout() {\n Inventory.reserve() {\n  if(available) {\n   return reservation\n  } else {\n   return unavailable\n  }\n }\n Shop->Customer: status\n return confirmation\n}',
+    captureLayout: true,
+    cue: 'Before: preserve the real unsupported-family error. After: inspect the Customer actor, Shop and Inventory lifelines, nested activation ownership, the two conditional branches and replies returning to the actual caller. Async status uses an open head; synchronous calls use filled heads. Inspect model/route sidecars alongside the PNG. No external renderer or DOM backend is used; this finite case does not certify all ZenUML extensions.',
+  },
+  {
     id: 'architecture-alignment-components',
     title: 'Architecture Output row retains its authored alignment',
     source: collectSamples().find(sample => sample.id === 'corpus/architecture/3')!.source,

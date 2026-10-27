@@ -1,0 +1,14 @@
+zenuml
+title Checkout with recovery
+@Actor Customer
+Customer->Shop.checkout() {
+  Inventory.reserve()
+  try {
+    Payment.charge()
+  } catch {
+    Inventory.release()
+  } finally {
+    Shop->Customer: status
+  }
+  return confirmation
+}
