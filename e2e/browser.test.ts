@@ -14,14 +14,43 @@
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import { join } from 'path'
 import { deflateRawSync, gzipSync } from 'node:zlib'
+import { deserialize } from 'node:v8'
 import { chromium, type Browser, type BrowserContext, type CDPSession, type Page } from 'playwright'
 import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
-import { renderMermaidSVG, renderMermaidSVGWithReceipt, renderMermaidASCIIWithReceipt, knownStyleDescriptors, inferBackend } from '../src/index.ts'
+import { renderMermaidSVG, renderMermaidASCIIWithReceipt, knownStyleDescriptors, inferBackend, type RenderOptions } from '../src/index.ts'
+import type { PreviewArtifact } from '../src/browser-editor-protocol.ts'
+import { useTestChildren } from '../src/__tests__/helpers/test-child.ts'
 import { serveWithAvailablePort } from './test-port.ts'
 import { PIE_ENTITY_FIXTURES } from '../src/__tests__/helpers/pie-entity-fixtures.ts'
 import { resolveSvgScene } from '../src/scene/resolve-svg.ts'
 
 const ROOT = join(import.meta.dir, '..')
+const runSourceChild = useTestChildren(30_000)
+
+/** Match the preview operation in a fresh production realm. The test preload
+ * intentionally forces Scene assertions in this parent; changing its env now
+ * cannot undo assertion modules that have already been imported. */
+async function sourcePreviews(examples: readonly { source: string; options: RenderOptions }[]): Promise<Pick<PreviewArtifact, 'svg' | 'receipt' | 'verification'>[]> {
+  const child = await runSourceChild(process.execPath, ['--eval', `
+    const { serialize } = await import('node:v8')
+    await import('./src/index.ts')
+    const { renderAndVerifyMermaid } = await import('./src/agent/verify.ts')
+    const examples = JSON.parse(await Bun.stdin.text())
+    const results = examples.map(({ source, options }) => {
+      const result = renderAndVerifyMermaid(source, { ...options, security: 'strict', embedFontImport: false })
+      return { svg: result.svg, receipt: result.receipt, verification: {
+        ok: result.verification.ok, warnings: result.verification.warnings, checks: result.verification.checks,
+      } }
+    })
+    process.stdout.write(serialize(results).toString('base64'))
+  `], { cwd: ROOT, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' }, input: JSON.stringify(examples) })
+  expect(child.status, child.stderr).toBe(0)
+  expect(child.signal).toBeNull()
+  // Preserve optional undefined fields as well as every receipt value. JSON
+  // transport would silently discard those fields before the equality check.
+  return deserialize(Buffer.from(child.stdout, 'base64'))
+}
+
 const PREFERRED_PORT = 4567
 let BASE = ''
 const SCREENSHOT_DIR = join(ROOT, 'e2e', 'screenshots')
@@ -426,20 +455,30 @@ it('standalone editor renders and verifies with one persistent Blob worker', asy
     expect(preview.fallback).toMatchObject({ requested: 'agentic', selected: 'elk', fallback: 'elk' })
     // The self-contained module has its own compression path. Exercise every
     // registered family through that emitted worker against the source renderer.
+    const styles = [undefined, 'hand-drawn', 'watercolor'] as const
+    const examples = BUILTIN_FAMILY_METADATA.flatMap(family => styles.map(style => ({
+      id: family.id, source: family.example, options: { security: 'strict' as const, embedFontImport: false, ...(style ? { style } : {}) },
+    })))
     const parity = await standalone.evaluate(async examples => {
       const results = []
       for (const example of examples) {
         const artifact = await (globalThis as any).__mermaid.renderMermaidSVGWithReceipt(example.source, example.options)
-        results.push({ id: example.id, style: example.options.style, svg: artifact.svg, receipt: artifact.receipt })
+        results.push({ id: example.id, style: example.options.style, svg: artifact.svg, receipt: artifact.receipt, verification: artifact.verification })
       }
       return results
-    }, BUILTIN_FAMILY_METADATA.flatMap(family => [undefined, 'hand-drawn', 'watercolor'].map(style => ({
-      id: family.id, source: family.example, options: { security: 'strict' as const, embedFontImport: false, ...(style ? { style } : {}) },
-    }))))
-    expect(parity).toEqual(BUILTIN_FAMILY_METADATA.flatMap(family => [undefined, 'hand-drawn', 'watercolor'].map(style => {
-      const expected = renderMermaidSVGWithReceipt(family.example, { security: 'strict', embedFontImport: false, ...(style ? { style } : {}) })
-      return { id: family.id, style, svg: expected.svg, receipt: expected.receipt }
-    })))
+    }, examples)
+    // One family's styles fit the existing child's bounded output buffer.
+    // Every family remains enrolled; only process boundaries differ.
+    const expected: Awaited<ReturnType<typeof sourcePreviews>> = []
+    for (let offset = 0; offset < examples.length; offset += styles.length) expected.push(...await sourcePreviews(examples.slice(offset, offset + styles.length)))
+    expect(parity.map(result => [result.id, result.style])).toEqual(examples.map(example => [example.id, example.options.style]))
+    expect(parity).toHaveLength(expected.length)
+    for (let index = 0; index < expected.length; index++) {
+      const label = `${examples[index]!.id}, ${examples[index]!.options.style ?? 'default'}`
+      expect(parity[index]!.svg, label).toBe(expected[index]!.svg)
+      expect(parity[index]!.receipt, label).toEqual(expected[index]!.receipt)
+      expect(parity[index]!.verification, label).toEqual(expected[index]!.verification)
+    }
     await standalone.locator('#code-editor').fill('flowchart LR\nSecond --> Verified')
     await standalone.waitForFunction(() => document.getElementById('preview-inner')?.textContent?.includes('Second') && document.getElementById('status-text')?.textContent === 'OK')
     expect(standalone.workers()).toEqual([worker])
@@ -501,9 +540,10 @@ it('standalone editor renders and verifies with one persistent Blob worker', asy
           ascii: await api.renderMermaidASCIIWithReceipt(source, { colorMode: 'none' }),
         }
       }, family.example)
-      const expected = renderMermaidSVGWithReceipt(family.example, { security: 'strict', embedFontImport: false })
-      expect(artifacts.svg.svg, family.id).toBe(expected.svg)
-      expect(artifacts.svg.receipt, family.id).toEqual(expected.receipt)
+      const [expected] = await sourcePreviews([{ source: family.example, options: { security: 'strict', embedFontImport: false } }])
+      expect(artifacts.svg.svg, family.id).toBe(expected!.svg)
+      expect(artifacts.svg.receipt, family.id).toEqual(expected!.receipt)
+      expect(artifacts.svg.verification, family.id).toEqual(expected!.verification)
       const ascii = renderMermaidASCIIWithReceipt(family.example, { colorMode: 'none', useAscii: true })
       expect(artifacts.ascii.text, family.id).toBe(ascii.text)
       expect(artifacts.ascii.receipt, family.id).toEqual(ascii.receipt)
