@@ -32,15 +32,20 @@ describe('renderResolvedScene', () => {
     expect(JSON.stringify(renderResolvedScene(source))).toBe(original)
   })
 
-  test('is synchronous, deterministic and JSON-safe without DOM globals', () => {
+  test.each([
+    { family: 'flowchart', header: 'flowchart LR', nodes: 'A[First<br/>line] --> B[Second]' },
+    { family: 'state', header: 'stateDiagram', nodes: 'state "First<br/>line" as A\n state "Second" as B\n A --> B' },
+    { family: 'state', header: 'stateDiagram-v2', nodes: 'state "First<br/>line" as A\n state "Second" as B\n A --> B' },
+  ])('keeps authored $header identity and deterministic JSON without DOM globals', ({ family, header, nodes }) => {
     expect(typeof document).toBe('undefined')
     expect(typeof DOMParser).toBe('undefined')
-    const source = 'flowchart LR\n accTitle: Graph & notes\n accDescr: A says <ready>\n A[First<br/>line] --> B[Second]'
+    const source = `${header}\n accTitle: Graph & notes\n accDescr: A says <ready>\n ${nodes}`
     const parsed = parseRegisteredMermaid(source)
-    if (!parsed.ok) throw new Error('Expected a valid flowchart')
+    if (!parsed.ok) throw new Error(`Expected a valid ${family}`)
     for (const style of [undefined, 'hand-drawn', 'excalidraw', 'pen-and-ink', 'watercolor']) {
       const options = { ...(style ? { style } : {}), seed: 7, compact: true, idPrefix: 'resolved-', font: 'Inter' }
       const result = renderResolvedScene(source, options)
+      expect(result.family).toBe(family)
       expect(result.version).toBe(RESOLVED_SCENE_VERSION)
       expect(result.svg).toBe(renderMermaidSVG(source, options))
       expect(result).toEqual(JSON.parse(JSON.stringify(result)))
