@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { flowchartMesh, flowchartSubgraphs, flowchartTree } from '../shared/graph-fixtures.ts'
+import { flowchartMesh, flowchartMultigraph, flowchartSubgraphs, flowchartTree } from '../shared/graph-fixtures.ts'
 
 export interface GeneratedFlowchartRange { start: number; count: number }
 
@@ -54,6 +54,7 @@ export function graphStressSamples(): { id: string; family: string; source: stri
     { id: 'er-40-entities', family: 'er', source: lines('erDiagram', 40,
       index => [`  E${index} {`, '    int id PK', `    string name${index}`, '  }', ...(index ? [`  E${Math.floor((index - 1) / 2)} ||--o{ E${index} : has`] : [])]) },
     { id: 'flowchart-mesh-120-labelled-40', family: 'flowchart', source: flowchartMesh(120, 40) },
+    { id: 'flowchart-multigraph-24-loops', family: 'flowchart', source: flowchartMultigraph(24) },
     { id: 'flowchart-subgraphs-12x8', family: 'flowchart', source: flowchartSubgraphs(12, 8) },
     { id: 'flowchart-tree-300', family: 'flowchart', source: flowchartTree(300) },
     { id: 'requirement-100-requirements-99-relations', family: 'requirement', source: lines('requirementDiagram', 100,
