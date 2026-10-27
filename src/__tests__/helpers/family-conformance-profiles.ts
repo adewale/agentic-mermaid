@@ -57,8 +57,8 @@ export const FAMILY_CONFORMANCE_PROFILES: Readonly<Record<DiagramKind, FamilyCon
       options: FAMILY_CITIZENSHIP_GALLERY_OPTIONS,
       count: { nodes: 4, edges: 7, groups: 1 },
       facts: ['participant Buyer : Customer', 'message Buyer -> API : checkout()', 'message API -> Buyer : ready'],
-      visibleText: ['Customer', 'checkout()', 'reserve()', 'accepted', 'rejected'],
-      edit: { op: { kind: 'rename_participant', id: 'Stock', newId: 'Inventory' }, beforeFacts: ['message API -> Stock : reserve()', 'message Stock -> API : accepted', 'message Stock -> API : rejected'], afterFacts: ['message API -> Inventory : reserve()', 'message Inventory -> API : accepted', 'message Inventory -> API : rejected'] },
+      visibleText: ['Customer', 'checkout()', 'result = reserve()', 'accepted', 'rejected'],
+      edit: { op: { kind: 'rename_participant', id: 'Stock', newId: 'Inventory' }, beforeFacts: ['message API -> Stock : result = reserve()', 'message Stock -> API : accepted', 'message Stock -> API : rejected'], afterFacts: ['message API -> Inventory : result = reserve()', 'message Inventory -> API : accepted', 'message Inventory -> API : rejected'] },
       assertDomain: (diagram, layout) => {
         if (diagram.body.kind !== 'zenuml') throw Error('Expected native ZenUML')
         expect(diagram.body.participants.slice(0, 2).map(participant => participant.id)).toEqual(['Buyer', 'API'])
