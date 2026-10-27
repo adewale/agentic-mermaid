@@ -154,47 +154,20 @@ function proper(a: Point, b: Point, c: Point, d: Point): boolean {
   if (a.x === b.x && c.y === d.y) return Math.min(a.y, b.y) < c.y && c.y < Math.max(a.y, b.y) && Math.min(c.x, d.x) < a.x && a.x < Math.max(c.x, d.x)
   return a.y === b.y && c.x === d.x && Math.min(a.x, b.x) < c.x && c.x < Math.max(a.x, b.x) && Math.min(c.y, d.y) < a.y && a.y < Math.max(c.y, d.y)
 }
-function sameRawPath(a: readonly Point[], b: readonly Point[], reverseAllowed: boolean, charge: Charge): boolean {
-  if (a.length !== b.length) return false
-  let forward = true, reverse = reverseAllowed
-  for (let i = 0; i < a.length; i++) { tick(charge); forward &&= same(a[i]!, b[i]!); reverse &&= same(a[i]!, b[b.length - i - 1]!); if (!forward && !reverse) return false }
-  return forward || reverse
-}
-function sharedStem(box: Box, a: Route, b: Route, half: number, radius: number, charge: Charge): boolean {
-  // Shared incident geometry must preserve the actual shaft pattern. Equal
-  // forward paths and source prefixes have the same SVG dash origin. Target
-  // or reversed dashed paths need a phase proof, so remain unproved here.
-  if (a.dashed !== b.dashed) return false
+/** The existing route-contact contract permits an authored common physical
+ * endpoint, not a positive collinear shared stem or whole-path reuse. */
+function sharedTerminalContact(box: Box, a: Route, b: Route, p: Piece, q: Piece, half: number, charge: Charge): boolean {
+  if (p.kind !== 'strip' || q.kind !== 'strip' || p.axis === q.axis) return false
   for (const afrom of [true, false]) for (const bfrom of [true, false]) {
     tick(charge)
+    if (p.segment !== (afrom ? 0 : a.points.length - 2) || q.segment !== (bfrom ? 0 : b.points.length - 2)) continue
     if ((afrom ? a.from : a.to) !== (bfrom ? b.from : b.to)) continue
-    const ap = (i: number) => a.points[afrom ? i : a.points.length - i - 1], bp = (i: number) => b.points[bfrom ? i : b.points.length - i - 1]
-    if (!ap(0) || !bp(0) || !same(ap(0)!, bp(0)!)) continue
-    if (sameRawPath(a.raw, b.raw, !a.dashed, charge)) return true
-    if (a.dashed && (!afrom || !bfrom)) continue
-    const start = ap(0)!, aq = ap(1), bq = bp(1)
-    if (!aq || !bq) continue
-    const ux = Math.sign(aq.x - start.x), uy = Math.sign(aq.y - start.y)
-    if (ux !== Math.sign(bq.x - start.x) || uy !== Math.sign(bq.y - start.y)) continue
-    const extent = (point: (i: number) => Point | undefined, route: Route, from: boolean): number => {
-      let length = 0
-      for (let i = 1; i < route.points.length; i++) {
-        tick(charge)
-        const p = point(i)!, prev = point(i - 1)!
-        if (Math.sign(p.x - prev.x) !== ux || Math.sign(p.y - prev.y) !== uy) break
-        length += Math.abs(p.x - prev.x) + Math.abs(p.y - prev.y)
-        if (radius > 0 && route.raw.length > 2) {
-          const terminal = route.raw[from ? 0 : route.raw.length - 1]!, vertex = route.raw[from ? 1 : route.raw.length - 2]!, next = route.raw[from ? 2 : route.raw.length - 3]!, total = Math.abs(vertex.x - terminal.x) + Math.abs(vertex.y - terminal.y), following = Math.abs(next.x - vertex.x) + Math.abs(next.y - vertex.y), r = Math.min(radius, total / 2, following / 2), cut = { x: written(vertex.x + (terminal.x - vertex.x) * (r / total)), y: written(vertex.y + (terminal.y - vertex.y) * (r / total)) }
-          return Math.abs(cut.x - point(0)!.x) + Math.abs(cut.y - point(0)!.y)
-        }
-      }
-      return length
-    }
-    const length = Math.min(extent(ap, a, afrom), extent(bp, b, bfrom)), end = { x: start.x + ux * length, y: start.y + uy * length }
-    if (box.x0 >= Math.min(start.x, end.x) - half && box.x1 <= Math.max(start.x, end.x) + half && box.y0 >= Math.min(start.y, end.y) - half && box.y1 <= Math.max(start.y, end.y) + half) return true
+    const ap = a.points[afrom ? 0 : a.points.length - 1]!, bp = b.points[bfrom ? 0 : b.points.length - 1]!
+    if (same(ap, bp) && box.x0 >= ap.x - half && box.x1 <= ap.x + half && box.y0 >= ap.y - half && box.y1 <= ap.y + half) return true
   }
   return false
 }
+
 function current(c: ClassHeaderPeerContext, relationships: readonly PositionedClassRelationship[], style: ResolvedRenderStyle, charge: Charge): boolean {
   if (c.routes.length !== relationships.length || c.half !== written(style.lineWidth) / 2 || c.radius !== style.edgeBendRadius) return false
   for (let i = 0; i < relationships.length; i++) {
@@ -281,7 +254,7 @@ function peerClearInContext(own: Route, owner: number, c: ClassHeaderPeerContext
       if (proper(own.points[p.segment]!, own.points[p.segment + 1]!, peer.points[q.segment]!, peer.points[q.segment + 1]!)) continue
     }
     const intersection = { x0: Math.max(p.box.x0, q.box.x0), x1: Math.min(p.box.x1, q.box.x1), y0: Math.max(p.box.y0, q.box.y0), y1: Math.min(p.box.y1, q.box.y1) }
-    if (!sharedStem(intersection, own, peer, c.half, c.radius, charge)) return false
+    if (!sharedTerminalContact(intersection, own, peer, p, q, c.half, charge)) return false
   }
   return true
 }

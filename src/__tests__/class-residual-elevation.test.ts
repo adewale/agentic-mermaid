@@ -357,7 +357,7 @@ describe('Class header bypass carrier ownership', () => {
     expect(p.relationships.map(r => [r.from, r.to, r.type, r.markerAt, r.points[0], r.points.at(-1)])).toEqual(before.relationships.map(r => [r.from, r.to, r.type, r.markerAt, r.points[0], r.points.at(-1)]))
   })
 
-  test('retains proper crossings and an exact shared incident terminal stem', async () => {
+  test('retains proper crossings and common endpoint contacts without sharing positive stems', async () => {
     const { classHeaderPeerClear, classHeaderDetourCandidates } = await import('../class/header-lanes.ts')
     const { createClassMarkerAdmissionWork, chargeClassMarkerAdmissionWork } = await import('../class/marker-admission.ts')
     const { CLASS_STYLE_DEFAULTS } = await import('../class/layout.ts')
@@ -386,11 +386,15 @@ describe('Class header bypass carrier ownership', () => {
     Object.assign(crossing[1]!.points[1]!, { x: 50, y: 90 })
     expect(classHeaderPeerClear(crossing[0]!.points, 0, crossing, style, charge, cached)).toBe(true)
     const shared = [rel('S', 'A', [{ x: 10, y: 10 }, { x: 10, y: 50 }, { x: 0, y: 50 }, { x: 0, y: 80 }]), rel('S', 'B', [{ x: 10, y: 10 }, { x: 10, y: 50 }, { x: 50, y: 50 }, { x: 50, y: 80 }])]
-    expect(classHeaderPeerClear(shared[0]!.points, 0, shared, style, charge)).toBe(true)
+    expect(classHeaderPeerClear(shared[0]!.points, 0, shared, style, charge)).toBe(false)
     const unrelated = shared.map((r, i) => ({ ...r, from: `U${i}` }))
     expect(classHeaderPeerClear(unrelated[0]!.points, 0, unrelated, style, charge)).toBe(false)
+    const endpoint = [rel('S', 'A', [{ x: 10, y: 10 }, { x: 90, y: 10 }]), rel('S', 'B', [{ x: 10, y: 10 }, { x: 10, y: 90 }])]
+    expect(classHeaderPeerClear(endpoint[0]!.points, 0, endpoint, style, charge)).toBe(true)
+    const differentPort = [endpoint[0]!, rel('S', 'B', [{ x: 10, y: 0 }, { x: 10, y: 90 }])]
+    expect(classHeaderPeerClear(differentPort[0]!.points, 0, differentPort, style, charge)).toBe(false)
     const dashed = shared.map(r => ({ ...r, lineStyle: 'dashed' as const }))
-    expect(classHeaderPeerClear(dashed[0]!.points, 0, dashed, style, charge)).toBe(true)
+    expect(classHeaderPeerClear(dashed[0]!.points, 0, dashed, style, charge)).toBe(false)
     const mixed = [shared[0]!, { ...shared[0]!, lineStyle: 'dashed' as const }]
     expect(classHeaderPeerClear(mixed[0]!.points, 0, mixed, style, charge)).toBe(false)
     const reversed = [dashed[0]!, { ...dashed[0]!, from: dashed[0]!.to, to: dashed[0]!.from, points: [...dashed[0]!.points].reverse() }]
