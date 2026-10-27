@@ -40,7 +40,7 @@ test('native Zen owns aliases, call stacks, branch returns, assignments, self ca
     ['Buyer', 'actor', undefined], ['Stock', 'database', undefined], ['API', 'participant', undefined], ['ticket:Ticket', 'participant', undefined],
   ])
   expect(sequence.messages.map(m => [m.from, m.to, m.label, m.lineStyle])).toEqual([
-    ['Buyer', 'API', 'checkout(order)', 'solid'], ['API', 'Stock', 'reserve(order)', 'solid'],
+    ['Buyer', 'API', 'checkout(order)', 'solid'], ['API', 'Stock', 'result = reserve(order)', 'solid'],
     ['Stock', 'API', 'accepted', 'dashed'], ['Stock', 'API', 'pending', 'dashed'], ['Stock', 'API', 'rejected', 'dashed'],
     ['API', 'API', 'cached = cache(order)', 'solid'], ['API', 'ticket:Ticket', '«order»', 'solid'],
     ['ticket:Ticket', 'ticket:Ticket', 'register()', 'solid'], ['ticket:Ticket', 'API', 'ticket', 'dashed'], ['API', 'Buyer', 'ready', 'solid'],
@@ -54,7 +54,7 @@ test('native Zen owns aliases, call stacks, branch returns, assignments, self ca
   expect(zenUMLMeaning(parseZenUML(serializeZenUML(body)))).toBe(zenUMLMeaning(body))
 })
 
-test('explicit callback callers and annotated or arrow replies retain actual return direction', () => {
+test('explicit callers, returns and assignments retain identities and actual direction', () => {
   const body = parseZenUML(`zenuml
 Client->API.request() {
   Worker.work() {
@@ -78,6 +78,35 @@ Client->API.request() {
   const canonical = serializeZenUML(body)
   expect(canonical).toContain('API-->Client: early')
   expect(zenUMLMeaning(parseZenUML(canonical))).toBe(zenUMLMeaning(body))
+
+  const assignments = [
+    { statement: 'T result = Store.read() { return data }', messages: [['API', 'Store', 'result:T = read()'], ['Store', 'API', 'data']] },
+    { statement: 'result = Store.read() { if (ready) { return data } else { Store.wait() } }', messages: [['API', 'Store', 'result = read()'], ['Store', 'API', 'data'], ['Store', 'Store', 'wait()']] },
+    { statement: 'outer = Store.read() { inner = Cache.load() { return cached } }', messages: [['API', 'Store', 'read()'], ['Store', 'Cache', 'inner = load()'], ['Cache', 'Store', 'cached'], ['Store', 'API', 'outer']] },
+    { statement: 'T local = API.self() { return localData }', messages: [['API', 'API', 'local:T = self()'], ['API', 'API', 'localData']] },
+    { statement: 'Token ticket = new Ticket(order) { return issued }', messages: [['API', 'ticket:Ticket', 'ticket:Token = «order»'], ['ticket:Ticket', 'API', 'issued']] },
+    { statement: 'T result = Store.read() { Store-->API: data\n }', messages: [['API', 'Store', 'result:T = read()'], ['Store', 'API', 'data']] },
+    { statement: 'result = Store.read() { Other-->Callback: notice\n }', messages: [['API', 'Store', 'read()'], ['Other', 'Callback', 'notice'], ['Store', 'API', 'result']] },
+  ]
+  for (const { statement, messages } of assignments) {
+    const source = `zenuml\nClient->API.request() {\n ${statement}\n}`
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok || parsed.value.body.kind !== 'zenuml') throw Error(`Expected native assignment: ${statement}`)
+    const model = projectZenUMLSequence(parsed.value.body)
+    expect(model.messages.map(m => [m.from, m.to, m.label])).toEqual([['Client', 'API', 'request()'], ...messages])
+    expect(describeMermaidTree(parsed.value).edges.map(m => [m.from, m.to, m.label])).toEqual([['Client', 'API', 'request()'], ...messages])
+    const reloaded = parseRegisteredMermaid(serializeMermaid(parsed.value))
+    if (!reloaded.ok) throw Error('Expected canonical assignment')
+    expect(describeMermaidFacts(reloaded.value)).toEqual(describeMermaidFacts(parsed.value))
+  }
+  const assigned = parseRegisteredMermaid('zenuml\nClient->API.request() {\n first = Store.read() { return data }\n}')
+  if (!assigned.ok || assigned.value.body.kind !== 'zenuml') throw Error('Expected assigned call')
+  const call = assigned.value.body.statements[0]
+  if (call?.kind !== 'call' || call.children[0]?.kind !== 'call') throw Error('Expected nested assigned call')
+  const changed = mutateChecked(assigned.value, { kind: 'set_statement', id: call.children[0].id, statement: { ...call.children[0], assignment: { name: 'second' } } })
+  if (!changed.ok) throw Error('Expected checked assignment edit')
+  expect(checkMermaid(changed.value, { include: describeMermaidFacts(assigned.value), exact: true }).ok).toBe(false)
+  expect(describeMermaidTree(changed.value).edges.some(edge => edge.label === 'second = read()')).toBe(true)
 })
 
 test('loops, parallel statements and try branches preserve lexical empty and note-only scopes', () => {

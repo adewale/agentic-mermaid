@@ -90,7 +90,7 @@ export function projectZenUMLSequence(body: ZenUMLBody, observe?: ZenUMLProjecti
     observe?.note?.({ note, sourceId: id, callAncestors: context.callAncestors, scopes: context.scopes })
     for (const block of openScopes) scopes.get(block)!.noteIndices.push(index)
   }
-  const directReturns = (values: ZenUMLStatement[]): boolean => values.some(s => s.kind === 'return' || s.kind === 'message' && s.reply || s.kind === 'fragment' && s.branches.some(branch => directReturns(branch.statements)))
+  const directReturns = (values: ZenUMLStatement[], owner: string | undefined, caller: string | undefined): boolean => values.some(s => s.kind === 'return' || s.kind === 'message' && s.reply && s.from === owner && s.to === caller || s.kind === 'fragment' && s.branches.some(branch => directReturns(branch.statements, owner, caller)))
   const visit = (values: readonly ZenUMLStatement[], context: Context) => {
     let pending: Extract<ZenUMLStatement, { kind: 'comment' }>[] = []
     const comments = (ids: string[]) => { for (const note of pending) addNote(note.id, note.text, ids, context); pending = [] }
@@ -102,10 +102,11 @@ export function projectZenUMLSequence(body: ZenUMLBody, observe?: ZenUMLProjecti
           const source = actor(from), target = actor(to)
           comments([source, target])
           const self = source === target
-          addMessage(s.id, from, to, self && s.assignment ? `${assignmentLabel(s.assignment)} = ${s.label}` : s.label, context, 'call', true)
+          const explicitReturn = s.assignment && !self && directReturns(s.children, to, from)
+          addMessage(s.id, from, to, s.assignment && (self || explicitReturn) ? `${assignmentLabel(s.assignment)} = ${s.label}` : s.label, context, 'call', true)
           const childContext = { ...context, owner: to, returnTo: from, callAncestors: observe ? [...context.callAncestors, s.id] : context.callAncestors }
           visit(s.children, childContext)
-          if (s.assignment && !self && !directReturns(s.children)) addMessage(derivedId(`${s.id}:reply`), to, from, assignmentLabel(s.assignment), childContext, 'reply', false, s.id)
+          if (s.assignment && !self && !explicitReturn) addMessage(derivedId(`${s.id}:reply`), to, from, assignmentLabel(s.assignment), childContext, 'reply', false, s.id)
           sequence.activationEvents!.push({ actorId: target, kind: 'deactivate', messageIndex: sequence.messages.length })
           break
         }
@@ -116,10 +117,12 @@ export function projectZenUMLSequence(body: ZenUMLBody, observe?: ZenUMLProjecti
           const participant = byId.get(target)!
           if (participant.createMessageIndex !== undefined) throw Error(`Repeated creation of ZenUML object ${target} cannot share one sequence lifeline`)
           participant.createMessageIndex = sequence.messages.length
-          addMessage(s.id, context.owner, target, `«${s.arguments || 'create'}»`, context, 'creation', true)
+          const explicitReturn = s.assignment && directReturns(s.children, target, context.owner)
+          const label = `«${s.arguments || 'create'}»`
+          addMessage(s.id, context.owner, target, s.assignment && explicitReturn ? `${assignmentLabel(s.assignment)} = ${label}` : label, context, 'creation', true)
           const childContext = { ...context, owner: target, returnTo: context.owner, callAncestors: observe ? [...context.callAncestors, s.id] : context.callAncestors }
           visit(s.children, childContext)
-          if (s.assignment && !directReturns(s.children)) addMessage(derivedId(`${s.id}:reply`), target, context.owner, assignmentLabel(s.assignment), childContext, 'reply', false, s.id)
+          if (s.assignment && !explicitReturn) addMessage(derivedId(`${s.id}:reply`), target, context.owner, assignmentLabel(s.assignment), childContext, 'reply', false, s.id)
           sequence.activationEvents!.push({ actorId: target, kind: 'deactivate', messageIndex: sequence.messages.length })
           break
         }

@@ -24,7 +24,7 @@ test('native Zen retains caller direction, lexical branches and created particip
   expect(layout.nodes.map(node => node.id)).toEqual(['Buyer', 'API', 'Stock', 'ticket:Ticket'])
   expect(layout.edges.map(edge => [edge.from, edge.to, edge.label?.text])).toEqual([
     ['Buyer', 'API', 'checkout()'],
-    ['API', 'Stock', 'reserve()'],
+    ['API', 'Stock', 'result = reserve()'],
     ['Stock', 'API', 'accepted'],
     ['Stock', 'API', 'rejected'],
     ['API', 'ticket:Ticket', '«order»'],
@@ -145,7 +145,7 @@ Service.run() {
   for (const text of ['first', 'second', 'retry', 'inside retry', 'first fallback', 'completed']) expect(receipt.text).toContain(text)
 })
 
-test('nested self-call scopes retain distinct activation ink and balanced adjacent assignments and returns', () => {
+test('nested self-calls and assignments retain activation ink and returned content', () => {
   const nested = 'zenuml\n@Starter(User)\nA.outer() {\n inner() {\n  B.one()\n }\n B.two()\n}'
   const flat = 'zenuml\n@Starter(User)\nA.outer() {\n inner()\n B.one()\n B.two()\n}'
   const models = [nested, flat].map(source => projectZenUMLSequence(parseZenUML(source)))
@@ -170,6 +170,22 @@ test('nested self-call scopes retain distinct activation ink and balanced adjace
   }
   const adjacent = projectZenUMLSequence(parseZenUML('zenuml\n@Starter(User)\nA.outer() {\n x = inner()\n inner() {\n  return local\n }\n B.work()\n return result\n}'))
   expect(adjacent.messages.filter(m => m.lineStyle === 'dashed').map(m => [m.from, m.to, m.label])).toEqual([['A', 'A', 'local'], ['A', 'User', 'result']])
+  const assignedSource = (name: string) => `zenuml\nClient->API.request() {\n T ${name} = Store.read() {\n  return payload\n }\n Token ticket = new Ticket(order) {\n  return issued\n }\n}`
+  const assigned = ['first', 'second'].map(name => assignedSource(name))
+  const assignedSvgs = assigned.map(source => renderMermaidSVG(source, { embedFontImport: false }))
+  expect(assignedSvgs[0]).toContain('first:T = read()')
+  expect(assignedSvgs[1]).toContain('second:T = read()')
+  expect(assignedSvgs[0]).toContain('ticket:Token =')
+  expect(renderSvgPixels(assignedSvgs[0]!).pixels).not.toEqual(renderSvgPixels(assignedSvgs[1]!).pixels)
+  for (const [index, source] of assigned.entries()) {
+    const layout = layoutMermaidWithReceipt(source).layout
+    expect(layout.edges.filter(edge => edge.label?.text === 'payload').map(edge => [edge.from, edge.to])).toEqual([['Store', 'API']])
+    expect(layout.edges.filter(edge => edge.label?.text === 'issued').map(edge => [edge.from, edge.to])).toEqual([['ticket:Ticket', 'API']])
+    for (const useAscii of [true, false]) {
+      const receipt = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none' })
+      for (const text of [`${['first', 'second'][index]}:T = read()`, 'ticket:Token =', 'payload', 'issued']) expect(receipt.text).toContain(text)
+    }
+  }
   const depths = new Map<string, number>()
   for (let index = 0; index <= adjacent.messages.length; index++) {
     for (const event of adjacent.activationEvents!.filter(event => event.messageIndex === index)) {
