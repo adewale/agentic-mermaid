@@ -10,7 +10,7 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   canonical API documentation, with task-first examples, runtime-derived option
   defaults, source/release version information and a separate advanced reference.
 
-- Export synchronous `renderResolvedScene` and `RESOLVED_SCENE_VERSION = 1`
+- Export synchronous `renderResolvedScene` and `RESOLVED_SCENE_VERSION = 2`
   from the main entry. Resolved parts retain their Scene nodes and expose
   backend-painted paths, text runs, concrete paint, transforms and expanded
   markers without a browser. The returned SVG matches `renderMermaidSVG`;
@@ -38,6 +38,11 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   guarantee.
 
 ### Fixed
+
+- Resolved scenes report the input diagram's registered family. Both State
+  headers return `state` instead of their shared `flowchart` rendering family.
+  Resolved Scene version 2 records this metadata change; SVG artwork and part
+  ownership are unchanged.
 
 - Sequence terminal output retains fragment headers and dividers inside wide
   participant boxes, including combined `box`/`alt`/note cases, in both ASCII

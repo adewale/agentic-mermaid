@@ -32,7 +32,11 @@ export function renderResolvedScene(text: ParsedDiagram | string, options: Rende
     // Keep the reported canvas tied to that projection, not its pre-repair Scene.
     const viewport = plan.backend?.inputName === 'default' && layoutCertification?.repairs.length
       ? layoutCertification.viewport : undefined
-    const scene = viewport ? { ...capture.scene, width: viewport.width, height: viewport.height } : capture.scene
+    const scene = {
+      ...capture.scene,
+      family: plan.family.id,
+      ...(viewport ? { width: viewport.width, height: viewport.height } : {}),
+    }
     return resolveSvgScene(svg, scene, capture.owners)
   })
 }

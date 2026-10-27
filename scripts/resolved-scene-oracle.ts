@@ -37,7 +37,7 @@ interface TextPrimitive {
 type Primitive = PathPrimitive | TextPrimitive
 interface ResolvedPart { id: string; role: string; kind: string; node: SceneNode; primitives: Primitive[] }
 interface ResolvedScene {
-  version: 1; family: string; width: number; height: number; svg: string
+  version: 2; family: string; width: number; height: number; svg: string
   colors: Record<string, string>; parts: ResolvedPart[]; frame: Primitive[]
 }
 interface Spec { source: string; style?: string }
@@ -46,13 +46,14 @@ interface Spec { source: string; style?: string }
  * document-aware backend. Only ownership uses the private emission boundary;
  * Chromium independently computes every geometry and presentation value.
  * Unwrapped output must first equal the public SVG renderer byte for byte. */
-function marked(spec: Spec): { svg: string; marked: string; doc: SceneDoc; parts: SceneNode[] } {
+function marked(spec: Spec): { svg: string; marked: string; family: string; doc: SceneDoc; parts: SceneNode[] } {
   const options = spec.style ? { style: spec.style } : {}
   const request = resolveRenderRequestForExecution(spec.source, options, 'svg')
+  const plan = resolvedRenderExecutionPlanOf(request)
   const capture = createScenePartCapture()
   const { svg, layoutCertification } = renderPositionedMermaidSVG(request, positionFamilyForNativeRender(request), [], capture)
   if (svg !== am.renderMermaidSVG(spec.source, options)) throw new Error('Part capture changed the output')
-  const viewport = resolvedRenderExecutionPlanOf(request).backend?.inputName === 'default' && layoutCertification?.repairs.length
+  const viewport = plan.backend?.inputName === 'default' && layoutCertification?.repairs.length
     ? layoutCertification.viewport : undefined
   const doc = viewport ? { ...capture.scene!, width: viewport.width, height: viewport.height } : capture.scene!
   const parts: SceneNode[] = doc.parts.filter(node => node.kind !== 'document')
@@ -67,7 +68,7 @@ function marked(spec: Spec): { svg: string; marked: string; doc: SceneDoc; parts
     const at = tags[i]!.start + 1 + tags[i]!.name.length
     marked = marked.slice(0, at) + ` data-oracle-part="${part}"` + marked.slice(at)
   }
-  return { svg, marked, doc, parts }
+  return { svg, marked, family: plan.family.id, doc, parts }
 }
 
 /** Runs in Chromium: every painted leaf, in paint order, with computed paint. */
@@ -207,7 +208,7 @@ export async function oracleScene(page: Page, spec: Spec): Promise<ResolvedScene
   const frame: Primitive[] = []
   for (const { owner, p } of leaves) (owner < 0 ? frame : parts[owner]!.primitives).push(p)
   const colors = Object.fromEntries(Object.entries(r.doc.colors).filter(([, v]) => typeof v === 'string')) as Record<string, string>
-  return { version: 1, family: r.doc.family, width: r.doc.width, height: r.doc.height, svg: r.svg, colors, parts, frame }
+  return { version: 2, family: r.family, width: r.doc.width, height: r.doc.height, svg: r.svg, colors, parts, frame }
 }
 
 // ---- comparison -------------------------------------------------------------------------
@@ -364,7 +365,7 @@ async function main() {
       worker.onerror = event => { cleanup(); reject(new Error(event.message)) }
       worker.postMessage(null)
     }), bundle)
-    if (receipt.error || receipt.version !== 1 || !(Number(receipt.parts) > 0)
+    if (receipt.error || receipt.version !== 2 || !(Number(receipt.parts) > 0)
       || receipt.document !== 'undefined' || receipt.equal !== true || receipt.jsonSafe !== true) {
       throw new Error(`Resolved Scene Worker failed: ${JSON.stringify(receipt)}`)
     }
