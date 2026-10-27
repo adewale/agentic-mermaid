@@ -261,6 +261,7 @@ describe('schema covers every mutable family (§11)', () => {
     sankey: { kind: 'add_link', source: 'A', target: 'B', value: 1 },
     c4: { kind: 'add_element', element: { id: 'service', label: 'Service', kind: 'system' } },
     eventmodeling: { kind: 'insert_frame', frame: { id: '01', reset: false, type: 'ui', entity: 'Main', sources: [] } },
+    zenuml: { kind: 'upsert_participant', participant: { id: 'API', label: 'API', annotations: [] } },
     packet: { kind: 'add_field', label: 'Byte', bits: 8 },
     kanban: { kind: 'add_column', id: 'todo', label: 'To do' },
     requirement: { kind: 'add_requirement', requirement: { name: 'response', text: 'Respond promptly' } },

@@ -37,7 +37,7 @@ function primaryNodeIdentities(family: DiagramKind, tuples: IdentityTuple[]): Id
     if (family === 'packet' || family === 'kanban' || family === 'requirement' || family === 'eventmodeling' || family === 'block' || family === 'ishikawa' || family === 'treemap') return role === 'node'
     if (family === 'c4') return role === 'node' && !id.startsWith('c4:')
     if (family === 'flowchart' || family === 'state') return role === 'node' && !id.startsWith('node-shape:')
-    if (family === 'sequence') return role === 'actor' && !id.startsWith('actor:')
+    if (family === 'sequence' || family === 'zenuml') return role === 'actor' && !id.startsWith('actor:')
     if (family === 'class') return role === 'class-box' && !id.startsWith('class:')
     if (family === 'er') return role === 'entity' && !id.startsWith('entity-')
     if (family === 'architecture') return (role === 'service' || role === 'junction') && !/^(?:service-|junction-)/.test(id)
@@ -63,6 +63,7 @@ function primaryGroupIdentities(family: DiagramKind, tuples: IdentityTuple[]): I
     if (family === 'journey') return role === 'section' && /^section-\d+$/.test(id)
     if (family === 'gantt') return role === 'section' && id.startsWith('section-band:')
     if (family === 'gitgraph') return role === 'group' && id.startsWith('branch:')
+    if (family === 'zenuml') return role === 'block' && /^statement:\d+$/.test(id)
     return false
   })
 }
@@ -77,6 +78,7 @@ function expectedNodePairs(family: DiagramKind, layout: ReturnType<typeof layout
   // layout also projects axis-label boxes (role 'labelled-mark') for the rubric,
   // which the identity contract does not enroll — filter to the dots.
   if (family === 'radar') return sortedPairs(layout.nodes.filter(node => node.role === 'mark' && node.id.startsWith('dot:')).map(node => ({ id: node.id, role: 'point' })))
+  if (family === 'zenuml') return sortedPairs(layout.nodes.filter(node => node.shape !== 'external-anchor' && node.shape !== 'note').map(node => ({ id: node.id, role: 'actor' })))
   return sortedPairs(
     layout.nodes.map((node, index) => {
       if (family === 'sequence') return { id: node.id, role: 'actor' }
@@ -101,6 +103,7 @@ function expectedGroupPairs(family: DiagramKind, layout: ReturnType<typeof layou
       if (family === 'quadrant') return { id: `plate:${group.id.slice(group.id.indexOf('#') + 1)}`, role: 'plate' }
       if (family === 'journey') return { id: group.id, role: 'section' }
       if (family === 'gantt') return { id: `section-band:${group.label}#${index}`, role: 'section' }
+      if (family === 'zenuml') return { id: group.id, role: 'block' }
       return { id: group.id, role: 'group' }
     }),
   )
@@ -118,6 +121,7 @@ function expectedRelationTuples(family: DiagramKind, layout: ReturnType<typeof l
       if (family === 'requirement') return { id: edge.id, role: 'relationship', from: edge.from, to: edge.to }
       if (family === 'eventmodeling' || family === 'block' || family === 'ishikawa') return { id: edge.id, role: 'edge', from: edge.from, to: edge.to }
       if (family === 'sequence') return { id: `message:${arrow}#${occurrence}:line`, role: 'message', from: edge.from, to: edge.to }
+      if (family === 'zenuml') return { id: `${edge.id}:line`, role: 'message', from: edge.from, to: edge.to }
       if (family === 'class') return { id: `rel:${arrow}#${occurrence}`, role: 'relationship', from: edge.from, to: edge.to }
       if (family === 'er') return { id: `rel:${edge.from}-${edge.to}#${occurrence}`, role: 'relationship', from: edge.from, to: edge.to }
       if (family === 'mindmap' || family === 'gitgraph') return { id: arrow, role: 'edge', from: edge.from, to: edge.to }
@@ -172,6 +176,7 @@ describe('all-family SVG semantic identity contract', () => {
       ['flowchart', 'flowchart LR\n  A --> B'],
       ['state', 'stateDiagram-v2\n  A --> B'],
       ['sequence', 'sequenceDiagram\n  participant A\n  participant B\n  A->>B: hi'],
+      ['zenuml', 'zenuml\nUser as Client\nAPI\nUser->API.request() {\n if(ready) {\n  API->User: ready\n }\n}'],
       ['class', 'classDiagram\n  A --> B'],
       ['er', 'erDiagram\n  A ||--o{ B : owns'],
       ['architecture', 'architecture-beta\n  service a(server)[A]\n  service b(server)[B]\n  a:R --> L:b'],

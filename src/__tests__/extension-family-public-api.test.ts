@@ -102,33 +102,33 @@ describe('registered family public layout and verify APIs', () => {
     expect(() =>
       registerFamily({
         ...alias,
-        aliases: ['zenuml'],
-        detect: line => line === 'upstreamaliasdiagram' || line === 'zenuml',
+        aliases: ['swimlane-beta'],
+        detect: line => line === 'upstreamaliasdiagram' || line === 'swimlane-beta',
       }),
-    ).toThrow(/alias "zenuml" is an upstream public header/)
+    ).toThrow(/alias "swimlane-beta" is an upstream public header/)
 
     const hiddenStrict = extensionDescriptor('hidden-strict', 'hiddenStrictDiagram')
     const unregisterStrict = registerFamily({
       ...hiddenStrict,
-      detect: line => line === 'hiddenstrictdiagram' || line === 'zenuml',
+      detect: line => line === 'hiddenstrictdiagram' || line === 'swimlane-beta',
     })
-    expect(detectRegisteredFamilyFromFirstLine('zenuml')).toBeNull()
+    expect(detectRegisteredFamilyFromFirstLine('swimlane-beta')).toBeNull()
     unregisterStrict()
 
     const hiddenLoose = extensionDescriptor('hidden-loose', 'hiddenLooseDiagram')
     const unregisterLoose = registerFamily({
       ...hiddenLoose,
-      detectLoose: line => line === 'hiddenloosediagram' || line === 'zenuml',
+      detectLoose: line => line === 'hiddenloosediagram' || line === 'swimlane-beta',
     })
-    expect(detectRegisteredFamilyFromFirstLine('zenuml', 'loose')).toBeNull()
+    expect(detectRegisteredFamilyFromFirstLine('swimlane-beta', 'loose')).toBeNull()
     unregisterLoose()
 
-    const multiFamily = extensionDescriptor('multi-upstream', 'zenuml')
+    const multiFamily = extensionDescriptor('multi-upstream', 'swimlane-beta')
     expect(() =>
       registerFamily({
         ...multiFamily,
-        headers: ['zenuml', 'eventmodeling'],
-        detect: line => line === 'zenuml' || line === 'eventmodeling',
+        headers: ['swimlane-beta', 'eventmodeling'],
+        detect: line => line === 'swimlane-beta' || line === 'eventmodeling',
       }),
     ).toThrow(/header "eventmodeling" is already owned/)
   })
