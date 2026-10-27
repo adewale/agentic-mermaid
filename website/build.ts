@@ -26,7 +26,7 @@ import { HOSTED_MCP_SERVER_NAME, HOSTED_TOOLS, SUPPORTED_PROTOCOL_VERSIONS } fro
 import { MCP_SERVER_VERSION } from '../src/mcp/tool-surface.ts'
 import { resolveBuildGitSha } from './build-provenance.ts'
 import { AI_CATALOG_RESOURCES } from './agent-resource-inventory.ts'
-import { CLEAN_PAGE_ROUTES, DYNAMIC_CLEAN_REDIRECT_LINES, staticRedirectLines } from './src/site-routes.ts'
+import { CLEAN_PAGE_ROUTES, DYNAMIC_CLEAN_REDIRECT_LINES, markdownAlternative, staticRedirectLines } from './src/site-routes.ts'
 import { HOMEPAGE_AGENT_POINTER } from '../eval/agent-usage/homepage-prompt.ts'
 import { EDITOR_EXAMPLES } from '../editor/examples.ts'
 import { samples as RICH_EXAMPLES } from '../scripts/site/samples-data.ts'
@@ -315,8 +315,8 @@ async function externalizeExecutableInlineScripts(html: string) {
 
 async function emitShell(rel: string, title: string, lead: string, body: string, currentHref = '', meta = '', actions = '') {
   let html = pageShell(title, lead, body, currentHref, meta, actions, '/' + rel.replace(/index\.html$/, ''))
-  if (rel === 'docs/api/index.html' || rel === 'docs/api/advanced/index.html') {
-    const markdownPath = '/' + rel.replace(/index\.html$/, 'index.md')
+  const markdownPath = markdownAlternative('/' + rel.replace(/index\.html$/, ''))
+  if (markdownPath) {
     html = html.replace('<link rel="alternate" type="text/markdown" href="/index.md">', `<link rel="alternate" type="text/markdown" href="${markdownPath}">`)
   }
   if (rel === 'examples/index.html' || rel.startsWith('examples/style-palette/') || rel.startsWith('examples/corpus/')) {

@@ -529,6 +529,93 @@ describe('Workers Static Assets website contract', () => {
     }
   })
 
+  test('documentation negotiates its actual Markdown asset with representation-specific headers', async () => {
+    const worker = await websiteWorker()
+    const fetched: Array<{ pathname: string; search: string; method: string }> = []
+    const env = { ASSETS: { fetch: async (request: Request) => {
+      const url = new URL(request.url)
+      fetched.push({ pathname: url.pathname, search: url.search, method: request.method })
+      const markdown = url.pathname.endsWith('.md')
+      const rel = url.pathname.slice(1) + (markdown ? '' : 'index.html')
+      return new Response(request.method === 'HEAD' ? null : read(rel), {
+        headers: { 'content-type': markdown ? 'text/markdown; charset=utf-8' : 'text/html; charset=utf-8', vary: 'Origin' },
+      })
+    } } }
+    for (const route of ['/docs/api/', '/docs/api/advanced/', '/warnings/LABEL_OVERFLOW/', '/errors/parse-error/']) {
+      const markdownPath = `${route}index.md`
+      for (const [accept, markdown] of [
+        ['text/markdown', true],
+        ['text/html;q=0.4, text/markdown;q=0.9', true],
+        ['text/markdown;q=0, text/html', false],
+        ['text/*;q=0.5, text/markdown;q=0', false],
+        ['text/html, text/markdown', false],
+        ['*/*', false],
+        ['', false],
+      ] as const) {
+        const response = await worker.fetch(new Request(`https://agentic-mermaid.dev${route}?version=source`, { headers: { accept } }), env as any)
+        expect(fetched.at(-1)).toEqual({ pathname: markdown ? markdownPath : route, search: '?version=source', method: 'GET' })
+        expect(response.status).toBe(200)
+        expect(await response.text()).toBe(read(`${route.slice(1)}index.${markdown ? 'md' : 'html'}`))
+        expect(response.headers.get('content-type')).toBe(`${markdown ? 'text/markdown' : 'text/html'}; charset=utf-8`)
+        expect(response.headers.get('vary')?.toLowerCase().split(/\s*,\s*/)).toEqual(['origin', 'accept'])
+        expect(response.headers.get('link')).toBe(`<${markdownPath}>; rel="alternate"; type="text/markdown"`)
+        expect(response.headers.get('content-location')).toBe(markdown ? markdownPath : null)
+        expect(response.headers.get('cache-control')).toBe(markdown ? 'public, max-age=300' : 'no-cache')
+        expect(response.headers.get('access-control-allow-origin')).toBe(markdown ? '*' : null)
+      }
+      const head = await worker.fetch(new Request(`https://agentic-mermaid.dev${route}`, { method: 'HEAD', headers: { accept: 'text/markdown' } }), env as any)
+      expect(fetched.at(-1)).toEqual({ pathname: markdownPath, search: '', method: 'HEAD' })
+      expect(head.headers.get('content-type')).toBe('text/markdown; charset=utf-8')
+      expect(head.headers.get('content-location')).toBe(markdownPath)
+      expect(await head.text()).toBe('')
+      expect(read(`${route.slice(1)}index.html`)).toContain(`<link rel="alternate" type="text/markdown" href="${markdownPath}">`)
+    }
+  })
+
+  test('Markdown negotiation preserves redirects, asset failures, conditional requests and method boundaries', async () => {
+    const worker = await websiteWorker()
+    const fetched: Request[] = []
+    let status = 404
+    const env = { ASSETS: { fetch: async (request: Request) => {
+      fetched.push(request)
+      return new Response(status === 304 ? null : 'asset result', {
+        status, headers: { 'content-type': 'text/html', vary: '*', etag: '"md-version"', link: '</existing>; rel="help"' },
+      })
+    } } }
+    const redirected = await worker.fetch(new Request('https://agentic-mermaid.dev/docs/api?x=1', { headers: { accept: 'text/markdown' } }), env as any)
+    expect(redirected.status).toBe(308)
+    expect(redirected.headers.get('location')).toBe('https://agentic-mermaid.dev/docs/api/?x=1')
+    expect(fetched).toHaveLength(0)
+
+    const missing = await worker.fetch(new Request('https://agentic-mermaid.dev/docs/api/', { headers: { accept: 'text/markdown' } }), env as any)
+    expect(new URL(fetched.at(-1)!.url).pathname).toBe('/docs/api/index.md')
+    expect(missing.status).toBe(404)
+    expect(await missing.text()).toBe('asset result')
+    expect(missing.headers.get('content-type')).toBe('text/html')
+    expect(missing.headers.get('content-location')).toBeNull()
+    expect(missing.headers.get('cache-control')).toBe('no-store')
+    expect(missing.headers.get('vary')).toBe('*')
+    expect(missing.headers.get('link')).toBe('</existing>; rel="help", </docs/api/index.md>; rel="alternate"; type="text/markdown"')
+
+    status = 304
+    const conditional = await worker.fetch(new Request('https://agentic-mermaid.dev/docs/api/', { headers: { accept: 'text/markdown', 'if-none-match': '"md-version"' } }), env as any)
+    expect(fetched.at(-1)!.headers.get('if-none-match')).toBe('"md-version"')
+    expect(conditional.status).toBe(304)
+    expect(conditional.headers.get('etag')).toBe('"md-version"')
+    expect(conditional.headers.get('content-location')).toBe('/docs/api/index.md')
+    expect(await conditional.text()).toBe('')
+
+    status = 405
+    await worker.fetch(new Request('https://agentic-mermaid.dev/docs/api/', { method: 'POST', body: 'same body', headers: { accept: 'text/markdown' } }), env as any)
+    expect(new URL(fetched.at(-1)!.url).pathname).toBe('/docs/api/')
+    expect(fetched.at(-1)!.method).toBe('POST')
+    expect(await fetched.at(-1)!.text()).toBe('same body')
+    await worker.fetch(new Request('https://agentic-mermaid.dev/docs/getting-started/', { headers: { accept: 'text/markdown' } }), env as any)
+    expect(new URL(fetched.at(-1)!.url).pathname).toBe('/docs/getting-started/')
+    await worker.fetch(new Request('https://agentic-mermaid.dev/docs/api/index.md', { headers: { accept: 'text/html' } }), env as any)
+    expect(new URL(fetched.at(-1)!.url).pathname).toBe('/docs/api/index.md')
+  })
+
 
 
   test('required human and machine routes are generated', () => {

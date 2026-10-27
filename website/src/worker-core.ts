@@ -6,7 +6,7 @@
 import { createMcpHandler, type McpCache } from './mcp-handler.ts'
 import { createLoaderExecute, type WorkerLoaderBinding } from './execute-loader.ts'
 import type { HostedMcpContext } from '../../src/mcp/hosted-server.ts'
-import { CLEAN_ROUTE_PATHS, LEGACY_REDIRECTS } from './site-routes.ts'
+import { CLEAN_ROUTE_PATHS, LEGACY_REDIRECTS, markdownAlternative } from './site-routes.ts'
 
 export interface Env {
   ASSETS: { fetch(request: Request): Promise<Response> }
@@ -139,7 +139,7 @@ function withTransportSecurity(response: Response, httpsRequest: boolean): Respo
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers })
 }
 
-function withHeaders(response: Response, pathname: string, method: string, negotiatesHomepage = false): Response {
+function withHeaders(response: Response, pathname: string, method: string, markdownPath?: string, homepage = false): Response {
   const headers = new Headers(response.headers)
   headers.set('X-Content-Type-Options', 'nosniff')
   headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
@@ -164,11 +164,14 @@ function withHeaders(response: Response, pathname: string, method: string, negot
     hasSetCookie: headers.has('Set-Cookie'),
   }))
 
-  if (negotiatesHomepage) {
+  if (markdownPath) {
     appendVary(headers, 'Accept')
+    const links = homepage ? homepageDiscoveryLinks : `<${markdownPath}>; rel="alternate"; type="text/markdown"`
     const existingLinks = headers.get('Link')
-    headers.set('Link', existingLinks ? `${existingLinks}, ${homepageDiscoveryLinks}` : homepageDiscoveryLinks)
-    if (pathname === '/index.md') headers.set('Content-Location', '/index.md')
+    headers.set('Link', existingLinks ? `${existingLinks}, ${links}` : links)
+    if (pathname === markdownPath && (response.ok || response.status === 304)) {
+      headers.set('Content-Location', markdownPath)
+    }
   }
 
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers })
@@ -224,18 +227,20 @@ export function createWebsiteWorker(runtime: WebsiteWorkerRuntime) {
         return finish(await handler(request))
       }
 
-      const negotiatesHomepage = url.pathname === '/' && (request.method === 'GET' || request.method === 'HEAD')
+      const markdownPath = request.method === 'GET' || request.method === 'HEAD'
+        ? markdownAlternative(url.pathname)
+        : undefined
       let assetRequest = request
       let assetPathname = url.pathname
-      if (negotiatesHomepage && prefersMarkdown(request.headers.get('Accept'))) {
+      if (markdownPath && prefersMarkdown(request.headers.get('Accept'))) {
         const markdownUrl = new URL(url)
-        markdownUrl.pathname = '/index.md'
+        markdownUrl.pathname = markdownPath
         assetRequest = new Request(markdownUrl, request)
         assetPathname = markdownUrl.pathname
       }
 
       const response = await env.ASSETS.fetch(assetRequest)
-      return finish(withHeaders(response, assetPathname, assetRequest.method, negotiatesHomepage))
+      return finish(withHeaders(response, assetPathname, assetRequest.method, markdownPath, url.pathname === '/'))
     },
   }
 }
