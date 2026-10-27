@@ -4,6 +4,88 @@ import { diamondFacetPorts, labelRect, laneContextFor, PORT_EXACT, shapePorts, s
 import type { LabelMetricsStyle } from '../../route-contracts.ts'
 import { DEFAULTS, layoutDebug, layoutEnvFlag } from '../geometry.ts'
 import { corankFanInSpokes } from './peers.ts'
+import { graphEdgeMarkerPaintRegions } from '../../graph-connectors.ts'
+import { shapeOutline } from '../../shape-outline.ts'
+import { nodePaintBounds, paintedStrokeExtent } from '../../scene/bounds.ts'
+import { shape } from '../../scene/marks.ts'
+import { formatSvgNumber } from '../../shared/svg-number.ts'
+import { labelHaloExtension } from '../../shared/edge-label-geometry.ts'
+import { STROKE_WIDTHS } from '../../styles.ts'
+
+type PortLaneStyle = LabelMetricsStyle & { nodeLineWidth?: number; cornerRadius?: number }
+
+/** A cosmetic slide must preserve complete foreign paint, not just a clear
+ * centerline. This reads the final private candidate once before publication;
+ * conservative bounds may retain the original layout without rerouting it. */
+function portLaneForeignInkClear(nodes: PositionedNode[], edges: PositionedEdge[], beforeNodes: PositionedNode[], beforeEdges: PositionedEdge[], style: PortLaneStyle): boolean {
+  const moved = nodes.filter((node, index) => node.x !== beforeNodes[index]!.x || node.y !== beforeNodes[index]!.y)
+  const bounds = new Map<PositionedNode, ReturnType<typeof nodePaintBounds>>()
+  const width = (authored: string | undefined, fallback: number): number | undefined => {
+    if (authored !== undefined && !/^\s*[+]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?(?:px)?\s*$/i.test(authored)) return undefined
+    const value = authored === undefined ? fallback : Number.parseFloat(authored)
+    return Number.isFinite(value) && value >= 0 ? Number(formatSvgNumber(value)) : undefined
+  }
+  const nodeBounds = (node: PositionedNode) => {
+    if (bounds.has(node)) return bounds.get(node)
+    const stroke = width(node.inlineStyle?.['stroke-width'], style.nodeLineWidth ?? STROKE_WIDTHS.innerBox)
+    if (stroke === undefined) return undefined
+    const outline = shapeOutline(node, { fill: '#000', stroke: '#000', strokeWidth: String(stroke) }, style.cornerRadius ?? 0)
+    const result = nodePaintBounds(shape({ id: node.id, role: 'node', geometry: outline.geometry, paint: outline.paint, ...(outline.childPaints ? { childPaints: outline.childPaints } : {}) }))
+    bounds.set(node, result)
+    return result
+  }
+  const overlap = (a: { x0: number; y0: number; x1: number; y1: number }, b: { x0: number; y0: number; x1: number; y1: number }): boolean => {
+    // Inflate uncertainty, never the accepted gap: raw shape/route arithmetic
+    // can spell differently when the common SVG writer serves its decimals.
+    const error = (Math.abs(a.x0) + Math.abs(a.y0) + Math.abs(a.x1) + Math.abs(a.y1) + Math.abs(b.x0) + Math.abs(b.y0) + Math.abs(b.x1) + Math.abs(b.y1)) * 1e-10 + 1e-9
+    return !Number.isFinite(error) || a.x0 < b.x1 + error && b.x0 < a.x1 + error && a.y0 < b.y1 + error && b.y0 < a.y1 + error
+  }
+  const checked = new Set<PositionedNode>()
+  for (const node of moved) {
+    const box = nodeBounds(node)
+    if (!box) return false
+    checked.add(node)
+    for (const other of nodes) {
+      if (checked.has(other)) continue
+      const peer = nodeBounds(other)
+      if (!peer || overlap(box, peer)) return false
+    }
+  }
+  for (let index = 0; index < edges.length; index++) {
+    const edge = edges[index]!, old = beforeEdges[index]!
+    const changed = edge.points.length !== old.points.length || edge.points.some((p, i) => p.x !== old.points[i]!.x || p.y !== old.points[i]!.y)
+    const subjects = changed ? nodes : moved
+    if (!subjects.length || edge.style === 'invisible') continue
+    const stroke = width(edge.inlineStyle?.['stroke-width'], (style.lineWidth ?? 1) * (edge.style === 'thick' ? 2 : 1))
+    if (stroke === undefined) return false
+    const extent = paintedStrokeExtent({ stroke: '#000', strokeWidth: String(stroke) }, true)
+    if (extent === undefined) return false
+    const radius = style.edgeBendRadius ?? 0
+    if (!(Number.isFinite(radius) && radius >= 0)) return false
+    const pad = extent + radius
+    const markers = graphEdgeMarkerPaintRegions(edge, style)
+    for (const node of subjects) {
+      const box = nodeBounds(node)
+      if (!box) return false
+      if (node.id !== edge.source && node.id !== edge.target) for (let i = 1; i < edge.points.length; i++) {
+        const a = edge.points[i - 1]!, b = edge.points[i]!
+        // Curve controls lie inside their adjacent route box; rounded corner
+        // controls extend at most the clamped radius from an incident run.
+        if (overlap(box, { x0: Math.min(a.x, b.x) - pad, y0: Math.min(a.y, b.y) - pad, x1: Math.max(a.x, b.x) + pad, y1: Math.max(a.y, b.y) + pad })) return false
+      }
+      for (const marker of markers) {
+        const owner = marker.position === 'start' ? edge.source : edge.target
+        if (node.id !== owner && (!marker.bounds || overlap(box, marker.bounds))) return false
+      }
+      const label = labelRect(edge, style)
+      if (label) {
+        const halo = labelHaloExtension(edge, style.lineWidth ?? 1)
+        if (overlap(box, { x0: label.x - halo, y0: label.y - halo, x1: label.x + label.w + halo, y1: label.y + label.h + halo })) return false
+      }
+    }
+  }
+  return true
+}
 
 /**
  * Port-lane alignment, the placement repair for "straight but off-port":
@@ -255,11 +337,12 @@ export function alignPortLanes(
   edges: PositionedEdge[],
   groups: PositionedGroup[],
   direction: Direction,
-  style: LabelMetricsStyle,
+  style: PortLaneStyle,
 ): void {
   const candidateNodes = nodes.map(node => ({ ...node }))
   const candidateEdges = edges.map(edge => ({ ...edge, points: edge.points.map(point => ({ ...point })), ...(edge.labelPosition ? { labelPosition: { ...edge.labelPosition } } : {}) }))
   alignPortLaneCandidate(candidateNodes, candidateEdges, groups, direction, style)
+  if (!portLaneForeignInkClear(candidateNodes, candidateEdges, nodes, edges, style)) return
   // Admit the actual transformed geometry, including every incident run and
   // stretched hop. A node-only lane proof cannot see a reserved header band.
   if (groups.length && !portLaneHeadersClear(candidateNodes, candidateEdges, nodes, edges, groups)) return

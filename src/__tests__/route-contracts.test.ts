@@ -2736,6 +2736,78 @@ describe('port-lane reserved-header admission', () => {
   })
 })
 
+describe('port-lane foreign painted corridors', () => {
+  for (const transpose of [false, true]) for (const clear of [false, true]) it(`${transpose ? 'vertical' : 'horizontal'} slide preserves ${clear ? 'clear' : 'overlapping'} authored thick card borders`, () => {
+    const nodes: PositionedNode[] = [
+      { id: 'S', label: 'S', shape: 'rectangle', x: 0, y: 100, width: 40, height: 30 },
+      { id: 'T', label: 'T', shape: 'rectangle', x: 100, y: 0, width: 40, height: 30, inlineStyle: { 'stroke-width': '12px' } },
+      { id: 'U', label: 'U', shape: 'rectangle', x: clear ? 156 : 150, y: 105, width: 40, height: 30, inlineStyle: { 'stroke-width': '12px' } },
+    ]
+    const edges: PositionedEdge[] = [{ source: 'S', target: 'T', style: 'solid', hasArrowStart: false, hasArrowEnd: false, points: [{ x: 40, y: 115 }, { x: 70, y: 115 }, { x: 70, y: 15 }, { x: 100, y: 15 }] }]
+    const pin: PositionedGroup = { id: 'pin', label: '', x: -1, y: 99, width: 42, height: 32, headerHeight: 0, children: [] }
+    if (transpose) {
+      for (const n of [...nodes, pin]) { [n.x, n.y] = [n.y, n.x]; [n.width, n.height] = [n.height, n.width] }
+      for (const p of edges[0]!.points) [p.x, p.y] = [p.y, p.x]
+    }
+    const before = structuredClone({ nodes, edges })
+    alignPortLanes(nodes, edges, [pin], transpose ? 'TD' : 'LR', resolveRenderStyle())
+    const t = nodes[1]!, u = nodes[2]!
+    // Rectangular12px outlines extend exactly6px beyond each side.
+    expect(t.x - 6 < u.x + u.width + 6 && u.x - 6 < t.x + t.width + 6 && t.y - 6 < u.y + u.height + 6 && u.y - 6 < t.y + t.height + 6).toBe(false)
+    if (clear) expect(transpose ? t.x : t.y).toBe(100)
+    else expect({ nodes, edges }).toEqual(before)
+  })
+  for (const transpose of [false, true]) for (const clear of [false, true]) it(`${transpose ? 'vertical' : 'horizontal'} foreign shaft ${clear ? 'retains a safe alignment' : 'cannot be covered by a moved card'}`, () => {
+    const node = (id: string, x: number, y: number): PositionedNode => ({ id, label: id, shape: 'rectangle', x, y, width: 40, height: 30 })
+    const edge = (source: string, target: string, points: Point[]): PositionedEdge => ({ source, target, points, style: 'solid', hasArrowStart: false, hasArrowEnd: false })
+    const lane = clear ? 136 : 130.2
+    const nodes = [node('S', 0, 100), node('T', 100, 0), node('A', -100, lane - 15), node('B', 300, lane - 15)]
+    const edges = [edge('S', 'T', [{ x: 40, y: 115 }, { x: 70, y: 115 }, { x: 70, y: 15 }, { x: 100, y: 15 }]), edge('A', 'B', [{ x: -60, y: lane }, { x: 300, y: lane }])]
+    const pin: PositionedGroup = { id: 'pin', label: '', x: -1, y: 99, width: 42, height: 32, headerHeight: 0, children: [] }
+    if (transpose) {
+      for (const n of [...nodes, pin]) { [n.x, n.y] = [n.y, n.x]; [n.width, n.height] = [n.height, n.width] }
+      for (const e of edges) for (const p of e.points) [p.x, p.y] = [p.y, p.x]
+    }
+    const before = structuredClone({ nodes, edges }), style = resolveRenderStyle()
+    alignPortLanes(nodes, edges, [pin], transpose ? 'TD' : 'LR', style)
+    const t = nodes[1]!, a = edges[1]!.points[0]!, b = edges[1]!.points[1]!, half = style.lineWidth / 2, border = style.nodeLineWidth / 2
+    // Independent actual continuous shaft and card-border rectangles. The old
+    // centerline test admits the .2px gap while both painted interiors overlap.
+    const px = a.x === b.x ? half : 0, py = a.y === b.y ? half : 0
+    const overlap = Math.min(Math.max(a.x, b.x) + px, t.x + t.width + border) > Math.max(Math.min(a.x, b.x) - px, t.x - border)
+      && Math.min(Math.max(a.y, b.y) + py, t.y + t.height + border) > Math.max(Math.min(a.y, b.y) - py, t.y - border)
+    expect(overlap).toBe(false)
+    expect(edges[1]).toEqual(before.edges[1])
+    if (clear) expect(transpose ? t.x : t.y).toBe(100)
+    else expect({ nodes, edges }).toEqual(before)
+  })
+  for (const transpose of [false, true]) it(`retains a clear foreign circle marker during a ${transpose ? 'vertical' : 'horizontal'} slide`, () => {
+    const nodes: PositionedNode[] = [
+      { id: 'S', label: 'S', shape: 'rectangle', x: 0, y: 100, width: 40, height: 30 },
+      { id: 'T', label: 'T', shape: 'rectangle', x: 100, y: 0, width: 40, height: 30 },
+      { id: 'A', label: 'A', shape: 'rectangle', x: -100, y: 125.5, width: 40, height: 30 },
+      { id: 'B', label: 'B', shape: 'rectangle', x: 120, y: 140, width: 40, height: 1 },
+    ]
+    const edges: PositionedEdge[] = [
+      { source: 'S', target: 'T', style: 'solid', hasArrowStart: false, hasArrowEnd: false, points: [{ x: 40, y: 115 }, { x: 70, y: 115 }, { x: 70, y: 15 }, { x: 100, y: 15 }] },
+      { source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: true, endMarker: 'circle', points: [{ x: -60, y: 140.5 }, { x: 120, y: 140.5 }] },
+    ]
+    const pin: PositionedGroup = { id: 'pin', label: '', x: -1, y: 99, width: 42, height: 32, headerHeight: 0, children: [] }
+    if (transpose) {
+      for (const n of [...nodes, pin]) { [n.x, n.y] = [n.y, n.x]; [n.width, n.height] = [n.height, n.width] }
+      for (const e of edges) for (const p of e.points) [p.x, p.y] = [p.y, p.x]
+    }
+    const before = structuredClone({ nodes, edges })
+    alignPortLanes(nodes, edges, [pin], transpose ? 'TD' : 'LR', resolveRenderStyle({ styleFace: { edge: { lineWidth: 3 } } }))
+    // The canonical circle has radius9.75 and halfstroke1.5 at scale3.
+    // This actual outline point would be hidden by T at its proposed seat,
+    // although the foreign shaft and the endpoint B remain clear of T.
+    const p = transpose ? { x: 129.5, y: 109.5 } : { x: 109.5, y: 129.5 }, t = nodes[1]!
+    expect(p.x > t.x && p.x < t.x + t.width && p.y > t.y && p.y < t.y + t.height).toBe(false)
+    expect({ nodes, edges }).toEqual(before)
+  })
+})
+
 describe('container crossing repair reuses proven Z lanes', () => {
   const fixture = (labelled = false, peerX = 110) => {
     const graph = parseMermaid(`flowchart TD\nsubgraph one\nP\nend\nsubgraph two\nQ\nend\nU --> V\none -->${labelled ? '|keep|' : ''} two`)
