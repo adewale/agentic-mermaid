@@ -192,6 +192,32 @@ process.stdout.write(JSON.stringify({ resolved, results, pngResults }))
 `
 
 describe('installed tarball — library', () => {
+  test('resolved scenes ship typed, synchronous and browser-free through the main entry', () => {
+    expect(haveConsumer).toBe(true)
+    const consumer = join(work, 'resolved-scene.mts')
+    writeFileSync(consumer, `
+import { renderResolvedScene, RESOLVED_SCENE_VERSION, type ResolvedScene, type ResolvedPrimitive } from 'agentic-mermaid';
+const scene: ResolvedScene = renderResolvedScene('flowchart LR\\n A --> B');
+const version: 1 = RESOLVED_SCENE_VERSION;
+const primitives: ResolvedPrimitive[] = scene.parts.flatMap(part => part.primitives);
+`)
+    const types = spawnSync(NODE!, [join(REPO, 'node_modules/typescript/bin/tsc'), '--noEmit', '--skipLibCheck', '--target', 'ESNext', '--module', 'NodeNext', '--moduleResolution', 'NodeNext', consumer], {
+      cwd: work, encoding: 'utf8', timeout: RUN_TIMEOUT_MS,
+    })
+    expect({ status: types.status, stdout: types.stdout, stderr: types.stderr }).toEqual({ status: 0, stdout: '', stderr: '' })
+    const runtime = spawnSync(NODE!, ['--input-type=module', '--eval', `
+import { renderResolvedScene, renderMermaidSVG } from 'agentic-mermaid';
+const source='flowchart LR\\n A -->|uses ELK| B', options={style:'hand-drawn'};
+const scene=renderResolvedScene(source, options);
+console.log(JSON.stringify({version:scene.version, document:typeof document,
+  parts:scene.parts.length>0, equal:scene.svg===renderMermaidSVG(source,options),
+  stable:JSON.stringify(scene)===JSON.stringify(renderResolvedScene(source,options)),
+  jsonSafe:JSON.stringify(scene)===JSON.stringify(JSON.parse(JSON.stringify(scene)))}));
+`], { cwd: work, encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
+    expect({ status: runtime.status, stderr: runtime.stderr }).toEqual({ status: 0, stderr: '' })
+    expect(JSON.parse(runtime.stdout)).toEqual({ version: 1, document: 'undefined', parts: true, equal: true, stable: true, jsonSafe: true })
+  }, RUN_TIMEOUT_MS)
+
   test('public package entries keep internal Style aliases out of runtime and typed consumers', () => {
     expect(haveConsumer).toBe(true)
     const consumer = join(work, 'public-api.mts')

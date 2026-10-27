@@ -4,6 +4,14 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+### Added
+
+- Export synchronous `renderResolvedScene` and `RESOLVED_SCENE_VERSION = 1`
+  from the main entry. Resolved parts retain their Scene nodes and expose
+  backend-painted paths, text runs, concrete paint, transforms and expanded
+  markers without a browser. The returned SVG matches `renderMermaidSVG`;
+  unsupported artwork fails with its owning part instead of being dropped.
+
 ### Performance
 
 - Published Node bundles compact whitespace without rewriting syntax or renaming
@@ -31,6 +39,9 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Fixed
 
+- Architecture layouts separate expanded aligned group frames and reconcile
+  cross-group alignment after child reordering, preserving complete group contents
+  and routing from the final endpoint positions.
 - XY charts wrap rotated axis titles into the authored canvas height and reserve
   their complete multiline gutter, preserving fixed chart dimensions and text.
 

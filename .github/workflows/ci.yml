@@ -443,7 +443,7 @@ jobs:
           if git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- src/layout-engine.ts src/layout src/layout-rubric.ts src/route-contracts.ts src/shape-clipping.ts src/shape-outline.ts src/class src/pie src/journey src/gitgraph src/radar src/xychart src/sequence src/architecture src/agent/families-builtin.ts src/svg-family-hooks/flowchart.ts src/parser.ts src/state src/er src/ascii src/block; then
             exit 0
           fi
-          bun run scripts/pr-assets/meaning-preservation-evidence.ts "$BASE_SHA" "$HEAD_SHA" bench-report/meaning-preservation compat-er-attribute-quotes compat-corpus-flowchart-94 compat-corpus-flowchart-95 compat-corpus-flowchart-96 compat-corpus-state-0 compat-corpus-state-1 compat-corpus-state-8 compat-corpus-state-14 compat-corpus-state-16 compat-corpus-state-17 compat-corpus-state-18 compat-corpus-state-19 compat-flowchart-membership compat-c4-named-label compat-state-floating-note compat-er-parent compat-sequence-wrap agent-flat-namespace agent-category-role agent-journey-visibility journey-literal-formatted-identity agent-gitgraph-rails agent-small-values compat-flowchart-block-label compat-sequence-spaced-metadata compat-class-identifiers compat-architecture-compact-edge compat-gitgraph-repeated-pick compat-ellipse compat-parallel-overlay compat-architecture-text-icon nightly-architecture-card-clearance terminal-block-protected-approaches terminal-state-distinct-contacts terminal-local-bundle terminal-local-labeled-trunk terminal-state-declaration-timing terminal-approach-envelopes flowchart-feedback-outward-contact compat-corpus-flowchart-98 native-priority-aj native-priority-an flowchart-cosmetic-circle-approach flowchart-peer-label-capacity flowchart-mixed-parallel-feedback rayner-xy-title-income-30000 rayner-xy-title-income-65673.88 rayner-xy-title-income-150000
+          bun run scripts/pr-assets/meaning-preservation-evidence.ts "$BASE_SHA" "$HEAD_SHA" bench-report/meaning-preservation compat-er-attribute-quotes compat-corpus-flowchart-94 compat-corpus-flowchart-95 compat-corpus-flowchart-96 compat-corpus-state-0 compat-corpus-state-1 compat-corpus-state-8 compat-corpus-state-14 compat-corpus-state-16 compat-corpus-state-17 compat-corpus-state-18 compat-corpus-state-19 compat-flowchart-membership compat-c4-named-label compat-state-floating-note compat-er-parent compat-sequence-wrap agent-flat-namespace agent-category-role agent-journey-visibility journey-literal-formatted-identity agent-gitgraph-rails agent-small-values compat-flowchart-block-label compat-sequence-spaced-metadata compat-class-identifiers compat-architecture-compact-edge compat-gitgraph-repeated-pick compat-ellipse compat-parallel-overlay compat-architecture-text-icon nightly-architecture-card-clearance terminal-block-protected-approaches terminal-state-distinct-contacts terminal-local-bundle terminal-local-labeled-trunk terminal-state-declaration-timing terminal-approach-envelopes flowchart-feedback-outward-contact compat-corpus-flowchart-98 native-priority-aj native-priority-an flowchart-cosmetic-circle-approach flowchart-peer-label-capacity flowchart-mixed-parallel-feedback rayner-xy-title-income-30000 rayner-xy-title-income-65673.88 rayner-xy-title-income-150000 rayner-architecture-local-pods-1-1-1 rayner-architecture-local-pods-2-2-0 architecture-alignment-components
 
       - name: Retain diagram review images
         if: ${{ matrix.suite == 'payload' && github.event_name == 'pull_request' }}
@@ -501,6 +501,31 @@ jobs:
         if: ${{ matrix.suite == 'browser' || matrix.suite == 'browser-site' }}
         # One Playwright/server suite per process, with disjoint file shards.
         run: bun run test:browser --shard=${{ matrix.suite == 'browser' && '1/2' || '2/2' }}
+
+      - name: Compare resolved scenes with Chromium
+        if: ${{ matrix.suite == 'browser' }}
+        # Read pinned Rayner snapshot specs as data; do not execute its code.
+        run: |
+          mkdir -p bench-report/resolved-scene
+          bun run build:browser
+          bun scripts/resolved-scene-corpus.ts families /tmp/resolved-families.json
+          bun scripts/resolved-scene-oracle.ts /tmp/resolved-families.json --compare --worker-bundle dist/browser.global.js | tee bench-report/resolved-scene/families.log
+          rayner_checkout=$(mktemp -d)
+          git -C "$rayner_checkout" init --quiet
+          git -C "$rayner_checkout" remote add origin https://github.com/adewale/rayner.git
+          git -C "$rayner_checkout" fetch --quiet --depth=1 origin bd6f4d980f68d1a0b59f5f17fd16c5b955e9f824
+          git -C "$rayner_checkout" checkout --quiet --detach FETCH_HEAD
+          bun scripts/resolved-scene-corpus.ts rayner "$rayner_checkout" /tmp/resolved-rayner.json
+          bun scripts/resolved-scene-oracle.ts /tmp/resolved-rayner.json --compare --self-test | tee bench-report/resolved-scene/rayner.log
+
+      - name: Retain resolved-scene comparisons
+        if: ${{ always() && matrix.suite == 'browser' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: resolved-scene-${{ github.event.pull_request.head.sha || github.sha }}
+          path: bench-report/resolved-scene/
+          retention-days: 30
+          if-no-files-found: warn
 
       - name: Retain Editor interaction review images
         if: ${{ always() && matrix.suite == 'browser' }}
