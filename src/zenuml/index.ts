@@ -1,7 +1,7 @@
 /** Optional browser-only backend. No ZenUML dependency enters the default graph. */
 export class ZenUMLBackendError extends Error {
   constructor(
-    readonly code: 'UNSUPPORTED_RUNTIME' | 'BACKEND_UNAVAILABLE' | 'INVALID_SOURCE' | 'RENDER_FAILED',
+    readonly code: 'UNSUPPORTED_RUNTIME' | 'BACKEND_UNAVAILABLE' | 'INVALID_SOURCE' | 'RENDER_FAILED' | 'UNSUPPORTED_APPEARANCE',
     message: string,
   ) {
     super(message)
@@ -20,6 +20,9 @@ export const ZENUML_CAPABILITIES = Object.freeze({
   cli: false,
   mcp: false,
   backend: '@zenuml/core@3.47.9',
+  nativeScene: false,
+  styles: false,
+  palettes: false,
 })
 export interface ZenUMLOptions {
   /** URL of the shipped zenuml-frame.global.js, served by the consumer. */
@@ -30,6 +33,7 @@ export interface ZenUMLOptions {
  * during import. That import must never run against the caller's document. */
 export async function renderZenUMLSVG(source: string, options: ZenUMLOptions): Promise<string> {
   if (typeof document === 'undefined' || typeof MessageChannel === 'undefined') throw new ZenUMLBackendError('UNSUPPORTED_RUNTIME', 'ZenUML rendering requires a browser document; use the optional browser backend.')
+  if (options && 'style' in options && options.style !== undefined) throw new ZenUMLBackendError('UNSUPPORTED_APPEARANCE', 'This optional backend uses its fixed upstream theme; Agentic styles and palettes are unavailable.')
   if (!/^\s*zenuml\b/.test(source) || !source.replace(/^\s*zenuml\b/, '').trim()) throw new ZenUMLBackendError('INVALID_SOURCE', 'Expected a nonempty ZenUML document.')
   let url: URL
   try {

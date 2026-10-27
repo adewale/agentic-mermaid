@@ -70,7 +70,7 @@ injects global CSS when imported. The frame validates syntax through ZenUML's
 own parser, awaits completion, checks SVG bounds and active/external content,
 then returns native SVG. It is removed after success, failure or timeout.
 `UNSUPPORTED_RUNTIME`, `BACKEND_UNAVAILABLE`, `INVALID_SOURCE` and
-`RENDER_FAILED` distinguish those outcomes. The consumer must permit its
+`RENDER_FAILED` distinguish those outcomes. Passing an Agentic `style` to this optional API returns `UNSUPPORTED_APPEARANCE` instead of silently rendering the vendor theme. The consumer must permit its
 same-origin frame and script under its CSP. A blocked script expires as
 `BACKEND_UNAVAILABLE`. This entry does not promise Agentic style presets or full
 Mermaid theme equivalence; it uses ZenUML's Mermaid theme.
@@ -84,3 +84,5 @@ original 1,095-occurrence denominator. Optional backend evidence uses a separate
 configuration identity and never reclassifies those default-entry failures.
 
 Title edits preserve unrelated YAML values. If an alias couples the title to another configuration value, the edit returns `INVALID_OP` atomically; remove that coupling before editing the title. Generous reads of missing or reordered Given/When/Then clause markers report `UNSUPPORTED_SYNTAX`; export writes the portable clause order.
+
+See [Event Modeling composition and visual contract](design/families/eventmodeling.md) for the concrete #409 reuse trace, aesthetic thesis, style/palette witnesses and remaining limits. `ZENUML_CAPABILITIES` explicitly reports `nativeScene`, `styles` and `palettes` as false; the fixed upstream theme is separate from native style support.

@@ -43,15 +43,15 @@ browserTests('optional ZenUML browser backend', () => {
       document.getElementById('output')!.innerHTML = svg
       const bounds = document.querySelector('#output svg')!.getBoundingClientRect()
       const after = document.head.innerHTML + getComputedStyle(document.getElementById('host')!).font
-      const failure = async (source: string, backendURL: string) => {
+      const failure = async (source: string, backendURL: string, style?: string) => {
         try {
-          await api.renderZenUMLSVG(source, { backendURL, timeoutMs: 1000 })
+          await api.renderZenUMLSVG(source, { backendURL, timeoutMs: 1000, ...(style ? { style } : {}) })
           return 'unexpected-success'
         } catch (error) {
           return (error as { code: string }).code
         }
       }
-      return { svg, before, after, renderedWidth: bounds.width, renderedHeight: bounds.height, invalid: await failure('zenuml\nif (', '/frame.js'), missing: await failure('zenuml\nA->B: hi', '/missing.js'), malformed: await failure('zenuml\nA->B: hi', 'http://['), frames: document.querySelectorAll('iframe').length }
+      return { svg, before, after, unsupportedStyle: await failure('zenuml\nA->B: hi', '/frame.js', 'hand-drawn'), renderedWidth: bounds.width, renderedHeight: bounds.height, invalid: await failure('zenuml\nif (', '/frame.js'), missing: await failure('zenuml\nA->B: hi', '/missing.js'), malformed: await failure('zenuml\nA->B: hi', 'http://['), frames: document.querySelectorAll('iframe').length }
     })
     // Reviewed rendering golden: guard the pinned backend's actors, messages,
     // geometry and paints independently of source admission and CSS isolation.
@@ -63,6 +63,7 @@ browserTests('optional ZenUML browser backend', () => {
     expect(result.before).toBe(result.after)
     expect(result.renderedWidth).toBeLessThanOrEqual(200)
     expect(result.renderedHeight).toBeGreaterThan(0)
+    expect(result.unsupportedStyle).toBe('UNSUPPORTED_APPEARANCE')
     expect(result.invalid).toBe('INVALID_SOURCE')
     expect(result.missing).toBe('BACKEND_UNAVAILABLE')
     expect(result.malformed).toBe('BACKEND_UNAVAILABLE')
