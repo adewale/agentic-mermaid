@@ -40,6 +40,11 @@ export default defineConfig({
         contents: (await readFile(args.path, 'utf8')).replace(/\b(doc|description): '(?:\\.|[^'\\])*'/g, "$1: ''"),
         loader: 'ts',
       }))
+      // Source-only SVG rendering cannot receive an external Scene. Share the
+      // complete native validator/snapshot core; public Node/Scene/IIFE entries
+      // retain the full external admission consumer.
+      build.onResolve({ filter: /\/external-data-snapshot\.ts$/ }, args =>
+        ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.browser.ts')) }))
       build.onResolve({ filter: /\/html-entity-table\.ts$/ }, args =>
         ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
       build.onResolve({ filter: /\/mermaid-yaml\.ts$/ }, args =>
