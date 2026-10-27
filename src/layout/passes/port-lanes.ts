@@ -4,7 +4,7 @@ import { diamondFacetPorts, labelRect, laneContextFor, PORT_EXACT, shapePorts, s
 import type { LabelMetricsStyle } from '../../route-contracts.ts'
 import { DEFAULTS, layoutDebug, layoutEnvFlag } from '../geometry.ts'
 import { corankFanInSpokes } from './peers.ts'
-import { graphEdgeMarkerPaintRegions } from '../../graph-connectors.ts'
+import { servedRouteMarkerPaintRegions } from '../route-marker-clearance.ts'
 import { shapeOutline } from '../../shape-outline.ts'
 import { nodePaintBounds, paintedStrokeExtent } from '../../scene/bounds.ts'
 import { shape } from '../../scene/marks.ts'
@@ -63,7 +63,7 @@ function portLaneForeignInkClear(nodes: PositionedNode[], edges: PositionedEdge[
     const radius = style.edgeBendRadius ?? 0
     if (!(Number.isFinite(radius) && radius >= 0)) return false
     const pad = extent + radius
-    const markers = graphEdgeMarkerPaintRegions(edge, style)
+    const markers = servedRouteMarkerPaintRegions(edge, style)
     for (const node of subjects) {
       const box = nodeBounds(node)
       if (!box) return false

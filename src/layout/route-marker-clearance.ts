@@ -25,6 +25,12 @@ function markerView(edge: PositionedEdge, style: LabelMetricsStyle): { regions: 
   return { regions, points, directional }
 }
 
+/** Conservative served marker bounds for rejection-only placement guards. */
+export function servedRouteMarkerPaintRegions(edge: PositionedEdge, style: LabelMetricsStyle): MarkerRegion[] {
+  if (edge.style === 'invisible' || !edge.hasArrowStart && !edge.hasArrowEnd) return []
+  return markerView(edge, style).regions
+}
+
 function mappingKnown(edge: PositionedEdge, style: LabelMetricsStyle): boolean {
   if (!edge.points.every(point => Number.isFinite(point.x) && Number.isFinite(point.y))) return false
   if (style.edgeBendRadius !== undefined && !(Number.isFinite(style.edgeBendRadius) && style.edgeBendRadius >= 0)) return false

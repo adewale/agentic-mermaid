@@ -13,7 +13,8 @@ import { gen } from '../../eval/overlap-audit/generators.ts'
 import { renderMermaidSVG, renderMermaidSVGWithReceipt } from '../index.ts'
 import { labelRect } from '../route-contracts.ts'
 import { resolveRenderStyle } from '../styles.ts'
-import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
+import { graphEdgeMarkerPaintRegions, graphEdgePathProjection } from '../graph-connectors.ts'
+import { formatSvgNumericAttribute } from '../shared/svg-number.ts'
 import { measureLabelConflicts } from '../layout/label-conflicts.ts'
 import { createTextMeasurementExecution, withTextMeasurementExecution } from '../text-measurement-profile.ts'
 import { connector, shape } from '../scene/marks.ts'
@@ -2737,6 +2738,30 @@ describe('port-lane reserved-header admission', () => {
 })
 
 describe('port-lane foreign painted corridors', () => {
+  it('retains a foreign cubic marker when serving collapses its raw horizontal tangent', () => {
+    const x = 100.12345678912345, endX = 100.1234567891235
+    const node = (id: string, x: number, y: number): PositionedNode => ({ id, label: id, shape: 'rectangle', x, y, width: 40, height: 40 })
+    const nodes = [node('F', -100, 52), node('N', 102.5, 50), node('C', x - 20, -40), node('D', endX - 20, 100)]
+    const edges: PositionedEdge[] = [
+      { source: 'F', target: 'N', style: 'solid', hasArrowStart: false, hasArrowEnd: false, points: [{ x: -60, y: 72 }, { x: 80, y: 72 }, { x: 80, y: 70 }, { x: 102.5, y: 70 }] },
+      { source: 'C', target: 'D', style: 'solid', hasArrowStart: false, hasArrowEnd: true, curve: 'basis', points: [{ x, y: 0 }, { x: endX, y: 100 }] },
+    ]
+    const groups: PositionedGroup[] = nodes.filter(n => n.id !== 'N').map(n => ({ id: `pin-${n.id}`, label: '', x: n.x - 1, y: n.y - 1, width: 42, height: 42, headerHeight: 0, children: [] }))
+    const style = { ...resolveRenderStyle(), nodeLineWidth: .75, cornerRadius: 0, lineWidth: 1, edgeBendRadius: 0 }
+    const before = structuredClone({ nodes, edges }), projection = graphEdgePathProjection(edges[1]!, style)!
+    if (projection.geometry.kind !== 'path') throw new Error('expected cubic path')
+    const written = formatSvgNumericAttribute('d', projection.geometry.d)
+    const values = [...written.matchAll(/[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?/g)].map(match => Number(match[0]))
+    expect(values).toHaveLength(8)
+    expect([values[0], values[2], values[4], values[6]]).toEqual(Array(4).fill(values[0]))
+    alignPortLanes(nodes, edges, groups, 'LR', style)
+    // The served cubic is vertical. This point lies inside its 8×5 arrow
+    // triangle and inside the proposed card's bottom border at y=92.
+    const witness = { x: 102.55, y: 92.1 }, moved = nodes[1]!
+    expect(witness.y > 92 && witness.y < 100 && Math.abs(witness.x - values[6]!) < 2.5 * (100 - witness.y) / 8).toBe(true)
+    expect(witness.x > moved.x && witness.x < moved.x + moved.width && Math.abs(witness.y - (moved.y + moved.height)) < .375).toBe(false)
+    expect({ nodes, edges }).toEqual(before)
+  })
   for (const transpose of [false, true]) for (const clear of [false, true]) it(`${transpose ? 'vertical' : 'horizontal'} slide preserves ${clear ? 'clear' : 'overlapping'} authored thick card borders`, () => {
     const nodes: PositionedNode[] = [
       { id: 'S', label: 'S', shape: 'rectangle', x: 0, y: 100, width: 40, height: 30 },
