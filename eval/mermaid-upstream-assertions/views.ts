@@ -1,3 +1,4 @@
+import { eventRelations } from '../../src/eventmodeling/parser.ts'
 import type { NativeDb } from './runtime.ts'
 import { normalizeMermaidSource, parseForAst, unavailable } from './runtime.ts'
 import { readSequenceStatements } from '../../src/sequence/parser.ts'
@@ -85,6 +86,13 @@ function flattenTree(root: any): any[] { return root ? [root, ...(root.children 
 
 export function nativeGetters(db: NativeDb, key: string): any {
   const family = db.context.family, model = db.model
+  // A semantic relation projection of native state. No DOM boxes, positions,
+  // text metrics or missing payloads are synthesized to imitate Mermaid.
+  if (family === 'eventmodeling' && key === 'getState') return () => {
+    if (!model) throw Error('No data for EventModel')
+    return { relations: eventRelations(model).map(edge => ({ sourceBox: { frame: { name: edge.from } }, targetBox: { frame: { name: edge.to } } })) }
+  }
+
   if (key === 'Cardinality') return ER_ENUM
   if (key === 'Identification') return { IDENTIFYING: 'IDENTIFYING', NON_IDENTIFYING: 'NON_IDENTIFYING' }
   if (key === 'LINETYPE') return SEQUENCE_LINES

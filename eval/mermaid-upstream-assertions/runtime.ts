@@ -100,6 +100,7 @@ class NativeDatabase {
     const input = recordInput(this.context.family, source)
     this.source = source
     this.events = []
+    if (this.context.family === 'eventmodeling') this.model = undefined
     const configured = this.context.configured(source)
     try {
       this.model = withParserObservation(this.context.family, event => this.events.push(event), () => parseNativeModel(this.context.family, configured))
@@ -146,6 +147,9 @@ class AdapterContext {
         if (parser.parser) parser.parser.yy = context.parser.yy
         return parser.parse(source)
       }
+      // This pinned family exposes an asynchronous parser. Adapt completion,
+      // never acceptance or error wording, around the actual synchronous native parse.
+      if (family === 'eventmodeling') return Promise.resolve().then(() => context.parser.yy.parse(source))
       return context.parser.yy.parse(source)
     } }
     this.parser.parser = this.parser
@@ -197,7 +201,20 @@ class AdapterContext {
       }, bounds: deferred('Mermaid renderer.bounds pixel bookkeeping') }
       return { db: db.proxy(), renderer, type: context.family }
     } }
-    if (/mermaidAPI/.test(specifier)) return { default: referenceMode ? reference.mermaidAPI : api, ...api }
+    if (/mermaidAPI/.test(specifier)) {
+      const publicApi = referenceMode ? { ...reference.mermaidAPI, async parse(...args: any[]) {
+        const input = recordInput(context.family, args[0])
+        try {
+          const result = await reference.mermaidAPI.parse(...args)
+          if (input) input.accepted = result !== false
+          return result
+        } catch (error) {
+          if (input) { input.accepted = false; input.error = String(error) }
+          throw error
+        }
+      } } : api
+      return { default: publicApi, mermaidAPI: publicApi, ...publicApi }
+    }
     if (/config\.js$|diagramAPI\.js$/.test(specifier)) return { ...api, default: api }
     if (/Diagram\.js$/.test(specifier)) return { Diagram }
     if (/diagram-orchestration/.test(specifier)) return { addDiagrams() {} }
