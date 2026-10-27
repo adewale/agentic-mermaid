@@ -89,8 +89,8 @@ export function routeCandidateMarkerBlocker(edge: PositionedEdge, points: Point[
     if (!measured(marker)) return blocker(peerOwner, marker.position, 'marker')
     for (const opposite of after) if (opposite !== marker && !separated(marker, opposite)) return blocker(peerOwner, opposite.position, 'opposite-marker')
     for (const peer of peers) {
-      if (peer === peerOwner) continue
-      if ((peer.hasArrowStart || peer.hasArrowEnd) && peer.style !== 'invisible' && !mappingKnown(peer, style)) return blocker(peer, 'mapping', 'peer-marker')
+      if (peer === peerOwner || peer.style === 'invisible' || !peer.hasArrowStart && !peer.hasArrowEnd) continue
+      if (!mappingKnown(peer, style)) return blocker(peer, 'mapping', 'peer-marker')
       const peerView = markerView(peer, style)
       for (const occurrence of peerView.regions) {
         const ownNode = marker.position === 'start' ? edge.source : edge.target
