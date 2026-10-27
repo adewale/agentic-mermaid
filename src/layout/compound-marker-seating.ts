@@ -404,6 +404,11 @@ export function seatMeasuredMarkers(
           origin = vertical ? p.x : p.y
         const extentLow = (vertical ? current.minX : current.minY) - origin,
           extentHigh = (vertical ? current.maxX : current.maxY) - origin
+        // First execute the complete legacy foreign-track and face-seat
+        // strategy. Added own/adjacent rescue runs only after that strategy
+        // would decline, retaining every proposal already spent.
+        for (let rescue = 0; rescue < 2; rescue++) {
+        charge()
         if (carrierWidth !== undefined && ink) {
           let yielded = false
           do {
@@ -411,6 +416,7 @@ export function seatMeasuredMarkers(
           yielded = false
           for (let other = 0; other < ranges.length && !yielded && proposals < 8; other++) {
             charge()
+            if (rescue === 0 && other === index) continue
             const range = ranges[other]!,
               foreign = routes[other]!.points
             for (let k = range.begin; k < range.end && !yielded && proposals < 8; k++) {
@@ -430,13 +436,35 @@ export function seatMeasuredMarkers(
               charge(4)
               const own = other === index, incident = own && (source ? j <= 1 : j >= foreign.length - 3)
               let collision = !incident && hits(current, blocker)
-              if (!collision) for (let neighbor = range.begin; neighbor < range.end; neighbor++) {
+              if (rescue === 0 && !collision) continue
+              // Current ranges store every strip in point order, followed by
+              // the existing joins in strictly increasing point order. Borrow
+              // the two adjacent strips directly; do not rescan unrelated ink.
+              for (let side = 0; side < 2 && !collision; side++) {
                 charge(8)
-                const support = carriers[neighbor]!
-                if (support === blocker || !support.current) continue
-                if (support.join ? support.point !== j && support.point !== j + 1 : support.point < j - 1 || support.point > j + 1) continue
-                if (own && (support.join ? support.point === (source ? 1 : foreign.length - 2) : source ? support.point <= 1 : support.point >= foreign.length - 3)) continue
-                if (hits(current, support)) { collision = true; break }
+                const support = carriers[range.begin + j + (side === 0 ? -1 : 1)]!
+                if (own && (source ? support.point <= 1 : support.point >= foreign.length - 3)) continue
+                if (hits(current, support)) collision = true
+              }
+              if (!collision) {
+                charge(3)
+                let lo = range.begin + foreign.length - 1,
+                  hi = range.end
+                // Missing collinear joins remain missing. Lower-bound lookup
+                // preserves the original j-then-j+1 join visitation order.
+                while (lo < hi) {
+                  charge(3)
+                  const mid = lo + Math.floor((hi - lo) / 2)
+                  if (carriers[mid]!.point < j) lo = mid + 1
+                  else hi = mid
+                }
+                for (let cursor = lo; cursor < range.end && !collision; cursor++) {
+                  charge(8)
+                  const support = carriers[cursor]!
+                  if (support.point > j + 1) break
+                  if (own && support.point === (source ? 1 : foreign.length - 2)) continue
+                  if (hits(current, support)) collision = true
+                }
               }
               if (!collision) continue
               // The current glyph has an ACTUAL collision. Its broad span only
@@ -646,7 +674,7 @@ export function seatMeasuredMarkers(
             seated.push(current)
             continue endpoint
           }
-          } while (proposals < 8)
+          } while (rescue === 1 && proposals < 8)
         }
         let count = 2
         cuts[0] = low
@@ -863,7 +891,12 @@ export function seatMeasuredMarkers(
           accepted = true
           break
         }
-        if (!accepted) fail('No physically clear measured marker seat at occurrence ' + index + ' role ' + role)
+        if (!accepted) {
+          if (rescue === 0) continue
+          fail('No physically clear measured marker seat at occurrence ' + index + ' role ' + role)
+        }
+        break
+        }
       }
       records(1)
       seated.push(current)
