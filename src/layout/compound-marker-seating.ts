@@ -474,19 +474,28 @@ export function seatMeasuredMarkers(
               // Any ACTUAL current glyph collision can justify a paid internal
               // track proposal; partial face coverage is not infeasibility.
               if (horizontal ? before.x !== a.x || after.x !== b.x : before.y !== a.y || after.y !== b.y) continue
-              const label = edges[other]!.label ? routes[other]!.labelPosition : undefined
-              if (label) {
+              const labelSize = edges[other]!.label,
+                label = labelSize ? routes[other]!.labelPosition : undefined
+              // A translated labelled run would lose its fixed caption spine.
+              // An adjacent leg may change length only beyond the COMPLETE
+              // occupied caption interval; its line and label center stay fixed.
+              let priorCaption = false,
+                nextCaption = false
+              if (label && rescue === 0) {
                 let protectedSpine = false
                 for (let q = j - 1; q <= j + 1; q++) {
                   charge(6)
-                  const u = foreign[q]!,
-                    v = foreign[q + 1]!
-                  if (pointOnMeasuredSegment(label, u, v)) {
+                  if (pointOnMeasuredSegment(label, foreign[q]!, foreign[q + 1]!)) {
                     protectedSpine = true
                     break
                   }
                 }
                 if (protectedSpine) continue
+              } else if (label) {
+                charge(18)
+                if (pointOnMeasuredSegment(label, a, b)) continue
+                priorCaption = pointOnMeasuredSegment(label, before, a)
+                nextCaption = pointOnMeasuredSegment(label, b, after)
               }
               const oldFixed = horizontal ? a.y : a.x,
                 prior = horizontal ? before.y : before.x,
@@ -498,6 +507,35 @@ export function seatMeasuredMarkers(
               else upper = Math.min(upper, prior)
               if (oldFixed > next) lower = Math.max(lower, next)
               else upper = Math.min(upper, next)
+              if (label && labelSize && (priorCaption || nextCaption)) {
+                charge()
+                // Raw interval containment proves a painted straight spine
+                // only for sharp carriers. Rounded adjacent captions retain
+                // the original conservative veto until curve erosion is owned.
+                if (carrierBendRadius !== 0) continue
+                charge(6)
+                const center = horizontal ? label.y : label.x,
+                  occupiedHalf = (horizontal ? labelSize.height : labelSize.width) / 2 + 2 + half,
+                  captionLow = center - occupiedHalf,
+                  captionHigh = center + occupiedHalf
+                let protectedSpine = false
+                for (let side = 0; side < 2; side++) {
+                  charge(12)
+                  if (side === 0 ? !priorCaption : !nextCaption) continue
+                  const fixed = side === 0 ? prior : next
+                  if (captionLow < Math.min(fixed, oldFixed) || captionHigh > Math.max(fixed, oldFixed)) {
+                    protectedSpine = true
+                    break
+                  }
+                  if (fixed <= captionLow) lower = Math.max(lower, captionHigh)
+                  else if (fixed >= captionHigh) upper = Math.min(upper, captionLow)
+                  else {
+                    protectedSpine = true
+                    break
+                  }
+                }
+                if (protectedSpine) continue
+              }
               if (!(lower < upper)) continue
               let eventCount = 2
               cuts[0] = lower

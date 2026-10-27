@@ -667,3 +667,56 @@ describe('internal bend ownership during marker repair',()=>{
     expect(work.pairs).toBeGreaterThan(0);expect(work.arcs).toBeGreaterThan(0)
   })
 })
+
+describe('fixed caption spine inside an adjacent yielding leg', () => {
+  for (const transpose of [false, true]) for (const reverse of [false, true]) for (const mode of ['tail', 'interval', 'central', 'rounded']) test(`${mode === 'rounded' ? 'keeps the legacy veto when a rounded corner would erase the retained straight spine' : mode === 'central' ? 'protects the central labelled run' : mode === 'interval' ? 'never submits an adjacent tail cutting the complete caption footprint' : 'trims only the caption-free adjacent tail'} transpose=${transpose} reverse=${reverse}`, () => {
+    const central = mode === 'central', fixedX = mode === 'interval' ? 65 : 40
+    const point = (p: { x: number; y: number }) => transpose ? { x: p.y, y: p.x } : { ...p },
+      box = (b: { x: number; y: number; width: number; height: number }) => transpose ? { x: b.y, y: b.x, width: b.height, height: b.width } : { ...b },
+      fail = (reason: string): never => { throw Error(reason) },
+      resource = classMarkerResources({ lineWidth: 1 } as any).find(marker => marker.id === 'cls-inherit')!,
+      template = classMarkerPieces(resource, { x: 0, y: 0 }, { x: -1, y: 0 }, 'end', 1),
+      world = classMarkerPieces(resource, point({ x: 80, y: 60 }), point({ x: 1, y: 0 }), 'end', 1),
+      label = point(central ? { x: 72, y: 40 } : { x: fixedX, y: 20 }),
+      routes = [{ points: [{ x: 200, y: 180 }, { x: 220, y: 180 }, { x: 220, y: 140 }, { x: 20, y: 140 }, { x: 20, y: 60 }, { x: 80, y: 60 }].map(point) }, { points: [{ x: 20, y: 20 }, { x: 72, y: 20 }, { x: 72, y: 120 }, { x: 150, y: 120 }].map(point), labelPosition: label }]
+    if (reverse) for (const route of routes) route.points.reverse()
+    const before = structuredClone(routes),
+      boxes = [{ x: 80, y: 40, width: 40, height: 40 }, { x: 160, y: 160, width: 40, height: 40 }, { x: 0, y: 10, width: 20, height: 20 }, { x: 150, y: 110, width: 20, height: 20 }].map(box),
+      edges = [{ source: reverse ? 0 : 1, target: reverse ? 1 : 0, markerPaint: reverse ? { start: template } : { end: template } }, { source: reverse ? 3 : 2, target: reverse ? 2 : 3, label: transpose ? { width: 4, height: 8 } : { width: 8, height: 4 } }],
+      obstruction = [{ kind: 'polygon' as const, points: [{ x: 71.5, y: 20 }, { x: 72.5, y: 20 }, { x: 72.5, y: 120 }, { x: 71.5, y: 120 }].map(point) }]
+    expect(classMarkerPiecesOverlap(world, obstruction)).toBe(true)
+    let cutCaptionSubmitted = false
+    const accepts = (index: number, path: { x: number; y: number }[]): boolean => {
+      if (index === 1) {
+        // Independent original occupied interval: width8/2+halo2+shaft.5
+        // along original H; height4/2+halo2+shaft.5 along original V.
+        const halfX = transpose ? 4.5 : 6.5, halfY = transpose ? 6.5 : 4.5
+        let retained = false
+        for (let i = 1; i < path.length; i++) {
+          const a = path[i - 1]!, b = path[i]!
+          if (a.y === b.y && label.y === a.y && label.x - halfX >= Math.min(a.x, b.x) && label.x + halfX <= Math.max(a.x, b.x) || a.x === b.x && label.x === a.x && label.y - halfY >= Math.min(a.y, b.y) && label.y + halfY <= Math.max(a.y, b.y)) retained = true
+        }
+        if (!retained) { cutCaptionSubmitted = true; return false }
+      }
+      for (let i = 1; i < path.length; i++) {
+        const a = path[i - 1]!, b = path[i]!
+        if (a.x !== b.x && a.y !== b.y) return false
+        for (const body of boxes) if (a.x === b.x ? a.x > body.x && a.x < body.x + body.width && Math.max(a.y, b.y) > body.y && Math.min(a.y, b.y) < body.y + body.height : a.y > body.y && a.y < body.y + body.height && Math.max(a.x, b.x) > body.x && Math.min(a.x, b.x) < body.x + body.width) return false
+      }
+      return true
+    }
+    const work = { pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 }, changed: number[] = [],
+      run = () => seatMeasuredMarkers(edges, routes, boxes, work, () => {}, fail, accepts, index => changed.push(index), undefined, 1, mode === 'rounded' ? 20 : 0, { bounds: box({ x: 0, y: 0, width: 250, height: 240 }), obstacles: [...boxes, box({ x: (central ? 72 : fixedX) - 6, y: (central ? 40 : 20) - 4, width: 12, height: 8 })] })
+    if (central || mode === 'rounded') { expect(run).toThrow('No physically clear measured marker seat'); expect(routes).toEqual(before) }
+    else if (mode === 'interval') { run(); expect(accepts(1, routes[1]!.points)).toBe(true); expect(routes[1]!.labelPosition).toEqual(label); expect(cutCaptionSubmitted).toBe(false) }
+    else {
+      run()
+      expect(changed).toEqual([1]); expect(routes[0]).toEqual(before[0]); expect(routes[1]!.points[0]).toEqual(before[1]!.points[0]); expect(routes[1]!.points.at(-1)).toEqual(before[1]!.points.at(-1))
+      const track = transpose ? routes[1]!.points[1]!.y : routes[1]!.points[1]!.x
+      expect(track).toBeLessThan(72); expect(track).toBeGreaterThanOrEqual(46.5)
+      expect(transpose ? routes[1]!.points[2]!.y : routes[1]!.points[2]!.x).toBe(track)
+      expect(routes[1]!.labelPosition).toEqual(label); expect(accepts(1, routes[1]!.points)).toBe(true)
+    }
+    expect(work.pairs).toBeGreaterThan(0); expect(work.arcs).toBeGreaterThan(0)
+  })
+})
