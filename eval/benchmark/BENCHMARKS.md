@@ -107,6 +107,12 @@ Source ID `invocation` exercises installed library entries/runtimes, browser/wor
 
 Source ID `entry-startup`, with `--rounds 5 --startup-samples 5`, uses fresh processes and separate resource passes. `mermaid-baseline-browser` and `mermaid-baseline-compatibility` provide paired reference/browser and Node parser comparisons. Supply the built entries, browser and any actual native/hosted artifacts.
 
+The product browser-baseline protocol has reviewed bindings for Mermaid, Agentic
+Mermaid and Pele. An all-project selection runs those bindings and retains
+explicit unsupported rows for the others; selecting only unreviewed projects
+does not launch a reference worker. The separate Trident catalog browser suites
+cover all prepared SVG bindings.
+
 Read import, readiness, API call, first consumed result, CPU, whole-child RSS, document heap and delivered bytes in their own units. Different return models or DOM hosts are different stacks. Twenty-five samples do not establish a robust extreme tail, and these memory domains cannot be added. See [startup methods](visualizations/README.md) and [baseline methods](visualizations/MERMAID-BASELINE.md).
 
 ## Release and peer comparisons

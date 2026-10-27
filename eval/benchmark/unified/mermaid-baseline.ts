@@ -9,6 +9,19 @@ import { mermaidOracleDirectory, mermaidUpstreamDirectory } from 'trident/portab
 /** Campaign adapters keep baseline setup out of existing measurement workers. */
 export async function runMermaidBrowserBaseline(options: UnifiedRunOptions): Promise<UnifiedSuiteResult> {
   const root = options.harnessRoot ?? options.root
+  const reviewed = new Set(['mermaid-js/mermaid', 'adewale/agentic-mermaid', 'obsidianmd/pele'])
+  const projects = options.communityProjects?.filter(project => reviewed.has(project))
+  const unavailable = (options.communityProjects ?? []).filter(project => !reviewed.has(project)).map(project => ({
+    suite: 'mermaid-baseline-browser', surface: 'browser:svg', runtime: 'Browser', family: '*', caseId: 'adapter:' + project,
+    operation: 'render', format: 'svg', mode: 'capability-boundary', status: 'unsupported' as const,
+    metrics: { project, runtimeExecuted: false },
+    detail: 'No reviewed adapter for this product browser-baseline protocol; catalog SVG evidence is collected separately.',
+  }))
+  const gaps = unavailable.length ? ['Requested projects without a reviewed browser-baseline adapter remain unsupported: ' + unavailable.map(row => row.metrics.project).join(', ')] : []
+  if (projects?.length === 0) {
+    const timestamp = new Date().toISOString()
+    return { id: 'mermaid-baseline-browser', status: 'unsupported', startedAt: timestamp, finishedAt: timestamp, observations: unavailable, gaps, toolVersions: [] }
+  }
   const result = await runBaselineBrowserSuite({
     root,
     out: options.out,
@@ -20,11 +33,11 @@ export async function runMermaidBrowserBaseline(options: UnifiedRunOptions): Pro
     nodeExecutable: options.nodeExecutable,
     records: options.benchmarkRecordStore,
     force: options.benchmarkForce,
-    projects: options.communityProjects,
+    projects,
     mode: options.profile === 'smoke' ? 'smoke' : 'full',
     rounds: options.rounds,
   })
-  return { ...result, id: 'mermaid-baseline-browser', toolVersions: assertBenchmarkSetVersions(result.identities.map(identity => ({ tool: identity.tool, version: identity.version, source: identity.entry }))) }
+  return { ...result, id: 'mermaid-baseline-browser', observations: [...result.observations, ...unavailable], gaps: [...result.gaps, ...gaps], toolVersions: assertBenchmarkSetVersions(result.identities.map(identity => ({ tool: identity.tool, version: identity.version, source: identity.entry }))) }
 }
 
 export async function runMermaidParserBaseline(options: UnifiedRunOptions): Promise<UnifiedSuiteResult> {
