@@ -159,6 +159,14 @@ describe('forward-compatible unregistered family envelopes', () => {
     }
   })
 
+  test('documented Event Modeling has native identities and public output support', () => {
+    const source = 'eventmodeling\ntf 01 ui CartUI\ntf 02 cmd AddItem\ntf 03 evt ItemAdded'
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed).toMatchObject({ ok: true, value: { kind: 'eventmodeling', body: { kind: 'eventmodeling', frames: [{ id: '01', entity: 'CartUI' }, { id: '02', entity: 'AddItem' }, { id: '03', entity: 'ItemAdded' }] } } })
+    expect(renderMermaidSVG(source)).toContain('ItemAdded')
+    expect(renderMermaidASCII(source)).toContain('AddItem')
+  })
+
   test('entity-encoded registered headers have parse, render, terminal, and layout parity', () => {
     const encoded = 'flowchart&#32;LR\n  A[Alpha] --> B[Beta]'
     const decoded = 'flowchart LR\n  A[Alpha] --> B[Beta]'
