@@ -144,6 +144,7 @@ const RESPELLED_C4_EXTENSIONS = new Set([
   'c4_multiline_arguments', 'c4_empty_named_argument', 'c4_space_before_arguments',
   'c4_quoted_string_extension', 'c4_relindex_positional_metadata',
   'c4_empty_layout_arguments', 'c4_unquoted_argument', 'c4_entity_prepass',
+  'c4_empty_accessibility_description',
 ])
 
 /** Unchanged statements retain exact raw bytes. A typed edit rewrites only its

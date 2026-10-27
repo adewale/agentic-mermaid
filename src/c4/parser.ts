@@ -66,7 +66,9 @@ function statements(source: string): C4Statement[] {
     }
     if (source.startsWith('%%', start)) {
       const end = mermaidLineEnd(source, start)
-      emit(end < 0 ? source.length : end, 'trivia'); continue
+      const commentEnd = end < 0 ? source.length : end
+      const owned = !awaitingHeader && parseAccessibilityDirective([source.slice(start, commentEnd)], 0)?.form === 'native'
+      emit(commentEnd, owned ? 'accessibility' : 'trivia'); continue
     }
     if (awaitingHeader) {
       awaitingHeader = false
@@ -460,6 +462,7 @@ function readC4(input: string | readonly string[], admitWork: boolean): C4Body {
     if (accessibility) {
       observeC4Statement(statement, 'accessibility')
       if (parents.length) diagnostic(body, statement.id, 'c4_nested_header_directive', 'Metadata inside a boundary is read as global. Pinned Mermaid requires it at document scope; the writer moves it after the header')
+      if (!accessibility.title && accessibility.form !== 'native' && accessibility.value === '') diagnostic(body, statement.id, 'c4_empty_accessibility_description', 'An empty accessibility description block is a reader extension; the writer preserves its value in a native metadata comment')
       if (accessibility.title) body.accessibilityTitle = accessibility.value
       else body.accessibilityDescription = accessibility.value
       if (parserObservationActive('c4')) observeParserMutation('c4', accessibility.title ? 'set-accessibility-title' : 'set-accessibility-description', accessibility.value)

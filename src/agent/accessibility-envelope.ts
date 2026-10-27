@@ -57,7 +57,7 @@ export function appendAccessibilityLines(lines: string[], value: { accessibility
   // independent of the non-empty mutation-input contract above.
   const description = value.accessibilityDescription.trim() ? accessibilityDescriptionText(value.accessibilityDescription) : ''
   if (!description) {
-    // Class has no empty accDescr production. A native comment retains the
+    // Class and C4 have no empty accDescr production. A native comment retains the
     // explicit empty value while external Mermaid keeps its empty default.
     appendNativeAccessibilityLines(lines, { accessibilityDescription: '' })
     return

@@ -837,7 +837,7 @@ pin. Invalid XML/control-character values remain outside the writable domain.
 
 ### Follow-up to #494: generous reads and portable writes
 
-Class can retain an explicitly empty accessibility description, although
+Class and C4 can retain an explicitly empty accessibility description, although
 Mermaid 12.2.0 rejects its empty `accDescr` block. Verification names that
 reader extension. Writers carry the empty value in a native JSON metadata
 comment, which our readers restore and Mermaid ignores with its empty default.
