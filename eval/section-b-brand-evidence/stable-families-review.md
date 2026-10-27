@@ -86,3 +86,24 @@ Pixel comparison against the previous approved sheet found changes only in the f
 ## PR #545 style-consumption follow-up
 
 The Codex agent inspected all four Event Modeling cells at native size after consuming group padding and shared rounded connector projection. All 92 other cells, headings and background are pixel-identical. Sentinel rounded elbows are now visible; each look's measured lane padding applies. Complete frame/lane labels and connector ownership remain readable. The approval record gives exact changed-pixel counts and the reviewed PNG digest. This is agent review of these finite fixtures, not human approval or a general beauty claim.
+
+
+## PR #545 painted-connection follow-up, 27 October 2026
+
+The reviewed sheet now has SHA-256
+`bbb35fe92bab6c51dc72245066d02f3f11f859eb5c2aac22690a9114ecbde119`.
+Compared with `29090e03c33d599b627d0c78fa50d4a2cce418d787b385b02882a01a9e2ca4dd`,
+only the four Event Modeling cells changed: 17,054 / 12,889 / 11,328 / 10,104 pixels
+in sentinel/editorial/technical/operations order. All other 92 cells, headings
+and background are pixel-identical.
+
+The native renderer now reserves painted stroke extent in its measured frames
+and docks each relation at that outer boundary. This keeps small heads outside
+thick outlines; separate slots also expose multiple explicit inputs in the
+rich fixture. All four 520×380 cells were inspected at native size. Words,
+lane ownership, typography and palette distinctions remain readable, and the
+heads reach their corresponding painted frames. The seven affected Event SVG
+goldens were independently reviewed in the existing styled-output workflow.
+
+This is agent review of these finite renders. It does not establish human
+approval, arbitrary density, extreme custom Look fidelity or deployed parity.
