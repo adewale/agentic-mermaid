@@ -1354,15 +1354,25 @@ function requiredBackendCapabilities(family: FamilyDescriptor): readonly Essenti
   return ESSENTIAL_SCENE_PRIMITIVE_CAPABILITIES.filter(requirement => applicable.has(requirement.primitive))
 }
 
+const SUPPORTED_BACKEND_REQUIREMENTS = new WeakMap<BackendDescriptor['backend'], ReadonlySet<EssentialScenePrimitiveCapability>>()
+
 function backendSupportsCapability(
   backend: BackendDescriptor,
   requirement: EssentialScenePrimitiveCapability,
 ): boolean {
-  return backend.backend.capabilities.some(claim =>
-    claim.primitive === requirement.primitive
-    && claim.feature === requirement.feature
-    && claim.operation === requirement.operation
-    && claim.realization !== 'unsupported')
+  // Registration captures immutable claims. Cache by the captured backend,
+  // so replacing a registration cannot inherit its predecessor's support.
+  let supported = SUPPORTED_BACKEND_REQUIREMENTS.get(backend.backend)
+  if (!supported) {
+    supported = new Set(ESSENTIAL_SCENE_PRIMITIVE_CAPABILITIES.filter(candidate =>
+      backend.backend.capabilities.some(claim =>
+        claim.primitive === candidate.primitive
+        && claim.feature === candidate.feature
+        && claim.operation === candidate.operation
+        && claim.realization !== 'unsupported')))
+    SUPPORTED_BACKEND_REQUIREMENTS.set(backend.backend, supported)
+  }
+  return supported.has(requirement)
 }
 
 function unsatisfiedCapabilityIds(decision: CapabilityDecision): string {
