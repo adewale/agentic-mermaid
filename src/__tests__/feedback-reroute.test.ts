@@ -107,6 +107,20 @@ Audit --> Export`)
     expect([measured.width, measured.height]).toEqual([80, 36.9])
     expect(nodeSizes.get('T')).toEqual({ width: 80, height: 36.9 })
   })
+  test('rounded and cubic routes measure the same canonical normal resource without radial overgrowth', () => {
+    const graph = parseMermaid('flowchart LR\nA --> T\nB --> T')
+    for (const lineWidth of [1.5, 4]) {
+      const styleFace = { edge: { lineWidth, bendRadius: 0 }, node: { cornerRadius: 10, paddingY: 12 } }
+      const original = convertToElkFormat(graph, { styleFace })
+      const rounded = convertToElkFormat(graph, { styleFace: { ...styleFace, edge: { lineWidth, bendRadius: 16 } } })
+      expect(rounded).toEqual(original)
+      const curved = structuredClone(graph)
+      curved.edges.forEach(edge => { edge.curve = 'basis' })
+      expect(convertToElkFormat(curved, { styleFace })).toEqual(original)
+      expect(graph.edges.every(edge => edge.curve === undefined)).toBe(true)
+      expect(rounded.children!.find(node => node.id === 'T')!.height).toBeCloseTo(lineWidth === 1.5 ? 40.9 : 72, 10)
+    }
+  })
 })
 
 for (const direction of ['RL', 'LR', 'BT', 'TB'] as const) {

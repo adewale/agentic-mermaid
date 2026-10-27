@@ -47,7 +47,7 @@ import { layoutAgenticCandidate, layoutAgenticPlacement } from './layout/agentic
 import { customTextMeasurementActive } from './text-measurement-profile.ts'
 import { edgeSelectorIndices } from './shared/edge-selectors.ts'
 import { graphEdgeMarkerPaintRegions } from './graph-connectors.ts'
-import { routeMarkerPaintRegions } from './layout/route-marker-clearance.ts'
+import { formatSvgNumber } from './shared/svg-number.ts'
 import { DeferredDependencyError, runMeasuredGraphBackend, GraphLayoutUnsupportedError } from './layout/backend.ts'
 import { measureRenderStage } from './render-stages.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
@@ -452,7 +452,12 @@ function elkMarkerPortExtents(graph: MermaidGraph, style: ResolvedRenderStyle): 
     if (!node || node.shape !== 'rectangle' || node.semanticShape || edge.style === 'invisible' || edge.source === edge.target) continue
     const pressure = incoming.get(node.id) ?? { count: 0, span: 0, known: true }
     pressure.count++
-    const regions = routeMarkerPaintRegions({ ...edge, points: [{ x: 0, y: 0 }, { x: 100, y: 0 }], inlineStyle: resolveEdgeInlineStyle(index, graph) }, style)
+    // This is a canonical normal-facing resource measurement, not a proposed
+    // rounded/cubic route. Retain the real resource and written width while
+    // avoiding the orientation-unknown radial veto used for actual curves.
+    const multiple = edge.style === 'thick' ? 2 : 1
+    const width = style.lineWidth * multiple
+    const regions = Number.isFinite(width) && width > 0 ? graphEdgeMarkerPaintRegions({ ...edge, curve: undefined, points: [{ x: 0, y: 0 }, { x: 100, y: 0 }], inlineStyle: resolveEdgeInlineStyle(index, graph) }, { ...style, lineWidth: Number(formatSvgNumber(width)) / multiple, edgeBendRadius: 0 }) : undefined
     const marker = regions?.find(region => region.position === 'end')
     if (edge.hasArrowEnd && (!marker?.bounds || !Object.values(marker.bounds).every(Number.isFinite))) pressure.known = false
     else if (marker?.bounds) pressure.span = Math.max(pressure.span, marker.bounds.y1 - marker.bounds.y0)
