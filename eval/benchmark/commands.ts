@@ -1,12 +1,13 @@
 import { spawnSync } from 'node:child_process'
 import { resolve } from 'node:path'
-import { prepareTrident } from '../trident/prepare.ts'
+import { prepareTrident, assertLocalMeasurement } from '../trident/prepare.ts'
 import scripts from './scripts.json' with { type: 'json' }
 const root = resolve(import.meta.dirname, '../..')
 const [command = 'bench', ...args] = process.argv.slice(2)
 if (args.includes('--help') || command === '--help') {
   console.log('Agentic Mermaid product diagnostics\n\nbun run bench --list --profile full\nbun run bench:all [options]\nbun run bench:dave [options]\nbun run bench:test\nbun run bench:typecheck\n\nShared public-artifact comparisons: bun run bench:community:update --help\nProduct commands: ' + Object.keys(scripts).join(', '))
 } else {
+  assertLocalMeasurement()
   const trident = prepareTrident()
   if (command === 'corpus:export') {
     const index = args.indexOf('--out')

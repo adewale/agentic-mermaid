@@ -4,6 +4,16 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 
+/** Refuse measurements before the shared library can be fetched or installed.
+ * Static repository typechecks call preparation directly and remain CI-safe. */
+export function assertLocalMeasurement(): void {
+  const active = ['CI', 'GITHUB_ACTIONS', 'GITLAB_CI', 'BUILDKITE', 'CIRCLECI', 'TF_BUILD', 'JENKINS_URL', 'TEAMCITY_VERSION'].filter(name => {
+    const value = process.env[name]
+    return name === 'CI' ? value !== undefined && value !== '' : value !== undefined && value !== '' && !/^(?:0|false|no)$/i.test(value)
+  })
+  if (active.length) throw Error(`Benchmarks are excluded from CI (${active.join(', ')}). Run them locally.`)
+}
+
 /** Fetch the reviewed shared library. Preparation and typechecking may run in
  * CI; benchmark commands enforce the separate no-measurements-in-CI policy. */
 export function prepareTrident(): string {
