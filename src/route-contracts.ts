@@ -6,6 +6,7 @@ import { resolveLabelContent } from './shared/display-text.ts'
 import type { Direction, MermaidGraph, Point, PortSide, PositionedEdge, PositionedGroup, PositionedNode, RouteBlocker, RouteCertificate, RouteClass, RouteInvariant } from './types.ts'
 import { graphEdgeTextBlock } from './graph-text.ts'
 import { graphEdgeMarkerPaintRegions } from './graph-connectors.ts'
+import { labelSeatPaintContext } from './layout/graph-paint-support.ts'
 import { resolveRenderStyle } from './styles.ts'
 import { trimOccludedShapeEndpoint } from './shape-clipping.ts'
 import { renderedEndpointContact } from './rendered-endpoint-diagnostics.ts'
@@ -1024,14 +1025,25 @@ function flattenGroups(groups: PositionedGroup[], out: Map<string, PositionedGro
 }
 
 /** Label repairs share the same stable longest-segment and center-out order. */
-function orderedLabelSegments(edge: PositionedEdge): Array<{ a: Point; b: Point; vertical: boolean; len: number; i: number }> {
+const LABEL_SEAT_SORT_DENIED = Symbol('label-seat-sort-denied')
+function orderedLabelSegments(edge: PositionedEdge): Array<{ a: Point; b: Point; vertical: boolean; len: number; i: number }>
+function orderedLabelSegments(edge: PositionedEdge, pay: (units: number) => boolean): Array<{ a: Point; b: Point; vertical: boolean; len: number; i: number }> | undefined
+function orderedLabelSegments(edge: PositionedEdge, pay?: (units: number) => boolean): Array<{ a: Point; b: Point; vertical: boolean; len: number; i: number }> | undefined {
+  if (pay && !pay(1)) return undefined
   const segs: Array<{ a: Point; b: Point; vertical: boolean; len: number; i: number }> = []
   for (let i = 1; i < edge.points.length; i++) {
+    if (pay && !pay(2)) return undefined
     const a = edge.points[i - 1]!, b = edge.points[i]!
     const vertical = Math.abs(a.x - b.x) < EPS
-    if (vertical || Math.abs(a.y - b.y) < EPS) segs.push({ a, b, vertical, len: Math.abs(a.x - b.x) + Math.abs(a.y - b.y), i })
+    if (vertical || Math.abs(a.y - b.y) < EPS) {
+      if (pay && !pay(12)) return undefined
+      segs.push({ a, b, vertical, len: Math.abs(a.x - b.x) + Math.abs(a.y - b.y), i })
+    }
   }
-  segs.sort((p, q) => q.len - p.len || p.i - q.i)
+  if (pay && !pay(segs.length * 2 + 1)) return undefined
+  const denied = LABEL_SEAT_SORT_DENIED
+  try { segs.sort((p, q) => { if (pay && !pay(4)) throw denied; return q.len - p.len || p.i - q.i }) }
+  catch (error) { if (error === denied) return undefined; throw error }
   return segs
 }
 
@@ -1288,11 +1300,13 @@ export function separateEdgeLabelPills(
 
   const { overlapsMarker, clearPaintRect } = labelPaintClearance(positioned, style)
 
-  const slots = function* (edge: PositionedEdge, others: PositionedEdge[], overhang = false): Generator<Point> {
+  const slots = function* (edge: PositionedEdge, others: PositionedEdge[], overhang = false, rescue?: { clear: (point: Point) => boolean; pay: (n: number) => boolean }): Generator<Point> {
+    if (rescue && !rescue.pay(16)) return
     const m = (edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label!, edge.labelContent), style))
     const pw = m.width + 2 * LABEL_PILL_PADDING, ph = m.height + 2 * LABEL_PILL_PADDING
     const halo = labelHaloPadding(edge, style)
     const clearAt = (x: number, y: number): boolean => {
+      if (rescue) return rescue.pay(3) && rescue.clear({ x, y })
       if (options?.preserveRouteClearance && routeWork <= 0) return false
       const pill = clearPaintRect(pillRect(x, y, m), halo)
       if (!pill) return false
@@ -1311,7 +1325,8 @@ export function separateEdgeLabelPills(
       }
       return true
     }
-    const segs = orderedLabelSegments(edge)
+    const segs = rescue ? orderedLabelSegments(edge, rescue.pay) : orderedLabelSegments(edge)
+    if (!segs) return
     // Offset ladder: on-route first, then perpendicular offsets up to the
     // rubric's labelOffRoute allowance (ph/2 + 4, the same formula
     // repairLabelsOffOwnRoute enforces) — a labeled reciprocal pair whose
@@ -1326,6 +1341,7 @@ export function separateEdgeLabelPills(
         const nx = seg.vertical ? 1 : 0,
           ny = seg.vertical ? 0 : 1 // unit perpendicular
         const tMargin = overhang ? 0 : half / seg.len
+        if (rescue && !rescue.pay(160)) return // fixed11-sample array, comparison and loop scratch
         const ts = centerOutLabelSamples(tMargin)
         for (const t of ts) {
           const cx = seg.a.x + (seg.b.x - seg.a.x) * t + nx * d
@@ -1373,6 +1389,73 @@ export function separateEdgeLabelPills(
     return false
   }
 
+  // Legacy search/order gets all three sweeps first. Only its unresolved
+  // marker conflicts enter the existing overhang/joint family at sweep three.
+  // No new solver, sweep, candidate cap, fresh work counter or route write.
+  const rescueMarkerSeats = (): void => {
+    if (customTextMeasurementActive()) return
+    const pay = (units: number): boolean => {
+      if (units > routeWork) { routeWork = 0; return false }
+      routeWork -= units
+      return true
+    }
+    if (!pay(8)) return
+    let paint: ReturnType<typeof labelSeatPaintContext>
+    for (const edge of labeled) {
+      // The legacy marker cache is already populated; this fresh rescue-only
+      // query still visits up to two endpoint resources per live edge.
+      if (!pay(64 + (edge.label?.length ?? 0) * 12 + 2 * positioned.edges.length)) return
+      const rect = rectOf(edge)
+      if (!rect || !overlapsMarker(rect)) continue
+      if (!pay(edge.points.length + 2)) return
+      if (edge.curve || (style.edgeBendRadius ?? 0) !== 0 || edge.points.some((p, i) => i > 0 && p.x !== edge.points[i - 1]!.x && p.y !== edge.points[i - 1]!.y)) continue
+      paint ??= labelSeatPaintContext(positioned.nodes, positioned.edges, positioned.groups, style, pay)
+      if (!paint || !pay(8)) return
+      const blockers = new Set<PositionedEdge>(), single = new Map<PositionedEdge, Point>()
+      const seat = paint
+      const candidates = (subject: PositionedEdge, overhang: boolean, ignored: PositionedEdge | undefined, blocked?: Set<PositionedEdge>): Point[] | undefined => {
+        if (!pay(8)) return undefined
+        const result: Point[] = [], staged = new Map<PositionedEdge, Point>()
+        // The other member is excluded ONLY while proposing; final transaction
+        // validation below sees BOTH staged seats against ALL live paint.
+        const clear = (point: Point): boolean => seat.clear(subject, point, staged, blocked, ignored)
+        for (const point of slots(subject, [], overhang, { clear, pay })) {
+          if (!pay(1)) return undefined
+          result.push(point)
+          if (result.length === 64) break
+        }
+        return routeWork > 0 ? result : undefined
+      }
+      let accepted = false
+      const singles = candidates(edge, true, undefined, blockers)
+      if (!singles) return
+      for (const point of singles) {
+        if (!pay(3)) return
+        single.set(edge, point)
+        if (paint.clear(edge, point, single)) { edge.labelPosition = point; accepted = true; break }
+      }
+      if (accepted) continue
+      for (const peer of labeled) {
+        if (!pay(1)) return
+        if (!blockers.has(peer)) continue
+        if (!pay(peer.points.length + 6)) return
+        if (peer.curve || peer.points.some((p, i) => i > 0 && p.x !== peer.points[i - 1]!.x && p.y !== peer.points[i - 1]!.y)) continue
+        for (const overhang of [false, true]) {
+          const first = candidates(edge, overhang, peer), second = candidates(peer, overhang, edge)
+          if (!first || !second) return
+          transaction: for (const a of first) for (const b of second) {
+            if (!pay(16)) return // outer/two inner tuple arrays plus map header/entries
+            const positions = new Map<PositionedEdge, Point>([[edge, a], [peer, b]])
+            if (!paint.clear(edge, a, positions) || !paint.clear(peer, b, positions)) continue
+            edge.labelPosition = a; peer.labelPosition = b; accepted = true; break transaction
+          }
+          if (accepted) break
+        }
+        if (accepted) break
+      }
+    }
+  }
+
   // Up to three sweeps: resolving one pair can expose (or clear) another; the
   // slide target is always a fully-clear slot, so sweeps strictly reduce the
   // conflict set and the cap is a defensive bound, not an expected exit.
@@ -1412,6 +1495,7 @@ export function separateEdgeLabelPills(
       }
     }
     if (conflicts === 0) break
+    if (sweep === 2) rescueMarkerSeats()
   }
 }
 

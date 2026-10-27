@@ -22,6 +22,7 @@ import { certifyScenePaint } from '../scene/paint-certification.ts'
 import { rerouteEdgesThroughNodes } from '../layout/passes/obstacle-routing.ts'
 import { alignLabeledSourcePort, alignPortLanes } from '../layout/passes/port-lanes.ts'
 import { trimOccludedShapeEndpoint } from '../shape-clipping.ts'
+import { labelSeatPaintContext } from '../layout/graph-paint-support.ts'
 import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
 
 describe('outward exact endpoint approaches', () => {
@@ -3024,4 +3025,102 @@ it('a crossing container Z cannot borrow a bbox-gap proof for a diamond facet in
       < Math.min(Math.max(vertical ? a.y : a.x, vertical ? b.y : b.x), movingCenter + radius)).toBe(false)
   }
   expect(edges[1]!.points).toEqual(saved)
+})
+
+describe('unresolved marker-label seats', () => {
+  const style = { ...resolveRenderStyle(), edgeLabelFontSize: 11 }
+  const graph = () => parseMermaid('flowchart TD\nA-->B\nC-->D')
+  const clear = (edge: PositionedEdge, edges: PositionedEdge[]): boolean => {
+    const pill = labelRect(edge, style)!, halo = 4
+    return edges.every(peer => graphEdgeMarkerPaintRegions(peer, style).every(marker => {
+      const b = marker.bounds!
+      return !(pill.x - halo < b.x1 && pill.x + pill.w + halo > b.x0 && pill.y - halo < b.y1 && pill.y + pill.h + halo > b.y0)
+    }))
+  }
+  it.each([0, 1, 2, 3])('seats a short-loop caption without changing its route (quarter turns=%s)', turns => {
+    const rotate = (p: Point): Point => { let {x,y}=p; for(let i=0;i<turns;i++)[x,y]=[-y,x]; return {x,y} }
+    const edge: PositionedEdge = { source:'A',target:'A',style:'solid',hasArrowStart:false,hasArrowEnd:true,label:'repeat seal',
+      points:[{x:130,y:100},{x:130,y:90},{x:170,y:90},{x:170,y:100}].map(rotate),labelPosition:rotate({x:150,y:77.85}) }
+    const points=structuredClone(edge.points), before=structuredClone(edge.labelPosition)
+    expect(clear(edge,[edge])).toBe(false)
+    separateEdgeLabelPills({nodes:[],groups:[],edges:[edge]},graph(),style)
+    expect(clear(edge,[edge])).toBe(true)
+    expect(edge.labelPosition).not.toEqual(before)
+    expect(edge.points).toEqual(points)
+  })
+  it('reseats a blocking caption jointly even without a current label-pair conflict', () => {
+    const edge: PositionedEdge={source:'A',target:'B',style:'solid',hasArrowStart:false,hasArrowEnd:true,label:'inspect package',points:[{x:100,y:0},{x:100,y:122.9}],labelPosition:{x:100,y:102.41666666666667}}
+    const peer: PositionedEdge={source:'C',target:'D',style:'solid',hasArrowStart:false,hasArrowEnd:false,label:'secondary validation café',points:[{x:-4.214625,y:24},{x:-4.214625,y:122.9}],labelPosition:{x:-4.214625,y:61.05}}
+    const nodes: PositionedNode[]=[{id:'A',label:'A',shape:'rectangle',x:55,y:-48.9,width:88,height:48.9}]
+    const positioned={nodes,groups:[],edges:[edge,peer]}, before=structuredClone(positioned)
+    expect(clear(edge,positioned.edges)).toBe(false)
+    separateEdgeLabelPills(positioned,graph(),style)
+    expect(clear(edge,positioned.edges)).toBe(true)
+    expect(peer.labelPosition).not.toEqual(before.edges[1]!.labelPosition)
+    expect(positioned.nodes).toEqual(before.nodes)
+    expect(positioned.edges.map(e=>e.points)).toEqual(before.edges.map(e=>e.points))
+  })
+})
+
+
+describe('marker-label rescue refusal and custody', () => {
+  const style={...resolveRenderStyle(),edgeLabelFontSize:11}, graph=parseMermaid('flowchart TD\nA-->A\nC-->D')
+  const loop=():PositionedEdge=>({source:'A',target:'A',style:'solid',hasArrowStart:false,hasArrowEnd:true,label:'repeat seal',points:[{x:130,y:100},{x:130,y:90},{x:170,y:90},{x:170,y:100}],labelPosition:{x:150,y:77.85}})
+  it.each(['unknown-ink','no-room','work-exhausted'] as const)('retains the complete original when rescue has %s',mode=>{
+    const edge=loop(),edges=[edge]
+    const nodes:PositionedNode[]=mode==='no-room'?[{id:'wall',label:'wall',shape:'rectangle',x:-1000,y:-1000,width:2000,height:2000}]:[]
+    if(mode!=='no-room')edges.push({source:'C',target:'D',style:'solid',hasArrowStart:false,hasArrowEnd:mode==='unknown-ink',...(mode==='unknown-ink'?{inlineStyle:{'stroke-width':'var(--missing)'}}:{}),points:mode==='work-exhausted'?Array.from({length:2000},(_,i)=>({x:1000+i,y:1000})):[{x:1000,y:1000},{x:1100,y:1000}]})
+    const positioned={nodes,groups:[],edges},before=structuredClone(positioned)
+    separateEdgeLabelPills(positioned,graph,style)
+    expect(positioned).toEqual(before)
+  })
+  it('retains an already clear legacy layout exactly',()=>{
+    const edge:PositionedEdge={source:'C',target:'D',style:'solid',hasArrowStart:false,hasArrowEnd:true,label:'clear',points:[{x:0,y:0},{x:300,y:0}],labelPosition:{x:150,y:0}}
+    const positioned={nodes:[],groups:[],edges:[edge]},before=structuredClone(positioned)
+    separateEdgeLabelPills(positioned,graph,style)
+    expect(positioned).toEqual(before)
+  })
+  it('keeps a foreign painted shaft and a node body protected',()=>{
+    const edge=loop(),rail:PositionedEdge={source:'C',target:'D',style:'thick',hasArrowStart:false,hasArrowEnd:false,points:[{x:0,y:70},{x:300,y:70}]}
+    const positioned={nodes:[{id:'A',label:'A',shape:'rectangle' as const,x:100,y:100,width:100,height:50}],groups:[],edges:[edge,rail]},before=structuredClone(edge.labelPosition)
+    separateEdgeLabelPills(positioned,graph,style)
+    const pill=labelRect(edge,style)!
+    if(JSON.stringify(edge.labelPosition)!==JSON.stringify(before))expect(!(pill.y-4<71&&pill.y+pill.h+4>69)).toBe(true)
+    expect(rail.points).toEqual([{x:0,y:70},{x:300,y:70}])
+    expect(positioned.nodes[0]).toMatchObject({x:100,y:100,width:100,height:50})
+  })
+})
+
+
+it('a hidden carrier still reserves its visible caption during marker-label rescue',()=>{
+ const style=resolveRenderStyle(),edge:PositionedEdge={source:'A',target:'B',style:'solid',hasArrowStart:false,hasArrowEnd:false,label:'candidate',labelPosition:{x:0,y:0},points:[{x:-100,y:0},{x:100,y:0}]},peer:PositionedEdge={source:'C',target:'D',style:'invisible',hasArrowStart:false,hasArrowEnd:false,label:'protected visible caption',labelPosition:{x:0,y:100},points:[{x:-100,y:100},{x:100,y:100}]}
+ const paint=labelSeatPaintContext([], [edge,peer], [],style,()=>true)!
+ expect(paint.clear(edge,{x:0,y:100},new Map())).toBe(false)
+ expect(paint.clear(edge,{x:0,y:50},new Map())).toBe(true)
+})
+
+
+it('withholds the new overhang rescue for a rounded subject without changing its legacy seat',()=>{
+ const edge:PositionedEdge={source:'A',target:'A',style:'solid',hasArrowStart:false,hasArrowEnd:true,label:'repeat seal',points:[{x:130,y:100},{x:130,y:90},{x:170,y:90},{x:170,y:100}],labelPosition:{x:150,y:77.85}}
+ const before=structuredClone(edge)
+ separateEdgeLabelPills({nodes:[],groups:[],edges:[edge]},parseMermaid('flowchart TD\nA-->A'),{...resolveRenderStyle(),edgeLabelFontSize:11,edgeBendRadius:500})
+ expect(edge).toEqual(before)
+})
+
+
+it('label rescue retains full thick header borders while admitting a separated seat',()=>{
+ const style=resolveRenderStyle(),edge:PositionedEdge={source:'A',target:'B',style:'solid',hasArrowStart:false,hasArrowEnd:false,label:'caption',labelPosition:{x:150,y:100},points:[{x:100,y:100},{x:200,y:100}]}
+ const header:PositionedGroup={id:'scope',label:'scope',x:0,y:0,width:500,height:200,headerHeight:28,children:[],inlineStyle:{'stroke-width':'12'}}
+ const paint=labelSeatPaintContext([], [edge], [header],style,()=>true)!,half=labelRect(edge,style)!.h/2+4
+ expect(paint.clear(edge,{x:150,y:34+half-.5},new Map())).toBe(false)
+ expect(paint.clear(edge,{x:150,y:34+half+1},new Map())).toBe(true)
+})
+
+
+it('rounded header emission retains the generic join support when tiny arcs lose tangent agreement',()=>{
+ const edge:PositionedEdge={source:'A',target:'B',style:'solid',hasArrowStart:false,hasArrowEnd:false,label:'caption',labelPosition:{x:150,y:150},points:[{x:100,y:150},{x:200,y:150}]}
+ const header:PositionedGroup={id:'scope',label:'scope',x:100.1234567891,y:0,width:100,height:200,headerHeight:28,children:[],inlineStyle:{'stroke-width':'100'}}
+ const style=resolveRenderStyle(),rounded=labelSeatPaintContext([], [edge], [header],{...style,groupCornerRadius:5.6001e-11},()=>true)!,sharp=labelSeatPaintContext([], [edge], [header],{...style,groupCornerRadius:0},()=>true)!
+ expect(rounded.clear(edge,{x:150,y:150},new Map())).toBe(false)
+ expect(sharp.clear(edge,{x:150,y:150},new Map())).toBe(true)
 })

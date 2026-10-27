@@ -6,18 +6,15 @@ import { DEFAULTS, layoutDebug, layoutEnvFlag } from '../geometry.ts'
 import { corankFanInSpokes } from './peers.ts'
 import { reanchorOffOutlineEndpoints } from './obstacle-routing.ts'
 import { tryStraighten } from '../route-lanes.ts'
-import { graphEdgePathProjection } from '../../graph-connectors.ts'
 import { shapeOutline } from '../../shape-outline.ts'
-import { expandSceneBounds, geometryBounds, nodePaintBounds, paintedStrokeExtent, unionSceneBounds, visitTypedPathSegments } from '../../scene/bounds.ts'
-import type { Geometry, MarkPaint } from '../../scene/ir.ts'
+import { geometryBounds, nodePaintBounds, paintedStrokeExtent, unionSceneBounds } from '../../scene/bounds.ts'
 import type { AxisAlignedBox } from '../../shared/transformed-bounds.ts'
 import { formatSvgNumber, formatSvgNumericAttribute } from '../../shared/svg-number.ts'
 import { MAX_PREFERENCE_EDGES, MAX_PREFERENCE_NODES } from '../route-geometry.ts'
 import { STROKE_WIDTHS } from '../../styles.ts'
-import { routeMarkerPaintRegions } from '../route-marker-clearance.ts'
 import { labelHaloExtension } from '../../shared/edge-label-geometry.ts'
 
-type PortLaneStyle = LabelMetricsStyle & { nodeLineWidth?: number; cornerRadius?: number; nodeFillColor?: string; nodeBorderColor?: string }
+import { writtenGeometry, finiteBox, boxesMeet, edgeInk, type GraphPaintStyle as PortLaneStyle } from '../graph-paint-support.ts'
 
 export function withinPortLaneBudget(nodes: readonly PositionedNode[], edges: readonly PositionedEdge[], groups: readonly PositionedGroup[]): boolean {
   if (nodes.length > MAX_PREFERENCE_NODES || edges.length > MAX_PREFERENCE_EDGES) return false
@@ -26,66 +23,9 @@ export function withinPortLaneBudget(nodes: readonly PositionedNode[], edges: re
   return fits(groups)
 }
 
-// Shape arithmetic precedes numeric emission in the renderer. Normalize the
-// resulting geometry, not the input node, before asking the shared ink owner.
-function writtenGeometry(geometry: Geometry): Geometry {
-  if (geometry.kind === 'compound') return { ...geometry, children: geometry.children.map(writtenGeometry) }
-  if (geometry.kind === 'path') return { ...geometry, d: formatSvgNumericAttribute('d', geometry.d) }
-  if (geometry.kind === 'polygon' || geometry.kind === 'polyline') return { ...geometry, points: geometry.points.map(writtenPoint) }
-  return Object.fromEntries(Object.entries(geometry).map(([key, value]) => [key, typeof value === 'number' ? Number(formatSvgNumber(value)) : value])) as Geometry
-}
-
-const writtenPoint = (point: Point): Point => ({ x: Number(formatSvgNumber(point.x)), y: Number(formatSvgNumber(point.y)) })
-const finiteBox = (box: AxisAlignedBox | undefined): box is AxisAlignedBox => !!box && Object.values(box).every(Number.isFinite) && box.x0 <= box.x1 && box.y0 <= box.y1
-const boxesMeet = (a: AxisAlignedBox, b: AxisAlignedBox): boolean => {
-  // Preserve the incoming conservative arithmetic/serialization separator.
-  const error = (Math.abs(a.x0) + Math.abs(a.y0) + Math.abs(a.x1) + Math.abs(a.y1) + Math.abs(b.x0) + Math.abs(b.y0) + Math.abs(b.x1) + Math.abs(b.y1)) * 1e-10 + 1e-9
-  return !Number.isFinite(error) || a.x0 < b.x1 + error && b.x0 < a.x1 + error && a.y0 < b.y1 + error && b.y0 < a.y1 + error
-}
 const routeChanged = (edge: PositionedEdge, previous: PositionedEdge): boolean => edge.points.length !== previous.points.length
   || edge.points.some((point, index) => point.x !== previous.points[index]!.x || point.y !== previous.points[index]!.y)
 
-/** Optional movement needs a sufficient separator, not another collision
- * certifier. Unknown paint/geometry or overlapping conservative supports keep
- * the original layout; every segment and endpoint resource is retained. */
-function edgeInk(edge: PositionedEdge, style: PortLaneStyle, work: () => boolean): { shafts: AxisAlignedBox[]; markers: NonNullable<ReturnType<typeof routeMarkerPaintRegions>>; label?: AxisAlignedBox } | undefined {
-  if (edge.style === 'invisible') return { shafts: [], markers: [] }
-  if (edge.points.length > MAX_PREFERENCE_NODES * MAX_PREFERENCE_EDGES) return undefined
-  if (style.edgeBendRadius !== undefined && !(Number.isFinite(style.edgeBendRadius) && style.edgeBendRadius >= 0)) return undefined
-  // renderEdge forwards these two authored fields; connector paint defaults
-  // are butt caps and miter joins (limit four), owned by paintedStrokeExtent.
-  const paint: MarkPaint = { stroke: edge.inlineStyle?.stroke ?? style.edgeStrokeColor ?? 'var(--_line)',
-    strokeWidth: formatSvgNumericAttribute('stroke-width', edge.inlineStyle?.['stroke-width'] ?? String((style.lineWidth ?? 1) * (edge.style === 'thick' ? 2 : 1))) }
-  const extent = paintedStrokeExtent(paint, edge.points.length > 2 || !!edge.curve || (style.edgeBendRadius ?? 0) > 0)
-  if (extent === undefined || edge.points.length < 2) return undefined
-  if ((edge.hasArrowStart || edge.hasArrowEnd) && paintedStrokeExtent({ ...paint, stroke: 'black' }, false) === undefined) return undefined
-  const supports: AxisAlignedBox[] = []
-  const include = (box: AxisAlignedBox): boolean => {
-    if (!work()) return false
-    const support = expandSceneBounds(box, extent)
-    if (!finiteBox(support)) return false
-    if (extent > 0) supports.push(support)
-    return true
-  }
-  const projection = graphEdgePathProjection(edge, style)
-  if (projection) {
-    if (!visitTypedPathSegments(formatSvgNumericAttribute('d', projection.geometry.d), segment => include(segment.bounds), work)) return undefined
-  } else {
-    const points = edge.points.map(writtenPoint)
-    for (let index = 1; index < points.length; index++) {
-      const a = points[index - 1]!, b = points[index]!
-      if (!include({ x0: Math.min(a.x, b.x), y0: Math.min(a.y, b.y), x1: Math.max(a.x, b.x), y1: Math.max(a.y, b.y) })) return undefined
-    }
-  }
-  const markers = routeMarkerPaintRegions(edge, style)
-  if (!markers) return undefined
-  for (const marker of markers) if (!work() || !finiteBox(marker.bounds)) return undefined
-  const rect = labelRect(edge, style)
-  const halo = rect ? labelHaloExtension(edge, style.lineWidth ?? 1) : 0
-  const label = rect ? { x0: rect.x - halo, y0: rect.y - halo, x1: rect.x + rect.w + halo, y1: rect.y + rect.h + halo } : undefined
-  if (label && !finiteBox(label)) return undefined
-  return { shafts: supports, markers, ...(label ? { label } : {}) }
-}
 
 export function portLaneInkWork(): { remaining: number } {
   return { remaining: MAX_PREFERENCE_NODES * MAX_PREFERENCE_EDGES }
