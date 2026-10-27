@@ -640,6 +640,32 @@ export function inlineResolvedColors(svg: string, colors: DiagramColors): string
 export function resolveInlineColorAttribute(value: string, colors: DiagramColors): string | undefined {
   const escaped = escapeAttr(value)
   const resolution = colorResolution(colors)
+  return resolvedInlineColorAttribute(escaped, resolution)
+}
+
+/** One consumer can reuse immutable palette preparation without retaining it
+ * across calls. Mutable, inherited and accessor colors still resolve afresh. */
+export function createInlineColorAttributeResolver(): typeof resolveInlineColorAttribute {
+  let palette: DiagramColors | undefined
+  let resolution: ReturnType<typeof colorResolution>
+  return (value, colors) => {
+    const escaped = escapeAttr(value)
+    if (colors !== palette) {
+      const fields = Object.isFrozen(colors) ? Object.getOwnPropertyDescriptors(colors) as Record<PropertyKey, PropertyDescriptor> : undefined
+      const reusable = fields && Reflect.ownKeys(fields).every(name => 'value' in fields[name]!)
+        && ['bg', 'fg', 'line', 'accent', 'muted', 'surface', 'border', 'font'].every(name => {
+          const field = fields[name]
+          return Object.hasOwn(fields, name) && (field!.value === undefined || typeof field!.value === 'string')
+        })
+      if (!reusable) return resolvedInlineColorAttribute(escaped, colorResolution(colors))
+      resolution = colorResolution(colors)
+      palette = colors
+    }
+    return resolvedInlineColorAttribute(escaped, resolution)
+  }
+}
+
+function resolvedInlineColorAttribute(escaped: string, resolution: ReturnType<typeof colorResolution>): string | undefined {
   const resolved = resolution ? resolution.resolveCss(escaped, resolution.vars, 10) : escaped
   // Scene admission excludes context-breaking palette values. Preserve the
   // full SVG path even for a direct caller that supplies such a substitution.

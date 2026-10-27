@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { renderMermaidSVG, verifyNoExternalRefs } from '../index.ts'
 import { namespaceSvgIds } from '../renderer.ts'
 import { prepareSvgForPngRasterization } from '../png-contract.ts'
-import { inlineFontVarForRaster, inlineResolvedColors, resolveInlineColorAttribute, type DiagramColors } from '../theme.ts'
+import { createInlineColorAttributeResolver, inlineFontVarForRaster, inlineResolvedColors, resolveInlineColorAttribute, type DiagramColors } from '../theme.ts'
 import { escapeAttr } from '../multiline-utils.ts'
 import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
 import * as svgPostprocess from '../svg-postprocess.ts'
@@ -57,10 +57,14 @@ describe('SVG post-pass interaction contract', () => {
       ['var(--missing, #abc\n)', '#abc\n'],
       ['"<&\t\r\n', '"<&\t\r\n'],
     ] as const
-    for (const [paint, expected] of cases) {
-      expect(resolveInlineColorAttribute(paint, colors), paint).toBe(expected)
-      const svg = inlineResolvedColors(`<rect fill="${escapeAttr(paint)}"/>`, colors)
-      expect(decodedSvgAttributeValue(scanSvgStartTags(svg)[0]!, 'fill'), paint).toBe(expected)
+    for (const palette of [colors, Object.freeze({ line: undefined, muted: undefined, surface: undefined, border: undefined, font: undefined, ...colors })]) {
+      const resolveColor = createInlineColorAttributeResolver()
+      for (const [paint, expected] of cases) {
+        expect(resolveInlineColorAttribute(paint, palette), paint).toBe(expected)
+        expect(resolveColor(paint, palette), paint).toBe(expected)
+        const svg = inlineResolvedColors(`<rect fill="${escapeAttr(paint)}"/>`, palette)
+        expect(decodedSvgAttributeValue(scanSvgStartTags(svg)[0]!, 'fill'), paint).toBe(expected)
+      }
     }
 
     // Literal RGB pages normalize for mixing; a host-controlled page keeps
@@ -70,16 +74,41 @@ describe('SVG post-pass interaction contract', () => {
   })
 
   test('scalar resolution observes each palette call and retains unusual substituted attribute bytes', () => {
-    const colors: DiagramColors = { bg: '#fff', fg: '#000' }
-    expect(resolveInlineColorAttribute('var(--fg)', colors)).toBe('#000')
-    colors.fg = '#112233'
-    expect(resolveInlineColorAttribute('var(--fg)', colors)).toBe('#112233')
-    colors.muted = 'var(--missing, #abc)'
-    expect(resolveInlineColorAttribute('var(--_text-sec)', colors)).toBe('var(--missing, #abc)')
-    colors.muted = '"'
-    expect(() => resolveInlineColorAttribute('var(--_text-sec)', colors)).toThrow(TypeError)
-    colors.muted = '<style>.x{fill:var(--fg)}</style>'
-    expect(resolveInlineColorAttribute('var(--_text-sec)', colors)).toBe('<style>.x{fill:#112233}</style>')
+    for (const resolveColor of [resolveInlineColorAttribute, createInlineColorAttributeResolver()]) {
+      const colors: DiagramColors = { bg: '#fff', fg: '#000', line: undefined, accent: undefined, muted: undefined, surface: undefined, border: undefined, font: undefined }
+      expect(resolveColor('var(--fg)', colors)).toBe('#000')
+      colors.fg = '#112233'
+      expect(resolveColor('var(--fg)', colors)).toBe('#112233')
+      colors.muted = 'var(--missing, #abc)'
+      expect(resolveColor('var(--_text-sec)', colors)).toBe('var(--missing, #abc)')
+      colors.muted = '"'
+      expect(() => resolveColor('var(--_text-sec)', Object.freeze({ ...colors }))).toThrow(TypeError)
+      colors.muted = '<style>.x{fill:var(--fg)}</style>'
+      expect(resolveColor('var(--_text-sec)', Object.freeze({ ...colors }))).toBe('<style>.x{fill:#112233}</style>')
+      let foreground = '#123456'
+      const accessor = Object.freeze({ bg: '#fff', get fg() { return foreground } })
+      expect(resolveColor('var(--fg)', accessor)).toBe('#123456')
+      foreground = '#654321'
+      expect(resolveColor('var(--fg)', accessor)).toBe('#654321')
+      const parent = { bg: '#fff', fg: '#123456' }
+      const inherited: DiagramColors = Object.freeze(Object.create(parent))
+      expect(resolveColor('var(--fg)', inherited)).toBe('#123456')
+      parent.fg = '#654321'
+      expect(resolveColor('var(--fg)', inherited)).toBe('#654321')
+      const optional: { muted?: string } = {}
+      const inheritedOptional: DiagramColors = Object.freeze(Object.assign(Object.create(optional), { bg: '#fff', fg: '#000' }))
+      expect(resolveColor('var(--muted, #abc)', inheritedOptional)).toBe('#abc')
+      optional.muted = '#123456'
+      expect(resolveColor('var(--muted, #abc)', inheritedOptional)).toBe('#123456')
+      let reject = false
+      const symbol = Symbol('palette metadata')
+      const extra = Object.freeze({ bg: 'white', fg: '#000', line: undefined, accent: undefined, muted: undefined, surface: undefined, border: undefined, font: undefined,
+        get [symbol]() { if (reject) throw new Error('changed palette metadata'); return 'metadata' },
+      })
+      expect(resolveColor('var(--fg)', extra)).toBe('#000000')
+      reject = true
+      expect(() => resolveColor('var(--fg)', extra)).toThrow('changed palette metadata')
+    }
   })
 
   test('CSS substitutions preserve tag-like text inside a CDATA style body', () => {

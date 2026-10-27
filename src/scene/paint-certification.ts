@@ -1,7 +1,7 @@
 import type { RenderedLayout } from '../agent/types.ts'
 import { connectorMarkerPaintRegions, connectorStrokeHasJoins, expandSceneBounds, nodePaintBounds, paintedStrokeExtent, unionSceneBounds, transformedBounds, visitTypedPathSegments, type TypedPathSegment } from './bounds.ts'
 import type { AxisAlignedBox } from '../shared/transformed-bounds.ts'
-import { resolveInlineColorAttribute } from '../theme.ts'
+import { createInlineColorAttributeResolver, resolveInlineColorAttribute } from '../theme.ts'
 import { tryParseCssColor } from '../shared/color-math.ts'
 import { inspectScenePaintGeometry, paintPrimitiveSource, scenePrimitiveMatrix, sceneGroupOpacity, type ScenePaintGeometryInspection, type NativeConnectorPaintSource, type ScenePaintGeometry as ScenePaintPrimitive } from './inspection.ts'
 import type { Geometry, SceneDoc, SceneOwner, ScenePoint, SceneTransform, MarkerDescriptor } from './ir.ts'
@@ -303,9 +303,9 @@ function outsideFilledBody(surface: Surface, bounds: AxisAlignedBox, attached: b
 
 /** Strict interior points of an emitted convex polygon fill, rather than
  * corners of its conservative stroke envelope. Clipped-away ink is excluded. */
-function markerInkWitnesses(marker: MarkerDescriptor | undefined, hull: readonly ScenePoint[] | undefined, scene: NativePaintHeader, work: () => boolean): readonly ScenePoint[] | undefined {
+function markerInkWitnesses(marker: MarkerDescriptor | undefined, hull: readonly ScenePoint[] | undefined, resolveColor: (value: string) => string | undefined, work: () => boolean): readonly ScenePoint[] | undefined {
   if (!marker || !hull || marker.geometry?.kind !== 'polygon' || (marker.scale ?? 1) > 1 || sceneGroupOpacity(marker.paint?.opacity) !== 1 || sceneGroupOpacity(marker.paint?.fillOpacity) !== 1 || !marker.paint?.fill) return undefined
-  const fill = resolveInlineColorAttribute(marker.paint.fill, scene.colors)
+  const fill = resolveColor(marker.paint.fill)
   if (!fill || tryParseCssColor(fill)?.[3] !== 1) return undefined
   const points = marker.geometry.points
   if (points.length < 3 || points.length > 64 || points.length !== hull.length) return undefined
@@ -326,14 +326,14 @@ function markerInkWitnesses(marker: MarkerDescriptor | undefined, hull: readonly
 /** Nonempty actual marker ink is required for a hard hidden-marker claim.
  * This source-space existence proof also admits filled round markers and
  * open stroked line crosses; it does not infer ink from a declared envelope. */
-function markerHasInk(marker: MarkerDescriptor | undefined, witnesses: readonly ScenePoint[] | undefined, scene: NativePaintHeader, work: () => boolean): boolean {
+function markerHasInk(marker: MarkerDescriptor | undefined, witnesses: readonly ScenePoint[] | undefined, resolveColor: (value: string) => string | undefined, work: () => boolean): boolean {
   if (witnesses?.length) return true
   if (!marker?.geometry || sceneGroupOpacity(marker.paint?.opacity) !== 1) return false
   const viewport = marker.viewBox ?? (marker.size ? { x: 0, y: 0, width: marker.size.width, height: marker.size.height } : undefined)
   const visible = (p: ScenePoint): boolean => Number.isFinite(p.x) && Number.isFinite(p.y) && (marker.overflow === 'visible' || !!viewport && p.x > viewport.x && p.x < viewport.x + viewport.width && p.y > viewport.y && p.y < viewport.y + viewport.height)
   const opaque = (color: string | undefined): boolean => {
     if (!color || !work()) return false
-    const value = resolveInlineColorAttribute(color, scene.colors)
+    const value = resolveColor(color)
     return !!value && tryParseCssColor(value)?.[3] === 1
   }
   const g = marker.geometry
@@ -534,6 +534,8 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
   }
   type MarkerTarget = { primitive: ScenePaintPrimitive; anchor: ScenePoint; bounds: AxisAlignedBox; hull?: readonly ScenePoint[]; padding?: number; witnesses?: readonly ScenePoint[]; actualInk: boolean }
   const lastMarkers = new Map<string, MarkerTarget>()
+  let markerColor: ReturnType<typeof createInlineColorAttributeResolver> | undefined
+  const resolveMarkerColor = (value: string): string | undefined => (markerColor ??= createInlineColorAttributeResolver())(value, scene.colors)
   for (const primitive of inspection.primitives) {
     const node = paintPrimitiveSource(primitive)
     if (primitive.kind !== 'connector' || node?.kind !== 'connector' || node.lineStyle === 'invisible' || primitive.coverage === 'non-painting') continue
@@ -548,8 +550,8 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
       const descriptor = marker.position === 'start' ? node.markers.start : marker.position === 'end' ? node.markers.end : node.markers.mid.length === 1 ? node.markers.mid[0] : undefined
       const measuredWorld = primitive.coverage === 'measured' && !!inverseMatrix(scenePrimitiveMatrix(primitive)!)
       const knownMapping = descriptor?.units === 'userSpaceOnUse' || knownUnitScale
-      const witnesses = measuredWorld && knownMapping ? markerInkWitnesses(descriptor, marker.hull, scene, work) : undefined
-      const actualInk = measuredWorld && knownMapping && descriptor?.paint?.vectorEffect !== 'non-scaling-stroke' && markerHasInk(descriptor, witnesses, scene, work)
+      const witnesses = measuredWorld && knownMapping ? markerInkWitnesses(descriptor, marker.hull, resolveMarkerColor, work) : undefined
+      const actualInk = measuredWorld && knownMapping && descriptor?.paint?.vectorEffect !== 'non-scaling-stroke' && markerHasInk(descriptor, witnesses, resolveMarkerColor, work)
       lastMarkers.set(key, { primitive, anchor: marker.anchor, bounds: marker.bounds, hull: marker.hull, padding: marker.padding, witnesses, actualInk })
     }
   }
