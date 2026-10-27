@@ -1,3 +1,4 @@
+import { catalogReleaseView } from './catalog-result.ts'
 import { harnessFile } from 'trident/unified/harness-paths.ts'
 import { readBenchmarkDocument, readBenchmarkResult, writeBenchmarkDocument } from 'trident/portable/project-records.ts'
 import { execFileSync, spawn } from 'node:child_process'
@@ -265,7 +266,7 @@ export async function runUnified(options: RunnerOptions): Promise<UnifiedReport>
     if (suite.kind === 'internal' && existsSync(internalResult)) {
       const result = readBenchmarkResult(internalResult)
       if (!Array.isArray(result.observations) || !Array.isArray(result.gaps)) throw new Error(`${suite.id} returned an invalid result envelope`)
-      execution.result = result
+      execution.result = ['community', 'community-cli', 'community-fidelity'].includes(suite.id) ? catalogReleaseView(result) : result
       if (execution.status === 'passed' || run.code === 2) execution.status = result.status
     } else {
       const owning = declaredReports(suiteOut, evidenceNotBefore)

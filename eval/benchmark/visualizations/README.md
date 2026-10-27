@@ -1,6 +1,6 @@
 # Entry startup visualizations
 
-These readers consume explicit source-adapter evidence; see [setup](../adapters/agentic/README.md). They collect no benchmark scores by themselves.
+These readers consume explicit product benchmark evidence; see [setup](../../trident/README.md). They collect no benchmark scores by themselves.
 
 `entry-startup.py` reads completed JSON and exports a local HTML gallery, CSV
 tables, a JSON summary, Markdown methods, and PNG/SVG/PDF figures. It uses no
@@ -26,8 +26,8 @@ artifact references are resolved from the declared result. The retained
 Run retained-record ownership checks before reporting; this exporter reads those
 inputs without replacing their admission checks.
 
-Before writing any report, the shared `../tool_versions.py` guard checks actual
-artifact versions across every supplied lane against `../tool-versions.json`.
+Before writing any report, the shared `node_modules/trident/tool_versions.py` guard checks actual
+artifact versions across every supplied lane against `node_modules/trident/tool-versions.json`.
 Startup versions come from owning identities, upstream versions from
 `evidence.results[].artifact`, family versions from declared support files and
 their parent identities, and Dave versions from its actual engine identities.
@@ -42,8 +42,8 @@ raw evidence unchanged. There is no mixed-version override; a manifest does not
 permit multiple releases of the same primary tool within a comparison. The Dave
 candidate shares the default variant with startup, family and upstream receipts;
 only an explicitly separate Dave baseline gets the `baseline` variant. A
-baseline cannot bypass a manifest pin. Copy the shared helper and
-manifest alongside the reader when extracting this reporting package.
+baseline cannot bypass a manifest pin. Prepare the pinned library before running the reader; its shared helpers and
+manifest are loaded from that installed owner.
 
 The output includes:
 

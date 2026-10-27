@@ -2,8 +2,8 @@
 
 # Maintained semantic performance qualification
 
-Run the source commands below through Agentic's pinned Trident launcher, or use
-`TRIDENT_AGENTIC_ROOT=/path/to/agentic bun commands.ts source bench:peers` in Trident.
+Run `bun run bench:peers` from this Agentic Mermaid checkout. The local launcher
+prepares its pinned Trident library before loading the owning product runner.
 
 This is the persistent harness work assigned to #433 in
 [the peer scorecard comment](https://github.com/adewale/agentic-mermaid/pull/433#issuecomment-6352969557).

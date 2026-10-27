@@ -22,7 +22,10 @@ from statistics import median
 import sys
 from textwrap import fill
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+TRIDENT_ROOT = Path(__file__).resolve().parents[3] / 'node_modules' / 'trident'
+if not (TRIDENT_ROOT / 'tool_versions.py').is_file():
+    raise SystemExit('Prepare the pinned library first: bun eval/trident/prepare.ts')
+sys.path.insert(0, str(TRIDENT_ROOT))
 from evidence import read_document
 from tool_versions import DEFAULT_MANIFEST, assert_tool_versions, canonical_tool, read_tool_versions
 

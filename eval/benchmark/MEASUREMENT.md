@@ -14,11 +14,11 @@ benchmarks. The rules below apply that concern to our actual Mermaid boundaries.
 
 In the essay's FRE example, the claimed win changed after checking the public interface and the work actually performed. Broad-suite overfitting also generalized poorly to a separately chosen workload. Specializing to input shapes can overfit without checking benchmark IDs. Telling an agent not to cheat does not validate its benchmark.
 
-For Trident, an optimization must preserve the same public API, consumed output, options, initialization and per-input correctness obligations as its control. Do not replace a receipt API with an SVG string, time cache hits as uncached layout, drop failed inputs, or change the batching/transport boundary to benefit a candidate. Examine actual outputs and fresh unfamiliar shapes before accepting a large claimed gain.
+For these product benchmarks, an optimization must preserve the same public API, consumed output, options, initialization and per-input correctness obligations as its control. Do not replace a receipt API with an SVG string, time cache hits as uncached layout, drop failed inputs, or change the batching/transport boundary to benefit a candidate. Examine actual outputs and fresh unfamiliar shapes before accepting a large claimed gain.
 
 The exposed six-input timing core, imported product corpus and public Mermaid docs/tests are development workloads. None is a secret or untouched holdout. A real generalization check needs an independently selected, representative workload whose selection and exclusions are recorded before tuning; an agent cannot create that evidence by naming a generated file “holdout.” No such validated holdout is currently bundled. Small/large scaling alone is not independent workload selection.
 
-A geometric mean or equal-weight average across unrelated families/interfaces does not establish user importance. Trident therefore keeps questions and units separate. Present per-case failures and resource/setup costs beside speed. A useful narrow specialization is allowed, but its claim must name the real use case rather than “fastest Mermaid renderer.”
+A geometric mean or equal-weight average across unrelated families/interfaces does not establish user importance. The reports therefore keep questions and units separate. Present per-case failures and resource/setup costs beside speed. A useful narrow specialization is allowed, but its claim must name the real use case rather than “fastest Mermaid renderer.”
 
 ## Preserve the requested work
 

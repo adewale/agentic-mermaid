@@ -1,6 +1,6 @@
 # Davebench: official Mermaid documentation
 
-[Results policy](../results/README.md) · [All benchmark guides](../BENCHMARKS.md) · [Owning runner](../release-browser-bench.ts)
+[Results policy](https://github.com/adewale/trident/blob/main/results/README.md) · [All benchmark guides](../BENCHMARKS.md) · [Owning runner](../release-browser-bench.ts)
 
 Davebench asks how often an implementation returns SVG for Mermaid's official syntax examples, and how much public render-call time it spends on the same successfully rendered occurrences as a comparator. It is an independent docs workload, separate from the six-input community speed core, native-model assertions and painted-output fidelity.
 
@@ -14,25 +14,25 @@ Timing uses public render invocation through SVG return, excluding inspection, c
 
 ## Prerequisites
 
-Install Trident and the explicit [Agentic Mermaid source adapter](../adapters/agentic/README.md), including the selected source dependencies. Bun, Node, npm, Git, tar and Chromium are required. Install the exact Mermaid oracle and first-party addon with `node commands.ts mermaid:install`. If using nondefault locations, set `MERMAID_UPSTREAM_DIR` and `MERMAID_REFERENCE_DIR` to the pinned source checkout and independent installed oracle. Keep package acquisition and artifact preparation outside timing.
+Install this Agentic Mermaid checkout and prepare its [pinned Trident library](../../trident/README.md) with `bun eval/trident/prepare.ts`. Bun, Node, npm, Git, tar and Chromium are required. Install the exact Mermaid oracle and first-party addon with `bun node_modules/trident/commands.ts mermaid:install`. If using nondefault locations, set `MERMAID_UPSTREAM_DIR` and `MERMAID_REFERENCE_DIR` to the pinned source checkout and independent installed oracle. Keep package acquisition and artifact preparation outside timing.
 
-Set `TRIDENT_AGENTIC_ROOT` to the selected source checkout. Dave's convenience wrapper builds and packs that driver source. For a different or prebuilt candidate, use the exact-archive command below; a source path alone does not identify the bytes measured.
+Run Dave from the selected Agentic Mermaid checkout. Its convenience wrapper builds and packs that source. For a different or prebuilt candidate, use the exact-archive command below; a source path alone does not identify the bytes measured.
 
 ## Run a complete docs comparison
 
-From the Trident root, with the environment above configured:
+From the Agentic Mermaid root, with the environment above configured:
 
 ```sh
-bun commands.ts adapter agentic source bench:dave \
+bun run bench:dave \
   --out /evidence/dave --rounds 3 --executable /path/to/chromium
 ```
 
-This wrapper builds the selected checkout, packs one npm archive, verifies its SHA-256, and delegates to the shared browser scorecard. It requests **30 selected-corpus warm-up attempts** per engine/round. Current comparators are Pele **1.9.0** and Mermaid **12.2.0**; a verified `--bezel-dir` adds Bezel. The wrapper accepts `--features` for an explicitly named experimental configuration and `--case ID,...` for diagnostics. Both change the experiment and must be disclosed.
+This wrapper builds the selected checkout, packs one npm archive, verifies its SHA-256, and delegates to the owning browser scorecard. It requests **30 selected-corpus warm-up attempts** per engine/round. Current comparators are Pele **1.9.0** and Mermaid **12.2.0**; a verified `--bezel-dir` adds Bezel. The wrapper accepts `--features` for an explicitly named experimental configuration and `--case ID,...` for diagnostics. Both change the experiment and must be disclosed.
 
 To measure a frozen candidate archive without building another renderer:
 
 ```sh
-bun commands.ts adapter agentic source bench:release:browser \
+bun run bench:release:browser \
   --candidate-tarball /artifacts/agentic-mermaid.tgz \
   --candidate-sha256 VERIFIED_64_CHARACTER_LOWERCASE_HEX \
   --out /evidence/dave-exact --rounds 3 --warmup 30 --elk-cache off \
@@ -42,7 +42,7 @@ bun commands.ts adapter agentic source bench:release:browser \
 The direct runner accepts an optional verified baseline tarball/digest or baseline lock; it does not need a baseline merely to compare the candidate with Pele/Mermaid. The controller's `release:browser` entry adds a baseline prerequisite because that entry represents a release comparison. The controller's `dave` entry can instead receive the candidate tarball/digest with its normal 30-attempt warm-up protocol:
 
 ```sh
-bun commands.ts adapter agentic run --profile full --suites dave \
+bun run bench --profile full --suites dave \
   --candidate-tarball /artifacts/agentic-mermaid.tgz \
   --candidate-sha256 VERIFIED_64_CHARACTER_LOWERCASE_HEX \
   --out /evidence/dave-campaign --rounds 3 --executable /path/to/chromium
@@ -67,4 +67,4 @@ Complete monolithic bundle gzip, focused consumer builds, lazy initial entry and
 
 ## Results and scope
 
-Old result bundles have been removed. A fresh run must retain its own corpus, exact artifact identities, samples and failures. This inherited runner currently uses an Agentic candidate and fixed comparators. It is not a catalog-wide docs benchmark, and a community admission percentage cannot substitute for a Dave score. Extending it to other projects requires real public API bindings and a fresh matched campaign.
+Old result bundles have been removed. A fresh run must retain its own corpus, exact artifact identities, samples and failures. This inherited runner currently uses an Agentic candidate and fixed comparators. It is not a catalog-wide docs benchmark, and a community admission percentage cannot substitute for a Dave score. Use Trident's public `docs` suite for every prepared catalog SVG binding. That suite inventories the raw pinned upstream syntax fences; it has a separate protocol and occurrence count from this historical vendored Davebench corpus. Keep both inventories explicit.

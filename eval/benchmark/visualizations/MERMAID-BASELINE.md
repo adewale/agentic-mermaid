@@ -1,11 +1,11 @@
 # Compare with the pinned Mermaid
 
-This optional source-adapter protocol has fixed reviewed core engine roles. See [setup](../adapters/agentic/README.md). Collect public browser and Node parser baselines with the unified
+This optional product protocol has fixed reviewed core engine roles. See [setup](../../trident/README.md). Collect public browser and Node parser baselines with the unified
 controller. Supply installed, frozen package roots; the reference prefix must
 contain the pinned Mermaid package and its dependencies.
 
 ```sh
-bun commands.ts adapter agentic run --profile full \
+bun run bench --profile full \
   --suites mermaid-baseline-browser,mermaid-baseline-compatibility \
   --projects adewale/agentic-mermaid,obsidianmd/pele,mermaid-js/mermaid \
   --package-root /artifacts/agentic-mermaid \
@@ -42,7 +42,7 @@ python -B eval/benchmark/visualizations/mermaid_baseline.py \
 Each lane retains its own dates, settings, actual artifact versions, receipts,
 input IDs, and qualification scope. `tool_versions.py` rejects conflicting tool
 versions and missing executed versions before any output is written. The default
-pins are in `../tool-versions.json`; an explicit manifest can select a uniform
+pins are in `node_modules/trident/tool-versions.json`; an explicit manifest can select a uniform
 historical set. Original evidence is never rewritten.
 
 Cost is **tool / Mermaid**, with Mermaid=1 and lower values costing less. A
@@ -110,6 +110,5 @@ python -B -m unittest discover -s eval/benchmark/visualizations \
 ```
 
 These manual analysis tools add no CI benchmark job and do not change measurement
-producers or their retained identities. The reducer depends only on explicit
-report contracts, the shared version guard and its chart module, so it can move
-with the benchmark directory when the suite becomes a separate project.
+producers or their retained identities. The product reducer loads the generic document and version helpers from the
+pinned Trident library, while keeping its chart module and comparison policy here.

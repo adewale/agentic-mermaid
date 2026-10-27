@@ -13,7 +13,10 @@ from pathlib import Path
 from statistics import median
 import sys
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+TRIDENT_ROOT = Path(__file__).resolve().parents[3] / 'node_modules' / 'trident'
+if not (TRIDENT_ROOT / 'tool_versions.py').is_file():
+    raise SystemExit('Prepare the pinned library first: bun eval/trident/prepare.ts')
+sys.path.insert(0, str(TRIDENT_ROOT))
 from evidence import read_document
 from tool_versions import assert_tool_versions, canonical_tool, read_tool_versions
 from mermaid_baseline_charts import render_charts
@@ -56,7 +59,7 @@ def community(path):
     inputs = load(root / "community-inputs.json")
     observations = result["observations"]
     tools = {a["node"]["id"]: a for a in ranks["artifacts"]}
-    catalog_path = Path(__file__).resolve().parents[3] / "docs" / "mermaid-community.json"
+    catalog_path = TRIDENT_ROOT / "catalog" / "mermaid-community.json"
     catalog = load(catalog_path)
     measured_catalog_count = len(tools)
     for node in catalog["nodes"]:

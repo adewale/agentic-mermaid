@@ -14,11 +14,17 @@ The pinned library is prepared by `eval/trident/prepare.ts`; no synthetic produc
 workspace is created. Missing prerequisites remain blocked, and owning test counts
 are not competitive scores.
 
+A full product ledger can retain both the selected source candidate and catalog
+releases. Catalog observations carry the explicit `catalog-release` variant for
+every project, preserving the actual published versions and original records.
+They cannot be pooled with the source candidate as one artifact comparison;
+conflicting versions within the same catalog comparison still fail admission.
+
 ## Community output admission
 
 **Question:** which of my Mermaid inputs can this tool return in the requested format, retaining expected labels? **Value: high for compatibility triage; limited for fidelity.**
 
-Run `bun commands.ts community:update --projects OWNER/TOOL --profile full --rounds 5 --records /evidence/records --out /evidence/run`. SVG, terminal, PNG and parser lanes stay separate. Inspect the per-case record, family grid and failure pages produced by `results:publish`.
+From a Trident checkout, run `bun commands.ts community:update --projects OWNER/TOOL --profile full --rounds 5 --records /evidence/records --out /evidence/run`. SVG, terminal, PNG and parser lanes stay separate. Inspect the per-case record, family grid and failure pages produced by `results:publish`.
 
 The score is passed/failed/blocked/unsupported input evidence, with family coverage and the actual denominator. XML and label existence do not establish identities, relationships, visibility or good layout. PNG checks only its binary envelope. A parser-only fixture must not be called a render defect. Different supported subsets cannot be read as equivalent fidelity percentages.
 
@@ -28,13 +34,13 @@ The score is passed/failed/blocked/unsupported input evidence, with family cover
 
 The community update also measures a fixed six-input API core, browser loading/delivery/heap scopes and admitted CLI processes. `community-cli` is the source controller ID for its separate CLI supplement. An npm CLI must be declared in the catalog; no project gets an automatic local binary. Resources are collected separately from latency.
 
-Read first-call versus repeated-source costs by surface. Only a complete qualified core can receive a portfolio time. Those six inputs are development-exposed and too narrow to represent all families or production. A cached identical source answers a real cache workload; it is not evidence of uncached layout speed. The report's admission ordering is not an overall winner. See [methodology](METHODOLOGY.md).
+Read first-call versus repeated-source costs by surface. Only a complete qualified core can receive a portfolio time. Those six inputs are development-exposed and too narrow to represent all families or production. A cached identical source answers a real cache workload; it is not evidence of uncached layout speed. The report's admission ordering is not an overall winner. See [shared methodology](https://github.com/adewale/trident/blob/main/METHODOLOGY.md).
 
 ## Portable family and scaling
 
 **Question:** does performance remain acceptable across families, increasing sizes and interacting features while preserving declared correctness? **Value: high for controlled regression work; still not a production forecast.**
 
-Build the kit with `node commands.ts build --out /artifacts/trident-kit`; run `node /artifacts/trident-kit/run.mjs --project OWNER/TOOL --artifact-root /artifacts/package --adapter ADAPTER --out /evidence/portable --records /evidence/records --rounds 5 --samples 31 --cold-samples 20 --allow-partial`. See `run --help` for supported artifact bindings. It needs the real artifact and independent oracle, not product source. Browser/observer capabilities depend on the adapter and platform.
+From a Trident checkout, build the kit with `node commands.ts build --out /artifacts/trident-kit`; run `node /artifacts/trident-kit/run.mjs --project OWNER/TOOL --artifact-root /artifacts/package --adapter ADAPTER --out /evidence/portable --records /evidence/records --rounds 5 --samples 31 --cold-samples 20 --allow-partial`. See `run --help` for supported artifact bindings. It needs the real artifact and independent oracle, not product source. Browser/observer capabilities depend on the adapter and platform.
 
 The authored cohorts include family representatives, scaling, interacting features and invalid inputs. Reports separate correctness, warm sample means, fresh processes, resources and calibration. Inspect `report.md`, its full JSON/records and owning samples. A partial run or failed A/A control is not performance-qualified. A p95 of batch means is not a single-call tail. More input shapes and independently chosen real workloads are needed before generalizing.
 
@@ -42,7 +48,7 @@ The authored cohorts include family representatives, scaling, interacting featur
 
 **Question:** how often does the tool return SVG for Mermaid's official docs, and how much render-call time does it use on shared successful examples? **Value: high as an external compatibility workload; moderate as a performance workload.**
 
-Use source ID `dave` or `bun run bench:dave`. Exact archives can be supplied through the controller's candidate tarball/digest options. The current runner is still a fixed-engine comparison around an Agentic candidate, Pele and pinned Mermaid, with optional verified peers. It does **not** yet benchmark an arbitrary catalog project. This restriction is a migration gap, not special admission or a current score.
+Use source ID `dave` or `bun run bench:dave`. Exact archives can be supplied through the controller's candidate tarball/digest options. The current runner is still a fixed-engine comparison around an Agentic candidate, Pele and pinned Mermaid, with optional verified peers. This product protocol retains its own inventory and warm-up policy. Trident’s separate `docs` suite supplies catalog-wide public SVG bindings; neither inventory substitutes for the other.
 
 Every official fence occurrence remains in the acceptance denominator, including repeats and failures. Time only the same shared-success occurrences within each candidate/comparator pair; that subset cannot erase missing docs examples. SVG return is weaker than faithful rendering, and docs are public development inputs. See [Dave methods, prerequisites and outputs](docs/davebench.md).
 
@@ -50,7 +56,7 @@ Every official fence occurrence remains in the acceptance denominator, including
 
 **Question:** did identities, endpoints, values and operations survive, and does the actual output draw the required things? **Value: high; stronger evidence of correctness than format/label admission.**
 
-Source IDs `mermaid-fidelity` and `community-fidelity` execute an independently declared criterion universe. The latter uses an actual frozen browser preparation manifest (`--community-browser-prepared FILE`); it does not acquire missing tools. Core model adapters remain fixed to reviewed engines. See [the fidelity guide](fidelity/README.md).
+Source IDs `mermaid-fidelity` and `community-fidelity` execute an independently declared criterion universe. The latter uses an actual frozen browser preparation manifest (`--community-browser-prepared FILE`); it does not acquire missing tools. Core model adapters remain fixed to reviewed engines. See [the shared fidelity guide](https://github.com/adewale/trident/blob/main/fidelity/README.md).
 
 Scores separate public operations, native meaning, paint, unavailable projections and baseline-qualified criteria. Failed renders cannot shrink a peer's denominator. A reference-qualified percentage must retain the reference's own failures. Paint ownership is useful structural evidence, not complete typography, aesthetics, accessibility or perceptual judgment. Keep the actual SVG/PNG witnesses.
 
@@ -60,7 +66,7 @@ Scores separate public operations, native meaning, paint, unavailable projection
 
 `upstream-original` executes genuine pinned Mermaid core Vitest with its real dependencies and read-only snapshots. `upstream-fidelity` projects original callbacks through reviewed peer public models. `upstream-test-assertions` is the narrower original Mindmap/GitGraph callback lane. They require the pinned source and appropriate adapters; they are not interchangeable.
 
-Report discovered declarations, expanded callbacks, passes, failures, pending/todo and unavailable tests separately. Private database representation and diagnostic wording can fail even when drawings are correct. These are compatibility findings, not automatically missing features. Callback workflow time includes setup and assertions; it is not renderer latency. See [original-test methods](fidelity/README.md).
+Report discovered declarations, expanded callbacks, passes, failures, pending/todo and unavailable tests separately. Private database representation and diagnostic wording can fail even when drawings are correct. These are compatibility findings, not automatically missing features. Callback workflow time includes setup and assertions; it is not renderer latency. See [original-test methods](https://github.com/adewale/trident/blob/main/fidelity/README.md).
 
 ## Selected pinned-reference inputs
 

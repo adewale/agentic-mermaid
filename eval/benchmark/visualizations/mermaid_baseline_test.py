@@ -27,7 +27,7 @@ class BaselineControls(unittest.TestCase):
         return path
 
     def test_real_typescript_document_exports_remain_portable_and_reject_changed_data(self):
-        module = Path(__file__).resolve().parents[1] / 'portable/project-records.ts'
+        module = baseline.TRIDENT_ROOT / 'portable/project-records.ts'
         source = self.root / 'source'
         source.mkdir()
         output = source / 'summary.json'
