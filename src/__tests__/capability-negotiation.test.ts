@@ -20,7 +20,7 @@ import {
 } from '../agent/families.ts'
 import { registerFamily } from '../agent/family-registration.ts'
 import type { ExternalFamilyId } from '../agent/types.ts'
-import { createMermaidRenderer, renderMermaidSVGWithReceipt } from '../index.ts'
+import { createMermaidRenderer, renderMermaidSVGWithReceipt, ESSENTIAL_SCENE_PRIMITIVE_CAPABILITIES } from '../index.ts'
 import * as publicAgentApi from '../agent/index.ts'
 import { DefaultBackend, knownBackendDescriptors, registerBackend } from '../scene/backend.ts'
 
@@ -160,6 +160,23 @@ describe('versioned capability negotiation', () => {
       status: 'selected',
       version: '1.0.0',
     })
+  })
+
+  test('public primitive requirements cannot be changed after warming admission', () => {
+    const source = 'eventmodeling\ntf 01 ui Screen\ntf 02 cmd Submit'
+    expect(resolveRenderRequestForExecution(source).capabilityDecision.accepted).toBe(true)
+    const requirement = ESSENTIAL_SCENE_PRIMITIVE_CAPABILITIES.find(item =>
+      item.primitive === 'connector' && item.feature === 'markers' && item.operation === 'render')!
+    const feature = requirement.feature
+    const changed = Reflect.set(requirement, 'feature', 'unavailable-feature')
+    try {
+      expect(changed).toBe(false)
+      expect(resolveRenderRequestForExecution(source).capabilityDecision.resolutions).toContainEqual({
+        id: 'scene-primitive:connector/markers/render', range: '^1.0.0', level: 'required', status: 'selected', version: '1.0.0',
+      })
+    } finally {
+      if (changed) Reflect.set(requirement, 'feature', feature)
+    }
   })
 
   test('rejects an SVG-absent extension during resolution with structured tuple detail', () => {
