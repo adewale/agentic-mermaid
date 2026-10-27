@@ -7,6 +7,11 @@ Those tables do not require restoring removed artifacts. Current extension,
 request and output contracts live in [`../design/system/README.md`](../design/system/README.md)
 and their owning code/tests; unfinished work lives only in `TODO.md`.
 
+Vocabulary note: this historical record uses *mark* for what current
+[documentation calls a Scene part](../api.md#vocabulary). Its Scene primitives
+describe the pre-paint drawing contract, distinct from resolved path/text
+primitives returned by `renderResolvedScene`. Existing API type names are retained.
+
 Status: Section A landed on `main` in PR #163 (`4f9d376a`), and `radar-beta`
 joined the registered family set in PR #161 (`dfaa48e2`). Mandatory Section B
 B0–B3/B5 is implemented by the generated evidence and contracts below; B4 was

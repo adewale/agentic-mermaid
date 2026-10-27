@@ -7,7 +7,7 @@ This directory holds the long-form documentation. The root README is intentional
 | Doc | Purpose |
 |---|---|
 | [`getting-started.md`](./getting-started.md) | Plain library use: render a Mermaid string to SVG/PNG/ASCII in 5 minutes. |
-| [`api.md`](./api.md) | Library, agent API, output functions, options, CLI/MCP pointers. |
+| [`api.md`](./api.md) | Library workflows, shared vocabulary, signatures, results, options and errors. |
 | [`diagram-families.md`](./diagram-families.md) | Supported Mermaid families, examples, and edit policy. |
 | [`choosing-a-diagram.md`](./choosing-a-diagram.md) | Task-first router: pick the family from the reader's task, with per-choice anti-patterns and verify checks. |
 | [`theming.md`](./theming.md) | Two-color themes, built-in themes, custom themes, Shiki import. |
@@ -43,7 +43,7 @@ This directory holds the long-form documentation. The root README is intentional
 ## Contributor / project docs
 
 The design docs split into two tiers — **system** (how the engine works, cross-cutting) and
-**per-family** (how one diagram type works).
+**per-family** (how one Mermaid diagram family works).
 
 ### System design — how the engine works
 
