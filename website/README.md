@@ -2,6 +2,12 @@
 
 Cloudflare Workers Static Assets site for `agentic-mermaid.dev`, generated from website-owned source files and aligned to the website spec in PR #27, plus the hosted MCP endpoint at `/mcp` (as-built record: `docs/project/archive/hosted-mcp-cloudflare-plan.md`).
 
+The library reference is authored in [`docs/api.md`](../docs/api.md), with
+advanced topics in [`docs/api-advanced.md`](../docs/api-advanced.md). The build
+renders those files as HTML and publishes Markdown siblings; do not add a
+second API explanation in the site templates. Run `bun run doc-blocks` after
+changing runtime option descriptors, source version or changelog release entries.
+
 ## Shape
 
 - `source/` — website-owned source pages, assets, and diagram seeds.
@@ -20,9 +26,10 @@ The MCP server core lives in `src/mcp/hosted-server.ts` (repo root `src/`), shar
 ## Routes
 
 - `/`, `/editor/`, `/examples/`, `/comparisons/`, `/about/`, `/about/design/`, `/docs/`
-- `/docs/getting-started/`, `/docs/api/`, `/docs/cli/`, `/docs/mcp/`, `/docs/ascii/`, `/docs/theming/`, `/docs/custom-styles/`, `/docs/quality/`, `/docs/fork-differences/`
+- `/docs/getting-started/`, `/docs/api/`, `/docs/api/advanced/`, `/docs/cli/`, `/docs/mcp/`, `/docs/ascii/`, `/docs/theming/`, `/docs/custom-styles/`, `/docs/quality/`, `/docs/fork-differences/`
 - `/skills/agentic-mermaid-diagram-workflow/`
 - `/warnings/`, `/warnings/<CODE>/`, `/errors/`, `/errors/<kind>/`
+- `/docs/api/index.md`, `/docs/api/advanced/index.md` — the canonical library references
 - `/index.md`, `/llms.txt`, `/llms.md`, `/.well-known/llms.txt`, `/agent-instructions.md`, `/capabilities.json`, `/examples/index.json`, `/warning-codes.md`
 - `/.well-known/mcp`, `/.well-known/mcp.json`, `/.well-known/mcp/server-card.json`, `/.well-known/ai-catalog.json`
 - `/schemas/style-spec.schema.json`, `/schemas/render-options.schema.json`

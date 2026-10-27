@@ -186,7 +186,7 @@ describe('agent-facing runnable docs', () => {
     const AGENT = JSON.stringify(join(REPO, 'src/agent/index.ts'))
     const CORE = JSON.stringify(join(REPO, 'src/index.ts'))
     const BROWSER = JSON.stringify(join(REPO, 'src/browser-lazy.ts'))
-    const docs = ['README.md', 'docs/getting-started.md', 'docs/api.md', 'docs/ascii.md', 'docs/config.md', 'docs/theming.md', 'docs/diagram-families.md']
+    const docs = ['README.md', 'docs/getting-started.md', 'docs/api.md', 'docs/api-advanced.md', 'docs/ascii.md', 'docs/config.md', 'docs/theming.md', 'docs/diagram-families.md']
     // Reader-supplied placeholders the docs reference but expect you to provide.
     const placeholders = (block: string): string => {
       const declared = (id: string) => new RegExp(`(?:const|let|var)\\s+${id}\\b`).test(block) || new RegExp(`(?:const|let|var)\\s*\\{[^}]*\\b${id}\\b[^}]*\\}`).test(block)
@@ -208,7 +208,7 @@ describe('agent-facing runnable docs', () => {
           if (!runnable) continue
           // Point published specifiers at in-repo source; a temp cwd keeps any
           // written artifacts (diagram.svg/png) out of the repo.
-          const wired = block.replaceAll("'agentic-mermaid/agent'", AGENT).replaceAll("'agentic-mermaid/browser/lazy'", BROWSER).replaceAll("'agentic-mermaid'", CORE)
+          const wired = block.replaceAll("'agentic-mermaid/agent/core'", JSON.stringify(join(REPO, 'src/agent/core.ts'))).replaceAll("'agentic-mermaid/agent'", AGENT).replaceAll("'agentic-mermaid/browser/lazy'", BROWSER).replaceAll("'agentic-mermaid'", CORE)
           const file = join(dir, `${doc.replace(/[/.]/g, '_')}__${i}.ts`)
           writeFileSync(file, placeholders(block) + '\n' + wired)
           const r = await runChild('bun', ['run', file], { cwd: dir })
