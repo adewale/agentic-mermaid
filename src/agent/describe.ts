@@ -1,4 +1,5 @@
-import { projectZenUMLSequence, type ZenUMLMessageContext } from '../zenuml/native-sequence.ts'
+import { projectZenUMLSequence, type ZenUMLMessageContext, type ZenUMLNoteContext } from '../zenuml/native-sequence.ts'
+import type { Actor } from '../sequence/types.ts'
 import { eventLanes, eventRelations } from '../eventmodeling/parser.ts'
 import { isStableFamilyBody, stableFamilyCount, stableFamilyTree } from './stable-family-adapters.ts'
 
@@ -45,6 +46,8 @@ export interface DescribeOptions {
 /** Structured accessibility tree (#7349): the graph as a list of nodes + edges. */
 export interface DescribeTree {
   kind: string
+  /** Visible document title, when retained by this family's readback. */
+  title?: string
   nodes: Array<{
     id: string
     label: string
@@ -52,6 +55,12 @@ export interface DescribeTree {
     value?: number
     /** Renderer-owned endpoint, not an authored participant. */
     external?: true
+    zenuml?: { kind: 'participant'; type: Actor['type'] } | (Pick<ZenUMLNoteContext, 'sourceId' | 'callAncestors' | 'scopes'> & {
+      kind: 'note'
+      actorIds: readonly string[]
+      position: ZenUMLNoteContext['note']['position']
+      afterIndex: number
+    })
     c4?: ({ category: 'element'; effectiveShape: C4Shape } & Pick<C4Element, 'kind' | 'external' | 'shape' | 'parentId'>) | ({ category: 'boundary' } & Pick<C4Boundary, 'kind' | 'parentId'>)
   }>
   edges: Array<{
@@ -117,7 +126,7 @@ export function describeMermaid(d: ParsedDiagram, opts: DescribeOptions = {}): s
   }
   if (d.body.kind === 'zenuml') {
     const model = projectZenUMLSequence(d.body)
-    return `A ZenUML interaction with ${model.actors.filter(actor => !actor.external).length} participants, ${model.messages.length} messages and ${model.blocks.length} control scopes.`
+    return `A ZenUML interaction${model.title === undefined ? '' : ` titled ${JSON.stringify(model.title)}`} with ${model.actors.filter(actor => !actor.external).length} participants, ${model.messages.length} messages and ${model.blocks.length} control scopes.`
   }
   if (d.body.kind === 'eventmodeling') return `An Event Modeling diagram with ${d.body.frames.length} frames and ${eventRelations(d.body).length} relations.`
   if (isStableFamilyBody(d.body)) {
@@ -283,10 +292,17 @@ export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
       tree.edges.push({ from: link.source, to: link.target, label: String(link.value) })
     }
   } else if (d.body.kind === 'zenuml') {
-    const model = projectZenUMLSequence(d.body, { message: ({ message, kind, sourceId, callAncestors, scopes }) => {
-      tree.edges.push({ from: message.from, to: message.to, label: message.label, zenuml: { id: message.id!, kind, sourceId, callAncestors, scopes } })
-    } })
-    tree.nodes.push(...model.actors.map(actor => ({ id: actor.id, label: actor.external ? 'External caller' : actor.label, ...(actor.external ? { external: true as const } : {}) })))
+    const notes: DescribeTree['nodes'] = []
+    const model = projectZenUMLSequence(d.body, {
+      message: ({ message, kind, sourceId, callAncestors, scopes }) => {
+        tree.edges.push({ from: message.from, to: message.to, label: message.label, zenuml: { id: message.id!, kind, sourceId, callAncestors, scopes } })
+      },
+      note: ({ note, sourceId, callAncestors, scopes }) => {
+        notes.push({ id: note.id!, label: displayText(resolveLabelContent(note.text, note.textContent)), ...(note.parentId ? { parentId: note.parentId } : {}), zenuml: { kind: 'note', sourceId, actorIds: note.actorIds, position: note.position, afterIndex: note.afterIndex, callAncestors, scopes } })
+      },
+    })
+    if (model.title !== undefined) tree.title = model.title
+    tree.nodes.push(...model.actors.map(actor => ({ id: actor.id, label: actor.external ? 'External caller' : actor.label, ...(actor.external ? { external: true as const } : { zenuml: { kind: 'participant' as const, type: actor.type } }) })), ...notes)
   } else if (d.body.kind === 'eventmodeling') {
     const lanes = eventLanes(d.body)
     tree.nodes.push(...lanes.map(lane => ({ id: lane.id, label: lane.label })))

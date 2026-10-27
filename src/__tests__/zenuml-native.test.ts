@@ -6,7 +6,7 @@ import { mutateZenUML, serializeZenUML, validateZenUML, zenUMLMeaning } from '..
 import { projectZenUMLSequence } from '../zenuml/native-sequence.ts'
 import { getSequenceBlockBoundaries, getSequenceBlockScope } from '../sequence/parser.ts'
 import { preparedDisplayTextValue } from '../shared/display-text.ts'
-import { checkMermaid, describeMermaidFacts, describeMermaidTree, mutateChecked, parseRegisteredMermaid, serializeMermaid } from '../agent/core.ts'
+import { checkMermaid, describeMermaid, describeMermaidFacts, describeMermaidTree, mutateChecked, parseRegisteredMermaid, serializeMermaid } from '../agent/core.ts'
 
 const rich = `zenuml
 title Checkout ownership
@@ -299,4 +299,44 @@ test('public Zen accessibility tree retains external calls and explicit branch c
   expect(tree.edges[0]!.from).toBe(outside.id)
   expect(tree.edges[1]!.zenuml?.scopes.at(-1)?.branchIndex).toBe(0)
   expect(tree.edges[2]!.zenuml?.scopes.at(-1)?.branchIndex).toBe(1)
+
+  const noted = (title: string, text: string, alternate = false) => {
+    const result = parseRegisteredMermaid(`zenuml
+title ${title}
+@Actor "statement:1" as Visitor
+@Database Store
+API.request() {
+ if (ready) {
+ ${alternate ? '' : `// ${text}`}
+ } else {
+ ${alternate ? `// ${text}` : ''}
+ }
+ Store.load()
+}`)
+    if (!result.ok) throw Error('Expected note-only branch source')
+    return result.value
+  }
+  const first = noted('First', 'first **note**'), second = noted('Second', 'second **note**'), moved = noted('First', 'first **note**', true)
+  const firstFacts = describeMermaidFacts(first), firstTree = describeMermaidTree(first)
+  expect(firstFacts).toContain('title "First"')
+  expect(firstFacts).toContain('participant Store type database')
+  expect(firstFacts).toContain('note#statement:4 over "API" after-index 0 : first note')
+  expect(firstFacts).toContain('note#statement:4 call-parent statement:2')
+  expect(firstFacts).toContain('note#statement:4 fragment#statement:3 branch#0')
+  expect(firstFacts).not.toEqual(describeMermaidFacts(second))
+  expect(firstFacts).not.toEqual(describeMermaidFacts(moved))
+  expect(checkMermaid(moved, { include: firstFacts, exact: true }).ok).toBe(false)
+  expect(firstTree.title).toBe('First')
+  expect(describeMermaid(first)).toContain('"First"')
+  expect(firstTree).not.toEqual(describeMermaidTree(second))
+  const note = firstTree.nodes.find(node => node.zenuml?.kind === 'note')!
+  expect(note).toMatchObject({ id: 'statement:4', label: 'first note', parentId: 'statement:3', zenuml: {
+    kind: 'note', sourceId: 'statement:4', actorIds: ['API'], position: 'over', afterIndex: 0, callAncestors: ['statement:2'],
+    scopes: [{ fragmentId: 'statement:3', fragmentIndex: 0, type: 'if', branchIndex: 0, branchKind: 'body', condition: 'ready' }],
+  } })
+  expect(describeMermaidTree(moved).nodes.find(node => node.zenuml?.kind === 'note')).toMatchObject({ zenuml: { scopes: [{ branchIndex: 1, branchKind: 'else' }] } })
+  expect(firstTree.nodes.find(node => node.id === 'Store')).toMatchObject({ zenuml: { kind: 'participant', type: 'database' } })
+  expect(firstTree.nodes.filter(node => node.zenuml?.kind === 'participant').map(node => node.id)).toEqual(['statement:1', 'Store', 'API'])
+  expect(new Set(firstTree.nodes.map(node => node.id)).size).toBe(firstTree.nodes.length)
+  expect(firstTree.edges.map(edge => [edge.from, edge.to])).toEqual([[firstTree.nodes.find(node => node.external)!.id, 'API'], ['API', 'Store']])
 })

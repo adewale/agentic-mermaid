@@ -22,8 +22,15 @@ export interface ZenUMLMessageContext {
   callAncestors: readonly string[]
   scopes: readonly ZenUMLSemanticScope[]
 }
+export interface ZenUMLNoteContext {
+  note: Note
+  sourceId: string
+  callAncestors: readonly string[]
+  scopes: readonly ZenUMLSemanticScope[]
+}
 export interface ZenUMLProjectionObserver {
   message?(context: ZenUMLMessageContext): void
+  note?(context: ZenUMLNoteContext): void
   fragment?(context: { fragment: Extract<ZenUMLStatement, { kind: 'fragment' }>; branches: readonly ZenUMLBranch[]; callAncestors: readonly string[]; scopes: readonly ZenUMLSemanticScope[] }): void
 }
 interface Context { owner?: string; returnTo?: string; parentId?: string; blockIndex?: number; section: number; callAncestors: readonly string[]; scopes: readonly ZenUMLSemanticScope[] }
@@ -80,6 +87,7 @@ export function projectZenUMLSequence(body: ZenUMLBody, observe?: ZenUMLProjecti
     const note: Note = { id, ...(context.parentId ? { parentId: context.parentId } : {}), actorIds: [...new Set(ids.length ? ids : [actor(context.owner)])], text: label, textContent: { value: label, authored: text, prepared: prepareDisplayText(label, 'formatted') }, position: 'over', afterIndex: sequence.messages.length - 1 }
     const index = sequence.notes.length
     sequence.notes.push(note)
+    observe?.note?.({ note, sourceId: id, callAncestors: context.callAncestors, scopes: context.scopes })
     for (const block of openScopes) scopes.get(block)!.noteIndices.push(index)
   }
   const directReturns = (values: ZenUMLStatement[]): boolean => values.some(s => s.kind === 'return' || s.kind === 'message' && s.reply || s.kind === 'fragment' && s.branches.some(branch => directReturns(branch.statements)))

@@ -172,11 +172,17 @@ export function describeMermaidFacts(d: ParsedDiagram): string[] {
       break
     }
     case 'zenuml': {
+      if (d.body.title !== undefined) add(out, `title ${JSON.stringify(d.body.title)}`)
       const model = projectZenUMLSequence(d.body, {
         message: ({ message, kind, callAncestors, scopes }) => {
           add(out, `message#${clean(message.id!)} kind ${kind}`)
           if (callAncestors.length) add(out, `message#${clean(message.id!)} call-parent ${clean(callAncestors.at(-1)!)}`)
           for (const scope of scopes) add(out, `message#${clean(message.id!)} fragment#${clean(scope.fragmentId)} branch#${scope.branchIndex}`)
+        },
+        note: ({ note, callAncestors, scopes }) => {
+          add(out, `note#${clean(note.id!)} ${note.position} ${note.actorIds.map(id => JSON.stringify(id)).join(',')} after-index ${note.afterIndex} : ${clean(displayText(resolveLabelContent(note.text, note.textContent)))}`)
+          if (callAncestors.length) add(out, `note#${clean(note.id!)} call-parent ${clean(callAncestors.at(-1)!)}`)
+          for (const scope of scopes) add(out, `note#${clean(note.id!)} fragment#${clean(scope.fragmentId)} branch#${scope.branchIndex}`)
         },
         fragment: ({ fragment, branches, callAncestors, scopes }) => {
           add(out, `fragment#${clean(fragment.id)} kind ${fragment.type}`)
@@ -189,7 +195,10 @@ export function describeMermaidFacts(d: ParsedDiagram): string[] {
           })
         },
       })
-      for (const actor of model.actors) if (!actor.external) add(out, `participant ${clean(actor.id)} : ${clean(actor.label)}`)
+      for (const actor of model.actors) if (!actor.external) {
+        add(out, `participant ${clean(actor.id)} : ${clean(actor.label)}`)
+        add(out, `participant ${clean(actor.id)} type ${actor.type}`)
+      }
       for (const actor of model.actors) if (actor.external) add(out, `external-endpoint ${clean(actor.id)}`)
       for (const message of model.messages) {
         add(out, `message ${clean(message.from)} -> ${clean(message.to)} : ${clean(message.label)}`)
