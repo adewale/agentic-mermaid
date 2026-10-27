@@ -56,6 +56,12 @@ export function appendAccessibilityLines(lines: string[], value: { accessibility
   // Readers can retain an explicitly empty block. Its writer spelling is
   // independent of the non-empty mutation-input contract above.
   const description = value.accessibilityDescription.trim() ? accessibilityDescriptionText(value.accessibilityDescription) : ''
+  if (!description) {
+    // Class has no empty accDescr production. A native comment retains the
+    // explicit empty value while external Mermaid keeps its empty default.
+    appendNativeAccessibilityLines(lines, { accessibilityDescription: '' })
+    return
+  }
   if (description && !description.includes('\n')) {
     lines.push(`  accDescr: ${description}`)
     return

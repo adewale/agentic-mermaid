@@ -39,6 +39,12 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Fixed
 
+- Canonical writes preserve empty accessibility descriptions using native
+  metadata comments, protect directive-looking Kanban labels and metadata,
+  and move C4 global metadata out of nested boundaries. Sequence message IDs
+  that collide with keyword prefixes stay diagnosed and source-only rather
+  than entering a typed body with no portable spelling.
+
 - Resolved scenes report the input diagram's registered family. Both State
   headers return `state` instead of their shared `flowchart` rendering family.
   Resolved Scene version 2 records this metadata change; SVG artwork and part

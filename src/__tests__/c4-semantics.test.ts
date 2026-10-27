@@ -28,12 +28,24 @@ describe('C4 authored semantics', () => {
         'C4Context\nPerson(A",", $tags="a")',
         'C4Context\nPerson_Ext(s"", ""\u2028)',
         'C4Context\nPerson(A, $tags=\u00a0"1")',
+        'C4Deployment\nDeployment_Node(n, "Node") {\ntitle Nested\nContainer(a, "App")\n}',
+        'C4Deployment\nDeployment_Node(n, "Node") {\naccTitle: Accessible\nContainer(a, "App")\n}',
+        'C4Deployment\nDeployment_Node(n, "Node") {\naccDescr: Description\n}',
       ]) {
         const body = readC4Source(source)
         const written = renderC4(body)
         expect(await upstream.publicAccepts(written), written).toBe(true)
+        const metadata = await upstream.project(written, diagram => ({ title: diagram.db.getTitle(), accTitle: diagram.db.getAccTitle(), accDescr: diagram.db.getAccDescription() }))
+        expect(metadata.ok).toBe(true)
+        if (!metadata.ok) throw new Error(metadata.error)
+        // Pinned C4 routes accTitle to setTitle. Our native fields stay distinct.
+        expect({ title: projectEntityMarkers(metadata.value.title), accTitle: projectEntityMarkers(metadata.value.accTitle), accDescr: projectEntityMarkers(metadata.value.accDescr) }).toEqual({ title: body.accessibilityTitle ?? body.title ?? '', accTitle: '', accDescr: body.accessibilityDescription ?? '' })
         const reloaded = readC4Source(written)
         expect(reloaded.title).toBe(body.title)
+        expect(reloaded.accessibilityTitle).toBe(body.accessibilityTitle)
+        expect(reloaded.accessibilityDescription).toBe(body.accessibilityDescription)
+        expect(reloaded.boundaries.map(({ id, parentId }) => ({ id, parentId }))).toEqual(body.boundaries.map(({ id, parentId }) => ({ id, parentId })))
+        expect(reloaded.elements.map(({ parentId }) => parentId)).toEqual(body.elements.map(({ parentId }) => parentId))
         expect(reloaded.elements.map(({ id, label, tags }) => ({ id, label, tags }))).toEqual(body.elements.map(({ id, label, tags }) => ({ id, label, tags })))
       }
     } finally { upstream.close() }

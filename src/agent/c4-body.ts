@@ -12,6 +12,7 @@ import type { Accessibility, LayoutWarning, MutationError, Result, SourceMap, Ve
 import { err, ok } from './types.ts'
 import { labelOverflowCollector } from './body-utils.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
+import { appendAccessibilityLines } from './accessibility-envelope.ts'
 
 export { emptyC4Body }
 
@@ -150,7 +151,7 @@ const RESPELLED_C4_EXTENSIONS = new Set([
  * their original place. Header and dynamic variant are independent of layout.
  * `portable` writes each reader extension with a Mermaid spelling instead
  * (RESPELLED_C4_EXTENSIONS, `;` as a line break, a line break after a
- * statement that shares its line), unless a statement has no native
+ * statement that shares its line, global metadata outside boundaries), unless a statement has no native
  * interpretation: Mermaid cannot read that source anyway, so it is kept. */
 function renderC4Unchecked(body: C4Body, portable = false): string {
   const respell = portable && !body.diagnostics.some(item => item.severity === 'error')
@@ -160,6 +161,7 @@ function renderC4Unchecked(body: C4Body, portable = false): string {
   const semicolons = flagged(code => code === 'c4_semicolon_separator')
   const breaks = flagged(code => code === 'c4_statements_on_one_line')
   const parts: RenderedPart[] = []
+  const hoisted: RenderedPart[] = []
   const elements = new Map(body.elements.map(record => [record.id, record]))
   const boundaries = new Map(body.boundaries.map(record => [record.id, record]))
   const relationships = new Map(body.relationships.map(record => [record.id, record]))
@@ -177,7 +179,9 @@ function renderC4Unchecked(body: C4Body, portable = false): string {
     } else if (statement.kind === 'accessibility') {
       const value = statement.entityId === 'title' ? body.accessibilityTitle : body.accessibilityDescription
       if (value === undefined) continue
-      current = statement.entityId === 'title' ? `accTitle: ${value}` : value.includes('\n') ? `accDescr {\n${value}\n}` : `accDescr: ${value}`
+      const metadata: string[] = []
+      appendAccessibilityLines(metadata, statement.entityId === 'title' ? { accessibilityTitle: value } : { accessibilityDescription: value })
+      current = metadata.join('\n').trimStart()
       signature = value
     } else if (statement.kind === 'boundary-close') {
       if (!boundaries.has(statement.entityId!)) continue
@@ -197,6 +201,10 @@ function renderC4Unchecked(body: C4Body, portable = false): string {
           : statement.kind === 'relationship' ? renderC4Relationship(record as C4Relationship) : renderDirective(record as C4Directive)
     }
     const rewriteTitle = respell && statement.kind === 'title'
+    if (respell && boundaryContents.length && (statement.kind === 'title' || statement.kind === 'accessibility')) {
+      hoisted.push({ kind: 'trivia', text: '\n' }, { kind: statement.kind, text: current! }, { kind: 'trivia', text: '\n' })
+      continue
+    }
     let text = current === undefined || (statement.raw && (signature === statement.signature || statement.kind === 'boundary-close')) && !canonical.has(statement.id) && !rewriteArguments && !rewriteTitle ? statement.raw : current
     if (portable) {
       if (statement.kind === 'boundary-close') {
@@ -212,6 +220,7 @@ function renderC4Unchecked(body: C4Body, portable = false): string {
     parts.push({ kind: statement.kind, text })
     if (semicolons.has(statement.id) && !text.includes('\n')) lineBreakBefore(parts)
   }
+  parts.splice(parts.findIndex(part => part.kind === 'header') + 1, 0, ...hoisted)
   return parts.map(part => part.text).join('')
 }
 
