@@ -416,11 +416,12 @@ export function seatMeasuredMarkers(
                 after = foreign[j + 2]!,
                 horizontal = a.y === b.y
               if (horizontal !== vertical || !hits(current, blocker)) continue
-              // A broad span prioritizes a current ACTUAL collision. It is not
-              // an inference that hollow/diagonal glyphs block every face seat.
+              // The current glyph has an ACTUAL collision. Its broad span only
+              // proposes free events; exact pieces still decide every trial.
               const spanLow = horizontal ? Math.min(a.x, b.x) : Math.min(a.y, b.y),
                 spanHigh = horizontal ? Math.max(a.x, b.x) : Math.max(a.y, b.y)
-              if (spanLow > low + extentLow || spanHigh < high + extentHigh) continue
+              // Any ACTUAL current glyph collision can justify a paid internal
+              // track proposal; partial face coverage is not infeasibility.
               if (horizontal ? before.x !== a.x || after.x !== b.x : before.y !== a.y || after.y !== b.y) continue
               const label = edges[other]!.label ? routes[other]!.labelPosition : undefined
               if (label) {
@@ -555,8 +556,8 @@ export function seatMeasuredMarkers(
                     }
                   }
                   if (!paintOkay) break
-                  // Existing declared endpoint masking may remain, but no new
-                  // extension of an incident leg may disappear under its head.
+                  // Preserve attached normal masking only at its own endpoint;
+                  // every other new incident-leg extension is separately proved.
                   if (segment !== j) {
                     charge(6)
                     const fixed = segment === j - 1 ? before : after,
@@ -567,7 +568,12 @@ export function seatMeasuredMarkers(
                     if (newLength > oldLength) {
                       updateCarrier(changedCarrier, oldEnd, newEnd)
                       for (const glyph of all) {
-                        charge()
+                        charge(4)
+                        // This exact endpoint pose owns its collinear attached
+                        // normal shaft, including an outward length extension.
+                        // The opposite head, transverse support and every new
+                        // bend still undergo the unchanged complete ink tests.
+                        if(glyph.owner===other && (glyph.source?segment===0:segment===foreign.length-2))continue
                         if (glyph.owner === other && (glyph.source ? segment <= 1 : segment >= foreign.length - 3) && hits(glyph, changedCarrier)) {
                           paintOkay = false
                           break

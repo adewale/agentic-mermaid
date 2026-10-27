@@ -583,3 +583,31 @@ test('a straight marker dogleg retains the measured label and its halo on the fi
  seatMeasuredMarkers([{source:0,target:1,markerPaint:marker,label:{width:20,height:10}},{source:0,target:1}],routes,[{x:80,y:0,width:20,height:100},{x:200,y:0,width:20,height:100}],{pairs:1_000_000,arcs:65536,swaps:1_000_000},()=>{},fail,(_i,path)=>{expect(path[2]!.x).toBeLessThan(138);expect(path[2]!.y).toBe(20);expect(path.at(-1)).toEqual({x:200,y:20});return true},()=>{},undefined,1)
  expect(routes[0]!.labelPosition).toEqual(label);expect(routes[0]!.points).toHaveLength(4)
 })
+
+describe('yield completeness within the original marker proposal allowance',()=>{
+ const budget=()=>({pairs:1_000_000,arcs:65536,swaps:1_000_000}),fail=(reason:string):never=>{throw Error(reason)}
+ const on=(p:{x:number;y:number},a:{x:number;y:number},b:{x:number;y:number})=>(a.x===b.x&&p.x===a.x&&p.y>=Math.min(a.y,b.y)&&p.y<=Math.max(a.y,b.y))||(a.y===b.y&&p.y===a.y&&p.x>=Math.min(a.x,b.x)&&p.x<=Math.max(a.x,b.x))
+ for(const kind of ['partial face','same-end normal extension'] as const)test(`retains owned meaning while yielding a ${kind}`,()=>{
+  const inherited=classMarkerResources({lineWidth:1} as any).find(resource=>resource.id==='cls-inherit')!,diamond=classMarkerResources({lineWidth:1} as any).find(resource=>resource.id==='cls-aggregation')!
+  const partial=kind==='partial face',label={x:60,y:partial?132:140}
+  const routes=partial?[{points:[{x:200,y:180},{x:220,y:180},{x:220,y:140},{x:60,y:140},{x:60,y:80}],labelPosition:label},{points:[{x:50,y:120},{x:50,y:88},{x:120,y:88},{x:120,y:150}]}]:[{points:[{x:60,y:80},{x:60,y:160},{x:200,y:160},{x:200,y:200}],labelPosition:label},{points:[{x:20,y:120},{x:20,y:102},{x:30,y:102},{x:30,y:88},{x:120,y:88},{x:120,y:80}]}]
+  const boxes=partial?[{x:40,y:40,width:40,height:40},{x:160,y:160,width:40,height:40},{x:46,y:120,width:8,height:20},{x:116,y:150,width:8,height:20}]:[{x:40,y:40,width:40,height:40},{x:190,y:200,width:20,height:20},{x:10,y:120,width:20,height:20},{x:110,y:60,width:20,height:20}]
+  const marker=partial?{end:classMarkerPieces(inherited,{x:0,y:0},{x:-1,y:0},'end',1)}:{start:classMarkerPieces(diamond,{x:0,y:0},{x:1,y:0},'start',1)}
+  const edges=partial?[{source:1,target:0,markerPaint:marker,label:{width:2,height:4}},{source:2,target:3}]:[{source:0,target:1,markerPaint:marker,label:{width:2,height:4}},{source:2,target:3,markerPaint:{end:classMarkerPieces(inherited,{x:0,y:0},{x:-1,y:0},'end',1)}}]
+  const original=structuredClone(routes),changed:number[]=[],ink=classMarkerPieces(partial?inherited:diamond,{x:60,y:80},{x:0,y:partial?-1:1},partial?'end':'start',1)
+  const blocker=[{kind:'polygon' as const,points:[{x:partial?50:30,y:87.5},{x:120,y:87.5},{x:120,y:88.5},{x:partial?50:30,y:88.5}]}]
+  expect(classMarkerPiecesOverlap(ink,blocker)).toBe(true)
+  const accepts=(index:number,path:{x:number;y:number}[])=>{
+   if(index===0&&!path.some((b,i)=>i>0&&on(label,path[i-1]!,b)))return false
+   for(let cursor=1;cursor<path.length;cursor++){
+    const a=path[cursor-1]!,b=path[cursor]!
+    if(a.x!==b.x&&a.y!==b.y)return false
+    for(const box of boxes){if(a.x===b.x?a.x>box.x&&a.x<box.x+box.width&&Math.max(a.y,b.y)>box.y&&Math.min(a.y,b.y)<box.y+box.height:a.y>box.y&&a.y<box.y+box.height&&Math.max(a.x,b.x)>box.x&&Math.min(a.x,b.x)<box.x+box.width)return false}
+   }
+   return true
+  }
+  seatMeasuredMarkers(edges,routes,boxes,budget(),()=>{},fail,accepts,index=>changed.push(index),undefined,1,0,{bounds:{x:0,y:0,width:240,height:240},obstacles:[...boxes,{x:57,y:label.y-4,width:6,height:8}]})
+  expect(changed).toEqual([1]);expect(routes[0]).toEqual(original[0]);expect(routes[1]!.points[0]).toEqual(original[1]!.points[0]);expect(routes[1]!.points.at(-1)).toEqual(original[1]!.points.at(-1));expect(routes[1]!.points).not.toEqual(original[1]!.points)
+  for(const first of [true,false]){const path=routes[1]!.points,a=first?path[0]!:path.at(-1)!,b=first?path[1]!:path.at(-2)!,before=original[1]!.points,c=first?before[0]!:before.at(-1)!,d=first?before[1]!:before.at(-2)!;expect(Math.sign(b.x-a.x)).toBe(Math.sign(d.x-c.x));expect(Math.sign(b.y-a.y)).toBe(Math.sign(d.y-c.y));expect(Math.abs(b.x-a.x)+Math.abs(b.y-a.y)).toBeGreaterThanOrEqual(8)}
+ })
+})
