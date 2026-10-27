@@ -34,6 +34,29 @@ const SRC = `quadrantChart
   Campaign B: [0.45, 0.23]
 `
 
+test('backtick Quadrant labels that require quotes stay source-only without changed text', async () => {
+  const upstream = startUpstreamMermaid()
+  try {
+    for (const label of ['`Point1 : (* +=[❤', '`x-axis title', '``Point; next']) {
+      const source = `quadrantChart\n"${label}": [1, 0]\n`
+      expect(await upstream.publicAccepts(source)).toBe(false)
+      const parsed = parseMermaid(source)
+      if (!parsed.ok) throw new Error('Quadrant source must remain readable')
+      expect(parseQuadrantChart(source.split('\n')).points[0]!.label).toBe(label)
+      expect(parsed.value.body.kind).toBe('opaque')
+      expect(serializeMermaid(parsed.value)).toBe(source)
+      expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'quadrant_text' }))
+      expect(mutate(parsed.value, { kind: 'add_point', label: 'Other', x: 0.5, y: 0.5 }).ok).toBe(false)
+      const valid = quadrant('quadrantChart\nControl: [0.5, 0.5]')
+      expect(mutate(valid, { kind: 'add_point', label, x: 1, y: 0 }).ok).toBe(false)
+      expect(synthesizeFromGraph({ kind: 'quadrant', body: { ...valid.body, points: [{ label, x: 1, y: 0 }] } }).ok).toBe(false)
+    }
+    const control = quadrant('quadrantChart\n`Point: [1, 0]')
+    expect(await upstream.publicAccepts(serializeMermaid(control))).toBe(true)
+    expect(quadrant(serializeMermaid(control)).body.points[0]!.label).toBe('`Point')
+  } finally { upstream.close() }
+})
+
 function quadrant(src: string = SRC): QuadrantValidDiagram {
   const r = parseMermaid(src)
   if (!r.ok) throw new Error('parse: ' + JSON.stringify(r.error))

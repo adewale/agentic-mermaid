@@ -155,12 +155,7 @@ function encodeMultilineText(text: string): string {
 /** Label, axis or quadrant text, quoted where Mermaid reads it only quoted.
  * A "…" string runs across a line break, so the break is written as one. */
 function renderText(text: string): string {
-  const source = quadrantTextSource(text)
-  // These lexer keywords outrank ordinary text even inside an axis or point
-  // label. Quoting punctuation alone would turn "x-axis-1" into syntax.
-  return !source.startsWith('"') && (source !== source.trim() || /(?:^|[^A-Za-z])(?:x-axis|y-axis|quadrant-[1-4]|quadrantChart|classDef|accTitle|accDescr|title)/i.test(source))
-    ? `"${source}"`
-    : source
+  return quadrantTextSource(text, true)
 }
 
 function renderAxis(keyword: 'x-axis' | 'y-axis', axis: QuadrantAxis): string {
