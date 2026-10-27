@@ -220,6 +220,10 @@ test('a producer changed between drawing and certification cannot publish a reta
     import { getFamily } from './src/agent/families.ts'
     import { inheritNativeDrawing, nativeDrawingOf, sceneLowering } from './src/scene/drawing.ts'
     import { withRenderStageObserver } from './src/render-stages.ts'
+    import { resolveRenderRequestForExecution } from './src/render-contract.ts'
+    import { positionFamilyForNativeRender } from './src/positioning.ts'
+    import { retainedNativeDrawing } from './src/scene/positioned.ts'
+    import { borrowedPositioned, cachedNativeDrawing, retainNativeDrawing, retainOwnedNativeSvgPositioned } from './src/experimental/position-cache.ts'
     const lower = getFamily('sequence').lowerScene
     const original = nativeDrawingOf(lower)
     const originalSource = sceneLowering(original)
@@ -274,6 +278,48 @@ test('a producer changed between drawing and certification cannot publish a reta
       assert.equal(sample.events.filter(event => event.owner === 'svg-inspection' && event.detail === 'final-security').length, 1, name)
     }
     delete globalThis[symbol]
+
+    // Populate request-local original drawings without publishing certificates.
+    // The subsequent observer switches must not age unrelated retained drawings.
+    const pending = Array.from({ length: 128 }, () => {
+      const request = resolveRenderRequestForExecution(source, {}, 'svg')
+      const layout = positionFamilyForNativeRender(request)
+      assert.ok(retainedNativeDrawing(request, layout))
+      return { request, layout }
+    })
+    const pressureFamily = {}, pressureKeys = ['old-a', 'old-b', 'old-c', 'new-a', 'new-b']
+    const pressureDrawing = { svg: 'x'.repeat(600_000), preparedText: true, certification: { status: 'passed' } }
+    for (const key of pressureKeys) retainOwnedNativeSvgPositioned(pressureFamily, key, { positioned: { key } })
+    const pressureProbe = key => {
+      const request = {}, layout = borrowedPositioned(pressureFamily, key, request).result
+      return { request, layout, hit: cachedNativeDrawing(request, layout, true) }
+    }
+    const pressureVisit = key => {
+      const probe = pressureProbe(key)
+      if (!probe.hit) retainNativeDrawing(probe.request, probe.layout, pressureDrawing)
+      return probe.hit
+    }
+    for (const key of pressureKeys.slice(0, 3)) pressureVisit(key)
+    const beforeInvalidCalls = customCalls
+    let invalidHitProbes = 0
+    globalThis[symbol] = event => {
+      if (event.owner === 'native-drawing' && event.outcome === 'hit' && event.detail === undefined) {
+        invalidHitProbes++
+        inheritNativeDrawing(customSource, lower)
+      }
+    }
+    for (const { request, layout } of pending) {
+      inheritNativeDrawing(originalSource, lower)
+      assert.ok(retainedNativeDrawing(request, layout))
+    }
+    delete globalThis[symbol]
+    inheritNativeDrawing(originalSource, lower)
+    assert.equal(invalidHitProbes, pending.length)
+    assert.equal(customCalls - beforeInvalidCalls, pending.length)
+    for (const key of pressureKeys.slice(3)) assert.equal(pressureVisit(key), undefined)
+    for (const key of pressureKeys.slice(3)) {
+      assert.equal(pressureProbe(key).hit, undefined, 'changed-producer probes must not age drawing admission')
+    }
   `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '1' } })
   expect(child.stderr).toBe('')
   expect(child.status).toBe(0)

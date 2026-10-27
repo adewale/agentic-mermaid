@@ -324,7 +324,9 @@ export function applyParallelDuplicateLanes(
     for (let i = 0; i < k; i++) {
       const { edge, sCross, tCross } = lanes[i]!
       const jog = col[i]!
-      const raw = Math.abs(sCross - tCross) <= 0.5
+      // Near-aligned ports still need a jog; joining their unequal lanes
+      // directly creates a diagonal that later safety checks may not repair.
+      const raw = sCross === tCross
         ? [mk(exitMain, sCross), mk(entryMain, tCross)]
         : [mk(exitMain, sCross), mk(jog, sCross), mk(jog, tCross), mk(entryMain, tCross)]
       const clipped = simplifyPolyline(
@@ -491,7 +493,7 @@ export function applyParallelDuplicateLanes(
       const { edge, source, exitMain, sCross, tCross } = lanes[i]!
       const jog = col[i]!
       let pts: Point[]
-      if (Math.abs(sCross - tCross) <= 0.5) {
+      if (sCross === tCross) {
         pts = [mk(exitMain, sCross), mk(entryMain, tCross)]
       } else {
         pts = [mk(exitMain, sCross), mk(jog, sCross), mk(jog, tCross), mk(entryMain, tCross)]
