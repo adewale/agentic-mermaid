@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { renderMermaidSVG, verifyNoExternalRefs } from '../index.ts'
 import { namespaceSvgIds } from '../renderer.ts'
 import { prepareSvgForPngRasterization } from '../png-contract.ts'
-import { createInlineColorAttributeResolver, inlineFontVarForRaster, inlineResolvedColors, resolveInlineColorAttribute, type DiagramColors } from '../theme.ts'
+import { createInlineColorAttributeResolver, inlineFontVarForRaster, inlineResolvedColors, resolveColors, resolveInlineColorAttribute, type DiagramColors } from '../theme.ts'
 import { escapeAttr } from '../multiline-utils.ts'
 import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
 import * as svgPostprocess from '../svg-postprocess.ts'
@@ -115,6 +115,24 @@ describe('SVG post-pass interaction contract', () => {
     const svg = '<svg xmlns="http://www.w3.org/2000/svg"><style><![CDATA[.x{content:\'<g fill="red">\';fill:var(--fg)}]]></style><rect class="x" width="10" height="10"/></svg>'
     expect(inlineResolvedColors(svg, { bg: '#ffffff', fg: '#112233' }))
       .toBe(svg.replace('var(--fg)', '#112233'))
+  })
+
+  test('family CSS overrides public colors while normalized pages and internal tones retain palette priority', () => {
+    const svg = '<svg style="--bg:red;--fg:blue;--line:#123456;--_text:#abcdef;--family:#fedcba">'
+      + '<path fill="var(--line)" stroke="var(--_text)"/>'
+      + '<rect fill="color-mix(in srgb, var(--fg) 50%, var(--bg))" stroke="var(--family)"/></svg>'
+    const resolved = inlineResolvedColors(svg, { bg: 'white', fg: 'black', line: '#111111' })
+    expect(resolved).toContain('<path fill="#123456" stroke="#000000"/>')
+    expect(resolved).toContain('<rect fill="#808080" stroke="#fedcba"/>')
+  })
+
+  test('an optional color that becomes absent preserves live font palette references', () => {
+    for (const resolveColor of [resolveInlineColorAttribute, createInlineColorAttributeResolver()]) {
+      resolveColors({ bg: '#fff', fg: '#000', line: '#123456' })
+      const values = ['#123456', '#123456', '#123456', undefined]
+      const colors = { bg: '#fff', fg: '#000', font: 'var(--line, #abc)', get line() { return values.shift() } }
+      expect(resolveColor('var(--line, #abc)', colors)).toBe('var(--line, #abc)')
+    }
   })
 
   for (const style of [undefined, 'hand-drawn'] as const) {
