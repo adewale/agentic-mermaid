@@ -136,7 +136,7 @@ export function projectZenUMLSequence(body: ZenUMLBody, observe?: ZenUMLProjecti
           if (context.blockIndex !== undefined) { const parent = scopes.get(context.blockIndex)!; parent.childBlockIndices.push(index); parent.childSectionIndices.push(context.section) }
           boundaries.push({ kind: 'open', blockIndex: index, messageIndex: sequence.messages.length, noteIndex: sequence.notes.length })
           openScopes.push(index)
-          const branches = s.type === 'par' ? parallelBranches(s.branches[0]!.statements) : s.branches
+          const branches: readonly ZenUMLBranch[] = s.type === 'par' ? parallelBranches(s.branches[0]!.statements) : s.branches
           observe?.fragment?.({ fragment: s, branches, callAncestors: context.callAncestors, scopes: context.scopes })
           for (const [section, branch] of branches.entries()) {
             if (section) {
