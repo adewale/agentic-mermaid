@@ -2,12 +2,13 @@ import type { DiagramColors } from '../theme.ts'
 import type { SceneNode, SceneRole } from './ir.ts'
 
 /** Increment when a resolved field changes meaning or is removed. */
-export const RESOLVED_SCENE_VERSION = 1 as const
+export const RESOLVED_SCENE_VERSION = 2 as const
 
 export type Matrix = [a: number, b: number, c: number, d: number, e: number, f: number]
 
 export interface ResolvedScene {
   version: typeof RESOLVED_SCENE_VERSION
+  /** Registered family of the input diagram, independent of shared Scene lowering. */
   family: string
   width: number
   height: number

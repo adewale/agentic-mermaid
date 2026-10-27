@@ -1,7 +1,7 @@
 import { tryParseCssColor, toHex } from '../shared/color-math.ts'
 import { computedStyle, cssLength, cssRules, splitCss, svgTree, type SvgElement } from './resolved-css.ts'
 import { IDENTITY, multiply, pathData, pathEndpoints, svgMatrix } from './resolved-geometry.ts'
-import type { Matrix, ResolvedPaint, ResolvedPart, ResolvedPrimitive, ResolvedScene, ResolvedText } from './resolved-types.ts'
+import { RESOLVED_SCENE_VERSION, type Matrix, type ResolvedPaint, type ResolvedPart, type ResolvedPrimitive, type ResolvedScene, type ResolvedText } from './resolved-types.ts'
 import type { SceneDoc } from './ir.ts'
 
 /** Resolve the emitted SVG, not the Scene's idealized geometry. */
@@ -164,7 +164,7 @@ export function resolveSvgScene(svg: string, scene: SceneDoc, owners: readonly n
   // Detach the public data from retained admission state and omit undefined
   // fields so the complete result survives a JSON round trip unchanged.
   return JSON.parse(JSON.stringify({
-    version: 1, family: scene.family, width: scene.width, height: scene.height,
+    version: RESOLVED_SCENE_VERSION, family: scene.family, width: scene.width, height: scene.height,
     svg, colors: scene.colors, parts, frame,
   })) as ResolvedScene
 }
