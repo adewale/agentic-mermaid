@@ -63,16 +63,27 @@ describe('typed ER styling and ordered opaque segments (B09)', () => {
   test('models classDef, class, style, and endpoint shorthand and renders their paint', () => {
     let diagram = er(`erDiagram
       CUSTOMER:::hot ||--o{ ORDER : places
-      classDef hot fill:#ff0000,stroke:#220000,color:#ffffff
+      classDef hot fill:#ff0000,stroke:#220000,color:#ffffff,stroke-dasharray:3 2
       class ORDER hot
-      style ORDER stroke-width:4px`)
+      style ORDER stroke-width:4px,stroke-dasharray:5 5`)
     expect(diagram.body.classDefs?.hot?.fill).toBe('#ff0000')
+    expect(diagram.body.classDefs?.hot?.['stroke-dasharray']).toBe('3 2')
+    expect(er(serializeMermaid(diagram)).body.entities.find(item => item.id === 'ORDER')?.style?.['stroke-dasharray']).toBe('5 5')
     expect(diagram.body.entities.find(item => item.id === 'CUSTOMER')?.className).toBe('hot')
     expect(diagram.body.entities.find(item => item.id === 'ORDER')?.style?.['stroke-width']).toBe('4px')
-    const svg = renderMermaidSVG(serializeMermaid(diagram))
-    expect(svg).toContain('class="entity hot"')
-    expect(svg).toContain('fill="#ff0000"')
-    expect(svg).toContain('stroke-width="4"')
+    for (const backend of ['agentic', 'elk'] as const) {
+      const svg = renderMermaidSVG(serializeMermaid(diagram), { graphLayout: { backend, fallback: 'none' } })
+      expect(svg).toContain('class="entity hot"')
+      expect(svg).toContain('fill="#ff0000"')
+      expect(svg).toContain('stroke-width="4"')
+      for (const [id, dash] of [['CUSTOMER', '3 2'], ['ORDER', '5 5']]) {
+        const group = svg.match(new RegExp(`<g[^>]*class="entity hot"[^>]*data-id="${id}"[^>]*>([\\s\\S]*?)</g>`))?.[1]
+        expect(group).toBeDefined()
+        const strokes = [...group!.matchAll(/<(?:rect|path|line)\b[^>]*stroke="[^"n][^"]*"[^>]*>/g)].map(match => match[0])
+        expect(strokes.length).toBeGreaterThan(0)
+        for (const stroke of strokes) expect(stroke).toContain(`stroke-dasharray="${dash}"`)
+      }
+    }
 
     diagram = apply(diagram, { kind: 'define_class', name: 'cool', style: 'fill:#abcdef,stroke:#123456' })
     diagram = apply(diagram, { kind: 'set_entity_class', entity: 'ORDER', className: 'cool' })
