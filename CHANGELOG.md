@@ -23,10 +23,6 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Known limitations
 
-- A preexisting combined Sequence box/`alt` case can omit the header and divider
-  from terminal ink while retaining them in SVG. The witness is recorded in
-  `docs/project/divergences.md`; CONS-46's text work does not fix this CONS-45
-  geometry limit.
 - The #363 decision record distinguishes generous reads from portable
   structured output. Quadrant text/style exports, unsupported Architecture
   IDs/icons and empty Class output retain named limitations; Class, Quadrant
@@ -39,6 +35,9 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Fixed
 
+- Sequence terminal output retains fragment headers and dividers inside wide
+  participant boxes, including combined `box`/`alt`/note cases, in both ASCII
+  and Unicode. The historical witness remains pinned in the test suite.
 - Architecture layouts separate expanded aligned group frames and reconcile
   cross-group alignment after child reordering, preserving complete group contents
   and routing from the final endpoint positions.
