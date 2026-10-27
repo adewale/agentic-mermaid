@@ -1,3 +1,4 @@
+import { scopeSvgStyles } from '../svg-style-scope.ts'
 import { verifyNoExternalRefs } from '../output-security.ts'
 import ZenUml, { renderToSvg } from '@zenuml/core'
 // This entry is compiled separately as an IIFE and is only loaded in the
@@ -26,10 +27,11 @@ window.addEventListener('message', async event => {
       if (['script', 'foreignObject', 'iframe', 'image', 'a'].includes(element.localName)) throw Error('ZenUML returned unsupported active or external content.')
       for (const attribute of [...element.attributes]) if (/^on/i.test(attribute.name) || (/^(?:href|xlink:href)$/i.test(attribute.name) && !attribute.value.startsWith('#'))) throw Error('ZenUML returned an unsafe SVG attribute.')
     }
+    svg.setAttribute('style', `${svg.getAttribute('style') ?? ''};max-width:100%;height:auto`)
     svg.setAttribute('width', String(result.width))
     svg.setAttribute('height', String(result.height))
     svg.setAttribute('viewBox', result.viewBox)
-    port.postMessage({ ok: true, svg: new XMLSerializer().serializeToString(svg) })
+    port.postMessage({ ok: true, svg: scopeSvgStyles(new XMLSerializer().serializeToString(svg)) })
   } catch (error) {
     port.postMessage({ ok: false, code: 'RENDER_FAILED', message: error instanceof Error ? error.message : String(error) })
   } finally {

@@ -31,7 +31,12 @@ export interface ZenUMLOptions {
 export async function renderZenUMLSVG(source: string, options: ZenUMLOptions): Promise<string> {
   if (typeof document === 'undefined' || typeof MessageChannel === 'undefined') throw new ZenUMLBackendError('UNSUPPORTED_RUNTIME', 'ZenUML rendering requires a browser document; use the optional browser backend.')
   if (!/^\s*zenuml\b/.test(source) || !source.replace(/^\s*zenuml\b/, '').trim()) throw new ZenUMLBackendError('INVALID_SOURCE', 'Expected a nonempty ZenUML document.')
-  const url = new URL(options.backendURL, document.baseURI)
+  let url: URL
+  try {
+    url = new URL(options.backendURL, document.baseURI)
+  } catch {
+    throw new ZenUMLBackendError('BACKEND_UNAVAILABLE', 'The ZenUML backend URL is invalid.')
+  }
   if (!['http:', 'https:'].includes(url.protocol) || url.origin !== new URL(document.baseURI).origin) throw new ZenUMLBackendError('BACKEND_UNAVAILABLE', 'The ZenUML frame script must be served from the same HTTP(S) origin.')
   const timeout = options.timeoutMs ?? 30_000
   if (!Number.isFinite(timeout) || timeout <= 0) throw new ZenUMLBackendError('BACKEND_UNAVAILABLE', 'timeoutMs must be positive and finite.')

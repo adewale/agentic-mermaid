@@ -7,6 +7,8 @@ import { chromium } from 'playwright'
 import { officialCorpusInventory } from '../../eval/shared/official-fences.ts'
 const root = resolve(import.meta.dir, '../..'),
   out = resolve(process.argv[2] ?? 'bench-report/zenuml-evidence')
+const revision = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
+if (execFileSync('git', ['status', '--porcelain', '--untracked-files=no'], { cwd: root, encoding: 'utf8' }).trim()) throw Error('Commit tracked source changes before capturing revision-bound ZenUML evidence')
 mkdirSync(out, { recursive: true })
 const corpus = officialCorpusInventory()
 const inputs = corpus.occurrences.filter(input => input.family === 'zenuml')
@@ -55,7 +57,7 @@ try {
         await page.locator('#output').evaluate((element, svg) => {
           element.innerHTML = svg
         }, result.svg)
-        if (index < 8) await page.locator('#output svg').screenshot({ path: join(out, `${name}.png`) })
+        if (index < 8) await page.locator('#output > svg').screenshot({ path: join(out, `${name}.png`) })
       }
     }
     rows.push(row)
@@ -64,7 +66,7 @@ try {
     join(out, 'report.json'),
     JSON.stringify(
       {
-        revision: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
+        revision,
         browser: browser.version(),
         dependency: '@zenuml/core@3.47.9',
         reference: 'mermaid@12.2.0 + @mermaid-js/mermaid-zenuml@1.0.1 + @zenuml/core@3.47.9',
