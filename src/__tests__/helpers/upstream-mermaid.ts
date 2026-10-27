@@ -111,32 +111,11 @@ for (const key of ['window', 'document', 'navigator', 'HTMLElement', 'SVGElement
 }
 const { default: mermaid } = await import('mermaid')
 mermaid.initialize({ startOnLoad: false })
-// ZenUML is an external first-party language. Its Mermaid addon has a no-op
-// parser shim, so qualify syntax with the actual pinned core parser as well.
-let zenReference
-async function referenceDiagram(source) {
-  if (/(?:^|\\n)\\s*zenuml\\b/.test(source)) {
-    zenReference ??= (async () => {
-      const [{ default: addon }, { default: ZenUml }] = await Promise.all([
-        import('@mermaid-js/mermaid-zenuml'), import('@zenuml/core'),
-      ])
-      await mermaid.registerExternalDiagrams([addon])
-      const host = document.createElement('div')
-      document.body.append(host)
-      return new ZenUml(host, true)
-    })()
-    const parser = await zenReference
-    await mermaid.parse(source)
-    const diagram = await mermaid.mermaidAPI.getDiagramFromText(source)
-    if (diagram.type === 'zenuml') {
-      const result = await parser.parse(diagram.text.replace(/^\\s*zenuml\\b/, ''))
-      if (!result.pass) throw new Error(result.errorDetails.map(error => error.msg).join('; '))
-    }
-    return diagram
-  }
-  await mermaid.parse(source)
-  return mermaid.mermaidAPI.getDiagramFromText(source)
-}
+const { createZenUMLReference } = await import(${JSON.stringify(new URL('../../../eval/mermaid-modern-compat/zenuml-reference.mjs', import.meta.url).href)})
+const { readFileSync } = await import('node:fs')
+const mermaidVersion = JSON.parse(readFileSync(new URL('../package.json', import.meta.resolve('mermaid')), 'utf8')).version
+const zen = createZenUMLReference(mermaid, mermaidVersion)
+const referenceDiagram = source => zen.diagram(source)
 const REPLY = ${JSON.stringify(REPLY)}
 function flowchart(db) {
   if (typeof db?.getVertices !== 'function' || typeof db?.getEdges !== 'function') return undefined
