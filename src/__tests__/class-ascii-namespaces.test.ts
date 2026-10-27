@@ -36,6 +36,17 @@ function contained(child: ReturnType<typeof bounds>, parent: ReturnType<typeof b
 }
 
 describe('Class terminal namespace frames (B05/CL4)', () => {
+  test.each([true, false])('draws freestanding notes without classes or namespaces (ASCII=%s)', useAscii => {
+    const result = renderMermaidASCIIWithReceipt('classDiagram\nnote "First freestanding note"\nnote "Second freestanding note"', { useAscii, colorMode: 'none' })
+    expect(result.text).toContain('First freestanding note')
+    expect(result.text).toContain('Second freestanding note')
+    const document = terminalDocumentOf(result)!
+    const notes = document.regions().filter(region => region.kind === 'node')
+    expect(notes).toHaveLength(2)
+    const boxes = notes.map(bounds).sort((a, b) => a.top - b.top)
+    expect(boxes[1]!.top).toBeGreaterThan(boxes[0]!.bottom)
+  })
+
   test('draws a complete namespace frame containing its member classes', () => {
     const result = renderMermaidASCIIWithReceipt(`classDiagram
       namespace Domain {

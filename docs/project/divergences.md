@@ -371,6 +371,15 @@ endpoints too; the tested two-ended forms already agree with upstream on
 identity. Markers and solid/dashed shafts remain explicit properties, rather
 than creating synthetic classes that collide with authored names.
 
+### Authored empty Class namespaces remain visible
+
+Mermaid 12.2.0 rejects a namespace with no members. Agentic preserves that clear
+authored container as opaque source and draws its measured frame, including in
+documents with no classes. It retains the existing portability warning and
+source-only edit policy; drawing the frame does not make the source portable.
+Freestanding Class notes are accepted by Mermaid and remain visible without
+requiring a class or namespace.
+
 ### Sequence numbering keeps authored control intent
 
 Bare `autonumber` enables or resumes numbering without resetting its counter or increment. `autonumber off` hides numbers while semantic messages continue advancing the retained counter; a late first enable therefore uses the message ordinal. An explicit start resets the counter, and a start without an increment selects increment one. This corrects earlier accidental resets on repeated enable or resume.

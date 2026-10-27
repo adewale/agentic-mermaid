@@ -90,6 +90,9 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   avoids declaration-ledger reconciliation and full text inspection evidence;
   strict, verify, extension admission and final paint/security checks remain.
 - An inexpensive Scene admission cannot bypass a later strict cross-check.
+- Class layouts preserve authored `ns:` IDs, actual namespace ancestry, empty
+  namespace frames and freestanding notes. Notes-only terminal output retains
+  its content too.
 
 ### Maintenance
 
