@@ -435,7 +435,7 @@ Reviewed decisions live in `eval/mermaid-modern-compat/corpus/grammar-finder-494
 They are external counterexamples and authored dispositions, not generated
 output baselines. A reference-pin change invalidates their reporting matches.
 The same corpus replay runs in canonical CI with `--check`, which fails on an
-untracked contract failure. Existing scoped follow-ups remain visible without
+untracked contract failure or a mismatched review pin. Existing scoped follow-ups remain visible without
 requiring their failure to persist: a repaired input is allowed to improve.
 The PR that fixes a scoped follow-up updates its corpus decisions and removes
 that failure allowance; the historical input and provenance remain.

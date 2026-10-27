@@ -84,7 +84,7 @@ for (const family of new Set(untracked.map(row => row.family))) {
   const body = grammarFinderReport({ seed, mutationsPerFamily, contractFindings: untracked.filter(row => row.family === family) }, process.env.RUN_URL ?? '(local replay)')
   writeFileSync(join(output, `issue-${family}.md`), `Grammar contract failures: ${family} (run ${runKey})\n\n${body}`)
 }
-const summary = `Grammar triage: ${results.length} inputs; ${JSON.stringify(counts)}; ${untracked.length} untracked defect inputs; ${report.unreviewedDisagreements} unreviewed disagreements. Full evidence: grammar-finder-summary artifact.\n`
+const summary = `Grammar triage: ${results.length} inputs; ${JSON.stringify(counts)}; ${untracked.length} untracked defect inputs; ${report.unreviewedDisagreements} unreviewed disagreements. Review pin matches: ${referenceMatches}. Evidence: ${join(output, 'triage.json')}\n`
 console.log(summary)
 if (process.env.GITHUB_STEP_SUMMARY) writeFileSync(process.env.GITHUB_STEP_SUMMARY, summary, { flag: 'a' })
-if (values.check && untracked.length) process.exitCode = 1
+if (values.check && (untracked.length || !referenceMatches)) process.exitCode = 1
