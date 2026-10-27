@@ -93,6 +93,9 @@ guarded forest optimization. Force ELK with `graphLayout: { backend: 'elk' }`,
 or opt into the owned producer:
 
 ```ts
+import { renderMermaidSVGWithReceipt } from 'agentic-mermaid'
+
+const source = 'flowchart LR; Idea --> Ship'
 const { svg, receipt } = renderMermaidSVGWithReceipt(source, {
   graphLayout: { backend: 'agentic', fallback: 'elk' },
 })
@@ -128,7 +131,7 @@ The CLI accepts `am render diagram.mmd --graph-layout agentic
 --graph-layout-fallback elk`. Mermaid source configuration is preserved and is
 not an alias for these options. Terminal-cell placement retains its family
 rules; optional graphical companions and Architecture's pixel placement honor
-the selector. See the [backend design](design/system/layout-backends.md) for
+the selector. See the [backend design](https://github.com/adewale/agentic-mermaid/blob/ce240587211b90395a820115d2503b73bf5ff4e3/docs/design/system/layout-backends.md) for
 qualification and comparative measurement.
 
 ## Resolved paths and text
@@ -247,6 +250,7 @@ for precedence and custom looks. This table is generated from runtime descriptor
 | Option | Type | Default | Meaning and applicability |
 |---|---|---|---|
 | `layoutHints` | `{ ranks?: Record<string, number>; adjacent?: string[][]; shortEdges?: string[] }` | unset | Relative ranks, sibling adjacency and short-edge preferences. Built-in families: flowchart, state. Not consumed by terminal output. |
+| `graphLayout` | `{ backend: 'elk' \| 'agentic'; fallback?: 'none' \| 'elk' }` | `elk`, no fallback | Graph geometry producer and explicit Agentic fallback policy. Built-in families: flowchart, state, architecture, class, er, requirement. |
 | `layoutSafety` | `'report' \| 'strict'` | `report` | Report bounded layout evidence, or require a passed final certificate. Strict mode rejects missing or unverified evidence. |
 | `bg` | `string` | `#FFFFFF` | Background color or CSS variable. |
 | `fg` | `string` | `#27272A` | Primary foreground and text color. |
