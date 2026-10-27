@@ -2,6 +2,16 @@
 // acceptance must also come from the real pinned public ZenUml.parse API.
 import { readFileSync } from 'node:fs';
 
+export function resolveZenUMLReferenceModules() {
+  const addonURL = import.meta.resolve('@mermaid-js/mermaid-zenuml');
+  const coreURL = import.meta.resolve('@zenuml/core');
+  for (const [url, name, version] of [[addonURL, '@mermaid-js/mermaid-zenuml', '1.0.1'], [coreURL, '@zenuml/core', '3.47.9']]) {
+    const metadata = JSON.parse(readFileSync(new URL('../package.json', url), 'utf8'));
+    if (metadata.name !== name || metadata.version !== version) throw Error(`ZenUML reference requires ${name}@${version}; installed ${metadata.name}@${metadata.version}`);
+  }
+  return { addonURL, coreURL };
+}
+
 export function createZenUMLReference(mermaid, mermaidVersion) {
   let loaded;
   const identity = {
@@ -12,12 +22,7 @@ export function createZenUMLReference(mermaid, mermaidVersion) {
     packageSource: 'exact project devDependencies, not the reference installation transitive range',
   };
   const load = () => loaded ??= (async () => {
-    const addonURL = import.meta.resolve('@mermaid-js/mermaid-zenuml');
-    const coreURL = import.meta.resolve('@zenuml/core');
-    for (const [url, name, version] of [[addonURL, '@mermaid-js/mermaid-zenuml', '1.0.1'], [coreURL, '@zenuml/core', '3.47.9']]) {
-      const metadata = JSON.parse(readFileSync(new URL('../package.json', url), 'utf8'));
-      if (metadata.name !== name || metadata.version !== version) throw Error(`ZenUML reference requires ${name}@${version}; installed ${metadata.name}@${metadata.version}`);
-    }
+    const { addonURL, coreURL } = resolveZenUMLReferenceModules();
     const [{ default: addon }, { default: ZenUml }] = await Promise.all([import(addonURL), import(coreURL)]);
     // Register on the supplied runtime, including the separately instrumented
     // Mermaid data-module instance used by selected-grammar controls.
