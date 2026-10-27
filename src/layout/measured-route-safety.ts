@@ -33,13 +33,14 @@ function sharesShaft(a: Point, b: Point, c: Point, d: Point): boolean {
  * stops immediately; the caller's exhausted ledger remains authoritative. */
 export type MeasuredContactCharge = (amount: number) => boolean | void
 
-export function writtenCoordinateGapLessThan(a: string, b: string, width: string, charge?: MeasuredContactCharge): boolean | undefined {
+export function writtenCoordinateGapLessThan(a: string, b: string, width: string, charge?: MeasuredContactCharge, reserve?: MeasuredContactCharge): boolean | undefined {
   if (charge?.(8) === false) return undefined
   const x = Number(a), y = Number(b), w = Number(width), difference = Math.abs(x - y) - w
   // This only selects exact arithmetic near binary cancellation. It is never
   // a geometric tolerance or an allowance for positive painted overlap.
   if (Math.abs(difference) > 8 * Number.EPSILON * Math.max(1, Math.abs(x), Math.abs(y), w)) return difference < 0
   if (charge?.(384) === false) return undefined
+  if (reserve?.(42) === false) return undefined
   const part = (text: string) => {
     const m = /^(-?)(\d+)(?:\.(\d+))?(?:e([+-]?\d+))?$/.exec(text)!
     return { n: BigInt(m[1]! + m[2]! + (m[3] ?? '')), e: Number(m[4] ?? 0) - (m[3]?.length ?? 0) }
@@ -51,7 +52,7 @@ export function writtenCoordinateGapLessThan(a: string, b: string, width: string
   return magnitude < W.n * 10n ** BigInt(W.e - scale)
 }
 
-function sharesWrittenShaft(a: Point, b: Point, c: Point, d: Point, width: number, widthText: string, charge?: MeasuredContactCharge): boolean | undefined {
+function sharesWrittenShaft(a: Point, b: Point, c: Point, d: Point, width: number, widthText: string, charge?: MeasuredContactCharge, reserve?: MeasuredContactCharge): boolean | undefined {
   const vertical = a.x === b.x
   // Axis classification is already reserved by the original segment-pair
   // check. Only parallel pairs execute the additional writer-error proof.
@@ -76,9 +77,11 @@ function sharesWrittenShaft(a: Point, b: Point, c: Point, d: Point, width: numbe
   if (charge?.(6) === false) return undefined
   if (!Number.isFinite(fixed) || !Number.isFinite(other) || !Number.isFinite(A) || !Number.isFinite(B) || !Number.isFinite(C) || !Number.isFinite(D)) return undefined
   // Prepay bounded numeric spellings before invoking the canonical writer.
+  if (reserve?.(10) === false) return undefined
   if (charge?.(256) === false) return undefined
-  const gap = writtenCoordinateGapLessThan(formatSvgNumber(fixed), formatSvgNumber(other), widthText, charge)
+  const gap = writtenCoordinateGapLessThan(formatSvgNumber(fixed), formatSvgNumber(other), widthText, charge, reserve)
   if (gap !== true) return gap
+  if (reserve?.(20) === false) return undefined
   if (charge?.(512) === false) return undefined
   const wa = Number(formatSvgNumber(A)),
     wb = Number(formatSvgNumber(B)),
@@ -101,10 +104,11 @@ function orthogonal(points: readonly Point[]): boolean {
 
 /** A bend touching another route must not erase a crossing from the metric.
  * Only an authored common endpoint may be an unmarked contact. */
-export function scoreMeasuredRouteCrossings(points: Point[], index: number, routes: readonly { points: Point[]; style: string }[], input: MeasuredGraph, charge?: MeasuredContactCharge): number | undefined {
+export function scoreMeasuredRouteCrossings(points: Point[], index: number, routes: readonly { points: Point[]; style: string }[], input: MeasuredGraph, charge?: MeasuredContactCharge, reserve?: MeasuredContactCharge): number | undefined {
   let score = 0
   let width: number | undefined, widthText: string | undefined
   if (input.maximumEdgeStrokeWidth !== undefined) {
+    if (reserve?.(4) === false) return undefined
     const value = input.maximumEdgeStrokeWidth
     if (Number.isSafeInteger(value) && value > 0) {
       // Safe integers have no fractional tail: the canonical writer is the
@@ -131,7 +135,7 @@ export function scoreMeasuredRouteCrossings(points: Point[], index: number, rout
       if (width === undefined) {
         if (sharesShaft(a,b,c,d)) return undefined
       } else {
-        const shared = sharesWrittenShaft(a,b,c,d,width,widthText!,charge)
+        const shared = sharesWrittenShaft(a,b,c,d,width,widthText!,charge,reserve)
         if (shared !== false) return undefined
       }
       const av = a.x === b.x, bv = c.x === d.x

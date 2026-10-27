@@ -272,10 +272,12 @@ export function createBoundaryContactValidator(
     work.pairs -= amount
     if (work.pairs < 0) fail('agentic local cross-hierarchy crossing-work limit')
   }
+  if (input.maximumEdgeStrokeWidth !== undefined) reserveContactBounds(work, fail)
+  const reserve = input.maximumEdgeStrokeWidth === undefined ? undefined : (amount: number): void => reserveContactBounds(work, fail, amount)
   const exact = (points: Point[]): boolean => {
     work.pairs -= 3 * Math.max(0, points.length - 1) * peerSegments + points.length + peerSegments
     if (work.pairs < 0) fail('agentic local cross-hierarchy crossing-work limit')
-    return scoreMeasuredRouteCrossings(points, index, routes, input, charge) !== undefined
+    return scoreMeasuredRouteCrossings(points, index, routes, input, charge, reserve) !== undefined
   }
   // Small proofs keep their original admission. Larger proofs are prepared
   // lazily only when the possible subtraction exceeds their comparison work.
@@ -317,7 +319,7 @@ export function createBoundaryContactValidator(
       if (peer.style !== 'invisible') remaining += Math.max(0, peer.points.length - 1)
     }
     charge(3 * segments * remaining + points.length + remaining)
-    return scoreMeasuredRouteCrossings(points, index, selected, input, charge) !== undefined
+    return scoreMeasuredRouteCrossings(points, index, selected, input, charge, reserve) !== undefined
   }
 }
 
@@ -332,6 +334,8 @@ export function assertFinalBoundaryContacts(
     work.pairs -= amount
     if (work.pairs < 0) fail('agentic local cross-hierarchy crossing-work limit')
   }
+  if (input.maximumEdgeStrokeWidth !== undefined) reserveContactBounds(work, fail)
+  const reserve = input.maximumEdgeStrokeWidth === undefined ? undefined : (amount: number): void => reserveContactBounds(work, fail, amount)
   let visibleSegments = 0, visiblePoints = 0, visibleCount = 0
   const routes = placed.edges.map((route, index) => {
     charge()
@@ -381,7 +385,7 @@ export function assertFinalBoundaryContacts(
       if (other !== index && peer.style !== 'invisible') peerSegments += Math.max(0, peer.points.length - 1)
     }
     charge(3 * Math.max(0, points.length - 1) * peerSegments + points.length + peerSegments + routes.length)
-    if (scoreMeasuredRouteCrossings(points, index, routes, input, charge) === undefined) fail('cross-hierarchy routes have an uncertified shared contact')
+    if (scoreMeasuredRouteCrossings(points, index, routes, input, charge, reserve) === undefined) fail('cross-hierarchy routes have an uncertified shared contact')
     if (symmetric) route.covered = true
   }
 }
@@ -394,9 +398,10 @@ function seatFinalMeasuredMarkers(
   work: ChannelWork, reserveExpanded: (amount: number) => void, fail: (reason: string) => never,
   rescued: Set<number>, clearance: number, widthProof: number, proveAll = false,
 ): Set<number> {
-    work.arcs -= 13
+    work.arcs -= 14
     if (work.arcs<0) fail('agentic marker full-proof capacity limit')
     const charge = (amount = 1): void => { work.pairs -= amount; if (work.pairs < 0) fail('agentic marker full-proof work limit') }
+    const reserve = (amount: number): void => reserveContactBounds(work, fail, amount)
     const markerCurrentProofs=new Set<number>()
     reserveExpanded(4)
     let labelCount=0
@@ -462,7 +467,7 @@ function seatFinalMeasuredMarkers(
       let segments=0
       const routes=placed.edges.map((route,other)=>{charge();if(other!==index&&input.edges[other]!.visible!==false)segments+=Math.max(0,route.points.length-1);return {...route,style:input.edges[other]!.visible===false?'invisible':'solid'}})
       charge(3*(candidate.length-1)*segments+candidate.length+segments)
-      return scoreMeasuredRouteCrossings(candidate,index,routes,input,charge)!==undefined
+      return scoreMeasuredRouteCrossings(candidate,index,routes,input,charge,reserve)!==undefined
     }
     seatMeasuredMarkers(input.edges, placed.edges, subjects, work, reserveExpanded, fail, validate, index => {
       // Called only AFTER the same accepted array is committed. Every successful
@@ -592,9 +597,10 @@ export function routeCrossHierarchy(
   }, fail)
   const widthProof = (input as MeasuredGraph & { maximumEdgeStrokeWidth?: number }).maximumEdgeStrokeWidth
   if (widthProof !== undefined) {
-    reserveContactBounds(work, fail)
+    reserveContactBounds(work, fail, 2)
     if (--work.pairs < 0) fail('agentic local cross-hierarchy crossing-work limit')
   }
+  const reservePhysicalContact = widthProof === undefined ? undefined : (amount: number): void => reserveContactBounds(work, fail, amount)
   const chargePhysicalContact = widthProof === undefined ? undefined : (amount: number): void => {
     work.pairs -= amount
     if (work.pairs < 0) fail('agentic local cross-hierarchy crossing-work limit')
@@ -840,7 +846,7 @@ export function routeCrossHierarchy(
               // Finalized incident edges already own their physical escape rays.
               // Reject occupied rays before shortest-path state merging can hide
               // an available occurrence-specific port behind the same goal state.
-              return scoreMeasuredRouteCrossings(source ? [terminal.port, terminal.stub] : [terminal.stub, terminal.port], index, incident, input, chargePhysicalContact) !== undefined
+              return scoreMeasuredRouteCrossings(source ? [terminal.port, terminal.stub] : [terminal.stub, terminal.port], index, incident, input, chargePhysicalContact, reservePhysicalContact) !== undefined
             })
           }
           const lateTerminals = (endpoint: number, source: boolean): Terminal[] => {
@@ -1095,7 +1101,7 @@ export function routeCrossHierarchy(
           }
           work.pairs -= 3 * Math.max(0, points.length - 1) * peerSegments + points.length + peerSegments
           if (work.pairs < 0) fail('agentic local cross-hierarchy crossing-work limit')
-          return scoreMeasuredRouteCrossings(points, index, routes, input, chargePhysicalContact) !== undefined
+          return scoreMeasuredRouteCrossings(points, index, routes, input, chargePhysicalContact, reservePhysicalContact) !== undefined
         },
       })
       routePoints += result.points.length - raw.points.length

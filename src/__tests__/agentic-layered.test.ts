@@ -1340,5 +1340,14 @@ describe('measured painted route contacts', () => {
     let legacyVisits = 0
     expect(scoreMeasuredRouteCrossings(a, 0, ink, input(undefined), () => { legacyVisits++; return false })).toBe(0)
     expect(legacyVisits).toBe(0)
+    let capacityStopped = false
+    expect(scoreMeasuredRouteCrossings(a, 0, ink, input(1), () => { expect(capacityStopped).toBe(false) }, () => {
+      expect(capacityStopped).toBe(false)
+      capacityStopped = true
+      return false
+    })).toBeUndefined()
+    expect(capacityStopped).toBe(true)
+    const fail = (reason: string): never => { throw new Error(reason) }
+    expect(() => createBoundaryContactValidator(input(1), 0, ink, { pairs: 10000, arcs: 1, swaps: 1000 }, fail)(a)).toThrow('visibility-arc limit')
   })
 })
