@@ -490,12 +490,65 @@ export function scoreMeasuredRouteCrossings(points: Point[], index: number, rout
   return scoreMeasuredRouteCrossingsWithAdmission(points,index,routes,input,charge,reserve,true,witness,prepaidPairBudget,reuseSharpSupports)
 }
 
+// A raw ULP diagonal can be exactly cardinal after the writer projects it.
+// Prepare that immutable owned traversal once, instead of projecting its four
+// endpoints again for every Cartesian pair in the unprepared fallback.
+function prepareOwnedDiagonalSeed(routes:readonly {points:Point[];style:string}[],charge?:MeasuredContactCharge,reserve?:MeasuredContactCharge):OwnedMeasuredRouteNumericSeed|false|undefined {
+  let diagonal=false
+  for(const route of routes)for(let i=1;i<route.points.length;i++){
+    if(charge?.(1)===false)return undefined
+    const a=route.points[i-1]!,b=route.points[i]!
+    if(a.x!==b.x&&a.y!==b.y)diagonal=true
+  }
+  if(!diagonal)return false
+  // Seed record, route slots/header, four index headers, comparator/stop
+  // records, and the temporary four-list traversal array.
+  if(reserve?.(routes.length+18)===false)return undefined
+  const rows:Array<{raw:Point[];points:Point[]}>=new Array(routes.length),
+    horizontal:Array<{key:number;piece:{owner:number;segment:number}}>=[],vertical:typeof horizontal=[],
+    horizontalEnds:typeof horizontal=[],verticalEnds:typeof horizontal=[]
+  for(let owner=0;owner<routes.length;owner++){
+    const source=routes[owner]!.points
+    if(charge?.(1)===false||reserve?.(5*source.length+5)===false)return undefined
+    const raw:Point[]=new Array(source.length),points:Point[]=new Array(source.length)
+    for(let i=0;i<source.length;i++){
+      if(charge?.(3)===false)return undefined
+      const value=source[i]!,point=sharpPoint(value,charge,reserve);if(!point)return undefined
+      raw[i]={x:value.x,y:value.y}
+      if(point===value){if(reserve?.(3)===false)return undefined;points[i]={x:point.x,y:point.y}}
+      else points[i]=point
+    }
+    rows[owner]={raw,points}
+    for(let segment=0;segment+1<points.length;segment++){
+      if(charge?.(4)===false)return undefined
+      const a=points[segment]!,b=points[segment+1]!
+      if((a.x===b.x)===(a.y===b.y))return false
+      if(reserve?.(15)===false)return undefined
+      const piece={owner,segment},isVertical=a.x===b.x
+      ;(isVertical?vertical:horizontal).push({key:isVertical?a.x:a.y,piece})
+      ;(isVertical?verticalEnds:horizontalEnds).push({key:isVertical?a.y:a.x,piece},{key:isVertical?b.y:b.x,piece})
+    }
+  }
+  const stopped={},compare=(a:typeof horizontal[number],b:typeof horizontal[number])=>{
+    if(charge?.(1)===false)throw stopped
+    return a.key-b.key||a.piece.owner-b.piece.owner||a.piece.segment-b.piece.segment
+  }
+  try{for(const entries of [horizontal,vertical,horizontalEnds,verticalEnds])entries.sort(compare)}
+  catch(error){if(error===stopped)return undefined;throw error}
+  return {routes:rows,horizontal,vertical,horizontalEnds,verticalEnds}
+}
+
 /** Final contact admission over one immutable, internally owned snapshot.
  * The optional seed contains canonical-writer numeric rows and complete sorted
  * fixed/end-point indices, refreshed AFTER every Class geometry write. Input
  * topology, width/radius and point arrays stay immutable; only visibility may
  * change during this synchronous traversal. No contact result escapes. */
 export function createOwnedMeasuredRouteContactValidator(routes:readonly {points:Point[];style:string}[],input:MeasuredGraph,charge?:MeasuredContactCharge,reserve?:MeasuredContactCharge,validateSegments=false,seed?:OwnedMeasuredRouteNumericSeed):((index:number,witness?:MeasuredSharpContactWitness)=>boolean)|false|undefined {
+  if(!seed&&input.maximumEdgeStrokeWidth!==undefined&&input.maximumEdgeBendRadius===0){
+    const prepared=prepareOwnedDiagonalSeed(routes,charge,reserve)
+    if(prepared===undefined)return undefined
+    if(prepared)seed=prepared
+  }
   if(!seed){
     // No authenticated prepared data: retain the original complete scorer,
     // including its ordinary pair/preparation envelope and unknown handling.

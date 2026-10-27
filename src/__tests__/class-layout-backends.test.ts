@@ -304,7 +304,7 @@ C ..|> F : sends a notification payload`
     for (const label of ['owns entry', 'translates request payload', 'sends a notification payload']) expect(result.svg).toContain(label)
   })
 
-  test('retains labelled nested fan contacts when default owned escape rays are exhausted', () => {
+  test.each(['agentic','elk'] as const)('retains labelled nested fan contacts with %s when default owned escape rays are exhausted', backend => {
     const source = `classDiagram
 direction BT
 namespace Root {
@@ -412,7 +412,7 @@ namespace Root {
 note for \`ns:Domain\` "owned note 37<br/>second line"
 note "free note 37"
 `
-    const options = { graphLayout: { backend: 'agentic' as const, fallback: 'none' as const } }
+    const options = { graphLayout: { backend, fallback: 'none' as const } }
     const model = parseClassDiagram(toMermaidLines(source)),
       original = structuredClone(model)
     const placed = layoutClassDiagram(model, options)
@@ -421,7 +421,7 @@ note "free note 37"
     expect(placed.relationships.map(rel => [rel.from, rel.to, rel.label])).toEqual(model.relationships.map(rel => [rel.from, rel.to, rel.label]))
     const rendered = renderMermaidSVGWithReceipt(source, options)
     expect(rendered.receipt.layoutCertification?.status).toBe('passed')
-    expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', role: 'primary' })])
+    expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: backend, role: 'primary' })])
     const boxes = new Map<string, { x: number; y: number; width: number; height: number }>()
     const attributes = (tag: string) => Object.fromEntries([...tag.matchAll(/([\w-]+)="([^"]*)"/g)].map(match => [match[1]!, match[2]!]))
     for (const match of rendered.svg.matchAll(/<g\b[^>]*class="class-node"[^>]*>\s*(<rect\b[^>]*>)/g)) {

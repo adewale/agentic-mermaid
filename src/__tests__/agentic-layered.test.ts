@@ -1521,17 +1521,19 @@ describe('written sharp join contact closure', () => {
     const a=path([[-10,0],[0,0],[-5,8.660254037844386]]),far=path([[1000,0],[1000,20]])
     const acute=createOwnedMeasuredRouteContactValidator([{points:a,style:'solid'},{points:far,style:'solid'}],graph())
     expect(typeof acute==='function'?acute(0):acute).toBe(false)
-    const routes=[{points:path([[0,0],[10,0],[10,20]]),style:'solid'},{points:path([[40,0],[40,20]]),style:'solid'}],input=graph()
-    let used=0
-    const pay=(n:number)=>{used+=n}
-    const complete=createOwnedMeasuredRouteContactValidator(routes,input,pay,pay,true)
-    if(typeof complete!=='function')throw new Error('expected owned scorer')
-    expect(complete(0)).toBe(true)
-    let left=used-1,stopped=false
-    const limited=(n:number)=>{if(stopped)throw new Error('visited after exhausted debit');left-=n;if(left<0){stopped=true;return false}return true}
-    const bounded=createOwnedMeasuredRouteContactValidator(routes,input,limited,limited,true)
-    expect(typeof bounded==='function'?bounded(0):bounded).not.toBe(true)
-    expect(stopped).toBe(true)
+    for(const candidate of [path([[0,0],[10,0],[10,20]]),path([[1000.0000000000001,0],[1000,10],[1010,10]])]){
+      const routes=[{points:candidate,style:'solid'},{points:path([[40,0],[40,20]]),style:'solid'}],input=graph()
+      let used=0
+      const pay=(n:number)=>{used+=n}
+      const complete=createOwnedMeasuredRouteContactValidator(routes,input,pay,pay,true)
+      if(typeof complete!=='function')throw new Error('expected owned scorer')
+      expect(complete(0)).toBe(true)
+      let left=used-1,stopped=false
+      const limited=(n:number)=>{if(stopped)throw new Error('visited after exhausted debit');left-=n;if(left<0){stopped=true;return false}return true}
+      const bounded=createOwnedMeasuredRouteContactValidator(routes,input,limited,limited,true)
+      expect(typeof bounded==='function'?bounded(0):bounded).not.toBe(true)
+      expect(stopped).toBe(true)
+    }
 
   })
 
@@ -1569,9 +1571,11 @@ describe('written sharp join contact closure', () => {
       const routes=[{points:reverse?a.slice().reverse():a,style:'solid'},{points:reverse?b.slice().reverse():b,style:'solid'}],input=graph(width)
       if(reverse)input.edges=input.edges.map(edge=>({...edge,source:edge.target,target:edge.source}))
       expect(scoreMeasuredRouteCrossings(routes[0]!.points,0,routes,input)).toBe(expected)
-      const validate=createOwnedMeasuredRouteContactValidator(routes,input,undefined,undefined,true,seed(routes))
-      if(typeof validate!=='function')throw new Error('expected contact validator')
-      expect(validate(0)).toBe('admitted' in sample?sample.admitted===true:expected!==undefined)
+      for(const prepared of [seed(routes),undefined]){
+        const validate=createOwnedMeasuredRouteContactValidator(routes,input,undefined,undefined,true,prepared)
+        if(typeof validate!=='function')throw new Error('expected contact validator')
+        expect(validate(0)).toBe('admitted' in sample?sample.admitted===true:expected!==undefined)
+      }
     }
   })
 
