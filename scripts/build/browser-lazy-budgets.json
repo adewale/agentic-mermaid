@@ -23,7 +23,7 @@
       "requests": 34,
       "raw": 667000,
       "gzip": 214000,
-      "brotli": 189500
+      "brotli": 189750
     },
     "timeline": {
       "requests": 32,

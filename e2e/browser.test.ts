@@ -368,8 +368,8 @@ it('resolved circle and ellipse paths preserve the native stroke traversal for d
 
 it('standalone editor stays within its single-renderer payload budget', async () => {
   const html = new Uint8Array(await Bun.file(join(ROOT, 'editor.html')).arrayBuffer())
-  // Bun 1.4.2 against main d7465f95: 4,430,862 → 4,458,132 raw;
-  // gzip level 9: 1,335,048 → 1,343,271 (+8,223 bytes). Keep about
+  // Bun 1.4.2 against main d7465f95: 4,430,862 → 4,458,159 raw;
+  // gzip level 9: 1,335,048 → 1,343,277 (+8,229 bytes). Keep about
   // 500 bytes of headroom for the native family and shared admission work.
   // The optional ZenUML backend is separate; single-engine and relative
   // payload gates also apply.
