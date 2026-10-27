@@ -4,15 +4,16 @@ Agentic Mermaid exposes one contract across every built-in family. Consumers sho
 
 ## Identity
 
-Every source-semantic Scene mark emits (nodes, relations, groups, participants,
-class/ER members, chart data marks, sections/tasks/periods/events, and titles):
+Every Scene part with source-facing semantics emits identity (source nodes,
+relations, groups, participants, class/ER members, chart data points,
+sections/tasks/periods/events, and titles):
 
 - `data-id`: deterministic and unique within one SVG;
 - `data-role`: a closed `SceneRole` value;
 - `data-from` / `data-to`: normalized source endpoints for relations;
 - authored Mermaid class tokens on `class` where that family supports classes.
 
-Source-authored IDs win. Anonymous marks receive semantic IDs derived from labels, endpoints, series/category identity, and a deterministic occurrence suffix. The public Scene model carries the same information as `SvgSemanticIdentity`; the DOM attributes and typed value are generated together. Layout furniture such as grids, ticks, halos, and duplicate visual labels retains typed Scene identity but does not emit a second DOM identity.
+Source-authored IDs win. Parts without authored IDs receive semantic IDs derived from labels, endpoints, series/category identity, and a deterministic occurrence suffix. The public Scene model carries the same information as `SvgSemanticIdentity`; the DOM attributes and typed value are generated together. Layout furniture such as grids, ticks, halos, and duplicate visual labels retains typed Scene identity but does not emit a second DOM identity.
 
 `data-id` is source-facing identity and is intentionally **not** changed by `RenderOptions.idPrefix`.
 
@@ -22,7 +23,15 @@ structured endpoint/occurrence keys distinguish authored punctuation from
 generated suffixes. Ordinary readable names stay compatible, while ambiguous
 generated names receive deterministic collision suffixes. SVG semantic attributes,
 graphical layout regions and terminal ownership consume the same plan.
-Scene-local mark IDs and SVG resource IDs keep their separate namespaces.
+Scene part IDs and SVG resource IDs keep their separate namespaces. Source
+objects and Scene parts need not have a one-to-one correspondence, and a part
+can contain several resolved primitives. Those primitives have no independent
+stable IDs; their containing part provides the association. Primitives in
+`scene.frame` have no containing part. See the
+[shared vocabulary](./api.md#vocabulary). Existing `SceneNode` and `*Mark` type
+names refer to parts. A marker decorates a path or connector at its start, end
+or interior vertices; it is not another spelling for part. Resolved-scene
+export separately rejects unsupported marker placement such as `marker-mid`.
 
 XML attributes preserve authored TAB, LF and CR with numeric character
 references. Attribute readers decode serialized values exactly once; typed
@@ -127,7 +136,7 @@ Typed edges, messages, and relationships emit:
     aria-label="API to DB: reads" … />
 ```
 
-The Scene node carries `SvgSemanticAccessibility` and `SvgRelationSemantics` with the same endpoint and label values. Decorative label/halo marks do not repeat the relation ARIA node.
+The Scene part carries `SvgSemanticAccessibility` and `SvgRelationSemantics` with the same endpoint and label values. Decorative label/halo parts do not repeat the relation ARIA node.
 
 ## Palette contract
 

@@ -2,7 +2,7 @@ import { SDK_COMMON_DECLARATIONS, SDK_MODEL_DECLARATIONS, SDK_TEXT_DECLARATIONS 
 import { BUILTIN_FAMILY_METADATA, type BuiltinFamilyMetadata } from '../agent/families.ts'
 import { architectureVisualOverridesTypeScriptDeclaration, RENDER_CONTRACT_VERSION, RENDER_OUTPUT_DESCRIPTORS, sharedRenderOptionsTypeScriptDeclaration } from '../render-contract.ts'
 import { styleSpecTypeScriptDeclaration } from '../scene/style-spec.ts'
-import { NEW_DIAGRAM_POLICY } from '../shared/agent-workflow.ts'
+import { FAMILY_NARROWING_NOTE, NEW_DIAGRAM_POLICY } from '../shared/agent-workflow.ts'
 import { terminalOutputOptionsTypeScriptFields, terminalOutputPolicyTypeScriptDeclaration } from '../terminal-contract.ts'
 
 function sdkFamilyTypeStem(family: BuiltinFamilyMetadata): string {
@@ -26,7 +26,7 @@ const SDK_MUTATE_METHOD_DECLARATIONS = BUILTIN_FAMILY_METADATA.map(family => {
   return `  mutate(d: ${stem}ValidDiagram, op: ${stem}MutationOp): Result<${stem}ValidDiagram, { code: string; message: string }>`
 }).join('\n')
 
-const SDK_FAMILY_CONVENTION = `// 3. mutate works on ${BUILTIN_FAMILY_METADATA.map(family => family.id).join(', ')}. Narrow via\n//    ${BUILTIN_FAMILY_METADATA.map(family => family.narrower).join('/')}.`
+const SDK_FAMILY_CONVENTION = `// 3. mutate works on ${BUILTIN_FAMILY_METADATA.map(family => family.id).join(', ')}. Narrow via\n//    ${BUILTIN_FAMILY_METADATA.map(family => family.narrower).join('/')}.\n//    ${FAMILY_NARROWING_NOTE}`
 
 function codeModeRenderMethodDeclarations(): string {
   const methods = new Map<

@@ -1,7 +1,9 @@
 # System architecture — start here
 
 How the Agentic Mermaid engine fits together: a single top-down view of the
-whole system, distinct from the per-diagram-type design notes.
+whole system, distinct from the per-family design notes. The
+[shared vocabulary](../../api.md#vocabulary) distinguishes source objects,
+Scene parts and painted resolved primitives.
 
 ![Agentic Mermaid architecture: normalized source and an immutable resolved render request route through the FamilyDescriptor registry, a positioned-artifact waist, graphical and terminal projections, and one strict output-security boundary](./architecture.svg)
 
@@ -29,7 +31,7 @@ the same resolved appearance and report losses rather than silently ignoring
 graphical style. Typed parse, serialize, mutate, and verify hooks remain on the
 same family descriptor identity.
 
-Built-in native drawing writes SVG directly from typed mark fields without
+Built-in native drawing writes SVG directly from typed Scene part fields without
 retaining a Scene group tree. Public Scene adapters remain mutable; backend
 admission snapshots their own data before validation. The superseded private
 recipe interpreter from PR #433 has been removed after compatibility, runtime

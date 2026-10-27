@@ -10,5 +10,10 @@ export const EXISTING_DIAGRAM_WORKFLOW = 'Existing structured diagrams: parse â†
 
 export const PROGRAMMATIC_BUILD_NOTE = '`buildMermaid(kind, ops)` / `createMermaid(kind)` build a diagram from typed ops when you are generating one programmatically (for example, from data).'
 
+/** Shared vocabulary for instructions, discovery and the library reference. */
+export const DIAGRAM_TERMINOLOGY = 'A **family** is a Mermaid diagram type, such as Flowchart or Sequence. A **part** is an identified element of a Scene, such as a shape, connector, text or group. A **resolved primitive** is one painted path or text run; a part can contain many primitives. A **Scene primitive** is a unit of the pre-paint drawing contract, including document structure, shapes, text and markers. Source nodes, edges and other family-specific objects are distinct from drawing parts.'
+
+export const FAMILY_NARROWING_NOTE = 'Narrowing selects a structured, typed family with an as* helper. It does not select one element or freeze layout coordinates.'
+
 /** The new-diagram rule and when typed construction applies instead. */
 export const NEW_DIAGRAM_POLICY = `${NEW_DIAGRAM_WORKFLOW} ${PROGRAMMATIC_BUILD_NOTE}`

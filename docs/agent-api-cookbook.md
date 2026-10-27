@@ -23,7 +23,11 @@ Agentic Mermaid is not just a renderer. It is a structured edit loop:
 | Hosted MCP | No local install is available, or a client wants bounded HTTP tools | `https://agentic-mermaid.dev/mcp` tools: `execute`, render/verify/describe, `mutate`, `build` |
 | CLI | Shell-only verification, rendering, preview, or one-shot mutation | `am ...` |
 
-All channels expose the same core contract: parse, optionally narrow, mutate, verify, serialize/render. Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout.
+All channels expose the same core contract: parse, select the typed family when
+editing, mutate, verify, serialize/render. Selecting the family is called
+**narrowing**, not selecting one source object or fixing its coordinates. See
+the [shared vocabulary](./api.md#vocabulary). Agentic Mermaid outputs SVG, PNG,
+ASCII, Unicode, and JSON layout.
 
 ## Recipe: author a new diagram
 

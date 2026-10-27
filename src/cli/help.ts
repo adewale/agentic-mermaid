@@ -1,6 +1,7 @@
 import { WARNING_SEVERITY, type WarningSeverity, type WarningCode } from '../agent/types.ts'
 import { CLI_RENDER_FORMATS, DEFAULT_CLI_RENDER_FORMAT, cliRenderFormatHelpLines } from '../render-output-metadata.ts'
 import { PNG_DEFAULT_SCALE } from '../output-policy-versions.ts'
+import { FAMILY_NARROWING_NOTE } from '../shared/agent-workflow.ts'
 
 export const GLOBAL_USAGE = `Usage: am <command> [options] [file|-]
 
@@ -129,7 +130,8 @@ Registered families with mutationOps have typed mutation; discover the live rost
 narrowers, and op names with 'am capabilities --json'. Opaque-fallback diagrams
 (unmodeled syntax) return a structured UNSUPPORTED_FAMILY error (exit 2). Verify failures
 exit 3 (4 when every error is INTERNAL_ERROR) and omit source. An INTERNAL_ERROR the
-source already had does not block the edit.`,
+source already had does not block the edit.
+${FAMILY_NARROWING_NOTE}`,
   preview: `am preview <file|-> [--output preview.html] [--open] [--json] [--security strict]
 Writes a standalone HTML preview containing strict-mode rendered SVG. Without
 --output, emits HTML to stdout unless --open is set, in which case a temp HTML

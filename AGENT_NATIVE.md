@@ -4,6 +4,11 @@
 
 **System architecture overview.** For the how-the-engine-works entry point — the rendered three-stacks diagram and the routing/layout design docs — start at [`docs/design/system/README.md`](./docs/design/system/README.md).
 
+**Vocabulary.** Use the [library definitions](./docs/api.md#vocabulary) for
+family, source object, Scene part and resolved primitive. Narrowing selects
+the typed family; it does not select one object or keep other objects' positions
+fixed. Existing `SceneNode` and `*Mark` type names describe Scene parts.
+
 **Thesis.** Agents authoring Mermaid diagrams today regenerate the whole source on every edit, or render to PNG and read it back with vision. The Beautiful Mermaid renderer foundation already fixed the worst of the rendering side (sync + DOM-free + ASCII). Agentic Mermaid adds the editing surface — structured verification, typed mutation, round-trippable IR — so an agent can edit one node and trust the result without ever opening an image.
 
 ---
@@ -404,7 +409,7 @@ MermaidSeqBench is wired as an external corpus signal; live model transcript eva
 
 ## What Code Mode unlocks
 
-The Code Mode MCP raises the ceiling on what an agent can do with the library in one call. We initially framed the agent surface as a fixed set of verbs (parse, verify, mutate, serialize) where each verb is one round-trip. Code Mode reframes the surface as a typed library that the agent composes against — and the only thing we ship is the small set of primitives plus a sandbox. The agent supplies the algorithm.
+The Code Mode MCP raises the ceiling on what an agent can do with the library in one call. We initially framed the agent surface as a fixed set of verbs (parse, verify, mutate, serialize) where each verb is one round-trip. Code Mode reframes the surface as a typed library that the agent composes against — and the only thing we ship is the small set of typed operations plus a sandbox. The agent supplies the algorithm.
 
 Concrete consequences, in roughly descending impact:
 

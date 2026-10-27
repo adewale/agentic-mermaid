@@ -108,6 +108,31 @@ route-contract extraction preserves the existing pipeline manifest and order.
 
 ## Ready build backlog
 
+- [ ] **AGENT-1 — Consolidate the agent starting guide** (`todo`, owner
+  requested 2026-10-27; target 0.5). Make `/start.md` a short task/channel
+  router into one maintained operating guide and version-matched references.
+  Generate overlapping instructions for the CLI, installed drop-in and website
+  from that guide. Preserve useful channel entry points while removing repeated
+  rules and competing mini-tutorials. Validate with fresh-agent tasks that choose
+  a channel once and reach the relevant operation details without reconciling
+  multiple guides.
+- [ ] **AGENT-2 — Reduce library import decisions** (`todo`, owner requested
+  2026-10-27; target 0.5). Recommend one portable agent entry for parsing,
+  typed editing, verification and rendering, including resolved-scene parity;
+  make native PNG an explicit runtime-specific addition. Preserve existing
+  import paths and aliases. Reuse the current entries rather than adding another
+  SDK layer, and verify shipped declarations/runtime behavior in Node, Bun,
+  browsers and Workers before changing the recommendation.
+- [ ] **AGENT-3 — Make resolved scenes discoverable and failures actionable**
+  (`todo`, owner requested 2026-10-27; target 0.5). Expose resolved-scene
+  support through existing agent discovery and the Code Mode SDK, with explicit
+  result-size/runtime limits. Give unsupported-artwork failures stable typed
+  fields such as `code`, `partId` and `feature`, preserving readable messages
+  and the prior artifact on failure. Test supported artwork and named unsupported
+  features such as gradients through installed library and agent boundaries.
+  Document released availability so agents can select a supported representation
+  or report the precise limitation without parsing English error messages.
+
 - [ ] **BUILD-27 — MCP Apps support** (`todo`). Expose an interactive
   in-agent diagram UI through MCP Apps: `ui://` resources, correct
   `text/html;profile=mcp-app` resource MIME type, tool `_meta.ui.resourceUri`
