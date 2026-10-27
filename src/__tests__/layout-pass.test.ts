@@ -8,7 +8,6 @@ import * as passContract from '../layout/pass.ts'
 const { LayoutMetricBudgetError, LayoutPassContractError, runPipeline } = passContract
 import { LAYOUT_PIPELINE, convertToElkFormat, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
-import { applyParallelDuplicateLanes } from '../layout/passes/parallel-lanes.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { verifyMermaid } from '../agent/index.ts'
 import { withPerformanceExperiments } from '../experimental-performance.ts'
