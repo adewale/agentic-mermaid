@@ -51,7 +51,7 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
   const diagram = parseClassDiagram(lines(text), authoredText === undefined ? undefined : lines(authoredText))
   diagram.title ??= config.title
   checkAllClassLikeAuthoredStyles(diagram.classDefs, diagram.classes)
-  if (!diagram.classes.length && !diagram.namespaces.length) {
+  if (!diagram.classes.length && !diagram.namespaces.length && !diagram.notes.length) {
     const lines = diagram.title ? wrapText(displayText(normalizeBrTags(diagram.title)), targetWidth) : []
     const empty = new TerminalDocument(Math.max(0, ...lines.map(visualWidth)), lines.length)
     empty.scope({ id: 'title', kind: 'label' }, () => lines.forEach((line, row) => empty.text(0, row, line)))

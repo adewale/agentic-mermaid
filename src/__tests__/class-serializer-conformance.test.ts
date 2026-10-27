@@ -610,13 +610,19 @@ describe('class namespaces — structured agent body (#118)', () => {
     expect(serializeMermaid(diagram)).toBe(before)
   })
 
-  test.each(['namespace N {\n}', 'namespace N["Meaningful group"] {\n}'])('preserves directly authored empty namespaces as opaque source: %s', namespace => {
-    const source = `classDiagram\n${namespace}\nclass B`
+  test.each(['namespace N {\n}', 'namespace N["Meaningful group"] {\n}'].flatMap(namespace => [false, true].map(withClass => ({ namespace, withClass }))))('preserves and draws directly authored empty namespaces as opaque source: $namespace (withClass=$withClass)', ({ namespace, withClass }) => {
+    const source = `classDiagram\n${namespace}${withClass ? '\nclass B' : ''}`
     const parsed = parseMermaid(source)
     if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
     expect(parsed.value.body.kind).toBe('opaque')
     expect(asClass(parsed.value)).toBeNull()
     expect(serializeMermaid(parsed.value).trimEnd()).toBe(source)
+    const positioned = layoutClassDiagram(renderParse(source))
+    expect(positioned.namespaces).toHaveLength(1)
+    const frame = positioned.namespaces[0]!
+    expect(frame.width).toBeGreaterThan(0)
+    expect(frame.height).toBeGreaterThan(frame.headerHeight)
+    expect(renderMermaidSVG(parsed.value)).toContain(`>${frame.label}</text>`)
   })
 
   test('repeated declarations across namespaces preserve authored source and every rendered group', async () => {
