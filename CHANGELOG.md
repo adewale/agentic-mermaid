@@ -31,6 +31,9 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Fixed
 
+- XY charts wrap rotated axis titles into the authored canvas height and reserve
+  their complete multiline gutter, preserving fixed chart dimensions and text.
+
 - Kanban edits retain keyword-like column and task IDs such as `kanban` and
   `kanban-board` in Mermaid-readable source, preserving labels and membership.
 - Mixed labelled and unlabelled parallel edges can use a clear target-side

@@ -1,4 +1,4 @@
-import { releaseBenchCases } from '../eval/shared/release-bench-cases.ts'
+import { flowchartSubgraphs } from '../eval/shared/graph-fixtures.ts'
 /**
  * Browser bundle contract (BUILD-30).
  *
@@ -589,7 +589,7 @@ describe('async family-loaded browser renderer', () => {
     const requests: string[] = []
     page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))
     const source = mode === 'refined-cycle' ? readFileSync(join(REPO, 'eval/layout-compare/fixtures/cyclic-labelled-15.mmd'), 'utf8')
-      : mode === 'large-cross-scope' ? releaseBenchCases().find(input => input.id === 'flowchart:subgraphs-12x8')!.source
+      : mode === 'large-cross-scope' ? flowchartSubgraphs(12, 8)
       : mode === 'frame-endpoint' ? 'flowchart TD\nsubgraph Outer\n subgraph Inner\n  A["x#hearts;y"] --> B\n end\nend\nOutside --> Inner'
       // Ancestor-frame contacts stay native without materializing private ranks.
       : mode === 'compound' ? `---\ntitle: Deferred providers\n---\nflowchart LR\nsubgraph Outer\n A["x#hearts;y"]\nend\nOuter ${'-'.repeat(2049)}> A`

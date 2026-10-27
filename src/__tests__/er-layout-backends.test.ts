@@ -7,7 +7,6 @@ import { layoutErDiagram } from '../er/layout.ts'
 import { parseErDiagram } from '../er/parser.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
 import { withRenderStageObserver } from '../render-stages.ts'
-import { releaseBenchCases } from '../../eval/shared/release-bench-cases.ts'
 import { missingSvgLabels } from './helpers/svg-labels.ts'
 
 const native = { graphLayout: { backend: 'agentic' as const } }
@@ -101,7 +100,7 @@ describe('ER layout backends', () => {
     const reference = renderMermaidSVGWithReceipt(source, { ...options, graphLayout: { backend: 'elk' } })
     const nativeProof = rendered.receipt.layoutCertification!, referenceProof = reference.receipt.layoutCertification!
     if (nativeProof.scope !== 'native-scene' || referenceProof.scope !== 'native-scene') throw new Error('SVG must retain native Scene evidence')
-    const expectedLabels = releaseBenchCases().find(input => input.id === 'er:compound-domains')!.expectedSvgLabels
+    const expectedLabels = ['Accounts and orders with retained measured headers', 'Customer records', 'Audit trail and records', 'CUSTOMER', 'ORDER', 'AUDIT', 'RECORD', 'Stable customer id', 'places', 'records', 'exchanges', 'logs']
     expect(missingSvgLabels(rendered.svg, expectedLabels)).toEqual([])
     expect(missingSvgLabels(reference.svg, expectedLabels)).toEqual([])
     expect(nativeProof.coverage.unmeasured).toBe(0)

@@ -29,7 +29,6 @@ import { compareCodePointStrings } from '../../src/shared/deterministic-order.ts
 import { namespaceSvgIds } from '../../src/renderer.ts'
 import { attemptApi, failureCode, type ApiFailure } from './outcomes.ts'
 import { generatedFlowchartSamples, type GeneratedFlowchartRange, type GeneratedFlowchartKind } from './generated.ts'
-import { releaseBenchCases } from '../shared/release-bench-cases.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const CORPUS_PATH = join(ROOT, 'eval', 'mermaid-docs-corpus', 'corpus.json')
@@ -64,16 +63,22 @@ export interface Snapshot {
 
 interface SampleInput { id: string; family: string; source: string }
 
-export function collectSamples(): SampleInput[] {
+function collectFixtureSamples(directory: string, prefix = ''): SampleInput[] {
+  if (!existsSync(directory)) return []
+  return readdirSync(directory).filter(name => name.endsWith('.mmd')).sort().map(name => {
+    const source = readFileSync(join(directory, name), 'utf8')
+    const parsed = parseMermaid(source)
+    return { id: `fixture/${prefix}${name}`, family: parsed.ok ? parsed.value.kind : 'unknown', source }
+  })
+}
+
+export function collectSamples(options: { includeStress?: boolean } = {}): SampleInput[] {
   const corpus = JSON.parse(readFileSync(CORPUS_PATH, 'utf8')) as Array<{ family: string; source: string; origin: string; index: number }>
   const samples: SampleInput[] = corpus.map(e => ({ id: `corpus/${e.family}/${e.index}`, family: e.family, source: e.source }))
-  if (existsSync(FIXTURES_DIR)) {
-    for (const name of readdirSync(FIXTURES_DIR).filter(f => f.endsWith('.mmd')).sort()) {
-      const source = readFileSync(join(FIXTURES_DIR, name), 'utf8')
-      const parsed = parseMermaid(source)
-      samples.push({ id: `fixture/${name}`, family: parsed.ok ? parsed.value.kind : 'unknown', source })
-    }
-  }
+  samples.push(...collectFixtureSamples(FIXTURES_DIR))
+  // Product-owned scaling regressions remain plain diagnostic fixtures;
+  // release benchmark inventories and execution belong to Trident.
+  if (options.includeStress) samples.push(...collectFixtureSamples(join(FIXTURES_DIR, 'stress'), 'stress/'))
   return samples
 }
 
@@ -94,7 +99,7 @@ export function snapshotSample(input: SampleInput, idPrefix: string, options: Re
     ...(ascii?.ok ? { ascii: ascii.value } : {}) }
 }
 
-export function buildSnapshot(label: string, options: { renderOptions?: RenderOptions; families?: readonly string[]; generated?: GeneratedFlowchartRange; generatedKind?: GeneratedFlowchartKind; includeWorkloads?: boolean } = {}): Snapshot {
+export function buildSnapshot(label: string, options: { renderOptions?: RenderOptions; families?: readonly string[]; generated?: GeneratedFlowchartRange; generatedKind?: GeneratedFlowchartKind; includeStress?: boolean } = {}): Snapshot {
   let rev = 'unknown'
   let dirty = true
   try {
@@ -102,9 +107,7 @@ export function buildSnapshot(label: string, options: { renderOptions?: RenderOp
     dirty = execSync('git status --porcelain', { cwd: ROOT, encoding: 'utf8' }).length > 0
   } catch { /* not a repo */ }
   if (options.generated && !options.renderOptions?.graphLayout) throw new RangeError('Generated comparisons require an explicit graphLayout.backend')
-  const all = options.generated ? generatedFlowchartSamples(options.generated, options.generatedKind) : [...collectSamples(),
-    ...(options.includeWorkloads ? releaseBenchCases().map(sample => ({ ...sample, id: `workload-source/${sample.id}` })) : []),
-  ]
+  const all = options.generated ? generatedFlowchartSamples(options.generated, options.generatedKind) : collectSamples({ includeStress: options.includeStress })
   if (options.families?.some(family => !all.some(sample => sample.family === family))) throw new RangeError('Unknown snapshot family')
   const samples = all.filter(sample => !options.families || options.families.includes(sample.family))
     .map((s, i) => snapshotSample(s, `lc${i}-`, options.renderOptions, { includeAscii: !options.generated }))
@@ -380,7 +383,7 @@ if (import.meta.main) {
     if (generatedKind && count === undefined) throw new RangeError('--generated-kind requires --generated-count')
     if (start !== undefined && count === undefined) throw new RangeError('--generated-start requires --generated-count')
     const generated = count === undefined ? undefined : { start: start === undefined ? 0 : Number(start), count: Number(count) }
-    const snap = buildSnapshot(arg('--label') ?? out, { renderOptions, families: arg('--families')?.split(','), generated, generatedKind, includeWorkloads: process.argv.includes('--workloads') })
+    const snap = buildSnapshot(arg('--label') ?? out, { renderOptions, families: arg('--families')?.split(','), generated, generatedKind, includeStress: process.argv.includes('--stress') })
     writeFileSync(out, JSON.stringify(snap))
     const failed = snap.samples.filter(s => !s.ok).length
     console.log(`wrote ${out}: ${snap.samples.length} samples (${failed} errored) at ${snap.rev}`)
@@ -397,7 +400,7 @@ if (import.meta.main) {
     console.log(`wrote ${out}: ${n('status-changed')} status-changed, ${n('regression')} regressions, ${n('improvement')} improvements, ${n('changed')} changed, ${n('unchanged')} unchanged`)
     if (n('status-changed') + n('regression') > 0) process.exit(1)
   } else {
-    console.error('usage: run.ts snapshot --out f.json [--label name] [--graph-layout elk|agentic] [--graph-layout-fallback none|elk] [--families flowchart,state] [--workloads] [--generated-start 0 --generated-count 160] [--generated-kind lcg-v1|sha256-counter-v1] | report --before a.json --after b.json --out report.html')
+    console.error('usage: run.ts snapshot --out f.json [--label name] [--graph-layout elk|agentic] [--graph-layout-fallback none|elk] [--families flowchart,state] [--stress] [--generated-start 0 --generated-count 160] [--generated-kind lcg-v1|sha256-counter-v1] | report --before a.json --after b.json --out report.html')
     process.exit(2)
   }
 }

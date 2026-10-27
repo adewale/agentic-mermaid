@@ -1,6 +1,5 @@
 import { describe, expect, spyOn, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
-import { releaseBenchCases } from '../../eval/shared/release-bench-cases.ts'
 import { missingSvgLabels } from './helpers/svg-labels.ts'
 import { layoutMermaidWithReceipt, parseRegisteredMermaid } from '../agent/core.ts'
 import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
@@ -131,7 +130,7 @@ describe('Class layout backends', () => {
     expect(reference.receipt.layoutCertification?.status).toBe('passed')
     expect(result.receipt.layoutCertification?.status).toBe('passed')
     expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', attempts: [{ backend: 'agentic', outcome: 'selected' }] })])
-    const expected = releaseBenchCases().find(input => input.id === 'class:compound-namespaces')!.expectedSvgLabels
+    const expected = ['Platform & API', 'Domain records', 'Audit history', 'class-namespace:Platform', 'Store', 'User', 'Account', 'Event', 'Record', 'Outside', 'Protocol', 'Retain scoped note', 'delegates', 'owns', 'logs', 'uses', '1', 'many', '+String id', '+ fetch()', '+String state', '+ save()', '+UUID id', '+UUID owner', '+String action', '+String key']
     expect(missingSvgLabels(result.svg, expected)).toEqual([])
     expect(missingSvgLabels(reference.svg, expected)).toEqual([])
   })

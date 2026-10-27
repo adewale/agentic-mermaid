@@ -88,7 +88,7 @@ describe('perceptual palette — systematic impact', () => {
         expect(diagnostics.pairDistanceChecks).toBe(0)
         // Every search loop is statically bounded. Counting the real branch's
         // candidate work pins that invariant deterministically across machines;
-        // observational latency belongs in eval/palette-performance instead.
+        // observational latency belongs in Trident’s palette-performance suite.
         expect(diagnostics.candidateEvaluations).toBeLessThanOrEqual(1_201 * count)
       }
     }

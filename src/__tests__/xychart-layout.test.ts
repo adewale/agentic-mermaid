@@ -11,6 +11,7 @@ import { layoutXYChart } from '../xychart/layout.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { layoutMermaidWithReceipt } from '../agent/index.ts'
 import { projectXyChartPositioned } from '../positioned-views/xychart.ts'
+import raynerTitles from './testdata/rayner-528/xy-axis-titles.json'
 
 function layout(text: string) {
   const processed = preprocessMermaidSource(text)
@@ -18,6 +19,35 @@ function layout(text: string) {
 }
 
 describe('xychart layout – dimensions and bounds', () => {
+  it.each(raynerTitles)('fits the original Rayner $id axis title in its authored canvas', ({ source, style }) => {
+    let svg = ''
+    expect(() => { svg = renderMermaidSVG(source, { style }) }).not.toThrow()
+    const { layout: projected } = layoutMermaidWithReceipt(source, { style })
+    expect([Number(projected.bounds.w), Number(projected.bounds.h)]).toEqual([540, 250])
+    const title = projected.labels!.find(label => label.id === 'axis:y:title')!
+    expect(title.text.replace(/\s+/g, ' ')).toBe('Avantage (barres), plafond (ligne), €')
+    const box = title.bounds!
+    expect(box.x).toBeGreaterThanOrEqual(0)
+    expect(box.y).toBeGreaterThanOrEqual(0)
+    expect(box.x + box.w).toBeLessThanOrEqual(540)
+    expect(box.y + box.h).toBeLessThanOrEqual(250)
+    expect(svg).toContain('viewBox="0 0 540 250"')
+  })
+
+  it.each(['Avantage (barres), plafond (ligne), €', 'Échéance '.repeat(12), 'Throughput'.repeat(12)])('fits a long title on either rotated axis: %s', title => {
+    for (const horizontal of [false, true]) {
+      const source = `---\nconfig:\n  xyChart:\n    width: 540\n    height: 250\n---\nxychart-beta${horizontal ? ' horizontal' : ''}\nx-axis "${horizontal ? title : 'Category'}" [A,B]\ny-axis "${horizontal ? 'Value' : title}" 0 --> 10\nbar [1,2]`
+      const { layout: projected } = layoutMermaidWithReceipt(source, { style: 'pen-and-ink' })
+      const axis = projected.labels!.find(label => label.id === `axis:${horizontal ? 'x' : 'y'}:title`)!
+      expect(axis.text.replace(/-\n/g, '').replace(/\s/g, '')).toBe(title.replace(/\s/g, ''))
+      expect(axis.bounds!.y).toBeGreaterThanOrEqual(0)
+      expect(axis.bounds!.y + axis.bounds!.h).toBeLessThanOrEqual(250)
+      expect(axis.bounds!.x).toBeGreaterThanOrEqual(0)
+      expect(axis.bounds!.x + axis.bounds!.w).toBeLessThanOrEqual(projected.groups.find(group => group.id === 'plot')!.x)
+      expect(renderMermaidSVG(source, { style: 'pen-and-ink' })).toContain('viewBox="0 0 540 250"')
+    }
+  })
+
   it('rounds a fractional plot frame by its endpoints without inventing off-canvas geometry', () => {
     const source = '---\nconfig:\n  xyChart:\n    showDataLabel: true\n---\nxychart-beta horizontal\nx-axis [c0,c1,c2,c3,c4,c5,c6,c7]\nbar s0 [0,0,0,0,0,0,0,0]'
     const projected = layoutMermaidWithReceipt(source, { style: 'risograph' }).layout
