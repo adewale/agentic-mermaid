@@ -24,6 +24,7 @@ export function proposePortalChannel(
   accept: (path: Point[]) => Point[] | undefined,
   minimumLead?: number,
   parallelStrokeUpperBound = 0.5,
+  reverseOutput = false,
 ): Point[] | undefined {
   // Closures/captures, typed header and its actual logical coordinate capacity.
   work.arcs -= 24 + rails.length + 2
@@ -242,6 +243,13 @@ export function proposePortalChannel(
                 { x: tx, y: channelY },
                 { x: tx, y: ty },
               ]
+        }
+        // Constructor roles may be opposite to authored source/target order.
+        // Restore that order BEFORE every live query, guard and final admission.
+        charge()
+        if (reverseOutput) {
+          charge(2 * path.length)
+          path.reverse()
         }
         let clear = true,
           last = 0

@@ -1,4 +1,5 @@
 import { proposePortalChannel } from '../layout/compound-portal-channel.ts'
+import { proposeOuterChannel } from '../layout/compound-outer-channel.ts'
 import { createPeerGeometryOwner } from '../layout/compound-peer-geometry.ts'
 import { describe, expect, test } from 'bun:test'
 import { layoutAgenticGraph, type MeasuredGraph } from '../layout/agentic-layered.ts'
@@ -1180,6 +1181,51 @@ describe('owned measured layered layout', () => {
 
 describe('bounded complete boundary connectors', () => {
  const fail=(reason:string):never=>{throw new Error(reason)},budget=()=>({pairs:1_000_000,arcs:65536,swaps:1_000_000})
+ for(const transpose of [false,true])for(const sign of [-1,1])for(const reverse of [false,true])test(`same-axis exterior contacts retain authored order ${transpose}/${sign}/${reverse}`,()=>{
+  const p=(x:number,y:number)=>transpose?{x:y*sign,y:x}:{x,y:y*sign}
+  const r=(x:number,y:number,w:number,h:number)=>{const a=p(x,y),b=p(x+w,y+h);return{x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),width:Math.abs(b.x-a.x),height:Math.abs(b.y-a.y)}}
+  const bounds=r(0,0,100,100),boxes=[r(80,12,12,8),r(62,64,16,16),r(20,40,70,8)],near={port:p(86,20),stub:p(86,28),penalty:0},far={port:p(70,80),stub:p(70,88),penalty:0},source=reverse?far:near,target=reverse?near:far,roots=[source,target],before=structuredClone(roots),work=budget()
+  let allocated=0,firstGuard:Point|undefined,firstQuery:Point|undefined
+  const indexed=createCompoundObstacleIndex(boxes,work,fail),queries={...indexed,containsPoint(x:number,y:number){firstQuery??={x,y};return indexed.containsPoint(x,y)}}
+  const result=proposeOuterChannel(bounds,boxes,[source],[target],[],queries,work,n=>allocated+=n,fail,(a)=>{firstGuard??=a;return true},path=>path)
+  expect(result).toBeDefined();expect(result![0]).toEqual(source.port);expect(result!.at(-1)).toEqual(target.port);expect(firstGuard).toEqual(source.port);expect(firstQuery).toEqual(source.port);expect(allocated).toBe(6)
+  for(let i=1;i<result!.length;i++){
+   const a=result![i-1]!,b=result![i]!
+   expect((a.x===b.x)!==(a.y===b.y)).toBe(true)
+   for(const box of boxes)expect(a.x===b.x?a.x>box.x&&a.x<box.x+box.width&&Math.max(a.y,b.y)>box.y&&Math.min(a.y,b.y)<box.y+box.height:a.y>box.y&&a.y<box.y+box.height&&Math.max(a.x,b.x)>box.x&&Math.min(a.x,b.x)<box.x+box.width).toBe(false)
+  }
+  for(const[from,a,b]of [[source,result![0]!,result![1]!],[target,result!.at(-1)!,result!.at(-2)!]]as const){
+   const dx=from.stub.x-from.port.x,dy=from.stub.y-from.port.y
+   expect((b.x-a.x)*Math.sign(dx)+(b.y-a.y)*Math.sign(dy)).toBeGreaterThanOrEqual(8)
+  }
+  expect(roots).toEqual(before);expect(work.pairs).toBeLessThan(1_000_000);expect(work.arcs).toBeLessThan(65536)
+ })
+ test('same-axis exterior candidates retain peer veto, final admission and failure identity',()=>{
+  const source={port:{x:70,y:80},stub:{x:70,y:88},penalty:0},target={port:{x:86,y:20},stub:{x:86,y:28},penalty:0},bounds={x:0,y:0,width:100,height:100},boxes=[{x:80,y:12,width:12,height:8},{x:62,y:64,width:16,height:16},{x:20,y:40,width:70,height:8}]
+  let guards=0,accepts=0;const work=budget()
+  const rejected=proposeOuterChannel(bounds,boxes,[source],[target],[],createCompoundObstacleIndex(boxes,work,fail),work,()=>{},fail,()=>{guards++;return false},path=>{accepts++;return path})
+  expect(rejected).toBeUndefined();expect(guards).toBeGreaterThan(0);expect(accepts).toBe(0)
+  const finalWork=budget();let proposals=0
+  expect(proposeOuterChannel(bounds,boxes,[source],[target],[],createCompoundObstacleIndex(boxes,finalWork,fail),finalWork,()=>{},fail,()=>true,()=>{proposals++;return undefined})).toBeUndefined()
+  expect(proposals).toBeGreaterThan(0);expect(proposals).toBeLessThanOrEqual(2)
+  const failure=Error('host guard failed'),errorWork=budget()
+  expect(()=>proposeOuterChannel(bounds,boxes,[source],[target],[],createCompoundObstacleIndex(boxes,errorWork,fail),errorWork,()=>{},fail,()=>{throw failure},path=>path)).toThrow(failure)
+  expect(work.pairs).toBeLessThan(1_000_000);expect(finalWork.pairs).toBeLessThan(1_000_000)
+ })
+ test('same-axis exterior proof does not spend after its shared budget fails',()=>{
+  const source={port:{x:70,y:80},stub:{x:70,y:88},penalty:0},target={port:{x:86,y:20},stub:{x:86,y:28},penalty:0},work={pairs:0,arcs:65536,swaps:1_000_000};let queried=0,accepted=0
+  const queries={containsPoint(){queried++;return false},entersSegment(){queried++;return false},projectPoint(){throw Error('not a projection query')}}
+  expect(()=>proposeOuterChannel({x:0,y:0,width:100,height:100},[],[source],[target],[],queries,work,()=>{},fail,()=>true,path=>{accepted++;return path})).toThrow('work limit')
+  expect(queried).toBe(0);expect(accepted).toBe(0);expect(work.pairs).toBeLessThan(0)
+ })
+ test('same-axis exterior cannot cross a sealed header or bypass a successful perpendicular route',()=>{
+  const source={port:{x:70,y:80},stub:{x:70,y:88},penalty:0},target={port:{x:86,y:20},stub:{x:86,y:28},penalty:0},bounds={x:0,y:0,width:100,height:100},header=[{x:0,y:40,width:100,height:8}],work=budget();let accepted=0
+  expect(proposeOuterChannel(bounds,header,[source],[target],[],createCompoundObstacleIndex(header,work,fail),work,()=>{},fail,()=>true,path=>{accepted++;return path})).toBeUndefined()
+  expect(accepted).toBe(0)
+  const oldSource={port:{x:20,y:30},stub:{x:28,y:30},penalty:0},oldTarget={port:{x:80,y:70},stub:{x:80,y:78},penalty:0},boxes=[{x:10,y:20,width:10,height:20},{x:70,y:60,width:20,height:10}],oldWork=budget()
+  const result=proposeOuterChannel(bounds,boxes,[oldSource,source],[oldTarget,target],[],createCompoundObstacleIndex(boxes,oldWork,fail),oldWork,()=>{},fail,()=>true,path=>path)
+  expect(result).toEqual([{x:20,y:30},{x:95,y:30},{x:95,y:89},{x:80,y:89},{x:80,y:70}])
+ })
  for(const transpose of [false,true])for(const xs of [-1,1])for(const ys of [-1,1])test(`retains real normal leads in reflection ${transpose}/${xs}/${ys}`,()=>{
   const p=(x:number,y:number)=>transpose?{x:y*ys,y:x*xs}:{x:x*xs,y:y*ys}
   const r=(x:number,y:number,w:number,h:number)=>{const a=p(x,y),b=p(x+w,y+h);return{x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),width:Math.abs(b.x-a.x),height:Math.abs(b.y-a.y)}}

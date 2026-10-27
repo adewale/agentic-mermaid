@@ -4,8 +4,8 @@ import type { CompoundObstacleQueries } from './compound-obstacle-index.ts'
 import { parallelStrokeClear, proposePortalChannel } from './compound-portal-channel.ts'
 import type { RoutingBox, Terminal } from './compound-visibility.ts'
 
-/** Complete unlabelled routes only. Eight deterministic corner/orientation
- * proposals, one existing authored occurrence port per selected face. No
+/** Complete unlabelled routes only. Eight perpendicular proposals first,
+ * then at most eight same-normal exterior proposals using existing ports. No
  * Cartesian port roster or graph; current exact predicates remain authority. */
 export function proposeOuterChannel(
   bounds: Readonly<RoutingBox>,
@@ -207,5 +207,37 @@ export function proposeOuterChannel(
       const result = accept(path)
       if (result) return result
     }
+  }
+  // The perpendicular roster cannot join two S (or two N/E/W) contacts.
+  // Reuse the same-normal portal constructor, near endpoint first. Each of
+  // four faces selects one existing source/target pair and at most two corners.
+  // No terminal or graph is added; every complete path keeps the live proofs.
+  reserve(12)
+  for (let face = 0; face < 4; face++) {
+    charge(12)
+    const vertical = face < 2,
+      sign = face % 2 === 0 ? -1 : 1
+    let source: Terminal | undefined, target: Terminal | undefined
+    for (const candidate of starts) {
+      charge(6)
+      const dx = candidate.stub.x - candidate.port.x,
+        dy = candidate.stub.y - candidate.port.y
+      if (vertical ? dx === 0 && Math.sign(dy) === sign : dy === 0 && Math.sign(dx) === sign) { source = candidate; break }
+    }
+    for (const candidate of ends) {
+      charge(6)
+      const dx = candidate.stub.x - candidate.port.x,
+        dy = candidate.stub.y - candidate.port.y
+      if (vertical ? dx === 0 && Math.sign(dy) === sign : dy === 0 && Math.sign(dx) === sign) { target = candidate; break }
+    }
+    if (!source || !target) continue
+    const sourceMain = vertical ? source.port.y : source.port.x,
+      targetMain = vertical ? target.port.y : target.port.x
+    charge(4)
+    if (sourceMain === targetMain) continue
+    const reverse = sign * (targetMain - sourceMain) < 0
+    reserve(2) // Singleton target header/reference, before allocation.
+    const result = proposePortalChannel(bounds, boxes, reverse ? target : source, [reverse ? source : target], rails, queries, work, reservePoints, fail, guard, accept, undefined, parallelStrokeUpperBound, reverse)
+    if (result) return result
   }
 }
