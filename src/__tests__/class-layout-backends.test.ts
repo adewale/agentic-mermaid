@@ -937,7 +937,7 @@ describe('Class marker meaning before producer selection', () => {
       producer.restore()
     }
   })
-  test.each(['agentic', 'elk'] as const)('retains separated markers and exact shared identical glyphs in %s', backend => {
+  test.each(['agentic', 'elk'] as const)('retains separated marker ink but refuses shared positive carrier stems in %s', async backend => {
     const separated = controlled(20)
     try {
       expect(layoutClassDiagram(parseClassDiagram(toMermaidLines(modelSource)), { graphLayout: { backend, fallback: 'none' } }).relationships).toHaveLength(2)
@@ -946,7 +946,14 @@ describe('Class marker meaning before producer selection', () => {
     }
     const shared = controlled(0)
     try {
-      expect(layoutClassDiagram(parseClassDiagram(toMermaidLines(modelSource.replace('o--', '<|--'))), { graphLayout: { backend, fallback: 'none' } }).relationships).toHaveLength(2)
+      const identical = parseClassDiagram(toMermaidLines(modelSource.replace('o--', '<|--')))
+      // Identical coincident marker repaint is sound in the marker-only proof.
+      // These controlled branches ALSO share a positive carrier stem; that
+      // unrelated scaffold is not an admission exception for the whole output.
+      const { resolveDiagramColors } = await import('../color-resolver.ts')
+      const style = resolveRenderStyle({}, CLASS_STYLE_DEFAULTS)
+      expect(() => classMarkerAdmission.assertClassMarkerMeaning({ width: 900, height: 300, classes: [], notes: [], namespaces: [], relationships: identical.relationships.map((rel, i) => ({ ...rel, points: paths(0)[i]! })) }, style, resolveDiagramColors({}, {}))).not.toThrow()
+      expect(() => layoutClassDiagram(identical, { graphLayout: { backend, fallback: 'none' } })).toThrow('uncertified shared contact')
     } finally {
       shared.restore()
     }
@@ -1252,8 +1259,10 @@ test('Class annotation repair reserves the prepared title before choosing a nort
         fromCardinalityPosition: { x: 250, y: 30 },
         points: [
           { x: 260, y: 40 },
-          { x: 260, y: 0 },
-          { x: 520, y: 0 },
+          // A distinct lower row keeps this scaffold clear of the other
+          // relationship's y=0 trunk and the actual title text above y=30.
+          { x: 260, y: 30 },
+          { x: 520, y: 30 },
           { x: 520, y: 470 },
           { x: 260, y: 470 },
           { x: 260, y: 500 },

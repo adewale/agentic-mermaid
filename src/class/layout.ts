@@ -1,3 +1,5 @@
+import { scoreMeasuredRouteCrossings } from '../layout/measured-route-safety.ts'
+import type { MeasuredGraph } from '../layout/agentic-layered-core.ts'
 import { resolveDiagramColors } from '../color-resolver.ts'
 import { connectorMarkerPaintRegions } from '../scene/bounds.ts'
 import { connector } from '../scene/marks.ts'
@@ -776,6 +778,45 @@ export function finalizeClassOwnedSurfaces(result: PositionedClassDiagram, style
   if (violations.length) throw new LayoutCertificationError([{ strategy: 'class-owned-surfaces', violations }])
   const peerWork=inkWork??createClassMarkerAdmissionWork()
   assertClassHeaderPeersClear(result,changed,style,()=>chargeClassMarkerAdmissionWork(peerWork))
+  assertFinalClassSharpContacts(result, style, peerWork)
+}
+
+/** Title bands and leading note seats translate Number coordinates after the
+ * root producer proof. Canonical SVG spelling is not translation-invariant;
+ * recheck every final sharp pair against the SAME request's remaining work. */
+function assertFinalClassSharpContacts(result: PositionedClassDiagram, style: ResolvedRenderStyle, work: ClassMarkerAdmissionWork): void {
+  if (style.edgeBendRadius !== 0 || result.relationships.length < 2) return
+  const refuse = (message: string): never => { throw new LayoutCertificationError([{ strategy: 'class-final-sharp-contacts', violations: [message] }]) }
+  const pay = (amount = 1): void => {
+    for (let i = 0; i < amount; i++) if (!chargeClassMarkerAdmissionWork(work)) refuse('Class final sharp contact work limit')
+  }
+  // Map/arrays/records and callbacks are local to this immutable final snapshot.
+  pay(2 * result.classes.length + 3 * result.relationships.length + 8)
+  const indices = new Map(result.classes.map((node, index) => [node.id, index]))
+  const input: MeasuredGraph = {
+    nodes: [],
+    edges: result.relationships.map(rel => {
+      const source = indices.get(rel.from), target = indices.get(rel.to)
+      if (source === undefined || target === undefined) refuse('Undeclared final Class endpoint')
+      return { source: source!, target: target!, minSpan: 1 }
+    }),
+    direction: 'TB', padding: 0, nodeSpacing: 0, layerSpacing: 0,
+    maximumEdgeStrokeWidth: style.lineWidth, maximumEdgeBendRadius: 0,
+  }
+  const routes = result.relationships.map(rel => ({ points: rel.points, style: 'solid' }))
+  let remaining = 0
+  for (const route of routes) { pay(); remaining += Math.max(0, route.points.length - 1) }
+  for (let index = 0; index + 1 < routes.length; index++) {
+    const route = routes[index]!, segments = Math.max(0, route.points.length - 1)
+    remaining -= segments
+    // The original exact scorer's segment-pair, route and contact preparation
+    // allowance is retained; its additional written-geometry work is paid live.
+    pay(3 * segments * remaining + route.points.length + remaining + routes.length)
+    if (scoreMeasuredRouteCrossings(route.points, index, routes, input, pay, pay) === undefined) refuse('Final Class routes have an uncertified shared contact')
+    // Symmetric finite orthogonal pairs were just checked against every later
+    // route. No geometry or source field changes during this local traversal.
+    route.style = 'invisible'
+  }
 }
 
 /** The diagram's title takes a band above everything the layout placed. */
