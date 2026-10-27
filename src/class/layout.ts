@@ -471,7 +471,7 @@ function extractClassLayout(result: ClassPlacement, diagram: ClassDiagram, class
   }
   const occupied: NoteBox[] = positionedClasses.map(cls => ({ x: cls.x, y: cls.y, width: cls.width, height: cls.height }))
   const overlaps = (a: NoteBox, b: NoteBox, gap = 8): boolean => a.x < b.x + b.width + gap && a.x + a.width + gap > b.x && a.y < b.y + b.height + gap && a.y + a.height + gap > b.y
-  let freestandingY = height + 16
+  let freestandingY = Math.max(height + 16, CLS.padding)
   const notes = diagram.notes.map(note => {
     const metrics = preparePixelText(resolveLabelContent(note.text, note.textContent), { fontSize: 12, fontWeight: 400 })
     const noteWidth = Math.max(90, metrics.width + 24)
