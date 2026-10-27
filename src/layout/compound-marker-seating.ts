@@ -870,22 +870,66 @@ export function seatMeasuredMarkers(
           candidate[otherIndex] = other
           const moved = pose(template, port, bend, index, source)
           if (!clear(moved, index, source)) continue
-          let carrierClear = true
+          let carrierClear = true, coupled = false
           // Every unchanged segment retains its previous positive proof. Only
           // segments incident to either of the three owned changed Points can
           // introduce ink over an earlier glyph; prove those current pieces.
           if (carrierWidth !== undefined)
             for (let cursor = 1; cursor < candidate.length; cursor++) {
               charge()
-              if (!straight && (source ? cursor > 2 && cursor !== candidate.length - 1 : cursor < candidate.length - 2 && cursor !== 1)) continue
+              if (!straight && !coupled && (source ? cursor > 2 && cursor !== candidate.length - 1 : cursor < candidate.length - 2 && cursor !== 1)) continue
               updateCarrier(changedCarrier, candidate[cursor - 1]!, candidate[cursor]!)
               if (!parallelClear(index, changedCarrier)) {
+                // A sharp unlabelled four-point Z may need its port AND row
+                // to move together. Enter only after the existing middle-row
+                // proof rejects it; every formerly passing candidate is kept.
+                charge(5)
+                if (!coupled && !straight && cursor === 2 && candidate.length === 4 && !edge.label && carrierBendRadius === 0) {
+                  const across = candidate[otherNext]!,
+                    from = vertical ? port.y : port.x,
+                    row = vertical ? bend.y : bend.x,
+                    to = vertical ? other.y : other.x,
+                    sign = Math.sign(row - from)
+                  charge(6)
+                  if ((vertical ? across.y === row && across.x === other.x : across.x === row && across.y === other.y) && sign * (to - row) > 0) {
+                    charge(10)
+                    const depth = sign > 0 ? (vertical ? moved.maxY : moved.maxX) - from : from - (vertical ? moved.minY : moved.minX),
+                      lead = Math.min(8, Math.abs(row - from)),
+                      oppositeLead = Math.min(8, Math.abs(to - row))
+                    let oppositeDepth = 0
+                    for (const glyph of all) {
+                      charge(5)
+                      if (glyph.owner === index && glyph.source !== source) oppositeDepth = Math.max(oppositeDepth, sign > 0 ? to - (vertical ? glyph.minY : glyph.minX) : (vertical ? glyph.maxY : glyph.maxX) - to)
+                    }
+                    charge(8)
+                    const begin = from + sign * Math.max(lead, depth + half),
+                      end = to - sign * Math.max(oppositeLead, oppositeDepth + half),
+                      oldLimit = row - sign * carrierWidth,
+                      limit = sign > 0 ? Math.min(end, oldLimit) : Math.max(end, oldLimit)
+                    if (sign * (limit - begin) > 0) {
+                      charge(4)
+                      const nextRow = begin + (limit - begin) / 2
+                      records(2)
+                      reservePoints(1)
+                      const oppositeBend = { x: across.x, y: across.y }
+                      if (vertical) bend.y = oppositeBend.y = nextRow
+                      else bend.x = oppositeBend.x = nextRow
+                      candidate[otherNext] = oppositeBend
+                      coupled = true
+                      // Reprove ALL changed supports, including the first one
+                      // already visited, against every current endpoint glyph.
+                      cursor = 0
+                      continue
+                    }
+                  }
+                }
                 carrierClear = false
                 break
               }
-              for (const peer of straight ? all : seated) {
-                charge(3)
-                const ownIncident = peer.owner===index && (straight ? (peer.source ? cursor===1 : cursor===candidate.length-1) : (peer.source ? cursor<=2 : cursor>=candidate.length-2))
+              for (const original of straight || coupled ? all : seated) {
+                charge(coupled ? 4 : 3)
+                const peer = coupled && original.owner === index && original.source === source ? moved : original
+                const ownIncident = peer.owner===index && (straight || coupled ? (peer.source ? cursor===1 : cursor===candidate.length-1) : (peer.source ? cursor<=2 : cursor>=candidate.length-2))
                 if (!ownIncident && hits(peer, changedCarrier)) {
                   carrierClear = false
                   break
@@ -896,7 +940,7 @@ export function seatMeasuredMarkers(
           if (carrierClear && carrierWidth !== undefined)
             for (let cursor = 1; cursor + 1 < candidate.length; cursor++) {
               charge()
-              if (!straight && (source ? cursor > 2 && cursor !== candidate.length - 2 : cursor < candidate.length - 3 && cursor !== 1)) continue
+              if (!straight && !coupled && (source ? cursor > 2 && cursor !== candidate.length - 2 : cursor < candidate.length - 3 && cursor !== 1)) continue
               const a = candidate[cursor - 1]!,
                 b = candidate[cursor]!,
                 c = candidate[cursor + 1]!
@@ -908,9 +952,10 @@ export function seatMeasuredMarkers(
               // Keep the join rectangle's prepared bounds while hits reads its
               // explicit join flag; restore the scratch tag before next use.
               changedCarrier.join = true
-              for (const peer of straight ? all : seated) {
-                charge(3)
-                const ownIncident = !straight && peer.owner===index && (peer.source ? cursor===1 : cursor===candidate.length-2)
+              for (const original of straight || coupled ? all : seated) {
+                charge(coupled ? 4 : 3)
+                const peer = coupled && original.owner === index && original.source === source ? moved : original
+                const ownIncident = !straight && !coupled && peer.owner===index && (peer.source ? cursor===1 : cursor===candidate.length-2)
                 if (!ownIncident && hits(peer, changedCarrier)) {
                   carrierClear = false
                   break

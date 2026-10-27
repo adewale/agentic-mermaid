@@ -720,3 +720,58 @@ describe('fixed caption spine inside an adjacent yielding leg', () => {
     expect(work.pairs).toBeGreaterThan(0); expect(work.arcs).toBeGreaterThan(0)
   })
 })
+
+
+describe('coupled sharp Z marker seats', () => {
+  for (const transpose of [false, true]) for (const reverse of [false, true]) test(`retains all endpoint glyphs while separating the middle row transpose=${transpose} reverse=${reverse}`, () => {
+    const transform = (p: { x: number; y: number }) => transpose ? { x: p.y, y: p.x } : { ...p },
+      rect = (b: { x: number; y: number; width: number; height: number }) => transpose ? { x: b.y, y: b.x, width: b.height, height: b.width } : { ...b },
+      routes = [
+        { points: [{ x: 264.1, y: 168.9 }, { x: 264.1, y: 198.9 }, { x: 104.1, y: 198.9 }, { x: 104.1, y: 228.9 }].map(transform) },
+        { points: [{ x: 264.1, y: 168.9 }, { x: 264.1, y: 203.9 }, { x: 268.2, y: 203.9 }, { x: 268.2, y: 238.9 }].map(transform) },
+        { points: [{ x: 264.1, y: 168.9 }, { x: 264.1, y: 203.9 }, { x: 428.2, y: 203.9 }, { x: 428.2, y: 238.9 }].map(transform) },
+      ],
+      boxes = [{ x: 204.1, y: 40, width: 120, height: 128.9 }, { x: 40, y: 228.9, width: 128.2, height: 108.9 }, { x: 208.2, y: 238.9, width: 120, height: 88.9 }, { x: 368.2, y: 238.9, width: 120, height: 88.9 }].map(rect),
+      role = reverse ? 'end' : 'start',
+      template = buildClassEndpointMarkerTemplates([{ from: 'A', to: 'B', type: 'inheritance', markerAt: reverse ? 'to' : 'from' } as any], { lineWidth: 1, edgeStrokeColor: '#333' } as any)[0]!,
+      edges = [1, 2, 3].map(child => ({ source: reverse ? child : 0, target: reverse ? 0 : child, markerPaint: template }))
+    if (reverse) for (const route of routes) route.points.reverse()
+    const before = structuredClone(routes), work = { pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 }
+    const accepts = (_: number, path: { x: number; y: number }[]): boolean => {
+      for (let j = 1; j < path.length; j++) {
+        const a = path[j - 1]!, b = path[j]!
+        if (a.x !== b.x && a.y !== b.y) return false
+        for (const box of boxes) if (a.x === b.x ? a.x > box.x && a.x < box.x + box.width && Math.max(a.y, b.y) > box.y && Math.min(a.y, b.y) < box.y + box.height : a.y > box.y && a.y < box.y + box.height && Math.max(a.x, b.x) > box.x && Math.min(a.x, b.x) < box.x + box.width) return false
+      }
+      return true
+    }
+    seatMeasuredMarkers(edges, routes, boxes, work, () => {}, reason => { throw Error(reason) }, accepts, () => {}, undefined, 1, 0, { bounds: rect({ x: 0, y: 0, width: 528.2, height: 377.8 }), obstacles: boxes })
+    const resource = classMarkerResources({ lineWidth: 1 } as any).find(marker => marker.id === 'cls-inherit')!,
+      pieces = routes.map(route => {
+        const anchor = reverse ? route.points.at(-1)! : route.points[0]!, toward = reverse ? route.points.at(-2)! : route.points[1]!
+        return classMarkerPieces(resource, anchor, reverse ? { x: anchor.x - toward.x, y: anchor.y - toward.y } : { x: toward.x - anchor.x, y: toward.y - anchor.y }, role, 1)
+      })
+    for (let i = 0; i < routes.length; i++) {
+      const path = routes[i]!.points, opposite = reverse ? path[0]! : path.at(-1)!, anchor = reverse ? path.at(-1)! : path[0]!, next = reverse ? path.at(-2)! : path[1]!
+      expect(opposite).toEqual(reverse ? before[i]!.points[0]! : before[i]!.points.at(-1)!)
+      expect(transpose ? anchor.x : anchor.y).toBe(168.9)
+      expect(transpose ? next.x - anchor.x : next.y - anchor.y).toBeGreaterThanOrEqual(8)
+      expect(accepts(i, path)).toBe(true)
+      for (let other = i + 1; other < routes.length; other++) expect(classMarkerPiecesOverlap(pieces[i]!, pieces[other]!)).toBe(false)
+      for (let other = 0; other < routes.length; other++) for (let j = 1; j < routes[other]!.points.length; j++) {
+        if (i === other && j === (reverse ? routes[other]!.points.length - 1 : 1)) continue
+        const a = routes[other]!.points[j - 1]!, b = routes[other]!.points[j]!, support = a.x === b.x ? { x: a.x - .5, y: Math.min(a.y, b.y), width: 1, height: Math.abs(a.y - b.y) } : { x: Math.min(a.x, b.x), y: a.y - .5, width: Math.abs(a.x - b.x), height: 1 }
+        const polygon = [{ kind: 'polygon' as const, points: [{ x: support.x, y: support.y }, { x: support.x + support.width, y: support.y }, { x: support.x + support.width, y: support.y + support.height }, { x: support.x, y: support.y + support.height }] }]
+        expect(classMarkerPiecesOverlap(pieces[i]!, polygon)).toBe(false)
+      }
+    }
+    // Independent continuous-support oracle at these small exact coordinates.
+    for (let i = 0; i < routes.length; i++) for (let j = i + 1; j < routes.length; j++) for (let a = 1; a < 4; a++) for (let b = 1; b < 4; b++) {
+      const u = routes[i]!.points[a - 1]!, v = routes[i]!.points[a]!, x = routes[j]!.points[b - 1]!, y = routes[j]!.points[b]!, vertical = u.x === v.x
+      if (vertical !== (x.x === y.x)) continue
+      const fixedGap = Math.abs((vertical ? u.x : u.y) - (vertical ? x.x : x.y)), overlap = Math.min(Math.max(vertical ? u.y : u.x, vertical ? v.y : v.x), Math.max(vertical ? x.y : x.x, vertical ? y.y : y.x)) - Math.max(Math.min(vertical ? u.y : u.x, vertical ? v.y : v.x), Math.min(vertical ? x.y : x.x, vertical ? y.y : y.x))
+      expect(fixedGap < 1 && overlap > 0).toBe(false)
+    }
+    expect(work.pairs).toBeGreaterThan(0); expect(work.arcs).toBeGreaterThan(0)
+  })
+})

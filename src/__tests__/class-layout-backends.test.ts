@@ -1416,3 +1416,13 @@ test('Class header bypasses reserve tight turn spans before flexible carriers', 
   expect(p.namespaces).toEqual(before.namespaces)
   expect(p.relationships.map(r => [r.from, r.to, r.type, r.points[0], r.points.at(-1)])).toEqual(before.relationships.map(r => [r.from, r.to, r.type, r.points[0], r.points.at(-1)]))
 })
+
+
+test('strict Native preserves the public Animal inheritance example and both notes', () => {
+ const source = "---\ntitle: Animal example\n---\nclassDiagram\n    note \"From Duck till Zebra\"\n    Animal <|-- Duck\n    note for Duck \"can fly<br>can swim<br>can dive<br>can help in debugging\"\n    Animal <|-- Fish\n    Animal <|-- Zebra\n    Animal : +int age\n    Animal : +String gender\n    Animal: +isMammal()\n    Animal: +mate()\n    class Duck{\n        +String beakColor\n        +swim()\n        +quack()\n    }\n    class Fish{\n        -int sizeInFeet\n        -canEat()\n    }\n    class Zebra{\n        +bool is_wild\n        +run()\n    }"
+ const result = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'agentic', fallback: 'none' } })
+ expect(result.receipt.layoutCertification?.status).toBe('passed')
+ expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', role: 'primary' })])
+ expect(result.svg.match(/class="class-relationship"/g)).toHaveLength(3)
+ for (const text of ['Animal', 'Duck', 'Fish', 'Zebra', 'From Duck till Zebra', 'can help in debugging']) expect(result.svg).toContain(text)
+})
