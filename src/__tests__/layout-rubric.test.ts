@@ -268,6 +268,17 @@ const randomFlowchartWideEdges = fc
 // on one machine and not another. A fixed seed checks the same 120 generated
 // diagrams on every run; bump it deliberately to re-roll the sample.
 const PROPERTY_SEED = 0x10ad
+const HUB_FAN_IN_PORT_REGRESSION = `flowchart LR
+  N0((n0))
+  N1[n1]
+  N2[n2]
+  N3[n3]
+  N4[n4]
+  N2 --> N1
+  N0 --> N1
+  N4 -.-> N1
+  N3 --> N0
+  N3 --> N2`
 
 // Proper segment-intersection test between two orthogonal polylines, excluding
 // shared endpoints (edges that legitimately meet at a node touch, not cross).
@@ -335,7 +346,7 @@ describe('property: ports and outlines (mathematical oracles over random diagram
         }
         return true
       }),
-      fcParameters({ numRuns: 120, seed: PROPERTY_SEED }),
+      fcParameters({ numRuns: 120, seed: PROPERTY_SEED, examples: [[HUB_FAN_IN_PORT_REGRESSION]] }),
     )
   })
 
@@ -352,7 +363,7 @@ describe('property: ports and outlines (mathematical oracles over random diagram
         expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label]).sort()).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.label]).sort())
         expect({ source, hard: hardViolations(assessLayout(graph, positioned)) }).toEqual({ source, hard: [] })
       }),
-      fcParameters({ numRuns: 120, seed: PROPERTY_SEED, examples: [['flowchart BT\n  N0[n0]\n  N1{{n1}}\n  N2[/n2\\]\n  N3((n3))\n  N4[n4]\n  N5[n5]\n  N5 --> N2\n  N4 --> N0\n  N4 --> N2\n  N3 --> N0\n  N1 -.- N0\n  N4 --> N3']] }),
+      fcParameters({ numRuns: 120, seed: PROPERTY_SEED, examples: [[HUB_FAN_IN_PORT_REGRESSION], ['flowchart BT\n  N0[n0]\n  N1{{n1}}\n  N2[/n2\\]\n  N3((n3))\n  N4[n4]\n  N5[n5]\n  N5 --> N2\n  N4 --> N0\n  N4 --> N2\n  N3 --> N0\n  N1 -.- N0\n  N4 --> N3']] }),
     )
   })
 
