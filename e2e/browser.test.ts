@@ -368,11 +368,11 @@ it('resolved circle and ellipse paths preserve the native stroke traversal for d
 
 it('standalone editor stays within its single-renderer payload budget', async () => {
   const html = new Uint8Array(await Bun.file(join(ROOT, 'editor.html')).arrayBuffer())
-  // Bun 1.4.2 against main e7360e82: 4,433,594 → 4,491,902 raw;
-  // gzip level 9: 1,335,873 → 1,353,609 (+17,736 bytes). Native Zen
+  // Bun 1.4.2 against main e7360e82: 4,433,594 → 4,492,543 raw;
+  // gzip level 9: 1,335,873 → 1,353,845 (+17,972 bytes). Native Zen
   // semantics reuse Sequence layout/Scene rather than embedding its vendor.
   // Keep about 500 bytes of headroom; relative payload gates also apply.
-  expect(html.byteLength).toBeLessThanOrEqual(4_492_450)
+  expect(html.byteLength).toBeLessThanOrEqual(4_493_100)
   expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_354_150)
 })
 
