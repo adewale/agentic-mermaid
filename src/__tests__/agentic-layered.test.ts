@@ -1,4 +1,5 @@
-import { measuredRouteContactPairBudget, scoreMeasuredRouteCrossings } from '../layout/measured-route-safety.ts'
+import { formatSvgNumber } from '../shared/svg-number.ts'
+import { createOwnedMeasuredRouteContactValidator, measuredRouteContactPairBudget, scoreMeasuredRouteCrossings } from '../layout/measured-route-safety.ts'
 import { layoutCompoundGraph } from '../layout/agentic-compound-core.ts'
 import { assertFinalBoundaryContacts, createBoundaryContactValidator } from '../layout/compound-boundary-routes.ts'
 import { proposePortalChannel } from '../layout/compound-portal-channel.ts'
@@ -1486,4 +1487,92 @@ describe('written sharp join contact closure', () => {
     expect({ a, b }).toEqual(original)
     expect(work.pairs).toBeLessThan(1_000_000)
   })
+  test('owned final traversal preserves every physical rejection and exact decimal boundary', () => {
+    for(const {a,b} of cases){
+      const routes=[{points:a,style:'solid'},{points:b,style:'solid'}],input=graph()
+      const owned=createOwnedMeasuredRouteContactValidator(routes,input)
+      expect(typeof owned).toBe('function')
+      if(typeof owned!=='function')throw new Error('expected owned scorer')
+      expect(owned(0)).toBe(scoreMeasuredRouteCrossings(a,0,routes,input)!==undefined)
+    }
+    // Round-trip multiplication is NOT an exact decimal coefficient proof.
+    // 65536.1*1e11 is6553610000000001, although the served coefficient ends0.
+    for(const [left,right,width,expected] of [[65536,65536.1,0.10000000001,undefined],[65536.1,65536.2,0.1,0],[0.2,0.3,0.1,0],[1000000000000.2,1000000000000.3,0.10001,undefined]] as const){
+      const a=path([[left,0],[left,20]]),b=path([[right,2],[right,18]]),routes=[{points:a,style:'solid'},{points:b,style:'solid'}],input=graph(width)
+      const owned=createOwnedMeasuredRouteContactValidator(routes,input)
+      if(typeof owned!=='function')throw new Error('expected owned scorer')
+      expect(owned(0)).toBe(expected!==undefined)
+      expect(scoreMeasuredRouteCrossings(a,0,routes,input)).toBe(expected)
+    }
+  })
+  test('unprepared contact fallback preserves proper crossings and live visibility', () => {
+    const routes=Array.from({length:40},(_,i)=>({points:path([[-20,i*10],[20,i*10]]),style:'solid'}))
+    routes.push({points:path([[0,-5],[0,405]]),style:'solid'})
+    const input=graph();input.edges=routes.map((_,i)=>({source:i*2,target:i*2+1,minSpan:1}))
+    const owned=createOwnedMeasuredRouteContactValidator(routes,input,undefined,undefined,true)
+    if(typeof owned!=='function')throw new Error('expected owned scorer')
+    expect(owned(40)).toBe(true)
+    expect(scoreMeasuredRouteCrossings(routes[40]!.points,40,routes,input)).toBe(40)
+    for(let i=0;i<40;i+=2)routes[i]!.style='invisible'
+    expect(owned(40)).toBe(true)
+    expect(scoreMeasuredRouteCrossings(routes[40]!.points,40,routes,input)).toBe(20)
+  })
+  test('owned preparation rejects acute support before pruning and stops immediately on exhausted work', () => {
+    const a=path([[-10,0],[0,0],[-5,8.660254037844386]]),far=path([[1000,0],[1000,20]])
+    const acute=createOwnedMeasuredRouteContactValidator([{points:a,style:'solid'},{points:far,style:'solid'}],graph())
+    expect(typeof acute==='function'?acute(0):acute).toBe(false)
+    const routes=[{points:path([[0,0],[10,0],[10,20]]),style:'solid'},{points:path([[40,0],[40,20]]),style:'solid'}],input=graph()
+    let used=0
+    const pay=(n:number)=>{used+=n}
+    const complete=createOwnedMeasuredRouteContactValidator(routes,input,pay,pay,true)
+    if(typeof complete!=='function')throw new Error('expected owned scorer')
+    expect(complete(0)).toBe(true)
+    let left=used-1,stopped=false
+    const limited=(n:number)=>{if(stopped)throw new Error('visited after exhausted debit');left-=n;if(left<0){stopped=true;return false}return true}
+    const bounded=createOwnedMeasuredRouteContactValidator(routes,input,limited,limited,true)
+    expect(typeof bounded==='function'?bounded(0):bounded).not.toBe(true)
+    expect(stopped).toBe(true)
+
+  })
+
+  test('canonical numeric seeds retain logical crossing counts, subdivision and exact boundaries', () => {
+    const seed=(routes:readonly {points:Point[];style:string}[])=>{
+      const rows=routes.map(route=>({raw:route.points.map(p=>({...p})),points:route.points.map(p=>({x:Number(formatSvgNumber(p.x)),y:Number(formatSvgNumber(p.y))}))}))
+      const horizontal:Array<{key:number;piece:{owner:number;segment:number}}>=[],vertical:typeof horizontal=[],horizontalEnds:typeof horizontal=[],verticalEnds:typeof horizontal=[]
+      rows.forEach((row,owner)=>{for(let segment=0;segment+1<row.points.length;segment++){
+        const a=row.points[segment]!,b=row.points[segment+1]!
+        const piece={owner,segment}
+        ;(a.x===b.x?vertical:horizontal).push({key:a.x===b.x?a.x:a.y,piece})
+        ;(a.x===b.x?verticalEnds:horizontalEnds).push({key:a.x===b.x?a.y:a.x,piece},{key:a.x===b.x?b.y:b.x,piece})
+      }})
+      for(const entries of [horizontal,vertical,horizontalEnds,verticalEnds])entries.sort((a,b)=>a.key-b.key||a.piece.owner-b.piece.owner||a.piece.segment-b.piece.segment)
+      return {routes:rows,horizontal,vertical,horizontalEnds,verticalEnds}
+    }
+    const samples=[...cases.map(({a,b,width})=>({a,b,width,expected:undefined})),
+      {a:path([[0,5],[5,5],[10,5]]),b:path([[5,0],[5,10]]),width:1,expected:1},
+      {a:path([[0,0],[100,0]]),b:path([[0.005,-10],[0.005,10]]),width:1,expected:undefined},
+      {a:path([[0.005,0.005],[0.1,0.005],[0.1,1],[-1,1],[-1,0],[1,0]]),b:path([[0,-2],[0,2]]),width:1e-5,expected:undefined},
+      {a:path([[0,0],[100,0]]),b:path([[0.005,-10],[0.005,10]]),width:1e-5,expected:undefined},
+      {a:path([[65536,0],[65536,20]]),b:path([[65536.1,2],[65536.1,18]]),width:0.10000000001,expected:undefined},
+      {a:path([[65536.1,0],[65536.1,20]]),b:path([[65536.2,2],[65536.2,18]]),width:0.1,expected:0},
+      {a:path([[0,0],[20,0],[20,10],[0,10],[0,20],[20,20]]),b:path([[10,-5],[10,25]]),width:1,expected:3},
+      // Actual served cardinal crossing, with an ELK-sized raw ULP drift.
+      // The generic raw-axis helper remains conservative; CONTACT now proves
+      // THIS raw and served support pair using the shared crossing primitive.
+      {a:path([[1000.0000000000001,0],[1000,10]]),b:path([[990,8.9],[1010,8.9]]),width:1,expected:undefined,admitted:true},
+      {a:path([[1000.0000000000001,0],[1000,10]]),b:path([[990,9.995],[1010,9.995]]),width:1,expected:undefined,admitted:false},
+      {a:path([[1000.0000000000001,0],[1000,8.9]]),b:path([[990,8.9],[1010,8.9]]),width:1,expected:undefined,admitted:false},
+      // A proper strip crossing never excuses the positive outer quarter.
+      {a:path([[1000.0000000000001,0],[1000,10],[1010,10]]),b:path([[990,9.75],[1020,9.75]]),width:1,expected:undefined,admitted:false}]
+    for(const sample of samples)for(const reverse of [false,true]){
+      const {a,b,width,expected}=sample
+      const routes=[{points:reverse?a.slice().reverse():a,style:'solid'},{points:reverse?b.slice().reverse():b,style:'solid'}],input=graph(width)
+      if(reverse)input.edges=input.edges.map(edge=>({...edge,source:edge.target,target:edge.source}))
+      expect(scoreMeasuredRouteCrossings(routes[0]!.points,0,routes,input)).toBe(expected)
+      const validate=createOwnedMeasuredRouteContactValidator(routes,input,undefined,undefined,true,seed(routes))
+      if(typeof validate!=='function')throw new Error('expected contact validator')
+      expect(validate(0)).toBe('admitted' in sample?sample.admitted===true:expected!==undefined)
+    }
+  })
+
 })

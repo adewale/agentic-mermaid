@@ -9,6 +9,7 @@ export interface CrossingPolyline {
 
 /** Physical pixel tolerance, independent of the length of either segment. */
 const ENDPOINT_EPSILON = 0.01
+export { ENDPOINT_EPSILON as CROSSING_ENDPOINT_RADIUS }
 
 interface Segment {
   a: CrossingPoint

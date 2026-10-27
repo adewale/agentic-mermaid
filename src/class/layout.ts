@@ -1,4 +1,4 @@
-import { measuredRouteContactPairBudget, scoreMeasuredRouteCrossings } from '../layout/measured-route-safety.ts'
+import { measuredRouteContactPairBudget, scoreMeasuredRouteCrossings, createOwnedMeasuredRouteContactValidator, type OwnedMeasuredRouteNumericSeed } from '../layout/measured-route-safety.ts'
 import type { MeasuredGraph } from '../layout/agentic-layered-core.ts'
 import { resolveDiagramColors } from '../color-resolver.ts'
 import { connectorMarkerPaintRegions } from '../scene/bounds.ts'
@@ -9,7 +9,7 @@ import { type DisplayTextInput, prepareDisplayText, resolveLabelContent } from '
 import { type PixelTextBlock, preparePixelText } from '../shared/prepared-text.ts'
 import { repairClassAnnotationSeats } from './annotation-seats.ts'
 import { type ClassElkContact, projectClassElkContacts, retainClassElkContacts } from './elk-contacts.ts'
-import { assertClassHeaderPeersClear } from './header-lanes.ts'
+import { assertClassHeaderPeersClear, finalClassHeaderNumericSeed, type ClassHeaderNumericCapture } from './header-lanes.ts'
 import { classInterfaceMarker } from './interface-occurrences.ts'
 import { assertClassMarkerMeaning, type ClassMarkerAdmissionWork, chargeClassMarkerAdmissionWork, createClassMarkerAdmissionWork } from './marker-admission.ts'
 import { buildClassEndpointMarkerTemplates } from './marker-measurement.ts'
@@ -775,7 +775,13 @@ export function finalizeClassOwnedSurfaces(result: PositionedClassDiagram, style
 
 function finalizeClassSurfaces(result: PositionedClassDiagram, style: ResolvedRenderStyle, inkWork?: ClassMarkerAdmissionWork, contacts?: readonly ClassElkContact[], stableGeometry = false): void {
   if (contacts) projectClassElkContacts(contacts, inkWork)
-  const changed = repairClassHeaderRoutes(result, style, inkWork)
+  const peerWork=inkWork??createClassMarkerAdmissionWork()
+  let numeric:ClassHeaderNumericCapture|undefined
+  if(stableGeometry&&style.edgeBendRadius===0&&result.namespaces.length&&result.relationships.length){
+    if(!chargeClassMarkerAdmissionWork(peerWork))throw new LayoutCertificationError([{strategy:'class-final-sharp-contacts',violations:['Class final contact capture work limit']}])
+    numeric={}
+  }
+  const changed = repairClassHeaderRoutes(result, style, inkWork,numeric)
   const extra = [...result.namespaces.map(ns => ({ x0: ns.x, y0: ns.y, x1: ns.x + ns.width, y1: ns.y + ns.headerHeight })), ...result.notes.map(n => ({ x0: n.x, y0: n.y, x1: n.x + n.width, y1: n.y + n.height }))]
   if (result.relationships.some(rel => rel.markerAt !== 'none')) {
     const oldLeft = result.classes[0]?.x, oldTop = result.classes[0]?.y
@@ -791,16 +797,22 @@ function finalizeClassSurfaces(result: PositionedClassDiagram, style: ResolvedRe
   if (!result.relationships.some(rel => rel.markerAt !== 'none') && changed.size) repairClassAnnotationSeats(result, style, inkWork ?? createClassMarkerAdmissionWork(), changed)
   const violations = classOwnedSurfaceViolations(result, style)
   if (violations.length) throw new LayoutCertificationError([{ strategy: 'class-owned-surfaces', violations }])
-  const peerWork=inkWork??createClassMarkerAdmissionWork()
-  assertClassHeaderPeersClear(result,changed,style,()=>chargeClassMarkerAdmissionWork(peerWork))
-  assertFinalClassSharpContacts(result, style, peerWork, stableGeometry)
+  // The private snapshot has one complete sharp authority. General/live and
+  // rounded callers keep their original fresh header-peer validation.
+  if(!stableGeometry||style.edgeBendRadius!==0)assertClassHeaderPeersClear(result,changed,style,()=>chargeClassMarkerAdmissionWork(peerWork))
+  let seed:OwnedMeasuredRouteNumericSeed|undefined
+  if(numeric){
+    if(!chargeClassMarkerAdmissionWork(peerWork))throw new LayoutCertificationError([{strategy:'class-final-sharp-contacts',violations:['Class final contact capture work limit']}])
+    seed=finalClassHeaderNumericSeed(numeric,result.relationships,style,()=>chargeClassMarkerAdmissionWork(peerWork))
+  }
+  assertFinalClassSharpContacts(result, style, peerWork, stableGeometry,changed.size>0,seed)
 }
 
 /** Title bands and leading note seats translate Number coordinates after the
  * root producer proof. Canonical SVG spelling is not translation-invariant;
  * recheck every final sharp pair against the SAME request's remaining work. */
-function assertFinalClassSharpContacts(result: PositionedClassDiagram, style: ResolvedRenderStyle, work: ClassMarkerAdmissionWork, stableGeometry: boolean): void {
-  if (style.edgeBendRadius !== 0 || result.relationships.length < 2) return
+function assertFinalClassSharpContacts(result: PositionedClassDiagram, style: ResolvedRenderStyle, work: ClassMarkerAdmissionWork, stableGeometry: boolean,validateSegments=false,seed?:OwnedMeasuredRouteNumericSeed): void {
+  if (style.edgeBendRadius !== 0 || result.relationships.length < 2&&!(stableGeometry&&validateSegments)) return
   const refuse = (message: string): never => { throw new LayoutCertificationError([{ strategy: 'class-final-sharp-contacts', violations: [message] }]) }
   const pay = (amount = 1): void => {
     for (let i = 0; i < amount; i++) if (!chargeClassMarkerAdmissionWork(work)) refuse('Class final sharp contact work limit')
@@ -820,6 +832,16 @@ function assertFinalClassSharpContacts(result: PositionedClassDiagram, style: Re
   }
   const routes = result.relationships.map(rel => ({ points: rel.points, style: 'solid' }))
   pay()
+  if(stableGeometry){
+    const prepared=createOwnedMeasuredRouteContactValidator(routes,input,pay,pay,validateSegments,seed)
+    if(prepared===false)refuse('Final Class routes have unsupported cardinal support')
+    const validate=typeof prepared==='function'?prepared:refuse('Class final sharp contact work limit')
+    for(let index=0;index+1<routes.length;index++){
+      if(!validate(index))refuse('Final Class routes have an uncertified shared contact')
+      routes[index]!.style='invisible'
+    }
+    return
+  }
   const pairBudget = measuredRouteContactPairBudget(input)
   let remaining = 0
   for (const route of routes) { pay(); remaining += Math.max(0, route.points.length - 1) }
