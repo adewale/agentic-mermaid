@@ -1410,7 +1410,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     after: ['alignLabeledSourcePort'], mutates: ['edges'], determinism: 'pure-order',
     enabled: c => c.mergeEdges,
     run: c => {
-      c.bundled = bundleEdgePaths(c.edges, c.nodes, c.groups, c.graph.direction)
+      c.bundled = bundleEdgePaths(c.edges, c.nodes, c.groups, c.graph.direction, c.style)
       c.genericBundled = c.bundled.size > 0
     },
   },

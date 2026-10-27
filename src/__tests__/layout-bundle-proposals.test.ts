@@ -1,15 +1,96 @@
-import '../index.ts'
+import { renderMermaidSVGWithReceipt } from '../index.ts'
+import { scanSvgStartTags } from '../svg-structure.ts'
 import { describe, expect, test } from 'bun:test'
 import { LAYOUT_PIPELINE, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { withRenderStageObserver } from '../render-stages.ts'
 import { assessLayout, hardViolations } from '../layout-rubric.ts'
+import { bundleEdgePaths } from '../layout/passes/edge-bundling.ts'
+import { resolveRenderStyle } from '../styles.ts'
+import type { PositionedEdge, PositionedNode } from '../types.ts'
 import { flowchartMesh } from '../../eval/shared/graph-fixtures.ts'
 
 // This existing dense fixture still benefits from a route comparison after
 // placement selection. The former small skip-link fixture is now clean in its
 // first proposal because layer alignment preserves outward terminal shafts.
 const source = flowchartMesh(50, 20)
+
+describe('bundle complete foreign ink admission', () => {
+  const state = `stateDiagram-v2\n[*] --> Still\nStill --> [*]\nStill --> Moving\nMoving --> Still\nMoving --> Crash\nCrash --> [*]`
+  for (const [name, source] of [['State0', `---\ntitle: Simple sample\n---\n${state}`], ['State1', state.replace('stateDiagram-v2', 'stateDiagram')], ['State16', state.replace('Still --> Moving', '%% comment\nStill --> Moving')]] as const) {
+    test(`${name}: Still-to-end shaft and markers clear the whole Moving artwork`, () => {
+      const result = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'elk', fallback: 'none' } })
+      const tags = scanSvgStartTags(result.svg).map(tag => ({ name: tag.name, ...Object.fromEntries(tag.attributes.map(a => [a.name, a.value])) })) as Array<Record<string, string>>
+      const artwork = tags.find(tag => tag['data-id'] === 'node-shape:Moving')!
+      const route = tags.find(tag => tag['data-from'] === 'Still' && tag['data-to'] === '_end')!
+      expect(artwork).toBeDefined()
+      expect(route.name).toBe('polyline')
+      const points = route.points!.split(/\s+/).map(token => { const [x, y] = token.split(',').map(Number); return { x: x!, y: y! } })
+      const half = Number(route['stroke-width']) / 2, border = Number(artwork['stroke-width']) / 2
+      const x = Number(artwork.x), y = Number(artwork.y), width = Number(artwork.width), height = Number(artwork.height)
+      const box = { x0: x - border, x1: x + width + border, y0: y - border, y1: y + height + border }
+      for (let i = 1; i < points.length; i++) {
+        const a = points[i - 1]!, b = points[i]!
+        expect(a.x === b.x || a.y === b.y).toBe(true)
+        expect(Math.max(a.x, b.x) + half > box.x0 && Math.min(a.x, b.x) - half < box.x1
+          && Math.max(a.y, b.y) + half > box.y0 && Math.min(a.y, b.y) - half < box.y1).toBe(false)
+      }
+      // This literal emitted resource is hidden-viewport arrowhead8×5/ref8,2.5,
+      // on a width1 southward terminal. Its whole painted viewport clears Moving.
+      const marker = tags.find(tag => tag.name === 'marker' && tag.id === 'arrowhead')!
+      expect([marker.markerWidth, marker.markerHeight, marker.refX, marker.refY]).toEqual(['8', '5', '8', '2.5'])
+      expect(route['stroke-width']).toBe('1')
+      const tip = points.at(-1)!, previous = points.at(-2)!
+      expect(tip.x).toBe(previous.x)
+      expect(tip.y).toBeGreaterThan(previous.y)
+      expect(tip.x + 2.5 > box.x0 && tip.x - 2.5 < box.x1 && tip.y > box.y0 && tip.y - 8 < box.y1).toBe(false)
+      const authored = parseMermaid(state).edges.map(e => [e.source, e.target, String(e.hasArrowStart), String(e.hasArrowEnd)])
+      expect(tags.filter(tag => tag['data-role'] === 'edge').map(tag => [tag['data-from'], tag['data-to'], tag['data-arrow-start'], tag['data-arrow-end']])).toEqual(authored)
+      if (name === 'State0') expect(result.svg).toContain('Simple sample')
+
+    })
+  }
+
+  test.each([true, false])('a bundle marker cannot paint a foreign tiny card (marked=%s)', marked => {
+    const nodes: PositionedNode[] = [
+      { id: 'A', label: 'A', shape: 'rectangle', x: 40, y: 0, width: 40, height: 40 },
+      { id: 'B', label: 'B', shape: 'rectangle', x: 40, y: 100, width: 40, height: 40 },
+      { id: 'C', label: 'C', shape: 'rectangle', x: 140, y: 100, width: 40, height: 40 },
+      { id: 'P', label: '', shape: 'rectangle', x: 57.51, y: 92.01, width: 0.05, height: 0.02 },
+    ]
+    const edges: PositionedEdge[] = ['B', 'C'].map(target => ({ source: 'A', target, points: [{ x: 80, y: 20 }, { x: 110, y: 20 }, { x: 110, y: 120 }, { x: target === 'B' ? 80 : 140, y: 120 }], style: 'solid', hasArrowStart: false, hasArrowEnd: marked }))
+    const before = edges.map(edge => edge.points)
+    const bundled = bundleEdgePaths(edges, nodes, [], 'TB', resolveRenderStyle())
+    expect(bundled.size).toBe(marked ? 0 : 2)
+    if (marked) for (let i = 0; i < edges.length; i++) expect(edges[i]!.points).toBe(before[i]!)
+  })
+  test.each(['var(--edge-width)', '2%', '1px'])('unknown authored width cannot authorize a bundle: %s', width => {
+    const nodes: PositionedNode[] = [
+      { id: 'A', label: 'A', shape: 'rectangle', x: 40, y: 0, width: 40, height: 40 },
+      { id: 'B', label: 'B', shape: 'rectangle', x: 40, y: 100, width: 40, height: 40 },
+      { id: 'C', label: 'C', shape: 'rectangle', x: 140, y: 100, width: 40, height: 40 },
+    ]
+    const edges: PositionedEdge[] = ['B', 'C'].map(target => ({ source: 'A', target, points: [{ x: 80, y: 20 }, { x: 110, y: 20 }, { x: 110, y: 120 }, { x: target === 'B' ? 80 : 140, y: 120 }], style: 'solid', hasArrowStart: false, hasArrowEnd: true, inlineStyle: { 'stroke-width': width } }))
+    const before = edges.map(edge => edge.points)
+    const bundled = bundleEdgePaths(edges, nodes, [], 'TB', resolveRenderStyle())
+    expect(bundled.size).toBe(width === '1px' ? 2 : 0)
+    if (width !== '1px') for (let i = 0; i < edges.length; i++) expect(edges[i]!.points).toBe(before[i]!)
+  })
+
+  test('a shaft touching the full header by its stroke retains its old route', () => {
+    const nodes: PositionedNode[] = [
+      { id: 'A', label: 'A', shape: 'rectangle', x: 40, y: 0, width: 40, height: 40 },
+      { id: 'B', label: 'B', shape: 'rectangle', x: 40, y: 100, width: 40, height: 40 },
+      { id: 'C', label: 'C', shape: 'rectangle', x: 140, y: 100, width: 40, height: 40 },
+    ]
+    const edges: PositionedEdge[] = ['B', 'C'].map(target => ({ source: 'A', target, points: [{ x: 80, y: 20 }, { x: 110, y: 20 }, { x: 110, y: 120 }, { x: target === 'B' ? 80 : 140, y: 120 }], style: 'solid', hasArrowStart: false, hasArrowEnd: false }))
+    const before = edges.map(edge => edge.points)
+    const bundled = bundleEdgePaths(edges, nodes, [{ id: 'G', label: 'G', x: 60.1, y: 45, width: 6, height: 4, headerHeight: 4, children: [] }], 'TB', resolveRenderStyle())
+    expect(bundled.size).toBe(0)
+    for (let i = 0; i < edges.length; i++) expect(edges[i]!.points).toBe(before[i]!)
+  })
+
+})
 
 describe('bounded generic bundle proposals', () => {
   test.each([
