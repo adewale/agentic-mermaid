@@ -22,6 +22,28 @@ const modern = startModernReference(referenceDir)
 const grammar = startGrammarReference(referenceDir, upstream)
 const results: unknown[] = []
 
+test('ZenUML uses the exact real core parser for valid, invalid and header-mutated selected payloads', async () => {
+  const preparation = await grammar.prepare('zenuml', 'zenuml\nA->B: valid')
+  expect(preparation).toMatchObject({ engine: 'zenuml-core', parserIdentity: { parser: '@zenuml/core@3.47.9', addon: '@mermaid-js/mermaid-zenuml@1.0.1' } })
+  for (const [source, accepted] of [['zenuml', true], ['zenuml\nA->B: valid', true], ['zenuml\nA.call() {', false], ['zenuml\nif(ok) {\nA->B: missing close', false]] as const) {
+    const regular = await modern.parse(source), selected = await grammar.parse('zenuml', source), control = await grammar.control('zenuml', source)
+    results.push({ name: 'Real pinned ZenUML parser control', source, expectedAccepted: accepted, regular, selected, control })
+    expect(regular.ok).toBe(accepted)
+    expect(selected.accepted).toBe(accepted)
+    expect(control.accepted).toBe(accepted)
+    expect(selected.parserIdentity?.parser).toBe('@zenuml/core@3.47.9')
+    for (const observation of [selected.tokens, selected.actions, selected.ast]) expect(observation.status).toBe('unavailable')
+    if (!regular.ok) expect(regular.error).toContain('@zenuml/core@3.47.9 rejected source')
+  }
+  for (const [source, accepted] of [['brokenHeader\nA->B: valid payload', true], ['brokenHeader\nA.call() {', false]] as const) {
+    const selected = await grammar.parse('zenuml', source)
+    results.push({ name: 'Selected ZenUML payload with changed envelope header', source, expectedAccepted: accepted, selected })
+    expect(selected.accepted).toBe(accepted)
+    expect(selected.preparedSource).toContain('A')
+    expect(selected.engine).toBe('zenuml-core')
+  }
+})
+
 test('grammar triage checks canonical output even for a reviewed generous read', async () => {
   await grammar.prepare('flowchart', 'flowchart LR\nA --> B')
   const witness: ReviewedGrammarWitness = { family: 'flowchart', source: 'graph TD;A[Hello]', disposition: 'reader-extension', reason: 'Reviewed compact statements', origins: [] }

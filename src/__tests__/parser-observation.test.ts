@@ -6,6 +6,7 @@ import { parseMermaid } from '../parser.ts'
 import { withPerformanceExperiments } from '../experimental-performance.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
 import { observeParserMutation, type ParserObservation, withParserObservation } from '../shared/parser-observation.ts'
+import { parseZenUML } from '../zenuml/native-parser.ts'
 
 describe('native parser observation', () => {
   test('selective mutation observation avoids reading excluded payloads and restores the enclosing scope', () => {
@@ -102,6 +103,32 @@ describe('native parser observation', () => {
     expect(events.find(event => event.kind === 'participant.apply')?.value).toMatchObject({ kind: 'declare', id: 'A', label: 'Alice' })
     expect(events.find(event => event.kind === 'add-message')?.value).toMatchObject({ from: 'A', to: 'B', label: 'hello', startHead: 'filled', endHead: 'filled' })
     expect(events.filter(event => event.kind === 'open-block').map(event => event.value)).toEqual([expect.objectContaining({ id: 1, block: expect.objectContaining({ type: 'alt', label: 'Outer' }) }), expect.objectContaining({ id: 2, block: expect.objectContaining({ type: 'loop', label: 'Inner', parent: 1 }) })])
+  })
+
+  test('Zen observes actual consumed spans and copied appends before readdressing or a later rejection', () => {
+    const source = '---\r\ntitle: Observed\r\n---\r\nzenuml\r\naccTitle: Request\r\nAPI as Gateway\r\nAPI.call("🙂,{ }") {\r\n  B->API: https://example/a//b?x={}\r\n}\r\n'
+    const events: ParserObservation[] = []
+    const body = withParserObservation('zenuml', event => events.push(event), () => parseZenUML(source))
+    expect(body).toEqual(parseZenUML(source))
+    const statements = events.filter(event => event.unit === 'statement')
+    expect(statements.map(event => event.text)).toEqual(['API as Gateway', 'API.call("🙂,{ }")', '{', 'B->API: https://example/a//b?x={}', '}'])
+    for (const event of statements) {
+      expect(event.source?.unit).toBe('physical')
+      expect(source.slice(event.source!.offset, event.source!.endOffset)).toBe(event.text!)
+    }
+    expect(events.filter(event => event.kind === 'append-statement').map(event => event.value)).toMatchObject([
+      { kind: 'message', from: 'B', to: 'API', label: 'https://example/a//b?x={}' },
+      { kind: 'call', to: 'API', label: 'call("🙂,{ }")', children: [{ kind: 'message', from: 'B', to: 'API' }] },
+    ])
+    const readdressed: ParserObservation[] = []
+    const renamed = withParserObservation('zenuml', event => readdressed.push(event), () => parseZenUML('zenuml\n"statement:1"\nA->B: first'))
+    expect(renamed.statements[0]!.id).toBe('statement:2')
+    expect(readdressed.find(event => event.kind === 'append-statement')?.value).toMatchObject({ id: 'statement:1' })
+    expect(readdressed.find(event => event.kind === 'readdress-statement')?.value).toEqual({ from: 'statement:1', to: 'statement:2' })
+    const rejected: ParserObservation[] = []
+    expect(() => withParserObservation('zenuml', event => rejected.push(event), () => parseZenUML('zenuml\nA->B: consumed\n}'))).toThrow('Unmatched ZenUML closing brace')
+    expect(rejected.find(event => event.kind === 'append-statement')?.value).toMatchObject({ kind: 'message', label: 'consumed' })
+    expect(rejected.filter(event => event.unit === 'statement').map(event => event.text)).toEqual(['A->B: consumed', '}'])
   })
 
   test('restores nested observers after rejection and isolates parser calls made by callbacks', () => {

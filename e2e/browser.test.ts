@@ -368,15 +368,12 @@ it('resolved circle and ellipse paths preserve the native stroke traversal for d
 
 it('standalone editor stays within its single-renderer payload budget', async () => {
   const html = new Uint8Array(await Bun.file(join(ROOT, 'editor.html')).arrayBuffer())
-  // Paired Bun 1.4.2 builds at main 6e5633f5 and its Class preservation
-  // rebase, gzip level 9: raw 4,433,341 → 4,433,594; gzip 1,335,812 → 1,335,873.
-  // Reusing graph-builder metadata avoids duplicate namespace work. Preserving
-  // authored IDs, ancestry and empty content adds 253 raw / 61 gzip bytes.
-  // Retain 106 raw / 77 gzip bytes of headroom for these correctness fixes.
-  // One renderer still serves the main/worker realms; the single-engine and
-  // relative payload gates also apply.
-  expect(html.byteLength).toBeLessThanOrEqual(4_433_700)
-  expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_335_950)
+  // Bun 1.4.2 against main e7360e82: 4,433,594 → 4,492,543 raw;
+  // gzip level 9: 1,335,873 → 1,353,845 (+17,972 bytes). Native Zen
+  // semantics reuse Sequence layout/Scene rather than embedding its vendor.
+  // Keep about 500 bytes of headroom; relative payload gates also apply.
+  expect(html.byteLength).toBeLessThanOrEqual(4_493_100)
+  expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_354_150)
 })
 
 it('standalone editor renders and verifies with one persistent Blob worker', async () => {

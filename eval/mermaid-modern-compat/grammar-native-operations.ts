@@ -1,3 +1,4 @@
+import { projectNativeEventModelingOperations, projectReferenceEventModelingOperations } from './grammar-native-eventmodeling.ts'
 import { normalizeBrTags } from '../../src/multiline-utils.ts'
 import type { ParserObservation } from '../../src/shared/parser-observation.ts'
 import { projectNativeC4Operations, projectReferenceC4Operations } from './grammar-native-c4.ts'
@@ -56,6 +57,7 @@ function account(result: NativeOperationProjection, kind: string, selected: bool
  * Operations are never sorted; ignored implementation-specific work is counted.
  */
 export function projectNativeOperations(family: string, events: readonly ParserObservation[]): NativeOperationProjection | undefined {
+  if (family === 'eventmodeling') return projectNativeEventModelingOperations(family, events)
   if (family === 'c4') return projectNativeC4Operations(events)
   const stable = projectNativeStableOperations(family, events)
   if (stable) return stable
@@ -205,6 +207,7 @@ export function projectNativeOperations(family: string, events: readonly ParserO
  * calls. Getter snapshots, returned IR and canonical serialization are unused.
  */
 export function projectReferenceOperations(family: string, reply: GrammarReferenceReply): NativeOperationProjection | undefined {
+  if (family === 'eventmodeling') return projectReferenceEventModelingOperations(family, reply)
   if (family === 'c4') return projectReferenceC4Operations(reply)
   const stable = projectReferenceStableOperations(family, reply)
   if (stable) return stable

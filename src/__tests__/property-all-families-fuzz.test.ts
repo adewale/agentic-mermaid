@@ -93,6 +93,25 @@ function structuredBodyInventory(d: ParsedDiagram): SemanticInventory {
     }
   }
   switch (body.kind) {
+    case 'eventmodeling': {
+      // Independent domain projection: first-seen namespace/band membership,
+      // explicit source references, otherwise latest frame in another lane.
+      const lanes = new Map<string, { id: string; members: string[] }>()
+      const laneOf = (frame: typeof body.frames[number]) => {
+        const parts = frame.entity.split('.'), namespace = parts.slice(0, -1).join('.')
+        const band = frame.type === 'event' ? 'Events' : frame.type === 'command' || frame.type === 'readmodel' ? 'Command / Read Model' : 'UI / Automation'
+        return namespace ? `${namespace} · ${band}` : band
+      }
+      const relations: string[] = []
+      body.frames.forEach((frame, index) => {
+        const name = laneOf(frame), lane = lanes.get(name) ?? { id: `lane:${lanes.size}`, members: [] }
+        lane.members.push(frame.id); lanes.set(name, lane)
+        const previous = body.frames.slice(0, index).reverse().find(other => laneOf(other) !== name)
+        const sources = frame.sources.length ? frame.sources : !frame.reset && previous ? [previous.id] : []
+        relations.push(...sources.map(from => edge(from, frame.id)))
+      })
+      return { nodes: sorted(body.frames.map(frame => item(frame.id, frame.entity))), edges: sorted(relations), groups: sorted([...lanes].map(([label, lane]) => group(lane.id, label, lane.members))) }
+    }
     case 'packet':
       return { nodes: sorted(body.fields.flatMap(field => Array.from({ length: Math.floor(field.end / 32) - Math.floor(field.start / 32) + 1 }, (_, index) => item(`${field.id}:row-${Math.floor(field.start / 32) + index}`, field.label)))), edges: [], groups: [] }
     case 'kanban':
@@ -176,6 +195,12 @@ function structuredBodyInventory(d: ParsedDiagram): SemanticInventory {
             ),
           ),
         ),
+      }
+    case 'zenuml':
+      return {
+        nodes: sorted(body.participants.map(p => item(p.id, p.label))),
+        edges: sorted(body.statements.flatMap(statement => statement.kind === 'message' ? [edge(statement.from, statement.to, statement.label)] : [])),
+        groups: [],
       }
     case 'sequence':
       return {

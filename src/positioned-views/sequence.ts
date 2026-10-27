@@ -7,21 +7,31 @@ import { f, routeOrthogonal, bendCount, labelRect, retainedLabelGeometry } from 
 
 export function projectSequencePositioned({ positioned, options }: FamilyPositionedProjectionContext<PositionedSequenceDiagram>): FamilyPositionedView {
   const lifelineByActor = new Map(positioned.lifelines.map(l => [l.actorId, l.x]))
+  const firstMessageY = new Map<string, number>()
+  for (const message of positioned.messages) for (const id of [message.from, message.to]) if (!firstMessageY.has(id)) firstMessageY.set(id, message.y)
+  const membersByBlock = new Map<string, string[]>()
+  for (const note of positioned.notes) if (note.parentId !== undefined && note.id !== undefined) {
+    const members = membersByBlock.get(note.parentId) ?? []
+    members.push(note.id)
+    membersByBlock.set(note.parentId, members)
+  }
   const nodes: RenderedLayoutNode[] = [
     ...positioned.actors.map(a => ({
       id: a.id,
-      x: f(a.bounds.x),
-      y: f(a.bounds.y),
-      w: f(a.bounds.width),
-      h: f(a.bounds.height),
-      shape: 'rectangle',
+      x: f(a.external ? a.x : a.bounds.x),
+      y: f(a.external ? firstMessageY.get(a.id) ?? a.y : a.bounds.y),
+      w: f(a.external ? 0 : a.bounds.width),
+      h: f(a.external ? 0 : a.bounds.height),
+      shape: a.external ? 'external-anchor' : 'rectangle',
       label: a.label,
       labelBounds: labelRect(a.labelPosition.bounds),
       labelContainer: labelRect(a.bounds),
-      role: 'box' as const,
+      ...(a.external ? { labelVisibility: 'semantic' as const } : {}),
+      role: a.external ? 'mark' as const : 'box' as const,
     })),
     ...positioned.notes.map((n, i) => ({
-      id: `note#${i}`,
+      id: n.id ?? `note#${i}`,
+      ...(n.parentId === undefined ? {} : { parentId: n.parentId }),
       x: f(n.x),
       y: f(n.y),
       w: f(n.width),
@@ -36,7 +46,8 @@ export function projectSequencePositioned({ positioned, options }: FamilyPositio
     version: 1,
     nodes,
     edges: positioned.messages.map((m, i) => ({
-      id: `msg#${i}:${m.from}->${m.to}`,
+      id: m.id ?? `msg#${i}:${m.from}->${m.to}`,
+      ...(m.parentId === undefined ? {} : { parentId: m.parentId }),
       from: m.from,
       to: m.to,
       path: m.points.map(p => [f(p.x), f(p.y)] as [Finite, Finite]),
@@ -44,12 +55,13 @@ export function projectSequencePositioned({ positioned, options }: FamilyPositio
       route: options.debug ? sequenceRouteCertificate(i, m, m.points, lifelineByActor) : undefined,
     })),
     groups: positioned.blocks.map((b, i) => ({
-      id: `block#${i}:${b.type}`,
+      id: b.id ?? `block#${i}:${b.type}`,
+      ...(b.parentId === undefined ? {} : { parentId: b.parentId }),
       x: f(b.bounds.x),
       y: f(b.bounds.y),
       w: f(b.bounds.width),
       h: f(b.bounds.height),
-      members: [],
+      members: b.id === undefined ? [] : membersByBlock.get(b.id) ?? [],
       label: b.label,
     })),
     bounds: { w: f(positioned.width), h: f(positioned.height) },

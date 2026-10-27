@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="809.495" height="517.7" viewBox="0 0 809.495 517.7" style="--bg:#fdf6e3;--fg:#657b83;--line:#93a1a1;--accent:#268bd2;--muted:#93a1a1;--surface:#ead9b9;--border:#5a564e;--font:Caveat;background:#fdf6e3" class="am-0gfx6m70a5kd5i">
+<style>
+  svg.am-0gfx6m70a5kd5i { font-family: var(--font, 'Caveat'), system-ui, sans-serif; }
+  svg.am-0gfx6m70a5kd5i {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #657b83;
+    --_text-sec:      #93a1a1;
+    --_text-muted:    #93a1a1;
+    --_text-faint:    #abb4af;
+    --_line:          #93a1a1;
+    --_arrow:         #268bd2;
+    --_node-fill:     #ead9b9;
+    --_node-stroke:   #5a564e;
+    --_group-fill:    #fdf6e3;
+    --_group-hdr:     #f5f0de;
+    --_inner-stroke:  #ebe7d7;
+    --_key-badge:     #eeead9;
+  }
+</style>
+<rect width="809.495" height="517.7" fill="#fdf6e3" data-backdrop="page" />
+<defs>  <marker id="eventmodeling-arrow" markerWidth="8" markerHeight="8" refX="8" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+    <polygon points="0 0, 8 4, 0 8" fill="#839193" />
+  </marker></defs>
+<g data-id="lane:0" data-role="group">
+  <path d="M22.72,51.244 L785.25,52.877 L785.532,147.933 L23.27,148.585 Z" fill="#fdf6e3" fill-opacity="0.3" stroke="none" />
+  <path d="M22.72,51.244 L785.25,52.877 L785.532,147.933 L23.27,148.585 Z" fill="none" stroke="#fdf6e3" stroke-width="1.4" stroke-opacity="0.34" />
+  <path d="M23.86 51.9 C314.21 52.78, 604.54 52.31, 785.67 51.34 M784.18 52.68 C783.36 84.05, 783.69 117.35, 785.11 147.51 M785.14 148.28 C605.48 150, 425.76 150.29, 24.12 148.41 M25.08 149.7 C24.33 114.45, 22.89 77.52, 25.33 50.99" fill="none" stroke="#5a564e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+  <text paint-order="stroke" stroke="#fdf6e3" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="36" y="100.375" text-anchor="start" font-family="Caveat" font-size="12" font-weight="600" fill="#52636a" data-prepared-text="true" dy="4.2" textLength="83.16" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">UI / Automation</text>
+</g>
+<g data-id="lane:1" data-role="group">
+  <path d="M24.633,197.963 L785.782,197.297 L784.842,300.128 L23.033,301.05 Z" fill="#fdf6e3" fill-opacity="0.3" stroke="none" />
+  <path d="M24.633,197.963 L785.782,197.297 L784.842,300.128 L23.033,301.05 Z" fill="none" stroke="#fdf6e3" stroke-width="1.4" stroke-opacity="0.34" />
+  <path d="M23.41 197.03 C273.3 197.78, 523.32 197.59, 785.98 196.43 M786.13 198.04 C786.46 219.48, 787.24 238.75, 785.45 302.43 M784.91 300.51 C599.87 301.81, 415.48 301.85, 24.05 301.53 M22.53 299.19 C22.35 269.18, 22.95 237.37, 25.3 195.55" fill="none" stroke="#5a564e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+  <text paint-order="stroke" stroke="#fdf6e3" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="36" y="248.85" text-anchor="start" font-family="Caveat" font-size="12" font-weight="600" fill="#52636a" data-prepared-text="true" dy="4.2" textLength="132.12" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Command / Read Model</text>
+</g>
+<g data-id="lane:2" data-role="group">
+  <path d="M24.787,348.412 L785.632,349.712 L785.842,445.397 L23.308,444.647 Z" fill="#fdf6e3" fill-opacity="0.3" stroke="none" />
+  <path d="M24.787,348.412 L785.632,349.712 L785.842,445.397 L23.308,444.647 Z" fill="none" stroke="#fdf6e3" stroke-width="1.4" stroke-opacity="0.34" />
+  <path d="M24.13 349.66 C300.05 349.8, 577.32 350.55, 785.4 348.86 M784.16 350.63 C785.05 378.49, 786.33 411.77, 784.47 444.4 M785.57 446.3 C496.66 446.4, 208.28 445.48, 24.62 445.97 M23.79 444.65 C24.38 417.88, 24.39 389.98, 22.65 350.18" fill="none" stroke="#5a564e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+  <text paint-order="stroke" stroke="#fdf6e3" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="36" y="397.325" text-anchor="start" font-family="Caveat" font-size="12" font-weight="600" fill="#52636a" data-prepared-text="true" dy="4.2" textLength="42.12" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Events</text>
+</g>
+<polyline stroke-opacity="0" points="304.87,100.375 368.495,100.375 368.495,248.85 392.12,248.85" fill="none" stroke="#839193" stroke-width="1" marker-end="url(#eventmodeling-arrow)" data-relationship="inferred" data-direction="forward" data-id="relation:01:02" data-role="edge" data-from="01" data-to="02" role="graphics-symbol" aria-roledescription="relation" aria-label="01 to 02" />
+<path d="M305.88 101.86 C328.05 98.6, 349.28 101.32, 368.54 98.83 M366.82 99.44 C369.95 156.71, 367.93 210.95, 368.02 247.71 M366.94 248.41 C376.77 247.08, 382.63 248.93, 392.22 247.32" fill="none" stroke="#839193" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" />
+<polyline stroke-opacity="0" points="545.979,248.85 576.495,248.85 576.495,397.325 600.12,397.325" fill="none" stroke="#839193" stroke-width="1" marker-end="url(#eventmodeling-arrow)" data-relationship="inferred" data-direction="forward" data-id="relation:02:03" data-role="edge" data-from="02" data-to="03" role="graphics-symbol" aria-roledescription="relation" aria-label="02 to 03" />
+<path d="M546.1 249.1 C553.54 248.25, 559.73 248.11, 578.23 250.08 M577.64 249.01 C576.31 279.77, 578.07 310.47, 575.48 397.34 M575.95 398.82 C585.95 396.96, 595.33 396.52, 599.48 395.8" fill="none" stroke="#839193" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" />
+<g data-parent="lane:0" data-id="01" data-role="node">
+  <path d="M183.302,68.523 L305.061,67.425 L303.806,132.764 L183.431,133.595 Z" fill="#ead9b9" fill-opacity="0.3" stroke="none" />
+  <path d="M183.302,68.523 L305.061,67.425 L303.806,132.764 L183.431,133.595 Z" fill="none" stroke="#ead9b9" stroke-width="1.4" stroke-opacity="0.34" />
+  <path d="M189.2 68.68 C225.75 68.15, 257.53 67.11, 299.3 67.55 M299.5 68.38 C303.82 69.72, 305.8 70.45, 306.13 74.96 M305.4 74.94 C303.77 93.14, 305.37 111.77, 305.86 128.12 M304.5 127.38 C304.04 130.06, 301.42 130.97, 301.05 131.96 M299.57 133.59 C263.07 131.06, 226.97 131.87, 187.84 131.14 M189.5 132.38 C186.2 131.8, 185.6 130.62, 183.07 127.94 M184.57 128.74 C185.4 106.92, 186.13 86.24, 184.08 73.48 M184.5 73.38 C184.78 68.43, 187.63 69.74, 190.37 69.38 M189.5 68.38 C189.5 68.38, 189.5 68.38, 189.5 68.38" fill="none" stroke="#5a564e" stroke-width="1.125" stroke-linecap="round" stroke-linejoin="round" />
+  <text paint-order="stroke" stroke="#fdf6e3" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="244.495" y="100.375" text-anchor="middle" font-family="Caveat" font-size="13" font-weight="500" fill="#52636a" data-prepared-text="true"><tspan x="244.495" y="96.475"><tspan x="244.495" text-anchor="middle" data-text-fragment="true">01 · ui</tspan></tspan><tspan x="244.495" y="113.375">CartUI</tspan></text>
+</g>
+<g data-parent="lane:1" data-id="02" data-role="node">
+  <path d="M391.84,212.892 L546.159,211.929 L545.544,285.065 L393.012,284.43 Z" fill="#ead9b9" fill-opacity="0.3" stroke="none" />
+  <path d="M391.84,212.892 L546.159,211.929 L545.544,285.065 L393.012,284.43 Z" fill="none" stroke="#ead9b9" stroke-width="1.4" stroke-opacity="0.34" />
+  <path d="M396.94 214.83 C435.81 212.58, 469.8 213.26, 541.33 213.81 M540.6 213.13 C545.68 212.8, 545.15 213.16, 546.08 219.18 M545.61 216.78 C544.12 232.27, 544.22 243.72, 547.33 281.01 M545.6 279.57 C545.4 284.06, 544.83 283.53, 540.08 284.3 M539.38 284.88 C497.07 286.01, 453.4 283.12, 398.54 283.62 M397.5 284.57 C394.89 284.21, 391.82 282.94, 393.81 278.29 M392.71 278.01 C392 256.65, 393.62 233.84, 392.32 218.25 M392.5 218.13 C390.76 215.07, 392.98 214.02, 395.79 214.03 M397.5 213.13 C397.5 213.13, 397.5 213.13, 397.5 213.13" fill="none" stroke="#5a564e" stroke-width="1.125" stroke-linecap="round" stroke-linejoin="round" />
+  <text paint-order="stroke" stroke="#fdf6e3" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="469.0495" y="248.85" text-anchor="middle" font-family="Caveat" font-size="13" font-weight="500" fill="#52636a" xml:space="preserve" data-prepared-text="true"><tspan x="469.0495" y="236.5"><tspan x="469.0495" text-anchor="middle" data-text-fragment="true">02 · command</tspan></tspan><tspan x="469.0495" y="253.4">AddItem</tspan><tspan x="469.0495" y="270.3"> description: string </tspan></text>
+</g>
+<g data-parent="lane:2" data-id="03" data-role="node">
+  <path d="M601.409,365.677 L727.25,364.879 L725.01,429.642 L600.267,428.515 Z" fill="#ead9b9" fill-opacity="0.3" stroke="none" />
+  <path d="M601.409,365.677 L727.25,364.879 L725.01,429.642 L600.267,428.515 Z" fill="none" stroke="#ead9b9" stroke-width="1.4" stroke-opacity="0.34" />
+  <path d="M603.91 363.66 C636.37 365.9, 665.16 364.65, 720.08 366.28 M721.26 365.32 C724.49 365.73, 726.29 366.3, 724.76 369.99 M726.4 370.31 C724.93 390.55, 725.98 412.33, 725.62 425.24 M726.26 424.32 C724.56 426.13, 724.8 429.18, 722.8 430.97 M721.47 427.81 C677.06 429.54, 635.61 427.49, 605.66 428.77 M605.5 429.32 C603.26 427.55, 599.03 426.86, 600.96 425.02 M600.79 422.84 C601.16 403.55, 600.94 384.61, 599.19 370.82 M600.5 370.32 C600.99 366.67, 600.93 367.03, 606.72 363.85 M605.5 365.32 C605.5 365.32, 605.5 365.32, 605.5 365.32" fill="none" stroke="#5a564e" stroke-width="1.125" stroke-linecap="round" stroke-linejoin="round" />
+  <text paint-order="stroke" stroke="#fdf6e3" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="663.38" y="397.325" text-anchor="middle" font-family="Caveat" font-size="13" font-weight="500" fill="#52636a" data-prepared-text="true"><tspan x="663.38" y="393.425"><tspan x="663.38" text-anchor="middle" data-text-fragment="true">03 · event</tspan></tspan><tspan x="663.38" y="410.325">ItemAdded</tspan></text>
+</g>
+</svg>

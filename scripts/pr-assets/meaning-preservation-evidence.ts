@@ -87,6 +87,12 @@ const stableRepresentativeCues = {
 const ownershipGoldenIds = new Set(['corpus/flowchart/94', 'corpus/flowchart/95', 'corpus/flowchart/96', 'corpus/flowchart/98', 'corpus/state/0', 'corpus/state/1', 'corpus/state/8', 'corpus/state/14', 'corpus/state/16', 'corpus/state/17', 'corpus/state/18', 'corpus/state/19'])
 const fixtures: Fixture[] = [
   {
+    id: 'native-eventmodeling', title: 'Event Modeling: frames, namespace return and reset references',
+    source: 'eventmodeling\ntitle Cart information flow\ntf 01 ui Cart.UI\ntf 02 cmd Cart.AddItem { description: string }\ntf 03 evt Cart.ItemAdded\nrf 04 evt Stock.Changed\ntf 05 pcr Stock.Refresh\nrf 06 rmo Cart.Items ->> 03 ->> 04\ntf 07 ui Cart.UI',
+    captureLayout: true, pngWidth: 1400,
+    cue: 'The baseline reports unsupported family. Inspect the two Cart.UI frames in one lane, the complete data label, no inferred predecessor into reset frame 04, and both explicit arrows into frame 06. Public semantic tests separately assert the IDs and endpoints. This sample does not establish all typography or connector combinations.',
+  },
+  {
     id: 'grammar-ishikawa-header',
     title: 'Ishikawa header comment preserves the cause tree',
     source: 'ishikawa%%{\nProblem\nPeople\n  Training\nTools',

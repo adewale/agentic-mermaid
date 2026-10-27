@@ -8,6 +8,8 @@ type FamilyModule = { default: FamilyDescriptor }
 type FamilyLoader = () => Promise<FamilyModule>
 
 const FAMILY_LOADERS = Object.freeze({
+  zenuml: () => import('./browser-lazy/families/zenuml.ts'),
+  eventmodeling: () => import('./browser-lazy/families/eventmodeling.ts'),
   packet: () => import('./browser-lazy/families/packet.ts'),
   kanban: () => import('./browser-lazy/families/kanban.ts'),
   requirement: () => import('./browser-lazy/families/requirement.ts'),

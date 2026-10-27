@@ -27,4 +27,6 @@ export const VERIFIED_FAMILY_LOADERS = Object.freeze({
   treemap: () => import('./verified/treemap.ts').then(module => module.default()),
   ishikawa: () => import('./verified/ishikawa.ts').then(module => module.default()),
   block: () => import('./verified/block.ts').then(module => module.default()),
+  eventmodeling: () => import('./verified/eventmodeling.ts').then(module => module.default()),
+  zenuml: () => import('./verified/zenuml.ts').then(module => module.default()),
 } satisfies Record<BrowserBuiltinFamilyId, () => Promise<FamilyDescriptor>>)
