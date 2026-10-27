@@ -19,7 +19,7 @@ import { createTextMeasurementExecution, withTextMeasurementExecution } from '..
 import { connector, shape } from '../scene/marks.ts'
 import { certifyScenePaint } from '../scene/paint-certification.ts'
 import { rerouteEdgesThroughNodes } from '../layout/passes/obstacle-routing.ts'
-import { alignPortLanes } from '../layout/passes/port-lanes.ts'
+import { alignLabeledSourcePort, alignPortLanes } from '../layout/passes/port-lanes.ts'
 import { trimOccludedShapeEndpoint } from '../shape-clipping.ts'
 import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
 
@@ -2678,6 +2678,76 @@ describe('port-lane reserved-header admission', () => {
   const g = (x: number, y: number, width: number, height: number, headerHeight = height): PositionedGroup => ({ id: 'G', label: 'G', x, y, width, height, headerHeight, children: [] })
   const stairs = () => ({ nodes: [n('S', 0, 100), n('T', 100, 0)], edges: [e('S', 'T', [{ x: 40, y: 115 }, { x: 70, y: 115 }, { x: 70, y: 15 }, { x: 100, y: 15 }])] })
 
+  for (const width of ['20', '20px', '1em', 'var(--edge-width)']) it(`does not slide a card into an unchanged foreign ${width} shaft`, () => {
+    const { nodes, edges } = stairs()
+    nodes.push(n('U', 134, 40, 30, 20), n('V', 134, 170, 30, 20))
+    edges.push({ ...e('U', 'V', [{ x: 149, y: 60 }, { x: 149, y: 170 }]), inlineStyle: { 'stroke-width': width } })
+    const before = structuredClone({ nodes, edges })
+    // Candidate T is x100..140/y100..130. The x149 centreline clears it,
+    // but a 20px shaft reaches x139; relative/CSS widths cannot prove a gap.
+    alignPortLanes(nodes, edges, [], 'LR', resolveRenderStyle())
+    expect({ nodes, edges }).toEqual(before)
+  })
+
+  it('keeps the same slide when the authored foreign shaft has a real ink gap', () => {
+    const { nodes, edges } = stairs()
+    nodes.push(n('U', 134, 40, 30, 20), n('V', 134, 170, 30, 20))
+    edges.push({ ...e('U', 'V', [{ x: 149, y: 60 }, { x: 149, y: 170 }]), inlineStyle: { 'stroke-width': '16' } })
+    alignPortLanes(nodes, edges, [], 'LR', resolveRenderStyle())
+    expect(nodes[1]!.y).toBe(100)
+    expect(edges[1]!.points).toEqual([{ x: 149, y: 60 }, { x: 149, y: 170 }])
+  })
+
+  for (const width of ['20', '2']) it(`${width === '20' ? 'refuses' : 'admits'} the changed shaft beside a live header using its painted width`, () => {
+    const { nodes, edges } = stairs()
+    edges[0]!.inlineStyle = { 'stroke-width': width }
+    const before = structuredClone({ nodes, edges })
+    // Only the rewritten terminal run reaches x85..90 at y115. Its 20px
+    // ink enters y124; the narrow control and both node bodies stay clear.
+    alignPortLanes(nodes, edges, [g(85, 124, 5, 5)], 'LR', resolveRenderStyle())
+    if (width === '20') expect({ nodes, edges }).toEqual(before)
+    else expect(nodes[1]!.y).toBe(100)
+  })
+
+  for (const width of ['20', '2']) it(`${width === '20' ? 'refuses' : 'admits'} a rewritten shaft beside a foreign card`, () => {
+    const { nodes, edges } = stairs()
+    nodes.push(n('Foreign', 85, 124, 5, 5))
+    edges[0]!.inlineStyle = { 'stroke-width': width }
+    const before = structuredClone({ nodes, edges })
+    alignPortLanes(nodes, edges, [], 'LR', resolveRenderStyle())
+    if (width === '20') expect({ nodes, edges }).toEqual(before)
+    else expect(nodes[1]!.y).toBe(100)
+  })
+
+  for (const marked of [true, false]) it(`${marked ? 'refuses the endpoint marker' : 'admits the unmarked shaft'} beside the same foreign card`, () => {
+    const { nodes, edges } = stairs()
+    nodes.push(n('Foreign', 91, 119.2, 0.7, 0.5))
+    edges[0]!.inlineStyle = { 'stroke-width': '1' }
+    edges[0]!.hasArrowEnd = marked
+    const before = structuredClone({ nodes, edges })
+    // The fixed custom-width arrow's back corner is (92,119), with a
+    // 0.375px round stroke. The shaft and old arrow at y15 are clear.
+    alignPortLanes(nodes, edges, [], 'LR', resolveRenderStyle())
+    if (marked) expect({ nodes, edges }).toEqual(before)
+    else expect(nodes[1]!.y).toBe(100)
+  })
+
+  for (const width of ['20', '16']) it(`${width === '20' ? 'refuses' : 'keeps'} the labelled-source slide beside a foreign painted shaft`, () => {
+    const graph = parseMermaid('flowchart LR\nS -->|go| T\nU --> V')
+    const nodes = [n('S', 0, 0, 40, 100), n('T', 100, 80), n('U', -70, 144, 20, 20), n('V', 80, 144, 20, 20)]
+    const edges = [{ ...e('S', 'T', [{ x: 40, y: 95 }, { x: 100, y: 95 }]), label: 'go', labelPosition: { x: 70, y: 95 } },
+      { ...e('U', 'V', [{ x: -50, y: 154 }, { x: 80, y: 154 }]), inlineStyle: { 'stroke-width': width } }]
+    const before = structuredClone({ nodes, edges })
+    // Recentring S on y95 puts its bottom at145. The y154 centreline
+    // clears the moved body, while the 20px shaft reaches y144.
+    alignLabeledSourcePort(nodes, edges, [], graph, 'LR', resolveRenderStyle())
+    if (width === '20') expect({ nodes, edges }).toEqual(before)
+    else {
+      expect(nodes[0]!.y).toBe(45)
+      expect(edges[0]!.labelPosition).toEqual({ x: 70, y: 95 })
+    }
+  })
+
   it('retains the clear compound detour from chained hubs 355 instead of sweeping its terminal run through G', () => {
     // Literal saved pre-alignPortLanes SEPARATE geometry, not a producer call.
     const nodes = [n('H2', 236.34675, 216.89999999999998, 85.66899999999998, 36.900000000000006), n('Z', 535.3045, 40, 64.17999999999999, 36.900000000000006)]
@@ -2717,13 +2787,32 @@ describe('port-lane reserved-header admission', () => {
     expect(edges[0]!.points.at(-1)).toEqual({ x: 100, y: 115 })
   })
 
-  for (const kind of ['zero-width', 'zero-height', 'concurrency', 'exterior-contact'] as const) it(`retains the legal ${kind} header control`, () => {
+  for (const kind of ['zero-width', 'zero-height', 'concurrency'] as const) it(`retains the legal ${kind} header control`, () => {
     const { nodes, edges } = stairs()
     const band = kind === 'zero-width' ? g(110, 100, 0, 30) : kind === 'zero-height' ? g(110, 100, 20, 0)
-      : kind === 'concurrency' ? { ...g(110, 100, 20, 30), concurrencyRegion: true as const } : g(110, 130, 20, 5)
+      : { ...g(110, 100, 20, 30), concurrencyRegion: true as const }
     alignPortLanes(nodes, edges, [band], 'LR', resolveRenderStyle())
     expect(nodes.find(node => node.id === 'T')!.y).toBe(100)
     expect(edges[0]!.points.at(-1)).toEqual({ x: 100, y: 115 })
+  })
+
+  it('refuses raw exterior contact when the moved card border enters the header', () => {
+    const { nodes, edges } = stairs(), before = structuredClone({ nodes, edges })
+    // The former raw-box control touched at y130, but its 0.75px border
+    // paints beyond that face and therefore is not an exterior ink contact.
+    alignPortLanes(nodes, edges, [g(110, 130, 20, 5)], 'LR', resolveRenderStyle())
+    expect({ nodes, edges }).toEqual(before)
+  })
+
+  for (const width of ['20', '0.75']) it(`${width === '20' ? 'refuses' : 'admits'} the same moved card beside a header using its border ink`, () => {
+    const { nodes, edges } = stairs()
+    nodes[1]!.inlineStyle = { 'stroke-width': width }
+    const before = structuredClone({ nodes, edges })
+    // The candidate raw bottom is130. Its thick border reaches140 and
+    // enters the y135 header; the narrow-border control retains a real gap.
+    alignPortLanes(nodes, edges, [g(110, 135, 20, 5)], 'LR', resolveRenderStyle())
+    if (width === '20') expect({ nodes, edges }).toEqual(before)
+    else expect(nodes[1]!.y).toBe(100)
   })
 
   it('does not turn an unchanged pre-existing bad edge into a veto of an unrelated clear move', () => {

@@ -25,6 +25,16 @@ function markerView(edge: PositionedEdge, style: LabelMetricsStyle): { regions: 
   return { regions, points, directional }
 }
 
+/** Complete written marker supports for optional placement admission. Share
+ * the same width/endpoint projection and curved orientation envelope used by
+ * route preference guards, rather than preparing a second marker view. */
+export function routeMarkerPaintRegions(edge: PositionedEdge, style: LabelMetricsStyle): MarkerRegion[] | undefined {
+  if (edge.style === 'invisible' || !edge.hasArrowStart && !edge.hasArrowEnd) return []
+  if (!mappingKnown(edge, style)) return undefined
+  const { regions } = markerView(edge, style)
+  return regions.length === Number(Boolean(edge.hasArrowStart)) + Number(Boolean(edge.hasArrowEnd)) && regions.every(measured) ? regions : undefined
+}
+
 function mappingKnown(edge: PositionedEdge, style: LabelMetricsStyle): boolean {
   if (!edge.points.every(point => Number.isFinite(point.x) && Number.isFinite(point.y))) return false
   if (style.edgeBendRadius !== undefined && !(Number.isFinite(style.edgeBendRadius) && style.edgeBendRadius >= 0)) return false
