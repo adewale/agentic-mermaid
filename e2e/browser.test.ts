@@ -19,6 +19,7 @@ import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
 import { renderMermaidSVG, renderMermaidSVGWithReceipt, renderMermaidASCIIWithReceipt, knownStyleDescriptors, inferBackend } from '../src/index.ts'
 import { serveWithAvailablePort } from './test-port.ts'
 import { PIE_ENTITY_FIXTURES } from '../src/__tests__/helpers/pie-entity-fixtures.ts'
+import { resolveSvgScene } from '../src/scene/resolve-svg.ts'
 
 const ROOT = join(import.meta.dir, '..')
 const PREFERRED_PORT = 4567
@@ -333,13 +334,45 @@ it('shipped sketch looks paint readable label ink against an opaque halo', async
   }
 })
 
+it('resolved circle and ellipse paths preserve the native stroke traversal for dashes', async () => {
+  const svg = '<svg width="200" height="120"><circle cx="60" cy="60" r="40" stroke="black" stroke-dasharray="7 3" /><ellipse cx="150" cy="60" rx="30" ry="20" stroke="black" stroke-dasharray="7 3" /></svg>'
+  const scene = resolveSvgScene(svg, { family: 'flowchart', width: 200, height: 120,
+    transparent: false, colors: { bg: '#ffffff', fg: '#000000' }, parts: [] }, [])
+  const paths = scene.frame.map(primitive => {
+    if (primitive.kind !== 'path') throw new Error('Expected path geometry')
+    expect(primitive.paint.dashArray).toEqual([7, 3])
+    return primitive.d
+  })
+  const probe = await browser.newPage()
+  try {
+    await probe.setContent(svg)
+    const pairs = await probe.evaluate(({ paths }) => {
+      const root = document.querySelector('svg')!
+      return [...root.querySelectorAll('circle,ellipse')].map((element, index) => {
+        const converted = document.createElementNS(root.namespaceURI, 'path') as SVGPathElement
+        converted.setAttribute('d', paths[index]!)
+        root.appendChild(converted)
+        return [0, 1].map(distance => {
+          const expected = (element as SVGGeometryElement).getPointAtLength(distance)
+          const actual = converted.getPointAtLength(distance)
+          return Math.hypot(actual.x - expected.x, actual.y - expected.y)
+        })
+      })
+    }, { paths })
+    for (const pair of pairs) {
+      expect(pair[0]).toBeLessThan(0.0001)
+      expect(pair[1]).toBeLessThan(0.05)
+    }
+  } finally { await probe.close() }
+})
+
 it('standalone editor stays within its single-renderer payload budget', async () => {
   const html = new Uint8Array(await Bun.file(join(ROOT, 'editor.html')).arrayBuffer())
   // Paired Bun 1.4.2 builds against merged PR532 e8cb92ec, gzip level 9:
-  // raw 4,428,971 → 4,429,138; gzip 1,334,388 → 1,334,489.
-  // The new synchronous resolved-scene API adds 167 raw / 101 gzip bytes to
+  // raw 4,428,971 → 4,429,131; gzip 1,334,388 → 1,334,493.
+  // The new synchronous resolved-scene API adds 160 raw / 105 gzip bytes to
   // shared emission hooks; capture-only resolution is absent from this editor.
-  // Retain 262 raw bytes of headroom. The gzip limit stays unchanged (11 B).
+  // Retain 269 raw bytes of headroom. The gzip limit stays unchanged (7 B).
   // One renderer still serves the main/worker realms; the single-engine and
   // relative payload gates also apply.
   expect(html.byteLength).toBeLessThanOrEqual(4_429_400)

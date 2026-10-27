@@ -17,7 +17,7 @@ import { chromium, type Page } from 'playwright'
 import * as am from '../src/index.ts'
 import type { SceneDoc, SceneNode } from '../src/index.ts'
 import { createScenePartCapture } from '../src/scene/part-capture.ts'
-import { resolveRenderRequestForExecution } from '../src/render-contract.ts'
+import { resolveRenderRequestForExecution, resolvedRenderExecutionPlanOf } from '../src/render-contract.ts'
 import { positionFamilyForNativeRender } from '../src/positioning.ts'
 import { renderPositionedMermaidSVG } from '../src/graphical-render.ts'
 import { scanSvgStartTags } from '../src/svg-structure.ts'
@@ -50,9 +50,11 @@ function marked(spec: Spec): { svg: string; marked: string; doc: SceneDoc; parts
   const options = spec.style ? { style: spec.style } : {}
   const request = resolveRenderRequestForExecution(spec.source, options, 'svg')
   const capture = createScenePartCapture()
-  const { svg } = renderPositionedMermaidSVG(request, positionFamilyForNativeRender(request), [], capture)
+  const { svg, layoutCertification } = renderPositionedMermaidSVG(request, positionFamilyForNativeRender(request), [], capture)
   if (svg !== am.renderMermaidSVG(spec.source, options)) throw new Error('Part capture changed the output')
-  const doc = capture.scene!
+  const viewport = resolvedRenderExecutionPlanOf(request).backend?.inputName === 'default' && layoutCertification?.repairs.length
+    ? layoutCertification.viewport : undefined
+  const doc = viewport ? { ...capture.scene!, width: viewport.width, height: viewport.height } : capture.scene!
   const parts: SceneNode[] = doc.parts.filter(node => node.kind !== 'document')
   const tags = scanSvgStartTags(svg)
   let marked = svg
@@ -346,7 +348,7 @@ async function main() {
     const bundle = readFileSync(flags[bundleAt + 1]!, 'utf8')
     const receipt = await page.evaluate(code => new Promise<Record<string, unknown>>((resolve, reject) => {
       const script = code + `;self.onmessage=()=>{try {
-        const source='flowchart LR\\n A --> B', options={style:'hand-drawn'};
+        const source='flowchart LR\\n A -->|uses ELK| B', options={style:'hand-drawn'};
         const scene=agenticMermaid.renderResolvedScene(source,options);
         self.postMessage({version:scene.version,parts:scene.parts.length,document:typeof document,
           equal:scene.svg===agenticMermaid.renderMermaidSVG(source,options),

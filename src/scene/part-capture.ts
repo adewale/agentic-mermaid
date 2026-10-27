@@ -10,19 +10,20 @@ export interface ScenePartCapture {
   finish(svg: string): string
 }
 
-const captures = new WeakMap<StyleBackendContext, (node: SceneNode, svg: string) => string>()
+const capturePart = Symbol()
+type CapturingContext = StyleBackendContext & { [capturePart]?: (node: SceneNode, svg: string) => string }
 
 export function createScenePartCapture(): ScenePartCapture {
   const capture: ScenePartCapture = {
     begin(context, scene) {
       capture.scene = scene
       const owners = new Map(scene.parts.map((node, index) => [node, index]))
-      captures.set(context, (node, svg) => {
+      ;(context as CapturingContext)[capturePart] = (node, svg) => {
         if (node.kind === 'document') return svg
         const index = owners.get(node)
         if (index === undefined) throw new Error('Resolved Scene part is not in the rendered document')
         return `<!--am-part-start:${index}-->${svg}<!--am-part-end:${index}-->`
-      })
+      }
     },
     finish(svg) { return consumePartBoundaries(svg, capture) },
   }
@@ -30,7 +31,7 @@ export function createScenePartCapture(): ScenePartCapture {
 }
 
 export function capturedPart(context: StyleBackendContext, node: SceneNode, svg: string): string {
-  return captures.get(context)?.(node, svg) ?? svg
+  return (context as CapturingContext)[capturePart]?.(node, svg) ?? svg
 }
 
 /** Strip the private boundaries before hashing/scoping the SVG. Record owner

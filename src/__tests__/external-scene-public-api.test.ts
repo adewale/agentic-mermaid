@@ -255,6 +255,27 @@ describe('public external Scene construction and admission', () => {
     }
   })
 
+  test('resolved dimensions follow the final repaired SVG viewport', () => {
+    const family = descriptor('resolved-viewport', 'resolvedViewport', ROLES.filter(row => ['prelude', 'chrome', 'defs', 'node'].includes(row.role)), ctx => buildExternalScene({
+      ...sceneInput('family:test/resolved-viewport', ctx.colors),
+      parts: [{ id: 'overhang', kind: 'shape', role: 'node',
+        geometry: { kind: 'rect', x: 0, y: 0, width: 220, height: 120 },
+        paint: { fill: '#abcdef', stroke: '#000000', strokeWidth: '4' } }],
+    }))
+    const unregister = registerFamily(family)
+    try {
+      expect(mainEntry).toHaveProperty('renderResolvedScene', expect.any(Function))
+      const resolved = mainEntry.renderResolvedScene('resolvedViewport')
+      const viewport = resolved.svg.match(/viewBox="([^"]+)"/)![1]!.split(/\s+/).map(Number)
+      expect(viewport[2]!).toBeGreaterThan(220)
+      expect(viewport[3]!).toBeGreaterThan(120)
+      expect(resolved.width).toBeGreaterThan(220)
+      expect(resolved.height).toBeGreaterThan(120)
+      expect(resolved.width).toBeCloseTo(viewport[2]!, 8)
+      expect(resolved.height).toBeCloseTo(viewport[3]!, 8)
+    } finally { unregister() }
+  })
+
   test('escapes text and rejects fetching paint and non-canonical document CSS', () => {
     const safe = sceneInput('family:test/security-scene', { bg: '#fff', fg: '#111' })
     const container = safe.parts[0]

@@ -207,7 +207,7 @@ const primitives: ResolvedPrimitive[] = scene.parts.flatMap(part => part.primiti
     expect({ status: types.status, stdout: types.stdout, stderr: types.stderr }).toEqual({ status: 0, stdout: '', stderr: '' })
     const runtime = spawnSync(NODE!, ['--input-type=module', '--eval', `
 import { renderResolvedScene, renderMermaidSVG } from 'agentic-mermaid';
-const source='flowchart LR\\n A --> B', options={style:'hand-drawn'};
+const source='flowchart LR\\n A -->|uses ELK| B', options={style:'hand-drawn'};
 const scene=renderResolvedScene(source, options);
 console.log(JSON.stringify({version:scene.version, document:typeof document,
   parts:scene.parts.length>0, equal:scene.svg===renderMermaidSVG(source,options),

@@ -41,7 +41,9 @@ export function pathData(node: SvgElement, fontSize: number): string {
     case 'circle':
     case 'ellipse': {
       const x = n('cx'), y = n('cy'), rx = n('rx', n('r')), ry = n('ry', n('r'))
-      return `M${x - rx} ${y}a${rx} ${ry} 0 1 0 ${2 * rx} 0a${rx} ${ry} 0 1 0 ${-2 * rx} 0Z`
+      // SVG basic ellipses start at the rightmost point and run clockwise.
+      // Retain that traversal so dash phase agrees, not just the filled outline.
+      return `M${x + rx} ${y}a${rx} ${ry} 0 1 1 ${-2 * rx} 0a${rx} ${ry} 0 1 1 ${2 * rx} 0Z`
     }
     default: throw new Error(`Unsupported element <${node.tag}>`)
   }
