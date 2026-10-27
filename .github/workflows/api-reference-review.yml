@@ -16,7 +16,7 @@ jobs:
           - label: base
             revision: 9855502f75cbd07dd627d794fca0f02a0f48f2da
           - label: head
-            revision: bbdc686a796707e777bcb64ee5a908e71747b3ab
+            revision: bb5883b564387f390a0649aa93925c1482f05328
     steps:
       - uses: actions/checkout@v7
         with:
