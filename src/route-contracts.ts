@@ -1035,11 +1035,12 @@ function orderedLabelSegments(edge: PositionedEdge): Array<{ a: Point; b: Point;
   return segs
 }
 
-function centerOutLabelSamples(tMargin: number): number[] {
+export function centerOutLabelSamples(tMargin: number, work?: () => void): number[] {
+  work?.()
   const ts: number[] = []
   const N = 11
-  for (let k = 0; k < N; k++) ts.push(tMargin + (1 - 2 * tMargin) * (k / (N - 1)))
-  return ts.sort((a, b) => Math.abs(a - 0.5) - Math.abs(b - 0.5))
+  for (let k = 0; k < N; k++) { work?.(); ts.push(tMargin + (1 - 2 * tMargin) * (k / (N - 1))) }
+  return ts.sort((a, b) => { work?.(); return Math.abs(a - 0.5) - Math.abs(b - 0.5) })
 }
 
 type LabelPaintRect = { x: number; y: number; w: number; h: number }
@@ -1051,9 +1052,11 @@ function labelHaloPadding(edge: PositionedEdge, style: LabelMetricsStyle): numbe
 
 /** Owned label-only passes leave routes fixed. Reentrant host measurement
  * can replace peer geometry, so only the owned path reuses marker footprints. */
-function labelPaintClearance(positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] }, style: LabelMetricsStyle) {
+export function labelPaintClearance(positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] }, style: LabelMetricsStyle, work?: () => void) {
+  work?.()
   let markers: ReturnType<typeof graphEdgeMarkerPaintRegions> | undefined
   const overlapsHeader = (pill: LabelPaintRect, groups: readonly PositionedGroup[]): boolean => groups.some(group => {
+    work?.()
     // Production retains the measured strip. An unmeasured group cannot
     // establish a clear interior slot; keep its full extent conservative.
     const height = group.concurrencyRegion ? 0 : group.headerHeight ?? group.height
@@ -1062,20 +1065,22 @@ function labelPaintClearance(positioned: { nodes: PositionedNode[]; edges: Posit
   })
   const overlapsMarker = (pill: LabelPaintRect): boolean => {
     const current = customTextMeasurementActive()
-      ? positioned.edges.flatMap(edge => graphEdgeMarkerPaintRegions(edge, style))
-      : markers ??= positioned.edges.flatMap(edge => graphEdgeMarkerPaintRegions(edge, style))
+      ? positioned.edges.flatMap(edge => { work?.(); return graphEdgeMarkerPaintRegions(edge, style) })
+      : markers ??= positioned.edges.flatMap(edge => { work?.(); return graphEdgeMarkerPaintRegions(edge, style) })
     for (const marker of current) {
+      work?.()
       const box = marker.bounds
       if (box && pill.x < box.x1 && pill.x + pill.w > box.x0 && pill.y < box.y1 && pill.y + pill.h > box.y0) return true
     }
     return false
   }
   const clearPaintRect = (inner: LabelPaintRect, halo: number): LabelPaintRect | undefined => {
+    work?.()
     const pill = { x: inner.x - halo, y: inner.y - halo, w: inner.w + 2 * halo, h: inner.h + 2 * halo }
     // Own endpoint cards are obstacles too: a repair must not exchange a
     // route-label ambiguity for hidden authored text or terminal symbols.
-    if (positioned.nodes.some(node => pill.x < node.x + node.width && pill.x + pill.w > node.x
-      && pill.y < node.y + node.height && pill.y + pill.h > node.y) || overlapsHeader(pill, positioned.groups) || overlapsMarker(pill)) return undefined
+    if (positioned.nodes.some(node => { work?.(); return pill.x < node.x + node.width && pill.x + pill.w > node.x
+      && pill.y < node.y + node.height && pill.y + pill.h > node.y }) || overlapsHeader(pill, positioned.groups) || overlapsMarker(pill)) return undefined
     return pill
   }
   return { overlapsMarker, clearPaintRect }

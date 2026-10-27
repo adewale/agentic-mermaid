@@ -1,10 +1,11 @@
 import type { DiamondFacet, Direction, MermaidGraph, Point, PositionedEdge, PositionedGroup, PositionedNode } from '../../types.ts'
 import { portEndpointRate, segmentThroughShape } from '../../layout-rubric.ts'
-import { diamondFacetPorts, labelRect, laneContextFor, PORT_EXACT, shapePorts, simplifyPolyline, straightLaneFor } from '../../route-contracts.ts'
+import { centerOutLabelSamples, diamondFacetPorts, labelPaintClearance, labelRect, laneContextFor, PORT_EXACT, recertifyReroutedEdge, shapePorts, simplifyPolyline, straightLaneFor } from '../../route-contracts.ts'
 import type { LabelMetricsStyle } from '../../route-contracts.ts'
 import { DEFAULTS, layoutDebug, layoutEnvFlag } from '../geometry.ts'
 import { corankFanInSpokes } from './peers.ts'
 import { reanchorOffOutlineEndpoints } from './obstacle-routing.ts'
+import { tryStraighten } from '../route-lanes.ts'
 import { graphEdgePathProjection } from '../../graph-connectors.ts'
 import { shapeOutline } from '../../shape-outline.ts'
 import { expandSceneBounds, geometryBounds, nodePaintBounds, paintedStrokeExtent, unionSceneBounds, visitTypedPathSegments } from '../../scene/bounds.ts'
@@ -235,7 +236,68 @@ export function alignLabeledSourcePort(
   if (!edges.some(edge => edge.label)) return
   const candidate = portLaneCandidate(nodes, edges)
   alignLabeledSourcePortCandidate(candidate.nodes, candidate.edges, groups, graph, direction, style)
-  if (!portLaneInkClear(candidate.nodes, candidate.edges, nodes, edges, groups, style)) return
+  const budget = portLaneInkWork()
+  if (!portLaneInkClear(candidate.nodes, candidate.edges, nodes, edges, groups, style, budget)) {
+    if (budget.remaining < 0) return
+    // The source slide predicts the straightener's lane. Before publication,
+    // materialize that same lane and its proved label seat on the private edge.
+    const { ctx, axis } = laneContextFor(candidate.nodes, candidate.edges, direction, style, groups)
+    for (let index = 0; index < candidate.edges.length; index++) {
+      const edge = candidate.edges[index]!
+      if (!edge.label || !routeChanged(edge, edges[index]!)) continue
+      const source = candidate.nodes.find(node => node.id === edge.source), target = candidate.nodes.find(node => node.id === edge.target)
+      if (!source || !target || !tryStraighten(edge, source, target, ctx, axis, edge.points[0]![axis.cross]).applied) return
+      recertifyReroutedEdge(edge, edge.routeCertificate, source, target)
+    }
+    const exhausted = Symbol()
+    const work = (): boolean => --budget.remaining >= 0
+    const pay = (): void => { if (!work()) throw exhausted }
+    try {
+      const paint = labelPaintClearance({ ...candidate, groups }, style, pay)
+      const clearSeat = (edge: PositionedEdge, previous: PositionedEdge): boolean => {
+        pay()
+        const rect = labelRect(edge, style)
+        if (!rect) return false
+        const pill = paint.clearPaintRect(rect, labelHaloExtension(edge, style.lineWidth ?? 1))
+        if (!pill) return false
+        const box = { x0: pill.x, y0: pill.y, x1: pill.x + pill.w, y1: pill.y + pill.h }
+        for (const peer of candidate.edges) {
+          pay()
+          const ink = edgeInk(peer, style, work)
+          if (!ink || ink.markers.some(marker => { pay(); return boxesMeet(box, marker.bounds!) })) return false
+          if (peer === edge) continue
+          if (ink.shafts.some(shaft => { pay(); return boxesMeet(box, shaft) })) return false
+          const other = labelRect(peer, style)
+          if (other) {
+            pay()
+            const halo = labelHaloExtension(peer, style.lineWidth ?? 1)
+            if (boxesMeet(box, { x0: other.x - halo, y0: other.y - halo, x1: other.x + other.w + halo, y1: other.y + other.h + halo })) return false
+          }
+        }
+        return portLaneInkClear(candidate.nodes, [edge], nodes, [previous], groups, style, budget)
+      }
+      for (let index = 0; index < candidate.edges.length; index++) {
+        pay()
+        const edge = candidate.edges[index]!, previous = edges[index]!
+        if (!edge.label || !routeChanged(edge, previous) || clearSeat(edge, previous)) continue
+        const inner = labelRect(edge, style), a = edge.points[0]!, b = edge.points[1]!
+        if (!inner || edge.points.length !== 2) return
+        const length = Math.hypot(b.x - a.x, b.y - a.y), half = (axis.main === 'x' ? inner.w : inner.h) / 2
+        if (!(length > 2 * half)) return
+        let seated = false
+        for (const t of centerOutLabelSamples(half / length, pay)) {
+          pay()
+          edge.labelPosition = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }
+          if (clearSeat(edge, previous)) { seated = true; break }
+        }
+        if (!seated) return
+      }
+    } catch (error) {
+      if (error === exhausted) return
+      throw error
+    }
+    if (!portLaneInkClear(candidate.nodes, candidate.edges, nodes, edges, groups, style, budget)) return
+  }
   publishPortLaneCandidate(nodes, edges, candidate.nodes, candidate.edges)
 }
 
