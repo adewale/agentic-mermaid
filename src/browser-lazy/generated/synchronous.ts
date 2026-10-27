@@ -24,5 +24,7 @@ import family_requirement from '../families/requirement.ts'
 import family_treemap from '../families/treemap.ts'
 import family_ishikawa from '../families/ishikawa.ts'
 import family_block from '../families/block.ts'
+import family_eventmodeling from '../families/eventmodeling.ts'
+import family_zenuml from '../families/zenuml.ts'
 
-for (const family of [family_flowchart, family_state, family_sequence, family_timeline, family_class, family_er, family_journey, family_architecture, family_xychart, family_pie, family_quadrant, family_gantt, family_mindmap, family_gitgraph, family_radar, family_sankey, family_c4, family_packet, family_kanban, family_requirement, family_treemap, family_ishikawa, family_block]) installLoadedFamilyDescriptor(family)
+for (const family of [family_flowchart, family_state, family_sequence, family_timeline, family_class, family_er, family_journey, family_architecture, family_xychart, family_pie, family_quadrant, family_gantt, family_mindmap, family_gitgraph, family_radar, family_sankey, family_c4, family_packet, family_kanban, family_requirement, family_treemap, family_ishikawa, family_block, family_eventmodeling, family_zenuml]) installLoadedFamilyDescriptor(family)

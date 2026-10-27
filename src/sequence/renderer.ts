@@ -129,7 +129,7 @@ export function lowerSequenceDrawing<T>(
   for (const block of diagram.blocks) {
     const k = blockOccurrence.get(block.type) ?? 0
     blockOccurrence.set(block.type, k + 1)
-    blockSceneIds.set(block, `block:${block.type}#${k}`)
+    blockSceneIds.set(block, block.id ?? `block:${block.type}#${k}`)
   }
   for (const block of backgroundOrder) {
     parts.push(renderBlock(marks, block, style, blockSceneIds.get(block)!, hasRect ? 'background' : 'all'))
@@ -149,7 +149,9 @@ export function lowerSequenceDrawing<T>(
 
   // 2. Lifelines (dashed vertical lines from actor to bottom)
   const visibleSpans = messageLabelOcclusion(diagram.messages)
+  const externalActors = new Set(diagram.actors.filter(actor => actor.external).map(actor => actor.id))
   for (const lifeline of diagram.lifelines) {
+    if (externalActors.has(lifeline.actorId)) continue
     const width = Math.max(0.75, style.lineWidth * 0.75)
     parts.push(renderLifeline(marks, lifeline, style, visibleSpans({
       x: lifeline.x - width / 2, y: lifeline.topY,
@@ -185,7 +187,7 @@ export function lowerSequenceDrawing<T>(
   for (const block of diagram.blocks) {
     const k = dividerLabelOccurrence.get(block.type) ?? 0
     dividerLabelOccurrence.set(block.type, k + 1)
-    if (block.dividers.some(divider => divider.label)) parts.push(renderBlockDividerLabels(marks, block, style, `block:${block.type}#${k}`, inkAt))
+    if (block.dividers.some(divider => divider.label)) parts.push(renderBlockDividerLabels(marks, block, style, blockSceneIds.get(block)!, inkAt))
   }
 
   // 4. Messages (horizontal arrows with labels)
@@ -194,7 +196,7 @@ export function lowerSequenceDrawing<T>(
     const pairKey = `${message.from}->${message.to}`
     const k = messageOccurrence.get(pairKey) ?? 0
     messageOccurrence.set(pairKey, k + 1)
-    parts.push(renderMessage(marks, message, style, `message:${pairKey}#${k}`, inkAt, markerResources))
+    parts.push(renderMessage(marks, message, style, message.id ?? `message:${pairKey}#${k}`, inkAt, markerResources))
   }
 
   // 5. Notes
@@ -203,7 +205,7 @@ export function lowerSequenceDrawing<T>(
     const noteKey = `${(note.actors ?? []).join(',')}@${note.position ?? 'over'}`
     const k = noteOccurrence.get(noteKey) ?? 0
     noteOccurrence.set(noteKey, k + 1)
-    parts.push(renderNote(marks, note, style, colors, `note:${noteKey}#${k}`))
+    parts.push(renderNote(marks, note, style, colors, note.id ?? `note:${noteKey}#${k}`))
   }
 
   // 5b. Destroy crosses (X where a destroyed lifeline ends) — drawn above
@@ -214,6 +216,7 @@ export function lowerSequenceDrawing<T>(
 
   // 6. Actor boxes at top (rendered last so they're on top)
   for (const actor of diagram.actors) {
+    if (actor.external) continue
     parts.push(renderActor(marks, actor, style, colors, resolved.styleFace, options.security !== 'strict', inkAt))
   }
 
@@ -639,7 +642,7 @@ function renderMessage<T>(
   // Semantic wrapper with message metadata
   const open =
     `<g class="message" data-label="${escapeDisplayAttr(msg.label)}" data-line-style="${msg.lineStyle}" ` +
-    `data-start-head="${msg.startHead}" data-end-head="${msg.endHead}" data-central-start="${msg.centralStart}" data-central-end="${msg.centralEnd}" data-self="${msg.isSelf}">`
+    `data-start-head="${msg.startHead}" data-end-head="${msg.endHead}" data-central-start="${msg.centralStart}" data-central-end="${msg.centralEnd}" data-self="${msg.isSelf}"${msg.parentId === undefined ? '' : ` data-parent-id="${escapeAttr(msg.parentId)}"`}>`
 
   if (msg.isSelf) {
     // Self-message: curved loop going right and back
@@ -753,7 +756,7 @@ function renderBlock<T>(marks: DrawingFactory<T>, block: PositionedBlock, style:
     ? `<g class="sequence-block-divider-overlay" data-owner="${escapeAttr(sceneId)}">`
     : part === 'frame'
       ? `<g class="sequence-block-frame-overlay" data-owner="${escapeAttr(sceneId)}">`
-      : `<g class="block" data-type="${escapeAttr(block.type)}"${labelAttr}>`
+      : `<g class="block" data-type="${escapeAttr(block.type)}"${labelAttr}${block.parentId === undefined ? '' : ` data-parent-id="${escapeAttr(block.parentId)}"`}>`
 
   // Outer rectangle
   const rawFill = blockBackground(block, style) ?? 'none'
@@ -994,7 +997,7 @@ function renderNote<T>(marks: DrawingFactory<T>, note: PositionedNote, style: Re
   return marks.group({
     id: sceneId,
     role: 'note',
-    open: `<g class="note"${positionAttr}${actorsAttr}>`,
+    open: `<g class="note"${positionAttr}${actorsAttr}${note.parentId === undefined ? '' : ` data-parent-id="${escapeAttr(note.parentId)}"`}>`,
     close: '</g>',
     children: [
       {

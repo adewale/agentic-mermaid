@@ -1,3 +1,5 @@
+import { parseZenUML } from '../../src/zenuml/native-parser.ts'
+import { parseEventModeling } from '../../src/eventmodeling/parser.ts'
 import { knownBuiltinFamilies, parseRegisteredMermaid, serializeMermaid } from '../../src/agent/core.ts'
 import { architectureSourceLines, parseArchitectureDiagram } from '../../src/architecture/parser.ts'
 import { parseBlockDiagram } from '../../src/block/parser.ts'
@@ -10,7 +12,7 @@ import { resolveGitGraphPositionConfig } from '../../src/gitgraph/position.ts'
 import { parseIshikawaDiagram } from '../../src/ishikawa/parser.ts'
 import { parseJourneyDiagram } from '../../src/journey/parser.ts'
 import { parseKanbanDiagram } from '../../src/kanban/parser.ts'
-import { frontmatterTitle, normalizeMermaidSource, withFrontmatterTitle } from '../../src/mermaid-source.ts'
+import { frontmatterTitle, normalizeMermaidSource, preservedMermaidFamilyText, withFrontmatterTitle } from '../../src/mermaid-source.ts'
 import { withAccessibilityFields } from '../../src/shared/accessibility-directives.ts'
 import { parseMindmap } from '../../src/mindmap/parser.ts'
 import { parsePacketDiagram } from '../../src/packet/parser.ts'
@@ -55,6 +57,12 @@ function nativeParserForRequest(family: string, request: ReturnType<typeof resol
   const lines = normalized.familyLines
   return (): unknown => {
     switch (family) {
+      case 'zenuml': {
+        const source = preservedMermaidFamilyText(normalized)
+        const body = parseZenUML(source)
+        if (body.unsupportedSource !== undefined) throw Error('Unmodeled ZenUML source remains preserved')
+        return withFrontmatterTitle(withAccessibilityFields(body, normalized.accessibility), normalized.frontmatter)
+      }
       case 'flowchart':
         return parseFlowchartRenderSource(normalizeMermaidSource(normalized.originalText).familyBody, normalized.familyBody)
       case 'state':
@@ -95,6 +103,7 @@ function nativeParserForRequest(family: string, request: ReturnType<typeof resol
         return parseTimelineDiagram(lines, normalized.accessibility)
       case 'xychart':
         return parseXYChart(lines)
+      case 'eventmodeling': return withFrontmatterTitle(withAccessibilityFields(parseEventModeling(normalized.authoredFamilyBody ?? normalized.familyBody), normalized.accessibility), normalized.frontmatter)
       case 'packet': {
         const body = parsePacketDiagram(normalized.familyBody, normalized.accessibility)
         body.title ??= frontmatterTitle(normalized.frontmatter)
@@ -206,7 +215,7 @@ function inspectEnvelope(source: string): Omit<AgenticGrammarResult, 'native'> {
         },
       }
     const diagram = parsed.value
-    const representation = diagram.body.kind === 'preserved' ? 'preserved' : diagram.body.kind === 'opaque' ? 'opaque' : 'structured'
+    const representation = diagram.body.kind === 'preserved' || diagram.body.kind === 'zenuml' && diagram.body.unsupportedSource !== undefined ? 'preserved' : diagram.body.kind === 'opaque' ? 'opaque' : 'structured'
     return {
       envelope: { status: 'accepted', family: diagram.kind, representation },
       // Preserved/opaque bytes are not evidence of native model fidelity.

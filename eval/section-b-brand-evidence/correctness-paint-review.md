@@ -18,3 +18,13 @@ Requirement's authored `verifies` relation now has an actual `6 4` shaft dash, m
 The other 84 cells, all section headings, the background and unused cells are pixel-identical. No ER cell changes. The full before/after SVGs, PNGs, literal sources/options, pixel census and crops are retained by the PR correctness review. The updated artifact SHA-256 is `540df3a8b83cca9e73ce34ab56afeb83d00e2852b88a0b53b60fb7b3ea476350`.
 
 This is an agent review of these finite artifacts, not human approval, universal backend parity or a font-independent exact glyph-ink proof. No renderer limits, semantic checks or certification statuses were relaxed.
+
+## Main #545 integration review, 27 October 2026
+
+The canonical sheet generated from the merge of PR parent `0129a21d3a7a0a3bcbde72032dad6cc806a929ed` and Main parent `8a4a7e2c110349a6a6dda1bc4ff6f71ee8006b69` contains 100 family-by-variant cells at 1560×14024. Its SHA-256 is `5981b0cbd8f93ef27e21f3aea781e47af8783af68f39891d8776698610ac4d90`. The generator completed once under the existing 117-second work, 3-second cleanup and 16 MiB artifact limits; runtime source and selected rendering dependencies were unchanged during capture.
+
+Aligned by family and variant, all 92 existing diagram-body crops are pixel-identical to the PR's approved sheet. Five heading cells each differ by one antialiasing pixel because the expanded variant bands move their absolute positions. All eight added Event Modeling and ZenUML cells are pixel-identical to Main's approved sheet. Compared with Main's complete sheet, only the eight Class and Requirement cells change, by the same 587 pixels itemized above; every other cell, heading and background pixel is identical.
+
+The Codex agents inspected all eight Class/Requirement before/after triptychs and all eight added family cells at native 520×380. Class cardinalities remain separated from their aggregation markers; Requirement retains the authored dashed verifies shaft. Event Modeling retains the three ordered steps, lane ownership and directed relations. ZenUML retains both participants and reciprocal Hello/Reply arrows. The four variants retain their distinct typography, spacing, corners, strokes and palettes. Main's separate enrollment review remains in [stable-families-review.md](stable-families-review.md); the prior PR audit above is preserved.
+
+This approves the composed finite rendering sheet only. It is agent review, not human approval, deployed-site parity, general backend parity or an exhaustive density, readability or font-outline proof. No limits, source semantics or certification checks were relaxed.

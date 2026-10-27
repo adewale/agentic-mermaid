@@ -1,3 +1,5 @@
+import { ZENUML_AGENT_HOOKS } from './zenuml-body.ts'
+import { EVENTMODELING_AGENT_HOOKS } from './eventmodeling-body.ts'
 import { readAuthoredGrammarAccessibility } from '../shared/grammar-text.ts'
 import { C4AmbiguousArgumentError, parseC4Diagram } from '../c4/parser.ts'
 import { buildC4SourceMap, lintC4, mutateC4, parseC4Body, renderC4 } from './c4-body.ts'
@@ -1486,5 +1488,10 @@ export const BUILTIN_AGENT_HOOKS = /* @__PURE__ */ Object.freeze({
   radar: RADAR_AGENT_HOOKS,
   sankey: SANKEY_AGENT_HOOKS,
   c4: C4_AGENT_HOOKS,
+  zenuml: ZENUML_AGENT_HOOKS,
+  eventmodeling: EVENTMODELING_AGENT_HOOKS,
   ...STABLE_FAMILY_AGENT_HOOKS,
 }) satisfies Readonly<Record<DiagramKind, FamilyOperations>>
+export { EVENTMODELING_AGENT_HOOKS } from './eventmodeling-body.ts'
+
+export { ZENUML_AGENT_HOOKS } from './zenuml-body.ts'

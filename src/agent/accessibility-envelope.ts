@@ -10,9 +10,7 @@ export function accessibilitySerializationProblem(source: string, statementEnds?
   if (!source.includes('%%{')) return undefined
   const lines = source.split(/\r?\n/)
   const value = scanAccessibilityDirectives(lines, statementEnds?.(lines)).accessibility
-  return [value.title, value.descr].some(text => text?.includes('%%{'))
-    ? 'Accessibility text contains an init-directive opener. Source is preserved for native reading; remove the literal opener before typed editing or portable export.'
-    : undefined
+  return [value.title, value.descr].some(text => text?.includes('%%{')) ? 'Accessibility text contains an init-directive opener. Source is preserved for native reading; remove the literal opener before typed editing or portable export.' : undefined
 }
 
 /** JSON-comment fields have no physical-line grammar restriction. */
@@ -28,7 +26,12 @@ export function accessibilityTitleText(value: string): string {
 
 export function accessibilityDescriptionText(value: string): string {
   if (typeof value !== 'string') throw new AccessibilityTextError('Accessibility description must be text')
-  const text = value.replace(/\r\n?/g, '\n').split('\n').map(line => line.trim()).join('\n').trim()
+  const text = value
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map(line => line.trim())
+    .join('\n')
+    .trim()
   if (!text) throw new AccessibilityTextError('Accessibility description must be non-empty text')
   return text
 }
@@ -42,11 +45,13 @@ export function normalizeBodyAccessibility<T extends DiagramBody>(body: T): T {
   const title = fields.title === undefined ? undefined : accessibilityTitleText(fields.title)
   // Empty parsed blocks are valid retained values; setters validate new text.
   const descr = fields.descr === undefined || fields.descr === '' ? fields.descr : accessibilityDescriptionText(fields.descr)
-  return title === fields.title && descr === fields.descr ? body : {
-    ...body,
-    ...(title !== undefined ? { accessibilityTitle: title } : {}),
-    ...(descr !== undefined ? { accessibilityDescription: descr } : {}),
-  }
+  return title === fields.title && descr === fields.descr
+    ? body
+    : {
+        ...body,
+        ...(title !== undefined ? { accessibilityTitle: title } : {}),
+        ...(descr !== undefined ? { accessibilityDescription: descr } : {}),
+      }
 }
 
 /** Serialize universal Mermaid accessibility metadata for structured bodies. */
@@ -74,13 +79,20 @@ export function appendAccessibilityLines(lines: string[], value: { accessibility
 /** Add envelope-owned accessibility directives to a canonical structured
  * family serialization when that body serializer does not model them. */
 export function ensureAccessibilityLines(source: string, accessibility: Accessibility): string {
-  const header = source.split(/\r?\n/).find(line => line.trim() && !line.trimStart().startsWith('%%'))?.trim() ?? ''
-  const native = /^(?:block(?:-beta)?|sankey(?:-beta)?|mindmap|ishikawa(?:-beta)?)(?:\s|$)/i.test(header)
+  const header =
+    source
+      .split(/\r?\n/)
+      .find(line => line.trim() && !line.trimStart().startsWith('%%'))
+      ?.trim() ?? ''
+  const native = /^(?:zenuml|eventmodeling|block(?:-beta)?|sankey(?:-beta)?|mindmap|ishikawa(?:-beta)?)(?:\s|$)/i.test(header)
   const present = new Set<string>()
   const physical = source.split(/\r?\n/)
   for (let index = 0; index < physical.length; index++) {
     const directive = parseAccessibilityDirective(physical, index)
-    if (directive) { present.add(directive.title ? 'title' : 'descr'); index = directive.endIndex }
+    if (directive) {
+      present.add(directive.title ? 'title' : 'descr')
+      index = directive.endIndex
+    }
   }
   const missing: string[] = []
   const append = native ? appendNativeAccessibilityLines : appendAccessibilityLines
@@ -127,6 +139,7 @@ export function adoptStatementAccessibility(meta: { accessibility: Accessibility
  * fields and the metadata envelope remains the sole authority. */
 export function accessibilityFromBody(body: DiagramBody): Accessibility | undefined {
   switch (body.kind) {
+    case 'zenuml':
     case 'timeline':
     case 'journey':
     case 'architecture':

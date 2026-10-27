@@ -427,7 +427,7 @@ export type FamilyEdgeRouteCertificate =
     obstacleFree: boolean
   }
   | {
-    family: 'sequence'
+    family: 'sequence' | 'zenuml'
     edgeIndex: number
     routeClass: 'family-layout'
     invariant: 'lifeline-message' | 'self-message' | 'unverified-family-route'

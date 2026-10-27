@@ -3,7 +3,7 @@ import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } fr
 // boundaries distinguish notes and empty sections sharing a message cursor.
 import { parseSequenceDiagram, displayMessageContent, getSequenceBlockBoundaries } from '../sequence/parser.ts'
 import { resolveSequenceBlockScopes } from '../sequence/geometry.ts'
-import type { SequenceMessageHead } from '../sequence/types.ts'
+import type { SequenceDiagram, SequenceMessageHead } from '../sequence/types.ts'
 import type { ResolvedSequenceConfig } from '../sequence/config.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode, CharRole } from './types.ts'
 import { TerminalDocument, type TerminalMarker, type TerminalOwner } from './terminal-document.ts'
@@ -24,15 +24,21 @@ function messageLabelX(message: PositionedMessage, line: string): number {
 }
 
 export function renderSequenceTerminal(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, seqConfig: ResolvedSequenceConfig = {}, targetWidth?: number, authoredLine?: (index: number) => number | undefined): TerminalArtifact {
-  targetWidth ??= config.targetWidth ?? config.maxWidth
   const diagram = parseSequenceDiagram(text.split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('%%')), { ...seqConfig, ...(authoredLine ? { authoredLine } : {}) })
-  diagram.title ??= config.title === undefined ? undefined : normalizeBrTags(config.title)
+  return renderSequenceDiagramTerminal(diagram, config, colorMode, theme, seqConfig, targetWidth)
+}
+
+/** Native sequence-language adapters share cell layout without a text roundtrip. */
+export function renderSequenceDiagramTerminal(input: SequenceDiagram, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, seqConfig: ResolvedSequenceConfig = {}, targetWidth?: number): TerminalArtifact {
+  targetWidth ??= config.targetWidth ?? config.maxWidth
+  const diagram = input.title === undefined && config.title !== undefined ? { ...input, title: normalizeBrTags(config.title) } : input
   if (!diagram.actors.length && !diagram.blocks.length) {
     const empty = new TerminalDocument()
     if (diagram.title) for (const line of wrapText(prepareDisplayText(resolveLabelContent(diagram.title, diagram.titleContent)), targetWidth)) empty.line([{ text: line, owner: { id: 'title', kind: 'label' }, role: 'text' }])
     return terminalArtifact(empty, { colorMode, theme, trimEnd: true })
   }
-  const generated = terminalIds(diagram.actors.map(actor => actor.id))
+  const generated = terminalIds([...diagram.actors.map(actor => actor.id), ...[...diagram.messages, ...diagram.blocks, ...diagram.notes].flatMap(item => item.id === undefined ? [] : [item.id])])
+  const blockId = (index: number) => diagram.blocks[index]!.id ?? generated(`block:${index}`)
   const ascii = config.useAscii
   const actorIndex = new Map(diagram.actors.map((actor, index) => [actor.id, index]))
   const budget = targetWidth === undefined ? undefined : Math.max(1, Math.floor(targetWidth / 3))
@@ -128,7 +134,7 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
   const closedFrames: SequenceFrame[] = []
   const activeFrames: number[] = []
   const actorTop = new Map<number, number>()
-  const currentParent = () => activeFrames.length ? generated(`block:${activeFrames.at(-1)!}`) : undefined
+  const currentParent = () => activeFrames.length ? blockId(activeFrames.at(-1)!) : undefined
   let cursor = participantTop + actorBoxH
   const ownedBounds = new Map<number, CellBounds[]>()
   const overlays = new Map<number, { start: number; bottom: number; prior: CellBounds[]; pending?: number }>()
@@ -181,7 +187,7 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
     delete state.pending
   }
   let messageCursor = 0, noteCursor = 0, boundaryCursor = 0
-  const boundaries = getSequenceBlockBoundaries(diagram) ?? []
+  const boundaries = getSequenceBlockBoundaries(input) ?? []
   const consumeBoundaries = () => {
     while (boundaryCursor < boundaries.length) {
       const event = boundaries[boundaryCursor]!
@@ -199,7 +205,7 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
           cursor += overlayContent({ ...span, y: cursor + 1, height: 1 })
         }
         cursor++
-        frames.set(index, { index, x: 0, y: cursor, width: 0, height: 0, header: headerLines[index]!, dividers: [], parentId: currentParent() })
+        frames.set(index, { index, x: 0, y: cursor, width: 0, height: 0, header: headerLines[index]!, dividers: [], parentId: diagram.blocks[index]!.parentId ?? currentParent() })
         activeFrames.push(index)
         cursor += Math.max(1, headerLines[index]!.length)
         if (diagram.blocks[index]!.type === 'par_over') {
@@ -250,7 +256,7 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
     if (note && note.afterIndex < messageCursor) {
       cursor++
       const lines = noteLines[noteCursor]!
-      const positioned = { index: noteCursor, ...noteSpans[noteCursor]!, y: cursor, height: lines.length + 2, lines, parentId: currentParent() }
+      const positioned = { index: noteCursor, ...noteSpans[noteCursor]!, y: cursor, height: lines.length + 2, lines, parentId: diagram.notes[noteCursor]!.parentId ?? currentParent() }
       const shift = overlayContent(positioned)
       cursor += shift; positioned.y += shift
       notes.push(positioned); own(positioned); cursor += positioned.height; noteCursor++
@@ -267,7 +273,7 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
       const fromX = llX[actorIndex.get(message.from)!]!, toX = llX[actorIndex.get(message.to)!]!
       const self = fromX === toX
       const width = Math.max(0, ...lines.map(visualWidth))
-      const positioned = { index: messageCursor, x: self ? fromX + 6 : Math.min(fromX, toX) + Math.floor((Math.abs(toX - fromX) - width) / 2), y: self ? cursor + 1 : cursor, width, height: lines.length, lines, arrowY: self ? cursor : cursor + lines.length, fromX, toX, parentId: currentParent() }
+      const positioned = { index: messageCursor, x: self ? fromX + 6 : Math.min(fromX, toX) + Math.floor((Math.abs(toX - fromX) - width) / 2), y: self ? cursor + 1 : cursor, width, height: lines.length, lines, arrowY: self ? cursor : cursor + lines.length, fromX, toX, parentId: message.parentId ?? currentParent() }
       const shift = overlayContent({ x: Math.min(fromX, toX, positioned.x), y: cursor, width: Math.max(fromX, toX, positioned.x + width - 1) - Math.min(fromX, toX, positioned.x) + 1, height: lines.length + (self ? 2 : 1) })
       cursor += shift; positioned.y += shift; positioned.arrowY += shift
       messages.push(positioned)
@@ -312,6 +318,7 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
   foreground.push(...notes)
   messages.forEach(message => message.lines.forEach((line, row) => foreground.push({ x: messageLabelX(message, line), y: message.y + row, width: visualWidth(line), height: 1 })))
   diagram.actors.forEach((actor, index) => {
+    if (actor.external) return
     const card = { x: llX[index]! - Math.floor(actorWidths[index]! / 2), y: actorTop.get(index) ?? participantTop, width: actorWidths[index]!, height: actorBoxH }
     foreground.push(card)
     if (actor.destroyMessageIndex === undefined) foreground.push({ ...card, y: footerY })
@@ -329,6 +336,7 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
     doc.scope(element, () => group.lines.forEach((line, y) => doc.text(group.x + 1, y, line, { role: 'text', kind: 'text' })))
   })
   diagram.actors.forEach((actor, index) => {
+    if (actor.external) { owner(actor.id); return }
     const element = owner(actor.id, 'node', actor.box === undefined ? undefined : { id: generated(`box:${actor.box}`), kind: 'group' })
     const start = actorTop.has(index) ? actorTop.get(index)! + actorBoxH : participantTop + actorBoxH
     const end = actor.destroyMessageIndex === undefined ? footerY : messages[actor.destroyMessageIndex]?.arrowY ?? footerY
@@ -357,6 +365,7 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
   for (const event of diagram.activationEvents ?? []) if (event.messageIndex >= diagram.messages.length) activation(event.actorId, footerY - 1, event.kind === 'activate')
   for (const [id, stack] of activationStacks) while (stack.length) activation(id, footerY, false)
   diagram.actors.forEach((actor, index) => {
+    if (actor.external) return
     const element = owner(actor.id, 'node', actor.box === undefined ? undefined : { id: generated(`box:${actor.box}`), kind: 'group' })
     const drawActor = (top: number) => {
       const width = actorWidths[index]!, lines = actorLines[index]!, x = llX[index]! - Math.floor(width / 2)
@@ -373,7 +382,7 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
   })
   for (const positioned of messages) {
     const message = diagram.messages[positioned.index]!, self = message.from === message.to
-    const element = doc.element({ id: generated(`message:${positioned.index}`), kind: 'edge', parent: positioned.parentId === undefined ? undefined : { id: positioned.parentId, kind: 'compartment' }, from: message.from, to: message.to })
+    const element = doc.element({ id: message.id ?? generated(`message:${positioned.index}`), kind: 'edge', parent: positioned.parentId === undefined ? undefined : { id: positioned.parentId, kind: 'compartment' }, from: message.from, to: message.to })
     const style = message.lineStyle === 'dashed' ? 'dashed' : 'solid'
     const y = positioned.arrowY, from = positioned.fromX, to = positioned.toX
     const endpoint = (x: number, row: number, start: boolean, right: boolean): void => {
@@ -407,7 +416,7 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
   }
   // Frames use measured owned bounds, including complete conditions and notes.
   for (const positioned of [...closedFrames].reverse()) {
-    const element = owner(generated(`block:${positioned.index}`), 'compartment', positioned.parentId === undefined ? undefined : { id: positioned.parentId, kind: 'compartment' })
+    const element = owner(blockId(positioned.index), 'compartment', positioned.parentId === undefined ? undefined : { id: positioned.parentId, kind: 'compartment' })
     frame(positioned, element)
     doc.textBlock(positioned.x + 1, positioned.y, positioned.header, { owner: element, role: 'text', kind: 'text' })
     positioned.dividers.forEach(divider => {
@@ -418,7 +427,7 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
     })
   }
   for (const positioned of notes) {
-    const element = owner(generated(`note:${positioned.index}`), 'node', positioned.parentId === undefined ? undefined : { id: positioned.parentId, kind: 'compartment' })
+    const element = owner(diagram.notes[positioned.index]!.id ?? generated(`note:${positioned.index}`), 'node', positioned.parentId === undefined ? undefined : { id: positioned.parentId, kind: 'compartment' })
     frame(positioned, element, true)
     doc.textBlock(positioned.x + 2, positioned.y + 1, positioned.lines, { owner: element, role: 'text', kind: 'text' })
   }

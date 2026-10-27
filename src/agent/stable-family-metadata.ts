@@ -144,4 +144,17 @@ export const STABLE_FAMILY_DESCRIPTOR_SEEDS = [
     example: 'block\n  columns 2\n  A["API"] B["Database"]\n  A --> B',
     editorExample: 'block\n  columns 3\n  client["Client"] space api["API"]\n  block:data:3\n    columns 2\n    primary[("Primary")] replica[("Replica")]\n    primary --> replica\n  end\n  client --> api\n  api --> primary',
   },
+  {
+    id: 'eventmodeling', upstreamId: 'eventmodeling', maturity: 'experimental',
+    label: 'Event Modeling', headers: ['eventmodeling'], narrower: 'asEventModeling',
+    editorDiagramType: 'Event Modeling', editorLabel: 'Event Modeling',
+    editorDescription: 'Time frames, swimlanes and directed information flow.',
+    editorExampleId: 'eventmodeling-basic', editorGlyph: 'EM',
+    config: { section: 'eventmodeling', keys: ['padding', 'rowHeight', 'useWidth', 'useMaxWidth', 'theme', 'look', 'layout'], noopKeys: ['useWidth', 'useMaxWidth', 'theme', 'look', 'layout'] },
+    semanticChannels: [],
+    sceneRoles: [...documentRoles.filter(role => role.role !== 'chrome'), { role: 'chrome', primitives: ['document', 'shape'] }, ...boxes, { role: 'group', primitives: ['container', 'shape'] }, { role: 'edge', primitives: ['connector'] }, { role: 'defs', primitives: ['document', 'marker'] }],
+    detect: familyDetection.detectsEventmodelingFamily,
+    example: 'eventmodeling\ntf 01 ui CartUI\ntf 02 cmd AddItem\ntf 03 evt ItemAdded',
+    editorExample: 'eventmodeling\ntf 01 ui CartUI\ntf 02 cmd AddItem\ntf 03 evt ItemAdded\ntf 04 rmo CartItems\ntf 05 ui CartUI',
+  },
 ] as const

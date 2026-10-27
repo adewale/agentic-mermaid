@@ -44,6 +44,8 @@ const range = (k: number) => Array.from({ length: k }, (_, i) => i)
 const lines = (...xs: string[]) => xs.join('\n')
 
 export const METAMORPHIC_FAMILIES: Record<DiagramKind, FamilyMetamorphic> = {
+  zenuml: { family: 'zenuml', build: (k, tag) => lines('zenuml', ...range(k).map(i => `${tag}${i}`)), kRange: [1, 6], addPrimary: { snippet: (k, tag) => `\n${tag}${k}`, nodeDelta: 1 }, addRelation: (k, tag) => `\n${tag}0->${tag}${k - 1}: request` },
+  eventmodeling: { family: 'eventmodeling', build: (k, tag) => `eventmodeling\n${Array.from({length: k}, (_, i) => `rf ${i} evt E${i} {${tag}}`).join('\n')}`, kRange: [1, 8], addPrimary: { snippet: (k, tag) => `\nrf ${k} evt Extra {${tag}}`, nodeDelta: 1 }, addRelation: null },
   packet: {
     family: 'packet',
     build: (k, tag) => lines('packet', ...range(k).map(i => `+8: "${tag} field ${i}"`)),
