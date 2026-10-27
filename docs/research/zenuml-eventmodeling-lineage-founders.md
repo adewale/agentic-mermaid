@@ -68,7 +68,7 @@ that family. Neither API shape alone establishes visual quality.
 
 **Checked Zen editing and serialization.** Use the existing
 [Checkout witness](../../src/__tests__/testdata/zenuml-checkout.mmd): alias,
-nested call, conditional returns, and the final reply direction. Renaming an
+nested call, conditional returns, and the final async-message direction. Renaming an
 implicit participant must update nested references without merging another
 participant. Inserting a branch interaction must retain its caller and return
 context. Invalid edits must leave the prior model unchanged, and canonical Zen
