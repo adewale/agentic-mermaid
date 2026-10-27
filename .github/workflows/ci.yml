@@ -275,6 +275,10 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Install GitHub CLI for head-bound payload approvals
+        if: ${{ matrix.suite == 'payload' && github.event_name == 'pull_request' }}
+        run: apt-get update && apt-get install -y gh
+
       - name: Check the Playwright environment matches the installed package
         if: ${{ matrix.suite == 'browser' || matrix.suite == 'browser-site' || matrix.suite == 'payload' }}
         run: |

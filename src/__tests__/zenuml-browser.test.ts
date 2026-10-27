@@ -3,6 +3,7 @@ import { chromium, type Browser } from 'playwright'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { normalizeSvg } from './helpers/svg-normalize.ts'
 const browserTests = process.env.AM_BROWSER_TESTS === '1' ? describe : describe.skip
 let browser: Browser, server: ReturnType<typeof Bun.serve>, directory: string
 
@@ -37,7 +38,7 @@ browserTests('optional ZenUML browser backend', () => {
       const entry = '/index.js'
       const api = await import(entry)
       const before = document.head.innerHTML + getComputedStyle(document.getElementById('host')!).font
-      const svg = await api.renderZenUMLSVG('zenuml\ntitle Demo\nAlice->John: Hello John\nJohn->Alice: Great!', { backendURL: '/frame.js', timeoutMs: 10_000 })
+      const svg = await api.renderZenUMLSVG('zenuml\ntitle Demo\nAlice->John: Hello John, how are you?\nJohn->Alice: Great!\nAlice->John: See you later!', { backendURL: '/frame.js', timeoutMs: 10_000 })
       document.getElementById('output')!.style.width = '200px'
       document.getElementById('output')!.innerHTML = svg
       const bounds = document.querySelector('#output svg')!.getBoundingClientRect()
@@ -52,6 +53,11 @@ browserTests('optional ZenUML browser backend', () => {
       }
       return { svg, before, after, renderedWidth: bounds.width, renderedHeight: bounds.height, invalid: await failure('zenuml\nif (', '/frame.js'), missing: await failure('zenuml\nA->B: hi', '/missing.js'), malformed: await failure('zenuml\nA->B: hi', 'http://['), frames: document.querySelectorAll('iframe').length }
     })
+    // Reviewed rendering golden: guard the pinned backend's actors, messages,
+    // geometry and paints independently of source admission and CSS isolation.
+    const golden = join(import.meta.dir, 'testdata/styled/zenuml-demo.svg')
+    if (process.env.UPDATE_STYLED_BASELINE === '1') await Bun.write(golden, result.svg + '\n')
+    else expect(normalizeSvg(result.svg)).toBe(normalizeSvg(await Bun.file(golden).text()))
     expect(result.svg).toContain('viewBox=')
     for (const label of ['Demo', 'Alice', 'John', 'Hello John', 'Great!']) expect(result.svg).toContain(label)
     expect(result.before).toBe(result.after)
