@@ -251,9 +251,14 @@ export function axisFor(direction: Direction): Axis {
   }
 }
 
+function orthogonalTurn(a: Point, b: Point, c: Point): boolean {
+  return a.x !== c.x && a.y !== c.y
+    && ((a.x === b.x && b.y === c.y) || (a.y === b.y && b.x === c.x))
+}
+
 /**
- * Remove consecutive duplicates and collinear midpoints. Preserves drawn
- * geometry exactly. Iterates to a fixed point: ELK can emit degenerate
+ * Remove duplicate and collinear noise while preserving endpoints and
+ * orthogonal turns. Iterates to a fixed point: ELK can emit degenerate
  * zero-net spikes (out-and-back excursions) whose midpoints only become
  * collinear after their neighbors are removed — a single pass would leave a
  * phantom collinear point behind.
@@ -266,7 +271,10 @@ export function simplifyPolyline(points: Point[]): Point[] {
     for (let i = 1; i < current.length; i++) {
       const p = current[i]!
       const prev = out[out.length - 1]!
-      if (Math.abs(p.x - prev.x) < EPS && Math.abs(p.y - prev.y) < EPS) continue
+      if (Math.abs(p.x - prev.x) < EPS && Math.abs(p.y - prev.y) < EPS) {
+        const next = current[i + 1]
+        if (next ? !orthogonalTurn(prev, p, next) : p.x === prev.x && p.y === prev.y) continue
+      }
       out.push(p)
     }
     const result: Point[] = out.length < 3 ? out : [out[0]!]
@@ -276,7 +284,7 @@ export function simplifyPolyline(points: Point[]): Point[] {
           b = out[i]!,
           c = out[i + 1]!
         const cross = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
-        if (Math.abs(cross) < EPS) continue // collinear midpoint (or spike apex)
+        if (Math.abs(cross) < EPS && !orthogonalTurn(a, b, c)) continue // collinear midpoint (or spike apex)
         result.push(b)
       }
       result.push(out[out.length - 1]!)

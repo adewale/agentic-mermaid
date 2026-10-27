@@ -7,6 +7,7 @@ import * as passContract from '../layout/pass.ts'
 const { LayoutMetricBudgetError, LayoutPassContractError, runPipeline } = passContract
 import { LAYOUT_PIPELINE, convertToElkFormat, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
+import { applyParallelDuplicateLanes } from '../layout/passes/parallel-lanes.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { verifyMermaid } from '../agent/index.ts'
 import { withPerformanceExperiments } from '../experimental-performance.ts'
@@ -296,6 +297,32 @@ S1["same word ok"] --> D`],
     expect(pair[0]!.points).not.toEqual(pair[1]!.points)
     expect(countParallelRouteOverlaps(pair)).toBe(0)
     expect(assessLayout(graph, positioned).metrics.edgeCrossings).toBe(1)
+  })
+
+  test.each(['LR', 'RL', 'TD', 'BT'] as const)('%s duplicate lanes preserve orthogonal segments at subpixel offsets', direction => {
+    const point = (main: number, cross: number) => direction === 'LR' ? { x: main, y: cross }
+      : direction === 'RL' ? { x: -main, y: cross } : direction === 'TD' ? { x: cross, y: main } : { x: cross, y: -main }
+    const node = (id: string, main: number, cross: number): PositionedNode => {
+      const a = point(main, cross), b = point(main + 100, cross + 80)
+      return { id, label: id, shape: 'rectangle', x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), width: Math.abs(a.x - b.x), height: Math.abs(a.y - b.y) }
+    }
+    for (const offset of [-0.05, -0.005, -0.0005, 0, 0.0005, 0.005, 0.05]) for (const mixed of [false, true]) {
+      const graph = parseMermaid(`flowchart ${direction}\nA-->B\nA-->${mixed ? '|label|' : ''}B`)
+      const nodes = [node('A', 0, 0), node('B', 300, offset)]
+      const edges: PositionedEdge[] = graph.edges.map((edge, edgeIndex) => ({
+        ...edge, edgeIndex, points: [point(100, 40), point(200, 40), point(200, 40 + offset), point(300, 40 + offset)],
+      }))
+      applyParallelDuplicateLanes(nodes, edges, [], graph, new Set(), resolveRenderStyle())
+      expect(edges[0]!.points).not.toEqual(edges[1]!.points)
+      for (const edge of edges) {
+        expect(onShapeOutline(nodes[0]!, edge.points[0]!)).toBe(true)
+        expect(onShapeOutline(nodes[1]!, edge.points.at(-1)!)).toBe(true)
+        for (let index = 1; index < edge.points.length; index++) {
+          const a = edge.points[index - 1]!, b = edge.points[index]!
+          expect(a.x === b.x || a.y === b.y, `${direction} offset=${offset} mixed=${mixed}`).toBe(true)
+        }
+      }
+    }
   })
 
   test('a target bucket cannot separate one pair by collapsing another parallel pair', () => {
