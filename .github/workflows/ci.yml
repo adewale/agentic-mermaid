@@ -58,7 +58,7 @@ jobs:
 
   layout-evidence:
     name: Layout backend review evidence
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     continue-on-error: true
@@ -67,7 +67,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
@@ -115,20 +115,20 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: layout-backends-${{ github.event.pull_request.head.sha }}
+          name: layout-backends-${{ github.event.pull_request.head.sha || github.sha }}
           path: ${{ runner.temp }}/layout-backends/
           retention-days: 14
 
   layout-quality-evidence:
     name: Generated layout diagnostic (advisory)
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     continue-on-error: true
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
@@ -197,7 +197,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: generated-layouts-${{ github.event.pull_request.head.sha }}
+          name: generated-layouts-${{ github.event.pull_request.head.sha || github.sha }}
           path: ${{ runner.temp }}/generated-layouts/
           retention-days: 14
 
