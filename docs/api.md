@@ -1,98 +1,118 @@
-# API reference
+# Library API
 
-Agentic Mermaid exposes these library surfaces:
-
-- `agentic-mermaid` — runtime-neutral renderer API for SVG, ASCII/Unicode,
-  and host-injected browser PNG output.
-- `agentic-mermaid/agent` — agent-native API with
-  parse/narrow/mutate/verify/serialize plus SVG, native Node/Bun PNG, and ASCII
-  output helpers.
-- `agentic-mermaid/agent/core` — the same structured-edit, SVG, and ASCII
-  surface without the native PNG dependency; use this entry in browser and
-  workerd bundles.
-
-Trusted Node-host resource resolution remains host tooling rather than a
-published runtime entry point.
-
-Use `agentic-mermaid/agent` when you want one import path for agents.
-Use `agentic-mermaid/agent/core` when the target runtime cannot load Node native
-addons.
-
-### Canonical requests and comparable receipts
-
-Every first-party renderer enters through the same immutable internal request
-boundary: source wrappers/config, the Style stack, colors, font, security, and
-shared options are normalized once. Receipt-bearing variants make that boundary
-observable without exporting its executable implementation types or changing
-the existing convenience return types:
+Render artifacts, read painted geometry, or edit Mermaid source with typed operations.
 
 ```ts
-import {
-  renderMermaidASCIIWithReceipt,
-  renderMermaidPNGWithReceipt,
-  renderMermaidSVGWithReceipt,
-} from 'agentic-mermaid/agent'
+import { renderMermaidSVG } from 'agentic-mermaid'
 
-const options = { style: 'hand-drawn', seed: 7, embedFontImport: false }
-const svg = renderMermaidSVGWithReceipt(source, options)
-const png = renderMermaidPNGWithReceipt(source, options)
-const text = renderMermaidASCIIWithReceipt(source, { ...options, colorMode: 'none' })
-
-console.assert(svg.receipt.sharedRequestDigest === png.receipt.sharedRequestDigest)
-console.assert(svg.receipt.appearanceDigest === text.receipt.appearanceDigest)
+const source = 'flowchart LR\n  Idea --> Ship'
+const svg = renderMermaidSVG(source, { style: ['hand-drawn', 'nord'] })
+console.log(svg)
 ```
 
-Each `RenderRequestReceipt` contains `version`, `output`,
-`sharedRequestDigest`, output-specific `requestDigest`, and
-`appearanceDigest`. Its `diagnostics` array records stable request-resolution,
-compatibility, applicability, projection, and output-policy decisions. In
-particular, `RENDER_OPTION_NOT_APPLICABLE` makes an authored family-scoped
-option that the selected family does not consume observable instead of letting
-it change request identity silently. CLI JSON results and local/hosted MCP
-render results expose the same receipt. Use `validateSerializableRenderOptions(value)` and
-`sharedRenderOptionsJsonSchema()` for untrusted advanced option objects, or
-`styleInputJsonSchema()` for a standalone convenience `style` field; unknown
-fields, `null`, functions, prototype keys, and non-finite values are rejected.
-Graphical receipts name an explicitly selected pixel `textMeasurement` profile
-(`id` and `version`). Trusted hosts can select custom metrics through the
-renderer factories described below; their callback never enters a receipt.
+Choose the task, then use the matching surface:
 
-## Output helpers
+| Task | Start here | Result |
+|---|---|---|
+| Render an artifact | [Rendering](#rendering) | SVG, PNG bytes, or terminal text |
+| Draw or animate the artwork yourself | [Resolved paths and text](#resolved-paths-and-text) | JSON with painted paths, text, transforms and semantic parts |
+| Change existing source | [Editing](#editing) | A typed edit, verification findings and serialized Mermaid |
 
-### SVG
+Agents with a shell can use `am capabilities --json` and `am styles --json` to
+discover installed support. In MCP, use `describe_sdk` for mutation fields and
+`execute` for the documented Code Mode functions. Resolved scenes are currently
+available from the main library entry only, not Code Mode.
+
+## Versions
+
+<!-- BEGIN GENERATED: api-versions -->
+This reference describes source version **0.4.2**. The latest release recorded in the [changelog](../CHANGELOG.md) is **0.4.1** (2026-07-30). [Read that version's reference](https://github.com/adewale/agentic-mermaid/blob/v0.4.1/docs/api.md). Changes under **Unreleased**, including new exports, are not part of that recorded release.
+<!-- END GENERATED: api-versions -->
+
+```bash
+npm ls agentic-mermaid
+npm view agentic-mermaid version
+```
+
+The first command shows the installed version; the second asks npm for its
+current release. For released APIs, read documentation at the release's Git tag.
+A source checkout and successful build do not establish publication.
+
+## Imports and runtimes
+
+| Import | Use it for | Runtime |
+|---|---|---|
+| `agentic-mermaid` | SVG, ASCII/Unicode, resolved scenes and styles | Node, Bun, browsers and Workers; no native PNG addon imported |
+| `agentic-mermaid/agent/core` | Parsing, typed editing, verification, layout, SVG and terminal rendering | Node, Bun, browsers and Workers |
+| `agentic-mermaid/agent` | The agent/core operations plus native PNG | Node or Bun |
+| `agentic-mermaid/browser/lazy` | `renderMermaidSVGAsync` with families loaded on demand | Browser ESM |
+
+Use `/agent/core` for runtime-neutral editing and `/agent` when you also need
+native PNG. The synchronous browser bundle is `agentic-mermaid/browser`.
+Host-injected browser PNG is covered in the [advanced reference](./api-advanced.md#trusted-host-selected-graphical-backends).
+
+## Rendering
+
+These functions accept source text or a `ParsedDiagram` returned by
+`parseRegisteredMermaid`. Parsing first is optional for artifact-only tasks.
+Rendering is synchronous except for explicit async and browser PNG helpers.
+
+```typescript
+renderMermaidSVG(input: ParsedDiagram | string, options?: RenderOptions): string
+renderMermaidASCII(input: ParsedDiagram | string, options?: AsciiRenderOptions): string
+renderMermaidPNG(input: ParsedDiagram | string, options?: PngOptions): Uint8Array
+```
+
+| Function | Return value | Notes |
+|---|---|---|
+| `renderMermaidSVG` | One SVG document string | `idPrefix` separates resource IDs when embedding several diagrams. |
+| `renderMermaidASCII` | Terminal text | Unicode by default; `{ useAscii: true }` selects seven-bit ASCII. |
+| `renderMermaidPNG` | PNG bytes | Import from `/agent`. Use `scale` or `fitTo` for size. |
+| `renderMermaidSVGWithReceipt` | `{ svg, receipt }` | Adds request identity and diagnostics. |
+| `renderMermaidASCIIWithMeta` | `{ ascii, regions, actions, warnings, routeParity }` | Import from `/agent/core` or `/agent` for element/cell mapping. |
+| `renderMermaidWithActions` | Artifact and inert action regions | Import from `/agent` for SVG, PNG, ASCII or Unicode interaction metadata. |
 
 ```ts
-import { renderMermaidSVG } from 'agentic-mermaid/agent'
+import { writeFileSync } from 'node:fs'
+import { renderMermaidPNG } from 'agentic-mermaid/agent'
 
-const svg = renderMermaidSVG(`flowchart TD
-  A --> B`, { security: 'strict' })
+const png = renderMermaidPNG('flowchart LR\n  Idea --> Ship', {
+  fitTo: { width: 1200 }, background: '#ffffff',
+})
+writeFileSync('diagram.png', png)
 ```
 
-`renderMermaidSVG(input, options?)` accepts a Mermaid source string or any open
-`ParsedDiagram` envelope returned by `parseRegisteredMermaid` and returns an SVG
-string.
+Use the same render options for verification and rendering. A style can affect
+layout and typography as well as paint. Changing `seed` rerolls styled ink
+without changing the semantic layout.
 
-### Resolved paths and text
+## Resolved paths and text
+
+Use this API when another renderer needs the artwork AM actually drew,
+including sketch strokes, expanded markers and multiline text runs.
+
+```typescript
+renderResolvedScene(input: ParsedDiagram | string, options?: RenderOptions): ResolvedScene
+```
 
 ```ts
 import { renderResolvedScene } from 'agentic-mermaid'
 
-const scene = renderResolvedScene('flowchart LR\n A --> B', { style: 'hand-drawn' })
-// scene.svg === renderMermaidSVG(source, options)
+const scene = renderResolvedScene('flowchart LR\n  Idea --> Ship', { style: 'hand-drawn' })
 for (const part of scene.parts) {
-  console.log(part.id, part.node, part.primitives)
+  console.log(part.id, part.node.identity, part.primitives)
 }
 ```
 
-`renderResolvedScene(input, options?)` accepts the same source or parsed
-diagram and options as `renderMermaidSVG`. It is synchronous and requires no
-DOM, network or browser. Its version-1 result is deterministic JSON data:
-
-- `family`, `width`, `height`, `colors` and the byte-identical `svg`.
-- `parts` in top-level Scene order, excluding document marks. Each contains
-  `id`, `role`, `kind`, the original semantic `node`, and its painted
-  `primitives` in document order.
-- `frame` for painted leaves outside those parts, including style backdrops.
+| `ResolvedScene` field | Meaning |
+|---|---|
+| `version` | `RESOLVED_SCENE_VERSION`, currently `1`. |
+| `family` | The underlying Scene family; State currently lowers through the Flowchart Scene. |
+| `width`, `height` | Final viewport dimensions in root SVG user units. |
+| `svg` | Byte-identical to `renderMermaidSVG(input, options)` for the same request. |
+| `colors` | Resolved diagram colors. |
+| `parts` | Top-level non-document Scene parts in Scene order, each with `id`, `role`, `kind`, semantic `node` and painted `primitives`. |
+| `frame` | Painted leaves outside those parts, including style backdrops. |
 
 Primitives describe what the selected backend actually drew, including sketch
 strokes. Shapes become local SVG path data; `matrix: [a,b,c,d,e,f]` maps local
@@ -110,53 +130,118 @@ lowering. It does not execute interactive/hover rules or fetch fonts.
 `RESOLVED_SCENE_VERSION` changes for removals or semantic changes; additive
 fields keep the version. See the changelog for contract changes.
 
-The Chromium comparison in `scripts/resolved-scene-oracle.ts` independently
-reads computed SVG values. It accepts a JSON array of
-`{ source, style? }`, with `--compare` for the API comparison or
-`--self-test` for planted comparison defects. Set `CHROMIUM` to a local
-browser executable if Playwright's downloaded Chromium is unavailable.
-Use `--worker-bundle dist/browser.global.js` after `bun run build:browser` to
-check the shipped bundle in a real browser Worker with no DOM.
+`part.id` is a Scene mark ID. `part.node.identity?.id` is source-facing identity
+where provided; they can differ (`node:A` and `A`). Use typed endpoints and
+ownership where available rather than parsing identifier spelling. Ownership
+is not yet populated for every companion mark.
 
-```sh
-bun scripts/resolved-scene-corpus.ts families /tmp/all-families.json
-bun scripts/resolved-scene-oracle.ts /tmp/all-families.json --compare
-bun scripts/resolved-scene-corpus.ts rayner /path/to/rayner /tmp/rayner.json
-bun scripts/resolved-scene-oracle.ts /tmp/rayner.json --compare --self-test
-```
+The result is detached JSON. This function does not accept host text-measurement
+profiles. Its [types](../src/scene/resolved-types.ts) describe every primitive
+field; the [changelog](../CHANGELOG.md) records availability. Default Sankey
+gradients require a solid-color configuration under this version's paint-server
+limitation.
 
-The family corpus uses solid-color Sankey links because its default gradients
-are explicitly outside this API's scope. The oracle uses internal emission
-boundaries for ownership, asserts byte equality with the public SVG renderer,
-and lets Chromium compute the primitive values. Existing layout failures remain
-failures; the script does not skip them.
+## Editing
 
-### PNG
+For new diagrams, author source, parse, verify, then render or return it. For
+existing structured diagrams, parse, select the typed family, mutate, verify,
+then serialize.
 
 ```ts
-import { writeFileSync } from 'node:fs'
-import { renderMermaidPNG } from 'agentic-mermaid/agent'
+import {
+  parseRegisteredMermaid, asFlowchart, mutate,
+  verifyMermaid, serializeMermaid,
+} from 'agentic-mermaid/agent/core'
 
-const png = renderMermaidPNG(`flowchart TD
-  A --> B`, {
-  fitTo: { width: 1200 },
-  background: '#fff',
-})
-
-writeFileSync('diagram.png', png)
+const parsed = parseRegisteredMermaid('flowchart LR\n  API --> DB')
+if (!parsed.ok) throw new Error(parsed.error.map(error => error.message).join('\n'))
+const flow = asFlowchart(parsed.value)
+if (!flow) throw new Error('Expected a structured flowchart')
+const changed = mutate(flow, { kind: 'add_node', id: 'Cache', label: 'Cache' })
+if (!changed.ok) throw new Error(changed.error.message)
+const verified = verifyMermaid(changed.value)
+if (!verified.ok) throw new Error(JSON.stringify(verified.warnings))
+console.log(serializeMermaid(changed.value))
 ```
 
-`renderMermaidPNG(input, options?)` accepts a Mermaid source string or any open
-`ParsedDiagram` envelope returned by `parseRegisteredMermaid` and returns
-`Uint8Array` PNG bytes. SVG, ASCII/Unicode, layout, native PNG, and browser PNG
-accept the same parsed-or-source input contract; an unregistered preserved
-envelope round-trips exactly and returns its stable capability diagnostic rather
-than falling through to Flowchart.
+Selecting a typed family is called **narrowing**: `asFlowchart` returns the
+structured flowchart or `null`. It does not select one element or freeze other
+elements' coordinates. A structural edit can recompute layout.
 
-`PngOptions` extends the shared `RenderOptions` contract used by SVG. The
-canonical machine-readable field set is returned by
-`sharedRenderOptionsJsonSchema()`; the table below contains only PNG-specific
-controls:
+```typescript
+parseRegisteredMermaid(source: string): Result<ParsedDiagram, ParseError[]>
+mutate(diagram: ParsedDiagram, operation: AnyMutationOp): Result<ParsedDiagram, MutationError>
+verifyMermaid(input: ParsedDiagram | string, options?: VerifyOptions): VerifyResult
+serializeMermaid(diagram: ParsedDiagram, options?: SerializeOptions): string
+```
+
+| Function | Result and use |
+|---|---|
+| `parseRegisteredMermaid` | `{ ok: true, value }` or `{ ok: false, error: ParseError[] }`. Preserving unsupported source does not grant typed edit support. |
+| Family narrower, such as `asFlowchart` | The typed family value or `null`. Discover names with `am capabilities --json`. |
+| `describeOps(family)`, `opSignatures(family)` | Exact mutation fields or a compact menu. Look up unfamiliar operations instead of guessing. |
+| `mutate` | A changed diagram or structured mutation error. The operation's `kind` selects its fields. |
+| `verifyMermaid` | `ok`, `warnings`, layout and check evidence. Inspect severity and verification scope. |
+| `serializeMermaid` | Mermaid source. **Does not run verification.** The caller must inspect verification before saving, sending or showing an edit. |
+| `describeMermaidFacts`, `checkMermaid` | Semantic read-back and required/forbidden-fact checks for task-critical meaning. |
+| `analyzeMermaid` | Non-rendering feedback-edge, action and available Gantt scheduling analysis. |
+| `layoutMermaid`, `layoutMermaidWithReceipt` | Positioned boxes, routes, labels and optional regions. The latter accepts source too and includes a receipt. This is layout geometry, not backend-painted artwork. |
+| `buildMermaid`, `createMermaid` | Programmatic authoring from typed operations; ordinary new diagrams can start directly as source. |
+
+Opaque bodies preserve source but have no structured mutation. Report the
+unsupported operation, or deliberately edit source and re-parse when requested.
+See the [agent cookbook](./agent-api-cookbook.md) for batch edits and rollback.
+
+## Render options
+
+SVG, PNG, terminal text, layout and resolved scenes share `RenderOptions`;
+applicability depends on output and family. See [style authoring](./style-authoring.md)
+for precedence and custom looks. This table is generated from runtime descriptors:
+
+<!-- BEGIN GENERATED: render-options -->
+| Option | Type | Default | Meaning and applicability |
+|---|---|---|---|
+| `layoutHints` | `{ ranks?: Record<string, number>; adjacent?: string[][]; shortEdges?: string[] }` | unset | Relative ranks, sibling adjacency and short-edge preferences. Built-in families: flowchart, state. Not consumed by terminal output. |
+| `layoutSafety` | `'report' \| 'strict'` | `report` | Report bounded layout evidence, or require a passed final certificate. Strict mode rejects missing or unverified evidence. |
+| `bg` | `string` | `#FFFFFF` | Background color or CSS variable. |
+| `fg` | `string` | `#27272A` | Primary foreground and text color. |
+| `line` | `string` | derived | Connector and secondary-line color. |
+| `accent` | `string` | derived | Arrowhead, highlight, and data accent color. |
+| `muted` | `string` | derived | Secondary text and label color. |
+| `surface` | `string` | derived | Node and group surface color. |
+| `border` | `string` | derived | Node and group border color. |
+| `font` | `string` | `Inter` | CSS font family or stack. |
+| `style` | `StyleInput \| StyleInput[]` | `crisp` | Registered Style/Palette name, inline StyleSpec, or left-to-right stack. |
+| `padding` | `number` | `40` | Canvas padding in SVG user units. Built-in families: flowchart, state, architecture, c4. Not consumed by terminal output. |
+| `nodeSpacing` | `number` | `24` | Horizontal spacing between sibling nodes. Built-in families: flowchart, state, class, er, architecture, c4. Not consumed by terminal output. |
+| `layerSpacing` | `number` | `40` | Vertical spacing between graph layers. Built-in families: flowchart, state, class, er, architecture, c4. Not consumed by terminal output. |
+| `wrappingWidth` | `number` | unset | Flowchart measured-label wrapping budget in pixels. Built-in families: flowchart. Not consumed by terminal output. |
+| `componentSpacing` | `number` | extension-defined | Spacing between disconnected graph components for compatible extension families; no built-in family currently consumes it. Built-in families: none; extension-defined. Not consumed by terminal output. |
+| `transparent` | `boolean` | `false` | Omit the painted SVG canvas background. |
+| `interactive` | `boolean` | `false` | Enable hover tooltips for supported chart data points. Built-in families: xychart, pie, quadrant. |
+| `shadow` | `boolean` | `false` | Paint explicit drop shadows on node shapes. Built-in families: flowchart, state, sequence, timeline, class, er, journey, xychart, pie, quadrant, gantt, mindmap, gitgraph, sankey. |
+| `class` | `{ hierarchicalNamespaces?: boolean }` | `hierarchicalNamespaces: true` | Class-diagram rendering controls. Built-in families: class. Not consumed by terminal output. |
+| `kanban` | `{ maxWidth?: number }` | `maxWidth`: unset | Opt-in Kanban column wrapping with readable column widths. Built-in families: kanban. Not consumed by terminal output. |
+| `architecture` | `{ visual?: ArchitectureVisualOverrides }` | built-in metrics | Sparse architecture renderer visual metric and paint overrides. Built-in families: architecture. Not consumed by terminal output. |
+| `timeline` | `{ maxWidth?: number }` | `maxWidth`: unset | Timeline layout controls. Built-in families: timeline. Not consumed by terminal output. |
+| `journey` | `{ experienceCurve?: boolean }` | `experienceCurve: true` | User-journey graphical controls. Built-in families: journey. Not consumed by terminal output. |
+| `gantt` | `{ dependencyArrows?: boolean; criticalPath?: boolean }` | both `false` | Gantt dependency and critical-path overlays. Built-in families: gantt. Not consumed by terminal output. |
+| `mermaidConfig` | `MermaidRuntimeConfig` | source config | Mermaid-style recursive runtime configuration. |
+| `embedFontImport` | `boolean` | `false` | Embed the Google Fonts import in SVG styles; PNG forces this off for offline rasterization. Not consumed by terminal output. |
+| `compact` | `boolean` | `false` | Compact SVG serialization while preserving agent hooks. Not consumed by terminal output. |
+| `idPrefix` | `string` | unset | Non-empty namespace for generated SVG definition IDs and local references. Not consumed by terminal output. |
+| `security` | `'default' \| 'strict'` | `default` | Active SVG content is rejected in every mode; strict additionally rejects every external reference. Raw Mermaid themeCSS is rejected in both modes. Not consumed by terminal output. |
+| `ganttToday` | `string` | unset | Explicit deterministic date for the Gantt today marker. Built-in families: gantt. |
+| `seed` | `number` | `0` | Deterministic re-roll seed for stochastic Styles. Not consumed by terminal output. |
+<!-- END GENERATED: render-options -->
+
+Inapplicable family-scoped fields produce `RENDER_OPTION_NOT_APPLICABLE` in a
+receipt. `onConfigDiagnostic` is a library callback outside serializable options.
+For untrusted JSON, use `validateSerializableRenderOptions` or the
+[render-options JSON Schema](https://agentic-mermaid.dev/schemas/render-options.schema.json).
+Terminal-only controls are in the [ASCII reference](./ascii.md).
+
+### PNG options
 
 | Option | Type | Default | Availability and meaning |
 |---|---|---:|---|
@@ -168,496 +253,39 @@ controls:
 | `loadSystemFonts` | `boolean` | `false` | Trusted native-host input on the same native surfaces. Trades cross-machine determinism for glyph coverage. CLI: `--system-fonts`. |
 | `onWarning` | `(w: PngRasterWarning) => void` | stderr | Native library callback only. Receives `PNG_FONT_COVERAGE` and `BELOW_READABLE_SIZE` warnings; callbacks never enter serializable requests or receipts. |
 
-PNG rasterization uses offline `@resvg/resvg-js` with bundled fonts for
-deterministic same-machine output: Inter (the default face — the same family
-the SVG requests and the family `src/text-metrics.ts` is calibrated for, so
-rasterized labels match their measured boxes), DejaVu Sans as a per-glyph
-fallback for symbols Inter lacks, plus the faces the built-in styles
-reference (Caveat, EB Garamond, Architects Daughter, Share Tech Mono — see
-`assets/fonts/FONT-LICENSES.md`). A style whose `font` is neither bundled
-nor supplied via `fontDirs` rasterizes with Inter. Characters no loaded font
-covers (CJK, most emoji) draw as tofu boxes and raise a `PNG_FONT_COVERAGE`
-warning naming the script and the escape hatches (`fontDirs` /
-`loadSystemFonts`).
+SVG font declarations do not load fonts. See [custom fonts](./custom-fonts.md)
+and [rasterization details](./api-advanced.md#png-fonts-portability-and-rasterization).
 
-The raster-legibility gate measures literal absolute-pixel `font-size`
-attributes on `text`, `tspan`, and `textPath` elements in the secured SVG.
-This is exact for first-party built-in emitters. Extension SVG text is measured
-only when the extension emits those literal attributes. The gate abstains when
-CSS can override size or transforms, or when an SVG transform can change glyph
-scale; translation and rotation are admitted because they preserve size. It
-does not resolve extension-specific visibility, such as text templates under
-`defs` or `display:none`, so such markup can conservatively over-report. The effective scale is
-computed from the finalized integer raster height divided by the SVG `viewBox`
-height, after projection rounding, because font sizes are expressed in user
-units and the root is pinned with `preserveAspectRatio="none"`. For an extension
-with no measurable literal size, absence of a
-`BELOW_READABLE_SIZE` warning is therefore not proof that its labels are
-readable. Callers that know the task, viewing distance, or display conditions
-should select a task-specific floor rather than relying on the default.
+## Errors and recovery
 
-The bytes-only browser convenience call returns only PNG bytes. Use
-`renderMermaidPNGWithReceipt` on a bound browser renderer, or
-`renderMermaidPNGInBrowserWithReceipt`, when the caller must inspect browser
-diagnostics.
-
-Note for third-party rasterizers: the SVG declares fonts as
-`font-family: var(--font, 'Face')`, and static rasterizers (resvg, librsvg)
-do not resolve CSS custom properties — `renderMermaidPNG` inlines the
-resolved family before rasterizing; do the same if you feed the raw SVG to
-your own pipeline.
-
-For complete custom-Style recipes using `font`, `fontDirs`, browser faces, and
-SVG font declarations, see [Fonts in custom styles](./custom-fonts.md).
-
-PNG output declares the shared sRGB policy with `sRGB` and `cICP` metadata,
-places `cICP` before image data, and deliberately emits no conflicting ICC
-profile. SVG and PNG consume the same resolved graphical colors before
-rasterization.
-
-#### Trusted host-selected graphical backends
-
-Executable backends are bound by the host, never selected by `RenderOptions` or
-serialized Style data. These factories apply the same canonical request,
-Scene-admission, SVG-security, receipt, PNG-output-policy, and color-profile
-contracts as their default counterparts:
+| Operation | Failure shape | Recovery |
+|---|---|---|
+| Parse | `{ ok: false, error: ParseError[] }` | Inspect every error's message and available source position. |
+| Mutate | `{ ok: false, error }` | Use the code/message and operation schema; preserve the previous value. |
+| Verify | `ok: false` with structured warnings | Inspect code, severity, origin and available evidence. |
+| Render | Throws | Catch at the artifact boundary. Family/capability failures have exported error types; other failures can be ordinary `Error`. |
+| Resolve artwork | Throws, naming the part and unsupported feature | Report the unsupported artwork or choose a supported representation. These errors currently have no dedicated stable code. |
 
 ```ts
-import {
-  createMermaidBrowserPNGRenderer,
-  createMermaidRenderer,
-} from 'agentic-mermaid'
-import { createMermaidPNGRenderer } from 'agentic-mermaid/agent'
-
-const backendPolicy = { selectBackend: () => 'backend:acme/renderer' }
-const svgRenderer = createMermaidRenderer({ backendPolicy })
-const nodePngRenderer = createMermaidPNGRenderer({ backendPolicy })
-const browserPngRenderer = createMermaidBrowserPNGRenderer({
-  backendPolicy,
-  rasterize: async (securedSvg, context) => ({
-    png: await rasterizeWithCanvas(securedSvg, context.outputPolicy),
-  }),
-})
-```
-
-Register and conformance-check the named backend before constructing these
-renderers. The Node/Bun factory reuses the built-in `@resvg/resvg-js` adapter;
-the browser factory wraps a trusted injected rasterizer, which receives only
-the admitted and secured SVG plus the complete resolved portable output policy.
-Its rasterizer must apply `fitTo` and `background`, not only `scale`.
-`renderMermaidSVG`, `renderMermaidPNG`, and
-`renderMermaidPNGInBrowserWithReceipt` remain the compatible default-backend
-entry points.
-
-#### Trusted host-selected pixel metrics
-
-The same three factories accept `textMeasurement`, a named, versioned
-`TextMeasurementProfile` with a synchronous `measure(input)` callback returning
-the run's natural width in pixels. Inputs include displayed `text`,
-`fontFamily`, `fontSize`, `fontWeight`, `fontStyle`, and `monospace`. Letter
-spacing and wrapping remain the library's responsibility. The host supplies
-the font measurement implementation and makes its fonts available to the
-selected SVG/PNG consumer; no Canvas or system-font measurement is enabled
-implicitly. See [custom fonts](./custom-fonts.md#trusted-font-measurement-profiles)
-for an example and reproducibility requirements.
-
-This is an in-process host option, separate from serializable `RenderOptions`,
-Style data, Mermaid source, editor state, CLI, and MCP inputs. Bound renderers
-capture the profile's name, version, and function once. Layout, prepared pixel
-text, SVG advances, and both PNG adapters use those same metrics. Receipts
-record its identity and include custom identity in request digests. Terminal
-cell widths remain independent. Omitting the profile keeps the existing
-deterministic Inter estimate, SVG output, and receipt shape unchanged.
-
-### ASCII / Unicode
-
-```ts
-import { renderMermaidASCII } from 'agentic-mermaid/agent'
-
-const unicode = renderMermaidASCII(`flowchart LR
-  A --> B`)
-const ascii = renderMermaidASCII(`flowchart LR
-  A --> B`, { useAscii: true })
-```
-
-`renderMermaidASCII(input, options?)` accepts a Mermaid source string or any open
-`ParsedDiagram` envelope returned by `parseRegisteredMermaid` and returns terminal
-text.
-
-`AsciiRenderOptions` also extends the same shared `RenderOptions` contract.
-Terminal-only controls and the explicit losses involved in projecting a
-graphical appearance onto terminal cells are documented in
-[`ascii.md`](./ascii.md).
-`colorMode: 'html'` returns an escaped terminal projection through this same
-function; it is not a separate CLI output format or a `renderMermaidHTML` API.
-
-`AsciiRenderOptions`:
-
-| Option | Type | Default | Meaning |
-|---|---|---:|---|
-| `useAscii` | `boolean` | `false` | Use 7-bit ASCII instead of Unicode box drawing. |
-| `paddingX` | `number` | `5` | Horizontal spacing. |
-| `paddingY` | `number` | `5` | Vertical spacing. |
-| `boxBorderPadding` | `number` | `1` | Inner box padding. |
-| `colorMode` | `string` | `'auto'` | `'none'`, `'auto'`, `'ansi16'`, `'ansi256'`, `'truecolor'`, or `'html'`. |
-| `theme` | `Partial<AsciiTheme>` | — | Override ASCII colors. |
-| `targetWidth` | `number` | unset | Hard maximum line width in terminal display cells. Uses grapheme-safe fitting; impossible geometry throws `AsciiWidthError`. |
-| `maxWidth` | `number` | unset | Deprecated best-effort label wrapping. It does **not** guarantee the output width. Do not combine with `targetWidth`. |
-| `onProjectionDiagnostic` | `(diagnostic: TerminalProjectionDiagnostic) => void` | — | Host callback for explicit graphical-to-terminal projection losses; non-serializable and excluded from receipts. |
-
-`AsciiWidthError` has code `ASCII_TARGET_WIDTH_IMPOSSIBLE` plus
-`requestedWidth`, `requiredWidth`, `family`, and `reason` (`MINIMUM_GEOMETRY`,
-`UNBREAKABLE_GRAPHEME`, or `INVALID_WIDTH`). The same fields are returned by
-CLI JSON and hosted MCP errors. CLI: `am render diagram.mmd --format unicode
---target-width 80`; hosted `render_ascii`: `{ source, targetWidth: 80 }`.
-Omitting both width options preserves the unconstrained output path.
-
-## Shared render options
-
-SVG, PNG, ASCII, and Unicode accept the shared `RenderOptions` contract.
-The complete field definitions live in the exported TypeScript
-[`RenderOptions`](../src/types.ts) and the generated
-[render-options JSON schema](https://agentic-mermaid.dev/schemas/render-options.schema.json).
-Those are derived from the runtime authority; this guide describes usage and
-output-specific controls rather than maintaining another complete field roster.
-
-A family-scoped value that a renderer cannot consume receives
-`RENDER_OPTION_NOT_APPLICABLE` in its receipt. External descriptors opt into
-such fields through `applicableRenderOptions`.
-
-`layoutHints` accepts relative `ranks`, sibling `adjacent` groups, and
-`shortEdges` references for Flowchart and State graphical layout. These are
-layout preferences: they do not guarantee coordinates, absolute adjacency,
-or shortest paths. Terminal layout does not consume them.
-
-`onConfigDiagnostic?: (diagnostic: ConfigDiagnostic) => void` is deliberately
-outside the serializable field set. Library callers can collect qualified
-`INEFFECTIVE_CONFIG` warnings without changing output bytes; CLI, MCP, editor,
-and JSON Schema surfaces return diagnostics as data instead of accepting a
-function.
-
-### SVG semantic identity and accessibility
-
-All built-in families expose the same inspectable element contract:
-
-- every source-semantic Scene mark has a deterministic `data-id` and closed
-  `data-role`; identity is unique within one SVG (layout furniture retains typed
-  Scene identity without bloating the DOM);
-- source relations use `data-from` and `data-to`; source `className` tokens stay
-  on the identified element's `class` attribute;
-- typed relations expose `role="graphics-symbol"`,
-  `aria-roledescription="relation"`, and an `aria-label` derived from endpoints
-  plus the authored relation label;
-- public Scene types expose `SvgSemanticIdentity`,
-  `SvgSemanticAccessibility`, and `SvgRelationSemantics`;
-- `idPrefix` rewrites local DOM `id` references, not source-facing `data-id`.
-
-Built-in concrete palettes are contrast-normalized at render time: normal text
-roles meet WCAG AA 4.5:1 and meaningful relation lines/markers meet 3:1 against
-the page background. Unresolved runtime CSS variables cannot be statically
-certified and pass through unchanged. See
-[`svg-semantic-contract.md`](./svg-semantic-contract.md) for the complete contract.
-
-For JSON files, use
-[`docs/schemas/style-spec.schema.json`](./schemas/style-spec.schema.json). The
-same schema is exported from the npm package as
-`agentic-mermaid/style-spec.schema.json`; see
-[`custom-style-cookbook.md`](./custom-style-cookbook.md) for complete style
-files and screenshots, and [`custom-fonts.md`](./custom-fonts.md) for font
-resolution across output surfaces.
-
-## Agent edit API
-
-```ts
-import {
-  parseRegisteredMermaid,
-  asFlowchart,
-  mutate,
-  verifyMermaid,
-  analyzeMermaid,
-  analyzeMermaidSource,
-  describeMermaidFacts,
-  checkMermaid,
-  serializeMermaid,
-} from 'agentic-mermaid/agent'
-```
-
-Core functions:
-
-| Function | Purpose |
-|---|---|
-| `parseRegisteredMermaid(source)` | Parse Mermaid source to `Result<ValidDiagram, ParseError[]>`. |
-| Family narrower | Narrow to a mutable family or return `null`; obtain the current generated name from `am capabilities --json`. |
-| `mutate(d, op)` | Apply a kind-discriminated typed mutation. |
-| `verifyMermaid(d)` | Return structural warnings and layout evidence. |
-| `analyzeMermaid(d)` / `analyzeMermaidSource(source)` | Return deterministic non-rendering analysis: feedback edges, source-only action records, and Gantt critical-path/slack summary when available. |
-| `describeMermaidFacts(d)` / `checkMermaid(d, spec)` | Return deterministic semantic fact lines, or check required/forbidden facts such as `edge Processing -> [*] : done`, `member Duck +quack()`, `task Docs start after core`. |
-| `serializeMermaid(d)` | Emit source only after verifying. |
-| `layoutMermaid(d)` | Return layout JSON for quality/inspection; `layoutMermaid(d, { debug: true })` includes graph route certificates, family edge-route certificates (class/ER/architecture/sequence), region-containment certificates (timeline/charts), and semantic region/action sidecars (`cluster`, `lane`, `band`, `compartment`, `plot`, `ring`). Edge certificates include exact ports plus side/slot/role port assignments where applicable. |
-| `renderMermaidWithActions(d, request)` | Render SVG, PNG, ASCII, or Unicode and return one inert action/hit-region sidecar for admitted Flowchart/Class/Gantt interactions and Sequence actor-menu links. An SVG href is `embedded-inert` only when matching inert metadata is present in the returned SVG; PNG/terminal actions, strict-mode hrefs, and all callbacks are `sidecar-only` and never execute. Terminal artifacts also return projection `warnings`, and terminal render failure throws instead of returning an empty success artifact. |
-| `measureQuality(layout, colors?)` / `checkQuality(layout, bounds?, colors?)` | Perceptual quality metrics, including fail-closed contrast (`null` when requested paints are unresolved), nearest-node spacing, and element density. Rendered audits can supply exact foreground/background associations through `textPairs`. |
-| `describeMermaid(d, { format })` | Prose, AX-tree, or facts summary (`format: "text" | "json" | "facts"`). |
-
-Layout JSON can include `labels`: painted text with stable IDs, retained bounds,
-available containers and visibility. XYChart uses this field for point labels,
-titles, axes, ticks, legends and bar values. These entries participate in text
-quality and final canvas checks without adding semantic nodes or changing mark
-density. `labelMeasurement.measuredLabels` and `unmeasuredLabels` report their
-coverage separately from node and edge text.
-
-#### Observe a native parser
-
-The root library exports `withParserObservation(family, observer, parse)`. Wrap
-one synchronous parser call to receive its actual consumed statements and
-builder writes. Each event names its native kind, family and unit
-(`statement`, `token` or `mutation`). Source coordinates explicitly distinguish
-physical input from a parser's normalized view. Mutation operands are copied at
-the call boundary, retaining identities, parent and membership fields.
-
-```ts
-import { parseRegisteredMermaid, withParserObservation } from 'agentic-mermaid'
-
-const observations: import('agentic-mermaid').ParserObservation[] = []
-const result = withParserObservation(
-  'flowchart',
-  event => observations.push(event),
-  () => parseRegisteredMermaid('flowchart LR\nA --> B'),
-)
-```
-
-Nested scopes restore their caller, including after an exception. An observer
-callback does not implicitly observe a parser it invokes itself. Promise-returning
-callbacks are rejected because the scope is synchronous. Observation is a
-trusted in-process diagnostic API, outside serializable render options.
-
-Native statement kinds and builder operations describe our implementations;
-they are not Mermaid terminal kinds or its `yy` method protocol. Flowchart also
-exposes consumed compound node/link fragments. Other native parsers expose
-classified statements rather than a homologous token stream. The modern
-assessment compares explicitly scoped semantic fields using independent
-reference adapters and records unavailable comparisons honestly.
-
-Flowchart/State positioned graphs also carry a `certification` receipt after
-bounded final geometry checking. At most four deterministic candidates are
-considered. Exhaustion throws `LayoutCertificationError` with code
-`LAYOUT_CERTIFICATION_FAILED` and per-candidate reasons. This certifies hard graph
-invariants, not an optimal layout. The common positioning boundary also vetoes
-hard family-rubric violations in every native family's final projection.
-Specialized family layouters get one attempt and fail explicitly; their checks
-do not imply graph route guarantees or certify soft aesthetic quality.
-
-The family registry is the operation authority. Use `am capabilities --json`
-for the current roster and field schemas, or call `describeOps(family)` and
-`opSignatures(family)` at runtime. The generated SDK declaration projects the
-same descriptors; this reference deliberately does not copy an exhaustive
-family/operation table.
-
-### Preserved Sequence and XY label facts
-
-Sequence facts include recognized messages inside preserved segments as
-`preserved-message#<segment>.<statement> ...` and their title directives.
-These identifiers do not change the typed `message#<index>` mutation indexes.
-XY facts include authored point labels as `series#<index> point#<index> : <label>`;
-the point index stays aligned with the data even when labels are sparse.
-Consumers using `exact: true` must add these facts to their reviewed expected
-inventory. Subset checks can keep their existing required facts. Do not build
-an expected inventory by copying the output being checked.
-
-### Class relation facts and `exact: true`
-
-Class facts retain their existing class/member/relation lines and add endpoint
-marker ownership and shaft style. A caller with a hardcoded complete fact set
-must include these additions when using `exact: true`. For example:
-
-```ts
-const parsed = parseRegisteredMermaid('classDiagram\nPerson --|> Animal')
-if (!parsed.ok) throw new Error('Invalid Class source')
-
-const legacy = [
-  'class Animal',
-  'class Person',
-  'family class',
-  'relation Person inheritance Animal',
-  'relation#0 Person inheritance Animal',
-]
-const expected = [
-  ...legacy,
-  'relation#0 Person inheritance Animal marker to',
-  'relation#0 Person inheritance Animal line solid',
-]
-checkMermaid(parsed.value, { include: expected, exact: true }) // ok: true
-```
-
-Using `legacy` alone returns `ok: false` and lists the two new lines in
-`unexpected`. The expanded expectation also rejects `Person <|-- Animal`,
-because that relationship has `marker from`. Two-ended relationships add
-`relation#0 from marker <kind>` and `relation#0 to marker <kind>` facts so
-different marker kinds at the two ends remain distinguishable. Keep reviewed
-expectations independent of the output being checked; deriving them from that
-same output would accept its mistakes. Subset checks omit `exact: true` and
-must still require the marker/shaft facts whose preservation matters.
-
-### Authoring Class endpoint markers and shafts
-
-Use `add_interface` to create a one-ended lollipop occurrence explicitly:
-
-```ts
-const op = {
-  kind: 'add_interface', class: 'Service', label: 'Protocol',
-  side: 'to', relationLabel: 'provides', lineStyle: 'solid',
-} as const
-```
-
-Each operation creates a separate interface occurrence. Its `label` names the
-interface; `relationLabel` names the connection. Ordinary classes with the same
-spelling remain distinct. `add_relation` rejects one-ended lollipops between
-ordinary class IDs and points callers to `add_interface`, since canonical
-Mermaid source would otherwise change endpoint identity.
-
-Class `add_relation` accepts optional `markerAt`, `fromKind`, `toKind` and
-`lineStyle` fields. Existing calls that omit them retain the relation kind's
-defaults. For example, this operation writes `Port ()..o Service`:
-
-```ts
-const op = {
-  kind: 'add_relation', from: 'Port', to: 'Service',
-  relKind: 'lollipop', markerAt: 'both', toKind: 'aggregation',
-  lineStyle: 'dashed',
-} as const
-```
-
-`markerAt` selects the active endpoints; endpoint kinds on inactive sides are
-refused. The primary `relKind`, endpoint kinds and shaft must agree with the
-relationship read back from the emitted source. Contradictory combinations
-return `INVALID_OP` instead of silently changing kind on reload. Cardinalities,
-labels and authored endpoint identities already present in parsed relationships
-survive unrelated edits. Relationship label/cardinality line breaks export as
-Mermaid `<br/>` markup so they remain on one source line. Direct `add_class`
-copies initial members; member
-authoring refuses blank/comment-form text, accessibility directives and physical
-or entity-decoded line breaks rather than admitting text that disappears or
-changes structure. The source reader still accepts diagram accessibility
-directives; they cannot be authored through a member operation.
-
-Opaque fallback bodies (any unmodeled syntax) are source-level-only: edit source deliberately, then parse and verify again.
-
-## Capability and extension discovery
-
-`am capabilities --json` reports the live family registry. (The Section A
-capability report and its `createSectionACapabilityReport()` audit module are no
-longer published.)
-
-Canonical extension identities are kind-qualified (`look:`, `palette:`,
-`backend:`, `family:`, `role:`, and `resource:`), versioned, provenance-bearing,
-and collision-safe. New graphical backends declare feature/operation-level
-Scene primitive capability claims; the registry rejects an empty, duplicate,
-cross-target, or otherwise invalid claim set. Every external backend, and every
-external family that supplies `lowerScene`, must also declare an explicit
-compatible `identity.compatibility.scene` range (Scene v2: `^2.0.0`). The host
-checks that range before running backend conformance or other executable
-witnesses; only the internal built-in enrollment path receives compatibility
-defaults.
-
-### Current customization and extension inventory
-
-This is the current authoritative inventory. Field-level `RenderOptions` and
-`StyleSpec` details remain in their generated tables above rather than being
-copied here.
-
-| Level | Public seam | What it can change | Boundary and availability |
-|---|---|---|---|
-| Mermaid-authored appearance | frontmatter/init config, theme variables, family style statements such as classes and link styles | Syntax-defined colors, labels, family geometry, and interaction metadata where the family advertises support | Source-level and family-dependent. Raw `themeCSS` is recognized but diagnosed at the render boundary because its selectors and markup can escape an imported SVG; use `StyleSpec` instead. |
-| One-off render overrides | `RenderOptions` | Palette channels, font family, spacing/geometry controls, deterministic seed, security, accessibility-related output options, and a Style stack | The generated field×surface matrix marks each serializable shared field `forwarded`, `host-enforced`, or `unavailable`. Hosted SVG and editor SVG enforce strict security with external font imports disabled; effective receipts reflect those constraints. Host callbacks are library-only and never enter receipts. |
-| One-off declarative style | inline `StyleSpec` or a left-to-right `StyleInput[]` stack | Safe palette, font, stroke/fill treatment, backdrop, exact semantic-role defaults, named semantic slots, V1 `category` bindings, non-color cues, and inspect-only contrast/accent-area/mono-role constraints | JSON-safe and executable-code-free. Bindings supply defaults beneath authored family paint and semantics; constraints diagnose final effective paint without repainting or relayout. This is the lowest-complexity custom Style path. |
-| Named Palette/Look | `registerStyle`, `getStyle`, `knownStyleDescriptors` | Installs a versioned `palette:` or `look:` name backed by exactly the same `StyleSpec` accepted inline | Descriptors expose one `kind` (`look` or `palette`), explicit `isDefault`, and one stable `inputName`. In-process host registry. A CLI/MCP/server sees a registration only when that host installs it at startup. |
-| Theme conversion | `fromShikiTheme` | Converts a Shiki-compatible editor theme into diagram colors | Pure library helper; the result is ordinary declarative color input. |
-| Live host retheming | CSS custom-property values in graphical color/font inputs | Lets a host page switch SVG palette and font values without re-rendering | SVG/browser-only and limited to safe property values; this is not a raw CSS rule or selector hook. Static outputs need values resolved under their rasterization environment to remain reproducible. |
-| Terminal output projection | `AsciiRenderOptions` (`useAscii`, `paddingX`, `paddingY`, `boxBorderPadding`, `colorMode`, `theme`, `targetWidth`/`maxWidth`, `onProjectionDiagnostic`) | Selects Unicode/ASCII encoding, cell spacing, width policy, ANSI/HTML colors, terminal-only theme overrides, and projection-loss reporting | Output-adapter customization, not a second shared Style system. Serializable fields have transport-specific availability; the diagnostic callback is host-only and remains outside receipts. |
-| Fonts and installed resources | `font`, Node PNG `fontDirs`/`loadSystemFonts`/`onWarning`, browser `BrowserPngRasterizer`, `ResourceManifest`, and repository host tooling via `NodeResourceResolver` | Selects a safe font stack, supplies host-dependent raster fonts, reports missing glyph coverage, or verifies bounded installed bytes | Font family names do not install fonts. Browser and warning callbacks remain outside serializable options and every digest. Node `fontDirs`/`loadSystemFonts` are trusted host inputs outside shared `RenderOptions` and the shared/appearance digests, but their resolved PNG output policy is included in the output-specific request digest; runtime provenance still marks host-dependent resources explicitly. Manifests require path, size, media-type, digest, and licence evidence and never fall back to network access. |
-| Graphical backend | `registerBackend`, `runBackendConformance`, `createMermaidRenderer`, `createMermaidPNGRenderer`, `createMermaidBrowserPNGRenderer` (each with a host-only `backendPolicy`) | Serializes the typed Scene contract with a different drawing implementation for SVG, native Node/Bun PNG, and injected-rasterizer browser PNG | Trusted in-process host only. Host registrations must explicitly declare compatible core and Scene ranges; identity/compatibility admission precedes executable conformance. Registration then must pass bounded, deterministic, semantic, well-formed, secure SVG conformance plus an exact witness for every first-party core primitive/feature/operation claim; namespaced extension claims without a core witness remain explicitly unverified. All listed factories use the same admitted and secured graphical request; PNG adapters do not reparse or rerender source. Serializable styles and `RenderOptions` cannot select arbitrary executable backends. |
-| Diagram family | `registerFamily`, `getFamilyConformanceReport`, `parseRegisteredMermaid`, `projectPositionedView` | Adds a namespaced language with detection, parse/preservation, verification, layout, Scene/SVG, terminal, and discovery claims | Every versioned `family:<owner/name>` descriptor declares a compatible core range and supplies one bounded canonical `example`. It also lists consumed family-scoped shared fields in `applicableRenderOptions`; omission means none, unknown or duplicate fields fail registration, and the frozen declaration appears in the capability report. Registration stages the frozen candidate, runs native claims twice through canonical parse/serialize, non-empty positive-bounds layout, strict SVG, portable PNG pre-raster, terminal, Scene and verify paths, and rolls back on failure, reentrancy or nondeterminism. Discovery reports `native` only beside a passed per-capability witness. Native tuples still require layout + `projectPositioned`, Scene requires layout + `lowerScene`, and extension verification requires its hook plus executable SVG. An external Scene family additionally declares a compatible Scene range, and its example witnesses every positive role/primitive cell. Built-in-only unions stay closed; extension bodies use the open envelope. Remote transports gain the family only when their trusted host installs it. |
-| Scene semantics | `SceneDoc`, typed connectors/markers/hit geometry, namespaced `SceneRole` | Lets a family/backend exchange identity, relationship, accessibility, geometry, and terminal-projection intent | This is a versioned typed contract, not a raw SVG hook. Unknown namespaced roles deliberately receive inert identity-only traits and cannot acquire core behavior by local-name collision. There is no public arbitrary primitive/trait mutation registry. |
-| Browser PNG host adapter | `renderMermaidPNGInBrowserWithReceipt(..., rasterize)` or reusable `createMermaidBrowserPNGRenderer({ rasterize, backendPolicy? })` | Supplies Canvas/OffscreenCanvas rasterization and reports font provenance | Trusted callback receives only the admitted, secured canonical SVG; the library re-applies the PNG color-profile gate and retains the same logical receipt as the native PNG path. |
-| Identity plumbing | `canonicalExtensionId`, `parseExtensionId`, `createExtensionIdentity`, `registerExtension`, `ExtensionCollisionError` | Gives kind-specific registries stable names, parsing, versions, provenance, compatibility ranges, and collision rejection | Low-level plumbing, not a stand-alone extension registry or rendering hook. Stable short inputs belong to kind-specific descriptors. |
-
-There is currently no BrandPack registry, public role-trait registration,
-arbitrary SVG/CSS hook, or Treatment hook. Semantic slots and the closed V1
-`category` binding API are ordinary `StyleSpec` fields; other Scene channels are
-not publicly bindable without new executable family witnesses. B4 remains the
-unpromoted, evidence-gated BrandPack distribution envelope only. A future
-Treatment seam is a separate decision and is not implied by B4.
-
-## CLI
-
-```bash
-am render diagram.mmd --format svg > diagram.svg
-am render diagram.mmd --format png --output diagram.png --fit-width 1200 --bg '#fff'
-am render diagram.mmd --format ascii > diagram.txt
-am render diagram.mmd --format layout --certificates > layout-with-routes.json
-am verify diagram.mmd
-am describe diagram.mmd --format facts
-am mutate diagram.mmd --op '{"kind":"add_node","id":"Cache","label":"Cache"}' --json
-am capabilities --json
-am init-agent --dir . --json
-```
-
-PNG is single-input and requires `--output` so binary bytes are never accidentally printed to a terminal. Portable controls are `--scale`, `--bg`, the mutually exclusive `--fit-width`/`--fit-height`, and `--min-label-px` (legibility floor for the `BELOW_READABLE_SIZE` warning; default 9, `0` disables); native-host font controls are `--font-dirs` and `--system-fonts`. `am init-agent` writes a non-clobbering agent-agnostic onboarding bundle (`AGENTS.md`, root `skills/`, and `.mcp.json`) into a consumer repo.
-
-## MCP
-
-The published package exposes Node-runnable bins: `am`, the package-runner
-alias `agentic-mermaid`, and `agentic-mermaid-mcp`.
-
-Local `agentic-mermaid-mcp` supports declarative editing and custom Code Mode:
-
-<!-- complete: local-mcp-tools -->
-- `mutate({ source, ops })` and `build({ family, ops })` — atomic JSON edits, verified before source is emitted.
-- `execute(code)` — custom synchronous logic with global `mermaid.*` SDK.
-
-Local and hosted Code Mode execute a strict JavaScript function body with
-`mermaid` and `console` parameters. Bare expressions return their value; a
-statement body captures its final top-level expression, ignoring trailing empty
-statements and comments. An explicit `return` follows normal JavaScript rules.
-At the outer body, `this` and `new.target` are undefined; undeclared variable
-writes fail. Async work, dynamic imports, blocking/realm-creating globals and
-runtime code generation are unsupported. Host timeouts and hosted strict render
-security remain environment-specific.
-- `describe_sdk({ family, detail })` — version-matched compact signatures or exact mutation fields for one family.
-- `render_png` — narrow helper returning base64 PNG bytes, or managed file/URL artifacts via `output: "file"|"url"`; accepts portable `scale`/`background`/`fitTo`/`minLabelPx`, plus local-only `fontDirs`/`loadSystemFonts`, and returns configuration, glyph-coverage, and raster-legibility warnings with every output mode.
-- `describe` — narrow summary helper; pass `format: "facts"` for deterministic semantic fact lines.
-
-Use Code Mode for multi-step parse/narrow/mutate/verify/serialize loops. Use `render_png` or host/library code for binary PNG output. The default transport is stdio; `agentic-mermaid-mcp --transport http --host 127.0.0.1 --port 3000` starts the HTTP/SSE transport. HTTP mode serves managed artifacts from `/artifacts/<name>` with MIME type, byte count, and SHA-256 metadata in tool responses. Non-loopback HTTP binding requires `--auth-token`; that bearer token protects `/rpc`, `/sse`, `/message`, and `/artifacts/*`.
-
-A hosted Streamable HTTP endpoint also runs at `https://agentic-mermaid.dev/mcp`. It is MCP JSON-RPC only (not REST), stateless, public/unauthenticated, and capped at 64 KB inputs. Hosted tools are <!-- BEGIN GENERATED: hosted-mcp-tools -->`execute`, `describe_sdk`, `render_svg`, `render_ascii`, `render_png`, `verify`, `describe`, `mutate`, and `build`<!-- END GENERATED: hosted-mcp-tools -->; `describe_sdk` returns compact signatures or exact mutation fields for one family, hosted `execute` uses a Cloudflare Dynamic Worker isolate with no network, and hosted `render_png` returns base64 only while retaining portable `scale`/`background`/`fitTo`/`minLabelPx`. Prefer local CLI/library/MCP for sensitive diagrams, offline work, larger inputs, native font controls, or file/URL PNG artifacts. See [`mcp-http-transport.md`](./mcp-http-transport.md) for JSON-RPC examples and option details.
-
-## Verification scope
-
-`verify.ok` remains the backward-compatible error gate. The additive `checks`
-object distinguishes `renderability` (`passed`, `failed`, or `not-checked`),
-`sourceLoss` (`detected` or `not-detected`), and `taskCorrectness` (always
-`not-checked`). No detected loss is not a general losslessness proof. Read warnings
-and compare semantic facts to the requested edit before publishing a diagram.
-Suppressing error codes makes renderability `not-checked`.
-
-## Graph layout hints
-
-Flowchart and State graphical renders accept explicit deterministic preferences:
-
-```ts
-const options = {
-  layoutHints: {
-    ranks: { UI: 0, API: 1, Cache: 2, DB: 3 },
-    adjacent: [['Cache', 'DB']],
-    shortEdges: ['API->Cache'],
-  },
+import { parseRegisteredMermaid } from 'agentic-mermaid/agent/core'
+
+const result = parseRegisteredMermaid('flowchart LR\n  Idea --> Ship')
+if (result.ok) {
+  console.log(result.value.kind)
+} else {
+  console.error(result.error.map(error => error.message).join('\n'))
 }
 ```
 
-Ranks are ordered ELK partitions, with unlisted nodes in partition zero; they
-are not absolute pixel positions. Adjacency prefers consecutive sibling model
-order within one container. Short-edge preferences use authored IDs or
-`from->to` / `from->to#k` occurrence IDs. All references are checked; unknown
-identities and conflicting adjacency groups fail explicitly. These preferences
-never delete relationships, remain subject to geometry certification, and do not
-guarantee a shortest route or fixed positions. Retain render options beside the
-Mermaid source; hints participate in request digests, editor config, and receipts.
+`verify.ok` means no unsuppressed error was detected by the checks performed.
+It does not establish visual perfection, complete semantic correctness or
+portable, lossless canonical export. Check task-specific facts and review the
+artifact when appearance matters. See [verification scope](./agent-mutation-policy.md).
+
+## Advanced use
+
+Use the [advanced reference](./api-advanced.md) for receipts, host-selected
+backends, custom text metrics, parser observation, detailed source-preservation
+examples and extension contracts. Use the [CLI](https://agentic-mermaid.dev/docs/cli/),
+[MCP](./mcp-http-transport.md) or [agent cookbook](./agent-api-cookbook.md) for those
+channels. You do not need those protocols to render or edit with the library.

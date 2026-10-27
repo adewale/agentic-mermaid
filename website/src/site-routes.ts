@@ -15,6 +15,7 @@ export const CLEAN_PAGE_ROUTES: readonly string[] = [
   'demo',
   'docs',
   'docs/api',
+  'docs/api/advanced',
   'docs/ascii',
   'docs/cli',
   'docs/custom-styles',

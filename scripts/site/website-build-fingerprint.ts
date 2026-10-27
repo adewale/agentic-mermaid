@@ -9,6 +9,9 @@ import { join } from 'node:path'
 const WEBSITE_BUILD_FINGERPRINT_PATHS = Object.freeze([
   'website',
   'public',
+  'docs/api.md',
+  'docs/api-advanced.md',
+  'CHANGELOG.md',
   'docs/schemas/style-spec.schema.json',
   'docs/assets/style-cookbook',
   'examples/styles',
