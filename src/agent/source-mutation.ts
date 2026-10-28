@@ -1,7 +1,33 @@
-/** Source-preserving edits append declarations without normalizing authored bytes. */
-export function appendSourceStatement(source: string, statement: string): string {
+import { assertDiagramWorkLimit } from '../shared/diagram-limits.ts'
+
+export interface SourceEdit { readonly start: number; readonly end: number; readonly text: string }
+
+/** Apply an atomic, nonoverlapping plan while copying every untouched byte. */
+export function applySourceEdits(source: string, edits: readonly SourceEdit[]): string {
+  const ordered = [...edits].sort((left, right) => left.start - right.start || left.end - right.end)
+  let end = 0, previousStart = -1, length = source.length
+  for (const edit of ordered) {
+    if (!Number.isInteger(edit.start) || !Number.isInteger(edit.end) || edit.start < 0 || edit.end < edit.start || edit.end > source.length || typeof edit.text !== 'string'
+      || edit.start < end || edit.start === previousStart) throw new RangeError('Source edit plan has invalid, overlapping or ambiguous boundaries')
+    length += edit.text.length - (edit.end - edit.start)
+    end = edit.end
+    previousStart = edit.start
+  }
+  assertDiagramWorkLimit('sourceCharacters', length)
+  const parts: string[] = []
+  let cursor = 0
+  for (const edit of ordered) {
+    parts.push(source.slice(cursor, edit.start), edit.text)
+    cursor = edit.end
+  }
+  parts.push(source.slice(cursor))
+  return parts.join('')
+}
+
+/** Append a declaration without normalizing any authored bytes. */
+export function appendSourceStatement(source: string, statement: string): readonly SourceEdit[] {
   const newline = source.includes('\r\n') ? '\r\n' : '\n'
-  return source + (/[\r\n]$/.test(source) ? '' : newline) + statement.replace(/\r?\n/g, newline) + newline
+  return [{ start: source.length, end: source.length, text: (/[\r\n]$/.test(source) ? '' : newline) + statement.replace(/\r?\n/g, newline) + newline }]
 }
 
 /** Compare complete native parser values, retaining Map and array order.

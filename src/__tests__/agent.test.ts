@@ -126,6 +126,46 @@ describe('explicit source-preserving Flowchart labels', () => {
     if (diagram.body.kind !== 'opaque') throw new Error('Expected retained opaque body')
     expect(diagram.body.source).toBe(source)
   })
+
+  test('renames owned node references while preserving source text, node order, labels and dependent edge/group identities', () => {
+    const source = `---\ntitle: Keep A\n---\nflowchart LR\naccTitle: A stays text\n%% A stays a comment\nsubgraph S[Group A]\nA[Label A] -->|Edge A| B:::exClass\nC --> A\nA --> A\nend\n${style}`
+    const original = parse(source)
+    const renamed = mutatePreservingSource(original, { kind: 'rename_node', from: 'A', to: 'Start' })
+    if (!renamed.ok) throw new Error(renamed.error.message)
+    expect(renamed.value.source).toBe(source.replace('A[Label A]', 'Start[Label A]').replace('C --> A', 'C --> Start').replace('A --> A', 'Start --> Start'))
+    for (const normalize of [normalizeMermaidSource, normalizeMermaidRenderSource]) {
+      const before = parseNativeFlowchart(normalize(source).familyBody), after = parseNativeFlowchart(normalize(renamed.value.source).familyBody)
+      const rename = (id: string) => id === 'A' ? 'Start' : id
+      expect([...after.nodes.keys()]).toEqual([...before.nodes.keys()].map(rename))
+      expect(after.nodes.get('Start')).toEqual({ ...before.nodes.get('A')!, id: 'Start' })
+      expect(after.edges).toEqual(before.edges.map(edge => ({ ...edge, source: rename(edge.source), target: rename(edge.target) })))
+      expect(after.subgraphs[0]?.nodeIds).toEqual(before.subgraphs[0]!.nodeIds.map(rename))
+      expect(after.classDefs).toEqual(before.classDefs)
+    }
+    const noop = mutatePreservingSource(renamed.value.diagram, { kind: 'rename_node', from: 'Start', to: 'Start' })
+    if (!noop.ok) throw new Error(noop.error.message)
+    expect(noop.value.source).toBe(renamed.value.source)
+    expect(renderMermaidSVG(renamed.value.diagram)).toBe(renderMermaidSVG(renamed.value.source))
+    expect(renderMermaidASCII(renamed.value.diagram)).toBe(renderMermaidASCII(renamed.value.source))
+  })
+
+  test.each(['style A fill:red', 'class A hot', 'click A callback', 'click A href "https://example.com"', 'subgraph A[Group]\nC\nend'])('refuses node rename while reference ownership is unsupported: %s', extra => {
+    const source = `flowchart LR\nA[Label] --> B\n${extra}\n${style}`, original = parse(source), unchanged = JSON.stringify(original)
+    expect(mutatePreservingSource(original, { kind: 'rename_node', from: 'A', to: 'Start' }).ok).toBe(false)
+    expect(JSON.stringify(original)).toBe(unchanged)
+  })
+  test.each(['o', 'x'])('renames the node %s without rewriting an arrow marker with the same spelling', id => {
+    const source = `flowchart LR\nA o--x B\n${id}[Keep ${id}]\n${id} --> A\n${style}`, original = parse(source)
+    const renamed = mutatePreservingSource(original, { kind: 'rename_node', from: id, to: 'Port' })
+    if (!renamed.ok) throw new Error(renamed.error.message)
+    expect(renamed.value.source).toBe(source.replace(`\n${id}[Keep ${id}]`, `\nPort[Keep ${id}]`).replace(`\n${id} --> A`, '\nPort --> A'))
+    expect(parseNativeFlowchart(normalizeMermaidRenderSource(renamed.value.source).familyBody).nodes.get('Port')?.label).toBe(`Keep ${id}`)
+  })
+  test('refuses rename collisions and structural ID injection without changing the retained input', () => {
+    const original = parse(retained), unchanged = JSON.stringify(original)
+    for (const [from, to] of [['Missing', 'Start'], ['A', 'B'], ['A', 'end'], ['A', 'Start\nX-->Z'], ['A', 'Start["Injected"]']]) expect(mutatePreservingSource(original, { kind: 'rename_node', from, to }).ok).toBe(false)
+    expect(JSON.stringify(original)).toBe(unchanged)
+  })
 })
 describe('parseRegisteredMermaid', () => {
   test('flowchart', () => {

@@ -75,12 +75,49 @@ describe('class — explicit source-preserving member edits', () => {
       { kind: 'remove_member', class: 'P', index: 0 },
       { kind: 'add_member', class: 'missing', text: '+read()' },
       { kind: 'add_member', class: 'interface0', text: '+read()' },
+      { kind: 'remove_member', class: 'interface0', index: 0 },
       ...['<<interface>>', '+read()\nclass Injected', 'x}\nclass Injected {', 'x} class Injected {', 'x&#125; class Injected {', '%%{init: {}}%%', '%&percnt;{init: {"theme":"dark"}}%%', 'accTitle: Changed', ''].map(text => ({ kind: 'add_member', class: 'P', text })),
     ]) expect(mutatePreservingSource(original, op).ok).toBe(false)
     expect(JSON.stringify(original)).toBe(unchanged)
     const ordinary = parse('classDiagram\nclass A')
     const editable = mutate(ordinary, { kind: 'add_member', class: 'A', text: '+read()' })
     expect(editable.ok && editable.value.body.kind).toBe('class')
+  })
+
+  test('removes the addressed whole-line member in authored order across attributes, methods, annotations and reopened classes', () => {
+    const source = '---\r\ntitle: Keep\r\n---\r\nclassDiagram\r\nnamespace `~` {\r\nclass P {\r\n<<service>>\r\n  +int first\r\n  +read()\r\n  +int second\r\n}\r\n}\r\n%% Keep this comment\r\nclass P {\r\n  +read()\r\n}\r\n'
+    const original = parse(source), before = native(source)
+    const removed = mutatePreservingSource(original, { kind: 'remove_member', class: 'P', index: 3 })
+    if (!removed.ok) throw new Error(removed.error.message)
+    expect(removed.value.source).toBe(source.replace('  +int second\r\n', ''))
+    const target = before.classes.find(node => node.id === 'P')!
+    expect(native(removed.value.source)).toEqual({ ...before, classes: before.classes.map(node => node === target ? { ...node, attributes: node.attributes.slice(0, 1) } : node) })
+    const repeated = mutatePreservingSource(removed.value.diagram, { kind: 'remove_member', class: 'P', index: 3 })
+    if (!repeated.ok) throw new Error(repeated.error.message)
+    expect(repeated.value.source).toBe(removed.value.source.replace('class P {\r\n  +read()\r\n}', 'class P {\r\n}'))
+    expect(native(repeated.value.source).classes.find(node => node.id === 'P')?.methods.map(member => member.name)).toEqual(['read'])
+    const appended = mutatePreservingSource(repeated.value.diagram, { kind: 'add_member', class: 'P', text: '+ready()' })
+    if (!appended.ok) throw new Error(appended.error.message)
+    const reverted = mutatePreservingSource(appended.value.diagram, { kind: 'remove_member', class: 'P', index: 3 })
+    if (!reverted.ok) throw new Error(reverted.error.message)
+    expect(native(reverted.value.source)).toEqual(native(repeated.value.source))
+    expect(reverted.value.source).toContain('%% Keep this comment\r\n')
+    expect(renderMermaidSVG(reverted.value.diagram)).toBe(renderSourceSVG(reverted.value.source))
+    expect(renderMermaidASCII(reverted.value.diagram)).toBe(renderSourceASCII(reverted.value.source))
+  })
+
+  test.each([
+    ['class P {+read()}', 0],
+    ['class P {\n+read() }', 0],
+    ['class P {\n<<service>>\n+read()\n}', 0],
+    ['class P {\n+int first&#10;+read()\n}', 1],
+    ['class P\nP : +read() %% Keep comment', 0],
+    ['class P {\n+read()\n}', 0.5],
+  ] as const)('refuses member deletion without exclusive authored line ownership in %s', (declaration, index) => {
+    const source = `classDiagram\nnamespace \`~\` {\n${declaration}\n}`
+    const original = parse(source), unchanged = JSON.stringify(original)
+    expect(mutatePreservingSource(original, { kind: 'remove_member', class: 'P', index }).ok).toBe(false)
+    expect(JSON.stringify(original)).toBe(unchanged)
   })
 })
 
