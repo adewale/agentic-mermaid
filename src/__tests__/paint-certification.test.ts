@@ -604,6 +604,10 @@ test.each(([
   { name: 'custom-root-color-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
   { name: 'custom-root-cover-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
   { name: 'custom-root-unused-resource-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'legacy-unused-resource-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'declared-unused-resource-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'unused-child-id-shadow-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'unused-primitive-id-shadow-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
   { name: 'optional-palette-transparent-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
 ] as const).flatMap(row => (['native', 'scene'] as const).map(execution => ({ ...row, execution }))))('a $name binds emitted endpoint certification to actual ink through $execution', ({ name, d, start, end, tangent, cardX, witnessX, execution }) => {
   // These authored open paths all end due east, except the reversed cubic.
@@ -611,16 +615,22 @@ test.each(([
   // (48,42.5),(40,40),(48,37.5) when reversed. It lies outside the card.
   const undefinedRootColor = name === 'undefined-root-color-cubic'
   const unusedRootResource = name === 'custom-root-unused-resource-cubic', optionalPaletteTransparent = name === 'optional-palette-transparent-cubic'
+  const legacyUnusedResource = name === 'legacy-unused-resource-cubic', declaredUnusedResource = name === 'declared-unused-resource-cubic'
+  const unusedResource = unusedRootResource || legacyUnusedResource || declaredUnusedResource
+  const shadowPolygon = '<polygon id="visible-terminal" points="0 0, 1 0, 0 1" fill="#000" />'
+  const shadow = name === 'unused-child-id-shadow-cubic' ? `<marker id="unused-terminal" markerWidth="1" markerHeight="1" refX="0" refY="0">${shadowPolygon}</marker>`
+    : name === 'unused-primitive-id-shadow-cubic' ? shadowPolygon : ''
   const customRootColor = name === 'custom-root-color-cubic' || unusedRootResource, customRootCover = name === 'custom-root-cover-cubic'
   const customRoot = customRootColor || customRootCover
-  const hidden = name === 'stylesheet-hidden-cubic' || name === 'resource-hidden-cubic' || undefinedRootColor || customRootCover || optionalPaletteTransparent
+  const hidden = name === 'stylesheet-hidden-cubic' || name === 'resource-hidden-cubic' || undefinedRootColor || customRootCover || optionalPaletteTransparent || shadow !== ''
   const stylesheet = '<style>path{marker-end:none !important}</style>'
-  const markerFill = customRootColor ? 'var(--ink, #000)' : optionalPaletteTransparent ? 'var(--accent, #000)' : '#000'
+  const markerFill = customRootColor ? 'var(--ink, #000)' : optionalPaletteTransparent ? 'var(--accent, #000)' : legacyUnusedResource || declaredUnusedResource ? '#f00' : '#000'
   const marker = tipAnchoredArrow('visible-terminal', { width: 8, height: 5 }, 'end', undefinedRootColor ? { fill: 'none', stroke: 'var(--fg)', strokeWidth: '1' } : { fill: markerFill, stroke: 'none' }, 'userSpaceOnUse')
+  const unusedMarker = { ...marker, id: 'unused-terminal' }
   const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#000', ...(optionalPaletteTransparent ? { accent: 'transparent' } : {}) }, resolved: { renderOptions: {} } }
   const producer: DrawingProducer = factory => ({ ...scene([]), colors: context.colors, parts: [
     factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80"${customRoot || optionalPaletteTransparent ? ` style="--bg:#fff;--fg:#000;${customRootColor ? '--ink:#f00' : customRootCover ? '--cover:#fff' : '--accent:transparent'}"` : ''}>`),
-    factory.definitions({ id: 'defs' }, `<defs>${name === 'resource-hidden-cubic' ? serializeMarkerResource(marker).replace('<polygon ', '<polygon opacity="0" ') : serializeMarkerResource(marker)}${unusedRootResource ? serializeMarkerResource({ ...marker, id: 'unused-terminal' }) : ''}</defs>`),
+    factory.definitions({ id: 'defs', ...(declaredUnusedResource ? { markerResources: [marker, unusedMarker] } : {}) }, `<defs>${name === 'resource-hidden-cubic' ? serializeMarkerResource(marker).replace('<polygon ', '<polygon opacity="0" ') : serializeMarkerResource(marker)}${unusedResource ? serializeMarkerResource(unusedMarker) : ''}${shadow}</defs>`),
     ...(name === 'stylesheet-hidden-cubic' ? [factory.documentContent({ id: 'css', role: 'chrome', nonPaint: 'stylesheet' }, stylesheet)] : []),
     factory.connector({ id: 'visible-edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'path', d, points: [start, end] },
       paint: { stroke: '#000', strokeWidth: '1', strokeLinecap: 'butt', strokeLinejoin: 'round' }, endpoints: { from: 'outside', to: 'card' }, markers: { end: marker } }),
@@ -633,9 +643,10 @@ test.each(([
   const markerEnd = ' marker-end="url(#visible-terminal)"'
   const markerPolygon = undefinedRootColor ? 'points="0 0, 8 2.5, 0 5" fill="none" stroke="var(--fg)" stroke-width="1"' : `points="0 0, 8 2.5, 0 5" fill="${markerFill}" stroke="none"`
   expect(drawing.svg.split(markerEnd)).toHaveLength(2)
-  expect(drawing.svg.split(markerPolygon)).toHaveLength(unusedRootResource ? 3 : 2)
-  if (unusedRootResource) {
-    expect(drawing.svg).toContain('<marker id="unused-terminal"')
+  expect(drawing.svg.split(markerPolygon)).toHaveLength(unusedResource ? 3 : 2)
+  if (unusedResource || shadow) {
+    if (shadow) expect(drawing.svg.split(shadow)).toHaveLength(2)
+    if (name !== 'unused-primitive-id-shadow-cubic') expect(drawing.svg).toContain('<marker id="unused-terminal"')
     expect(drawing.svg).not.toContain('url(#unused-terminal)')
   }
   expect(drawing.svg).toContain(`<rect x="${cardX}" y="20" width="30" height="40" fill="#fff" stroke="#888" stroke-width="1"`)
@@ -653,10 +664,17 @@ test.each(([
     if (customRootCover) expect(covers).toHaveLength(1)
     const transparentPolygon = 'points="0 0, 8 2.5, 0 5" fill="transparent" stroke="none"'
     if (optionalPaletteTransparent) expect(svg).toContain(transparentPolygon)
-    const exposed = customRootCover ? svg.replace(covers[0]!, '') : optionalPaletteTransparent ? svg.replace(transparentPolygon, 'points="0 0, 8 2.5, 0 5" fill="#000" stroke="none"') : svg.replace(stylesheet, '').replace('<polygon opacity="0" ', '<polygon ').replace('stroke="var(--fg)"', 'stroke="#000"')
+    const exposed = shadow ? svg.replace(shadow, '') : customRootCover ? svg.replace(covers[0]!, '') : optionalPaletteTransparent ? svg.replace(transparentPolygon, 'points="0 0, 8 2.5, 0 5" fill="#000" stroke="none"') : svg.replace(stylesheet, '').replace('<polygon opacity="0" ', '<polygon ').replace('stroke="var(--fg)"', 'stroke="#000"')
     expect(Buffer.compare(new Resvg(exposed, { font }).render().pixels, new Resvg(exposed.replace(markerEnd, ''), { font }).render().pixels)).not.toBe(0)
+    if (shadow) {
+      const restored = new Resvg(exposed.replace(markerPolygon, 'points="0 0, 8 2.5, 0 5" fill="#f00" stroke="none"'), { font }).render()
+      const witness = (40 * restored.width + witnessX) * 4
+      expect(restored.pixels[witness]).toBeGreaterThan(128)
+      expect(restored.pixels[witness + 1]).toBeLessThan(64)
+      expect(restored.pixels[witness + 2]).toBeLessThan(64)
+    }
   } else expect(Buffer.compare(actual.pixels, markerRemoved.pixels)).not.toBe(0)
-  if (customRootColor) {
+  if (customRootColor || legacyUnusedResource || declaredUnusedResource) {
     const pixels = actual.pixels, witness = (40 * actual.width + witnessX) * 4
     expect(pixels[witness]).toBeGreaterThan(128)
     expect(pixels[witness + 1]).toBeLessThan(64)
@@ -685,9 +703,9 @@ test.each(([
   if (customRootCover) {
     expect(proof.status).toBe('failed')
     expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'MARKER_OCCLUDED', id: 'visible-edge', by: 'foreign-cover' }))
-  } else if (unusedRootResource) {
-    // Visible red ink does not qualify the newly admitted custom-root context
-    // while an unreferenced resource has no descriptor/byte authority.
+  } else if (unusedRootResource || legacyUnusedResource || shadow) {
+    // Unchecked definitions cannot certify either real or shadowed head ink.
+    // The declared canonical unused resource above retains its own authority.
     expect(proof.status).toBe('unverified')
     expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'OUTPUT_SCOPE' }))
   } else if (hidden) expect(proof.status).not.toBe('passed')

@@ -286,7 +286,27 @@ export function createNativePaintEmission(maxOperations: number) {
         if (svg.includes('<?') || svg.includes('<!')) definitionsClosed = false
         const tags = scanSvgStartTags(svg), outer = tags[0]
         if (!outer || outer.name !== 'defs' || outer.selfClosing || outer.attributes.length
+          || !/^<defs[ \t\r\n]*>$/.test(svg.slice(outer.start, outer.end))
           || !/^[ \t\r\n]*$/.test(svg.slice(0, outer.start))) definitionsClosed = false
+        // Declarations belong to this captured definitions occurrence. Read
+        // only own data slots, so fallback metadata cannot invoke getters.
+        if (!pay(2)) return false
+        const declaration = Object.getOwnPropertyDescriptor(node, 'markerResources')
+        if (declaration) {
+          if (!('value' in declaration) || declaration.value !== undefined && !Array.isArray(declaration.value)) uncertain = true
+          else if (declaration.value !== undefined) {
+            if (!pay(2)) return false
+            const markers = declaration.value as NonNullable<typeof node.markerResources>
+            const length = Object.getOwnPropertyDescriptor(markers, 'length')?.value
+            if (!Number.isSafeInteger(length) || length < 0) uncertain = true
+            else for (let index = 0; index < length; index++) {
+              if (!pay(3)) break
+              const marker = Object.getOwnPropertyDescriptor(markers, String(index))
+              if (!marker || !('value' in marker)) uncertain = true
+              else references.push(marker.value)
+            }
+          }
+        }
         let resourceCursor = outer?.end ?? 0
         let markerEnd = -1
         for (const tag of tags) {
@@ -376,15 +396,16 @@ export function createNativePaintEmission(maxOperations: number) {
           else if (pay(2)) checked.set(marker.id, marker)
         } catch { uncertain = true }
       }
-      // Unreferenced opaque resources have no descriptor/byte comparison and
+      // Unbound opaque resources have no descriptor/byte comparison and
       // could contain a shadowing child ID or malformed XML. The new closed
-      // domain admits only resources checked against their actual references.
+      // domain admits only resources checked against declarations or references.
       if (closedMarkerContext && definitionsClosed && (!pay() || resources.size !== checked.size)) closedMarkerContext = false
       const checkedContext = context.finish(header)
-      // New root bindings require closed definitions and actual resource bytes.
-      // The legacy path cannot silently admit unchecked context with new styles.
-      if (checkedContext.uncertain || pendingCustomRootStyle
-        && (!checkedContext.resolveColor || !definitionsClosed || !pay() || resources.size !== checked.size)) uncertain = true
+      if (checkedContext.uncertain || pendingCustomRootStyle && !checkedContext.resolveColor) uncertain = true
+      // A resolver is issued only for a validated marker-bearing context.
+      // Every declared resource in that context needs actual-byte custody;
+      // unrelated unmarked definitions retain their existing proof scope.
+      if (checkedContext.resolveColor && (!definitionsClosed || !pay() || resources.size !== checked.size)) uncertain = true
       // Paid in observe before these immutable occurrences were created.
       // Conditional fallback occurrences already prohibit P, even if rewrapped.
       for (const primitive of inspection.primitives) if (primitive.visibility !== 'conditional') emittedOccurrences.add(primitive)

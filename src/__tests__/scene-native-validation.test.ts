@@ -97,6 +97,33 @@ test.each(['after-connector', 'before-connector'] as const)('native marker paint
   expect(certifyNativePaint(drawing.header, drawing.paint).status).not.toBe('passed')
 })
 
+test.each(['matching', 'conflicting'] as const)('a later marker reference preserves %s declared resource custody', mode => {
+  const declared = tipAnchoredArrow('shared-arrow', { width: 8, height: 5 }, 'end', { fill: mode === 'matching' ? '#000' : 'none' }, 'userSpaceOnUse')
+  const referenced = tipAnchoredArrow('shared-arrow', { width: 8, height: 5 }, 'end', { fill: '#000' }, 'userSpaceOnUse')
+  const resource = '<marker id="shared-arrow" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto" markerUnits="userSpaceOnUse">\n  <polygon points="0 0, 8 2.5, 0 5" fill="#000" />\n</marker>'
+  const context = { positioned: { width: 200, height: 100 }, colors: header.colors, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => ({ ...header, parts: [
+    factory.documentOpen({ id: 'root', width: 200, height: 100, colors: header.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">'),
+    factory.definitions({ id: 'markers', markerResources: [declared] }, `<defs>${resource}</defs>`),
+    factory.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 20, y1: 40, x2: 50, y2: 40 }, paint: { stroke: '#000' }, endpoints: { from: 'outside', to: 'card' }, markers: { end: referenced } }),
+    factory.shape({ id: 'card', role: 'node', geometry: { kind: 'rect', x: 90, y: 10, width: 35, height: 70 }, paint: { fill: '#fff' } }),
+    factory.documentClose(),
+  ] })
+  const drawing = drawNative(producer, context, 'flowchart')
+  expect(drawing.svg.split(resource)).toHaveLength(2)
+  const tags = scanSvgStartTags(drawing.svg)
+  const attributes = (name: string) => tags.filter(tag => tag.name === name).map(tag => Object.fromEntries(tag.attributes.map(attribute => [attribute.name, attribute.value])))
+  expect(attributes('marker')).toEqual([{ id: 'shared-arrow', markerWidth: '8', markerHeight: '5', refX: '8', refY: '2.5', orient: 'auto', markerUnits: 'userSpaceOnUse' }])
+  expect(attributes('polygon')).toEqual([{ points: '0 0, 8 2.5, 0 5', fill: '#000' }])
+  expect(attributes('line')).toEqual([expect.objectContaining({ x1: '20', y1: '40', x2: '50', y2: '40', 'marker-end': 'url(#shared-arrow)' })])
+  expect(attributes('rect')).toEqual([expect.objectContaining({ x: '90', width: '35', fill: '#fff' })])
+  // Both modes leave the literal black arrow at x42..50 clear. A
+  // later matching reference cannot erase an earlier declaration mismatch.
+  const proof = certifyNativePaint(drawing.header, drawing.paint)
+  expect(proof.status).toBe(mode === 'matching' ? 'passed' : 'unverified')
+  if (mode === 'conflicting') expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'OUTPUT_SCOPE' }))
+})
+
 test('native emitted group ownership is retained or refused after owner mutation', () => {
   const owner = { id: 'cover', role: 'node' as const }
   const context = { positioned: { width: 200, height: 100 }, colors: header.colors, resolved: { renderOptions: {} } }
