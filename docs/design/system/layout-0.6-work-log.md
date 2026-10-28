@@ -1182,3 +1182,75 @@ issue/PR/comment, merge or force push occurred. Live Main
 jointly qualified. Next: follow the new exact-head CI, repair any correctness
 failures, then bind legacy Native declared resources before broadening row87's
 stroke/context proof domain. No ELK parity claim follows from this increment.
+
+
+### Root-paint repair: terminal CI and remaining observations
+
+[CI40748124441](https://github.com/adewale/agentic-mermaid/actions/runs/40748124441)
+completed **failed** on exact candidate
+**`abca8ba38a8f9c8bb04765bbdf19b8a514ea9e40`**, whose runtime/test change is
+`2af3348a68ee0fab33d484dac9627ad7076276b0`. Checkout logs show that retained
+branch commit, not a hypothetical merge with current Main. Its three unit
+shards pass **4,537 / 5,006 / 5,066**, totaling **14,609 P / 76 skipped /
+0 F**. This restores all seventeen previous CI expectations and includes the
+eight added root-color controls. Installed Node22/24 consumers, quickstarts,
+MCP, CLI, distribution, payload and browser-site checks pass. PR-event red/green
+is skipped for this manual run; genuine local RED/fault epochs remain recorded.
+
+Semantic conformance passes **173 / 0 F**, with **63/64 qualified and one
+unavailable**. All 882 grammar inputs retain zero untracked defects and zero
+unreviewed disagreements. Its broader diagnostic remains enrolled: **440/548
+upstream-valid inputs rendered**, with separate model classifications of 431
+structured / 10 opaque / 107 preserved. The diagnostic also retains six
+reference-unqualified results and thirteen seed7 silent reads. Those categories
+are not final-ink proof, a newly frozen holdout or evidence of ELK parity.
+Passing assertions do not erase diagnostic gaps or establish universal meaning.
+The complete decoded semantic log and remote artifact reference are retained.
+
+Quality types, lint and audit pass: 513 diagrams / 2,052 format audits / zero
+hard, soft or render errors; structural admission 513/513 and SVG markup
+adapters 275/513. Overall quality still fails **23 unique lazy byte rows**:
+17 raw and six gzip. Browser has **21 P / 1 F**, its editor raw HTML
+**4,490,869 > 4,429,400**, an **808-byte increase** over the preceding candidate.
+Editor gzip is not reached. This cost is disclosed, not tuned away or granted
+a larger cap. The existing aesthetic advisory still fails: 234 corpus cases
+have 47 regressions / 52 improvements / 135 changed, and the initial generated
+256 have 123 regressions / 133 improvements. Both engines have zero API errors
+in those and the six other historical 64-case cohorts. Zero status changes
+means missing population only. These historical cohorts are not the sealed
+0.6 holdout and do not prove certificate, aesthetics or performance parity.
+
+Final independent readback is
+`/tmp/pr449-independent-ink-peer-20261028/FINAL-SIX-EPOCH-READBACK.json`.
+It directly rechecks all six final SVGs, source/options, full-return SVGs,
+retained raster inputs/fonts and the seven frozen source/test member bytes.
+State/Block/Requirement0/Requirement12 receipts use respectively
+38,250 / 74,197 / 30,418 / 30,360 operations of the unchanged 400,000 cap;
+Architecture uses 33,253 / 33,251. **Requirement bend0 has no bend0-specific
+saved PNG**; its exact SVG preservation must not be counted as a new raster
+observation. The earlier requirement marker raster concerns bend12. State raw
+operands remain unavailable; coincident joins and overlapping Architecture
+heads retain their stated pair/nonadditive limits.
+
+Current increment readiness heuristics pass (342 changed text lines at the
+abca documentation epoch). The generated-visual mechanical linter still fails
+four image/section/SHA-label checks. The skill permits explaining unchanged
+pictures: all six checked SVGs are exact; no image is fabricated and the linter
+is not claimed green. No production check or cap is relaxed. Two closed
+regenerable font caches were removed only after every member directly matched
+its owning asset; zombie processes were distinguished from active consumers.
+
+CI logs, exact job results, delivery rows, source patch and committed-source
+byte readback are under `root-color-final/ci40748124441/` and its parent.
+Main and retained remote refs were rechecked after completion: Main is
+`019eedd31ed730f12b5047840dd61ab9e3cccd16`, retained head is abca8ba38. Only
+integrated03641 was exercised; current Main is **not jointly qualified**.
+The subsequent work-log-only revision changes no source, test, dependency or
+workflow; it has no separate full-CI qualification or readiness claim.
+
+All original seven diagrams and six goals remain open; all failed, unavailable
+and unsupported observations stay enrolled. The next concrete runtime task is
+legacy Native declared-resource custody, including unused definitions, before
+row87's wider stroke/context admission. Shared peer work remains in the
+separate Trident proposal. No timing campaign, holdout access, changed release
+version/default, package publication, new PR/issue/comment, merge or force push.
