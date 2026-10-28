@@ -7,6 +7,7 @@ import { build, transformSync } from 'esbuild'
 import ts from 'typescript'
 import { runtimeRenderContractPlugin } from '../../scripts/build/runtime-render-contract.ts'
 import { compactBrowserModulesPlugin } from '../../scripts/build/compact-browser-modules.ts'
+import { validateJsonSchema } from '../shared/schema-validation.ts'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
 const temporary = mkdtempSync(join(tmpdir(), 'mermaid-runtime-metadata-'))
@@ -135,7 +136,8 @@ describe('browser runtime metadata projection', () => {
       '});',
       "function paintSchema(description) { return { type: 'string', description }; }",
       "const PAINT_SCHEMA = paintSchema('helper schema prose');",
-      'function run() { return { field: SHARED_RENDER_OPTION_FIELD_DESCRIPTORS.style, paint: PAINT_SCHEMA }; }',
+      "const ARCHITECTURE_VISUAL_SCHEMA_PROPERTIES = { width: { type: 'number', minimum: 1, description: 'property-map prose' }, description: { type: 'string', description: (() => 'evaluated metadata')() } };",
+      'function run() { return { field: SHARED_RENDER_OPTION_FIELD_DESCRIPTORS.style, paint: PAINT_SCHEMA, properties: ARCHITECTURE_VISUAL_SCHEMA_PROPERTIES }; }',
     ].join('\n')
     const path = fixture('src/render-contract.ts', source)
     const terminalRenderer = Function(`${project(path, { schemaDocumentation: false, terminalAdapter: true })}\nreturn run();`)()
@@ -144,6 +146,7 @@ describe('browser runtime metadata projection', () => {
     expect(terminalRenderer.field.validationExpectation).toBe('required diagnostic expectation')
     expect(terminalRenderer.field.schema).toEqual({ type: 'object', properties: { description: { type: 'string' } } })
     expect(terminalRenderer.paint).toEqual({ type: 'string' })
+    expect(terminalRenderer.properties).toEqual({ width: { type: 'number', minimum: 1 }, description: { type: 'string', description: 'evaluated metadata' } })
     const lazy = Function(`${project(path, { schemaDocumentation: false, terminalAdapter: false })}\nreturn run();`)()
     expect(lazy.field.terminal).toBeUndefined()
     expect(lazy.field.terminalNote).toBeUndefined()
@@ -152,6 +155,9 @@ describe('browser runtime metadata projection', () => {
     const inspector = Function(`${project(path)}\nreturn run();`)()
     expect(inspector.field.schema.description).toBe('schema prose')
     expect(inspector.paint.description).toBe('helper schema prose')
+    expect(inspector.properties.width.description).toBe('property-map prose')
+    for (const value of [0, 1, 2, 'invalid']) expect(validateJsonSchema(value, terminalRenderer.properties.width))
+      .toEqual(validateJsonSchema(value, inspector.properties.width))
     expect(inspector.field.terminalNote).toBe('required terminal note')
     const editor = Function(`${project(path, { conformanceObservations: false })}\nreturn run();`)()
     expect(editor).toEqual(inspector)
@@ -239,7 +245,11 @@ test('compacted ESM preserves live bindings, observable getters, arity and recip
       mkdirSync(dirname(file.path), { recursive: true })
       writeFileSync(file.path, file.contents)
     }
-    for (const [path, output] of Object.entries(result.metafile!.outputs)) expect(JSON.stringify(output.inputs)).toBe(before.get(path))
+    for (const [path, output] of Object.entries(result.metafile!.outputs)) {
+      const originalContributions = before.get(path)
+      if (originalContributions === undefined) throw new Error(`Missing pre-compaction input contributions: ${path}`)
+      expect(JSON.stringify(output.inputs)).toBe(originalContributions)
+    }
     const compaction = (result.metafile as typeof result.metafile & { browserCompaction: { inputContributions: string; outputBytes: string } })!.browserCompaction
     expect(compaction.inputContributions).toBe('esbuild-before-compaction')
     expect(compaction.outputBytes).toBe('after-compaction')

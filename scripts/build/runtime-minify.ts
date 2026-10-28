@@ -7,7 +7,8 @@ export async function minifyBrowserRuntime(source: string): Promise<string> {
   const result = await minify(source, {
     ecma: 2022, module: true, mangle: true,
     compress: {
-      defaults: true, unsafe: false, pure_getters: false, keep_fargs: true,
+      defaults: true, ecma: 2022, toplevel: true,
+      unsafe: false, pure_getters: false, keep_fargs: true,
       inline: 3, passes: 3,
     },
     format: { comments: 'some', inlineScript: true },

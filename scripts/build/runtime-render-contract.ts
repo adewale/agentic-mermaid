@@ -10,6 +10,7 @@ import ts from 'typescript'
 function runtimeSource(source: string, path: string, schemaDocumentation: boolean, terminalAdapter: boolean): string {
   const file = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
   const fieldObjects = new Set<ts.ObjectLiteralExpression>()
+  const schemaPropertyObjects = new Set<ts.ObjectLiteralExpression>()
   const descriptionArguments = new Map<string, Set<number>>()
   const unwrap = (node: ts.Expression): ts.Expression => {
     while (ts.isAsExpression(node) || ts.isSatisfiesExpression(node) || ts.isParenthesizedExpression(node)) node = node.expression
@@ -25,6 +26,10 @@ function runtimeSource(source: string, path: string, schemaDocumentation: boolea
     for (const declaration of statement.declarationList.declarations) {
       if (!ts.isIdentifier(declaration.name) || !declaration.initializer) continue
       if (ts.isArrowFunction(declaration.initializer) && declaration.name.text.endsWith('Schema')) parameters(declaration.name.text, declaration.initializer.parameters)
+      const initializer = unwrap(declaration.initializer)
+      if (declaration.name.text.endsWith('_SCHEMA_PROPERTIES') && ts.isObjectLiteralExpression(initializer)) {
+        for (const property of initializer.properties) if (ts.isPropertyAssignment(property) && ts.isObjectLiteralExpression(unwrap(property.initializer))) schemaPropertyObjects.add(unwrap(property.initializer) as ts.ObjectLiteralExpression)
+      }
       if (declaration.name.text !== 'SHARED_RENDER_OPTION_FIELD_DESCRIPTORS' && (schemaDocumentation || !declaration.name.text.endsWith('_DESCRIPTORS'))) continue
       const call = unwrap(declaration.initializer)
       const value = ts.isCallExpression(call) && call.arguments[0] ? unwrap(call.arguments[0]) : undefined
@@ -52,6 +57,8 @@ function runtimeSource(source: string, path: string, schemaDocumentation: boolea
           return !(fields && (name === 'typeScript' || name === 'defaultLabel' || name === 'description'
             || (!terminalAdapter && (name === 'terminal' || name === 'terminalNote')))) && !(!schemaDocumentation && inSchema(node) && name === 'description'
             && !(ts.isPropertyAssignment(property) && ts.isObjectLiteralExpression(property.initializer)))
+            && !(!schemaDocumentation && schemaPropertyObjects.has(node) && name === 'description' && ts.isPropertyAssignment(property)
+              && (ts.isStringLiteral(property.initializer) || ts.isNoSubstitutionTemplateLiteral(property.initializer)))
         })
         return ts.visitEachChild(ts.factory.updateObjectLiteralExpression(node, properties), visit, context)
       }

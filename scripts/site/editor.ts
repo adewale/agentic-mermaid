@@ -19,6 +19,7 @@
 
 import { runtimeRenderContractPlugin } from '../build/runtime-render-contract.ts'
 import { minifyBrowserRuntime } from '../build/runtime-minify.ts'
+import { build as buildBrowserModule, version as esbuildVersion } from 'esbuild'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gzipSync } from 'node:zlib'
@@ -164,7 +165,7 @@ async function readHtmlPartials(
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
-function sourceOnlyFamilyRegistry(): Bun.BunPlugin {
+function sourceOnlyFamilyRegistry(): ReturnType<typeof runtimeRenderContractPlugin> {
   return {
     name: 'source-only-editor-family-registry',
     setup(build) {
@@ -212,53 +213,54 @@ async function generateEditorHtml(): Promise<string> {
     if (!workerBuild.success || !workerEntry) throw new AggregateError(workerBuild.logs, 'Preview worker build failed')
     workerUrl = `/editor/runtime/${basename(workerEntry.path)}`
   }
-  const buildResult = await Bun.build({
-    entrypoints: [fileURLToPath(new URL(runtimeDirectory ? '../../src/browser-hosted.ts' : '../../src/browser-standalone.ts', import.meta.url))],
-    // The private facade uses schema properties for its field list and the
-    // canonical validator for admission; it never presents schema prose.
-    // Its workers accept only source/options/output operations, including
-    // render/verify, terminal and PNG. Public Scene/Node/IIFE admission and
-    // published inspectors retain their full contracts.
-    plugins: [runtimeRenderContractPlugin({ schemaDocumentation: false, conformanceObservations: false, familyEditorMetadata: Boolean(runtimeDirectory), sourceOnlySceneAdmission: true }),
-      sourceOnlyFamilyRegistry(),
-      ...(!runtimeDirectory ? [{
-        name: 'standalone-worker-families',
-        setup(build: Bun.PluginBuilder) {
-          build.onResolve({ filter: /(?:^|\/)verified-loaders\.ts$/ }, args => {
-            const original = fileURLToPath(new URL('../../src/browser-lazy/generated/verified-loaders.ts', import.meta.url))
-            return join(args.resolveDir, args.path) === original ? { path: fileURLToPath(new URL('../../src/browser-preview-eager-families.ts', import.meta.url)) } : undefined
-          })
-        },
-      }] : []),
-    ],
-    target: 'browser',
-    format: 'esm',
-    minify: true,
-    metafile: Boolean(metafilePath),
-    ...(runtimeDirectory ? {
-      define: { AM_PREVIEW_WORKER_URL: JSON.stringify(workerUrl) },
-      splitting: true,
-      outdir: runtimeDirectory,
-      naming: { entry: '[name]-[hash].js', chunk: 'chunk-[hash].js' },
-    } : {}),
-  })
-  if (!buildResult.success) {
-    console.error('Bundle failed:', buildResult.logs)
-    process.exit(1)
-  }
+  // Both bundlers use the same source-only family registry and admission
+  // projections. The private worker still offers preview, terminal and PNG;
+  // the public Node/Scene/IIFE entries keep their complete contracts.
+  const runtimePlugins: Array<ReturnType<typeof runtimeRenderContractPlugin>> = [
+    runtimeRenderContractPlugin({ schemaDocumentation: false, conformanceObservations: false, familyEditorMetadata: Boolean(runtimeDirectory), sourceOnlySceneAdmission: true }),
+    sourceOnlyFamilyRegistry(),
+    ...(!runtimeDirectory ? [{
+      name: 'standalone-worker-families',
+      setup(build: Parameters<ReturnType<typeof runtimeRenderContractPlugin>['setup']>[0]) {
+        build.onResolve({ filter: /(?:^|\/)verified-loaders\.ts$/ }, args => {
+          const original = fileURLToPath(new URL('../../src/browser-lazy/generated/verified-loaders.ts', import.meta.url))
+          return join(args.resolveDir, args.path) === original ? { path: fileURLToPath(new URL('../../src/browser-preview-eager-families.ts', import.meta.url)) } : undefined
+        })
+      },
+    }] : []),
+  ]
   let bundleJs: string, sourceRuntimeBytes: number | undefined
+  let runtimeMetafile: unknown
   if (runtimeDirectory) {
+    const buildResult = await Bun.build({
+      entrypoints: [fileURLToPath(new URL('../../src/browser-hosted.ts', import.meta.url))],
+      plugins: runtimePlugins,
+      target: 'browser', format: 'esm', minify: true,
+      define: { AM_PREVIEW_WORKER_URL: JSON.stringify(workerUrl) },
+      splitting: true, outdir: runtimeDirectory,
+      naming: { entry: '[name]-[hash].js', chunk: 'chunk-[hash].js' },
+    })
+    if (!buildResult.success) throw new AggregateError(buildResult.logs, 'Hosted editor runtime build failed')
     // Bun materializes outputs when outdir is set. Writing a file-backed
     // BuildArtifact onto its own path would truncate the emitted module.
     const entry = buildResult.outputs.find(output => output.kind === 'entry-point')
     if (!entry) throw new Error('Hosted editor runtime entry not found')
     bundleJs = `import ${JSON.stringify(`/editor/runtime/${basename(entry.path)}`)};`
   } else {
+    const buildResult = await buildBrowserModule({
+      entryPoints: [fileURLToPath(new URL('../../src/browser-standalone.ts', import.meta.url))],
+      plugins: runtimePlugins,
+      bundle: true, platform: 'browser', target: 'es2022', format: 'esm',
+      minify: true, write: false, legalComments: 'inline',
+      metafile: Boolean(metafilePath),
+    })
     // Compress the complete inline module after omitting unpublished
     // conformance observations and unused schema prose. Retain validation,
     // both solvers and the terminal adapter; keep legal comments and escape
     // script delimiters.
-    const source = await buildResult.outputs[0]!.text()
+    const source = buildResult.outputFiles?.[0]?.text
+    if (!source) throw new Error('Standalone editor runtime build produced no module')
+    runtimeMetafile = buildResult.metafile
     sourceRuntimeBytes = new TextEncoder().encode(source).byteLength
     bundleJs = await minifyBrowserRuntime(source)
     if (!bundleJs) throw new Error('Standalone runtime compression produced no module')
@@ -328,12 +330,13 @@ ${appJs}
     await Bun.write(metafilePath, JSON.stringify({
       schemaVersion: 1,
       runtime: `Bun ${Bun.version}`,
-      scope: 'Standalone editor; module contributions describe the Bun build before SWC compression. No bundled source is included.',
+      bundler: `esbuild ${esbuildVersion}`,
+      scope: 'Standalone editor; module contributions describe the esbuild bundle before SWC compression. No bundled source is included.',
       sourceRuntimeBytes,
       compressedRuntimeBytes: new TextEncoder().encode(bundleJs).byteLength,
       htmlBytes: htmlBytes.byteLength,
       htmlGzipBytes: gzipSync(htmlBytes, { level: 9 }).byteLength,
-      metafile: buildResult.metafile,
+      metafile: runtimeMetafile,
     }))
   }
   return document
