@@ -8,7 +8,7 @@ import type { ZenUMLMutationOp } from '../zenuml/native-types.ts'
 import { parseZenUML } from '../zenuml/native-parser.ts'
 import { mutateZenUML, serializeZenUML } from '../zenuml/native-body.ts'
 
-export const ZENUML_AGENT_HOOKS: FamilyOperations = {
+export const ZENUML_SOURCE_HOOKS: Omit<FamilyOperations, 'mutate'> = {
   parse: ctx => {
     try {
       const body = parseZenUML(preservedMermaidFamilyText(ctx.source))
@@ -23,9 +23,6 @@ export const ZENUML_AGENT_HOOKS: FamilyOperations = {
     if (body.kind !== 'zenuml') throw Error('Expected native ZenUML')
     return serializeZenUML(body, meta === undefined || meta.frontmatter?.title !== body.title)
   },
-  mutate: (body, op) => body.kind === 'zenuml'
-    ? mutateZenUML(body, op as ZenUMLMutationOp)
-    : err({ code: 'UNSUPPORTED_FAMILY', message: 'Unmodeled ZenUML source remains preserved.' }),
   extractLabels: source => {
     try {
       const model = projectZenUMLSequence(parseZenUML(source))
@@ -51,4 +48,11 @@ export const ZENUML_AGENT_HOOKS: FamilyOperations = {
     return map
   },
   verify: body => body.kind === 'zenuml' && !projectZenUMLSequence(body).actors.some(actor => !actor.external) ? [{ code: 'EMPTY_DIAGRAM' }] : [],
+}
+
+export const ZENUML_AGENT_HOOKS: FamilyOperations = {
+  ...ZENUML_SOURCE_HOOKS,
+  mutate: (body, op) => body.kind === 'zenuml'
+    ? mutateZenUML(body, op as ZenUMLMutationOp)
+    : err({ code: 'UNSUPPORTED_FAMILY', message: 'Unmodeled ZenUML source remains preserved.' }),
 }

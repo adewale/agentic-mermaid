@@ -1,469 +1,52 @@
-import { tokenize as tokenizeBlock } from '../block/lexer.ts'
-import { parseBlockDiagram } from '../block/parser.ts'
-import { T as BlockToken } from '../block/tokens.ts'
-import { tokenize as tokenizeRequirement } from '../requirement/lexer.ts'
-import { T as RequirementToken, TOKEN_NAMES as requirementTokenNames } from '../requirement/tokens.ts'
-import { normalizeMermaidSource, preservedMermaidFamilyText, type NormalizedMermaidSource } from '../mermaid-source.ts'
-import { cleanupMermaidSource } from '../shared/mermaid-cleanup.ts'
-import { readAuthoredGrammarAccessibility } from '../shared/grammar-text.ts'
-import { AccessibilityTextError, normalizeBodyAccessibility } from './accessibility-envelope.ts'
-import { accessibilityFields } from '../shared/accessibility-directives.ts'
-import { maskAccessibilityDirectivesForSourceMap } from '../family-detection.ts'
-import { type ParserObservation, withParserObservation } from '../shared/parser-observation.ts'
-import { blockEntries, mutateBlock, parseBlockBody, renderBlock, verifyBlock } from './block-body.ts'
-import type { ExtractedLabel, FamilyOperations, FamilySourceMapContext } from './families.ts'
-import { mutateIshikawa, parseIshikawaBody, renderIshikawa, verifyIshikawa } from './ishikawa-body.ts'
-import { mutateKanban, parseKanbanBody, renderKanban, verifyKanban } from './kanban-body.ts'
-import { mutatePacket, parsePacketBody, renderPacket, verifyPacket } from './packet-body.ts'
-import { mutateRequirement, parseRequirementBody, renderRequirement, verifyRequirement } from './requirement-body.ts'
-import { recordSourceMapEnds, recordSourceMapMetadata } from './source-map-spans.ts'
-import { mutateTreemap, parseTreemapBody, renderTreemap, verifyTreemap } from './treemap-body.ts'
-import type { Accessibility, DiagramBody, FamilyParsedBody, LayoutWarning, MutationError, Result, SourceLocation, SourceMap, VerifyOptions } from './types.ts'
+// Public SDK adapters add mutation to the same source operations used by workers.
+import type { FamilyOperations } from './family-registry.ts'
+import type { MutationError, Result } from './types.ts'
 import { err, ok } from './types.ts'
+import { AccessibilityTextError, normalizeBodyAccessibility } from './accessibility-envelope.ts'
+import { PACKET_SOURCE_ADAPTER, PACKET_SOURCE_HOOKS, KANBAN_SOURCE_ADAPTER, KANBAN_SOURCE_HOOKS, REQUIREMENT_SOURCE_ADAPTER, REQUIREMENT_SOURCE_HOOKS, BLOCK_SOURCE_ADAPTER, BLOCK_SOURCE_HOOKS, TREEMAP_SOURCE_ADAPTER, TREEMAP_SOURCE_HOOKS, ISHIKAWA_SOURCE_ADAPTER, ISHIKAWA_SOURCE_HOOKS } from './stable-family-source-hooks.ts'
+import type { StableBody } from './stable-family-source-hooks.ts'
+export type { StableBody } from './stable-family-source-hooks.ts'
+export { isStableFamilyBody, stableFamilyTree, stableFamilyCount, stableFamilyFacts, stableFamilyLabels } from './stable-family-source-hooks.ts'
+import { mutateBlock } from './block-body.ts'
+import { mutateIshikawa } from './ishikawa-body.ts'
+import { mutateKanban } from './kanban-body.ts'
+import { mutatePacket } from './packet-body.ts'
+import { mutateRequirement } from './requirement-body.ts'
+import { mutateTreemap } from './treemap-body.ts'
 
-export type StableBody = Extract<DiagramBody, { kind: 'packet' | 'kanban' | 'requirement' | 'block' | 'treemap' | 'ishikawa' }>
-
-export function isStableFamilyBody(body: FamilyParsedBody): body is StableBody {
-  return body.kind === 'packet' || body.kind === 'kanban' || body.kind === 'requirement' || body.kind === 'block' || body.kind === 'treemap' || body.kind === 'ishikawa'
-}
-
-export function stableFamilyTree(body: StableBody): { nodes: { id: string; label: string; parentId?: string; value?: number }[]; edges: { from: string; to: string; label?: string }[] } {
-  switch (body.kind) {
-    case 'packet':
-      return { nodes: body.fields.map(field => ({ id: field.id, label: field.label, value: field.end - field.start + 1 })), edges: [] }
-    case 'kanban':
-      return { nodes: body.columns.flatMap(column => [{ id: column.id, label: column.label }, ...column.tasks.map(task => ({ id: task.id, label: task.label, parentId: column.id }))]), edges: [] }
-    case 'requirement':
-      return { nodes: [...body.requirements.map(node => ({ id: node.name, label: node.name })), ...body.elements.map(node => ({ id: node.name, label: node.name }))], edges: body.relations.map(edge => ({ from: edge.src, to: edge.dst, label: edge.type })) }
-    case 'block':
-      return {
-        nodes: blockEntries(body)
-          .filter(entry => entry.node.type !== 'space')
-          .map(entry => ({ id: entry.node.id, label: entry.node.label ?? entry.node.id, ...(entry.parentId ? { parentId: entry.parentId } : {}) })),
-        edges: body.edges.map(edge => ({ from: edge.start!, to: edge.end!, ...(edge.label ? { label: edge.label } : {}) })),
-      }
-    case 'treemap':
-      return { nodes: body.nodes.map(node => ({ ...node })), edges: [] }
-    case 'ishikawa':
-      return { nodes: body.nodes.map(node => ({ ...node })), edges: body.nodes.filter(node => node.parentId).map(node => ({ from: node.id, to: node.parentId! })) }
-  }
-}
-
-export function stableFamilyCount(body: StableBody): { nodes: number; edges: number; groups: number } {
-  switch (body.kind) {
-    case 'packet':
-      return { nodes: body.fields.length, edges: 0, groups: 0 }
-    case 'kanban':
-      return { nodes: body.columns.reduce((sum, column) => sum + column.tasks.length, 0), edges: 0, groups: body.columns.length }
-    case 'requirement':
-      return { nodes: body.requirements.length + body.elements.length, edges: body.relations.length, groups: 0 }
-    case 'block': {
-      const entries = blockEntries(body)
-      return { nodes: entries.filter(entry => !['space', 'composite'].includes(entry.node.type ?? '')).length, edges: body.edges.length, groups: entries.filter(entry => entry.node.type === 'composite').length }
+function mutation<K extends StableBody['kind']>(kind: K, adapter: { readSource: (source: string) => Extract<StableBody, { kind: K }> | null; serialize: (body: Extract<StableBody, { kind: K }>) => string }, mutate: (body: Extract<StableBody, { kind: K }>, op: never) => Result<Extract<StableBody, { kind: K }>, MutationError>): NonNullable<FamilyOperations['mutate']> {
+  const { readSource, serialize } = adapter
+  return (body, op) => {
+    if (body.kind !== kind) return err({ code: 'UNSUPPORTED_FAMILY', message: `${kind} contains unmodeled syntax and remains preserved verbatim` })
+    const changed = mutate(body as Extract<StableBody, { kind: K }>, op as never)
+    if (!changed.ok) return changed
+    try { changed.value = normalizeBodyAccessibility(changed.value) }
+    catch (error) {
+      if (!(error instanceof AccessibilityTextError)) throw error
+      return err({ code: 'INVALID_OP', message: error.message })
     }
-    case 'treemap':
-      return { nodes: body.nodes.filter(node => node.value !== undefined).length, edges: 0, groups: body.nodes.filter(node => node.value === undefined).length }
-    case 'ishikawa':
-      return { nodes: body.nodes.length, edges: Math.max(0, body.nodes.length - 1), groups: 0 }
+    // Generated occurrence IDs belong to the resulting source artifact.
+    // Publish the same identities/order that its renderer and source map see.
+    const normalized = readSource(serialize(changed.value))
+    if (normalized && (changed.value.accessibilityTitle !== normalized.accessibilityTitle
+      || changed.value.accessibilityDescription !== normalized.accessibilityDescription)) {
+      return err({ code: 'INVALID_OP', message: `${kind} accessibility text cannot be serialized without changing its value` })
+    }
+    return normalized ? ok(normalized) : err({ code: 'INVALID_OP', message: `${kind} edit could not preserve its structured representation` })
   }
 }
 
-/** Domain read-back retains quantities, membership and ordered records. */
-export function stableFamilyFacts(body: StableBody): string[] {
-  const facts: string[] = []
-  const text = (value: unknown) => JSON.stringify(value)
-  if ('title' in body && body.title !== undefined) facts.push(`title ${text(body.title)}`)
-  switch (body.kind) {
-    case 'packet':
-      body.fields.forEach((field, index) => facts.push(`field#${index} ${field.start}-${field.end} : ${text(field.label)}`))
-      break
-    case 'kanban':
-      body.columns.forEach((column, index) => {
-        facts.push(`column#${index} ${text(column.sourceId)} : ${text(column.label)}`)
-        column.tasks.forEach((task, order) => {
-          facts.push(`task#${index}.${order} ${text(task.sourceId)} : ${text(task.label)}`)
-          for (const [key, value] of Object.entries(task.metadata)) facts.push(`task#${index}.${order} metadata ${text(key)} ${text(value)}`)
-          if (task.icon) facts.push(`task#${index}.${order} icon ${text(task.icon)}`)
-          if (task.className) facts.push(`task#${index}.${order} class ${text(task.className)}`)
-        })
-      })
-      break
-    case 'requirement':
-      facts.push(`direction ${body.direction}`)
-      body.requirements.forEach(node => facts.push(`requirement ${text(node.name)} ${text(node.type)} id ${text(node.requirementId)} text ${text(node.text)} risk ${text(node.risk)} verify ${text(node.verifyMethod)}`))
-      body.elements.forEach(node => facts.push(`element ${text(node.name)} type ${text(node.type)} docref ${text(node.docRef)}`))
-      body.relations.forEach((edge, index) => facts.push(`relation#${index} ${text(edge.src)} ${edge.type} ${text(edge.dst)}`))
-      break
-    case 'block':
-      facts.push(`columns root ${body.root.columns ?? -1}`)
-      for (const { node, parentId } of blockEntries(body))
-        facts.push(`block ${text(node.id)} parent ${text(parentId ?? null)} type ${node.type === 'na' ? 'square' : (node.type ?? 'square')} span ${node.widthInColumns ?? 1} columns ${node.columns ?? -1} label ${text(node.label ?? '')}${node.directions ? ` directions ${text(node.directions)}` : ''}`)
-      body.edges.forEach((edge, index) => facts.push(`edge#${index} ${text(edge.start)} -> ${text(edge.end)} label ${text(edge.label ?? '')} markers ${edge.arrowTypeStart ?? 'none'} ${edge.arrowTypeEnd ?? 'none'}`))
-      break
-    case 'treemap':
-      body.nodes.forEach((node, index) => facts.push(`node#${index} ${node.id} parent ${node.parentId ?? 'root'} : ${text(node.label)}${node.value === undefined ? ' section' : ` value ${node.value}`}${node.className ? ` class ${node.className}` : ''}`))
-      break
-    case 'ishikawa':
-      body.nodes.forEach((node, index) => facts.push(`${node.parentId ? 'cause' : 'effect'}#${index} ${node.id}${node.parentId ? ` parent ${node.parentId}` : ''} : ${text(node.label)}`))
-      break
-  }
-  return facts
-}
+export const PACKET_AGENT_HOOKS = { ...PACKET_SOURCE_HOOKS, mutate: /* @__PURE__ */ mutation('packet', PACKET_SOURCE_ADAPTER, mutatePacket) } satisfies FamilyOperations
 
-export function stableFamilyLabels(body: StableBody): ExtractedLabel[] {
-  const out: ExtractedLabel[] = []
-  if ('title' in body && body.title !== undefined) out.push({ text: body.title, target: 'title' })
-  switch (body.kind) {
-    case 'packet':
-      return [...out, ...body.fields.map(field => ({ text: field.label, target: field.id }))]
-    case 'kanban':
-      return [
-        ...out,
-        ...body.columns.flatMap(column =>
-          [column, ...column.tasks].flatMap(item => [
-            { text: item.label, target: item.id },
-            ...Object.entries(item.metadata)
-              .filter(([key]) => ['ticket', 'assigned', 'priority'].includes(key))
-              .map(([, value]) => ({ text: String(value), target: item.id })),
-          ]),
-        ),
-      ]
-    case 'requirement':
-      return [
-        ...out,
-        ...body.requirements.flatMap(node => [node.name, node.requirementId, node.text, node.risk, node.verifyMethod].filter(Boolean).map(text => ({ text, target: node.name }))),
-        ...body.elements.flatMap(node => [node.name, node.type, node.docRef].filter(Boolean).map(text => ({ text, target: node.name }))),
-        ...body.relations.map(edge => ({ text: edge.type, target: edge.id })),
-      ]
-    case 'block':
-      return [
-        ...out,
-        ...blockEntries(body)
-          .filter(entry => entry.node.type !== 'space')
-          .map(entry => ({ text: entry.node.label ?? entry.node.id, target: entry.node.id })),
-        ...body.edges.filter(edge => edge.label).map(edge => ({ text: edge.label!, target: edge.id })),
-      ]
-    case 'treemap':
-    case 'ishikawa':
-      return [...out, ...body.nodes.map(node => ({ text: node.label, target: node.id }))]
-  }
-}
+export const KANBAN_AGENT_HOOKS = { ...KANBAN_SOURCE_HOOKS, mutate: /* @__PURE__ */ mutation('kanban', KANBAN_SOURCE_ADAPTER, mutateKanban) } satisfies FamilyOperations
 
-/** Locate native declarations and mutations, rather than searching every line
- * for display labels (which need not be unique or appear verbatim in source). */
-function sourceMap(body: StableBody, source: string, origin?: FamilySourceMapContext): SourceMap {
-  const map: SourceMap = { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }
-  const lines = source.split(/\r?\n/)
-  const lineStarts = (text: string): number[] => {
-    const out = [0]
-    for (let i = 0; i < text.length; i++) if (text[i] === '\n') out.push(i + 1)
-    return out
-  }
-  const starts = lineStarts(source)
-  const at = (offset: number, offsets = starts): SourceLocation => {
-    let lo = 0,
-      hi = offsets.length
-    while (lo < hi) {
-      const mid = (lo + hi) >>> 1
-      if (offsets[mid]! <= offset) lo = mid + 1
-      else hi = mid
-    }
-    const line = Math.max(0, lo - 1)
-    return { line: line + 1, col: offset - offsets[line]! + 1 }
-  }
-  const lineAt = (line: number, col = 0): SourceLocation => ({ line, col: col + 1 })
-  const label = (key: string, location: SourceLocation): void => {
-    if (!map.labels.has(key)) map.labels.set(key, location)
-  }
+export const REQUIREMENT_AGENT_HOOKS = { ...REQUIREMENT_SOURCE_HOOKS, mutate: /* @__PURE__ */ mutation('requirement', REQUIREMENT_SOURCE_ADAPTER, mutateRequirement) } satisfies FamilyOperations
 
-  if (body.kind === 'requirement') {
-    // The same lexer that owns the parser supplies declaration/field/relation
-    // boundaries. Its quoted-string tokens already start inside the quotes.
-    const authored = origin ? preservedMermaidFamilyText(origin, 'authored') : source
-    const lexerSource = authored.replace(/^[^\r\n]*/, 'requirementDiagram')
-    // The payload view has normalized CRLF once. Every remaining CR is a
-    // separate authored break, including a retained CR immediately before LF.
-    const payloadRows = lexerSource.split(/[\r\n]/), positions = [0]
-    for (let i = 0; i < lexerSource.length; i++) if (lexerSource[i] === '\r' || lexerSource[i] === '\n') positions.push(i + 1)
-    const mappingRows = maskAccessibilityDirectivesForSourceMap(lexerSource).split(/[\r\n]/)
-    const candidates = new Map<string, { rows: number[]; next: number }>()
-    for (let row = 0; row < lines.length; row++) {
-      const text = lines[row]!.trim(), entry = candidates.get(text)
-      if (entry) entry.rows.push(row)
-      else candidates.set(text, { rows: [row], next: 0 })
-    }
-    const canonicalRows = new Map<number, number>()
-    let cursor = 0
-    for (let row = 0; row < payloadRows.length; row++) {
-      const wanted = mappingRows[row]!.trim()
-      if (!wanted) continue
-      const entry = candidates.get(wanted)
-      if (!entry) continue
-      while (entry.next < entry.rows.length && entry.rows[entry.next]! < cursor) entry.next++
-      const found = entry.rows[entry.next++]
-      if (found === undefined) continue
-      canonicalRows.set(row + 1, found + 1)
-      cursor = found + 1
-    }
-    const tokens = tokenizeRequirement(lexerSource)
-    const locationAt = (offset: number): SourceLocation => {
-      const raw = at(offset, positions), canonical = canonicalRows.get(raw.line)
-      if (canonical === undefined) return raw
-      const indent = (text: string) => text.length - text.trimStart().length
-      return { line: canonical, col: raw.col - indent(payloadRows[raw.line - 1]!) + indent(lines[canonical - 1]!) }
-    }
-    const labelEnds = new Map<string, SourceLocation>()
-    const tokenLabel = (key: string, index: number): void => {
-      if (map.labels.has(key)) return
-      label(key, locationAt(tokens.starts[index]!))
-      labelEnds.set(key, locationAt(tokens.starts[index]! + tokens.texts[index]!.length))
-    }
-    const location = (index: number): SourceLocation => locationAt(tokens.starts[index]!)
-    let owner: string | undefined,
-      edgeIndex = 0
-    const ids = new Set([...body.requirements.map(n => n.name), ...body.elements.map(n => n.name)])
-    for (let i = 0; i < tokens.types.length; i++) {
-      const type = tokens.types[i]!
-      if (((type >= RequirementToken.REQUIREMENT && type <= RequirementToken.DESIGN_CONSTRAINT) || type === RequirementToken.ELEMENT) && ids.has(tokens.texts[i + 1]!)) {
-        owner = tokens.texts[i + 1]!
-        if (!map.nodes.has(owner)) map.nodes.set(owner, location(i + 1))
-        tokenLabel(`node:${owner}`, i + 1)
-      } else if (type === RequirementToken.STRUCT_STOP) owner = undefined
-      else if ((owner && type >= RequirementToken.ID && type <= RequirementToken.VERIFYMTHD) || (owner && (type === RequirementToken.TYPE || type === RequirementToken.DOCREF))) {
-        if (tokens.types[i + 1] === RequirementToken.COLONSEP) tokenLabel(`node:${owner}:${requirementTokenNames[type]!.toLowerCase()}`, i + 2)
-      } else if (type >= RequirementToken.CONTAINS && type <= RequirementToken.TRACES) {
-        const edge = body.relations[edgeIndex]
-        if (!edge) continue
-        map.edges.set(edge.id, location(i - 2))
-        tokenLabel(`edge#${edgeIndex}:${edge.src}->${edge.dst}`, i)
-        edgeIndex++
-      }
-    }
-    recordSourceMapEnds(map, { labels: labelEnds })
-    return map
-  }
+export const BLOCK_AGENT_HOOKS = { ...BLOCK_SOURCE_HOOKS, mutate: /* @__PURE__ */ mutation('block', BLOCK_SOURCE_ADAPTER, mutateBlock) } satisfies FamilyOperations
 
-  if (body.kind === 'block') {
-    const entries = new Map(blockEntries(body).map(entry => [entry.node.id, entry.node]))
-    const tokens = tokenizeBlock(source)
-    let previousNode = -1,
-      edgeIndex = 0,
-      pendingLabel = -1
-    const declared = new Set<string>()
-    for (let i = 0; i < tokens.types.length; i++) {
-      const type = tokens.types[i]!
-      if (type === BlockToken.NODE_ID) {
-        previousNode = i
-        const node = entries.get(tokens.texts[i]!)
-        if (!node || node.type === 'space') continue
-        const group = node.type === 'composite',
-          destination = group ? map.groups : map.nodes
-        const explicit = tokens.types[i - 1] === BlockToken.ID_BLOCK || tokens.types[i + 1] === BlockToken.NODE_DSTART || tokens.types[i + 1] === BlockToken.BLOCK_ARROW_START
-        if (!destination.has(node.id) || (explicit && !declared.has(node.id))) {
-          destination.set(node.id, at(tokens.starts[i]!))
-          const textIndex = tokens.types[i + 1] === BlockToken.NODE_DSTART || tokens.types[i + 1] === BlockToken.BLOCK_ARROW_START ? i + 2 : i
-          if (explicit || !map.labels.has(`${group ? 'group' : 'node'}:${node.id}`)) map.labels.set(`${group ? 'group' : 'node'}:${node.id}`, at(tokens.starts[textIndex]!))
-        }
-        if (explicit) declared.add(node.id)
-      } else if (type === BlockToken.LINK_LABEL) pendingLabel = i + 1
-      else if (type === BlockToken.LINK) {
-        const edge = body.edges[edgeIndex]
-        if (edge && previousNode >= 0) {
-          map.edges.set(edge.id, at(tokens.starts[previousNode]!))
-          if (pendingLabel >= 0) label(`edge#${edgeIndex}:${edge.start}->${edge.end}`, at(tokens.starts[pendingLabel]!))
-        }
-        edgeIndex++
-        pendingLabel = -1
-      }
-    }
-    // Anonymous composites have parser-generated identities. Capture their
-    // actual allocation at the closing statement, paired with its consumed
-    // opening statement; do not infer an id from its label or child list.
-    const open: number[] = []
-    let statement: ParserObservation | undefined, closed: number | undefined
-    withParserObservation(
-      'block',
-      event => {
-        if (event.unit === 'statement') {
-          statement = event
-          if (event.kind === 'BLOCK_DIAGRAM_KEY' || event.kind === 'id-block') open.push(event.source?.offset ?? 0)
-          else if (event.kind === 'end') closed = open.pop()
-        } else if (event.unit === 'mutation' && event.kind === 'generate-id' && statement?.kind === 'end' && closed !== undefined && typeof event.value === 'string' && entries.get(event.value)?.type === 'composite') {
-          map.groups.set(event.value, at(closed))
-        }
-      },
-      () => parseBlockDiagram(source),
-      { mutations: ['generate-id'] },
-    )
-    return map
-  }
+export const TREEMAP_AGENT_HOOKS = { ...TREEMAP_SOURCE_HOOKS, mutate: /* @__PURE__ */ mutation('treemap', TREEMAP_SOURCE_ADAPTER, mutateTreemap) } satisfies FamilyOperations
 
-  // These native parsers expose the exact consumed statement before each
-  // record is appended. Repeated labels and repeated Kanban source IDs are
-  // disambiguated by the identity in that actual append event.
-  let statement: ParserObservation | undefined
-  const nodeEnds = new Map<string, SourceLocation>(),
-    groupEnds = new Map<string, SourceLocation>(),
-    labelEnds = new Map<string, SourceLocation>(),
-    metadataLocations: Parameters<typeof recordSourceMapMetadata>[1] = new Map()
-  const kanbanItems = body.kind === 'kanban' ? body.columns.flatMap(column => [column, ...column.tasks]) : undefined
-  const kanbanColumns = body.kind === 'kanban' ? new Set(body.columns.map(column => column.id)) : undefined
-  let kanbanIndex = 0
-  withParserObservation(
-    body.kind,
-    event => {
-      if (event.unit === 'statement') {
-        statement = event
-        return
-      }
-      if (event.unit !== 'mutation' || !statement?.source?.line || !event.value || typeof event.value !== 'object' || Array.isArray(event.value)) return
-      const value = event.value as Record<string, unknown>
-      if (typeof value.id !== 'string') return
-      const id = body.kind === 'kanban' && (event.kind === 'add-column' || event.kind === 'add-task') ? kanbanItems?.[kanbanIndex++]?.id ?? value.id : value.id,
-        line = event.source?.line ?? statement.source.line
-      const raw = lines[line - 1] ?? '',
-        indent = raw.length - raw.trimStart().length
-      if (body.kind === 'kanban' && (event.kind === 'add-column' || event.kind === 'add-task')) {
-        const group = kanbanColumns!.has(id)
-        ;(group ? map.groups : map.nodes).set(id, lineAt(line, indent))
-        // declaredLabel is the native lexical payload, before entity and
-        // metadata-label interpretation. Search only its consumed declaration.
-        const declaredLabel = typeof value.declaredLabel === 'string' ? value.declaredLabel : ''
-        const local = statement.text ?? raw
-        ;(group ? groupEnds : nodeEnds).set(id, at(starts[line - 1]! + local.length))
-        if (Array.isArray(value.metadataSpans)) {
-          const fields: NonNullable<ReturnType<typeof metadataLocations.get>> = new Map()
-          for (const field of value.metadataSpans) {
-            if (!field || typeof field !== 'object' || Array.isArray(field)) continue
-            const entry = field as Record<string, unknown>
-            if (typeof entry.name !== 'string' || !['keyStart', 'keyEnd', 'valueStart', 'valueEnd'].every(key => typeof entry[key] === 'number')) continue
-            const location = (key: string): SourceLocation => at(starts[line - 1]! + (entry[key] as number))
-            fields.set(entry.name, { key: { start: location('keyStart'), end: location('keyEnd') }, value: { start: location('valueStart'), end: location('valueEnd') } })
-          }
-          if (fields.size) metadataLocations.set(id, fields)
-        }
-        const firstLine = local.split('\n')[0]!
-        const metadata = firstLine.indexOf('@{')
-        const declaration = metadata >= 0 ? firstLine.slice(0, metadata) : firstLine
-        const firstPiece = declaredLabel.split('\n')[0]!, start = typeof value.declaredLabelStart === 'number' ? value.declaredLabelStart : declaration.lastIndexOf(firstPiece)
-        if (declaredLabel && start >= 0) {
-          const key = `${group ? 'group' : 'node'}:${id}`
-          label(key, lineAt(line, start))
-          labelEnds.set(key, at(starts[line - 1]! + start + declaredLabel.length))
-        }
-      } else if (body.kind === 'packet' && event.kind === 'add-field') {
-        map.nodes.set(id, lineAt(line, indent))
-        const colon = raw.indexOf(':', indent),
-          quote = raw.slice(colon + 1).search(/["']/)
-        if (colon >= 0 && quote >= 0) label(`node:${id}`, lineAt(line, colon + quote + 2))
-      } else if ((body.kind === 'treemap' || body.kind === 'ishikawa') && event.kind === 'add-node') {
-        const group = body.kind === 'treemap' && value.value === undefined
-        const column = event.source?.column === undefined ? indent : event.source.column - 1
-        ;(group ? map.groups : map.nodes).set(id, lineAt(line, column))
-        label(`${group ? 'group' : 'node'}:${id}`, lineAt(line, column + (body.kind === 'treemap' ? 1 : 0)))
-        if (body.kind === 'ishikawa' && typeof value.parentId === 'string') map.edges.set(`branch:${id}`, lineAt(line, indent))
-      }
-    },
-    () => {
-      switch (body.kind) {
-        case 'packet':
-          return parsePacketBody(lines)
-        case 'kanban':
-          return parseKanbanBody(lines)
-        case 'treemap':
-          return parseTreemapBody(lines.slice(1))
-        case 'ishikawa':
-          return parseIshikawaBody(lines.slice(1))
-      }
-    },
-  )
-  if (body.kind === 'kanban') {
-    recordSourceMapEnds(map, { nodes: nodeEnds, groups: groupEnds, labels: labelEnds })
-    recordSourceMapMetadata(map, metadataLocations)
-  }
-  return map
-}
-
-function hooks<K extends StableBody['kind']>(
-  kind: K,
-  parse: (lines: string[], accessibility?: Accessibility) => Extract<StableBody, { kind: K }> | null,
-  serialize: (body: Extract<StableBody, { kind: K }>) => string,
-  mutate: (body: Extract<StableBody, { kind: K }>, op: never) => Result<Extract<StableBody, { kind: K }>, MutationError>,
-  verify: (body: Extract<StableBody, { kind: K }>, opts: VerifyOptions) => LayoutWarning[],
-  parseSource?: (source: string, normalized?: NormalizedMermaidSource, accessibility?: Accessibility) => Extract<StableBody, { kind: K }> | null,
-  ownsAccessibility = false,
-): FamilyOperations {
-  // familyBody retains indentation and can retain wrapper comments after
-  // frontmatter removal. Header-relative readers must start at the header,
-  // rather than blindly dropping the first physical line.
-  const headerLines = (source: string): string[] => {
-    const lines = source.split(/\r?\n/)
-    const first = lines.findIndex(line => line.trim() && !line.trimStart().startsWith('%%'))
-    return first < 0 ? [] : lines.slice(first)
-  }
-  const readSource = (source: string) => parseSource ? parseSource(source) : parse(headerLines(source))
-  return {
-    parse: ctx => {
-      const body = parseSource ? parseSource(ctx.source.familyBody, ctx.source, ctx.meta.accessibility) : parse(headerLines(ctx.source.familyBody), ctx.meta.accessibility)
-      if (body && ownsAccessibility) {
-        const logical = readAuthoredGrammarAccessibility(ctx.meta.accessibility)
-        ctx.meta.accessibility = logical
-        Object.assign(body, accessibilityFields(logical))
-      }
-      return ok(body ?? { kind: 'opaque', family: kind, source: ctx.opaqueSource })
-    },
-    serialize: body => {
-      if (body.kind !== kind) throw new Error(`Expected ${kind} body`)
-      return serialize(body as Extract<StableBody, { kind: K }>)
-    },
-    mutate: (body, op) => {
-      if (body.kind !== kind) return err({ code: 'UNSUPPORTED_FAMILY', message: `${kind} contains unmodeled syntax and remains preserved verbatim` })
-      const changed = mutate(body as Extract<StableBody, { kind: K }>, op as never)
-      if (!changed.ok) return changed
-      try { changed.value = normalizeBodyAccessibility(changed.value) }
-      catch (error) {
-        if (!(error instanceof AccessibilityTextError)) throw error
-        return err({ code: 'INVALID_OP', message: error.message })
-      }
-      // Generated occurrence IDs belong to the resulting source artifact.
-      // Publish the same identities/order that its renderer and source map see.
-      const normalized = readSource(serialize(changed.value))
-      if (normalized && (changed.value.accessibilityTitle !== normalized.accessibilityTitle
-        || changed.value.accessibilityDescription !== normalized.accessibilityDescription)) {
-        return err({ code: 'INVALID_OP', message: `${kind} accessibility text cannot be serialized without changing its value` })
-      }
-      return normalized ? ok(normalized) : err({ code: 'INVALID_OP', message: `${kind} edit could not preserve its structured representation` })
-    },
-    verify: (body, opts) => (body.kind === kind ? verify(body as Extract<StableBody, { kind: K }>, opts) : []),
-    renderSource: body => (body.kind === 'opaque' ? 'canonical' : 'serialized'),
-    extractLabels: source => {
-      const body = readSource(source)
-      return body ? stableFamilyLabels(body) : []
-    },
-    buildSourceMap: (body, source, origin) => (body.kind === kind ? sourceMap(body as StableBody, source, origin) : { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }),
-  }
-}
-
-export const PACKET_AGENT_HOOKS = /* @__PURE__ */ hooks('packet', parsePacketBody, renderPacket, mutatePacket, verifyPacket)
-
-export const KANBAN_AGENT_HOOKS = /* @__PURE__ */ hooks('kanban', lines => parseKanbanBody(lines), renderKanban, mutateKanban, verifyKanban, (text, source) => parseKanbanBody(text, source ?? normalizeMermaidSource(text)))
-
-export const REQUIREMENT_AGENT_HOOKS = /* @__PURE__ */ hooks('requirement', lines => parseRequirementBody(lines.slice(1)), renderRequirement, mutateRequirement, verifyRequirement, (text, source, accessibility) => parseRequirementBody(source ? preservedMermaidFamilyText(source, 'authored') : cleanupMermaidSource(text).authoredPayloadText, accessibility))
-
-export const BLOCK_AGENT_HOOKS = /* @__PURE__ */ hooks('block', (lines, accessibility) => parseBlockBody(lines.slice(1), accessibility), renderBlock, mutateBlock, verifyBlock, undefined, true)
-
-export const TREEMAP_AGENT_HOOKS: FamilyOperations = {
-  .../* @__PURE__ */ hooks('treemap', lines => parseTreemapBody(lines.slice(1)), renderTreemap, mutateTreemap, verifyTreemap, undefined, true),
-  // Source-only labels still need authored indentation to retain their parents.
-  renderSource: () => 'serialized',
-}
-
-export const ISHIKAWA_AGENT_HOOKS: FamilyOperations = {
-  .../* @__PURE__ */ hooks('ishikawa', lines => parseIshikawaBody(lines.slice(1)), renderIshikawa, mutateIshikawa, verifyIshikawa, undefined, true),
-  // Canonical line trimming loses cause nesting; opaque bodies own the
-  // indentation in their preserved source just as typed bodies own the tree.
-  renderSource: () => 'serialized',
-}
+export const ISHIKAWA_AGENT_HOOKS = { ...ISHIKAWA_SOURCE_HOOKS, mutate: /* @__PURE__ */ mutation('ishikawa', ISHIKAWA_SOURCE_ADAPTER, mutateIshikawa) } satisfies FamilyOperations
 
 export const STABLE_FAMILY_AGENT_HOOKS = {
   packet: PACKET_AGENT_HOOKS,
