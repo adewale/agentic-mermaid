@@ -270,7 +270,7 @@ export function applyRouteContracts(
    * beside the held port. Proof-gated like the Z; failure keeps the route.
    */
   function tryCrossSideEntry(edge: PositionedEdge, target: PositionedNode, ctx: LaneContext, axis: Axis): boolean {
-    if (edge.points.length < 3) return false
+    if (edge.points.length < 3 || !ctx.edges.some(peer => peer !== edge && peer.target === edge.target)) return false
     const ports = shapePorts(target)
     const flowPort = ports[facingSide(axis, -1)]
     if (!portClaimedAgainst(edge, flowPort[axis.cross], axis)) return false
@@ -477,6 +477,21 @@ export function applyRouteContracts(
           if (hasDirectLaneBlocker(unlabeled, jog, Math.min(c1, c2), Math.max(c1, c2), ctx, hopAxis)) continue
           if (hasDirectLaneBlocker(longFirst ? unlabeled : edge, c2, Math.min(jog, tgtMain), Math.max(jog, tgtMain), ctx, axis)) continue
           const route = [axisPoint(axis, srcMain, c1), axisPoint(axis, jog, c1), axisPoint(axis, jog, c2), axisPoint(axis, tgtMain, c2)]
+          // Both the seat and the proofs below must hold, and the seat is far
+          // cheaper: find it first. Only an occlusion repair still proves a
+          // seatless route, to keep it as the fallback.
+          const labelLane: [Point, Point] = longFirst ? [route[0]!, route[1]!] : [route[2]!, route[3]!]
+          let slot: Point | null = null
+          if (edge.label) {
+            slot = findLabelSlot(edge, labelLane[0], labelLane[1], ctx)
+            // The longer leg is preferred, but when every seat on it is taken
+            // the other leg may carry the pill if it proves the capacity.
+            if (!slot) {
+              const other = longFirst ? findLabelSlot(edge, route[2]!, route[3]!, ctx) : findLabelSlot(edge, route[0]!, route[1]!, ctx)
+              if (other && !hasDirectLaneBlocker(edge, longFirst ? c2 : c1, Math.min(longFirst ? jog : srcMain, longFirst ? tgtMain : jog), Math.max(longFirst ? jog : srcMain, longFirst ? tgtMain : jog), ctx, axis)) slot = other
+            }
+            if (!slot && !(repairingOcclusion && !occlusionFallback)) continue
+          }
           if (!routeCandidateMarkersClear(edge, route, ctx.edges, ctx.style)) continue
           const priorContacts = Number(Boolean(portAt(source, edge.points[0]!))) + Number(Boolean(portAt(target, edge.points.at(-1)!)))
           const nextContacts = Number(Boolean(portAt(source, route[0]!))) + Number(Boolean(portAt(target, route.at(-1)!)))
@@ -496,13 +511,6 @@ export function applyRouteContracts(
           )
             continue
           if (edge.label) {
-            const labelLane: [Point, Point] = longFirst ? [route[0]!, route[1]!] : [route[2]!, route[3]!]
-            let slot = findLabelSlot(edge, labelLane[0], labelLane[1], ctx)
-            // The longer leg is preferred, but when every seat on it is taken
-            // the other leg may carry the pill if it proves the capacity.
-            if (!slot && !hasDirectLaneBlocker(edge, longFirst ? c2 : c1, Math.min(longFirst ? jog : srcMain, longFirst ? tgtMain : jog), Math.max(longFirst ? jog : srcMain, longFirst ? tgtMain : jog), ctx, axis)) {
-              slot = longFirst ? findLabelSlot(edge, route[2]!, route[3]!, ctx) : findLabelSlot(edge, route[0]!, route[1]!, ctx)
-            }
             if (!slot) {
               // No fully-clear pill slot on this route's label lane. When we are
               // clearing a through-node OCCLUSION (a HARD defect) and the lane

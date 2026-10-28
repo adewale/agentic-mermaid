@@ -352,16 +352,18 @@ export function findLabelSlot(edge: PositionedEdge, start: Point, end: Point, ct
   const half = (vertical ? m.height : m.width) / 2 + LABEL_PILL_PADDING, crossHalf = (vertical ? m.width : m.height) / 2 + LABEL_PILL_PADDING
   // Every seat is tested against the same obstacles: nodes, other pills and
   // other routes' segments, each with its own clearance. Collect them once.
-  // Seats on an axis-aligned lane share the pill's cross band, so an obstacle
-  // clear of that band can block none of them.
+  // Seats on an axis-aligned lane share the pill's cross band and stay within
+  // half a pill of the lane, so an obstacle clear of that box blocks none.
   const bandLo = Math.min(start[cross], end[cross]) - crossHalf - 1e-6, bandHi = Math.max(start[cross], end[cross]) + crossHalf + 1e-6
+  const reachLo = Math.min(start[main], end[main]) - half - 1e-6, reachHi = Math.max(start[main], end[main]) + half + 1e-6
   type Obstacle = { x: number; y: number; w: number; h: number; x1: number; y1: number; gap: number }
   let obstacleList: Obstacle[] | undefined
   const obstacles = (): Obstacle[] => {
     if (obstacleList) return obstacleList
     const list: Obstacle[] = obstacleList = []
     const add = (x: number, y: number, w: number, h: number, x1: number, y1: number, gap: number): void => {
-      if (!axisAligned || (vertical ? x1 : y1) + gap >= bandLo && (vertical ? x : y) - gap <= bandHi) list.push({ x, y, w, h, x1, y1, gap })
+      if (!axisAligned || (vertical ? x1 : y1) + gap >= bandLo && (vertical ? x : y) - gap <= bandHi
+        && (vertical ? y1 : x1) + gap >= reachLo && (vertical ? y : x) - gap <= reachHi) list.push({ x, y, w, h, x1, y1, gap })
     }
     for (const node of ctx.nodes) add(node.x, node.y, node.width, node.height, node.x + node.width, node.y + node.height, nodeClearance(node))
     for (const other of others) {

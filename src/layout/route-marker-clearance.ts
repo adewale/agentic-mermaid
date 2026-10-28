@@ -95,10 +95,13 @@ function separated(a: MarkerRegion, b: MarkerRegion): boolean {
 export function edgesMayShareTerminal(a: PositionedEdge, b: PositionedEdge): boolean {
   if (a.label && b.label) return false
   if (a.style !== b.style || a.curve !== b.curve || a.animate !== b.animate || a.animation !== b.animation) return false
-  const styleA = Object.entries(a.inlineStyle ?? {}), styleB = b.inlineStyle ?? {}
-  if (styleA.length !== Object.keys(styleB).length || styleA.some(([key, value]) => styleB[key] !== value)) return false
+  const styleA = a.inlineStyle ?? {}, styleB = b.inlineStyle ?? {}
+  for (const key in styleA) if (!(key in styleB) || styleB[key] !== styleA[key]) return false
+  for (const key in styleB) if (!(key in styleA)) return false
   const classesA = a.classNames ?? [], classesB = b.classNames ?? []
-  return classesA.length === classesB.length && classesA.every((name, index) => classesB[index] === name)
+  if (classesA.length !== classesB.length) return false
+  for (let index = 0; index < classesA.length; index++) if (classesA[index] !== classesB[index]) return false
+  return true
 }
 
 /** Optional endpoint-centering candidates may not discard reserved marker
