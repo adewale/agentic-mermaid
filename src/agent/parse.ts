@@ -7,7 +7,7 @@
 // than silently dropping the unrecognized construct.
 // ============================================================================
 
-import { MermaidFrontmatterError, normalizeMermaidSource } from '../mermaid-source.ts'
+import { MermaidFrontmatterError, normalizeMermaidSource, preservedMermaidFamilySource } from '../mermaid-source.ts'
 import { INIT_DIRECTIVE_REGEX, MERMAID_DIRECTIVE_REGEX, splitHeaderStatement } from '../mermaid-source-wrapper.ts'
 import { stripStateComment } from '../state/comment.ts'
 import { stripMindmapComment } from '../mindmap/parser.ts'
@@ -26,6 +26,8 @@ import {
   familyDetectionDiagnosticFromPreservedBody,
   maskAccessibilityDirectivesForSourceMap,
   sourcePreservationSpans,
+  sourceLineStarts,
+  sourcePointAt,
 } from '../family-detection.ts'
 import { retainBodyComments } from './body-comments.ts'
 import { serializeMermaid } from './serialize.ts'
@@ -464,11 +466,11 @@ function markDroppedComments(diagram: ValidDiagram, authoredSource: string, stat
     }
     if (diagram.kind === 'kanban') {
       const envelope = normalizeMermaidSource(source)
-      const start = envelope.wrapperSource?.length ?? 0
-      const prefixLines = (source.slice(0, start).match(/\n/g) ?? []).length
-      parseKanbanDiagram(withoutDirectives.slice(start), {}, undefined, (text, row) => {
-        const line = prefixLines + row
-        if (!knownLines.has(line)) { comments.push({ line, text }); knownLines.add(line) }
+      const payload = preservedMermaidFamilySource(envelope), starts = sourceLineStarts(source)
+      parseKanbanDiagram(payload.text, {}, envelope, (_text, _row, range) => {
+        const start = payload.sourceOffset(range.start, 'end'), end = payload.sourceOffset(range.end, 'start')
+        const line = sourcePointAt(starts, start).line
+        if (!knownLines.has(line)) { comments.push({ line, text: source.slice(start, end).trim() }); knownLines.add(line) }
       })
       return comments.sort((a, b) => a.line - b.line)
     }
