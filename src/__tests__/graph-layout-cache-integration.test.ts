@@ -163,7 +163,7 @@ test('snapshot cloning preserves prepared-text Map keys and values alongside res
   const family = {}
   const cacheKey = 'graph-layout-integration-prepared-map'
   retainGraphLayoutDecision(value, { requested: 'agentic', fallback: 'none', selected: 'agentic',
-    attempts: [{ backend: 'agentic', outcome: 'selected' }], implementation: 'agentic-layered@27' })
+    attempts: [{ backend: 'agentic', outcome: 'selected' }], implementation: 'agentic-layered@28' })
   retainPositioned(family, cacheKey, value)
   const borrowed = borrowedPositioned(family, cacheKey)!.result as typeof value
   expect(graphLayoutDecisionsOf(borrowed)).toEqual(graphLayoutDecisionsOf(value))

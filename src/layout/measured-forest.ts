@@ -65,6 +65,28 @@ export function layoutMeasuredForest(input: MeasuredGraph): AgenticLayout | unde
     let start = starts[id]! + (span[id]! - peerWidth) / 2
     for (const child of peers) { starts[child] = start; start += span[child]! + nodeSpacing }
   }
+  // Spread ports also need ordered bend channels. Reusing one channel leaves
+  // overlapping runs between siblings whose source contacts are now distinct.
+  // Routes toward the low cross side use increasing channels; routes toward
+  // the high side use decreasing channels. Opposite-side runs are disjoint.
+  const fanTracks = new Float64Array(nodes.length)
+  const trackSpacing = input.edgeSpacing ?? 6
+  for (let id = 0; id < nodes.length; id++) {
+    const pitch = nodes[id]!.minimumPortSpacing, peers = outgoing[id]!
+    if (!pitch || peers.length < 2) continue
+    const low: number[] = [], high: number[] = []
+    const center = (horizontal ? positioned[id]!.y : positioned[id]!.x) + crossSize(id) / 2
+    for (const [slot, child] of peers.entries()) {
+      const sourceCross = center + (slot - (peers.length - 1) / 2) * pitch
+      const targetCross = (horizontal ? positioned[child]!.y : positioned[child]!.x) + crossSize(child) / 2
+      if (targetCross < sourceCross) low.push(child)
+      else if (targetCross > sourceCross) high.push(child)
+    }
+    const tracks = Math.max(low.length, high.length)
+    if ((tracks - 1) * trackSpacing > layerSpacing - 2 * Math.max(12, input.minimumTerminalLead ?? 0)) return undefined
+    low.forEach((child, slot) => { fanTracks[child] = (slot - (low.length - 1) / 2) * trackSpacing })
+    high.forEach((child, slot) => { fanTracks[child] = ((high.length - 1) / 2 - slot) * trackSpacing })
+  }
   const sourceSlots = new Uint32Array(nodes.length)
   return {
     topology: 'forest',
@@ -98,6 +120,7 @@ export function layoutMeasuredForest(input: MeasuredGraph): AgenticLayout | unde
       const exit = padding + (reverse ? mainExtent - (bandStart[band]! + bands[band]!) : bandStart[band]! + bands[band]!)
       const entry = padding + (reverse ? mainExtent - bandStart[band + 1]! : bandStart[band + 1]!)
       if (mid <= Math.min(exit, entry) || mid >= Math.max(exit, entry)) mid = exit + (entry - exit) / 2
+      if (from.minimumPortSpacing && peers > 1) mid = (exit + entry) / 2 + (reverse ? -1 : 1) * fanTracks[edge.target]!
       return { points: horizontal
         ? [start, { x: mid, y: start.y }, { x: mid, y: end.y }, end]
         : [start, { x: start.x, y: mid }, { x: end.x, y: mid }, end] }
