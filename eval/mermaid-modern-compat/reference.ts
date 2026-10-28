@@ -12,7 +12,7 @@ export const wireLine = (value: unknown): string =>
   JSON.stringify(value).replace(/[\u2028\u2029]/g, c => `\\u${c.charCodeAt(0).toString(16)}`) + '\n'
 
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json }
-export type ReferenceReply = { ok: false; error: string } | { ok: true; type: string; parserIdentity?: Record<string, string>; parserAst?: { origin: string; value?: Json; error?: string; unavailable?: string }; snapshot: { data: Record<string, Json>; errors: Record<string, string> } }
+export type ReferenceReply = { ok: false; error: string } | { ok: true; type: string; parserIdentity?: Record<string, string>; parserAst?: { origin: string; value?: Json; error?: string; unavailable?: string }; renderedLabels?: { kind: 'rendered-svg-text'; origin: string; limitations: string; labels?: Array<{ path: string; text: string }>; error?: string }; snapshot: { data: Record<string, Json>; errors: Record<string, string> } }
 
 export interface ReferenceProvenance {
   version: string
