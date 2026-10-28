@@ -177,7 +177,14 @@ export function renderAndVerifyMermaid(source: string, options: RenderOptions = 
 
 function verifyMermaidInternal(input: ParsedDiagram | string, opts: VerifyOptions, shared?: SharedVerificationRender): VerifyResult {
   logToolInvocation('verify')
-  const parsed = typeof input === 'string' ? parseRegisteredMermaid(input) : { ok: true as const, value: input }
+  let parsed: ReturnType<typeof parseRegisteredMermaid>
+  try {
+    parsed = typeof input === 'string' ? parseRegisteredMermaid(input) : { ok: true as const, value: input }
+  } catch (error) {
+    if (!(error instanceof DiagramWorkLimitError)) throw error
+    const failed = finalize([renderFailureWarning(error, () => 'fails')], emptyRenderedLayout(typeof input === 'string' ? 'flowchart' : input.kind), opts, false)
+    return { ...failed, ok: false, checks: { ...failed.checks!, renderability: 'failed' } }
+  }
   // Capture source evidence before any config/layout/render early return.
   // Result branches and diagnostic suppression cannot revoke an observed loss.
   const sourceEvidence = parsed.ok ? [...commentLossWarnings(parsed.value), ...roundtripFaithfulnessWarnings(parsed.value)] : []

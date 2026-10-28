@@ -20,6 +20,7 @@
 
 import { parseMermaidYaml } from './mermaid-yaml.ts'
 import { scanMetadataBlock, type MetadataGrammar } from './metadata-block-scan.ts'
+import { assertDiagramWorkLimit } from './diagram-limits.ts'
 
 // ---- `@{…}` blocks ------------------------------------------------------------
 
@@ -35,15 +36,28 @@ export type MetadataEntries =
 export function protectMetadataEntities(source: string) {
   if (!/#\w+;/.test(source)) return { text: source, restore: (value: string): string => value, sourceOffset: (at: number): number => at }
   const counts = new Map<string, number>()
-  const count = (character: string): void => { counts.set(character, (counts.get(character) ?? 0) + 1) }
+  const count = (character: string): void => {
+    const code = character.codePointAt(0)!
+    if (code >= 0xe000 && code <= 0xf8ff) counts.set(character, (counts.get(character) ?? 0) + 1)
+  }
   for (const character of source) count(character)
   for (const match of source.matchAll(/\\(?:u([\da-fA-F]{4})|U([\da-fA-F]{8}))/g)) {
     const code = Number.parseInt(match[1] ?? match[2]!, 16)
     if (code <= 0x10ffff) count(String.fromCodePoint(code))
   }
   let character = '\uE000'
-  for (let code = 0xe001; counts.has(character) && code <= 0xf8ff; code++) character = String.fromCodePoint(code)
-  const delimiter = character.repeat((counts.get(character) ?? 0) + 1)
+  let frequency = counts.get(character) ?? 0
+  for (let code = 0xe001; frequency > 0 && code <= 0xf8ff; code++) {
+    const candidate = String.fromCodePoint(code), count = counts.get(candidate) ?? 0
+    if (count < frequency) { character = candidate; frequency = count }
+  }
+  let projectedLength = source.length
+  const codes = /#\w+;/g
+  while (codes.test(source)) projectedLength += 2 * frequency
+  // The existing source budget also covers authored metadata plus its
+  // normalized YAML view; refuse before allocating that temporary view.
+  assertDiagramWorkLimit('sourceCharacters', source.length + projectedLength)
+  const delimiter = character.repeat(frequency + 1)
   const token = new RegExp(`${delimiter}(\\w+)${delimiter}`, 'g')
   const edits: Array<{ start: number; end: number; sourceStart: number; sourceEnd: number }> = []
   let delta = 0

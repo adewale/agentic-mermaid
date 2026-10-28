@@ -5,6 +5,7 @@ import { kanbanMetadataLabel, parseKanbanDiagram } from '../kanban/parser.ts'
 import type { KanbanBody, KanbanItem, KanbanMutationOp } from '../kanban/types.ts'
 import { encodeMermaidEntities } from '../shared/mermaid-entities.ts'
 import { quoteMetadataString } from '../shared/metadata-yaml.ts'
+import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
 import { isPlainRecord } from '../shared/plain-data.ts'
 import { appendAccessibilityLines } from './accessibility-envelope.ts'
 import { labelOverflowCollector } from './body-utils.ts'
@@ -15,7 +16,8 @@ export function parseKanbanBody(lines: readonly string[] | string, source?: Norm
   try {
     const input = source ? preservedMermaidFamilyText(source).replace(/^[^\r\n]*/, 'kanban') : lines
     return parseKanbanDiagram(input, source?.accessibility, source)
-  } catch {
+  } catch (error) {
+    if (error instanceof DiagramWorkLimitError && error.resource === 'sourceCharacters') throw error
     return null
   }
 }
@@ -188,6 +190,7 @@ export function mutateKanban(body: KanbanBody, op: KanbanMutationOp): Result<Kan
   try {
     parseKanbanDiagram(renderKanban(next))
   } catch (error) {
+    if (error instanceof DiagramWorkLimitError) return fail(error.message)
     return fail(`Kanban edit cannot be serialized as Mermaid: ${error instanceof Error ? error.message : String(error)}`)
   }
   return ok(next)

@@ -16,6 +16,7 @@
 // ============================================================================
 
 import { parseMermaid as parseFlowchartLegacy } from '../parser.ts'
+import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
 import { parseMutableStyleProps, unsafeStylePaintError } from '../shared/style-props.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
@@ -104,6 +105,7 @@ export function parseFlowchartBody(canonicalSource: string, opaqueSource = canon
     if (nonportableNodeId(graph) !== undefined || !portableGraphStyles(graph)) return ok({ kind: 'opaque', family: 'flowchart', source: opaqueSource })
     return ok({ kind: 'flowchart', graph })
   } catch (e) {
+    if (e instanceof DiagramWorkLimitError && e.resource === 'sourceCharacters') throw e
     return err([{ code: 'PARSE_FAILED', message: e instanceof Error ? e.message : String(e) }])
   }
 }
