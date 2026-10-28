@@ -1530,3 +1530,88 @@ unshipped and no public Mermaid/Pele correctness parity is claimed. Main700da
 is beyond integrated03641 and not jointly qualified. No performance/delivery
 or compiler tuning, cap/default/version change, package publication, new PR,
 issue or comment, merge or force push occurs.
+
+
+### Document authority: terminal CI, retained timing failure and next boundary
+
+[CI40772917664](https://github.com/adewale/agentic-mermaid/actions/runs/40772917664)
+tested exact candidate **`d65f670ac394a1b15ccb9f9774e5c606fff59f9b`**,
+containing runtime/test **`165c93aad4abb3a40f0a2342524c0c05e0cc3d7b`**.
+Both completed attempts remain **failed overall**. Actual checkout logs show
+d65 and its parent 165; no hypothetical merge with live Main is tested.
+
+Attempt 1 has **14,636 unit passes / 76 skips / one failure**. The sole failure
+is the existing SourceMap linear-growth timing assertion at
+agent-source-map.test.ts:746: 685.341710 ms against its computed relative limit
+672.489888 ms. All changed paint/XML controls pass. The guard invokes chain
+construction and parseRegisteredMermaid, not emission or paint functions; the
+new XML helper is a pure declaration outside that timed call path. This source
+trace does not establish the timing failure's cause or exclude import-residency,
+GC or process effects. It remains a failed observation.
+
+Exactly **one job-specific rerun** is requested on the same d65 commit with
+unchanged parser, thresholds, dependencies and source. Retry job 123120977759
+checks out d65 and passes all **4,537 / 45 skips / zero F** in shard 1, including
+the previously failing guard. The latest unit shard results are
+**4,537 / 5,006 / 5,094**, totaling **14,637 P / 76 skips / zero F**. Original
+attempt 1 and retry logs are separate; these are latest shard results rather
+than a new clean first attempt. There is no repeated retry, threshold change,
+parser tuning, timing campaign or performance-parity conclusion.
+
+Semantic assertions pass **173 / zero F**, with **63/64 qualified and one
+unavailable**. All 882 grammar inputs retain zero untracked defects and zero
+unreviewed disagreements. Broader diagnostics retain 440/548 upstream-valid
+inputs rendered, separate model classifications 431 structured / 10 opaque /
+107 preserved, six reference-unqualified observations and thirteen seed7
+silent reads. These remain enrolled qualification gaps. Node22/24 installed
+consumers, quickstarts, MCP, CLI, distribution, payload and browser-site pass.
+Manual PR-event red/green is skipped; genuine recorded local REDs are retained.
+
+Quality's types, lint and audit pass: 513 diagrams / 2,052 format audits / zero
+hard, soft or render errors, structural 513/513 and SVG markup 275/513. Overall
+quality still fails **24 unique lazy byte rows** (17 raw / seven gzip), with
+sequence gzip **214,215 > 214,000**. Browser is 21 P / 1 F: editor raw
+**4,492,288 > 4,429,400**, **930 bytes more** than c10; editor gzip is not
+reached. These are delivery costs of this candidate. All original caps remain
+unchanged; no delivery/performance tuning is performed.
+
+The aesthetic advisory remains failed with the same vectors: 234 corpus cases
+have 47 regressions / 52 improvements / 135 changed; initial 256 generated have
+123 regressions / 133 improvements. Both engines have zero API errors in all
+eight historical cohorts. Zero status changes denotes missing population only.
+Those reused CI inputs are not the separately constructed sealed 0.6 holdout;
+zero API errors and passing assertions do not establish certificate, beauty or
+ELK correctness/performance parity.
+
+Decoded logs, both timing outcomes, both summaries, latest job results and
+artifact references are under
+`/tmp/pr449-document-context-20261028/ci40772917664/`.
+`CI-SOURCEMAP-TRACE.md` is a source assessment, not a runtime measurement or a
+finding that the guard is flaky. Large raw CI ZIPs are not newly downloaded.
+All successful, failed, unsupported and unavailable observations remain enrolled.
+
+A bounded read-only architecture trace is saved as `NEXT-XML-AUTHORITY.md`.
+Current positioned certification happens before colors, certificate-driven
+viewport repair, text fitting, ID namespace/accessibility, numeric/style
+finalization and final security. Reusing the already executed full final-XML
+gate without another parse requires a private geometry-draft/final-certificate
+distinction and exact drawing/request/string binding. Layout-only, direct
+Native and cached raw-drawing consumers need explicit treatment. A smaller raw
+XML admission at Native drawing could reuse the parser and close trailing-leaf
+cases, but adds a raw scan before the mandatory final scan; cache kinds and
+changed strings do not erase that work. Neither alternative is implemented,
+measured, granted a larger budget or claimed to prove final ink.
+
+Next concrete step is an owning final-artifact placement falsifier, then one
+bounded private XML-admission prototype under unchanged caps, before row87's
+served stroke/fractional-body expansion. Remaining ordinary shape/text/group
+placement and malformed attribute cases remain unexecuted source hypotheses.
+All original seven diagrams and six goals stay open, the holdout stays sealed
+and shared Trident peer proposals remain unshipped.
+
+Post-CI refs are retained d65 and live Main
+**`ceca964f1a4aa4b3e748edbbce8728abd65ce632`**. Only integrated 03641 is qualified;
+new Main is not jointly qualified. The subsequent work-log-only revision
+changes no source, tests, dependency or workflow and has no separate full-CI
+or readiness claim. No new PR/issue/comment, default/version change, package
+publication, merge or force push is performed.
