@@ -645,3 +645,57 @@ unshipped pool-plus-stockmangling/Terser-format experiment is4368584raw and
 1336443gzip,1943gzip over. Direct-to-Terser variants also fail; no rootdependency
 or private representation helper has been adopted. Remaining renderer correctness,
 peer/holdout/aesthetics/performance goals are unchanged.
+
+
+### Published snapshot CI and package inventory repair
+
+Published `f219abc041e0f4c2c3db62f7f6c1cdb487593456` is tested by
+[CI40704506275](https://github.com/adewale/agentic-mermaid/actions/runs/40704506275).
+All14554unit tests pass,76skip,0fail; independent semantics173P,63/64qualified
+plus1unavailable,882grammar inputs with0untracked defects. Quality, website
+payload, browser-site, Node22, CLI/MCP, dist and quickstarts pass. CIcomplete
+fails on standalone bytes and the reviewed package inventory. The advisory
+metric losses remain enrolled and nonblocking, with no winner claim.
+
+Frozenf219 paired website captures use exactMain03641 and identicalBun1.4.2,
+Playwright1.58.2,SystemChromium154.0.8037.57. All4head routes pass original
+caps. Canonical payload-delta passes WITHOUTallow-growth: all30rows are lower
+or unchanged(28lower/2unchanged). Familygzip falls5462to5629bytes; initial
+5918to5856;demo271271to265782gzip and25to17requests. Complete populations and
+metafiles remain retained under `/tmp/pr449-ci-relative-*20261028*`; no timing
+comparison is inferred. This also confirms the earlier manual-dispatch skip
+of the PR-only relative step has independent canonical evidence, not a waiver.
+
+The complete clean Node/DTS/IIFE/lazy/Zen builds expose4Zen shared chunks,
+while the old reviewed inventory expected7. The original117second aggregate
+build timed out after successfulNodeDTS/IIFE; separate bounded lazy/Zen stages
+complete with unchanged limits. Pinnednpm11.18 actualRED finds ONLY7versus4.
+The inventory change removes precisely3identical wildcard entries; all other
+paths and strict rejection rules remain. Same canonical verifier GREEN has
+225exact files. RED/GREEN tarballs directly match byte for byte. All21public/
+conditional targets and467relative/conditional/URLedges across100runtimeJS
+modules are complete; no maps, nonliteral or missing imports. Owning package
+checks6P/16assertions and targeted lint/diff checks pass. No package published.
+Evidence: `/tmp/pr449-ci-package-*f219-20261028*`. Commit and final CI still
+need recording after remaining standalone repair; no overall green claim.
+
+All standalone representation experiments remain unshipped. Current best
+research byte profile still exceeds originalgzip by1891bytes. Authored JS
+controls expose prototype-shorthand/setter bugs in bothTerser5.44.1/latest5.51.2
+and existingMainSWC, plus invalid quoted private fields inTerserquote_keys.
+Keep these adverse results; static absence of named proto keys is not a generic
+compiler safety proof. Dynamic computed keys may evaluate toproto and must
+retain ordinary own-property semantics. Oxc0.156 full compression is rejected
+for documented coercion/inherited-setter assumptions. Its renamer default also
+fails proto binding controls. A documented reserved-binding safeguard passes
+all12independently authored semantics/determinism controls, including escaped
+spelling and ordinaryshorthand; actualfullmodule bytes are not yet measured.
+Prefer a standard renamer without an added pool if it meets bothcaps. No root
+dependency, emitter, parser, work limit, cap, default or holdout changed here.
+
+Storage cleanup preserved all839files of a closedOct27generated installed
+consumer in `/tmp/pr449-closed-consumer-hGAdot-20261028.tar.gz`, and all1182files
+of an obsoleteephemeralbunxESLintcache in its separate verifiedarchive. All
+regular member bytes and symlink targets directly match before cleanup. Only
+regenerableNodebytecode/font caches were otherwise cleared. Source worktrees,
+proof/failed-case artifacts and base frozen dependencies remain intact.
