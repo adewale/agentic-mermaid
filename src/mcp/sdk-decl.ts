@@ -367,6 +367,10 @@ ${CODE_MODE_RENDER_METHOD_DECLARATIONS}
   // "add_point(label, x, y)". Read these before authoring an unfamiliar op.
   describeOps(family: DiagramKind): Record<string, { name: string; required: boolean; type: string; note?: string }[]>
   opSignatures(family: DiagramKind): string[]
+  // Opaque Class: add_member/remove_member; Flowchart: set_label/rename_node.
+  // Save value.source exactly; verify value.diagram. Ambiguous ownership and
+  // unsupported dependencies refuse; portability diagnostics remain present.
+  mutatePreservingSource(d: ParsedDiagram, op: AnyMutationOp): Result<{ source: string; diagram: ParsedDiagram }, { code: string; message: string }>
 }
 
 // Conventions:

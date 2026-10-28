@@ -3,7 +3,9 @@ import { parseBlockDiagram } from '../block/parser.ts'
 import { T as BlockToken } from '../block/tokens.ts'
 import { tokenize as tokenizeRequirement } from '../requirement/lexer.ts'
 import { T as RequirementToken, TOKEN_NAMES as requirementTokenNames } from '../requirement/tokens.ts'
-import { normalizeMermaidSource, preservedMermaidFamilyText, type NormalizedMermaidSource } from '../mermaid-source.ts'
+import { normalizeMermaidSource, preservedMermaidFamilySource, preservedMermaidFamilyText, type NormalizedMermaidSource } from '../mermaid-source.ts'
+import { parseKanbanDiagram } from '../kanban/parser.ts'
+import { sourceLineStarts, sourceSpan } from '../family-detection.ts'
 import { cleanupMermaidSource } from '../shared/mermaid-cleanup.ts'
 import { readAuthoredGrammarAccessibility } from '../shared/grammar-text.ts'
 import { accessibilityFields } from '../shared/accessibility-directives.ts'
@@ -15,9 +17,9 @@ import { parseIshikawaBody, renderIshikawa, verifyIshikawa } from './ishikawa-bo
 import { parseKanbanBody, renderKanban, verifyKanban } from './kanban-body.ts'
 import { parsePacketBody, renderPacket, verifyPacket } from './packet-body.ts'
 import { parseRequirementBody, renderRequirement, verifyRequirement } from './requirement-body.ts'
-import { recordSourceMapEnds, recordSourceMapMetadata } from './source-map-spans.ts'
+import { recordAuthoredSourceMapSpans, recordSourceMapEnds } from './source-map-spans.ts'
 import { parseTreemapBody, renderTreemap, verifyTreemap } from './treemap-body.ts'
-import type { Accessibility, DiagramBody, FamilyParsedBody, LayoutWarning, SourceLocation, SourceMap, VerifyOptions } from './types.ts'
+import type { Accessibility, DiagramBody, FamilyParsedBody, LayoutWarning, SourceLocation, SourceMap, SourceSpan, VerifyOptions } from './types.ts'
 import { ok } from './types.ts'
 
 export type StableBody = Extract<DiagramBody, { kind: 'packet' | 'kanban' | 'requirement' | 'block' | 'treemap' | 'ishikawa' }>
@@ -242,6 +244,61 @@ function sourceMap(body: StableBody, source: string, origin?: FamilySourceMapCon
     return map
   }
 
+  if (body.kind === 'kanban') {
+    const payload = origin ? preservedMermaidFamilySource(origin) : { text: source, sourceOffset: (offset: number) => offset, familyOffset: (offset: number) => offset }
+    const authoredPayload = origin ? preservedMermaidFamilySource(origin, 'authored') : payload
+    const payloadStarts = origin ? [0] : [...sourceLineStarts(authoredPayload.text)], indents = new Map<number, number>()
+    if (origin) for (let index = 0; index < authoredPayload.text.length; index++) if (authoredPayload.text[index] === '\r' || authoredPayload.text[index] === '\n') payloadStarts.push(index + 1)
+    const authoredStarts = sourceLineStarts(origin?.originalText ?? source)
+    const exact = {
+      nodes: new Map<string, SourceSpan>(), groups: new Map<string, SourceSpan>(), labels: new Map<string, SourceSpan>(),
+      metadata: new Map<string, Map<string, { key: SourceSpan; value: SourceSpan }>>(),
+    }
+    const spanAt = (start: number, end: number): SourceSpan => sourceSpan(authoredStarts, payload.sourceOffset(start, 'end'), payload.sourceOffset(end, 'start'))
+    const locationAt = (authored: number): SourceLocation => {
+      const location = at(authoredPayload.familyOffset(authored, 'end'), payloadStarts)
+      let indent = indents.get(location.line)
+      if (indent === undefined) {
+        const row = authoredPayload.text.slice(payloadStarts[location.line - 1], payloadStarts[location.line])
+        indent = row.length - row.trimStart().length
+        indents.set(location.line, indent)
+      }
+      return { line: location.line, col: location.col - indent }
+    }
+    let statement: ParserObservation | undefined
+    withParserObservation('kanban', event => {
+      if (event.unit === 'statement') { statement = event; return }
+      if (event.unit !== 'mutation' || (event.kind !== 'add-column' && event.kind !== 'add-task') || !statement?.source || !event.value || typeof event.value !== 'object' || Array.isArray(event.value)) return
+      const value = event.value as Record<string, unknown>
+      const start = statement.source.offset, end = statement.source.endOffset
+      if (typeof value.id !== 'string' || start === undefined || end === undefined) return
+      const group = event.kind === 'add-column', id = value.id
+      const declarationStart = start + Number(value.declaredStart)
+      const declaration = spanAt(declarationStart, end)
+      ;(group ? map.groups : map.nodes).set(id, locationAt(declaration.start.offset))
+      ;(group ? exact.groups : exact.nodes).set(id, declaration)
+      const declaredLabel = typeof value.declaredLabel === 'string' ? value.declaredLabel : ''
+      if (declaredLabel && typeof value.declaredLabelStart === 'number') {
+        const labelStart = start + value.declaredLabelStart
+        const labelSpan = spanAt(labelStart, labelStart + declaredLabel.length)
+        map.labels.set(`${group ? 'group' : 'node'}:${id}`, locationAt(labelSpan.start.offset))
+        exact.labels.set(`${group ? 'group' : 'node'}:${id}`, labelSpan)
+      }
+      if (Array.isArray(value.metadataSpans)) {
+        const fields = new Map<string, { key: SourceSpan; value: SourceSpan }>()
+        for (const field of value.metadataSpans) {
+          if (!field || typeof field !== 'object' || Array.isArray(field)) continue
+          const entry = field as Record<string, unknown>
+          if (typeof entry.name !== 'string' || !['keyStart', 'keyEnd', 'valueStart', 'valueEnd'].every(key => typeof entry[key] === 'number')) continue
+          fields.set(entry.name, { key: spanAt(start + (entry.keyStart as number), start + (entry.keyEnd as number)), value: spanAt(start + (entry.valueStart as number), start + (entry.valueEnd as number)) })
+        }
+        if (fields.size) exact.metadata.set(id, fields)
+      }
+    }, () => parseKanbanDiagram(payload.text, {}, origin))
+    recordAuthoredSourceMapSpans(map, exact)
+    return map
+  }
+
   if (body.kind === 'block') {
     const entries = new Map(blockEntries(body).map(entry => [entry.node.id, entry.node]))
     const tokens = tokenizeBlock(source)
@@ -298,16 +355,8 @@ function sourceMap(body: StableBody, source: string, origin?: FamilySourceMapCon
   }
 
   // These native parsers expose the exact consumed statement before each
-  // record is appended. Repeated labels and repeated Kanban source IDs are
-  // disambiguated by the identity in that actual append event.
+  // record is appended, disambiguated by the actual append identity.
   let statement: ParserObservation | undefined
-  const nodeEnds = new Map<string, SourceLocation>(),
-    groupEnds = new Map<string, SourceLocation>(),
-    labelEnds = new Map<string, SourceLocation>(),
-    metadataLocations: Parameters<typeof recordSourceMapMetadata>[1] = new Map()
-  const kanbanItems = body.kind === 'kanban' ? body.columns.flatMap(column => [column, ...column.tasks]) : undefined
-  const kanbanColumns = body.kind === 'kanban' ? new Set(body.columns.map(column => column.id)) : undefined
-  let kanbanIndex = 0
   withParserObservation(
     body.kind,
     event => {
@@ -318,39 +367,11 @@ function sourceMap(body: StableBody, source: string, origin?: FamilySourceMapCon
       if (event.unit !== 'mutation' || !statement?.source?.line || !event.value || typeof event.value !== 'object' || Array.isArray(event.value)) return
       const value = event.value as Record<string, unknown>
       if (typeof value.id !== 'string') return
-      const id = body.kind === 'kanban' && (event.kind === 'add-column' || event.kind === 'add-task') ? kanbanItems?.[kanbanIndex++]?.id ?? value.id : value.id,
+      const id = value.id,
         line = event.source?.line ?? statement.source.line
       const raw = lines[line - 1] ?? '',
         indent = raw.length - raw.trimStart().length
-      if (body.kind === 'kanban' && (event.kind === 'add-column' || event.kind === 'add-task')) {
-        const group = kanbanColumns!.has(id)
-        ;(group ? map.groups : map.nodes).set(id, lineAt(line, indent))
-        // declaredLabel is the native lexical payload, before entity and
-        // metadata-label interpretation. Search only its consumed declaration.
-        const declaredLabel = typeof value.declaredLabel === 'string' ? value.declaredLabel : ''
-        const local = statement.text ?? raw
-        ;(group ? groupEnds : nodeEnds).set(id, at(starts[line - 1]! + local.length))
-        if (Array.isArray(value.metadataSpans)) {
-          const fields: NonNullable<ReturnType<typeof metadataLocations.get>> = new Map()
-          for (const field of value.metadataSpans) {
-            if (!field || typeof field !== 'object' || Array.isArray(field)) continue
-            const entry = field as Record<string, unknown>
-            if (typeof entry.name !== 'string' || !['keyStart', 'keyEnd', 'valueStart', 'valueEnd'].every(key => typeof entry[key] === 'number')) continue
-            const location = (key: string): SourceLocation => at(starts[line - 1]! + (entry[key] as number))
-            fields.set(entry.name, { key: { start: location('keyStart'), end: location('keyEnd') }, value: { start: location('valueStart'), end: location('valueEnd') } })
-          }
-          if (fields.size) metadataLocations.set(id, fields)
-        }
-        const firstLine = local.split('\n')[0]!
-        const metadata = firstLine.indexOf('@{')
-        const declaration = metadata >= 0 ? firstLine.slice(0, metadata) : firstLine
-        const firstPiece = declaredLabel.split('\n')[0]!, start = typeof value.declaredLabelStart === 'number' ? value.declaredLabelStart : declaration.lastIndexOf(firstPiece)
-        if (declaredLabel && start >= 0) {
-          const key = `${group ? 'group' : 'node'}:${id}`
-          label(key, lineAt(line, start))
-          labelEnds.set(key, at(starts[line - 1]! + start + declaredLabel.length))
-        }
-      } else if (body.kind === 'packet' && event.kind === 'add-field') {
+      if (body.kind === 'packet' && event.kind === 'add-field') {
         map.nodes.set(id, lineAt(line, indent))
         const colon = raw.indexOf(':', indent),
           quote = raw.slice(colon + 1).search(/["']/)
@@ -367,8 +388,6 @@ function sourceMap(body: StableBody, source: string, origin?: FamilySourceMapCon
       switch (body.kind) {
         case 'packet':
           return parsePacketBody(lines)
-        case 'kanban':
-          return parseKanbanBody(lines)
         case 'treemap':
           return parseTreemapBody(lines.slice(1))
         case 'ishikawa':
@@ -376,10 +395,6 @@ function sourceMap(body: StableBody, source: string, origin?: FamilySourceMapCon
       }
     },
   )
-  if (body.kind === 'kanban') {
-    recordSourceMapEnds(map, { nodes: nodeEnds, groups: groupEnds, labels: labelEnds })
-    recordSourceMapMetadata(map, metadataLocations)
-  }
   return map
 }
 

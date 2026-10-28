@@ -53,7 +53,7 @@ export type ScenePaintGeometryInspection = Omit<ScenePaintInspection, 'primitive
 const sources = new WeakMap<ScenePaintGeometry, Exclude<SceneNode, { kind: 'group' }>>()
 /** Only fields consumed by final paint certification, never a retained Scene tree. */
 export type NativeConnectorPaintSource = Pick<ConnectorMark, 'kind' | 'lineStyle' | 'endpoints' | 'route' | 'stroke' | 'markers' | 'transform'>
-export type NativePaintSource = Pick<ShapeMark, 'kind' | 'geometry' | 'paint' | 'childPaints'>
+export type NativePaintSource = Pick<ShapeMark, 'kind' | 'geometry' | 'paint' | 'childPaints' | 'transform'>
   | NativeConnectorPaintSource | Pick<TextMark, 'kind' | 'paint'> | { readonly kind: 'document' }
 const nativeSources = new WeakMap<ScenePaintGeometry, NativePaintSource>()
 export function paintPrimitiveSource(primitive: ScenePaintGeometry): NativePaintSource | undefined {
@@ -61,8 +61,11 @@ export function paintPrimitiveSource(primitive: ScenePaintGeometry): NativePaint
 }
 
 const worldMatrices = new WeakMap<ScenePaintGeometry, AffineMatrix>()
+const untransformedPrimitives = new WeakSet<ScenePaintGeometry>()
 const IDENTITY_PAINT_MATRIX: AffineMatrix = Object.freeze([1, 0, 0, 1, 0, 0])
 export function scenePrimitiveMatrix(primitive: ScenePaintGeometry): AffineMatrix | undefined { return worldMatrices.get(primitive) }
+/** Absence of transforms, rather than cancellation of composed matrices. */
+export function scenePrimitiveUntransformed(primitive: ScenePaintGeometry): boolean { return untransformedPrimitives.has(primitive) }
 
 export function scenePrimitiveSource(primitive: ScenePaintGeometry): SceneNode | undefined {
   return sources.get(primitive)
@@ -192,7 +195,7 @@ export function inspectNativePaintGeometry(header: PaintInspectionHeader, entrie
 
 function nativePaintSource(node: Exclude<SceneNode, { kind: 'group' }>): NativePaintSource {
   switch (node.kind) {
-    case 'shape': return Object.freeze({ kind: node.kind, geometry: node.geometry, paint: node.paint, ...(node.childPaints ? { childPaints: node.childPaints } : {}) })
+    case 'shape': return Object.freeze({ kind: node.kind, geometry: node.geometry, paint: node.paint, ...(node.childPaints ? { childPaints: node.childPaints } : {}), ...(node.transform ? { transform: node.transform } : {}) })
     case 'connector': return Object.freeze({ kind: node.kind, lineStyle: node.lineStyle, endpoints: node.endpoints, route: node.route, stroke: node.stroke, markers: node.markers, ...(node.transform ? { transform: node.transform } : {}) })
     case 'text': return Object.freeze({ kind: node.kind, paint: node.paint })
     case 'document': return Object.freeze({ kind: node.kind })
@@ -202,7 +205,7 @@ function nativePaintSource(node: Exclude<SceneNode, { kind: 'group' }>): NativeP
 function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDetails, native = false) {
   const primitives: ScenePaintGeometry[] = []
   const coverage = { measured: 0, unmeasured: 0, nonPainting: 0, preparedText: 0, fallbackText: 0 }
-  const leaf = (node: Exclude<SceneNode, { kind: 'group' }>, key: string, parent: AffineMatrix | undefined, ancestors: readonly SceneOwner[], conditional: boolean, groupOpacity: number, explicitOwner?: SceneOwner): void => {
+  const leaf = (node: Exclude<SceneNode, { kind: 'group' }>, key: string, parent: AffineMatrix | undefined, ancestors: readonly SceneOwner[], conditional: boolean, groupOpacity: number, explicitOwner?: SceneOwner, untransformed = parent === undefined): void => {
     const owner = explicitOwner ?? node.owner ?? ancestors.at(-1) ?? node.identity ?? { id: node.id, role: node.role }
     const source = native ? nativePaintSource(node) : undefined
     const hidden = groupOpacity === 0 || nonPainting(node)
@@ -228,6 +231,7 @@ function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDet
     if (source) nativeSources.set(primitive, source)
     else sources.set(primitive, node)
     worldMatrices.set(primitive, matrix)
+    if (untransformed && !node.transform) untransformedPrimitives.add(primitive)
     primitives.push(primitive)
     if (hidden) coverage.nonPainting++
     else if (measured) coverage.measured++
@@ -274,13 +278,13 @@ function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDet
 
 function inspectScene(scene: SceneDoc, retainText?: TextDetails): ScenePaintGeometryInspection {
   const recorder = createPaintRecorder(scene, retainText)
-  const walk = (nodes: readonly SceneNode[], prefix: string, parent: AffineMatrix, ancestors: readonly SceneOwner[], conditional = false, groupOpacity = 1): void => {
+  const walk = (nodes: readonly SceneNode[], prefix: string, parent: AffineMatrix, ancestors: readonly SceneOwner[], conditional = false, groupOpacity = 1, untransformed = true): void => {
     nodes.forEach((node, index) => {
       const key = `${prefix}.${index}`
       if (node.kind === 'group') {
         const own = node.identity ?? { id: node.id, role: node.role }
-        walk(node.children.map(child => child.node), key, composeMatrices(parent, transformMatrix(node.transform)), Object.freeze([...ancestors, ownerSnapshot(own)]), conditional || node.visibility === 'conditional', multiplySceneOpacity(groupOpacity, sceneGroupOpacity(node.paint?.opacity)))
-      } else recorder.leaf(node, key, parent, ancestors, conditional, groupOpacity)
+        walk(node.children.map(child => child.node), key, composeMatrices(parent, transformMatrix(node.transform)), Object.freeze([...ancestors, ownerSnapshot(own)]), conditional || node.visibility === 'conditional', multiplySceneOpacity(groupOpacity, sceneGroupOpacity(node.paint?.opacity)), untransformed && !node.transform)
+      } else recorder.leaf(node, key, parent, ancestors, conditional, groupOpacity, undefined, untransformed)
     })
   }
   walk(scene.parts, 'scene', IDENTITY_MATRIX, Object.freeze([]))
