@@ -135,3 +135,99 @@ Detailed local evidence is retained under
 `/tmp/pr449-20261028-final-checks/` and
 `/tmp/pr449-coverage-state-20261028.json`; the recovery continuation is
 `/workspace/pr449-evidence/recovery-20261027/root/CONTINUATION-20261027.json`.
+
+## 28 October 2026, continued: exact circle-stroke witness
+
+Normal merge `34e1df3958ab9ddf7498c2b2116312a528cbab6e` integrates Main
+`15b47663ad04947714282e487274d20bbdc956a7`, preserving the prior campaign.
+The incoming Event Modeling owner passes 23 tests / 2,652 assertions. All five
+requested Sol6.1 High agents contributed; three initially encountered model
+capacity errors and resumed on the same model after bounded retries. No other
+writer's changes were overwritten.
+
+### Implemented and checked
+
+- `f8a4b8347dc246e2e9f6fb2b9b0ebac45f161d11` adds a sufficient Native
+  stroke-only circle proof. One real ring point and its complete stroke envelope
+  use exact integer/cardinal arithmetic, with bounded canonical widths and full
+  viewport containment. Exact contour metadata is required. Fresh complete
+  bounds are unioned with the original conservative bounds; none are reduced.
+  The same point must survive every relevant later body. Unsupported later
+  carriers, text or shapes, non-normal paint order and viewport repair decline
+  this new proof. Existing checks and work limits remain authoritative.
+- The private same-emission context binds one ordered root and exact referenced
+  marker resources. Unsupported styles/groups/document fragments, ambiguous IDs,
+  malformed root/definition context or unbound resources disable only the new
+  circle proof. Resource comparison and XML checks reuse already-paid emission
+  observations. All added variable walks and changed proof work are charged.
+- `3f445dff209fa1f8bdb5360d706111051e0a2392` adds four source-to-SVG guards
+  for circle/cross marks at cylinder contacts under Native and ELK, with fallback
+  disabled. Independent authored identities/directions, all five cylinder paint
+  pieces, both cross diagonals, full resource-stroke viewport containment and
+  actual marker contacts are checked. Each marker's raster is isolated from
+  shafts/other markers; removing its stroke must remove its red ink. These are
+  baseline-passing development guards, not bug-fix red/green evidence.
+
+The clear circle fixture is genuinely RED before implementation: its actual
+707-byte SVG has visible ring ink but the old certificate is unverified. With
+the proof it passes, while covered, clipped, CSS-hidden, numeric-unstable and
+own/later white-carrier erasure controls remain non-passed. Four ring pixels in
+the dedicated window are separated from both shaft and card stroke by 1.5px.
+All nine retained full SVGs and raster observations directly match before/after;
+only the clear fixture changes U to P. Fourteen owning controls pass.
+
+Final local checks on frozen code:
+
+- Paint certification + Native validation: **280 passed, zero failed,
+  1,403 assertions**, including existing 4,000/50,000-point, getter/mutation,
+  CSS/resource/ownership/viewport and budget controls.
+- Endpoint contacts: **61 passed, zero failed, 978 assertions**.
+- Canonical core/repository typechecks and 1,798-file lint pass; one existing
+  oversized-JSON warning remains. Diff whitespace checks pass.
+
+Source reviews closed concrete ordering/ID-custody, raw-tangent broadphase and
+own/later-carrier erasure concerns before freeze. Independent artifact review
+checks actual emitted geometry and ink, rather than treating a helper pass as
+final visible output. The subsequent full CI result, if dispatched, is recorded
+in the recovery continuation and existing PR description with its exact head;
+this local checkpoint does not claim CI readiness.
+
+### Preserved adverse and unavailable observations
+
+The initial width-3 reciprocal coverage source remains enrolled separately.
+Both actual engine receipts are U. Its circle stroke extends 0.75px inward from
+the anchor versus a 0.375px node-border half-band, leaving a 0.375px intrusion
+beyond the existing contact contract. This is an unresolved producer geometry
+issue, not an incorrect-accepted/P finding. ELK's cross attaches at a cap/top;
+the first side-only observer was inapplicable there, not evidence of a defect.
+All source/SVG/receipt/marker isolation and failed observer records are retained.
+
+Exactly one current public original-case acquisition was made: row 87, strict
+Native, cache OFF. It exits zero, is reaped, makes zero ELK calls and preserves
+source/dependency/link guards. Its complete 2,999-byte SVG and entire final
+receipt directly equal the retained `52924301` result: **U**, one B occlusion,
+22,628 operations under 400,000. Passive same-call models preserve authored A/B
+and one A-to-B circle-ended edge. The captured whole source diff directly equals
+the committed code diff above; the acquisition retains its original dirty-source
+revision rather than being relabelled. No other original source was rerendered.
+Offline PNG readback finds 14 ring pixels versus zero in a marker-absent copy.
+An initial raw-buffer raster assertion confused premultiplied edge colours;
+that failed observer is retained, and straight-RGBA readback uses the same saved
+PNGs without a source-call or rendering retry.
+
+This new positive domain is deliberately flat, integer, stylesheet-free and
+circle-only. Ordinary public roots/styles/groups, fractional marker resources,
+crosses, cubics and general compound bodies remain outside it. Original row 87
+therefore remains unverified. All seven originals and all six 0.6 goals remain
+open. No holdout was opened, peer renderer acquired, performance tuned, quota
+raised, default changed or release published.
+
+Next extend exact same-emission marker-resource and group/stylesheet authority
+before applying the circle proof to ordinary original cases. Preserve the new
+wide-stroke counterexample for its producer repair; do not relax the circle
+admission guards merely to obtain a public P.
+
+Evidence directories: `/tmp/pr449-20261028-stroke-controls/`,
+`/tmp/pr449-20261028-stroke-final-checks/`,
+`/tmp/pr449-endpoint-coverage-20261028/` and
+`/tmp/pr449-original87-current-34e1df39-20261028/`.
