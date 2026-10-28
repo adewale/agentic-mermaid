@@ -238,6 +238,12 @@ jobs:
         run: |
           failed=0
           for directory in "$EVIDENCE_DIR/corpus" "$EVIDENCE_DIR" "$EVIDENCE_DIR/development-256-319" "$EVIDENCE_DIR/development-320-383" "$EVIDENCE_DIR/independent-sha256-counter-v1-0-63" "$EVIDENCE_DIR/independent-sha256-counter-v1-64-127" "$EVIDENCE_DIR/independent-sha256-counter-v1-128-191" "$EVIDENCE_DIR/independent-sha256-counter-v1-192-255"; do
+            # Both are supported first-party producers. A baseline failure must
+            # remain a finding even when the other backend improves support.
+            if ! bun -e 'let failed = false; for (const path of process.argv.slice(1)) { const snapshot = await Bun.file(path).json(); for (const sample of snapshot.samples) if (!sample.ok) { console.error(path + ": " + sample.id + ": " + sample.error); failed = true; } } if (failed) process.exit(1);' \
+              "$directory/elk.json" "$directory/agentic.json"; then
+              failed=1
+            fi
             if ! bun run eval/layout-compare/run.ts report --before "$directory/elk.json" \
               --after "$directory/agentic.json" --comparison backend --out "$directory/report.html"; then
               failed=1
