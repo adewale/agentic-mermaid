@@ -2,8 +2,7 @@ import type { EdgeMarker, Point, PositionedEdge } from './types.ts'
 import { ARROW_HEAD } from './styles.ts'
 import type { MarkerDescriptor } from './scene/ir.ts'
 import { tipAnchoredArrow } from './scene/marker-resources.ts'
-import { projectConnectorPath, projectRoundedConnectorPath, type ConnectorPathProjection, type ConnectorPathProjectionSegment } from './scene/connector-geometry.ts'
-import { connector } from './scene/marks.ts'
+import { connectorContourSemantics, projectConnectorPath, projectRoundedConnectorPath, type ConnectorPathProjection, type ConnectorPathProjectionSegment } from './scene/connector-geometry.ts'
 import { connectorMarkerPaintRegions, type ConnectorMarkerPaintRegion } from './scene/bounds.ts'
 import { canonicalTextDigest } from './render-contract.ts'
 
@@ -139,11 +138,13 @@ export function graphEdgeMarkerPaintRegions(edge: PositionedEdge, style: { lineW
   const start = edge.hasArrowStart ? resources.find(marker => marker.id === `${markerIdPrefix(edge.startMarker ?? 'arrow')}-start${suffix}`) : undefined
   const end = edge.hasArrowEnd ? resources.find(marker => marker.id === `${markerIdPrefix(edge.endMarker ?? 'arrow')}${suffix}`) : undefined
   const projection = graphEdgePathProjection(edge, style)
-  const node = connector({
-    id: edge.id ?? `${edge.source}->${edge.target}`, role: 'edge', lineStyle: edge.style,
-    geometry: projection?.geometry ?? { kind: 'polyline', points: edge.points },
-    paint: { stroke: color ?? 'var(--_line)', strokeWidth: edge.inlineStyle?.['stroke-width'] ?? String((style.lineWidth ?? 1) * (edge.style === 'thick' ? 2 : 1)) },
-    markers: { start, end }, ...(projection ? { route: { contours: projection.contours } } : {}),
+  const geometry = projection?.geometry ?? { kind: 'polyline' as const, points: edge.points }
+  // This query owns only marker paint. Use the same resources, path and
+  // contour authority as lowering, without admitting a discarded Scene mark
+  // (identity, hit geometry, terminal projection and immutable snapshots).
+  return connectorMarkerPaintRegions({
+    route: { geometry, closed: false, contours: projection?.contours ?? connectorContourSemantics(geometry, false) },
+    stroke: { width: edge.inlineStyle?.['stroke-width'] ?? String((style.lineWidth ?? 1) * (edge.style === 'thick' ? 2 : 1)) },
+    markers: { start, mid: [], end },
   })
-  return connectorMarkerPaintRegions(node)
 }
