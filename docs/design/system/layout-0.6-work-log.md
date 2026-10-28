@@ -68,7 +68,40 @@ Canonical core/repository typechecks and lint pass on the final code/tests.
 An earlier core check found two new readonly-array assertion typing errors;
 they were corrected without weakening assertions. Lint retains one existing
 oversized-JSON warning. Diff whitespace checks pass. The full unit suite was not
-run locally; no fresh CI result is claimed for this closed-PR continuation.
+run locally; the subsequent manual CI checkpoint is recorded below.
+
+### Subsequent CI checkpoint
+
+[CI 40657347695](https://github.com/adewale/agentic-mermaid/actions/runs/40657347695)
+completed on exact head `38af82155e5b4ecdfd7a1431f1e9a3497b7f50dc` using the
+existing workflow dispatch, without reopening a PR. Its checkout logs bind that
+commit directly, rather than an inferred PR merge checkout.
+
+- Units: **14,500 passed / 76 skipped / zero failed**, with shard passes
+  4,983 + 5,258 + 4,259. Independent semantic assertions pass 173 tests;
+  63/64 modern assertions are qualified, one remains unavailable. The reviewed
+  882-input grammar replay has zero untracked defects.
+- Node22/24 installed consumers, CLI, MCP, dist, quickstarts and browser-site
+  pass. CI types/lint pass. The PR-event red/green job is skipped on manual
+  dispatch; the genuine local baseline RED and synthetic controls above remain
+  the recorded discrimination evidence.
+- **CI remains failed.** Lazy delivery has 58 violations, versus the prior 55;
+  Quadrant, Radar and Sankey add raw-size failures. Editor raw size is
+  **4,659,411 > 4,429,400**, up 1,628 bytes from the preceding baseline;
+  the browser run has 21 passes and one failure, and does not reach its gzip
+  assertion. Demo requests remain **38 > 36**, stopping relative comparison.
+  No cap or check is relaxed.
+- All eight advisory comparisons retain zero engine status differences. The
+  234-source report retains 47 regressions, 51 improvements, 135 other changes
+  and one unchanged case. These compare Native with ELK, not this head with
+  Main, and do not establish aesthetic or correctness parity.
+
+Main advanced during CI to `15b47663ad04947714282e487274d20bbdc956a7`
+(Event Modeling label-length verification, two disjoint files). That commit is
+not integrated into this tested candidate. This evidence records the tested
+`fb91dcd3` integration, not qualification of the newer combined tree. The
+subsequent work-log update changes documentation only; no fresh CI result for
+that documentation commit or readiness claim is inferred.
 
 ### Limits and next concrete step
 
