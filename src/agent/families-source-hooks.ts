@@ -33,6 +33,7 @@ import { type JourneyParseIssue, walkJourneyLines } from '../journey/parse-core.
 import { getFrontmatterScalar, normalizeMermaidSource } from '../mermaid-source.ts'
 import { PIE_QUOTED_TEXT, splitAuthoredPieTitleLine } from '../pie/source-title.ts'
 import { splitPointClassSuffix } from '../quadrant/point-style.ts'
+import { parseQuadrantChart } from '../quadrant/parser.ts'
 import { sequenceFamilySource } from '../sequence/family-source.ts'
 import { SequenceParticipantIdError } from '../sequence/parser.ts'
 import { splitSequenceStatementLines } from '../sequence/statements.ts'
@@ -49,7 +50,7 @@ import { extractLabelsGeneric } from './family-labels.ts'
 import { buildFlowchartSourceMap, type FlowchartBody, parseFlowchartBody, renderFlowchart } from './flowchart-body.ts'
 import { containsFlowchartOpaqueSyntax } from './flowchart-unsupported.ts'
 import { parseGanttBody, renderGantt, verifyGantt } from './gantt-body.ts'
-import { parseGitGraphBody, renderGitGraphBody, verifyGitGraph } from './gitgraph-body.ts'
+import { gitGraphCommentTextProblem, gitGraphSerializationProblem, parseGitGraphBody, renderGitGraphBody, verifyGitGraph } from './gitgraph-body.ts'
 import { parseJourneyBody, renderJourney, verifyJourney } from './journey-body.ts'
 import { mindmapSerializationProblem, parseMindmapBody, renderMindmapBody, verifyMindmap } from './mindmap-body.ts'
 import { parsePieBody, renderPie, verifyPie } from './pie-body.ts'
@@ -643,7 +644,8 @@ function buildChartSourceMap(body: DiagramBody, canonicalSource: string): Source
       if (!match) return []
       const label = splitPointClassSuffix(match[1]!.trim()).label
       const labelStart = source.line.indexOf(label, source.start)
-      return labelStart < 0 ? [] : [{ label, location: loc(source.lineIndex + 1, labelStart + 1) }]
+      const point = parseQuadrantChart(['quadrantChart', decodeXML(source.trimmed)]).points[0]
+      return labelStart < 0 || !point ? [] : [{ label: point.label, location: loc(source.lineIndex + 1, labelStart + 1) }]
     })
     ;(body as QuadrantBody).points.forEach((point, index) => {
       const found = pointLines[index]
@@ -1175,11 +1177,15 @@ export const QUADRANT_SOURCE_HOOKS = {
   // when style-looking metadata is preserved on an opaque body.
   verify: (body, opts) => (body.kind === 'quadrant' ? verifyQuadrant(body, opts) : body.kind === 'opaque' ? verifyOpaqueQuadrant(body) : []),
   buildSourceMap: buildChartSourceMap,
-  .../* @__PURE__ */ structuredFamilyHooks('quadrant', {
-    headerOk: h => /^quadrant(?:chart)?\s*$/i.test(stripTrailingComment(h)),
-    parseBody: parseQuadrantBody,
-    serialize: renderQuadrant,
-  }),
+  parse: ctx => {
+    const source = normalizeMermaidSource(ctx.source.originalText, {}, 'render')
+    const body = /^quadrant(?:chart)?\s*$/i.test(stripTrailingComment(source.familyLines[0] ?? '')) ? parseQuadrantBody(source.familyLines.slice(1)) : null
+    return ok(body ?? { kind: 'opaque', family: 'quadrant', source: ctx.opaqueSource })
+  },
+  serialize: body => {
+    if (body.kind !== 'quadrant') throw new Error(`quadrant serializer received body kind ${body.kind}`)
+    return renderQuadrant(body)
+  },
 } satisfies Omit<FamilyOperations, 'mutate'>
 
 // ---- Gantt ------------------------------------------------------------------
@@ -1280,18 +1286,17 @@ export const MINDMAP_SOURCE_HOOKS = {
 export const GITGRAPH_SOURCE_HOOKS = {
   renderSource: () => 'serialized',
   extractLabels: extractLabelsGeneric,
-  parse: ({ source, meta }) => {
+  parse: ({ source, meta, opaqueSource }) => {
     try {
       const merged: Record<string, unknown> = {
         ...(meta.frontmatter?.gitGraph && typeof meta.frontmatter.gitGraph === 'object' ? meta.frontmatter.gitGraph : {}),
       }
-      return ok(
-        parseGitGraphBody(source.familyBody, {
-          mainBranchName: typeof merged.mainBranchName === 'string' ? merged.mainBranchName : undefined,
-          mainBranchOrder: typeof merged.mainBranchOrder === 'number' ? merged.mainBranchOrder : undefined,
-          title: typeof meta.frontmatter?.title === 'string' ? meta.frontmatter.title : undefined,
-        }),
-      )
+      const body = parseGitGraphBody(source.familyBody, {
+        mainBranchName: typeof merged.mainBranchName === 'string' ? merged.mainBranchName : undefined,
+        mainBranchOrder: typeof merged.mainBranchOrder === 'number' ? merged.mainBranchOrder : undefined,
+        title: typeof meta.frontmatter?.title === 'string' ? meta.frontmatter.title : undefined,
+      })
+      return ok(gitGraphSerializationProblem(body) ? { kind: 'opaque', family: 'gitgraph', source: opaqueSource } : body)
     } catch (error) {
       return err([{ code: 'PARSE_FAILED', message: error instanceof Error ? error.message : String(error) }])
     }
@@ -1300,7 +1305,12 @@ export const GITGRAPH_SOURCE_HOOKS = {
     if (body.kind !== 'gitgraph') throw new Error(`gitgraph serializer received body kind ${body.kind}`)
     return renderGitGraphBody(body)
   },
-  verify: (body, opts): LayoutWarning[] => (body.kind === 'gitgraph' ? verifyGitGraph(body, opts) : []),
+  verify: (body, opts): LayoutWarning[] => {
+    if (body.kind === 'gitgraph') return verifyGitGraph(body, opts)
+    if (body.kind !== 'opaque') return []
+    const problem = gitGraphCommentTextProblem(body.source)
+    return problem ? [{ code: 'UNSUPPORTED_SYNTAX', syntax: 'gitgraph_multiline_comment_text', message: problem }] : []
+  },
 } satisfies Omit<FamilyOperations, 'mutate'>
 
 // ---- Radar -----------------------------------------------------------------

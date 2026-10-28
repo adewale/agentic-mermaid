@@ -32,9 +32,10 @@ export function gitGraphSerializationProblem(body: GitGraphBody): string | undef
 }
 
 export function renderGitGraphBody(body: GitGraphBody): string {
-  const problem = gitGraphSerializationProblem(body)
+  const source = serializeGitGraph(body)
+  const problem = gitGraphCommentTextProblem(source)
   if (problem) throw new Error(problem)
-  return serializeGitGraph(body)
+  return source
 }
 
 function cloneBody(body: GitGraphBody): GitGraphBody {
