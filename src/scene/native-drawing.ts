@@ -95,7 +95,7 @@ export function drawNative(
   const leaf = (node: LeafNode): Fragment => {
     const captured = emission.leaf(node)
     const svg = validator.node(captured.node)
-    return ownFragment({ kind: 'leaf', node: captured.node, svg, conditional: captured.conditional, nodeCount: 1, depth: 0,
+    return ownFragment({ kind: 'leaf', node: captured.paintNode, svg, conditional: captured.conditional, nodeCount: 1, depth: 0,
       prepared: node.kind === 'document' ? !/<\s*text/i.test(svg)
         : node.kind !== 'text' || node.measurement === 'prepared' && node.block !== undefined })
   }

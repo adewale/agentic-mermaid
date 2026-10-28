@@ -53,6 +53,26 @@ test.each(['clear', 'covered', 'non-enumerable-paint', 'mutate-after-emission', 
   else expect(proof.status).not.toBe('passed')
 })
 
+test('a geometry kind changing during capture cannot replace emitted polygon ink with a line', () => {
+  let kindReads = 0
+  const geometry = new Proxy({ kind: 'polygon' as const, points: [{ x: 10, y: 10 }, { x: 90, y: 10 }, { x: 90, y: 70 }], x1: 10.00000000000001, y1: 10, x2: 90, y2: 10 }, {
+    getOwnPropertyDescriptor(target, key) {
+      const descriptor = Reflect.getOwnPropertyDescriptor(target, key)
+      return key === 'kind' && ++kindReads === 1 ? { ...descriptor, value: 'line' } : descriptor
+    },
+  })
+  const context = { positioned: { width: 200, height: 100 }, colors: header.colors, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => ({ ...header, parts: [
+    factory.documentOpen({ id: 'root', width: 200, height: 100, colors: header.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">'),
+    factory.shape({ id: 'polygon', role: 'node', geometry, paint: { fill: '#fff' } }),
+    factory.documentClose(),
+  ] })
+  const drawing = drawNative(producer, context, 'flowchart')
+  expect(drawing.svg).toContain('<polygon points="10,10 90,10 90,70" fill="#fff"')
+  expect(drawing.paint.primitives.find(primitive => primitive.id === 'polygon')?.bounds).toEqual({ x0: 10, y0: 10, x1: 90, y1: 70 })
+  expect(certifyNativePaint(drawing.header, drawing.paint).status).not.toBe('passed')
+})
+
 test.each(['after-connector', 'before-connector'] as const)('native marker paint retains actual resource bytes when its descriptor changes %s', when => {
   const marker = tipAnchoredArrow('resource-arrow', { width: 8, height: 5 }, 'end', { fill: '#000' }, 'userSpaceOnUse')
   const context = { positioned: { width: 200, height: 100 }, colors: header.colors, resolved: { renderOptions: {} } }
@@ -317,6 +337,31 @@ test('native transient connector validation leaves its registered derived projec
   invalid.route.bendRadius = Number.NaN
   expect(() => createNativeSceneValidator(header).node(invalid)).toThrow(SceneValidationError)
   expect(deferredTerminalProjectionInput(invalid)).toBeDefined()
+
+  // Only terminal projection copies arbitrary marker metadata by value. Paint
+  // capture uses descriptors; a changed scalar line must preserve that laziness.
+  let projectionReads = 0
+  const marker = new Proxy({ ...tipAnchoredArrow('deferred-arrow', { width: 8, height: 5 }, 'end', { fill: '#111' }, 'userSpaceOnUse'), projectionTrace: 0 }, {
+    get(target, key, receiver) {
+      if (key === 'projectionTrace') projectionReads++
+      return Reflect.get(target, key, receiver)
+    },
+  })
+  const fields = { id: 'fractional-edge', role: 'edge' as const, lineStyle: 'solid' as const, geometry: { kind: 'line' as const, x1: 10.00000000000001, y1: 10, x2: 20, y2: 10 }, paint: { stroke: '#111' }, markers: { end: marker } }
+  const context = { positioned: { width: 200, height: 100 }, colors: header.colors, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => ({ ...header, parts: [
+    factory.documentOpen({ id: 'root', width: 200, height: 100, colors: header.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">'),
+    factory.definitions({ id: 'markers' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
+    factory.connector(fields),
+    factory.documentClose(),
+  ] })
+  const drawing = drawNative(producer, context, 'flowchart')
+  expect(drawing.svg).toContain('<line x1="10" y1="10" x2="20" y2="10"')
+  expect(certifyNativePaint(drawing.header, drawing.paint).status).toBe('passed')
+  expect(projectionReads).toBe(0)
+  const terminal = withDeferredTerminalProjections(() => marks.connector(fields))
+  void terminal.terminalProjection
+  expect(projectionReads).toBeGreaterThan(0)
 })
 
 

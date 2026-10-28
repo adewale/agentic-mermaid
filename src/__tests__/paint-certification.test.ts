@@ -1,4 +1,5 @@
 import { expect, test } from 'bun:test'
+import { Resvg } from '@resvg/resvg-js'
 import * as marks from '../scene/marks.ts'
 import { readFileSync } from 'node:fs'
 import { connectorMarkerPaintRegions, nodePaintBounds } from '../scene/bounds.ts'
@@ -11,7 +12,7 @@ import { renderMermaidSVGWithReceipt, renderMermaidASCIIWithReceipt } from '../i
 import { lowerPositionedFamilyScene, renderedSvgDigest } from '../graphical-render.ts'
 import { resolveRenderRequestForExecution, resolvedRenderExecutionPlanOf } from '../render-contract.ts'
 import { positionResolvedFamily } from '../positioning.ts'
-import { inspectScenePrimitives, scenePrimitiveSource, inspectNativePaintGeometry } from '../scene/inspection.ts'
+import { inspectScenePrimitives, scenePrimitiveSource, inspectNativePaintGeometry, paintPrimitiveSource } from '../scene/inspection.ts'
 import { sceneNodeSerialization } from '../scene/serialization.ts'
 import { serializeMarkerResource, tipAnchoredArrow } from '../scene/marker-resources.ts'
 import { drawNative } from '../scene/native-drawing.ts'
@@ -317,6 +318,55 @@ test('private emission custody cannot be discarded while fresh generic Native in
   expect(certifyNativePaint(drawing.header, { ...drawing.paint }).status).toBe('unverified')
   expect(certifyNativePaint(drawing.header, { ...drawing.paint, primitives: [...drawing.paint.primitives] }).status).toBe('unverified')
   expect(certifyNativePaint({ ...drawing.header }, drawing.paint).status).toBe('unverified')
+})
+
+test.each(['exact', 'rounded', 'fractional'] as const)('the %s emitted line must retain visible endpoint marker ink', mode => {
+  // The tiny northwest line writes as a zero-length line. Its SVG auto
+  // orientation is then +x: the triangle (32,37.5),(40,40),(32,42.5)
+  // lies wholly under the later white card. The raw northwest tangent instead
+  // places that triangle southeast of the card and used to receive a pass.
+  const x1 = mode === 'rounded' ? 40.00000000000001 : mode === 'fractional' ? 41.00000000000001 : 41
+  const y1 = mode === 'exact' ? 41 : 40.00000000000001
+  const marker = tipAnchoredArrow('arrow', { width: 8, height: 5 }, 'end', { fill: '#111' }, 'userSpaceOnUse')
+  const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => ({ ...scene([]), parts: [
+    factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'),
+    factory.definitions({ id: 'defs' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
+    factory.connector({ id: 'arrow-edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1, y1, x2: 40, y2: 40 }, paint: { stroke: '#111', strokeWidth: '1' }, endpoints: { from: 'other', to: 'cover' }, markers: { end: marker } }),
+    factory.shape({ id: 'cover', role: 'node', geometry: { kind: 'rect', x: 30, y: 35, width: 10, height: 10 }, paint: { fill: '#fff' } }),
+    factory.documentClose(),
+  ] })
+  const drawing = drawNative(producer, context, 'flowchart')
+  expect(drawing.svg).toContain(mode === 'rounded' ? '<line x1="40" y1="40" x2="40" y2="40"' : mode === 'fractional' ? '<line x1="41" y1="40" x2="40" y2="40"' : '<line x1="41" y1="41" x2="40" y2="40"')
+  expect(drawing.svg).toContain('marker-end="url(#arrow)"')
+  expect(drawing.svg).toContain('points="0 0, 8 2.5, 0 5" fill="#111"')
+  const cover = '<rect x="30" y="35" width="10" height="10" fill="#fff" data-id="cover" data-role="node" />'
+  expect(drawing.svg).toContain(cover)
+  const darkPixels = (svg: string): number => {
+    const pixels = new Resvg(svg).render().pixels
+    let count = 0
+    for (let index = 0; index < pixels.length; index += 4) if (pixels[index + 3]! > 0 && pixels[index]! < 128) count++
+    return count
+  }
+  expect(darkPixels(drawing.svg.replace(cover, ''))).toBeGreaterThan(0)
+  const proof = certifyNativePaint(drawing.header, drawing.paint)
+  if (mode === 'rounded') {
+    expect(darkPixels(drawing.svg)).toBe(0)
+    expect(proof.status).not.toBe('passed')
+  } else {
+    expect(darkPixels(drawing.svg)).toBeGreaterThan(0)
+    expect(proof.status).toBe('passed')
+    expect(proof.issues).toEqual([])
+    if (mode === 'fractional') {
+      const source = paintPrimitiveSource(drawing.paint.primitives.find(primitive => primitive.id === 'arrow-edge')!)
+      expect(source?.kind).toBe('connector')
+      if (source?.kind !== 'connector') throw new Error('Expected retained connector paint')
+      expect(source.route.geometry).toEqual({ kind: 'line', x1: 41, y1: 40, x2: 40, y2: 40 })
+      expect(source.route.contours).toEqual([{ start: { x: 41, y: 40 }, end: { x: 40, y: 40 }, closed: false, startTangent: { x: -1, y: 0 }, endTangent: { x: -1, y: 0 } }])
+      expect(source.route.startTangent).toEqual({ x: -1, y: 0 })
+      expect(source.route.endTangent).toEqual({ x: -1, y: 0 })
+    }
+  }
 })
 
 test.each(['full', 'compound', 'fill-opacity-zero', 'thin', 'partial', 'repaint', 'dashed', 'translucent', 'unknown-width', 'unknown-opacity', 'non-scaling', 'scaled', 'rotated', 'sheared', 'circle', 'ellipse', 'polygon', 'marker-none', 'marker-unknown'] as const)('%s endpoint stroke cannot hide a fully covered marker behind its contact exemption', mode => {

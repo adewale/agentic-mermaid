@@ -1,4 +1,4 @@
-import type { SceneNode, SceneDoc, ConnectorMark } from './ir.ts'
+import type { SceneNode, SceneDoc, ConnectorMark, Geometry } from './ir.ts'
 import type { ScenePaintGeometryInspection, ScenePaintGeometry } from './inspection.ts'
 import { scanSvgStartTags, decodedSvgAttributeValue } from '../svg-structure.ts'
 import { serializeMarkerResource } from './marker-resources.ts'
@@ -8,6 +8,7 @@ import { safeCssFontFamily } from '../shared/css-font.ts'
 import { parseSvgTransform } from './transforms.ts'
 import { deferredTerminalProjectionInput, copyDeferredTerminalProjection } from './deferred-terminal-projection.ts'
 import { transferSceneNodeSerialization } from './serialization.ts'
+import { connectorContourSemantics } from './connector-geometry.ts'
 
 export const MAX_OCCLUSION_OPERATIONS = 400_000
 
@@ -18,9 +19,9 @@ export function hasNativeEmissionOccurrence(primitive: ScenePaintGeometry): bool
 const emissionWork = new WeakMap<ScenePaintGeometryInspection, NativeEmissionWork>()
 export function nativeEmissionWorkOf(inspection: ScenePaintGeometryInspection): NativeEmissionWork | undefined { return emissionWork.get(inspection) }
 
-/** Capture lifetime only: this does not round geometry, decode SVG, or grant a
- * new contact exemption. Every occurrence retains its own immutable fields and
- * are captured BEFORE the single existing writer call, which emits that copy.
+/** Every occurrence retains immutable operands BEFORE the existing writer
+ * call. Scalar lines also retain that writer's numeric spelling for inspection;
+ * the original operands still supply validation and SVG serialization.
  * Accessors/unsupported data or an exhausted capture keep paint conditional. */
 export function createNativePaintEmission(maxOperations: number) {
   let operations = 0, exhausted = false, uncertain = false
@@ -33,7 +34,10 @@ export function createNativePaintEmission(maxOperations: number) {
     return true
   }
   const failed = Symbol('unsupported-emission')
-  const copy = (value: unknown, depth = 0, parents = new Set<object>()): unknown => {
+  type Line = Extract<Geometry, { kind: 'line' }>
+  const servedLines = new WeakMap<object, Line>()
+  type CaptureContext = 'leaf' | 'route' | 'geometry'
+  const copy = (value: unknown, depth = 0, parents = new Set<object>(), context?: CaptureContext): unknown => {
     if (depth > 64) throw failed
     if (value === null || value === undefined || typeof value === 'boolean') return value
     if (typeof value === 'number' || typeof value === 'string') return value
@@ -46,19 +50,35 @@ export function createNativePaintEmission(maxOperations: number) {
     if (!pay(keys.length)) throw failed
     parents.add(value)
     const result: Record<string, unknown> | unknown[] = Array.isArray(value) ? [] : {}
+    // The paid object-entry reflection and scalar descriptor visits own this
+    // fixed-size line projection. Number spelling is bounded for JS doubles;
+    // no points, path strings, resource fields or marker bounds are replayed.
+    const kind = context ? Object.getOwnPropertyDescriptor(value, 'kind')?.value : undefined
+    const line = context === 'geometry' && kind === 'line'
+    let changedLine = false, x1 = 0, y1 = 0, x2 = 0, y2 = 0
     let arrayLength: PropertyDescriptor | undefined
     const deferredProjection = deferredTerminalProjectionInput(value)
     for (const key of keys) {
       if (!pay()) throw failed
-      // This property visit owns descriptor retention and scalar assignment;
-      // a primitive needs no second visit or numeric formatting/replay.
+      // This visit owns descriptor retention, scalar assignment and, for the
+      // four recognized line coordinates, the writer's bounded number format.
       const descriptor = Object.getOwnPropertyDescriptor(value, key)
       if (!descriptor) continue
       if (key === 'length' && Array.isArray(value)) { arrayLength = descriptor; continue }
       // Deferred terminal geometry is neither read nor used by paint writing.
       if (key === 'terminalProjection' && deferredProjection) continue
       if (!('value' in descriptor)) throw failed
-      Object.defineProperty(result, key, { value: copy(descriptor.value, depth + 1, parents), enumerable: descriptor.enumerable, configurable: false, writable: false })
+      if (line && typeof descriptor.value === 'number' && (key === 'x1' || key === 'y1' || key === 'x2' || key === 'y2')) {
+        const written = Number(formatSvgNumber(descriptor.value))
+        changedLine ||= written !== descriptor.value
+        if (key === 'x1') x1 = written
+        else if (key === 'y1') y1 = written
+        else if (key === 'x2') x2 = written
+        else y2 = written
+      }
+      const childContext = context === 'leaf' && kind === 'connector' && key === 'route' ? 'route'
+        : (context === 'leaf' && kind === 'shape' || context === 'route') && key === 'geometry' ? 'geometry' : undefined
+      Object.defineProperty(result, key, { value: copy(descriptor.value, depth + 1, parents, childContext), enumerable: descriptor.enumerable, configurable: false, writable: false })
     }
     if (Array.isArray(value)) {
       if (!arrayLength || !('value' in arrayLength)) throw failed
@@ -70,6 +90,13 @@ export function createNativePaintEmission(maxOperations: number) {
       Object.defineProperty(result, 'terminalProjection', { ...descriptor, configurable: false })
     }
     transferRetainedPixelText(value, result)
+    // A hostile proxy can change its kind between reflective observations.
+    // Never attach a line projection to a different captured geometry kind.
+    if (context && Object.getOwnPropertyDescriptor(result, 'kind')?.value !== kind) throw failed
+    if (changedLine) {
+      if (!pay(8)) throw failed
+      servedLines.set(result, Object.freeze({ kind: 'line', x1, y1, x2, y2 }))
+    }
     parents.delete(value)
     // Every retained data property is already nonwritable/nonconfigurable;
     // arrays also own readonly length. Prevent extensions without rescanning
@@ -212,11 +239,42 @@ export function createNativePaintEmission(maxOperations: number) {
       }
       return !exhausted
     },
-    leaf(node: Leaf): { node: Leaf; conditional: boolean } {
-      const captured = snapshot(node)
-      if (!captured) return { node, conditional: true }
+    leaf(node: Leaf): { node: Leaf; paintNode: Leaf; conditional: boolean } {
+      let captured: Leaf | undefined
+      try { captured = copy(node, 0, new Set(), 'leaf') as Leaf } catch { /* Strict mutable fallback. */ }
+      if (!captured) return { node, paintNode: node, conditional: true }
       transferSceneNodeSerialization(node, captured)
-      return { node: captured, conditional: false }
+      const geometry = captured.kind === 'shape' ? captured.geometry : captured.kind === 'connector' ? captured.route.geometry : undefined
+      const served = geometry && servedLines.get(geometry)
+      // Constructor-owned leaf/route records have fixed field sets. Reserve
+      // their shallow inspection copies and overrides before allocating them.
+      if (!served || !pay(48)) return { node: captured, paintNode: captured, conditional: !!served }
+      // Transform operands and non-line geometry retain their existing strict
+      // path; this bounded authority does not borrow a raw-space direction.
+      if (captured.transform) return { node: captured, paintNode: captured, conditional: true }
+      if (geometry?.kind !== 'line') return { node: captured, paintNode: captured, conditional: true }
+      const collapsed = (geometry.x1 !== geometry.x2 || geometry.y1 !== geometry.y2) && served.x1 === served.x2 && served.y1 === served.y2
+      if (captured.kind === 'shape') return { node: captured, paintNode: Object.freeze({ ...captured, geometry: served }), conditional: collapsed }
+      if (captured.kind !== 'connector') return { node: captured, paintNode: captured, conditional: true }
+      // The helper performs constant work for a scalar line, prepaid here.
+      // Rebuild metadata from served coordinates, never round unit tangents.
+      if (!pay(32)) return { node: captured, paintNode: captured, conditional: true }
+      const contours = snapshot(connectorContourSemantics(served, captured.route.closed))
+      if (!contours) return { node: captured, paintNode: captured, conditional: true }
+      const route = Object.freeze({ ...captured.route, geometry: served, contours,
+        startTangent: contours[0]?.startTangent, endTangent: contours.at(-1)?.endTangent })
+      // Preserve the established deferred terminalProjection getter without
+      // invoking it through object spread. Every descriptor is already owned;
+      // charge key slots, descriptor reads and definitions before copying.
+      if (!pay(2)) return { node: captured, paintNode: captured, conditional: true }
+      const keys = Object.getOwnPropertyNames(captured)
+      if (!pay(keys.length * 3)) return { node: captured, paintNode: captured, conditional: true }
+      const paintNode = Object.create(Object.getPrototypeOf(captured)) as ConnectorMark
+      for (const key of keys) {
+        const descriptor = Object.getOwnPropertyDescriptor(captured, key)!
+        Object.defineProperty(paintNode, key, key === 'route' ? { ...descriptor, value: route } : descriptor)
+      }
+      return { node: captured, paintNode: Object.preventExtensions(paintNode), conditional: collapsed }
     },
     finish(inspection: ScenePaintGeometryInspection, header: Omit<SceneDoc, 'parts'>): void {
       const checked = new Map<string, (typeof references)[number]>()
