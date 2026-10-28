@@ -1,9 +1,8 @@
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 import { getFamily } from '../../src/agent/core.ts'
-import { grammarFinderReport } from '../../scripts/ci/grammar-finder-report.ts'
 import { startGrammarReference } from './grammar-reference.ts'
 import { triageGrammarWitness, type GrammarReviewCorpus, type GrammarTriageResult, type GrammarWitness } from './grammar-triage.ts'
 import { admitCurrentReference } from './reference.ts'
@@ -27,9 +26,11 @@ const cases = new Map(corpus.cases.map(row => [key(row), { family: row.family, s
 let seed = 0, mutationsPerFamily = 0
 for (const file of values.summary ?? []) {
   const summary = JSON.parse(readFileSync(file, 'utf8'))
+  if (summary.status !== undefined && summary.status !== 'completed') throw new Error(`Incomplete finder summary: ${file}; inspect its partial artifacts before replay`)
+  if (!Array.isArray(summary.silentReads?.examples) || (summary.status === 'completed' || summary.contractCandidates !== undefined) && !Array.isArray(summary.contractCandidates?.examples)) throw new Error(`Missing finder candidate arrays: ${file}`)
   seed = summary.seed
   mutationsPerFamily = summary.mutationsPerFamily
-  for (const row of summary.silentReads.examples) for (const source of [row.source, row.original]) {
+  for (const row of [...(summary.silentReads?.examples ?? []), ...(summary.contractCandidates?.examples ?? [])]) for (const source of [row.source, row.original]) {
     if (typeof row.family !== 'string' || typeof source !== 'string') throw new Error('Malformed finder witness')
     const witness = { family: row.family, source }
     cases.set(key(witness), witness)
@@ -37,7 +38,6 @@ for (const file of values.summary ?? []) {
 }
 const output = resolve(values.output!)
 mkdirSync(output, { recursive: true })
-for (const file of readdirSync(output)) if (/^issue-[a-z0-9-]+\.md$/.test(file)) unlinkSync(join(output, file))
 const oracle = startGrammarReference(referenceDir, upstream)
 const results: GrammarTriageResult[] = []
 const cache = new Map<string, ReturnType<typeof oracle.parse>>()
@@ -78,12 +78,6 @@ const report = {
   results,
 }
 writeFileSync(join(output, 'triage.json'), JSON.stringify(report, null, 2) + '\n')
-const runKey = `${process.env.GITHUB_RUN_ID ?? 'local'}-${process.env.GITHUB_RUN_ATTEMPT ?? '1'}`
-if (!/^(?:\d+|local)-\d+$/.test(runKey)) throw new Error('Invalid finder run identity')
-for (const family of new Set(untracked.map(row => row.family))) {
-  const body = grammarFinderReport({ seed, mutationsPerFamily, contractFindings: untracked.filter(row => row.family === family) }, process.env.RUN_URL ?? '(local replay)')
-  writeFileSync(join(output, `issue-${family}.md`), `Grammar contract failures: ${family} (run ${runKey})\n\n${body}`)
-}
 const summary = `Grammar triage: ${results.length} inputs; ${JSON.stringify(counts)}; ${untracked.length} untracked defect inputs; ${report.unreviewedDisagreements} unreviewed disagreements. Review pin matches: ${referenceMatches}. Evidence: ${join(output, 'triage.json')}\n`
 console.log(summary)
 if (process.env.GITHUB_STEP_SUMMARY) writeFileSync(process.env.GITHUB_STEP_SUMMARY, summary, { flag: 'a' })

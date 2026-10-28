@@ -63,6 +63,12 @@ export const announces = (codes: readonly string[]): boolean => codes.some(code 
  * the caller keeps the original.
  */
 export async function reduceSilentRead(family: string, source: string, referenceAccepts: (source: string) => Promise<boolean>, budget = 150): Promise<string> {
+  return reduceGrammarWitness(source, async candidate => readsAsFamily(family, inspectAgenticGrammar(family, candidate, { observe: false })) && !(await referenceAccepts(candidate)) && !announces(verifyCodes(candidate)), budget)
+}
+
+/** The same bounded line/code-point reducer, with the owning contract as its
+ * predicate. A writer or meaning failure must not shrink to a silent read. */
+export async function reduceGrammarWitness(source: string, predicate: (source: string) => Promise<boolean>, budget = 150): Promise<string> {
   let current = source
   const checked = new Map<string, boolean>()
   const holds = async (candidate: string): Promise<boolean> => {
@@ -70,9 +76,9 @@ export async function reduceSilentRead(family: string, source: string, reference
     if (known !== undefined) return known
     if (budget <= 0) return false
     budget--
-    const silent = readsAsFamily(family, inspectAgenticGrammar(family, candidate, { observe: false })) && !(await referenceAccepts(candidate)) && !announces(verifyCodes(candidate))
-    checked.set(candidate, silent)
-    return silent
+    const retained = await predicate(candidate)
+    checked.set(candidate, retained)
+    return retained
   }
   for (const [split, separator] of [[(text: string) => text.split('\n'), '\n'] as const, [(text: string) => Array.from(text), ''] as const]) {
     for (let changed = true; changed && budget > 0; ) {

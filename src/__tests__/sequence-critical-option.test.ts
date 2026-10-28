@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { beforeAll, describe, expect, test } from 'bun:test'
 import mermaid from 'mermaid'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
@@ -27,6 +27,8 @@ const EXPECTED_BLOCK: Block = {
 }
 
 describe('Sequence critical/option keyword boundary', () => {
+  beforeAll(() => { mermaid.initialize({ startOnLoad: false }) })
+
   test.each([
     ['a stray end', 'A->>B: before\nend'],
     ['an unclosed block', 'alt choice\nA->>B: inside'],
@@ -111,7 +113,6 @@ describe('Sequence critical/option keyword boundary', () => {
   })
 
   test('the pinned Mermaid DB identifies critical options, not opt openers', async () => {
-    mermaid.initialize({ startOnLoad: false })
     const upstream = await mermaid.mermaidAPI.getDiagramFromText(CRITICAL)
     const db = upstream.db as unknown as {
       LINETYPE: { CRITICAL_START: number; SOLID: number; CRITICAL_OPTION: number; CRITICAL_END: number }
