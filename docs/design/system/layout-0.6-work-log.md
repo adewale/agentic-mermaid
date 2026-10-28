@@ -1406,3 +1406,127 @@ now implemented; global document identity/grammar is not thereby proved. The
 holdout remains sealed, shared Trident proposals unshipped, ELK default and
 version unchanged. No new issue/PR/comment, package publication, merge or force
 push is performed.
+
+
+### Shared document identity and known root-fragment authority
+
+Runtime/test revision **`165c93aad4abb3a40f0a2342524c0c05e0cc3d7b`** repairs two
+executed paint-authority defects through the existing Native/Scene shared
+emission context. It reuses retained document tokens and immutable marked
+connector IDs, the existing output-security XML text rules and the unchanged
+400,000-operation allowance. No geometry writer, generic XML parser, global
+identity cache, producer-name exception or cap increase is introduced.
+
+Four original912 Native artifacts have malformed final XML: text or a stray
+angle before the opening SVG, a dangling angle after the opener, or an early
+root close followed by stray text. Native draw/certify incorrectly reports P;
+Resvg rejects those exact outputs, as does independent XML parsing. Admitted
+Scene already rejects them. Public final output-security admission also already
+rejects malformed XML: this is an internal drawing/certification defect, not a
+newly demonstrated accepted public Mermaid-source rendering defect. The repair
+withdraws their certificates, not their malformed bytes. Invalid-row rasters
+are **unavailable**, never measured blank or zero ink.
+
+Root preludes now require an XML-whitespace prefix and complete known
+metadata/style ranges, with text checked through a pure wrapper over existing
+XML character/reference kernels. Valid ordinary roots, whitespace, plain text
+inside the root, spaced metadata tags and self-closing metadata remain P.
+Observed document open/close and marked connector order are checked. Native
+records group shells during producer construction rather than write traversal;
+an initial draft incorrectly treated that callback as order evidence. Three
+strict positive group/metadata controls expose **9 P / 3 F**, 71 assertions
+against that draft. The construction-order check is removed, and valid
+metadata spellings are preserved. All three regain their expected outcomes.
+This distinction is not a general all-paint/group root-order proof.
+
+The document-ID hypothesis required two consumers. Initial prospective
+Resvg-hidden expectations fail: all twelve earlier/later title/description
+and distinct-ID inputs have **30 contributed marker pixels** under Resvg2.6.2.
+Independent decoding checks all 72 PNGs, exact marker/element/ID-only changes,
+raw operands, font and source bindings. These failed hypotheses remain retained
+and are not claimed as bug-discriminating RED or hidden Resvg ink.
+
+A first Chromium file-URL probe is blocked by administrator policy before any
+DOM or screenshot observation; it remains unavailable, not zero ink. A normal
+loopback HTTP test then serves only explicitly enumerated generated SVG byte
+strings, with image/svg+xml, unchanged browser policy and no filesystem route.
+Installed Chromium **154.0.8037.57** independently exhibits the real defect:
+when a title or description with the marker's ID occurs **before** definitions,
+removing the marker changes zero pixels. Removing only that metadata element,
+or changing only its ID, restores the same **28 contributed browser pixels**.
+An off-shaft witness goes transparent to black/alpha250 and disappears again
+with marker removal. Later metadata controls still contribute 28 browser pixels.
+All 24 saved browser PNGs and exact intervention SVGs are independently decoded
+and checked. Browser navigation uses actual standalone SVG/XML, not innerHTML.
+This is a bounded installed-consumer observation, not new pinned public
+Mermaid/Pele artifact qualification.
+
+The final owning cases retain the honest Resvg-visible result and independently
+assert actual namespace/markup facts. Their SVG bytes directly equal the earlier
+Chromium-hidden artifacts or ID-only-restored distinct controls. Genuine
+**pre-ID root-draft RED is 4 P / 4 F**, 116 assertions, with all physical/markup
+checks passing before the status failures. This epoch includes the root-only
+draft, not unmodified912; original912 complete packets independently bind the
+same SVGs and incorrect P. Final cubic owner is **44 P / zero F**, 581
+assertions. The shared context now refuses non-definitions DOM IDs intersecting
+marked resource IDs, including Native resources:false, regardless of source
+placement. Actual IDs are XML-decoded once; semantic data-id and ownership are
+not conflated. Canonical actual resource bytes remain separately bound.
+Distinct metadata IDs retain P. All twelve original probe rows remain enrolled:
+eight collisions U/OUTPUT_SCOPE and four distinct controls P. Later visible
+collisions are conservative identity refusals, not hidden-ink defects.
+
+D's original malformed-root owner RED is **5 P / 4 F**, 49 assertions. Its
+root-only GREEN is 9 P / zero F; the final expanded table is **12 P / zero F**,
+71 assertions. All twenty SVG and sixteen PNG pairs against the draft-regression
+epoch directly match. Ordinary/whitespace/plain-text pixels remain identical;
+existing viewport/opacity refusals are retained, including the independently
+blank opacity0 raster. The new spaced/self-closing/group cases were not
+rerendered on original912: baseline applicability there is source evidence,
+not a new baseline observation.
+
+Final frozen verification:
+
+| Evidence | Result |
+| --- | --- |
+| Ten paint/admission/endpoint/inline-label/Block/Requirement/XML-security owners | 544 P / zero F; 8,437 assertions |
+| Disjoint Class/font/theme/SVG-postpass owners | 523 P / zero F; 5,641 assertions |
+| Canonical core and repository types | Both pass; unchanged pinned Trident f080 type preparation |
+| Full lint | Pass, 1,905 files; one existing oversized-JSON warning |
+| Six cold public captures | All P; source/options/actual/full-return SVG bytes match retained captures |
+
+The two disjoint owner batches total **1,067 P / zero F / 14,078 assertions**.
+Focused tables are subsets, not additional counts. Four exact source/test
+copies before final checks equal current members afterward and committed Git
+bytes. The source/test readiness heuristic passes for the143-line increment.
+The six public calls retain SCENE_ASSERTIONS=1; Native production is also
+exercised by existing fresh-process crisp owners. No timing or new engine/cache
+comparison is claimed. Their work receipts are respectively 38,404 / 74,401 /
+30,456 / 30,398 / 33,353 / 33,351 of the unchanged400,000 cap.
+
+Evidence roots: `/tmp/pr449-document-context-20261028/` (all B hypotheses,
+blocked file probe, permitted HTTP browser acquisition, pre-ID and final-all
+captures, owner/statics logs, four-member freeze and public-final) and
+`/tmp/pr449-document-root-20261028/` (D finder, original RED, root-only GREEN,
+introduced-regression RED and final GREEN). Independent reports explicitly
+separate Resvg30 from Chromium28, parser refusal from unavailable rasters,
+and source epochs. The final all-twelve/source/ink report and final-six report
+preserve original fonts and physical scopes. Requirement bend0 still lacks
+its own PNG; shared poses, overlapping Architecture heads and unavailable raw
+State operands retain prior limits. No new baseline snapshot is imported or
+rendered. Closed duplicate captured consumer binaries are hardlinked only to
+other saved artifact copies after direct comparison; installed dependencies
+and source files are not linked. Only closed regenerable caches are cleaned.
+
+Five requested GPT-6.1 Sol High agents supply disjoint implementation and
+falsifiable review. Remaining ordinary shape/text/group placement and generic
+malformed root attributes are source hypotheses, not closed by this bounded
+known-fragment check. Next: qualify the exact combined candidate in CI, then
+execute remaining placement falsifiers or bind existing full final-XML
+admission to proof authority before broadening row87's served-stroke/fractional
+body domain. All original seven diagrams and all six acceptance goals remain
+open, the independent holdout stays sealed, shared Trident proposals stay
+unshipped and no public Mermaid/Pele correctness parity is claimed. Main700da
+is beyond integrated03641 and not jointly qualified. No performance/delivery
+or compiler tuning, cap/default/version change, package publication, new PR,
+issue or comment, merge or force push occurs.
