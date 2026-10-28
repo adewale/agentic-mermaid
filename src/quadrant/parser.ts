@@ -178,10 +178,13 @@ export function quadrantTextRejections(line: string): string[] {
  * Throws on malformed input (see faithfulness contract above). `report`
  * hears the unquoted text Mermaid's lexer rejects (quadrantText).
  */
-export function parseQuadrantChart(lines: string[], report?: QuadrantTextReport): QuadrantChart {
+export function parseQuadrantChart(lines: string[], report?: QuadrantTextReport, onPoint?: (point: QuadrantPoint, source: { start: number; end: number }) => void): QuadrantChart {
+  const lineStarts = onPoint ? [0] : undefined
+  if (lineStarts) for (const line of lines) lineStarts.push(lineStarts[lineStarts.length - 1]! + line.length + 1)
   const scanned = scanAccessibilityDirectives(lines, quadrantStatementEnds(lines))
   requireClosedAccessibility(scanned)
-  lines = joinStatementLines(scanned.familyLines, quadrantStatementEnds(scanned.familyLines))
+  const physicalLines = scanned.familyLines
+  lines = joinStatementLines(physicalLines, quadrantStatementEnds(physicalLines))
   if (lines.length === 0) {
     throw new Error('Quadrant chart is empty')
   }
@@ -210,7 +213,11 @@ export function parseQuadrantChart(lines: string[], report?: QuadrantTextReport)
   for (let i = 0; i < lines.length; i++) {
     // Mermaid's Quadrant grammar ends a statement at a `%%` comment, except a
     // title, which runs to the end of its line.
+    let sourceLine = i, sourceLineAt = 0, nextBreak = onPoint ? lines[i]!.indexOf('\n') : -1
+    let statementStart = i === 0 ? lines[i]!.indexOf(firstStatements[0]!) + firstStatements[0]!.length : 0
     for (const raw of i === 0 ? firstStatements.slice(1) : quadrantStatements(lines[i]!.trim())) {
+      const at = onPoint ? lines[i]!.indexOf(raw, statementStart) : 0
+      if (onPoint) statementStart = at + raw.length
       const line = TITLE_RE.test(raw) ? raw : stripTrailingComment(raw)
       if (line.length === 0 || line.startsWith('%%')) continue
 
@@ -282,6 +289,21 @@ export function parseQuadrantChart(lines: string[], report?: QuadrantTextReport)
           if (parserObservationActive('quadrant')) observeParserMutation('quadrant', 'setPointStyle', { label, style: parsedStyle.style }, { line: i + 1, unit: 'normalized' })
         }
         points.push(point)
+        if (onPoint) {
+          // Logical statements retain line breaks but trim continuation indent.
+          // Translate token boundaries back through that grammar-owned join.
+          const offset = (column: number): number => {
+            while (nextBreak >= 0 && nextBreak < column) {
+              sourceLine++
+              sourceLineAt = nextBreak + 1
+              nextBreak = lines[i]!.indexOf('\n', sourceLineAt)
+            }
+            const indent = sourceLine === i ? 0 : physicalLines[sourceLine]!.length - physicalLines[sourceLine]!.trimStart().length
+            return lineStarts![sourceLine]! + indent + column - sourceLineAt
+          }
+          const start = at + line.indexOf(rawLabel)
+          onPoint(point, { start: offset(start), end: offset(start + rawLabel.length) })
+        }
         if (parserObservationActive('quadrant')) observeParserMutation('quadrant', 'appendPoint', point, { line: i + 1, unit: 'normalized' })
         continue
       }
