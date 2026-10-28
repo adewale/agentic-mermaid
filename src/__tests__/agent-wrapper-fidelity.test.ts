@@ -23,6 +23,8 @@ import {
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 import { useTestChildren } from './helpers/test-child.ts'
 import { applyMutationBatch } from '../agent/mutate.ts'
+import { canonicalWrapperConfig } from '../agent/wrapper-portability.ts'
+import type { ValidDiagramMeta } from '../agent/types.ts'
 
 const runChild = useTestChildren(20_000)
 
@@ -237,6 +239,63 @@ describe('wrapper fidelity (1C): a parsed or edited diagram renders under its wr
 })
 
 describe('wrapper fidelity (1C): canonical synthesis on demand', () => {
+  test.each(['', '\uFEFF', '%% wrapper note\n', '---\n{}\n---\n', '---\nconfig: {}\n---\n'])('empty captured wrapper %j owns fresh canonical output', wrapper => {
+    const parsed = parseMermaid(wrapper + 'flowchart LR\n  A --> B')
+    if (!parsed.ok) throw new Error('Expected captured wrapper')
+    // The captured source remains authoritative over the mutable effective view.
+    parsed.value.meta.frontmatter = { theme: 'dark' }
+    const first = canonicalWrapperConfig(parsed.value.meta, parsed.value.kind)
+    expect(first).toEqual({ metadata: {}, config: {}, directives: [] })
+    first.metadata.title = 'changed'
+    first.config.theme = 'forest'
+    first.directives.push({ kind: 'wrap', hasArgs: false, payload: {} })
+    expect(canonicalWrapperConfig(parsed.value.meta, parsed.value.kind)).toEqual({ metadata: {}, config: {}, directives: [] })
+    expect(serializeMermaid(parsed.value, { wrapper: 'canonical' })).toBe('flowchart LR\n  A --> B\n')
+    expect(verifyMermaid(parsed.value).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'mermaid_wrapper_config')).toEqual([])
+    delete parsed.value.meta.wrapperSource
+    expect(serializeMermaid(parsed.value, { wrapper: 'canonical' })).toStartWith('---\nconfig:\n  theme: dark\n---\n')
+  })
+
+  test('canonical admission preserves metadata reads and source/directive error precedence', () => {
+    const reads: string[] = []
+    const meta: ValidDiagramMeta = {
+      get wrapperSource() { reads.push('wrapper'); return '' },
+      get frontmatter(): ValidDiagramMeta['frontmatter'] { throw new Error('captured source owns config') },
+      get initDirectives() { reads.push('directives'); return [] },
+      comments: [], accessibility: {},
+    }
+    expect(canonicalWrapperConfig(meta, 'flowchart')).toEqual({ metadata: {}, config: {}, directives: [] })
+    expect(reads).toEqual(['wrapper', 'wrapper', 'directives'])
+    const synthesized: ValidDiagramMeta = {
+      frontmatter: { get theme() { reads.push('theme'); return 'dark' } },
+      initDirectives: [], comments: [], accessibility: {},
+    }
+    expect(canonicalWrapperConfig(synthesized, 'flowchart').config).toEqual({ theme: 'dark' })
+    expect(reads).toEqual(['wrapper', 'wrapper', 'directives', 'theme'])
+    const badSource = { ...synthesized, wrapperSource: '---\na: [unclosed\n---\n', get initDirectives(): ValidDiagramMeta['initDirectives'] { throw new Error('directives read too early') } }
+    expect(() => canonicalWrapperConfig(badSource, 'flowchart')).toThrow(/YAML/)
+    const badDirective = { ...synthesized, wrapperSource: '', initDirectives: [{ raw: '%%{init: definitely-not-an-object}%%', parsed: {} }] }
+    const badFamily = { split() { throw new Error('family read too early') } } as unknown as string
+    expect(() => canonicalWrapperConfig(badDirective, badFamily)).toThrow('init directive payload must be a configuration object')
+    expect(() => canonicalWrapperConfig(meta, badFamily)).toThrow('family read too early')
+  })
+
+  test.each([
+    ['', {}, {}],
+    ['---\ntitle: ""\ndisplayMode: false\n---\n', { title: '', displayMode: false }, {}],
+    ['---\nconfig:\n  futureConfig: {}\n---\n', {}, { futureConfig: {} }],
+    ['%%{init:{}}%%\n', {}, {}],
+    ['%%{init:null}%%\n', {}, {}],
+    ['%%{init:[]}%%\n', {}, {}],
+    ['%%{wrap}%%\n', {}, { wrap: true }],
+  ])('canonical wrapper retains metadata and directive semantics for %j', (wrapper, metadata, config) => {
+    const parsed = parseMermaid(wrapper + 'flowchart LR\n  A --> B')
+    if (!parsed.ok) throw new Error('Expected repairable wrapper')
+    for (const family of ['flowchart', undefined, 'unknown', 'family:test/extension', 'constructor', '__proto__']) {
+      expect(canonicalWrapperConfig(parsed.value.meta, family)).toEqual({ metadata, config, directives: [] })
+    }
+  })
+
   test('canonical mode nests config keys under config: with title top-level, directives folded', () => {
     const p = parseMermaid(COMBO)
     if (!p.ok) throw new Error('parse failed')
