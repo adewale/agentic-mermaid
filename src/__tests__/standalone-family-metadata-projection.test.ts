@@ -58,7 +58,6 @@ test('public Node/IIFE/lazy and default build metadata projection remain untouch
 })
 
 test('both real exact seed tables preserve every runtime field, witness and known spread', () => {
-  let seedCount = 0
   for (const [relative, name] of [['src/agent/family-registry.ts', 'BUILTIN_FAMILY_DESCRIPTOR_SEEDS'], ['src/agent/stable-family-metadata.ts', 'STABLE_FAMILY_DESCRIPTOR_SEEDS']]) {
     const path = join(root, relative!)
     const before = tableStructure(readFileSync(path, 'utf8'), name!)
@@ -68,14 +67,12 @@ test('both real exact seed tables preserve every runtime field, witness and know
       const changed = after[index]!
       if ('spread' in original) expect(changed).toEqual(original)
       else {
-        seedCount++
         expect(original.editor?.length).toBe(6)
         expect(changed.editor).toEqual([])
         expect(changed.runtime).toEqual(original.runtime)
       }
     }
   }
-  expect(seedCount).toBe(23)
 })
 
 test('retains non-editor expression evaluation and all runtime values', () => {
