@@ -134,7 +134,7 @@ export function inspectScenePrimitives(scene: SceneDoc): ScenePaintInspection {
 
 export function inspectScenePaintGeometry(scene: SceneDoc, receipt?: SceneWriteReceipt): ScenePaintGeometryInspection {
   const writes = beginSceneWriteInspection(receipt, scene)
-  const inspection = inspectScene(scene, undefined, writes, receipt !== undefined || isAdmittedSceneDocument(scene))
+  const inspection = inspectScene(scene, undefined, writes, receipt !== undefined ? 'all' : isAdmittedSceneDocument(scene) ? 'marked' : false)
   if (writes) sceneWriteWork.set(inspection, writes.work())
   return inspection
 }
@@ -286,7 +286,7 @@ function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDet
   }
 }
 
-function inspectScene(scene: SceneDoc, retainText?: TextDetails, writes?: ReturnType<typeof beginSceneWriteInspection>, requireWritten = false): ScenePaintGeometryInspection {
+function inspectScene(scene: SceneDoc, retainText?: TextDetails, writes?: ReturnType<typeof beginSceneWriteInspection>, requireWritten: false | 'marked' | 'all' = false): ScenePaintGeometryInspection {
   const recorder = createPaintRecorder(scene, retainText)
   const walk = (nodes: readonly SceneNode[], prefix: string, parent: AffineMatrix, ancestors: readonly SceneOwner[], conditional = false, groupOpacity = 1): void => {
     nodes.forEach((node, index) => {
@@ -296,7 +296,11 @@ function inspectScene(scene: SceneDoc, retainText?: TextDetails, writes?: Return
         walk(node.children.map(child => child.node), key, composeMatrices(parent, transformMatrix(node.transform)), Object.freeze([...ancestors, ownerSnapshot(own)]), conditional || node.visibility === 'conditional', multiplySceneOpacity(groupOpacity, sceneGroupOpacity(node.paint?.opacity)))
       } else {
         const written = writes?.node(node)
-        recorder.leaf(node, key, parent, ancestors, conditional || !!written?.conditional || requireWritten && node.kind === 'connector' && node.lineStyle !== 'invisible' && !written, groupOpacity, undefined, written?.served, written?.path)
+        // Without a receipt, unmarked legacy inspection still owns its inline
+        // label diagnostics. Explicit receipts and marked carriers remain strict.
+        const missingWrite = requireWritten && node.kind === 'connector' && node.lineStyle !== 'invisible' && !written
+          && (requireWritten === 'all' || !!node.markers.start || !!node.markers.end || node.markers.mid.length > 0)
+        recorder.leaf(node, key, parent, ancestors, conditional || !!written?.conditional || !!missingWrite, groupOpacity, undefined, written?.served, written?.path)
       }
     })
   }

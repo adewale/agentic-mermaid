@@ -5,7 +5,7 @@ import type { SceneDoc, SceneNode, Geometry } from './ir.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { writeConnectorSvg, writeShapeSvg, writeTextSvg, type SvgGeometryWriteSink } from './svg-writer.ts'
 import { writtenPolylineProjectionOf } from './written-geometry.ts'
-import { createEmissionContext } from './emission-context.ts'
+import { createEmissionContext, type EmissionColorResolver } from './emission-context.ts'
 
 // SVG serialization is backend-private state, not part of the public Scene IR.
 // Shape, text and connector marks are written from their typed fields when
@@ -41,7 +41,7 @@ interface SceneWriteRecorder {
 const sceneWriteObservers = new WeakMap<SceneSerializationObserver, SceneWriteRecorder>()
 type ConnectorNode = Extract<SceneNode, { kind: 'connector' }>
 interface WrittenPath { readonly source: Geometry; readonly svg: string; readonly served: ConnectorNode; readonly conditional: boolean; readonly path: boolean }
-export interface SceneWriteWork { readonly scene: SceneDoc; readonly operations: number; readonly exhausted: boolean; readonly uncertain: boolean }
+export interface SceneWriteWork { readonly scene: SceneDoc; readonly operations: number; readonly exhausted: boolean; readonly uncertain: boolean; readonly resolveColor?: EmissionColorResolver }
 
 const ownValue = (value: object, key: string): unknown => {
   const descriptor = Object.getOwnPropertyDescriptor(value, key)
@@ -55,8 +55,9 @@ class CapturedSceneWrites {
   readonly #exhausted: boolean
   readonly #maxOperations: number
   readonly #uncertain: boolean
-  constructor(scene: SceneDoc, paths: ReadonlyMap<SceneNode, WrittenPath>, operations: number, exhausted: boolean, maxOperations: number, uncertain: boolean) {
-    this.#scene = scene; this.#paths = paths; this.#operations = operations; this.#exhausted = exhausted; this.#maxOperations = maxOperations; this.#uncertain = uncertain
+  readonly #resolveColor: EmissionColorResolver | undefined
+  constructor(scene: SceneDoc, paths: ReadonlyMap<SceneNode, WrittenPath>, operations: number, exhausted: boolean, maxOperations: number, uncertain: boolean, resolveColor?: EmissionColorResolver) {
+    this.#scene = scene; this.#paths = paths; this.#operations = operations; this.#exhausted = exhausted; this.#maxOperations = maxOperations; this.#uncertain = uncertain; this.#resolveColor = resolveColor
   }
 
   begin(scene: SceneDoc) {
@@ -72,7 +73,7 @@ class CapturedSceneWrites {
         if (!route || typeof route !== 'object' || ownValue(route, 'geometry') !== written.source) return undefined
         return written
       },
-      work: (): SceneWriteWork => Object.freeze({ scene, operations, exhausted, uncertain: this.#uncertain }),
+      work: (): SceneWriteWork => Object.freeze({ scene, operations, exhausted, uncertain: this.#uncertain, resolveColor: this.#resolveColor }),
     }
   }
 }
@@ -168,7 +169,7 @@ export function createSceneWriteCapture(maxOperations: number) {
       finished = true
       if (!isAdmittedSceneDocument(scene)) return undefined
       const result = context.finish(scene)
-      const receipt = new CapturedSceneWrites(scene, paths, operations, exhausted, maxOperations, result.uncertain)
+      const receipt = new CapturedSceneWrites(scene, paths, operations, exhausted, maxOperations, result.uncertain, result.uncertain ? undefined : result.resolveColor)
       Object.freeze(receipt)
       issuedSceneWrites.add(receipt)
       return receipt

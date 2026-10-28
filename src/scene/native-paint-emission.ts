@@ -12,12 +12,12 @@ import type { SvgGeometryWriteSink } from './svg-writer.ts'
 import { connectorContourSemantics } from './connector-geometry.ts'
 import { writtenPolylineProjectionOf } from './written-geometry.ts'
 import { MAX_OCCLUSION_OPERATIONS } from './paint-work.ts'
-import { createEmissionContext } from './emission-context.ts'
+import { createEmissionContext, type EmissionColorResolver } from './emission-context.ts'
 
 export { MAX_OCCLUSION_OPERATIONS } from './paint-work.ts'
 
 type Leaf = Exclude<SceneNode, { kind: 'group' }>
-export interface NativeEmissionWork { readonly operations: number; readonly exhausted: boolean; readonly uncertain: boolean; readonly closedMarkerContext: boolean; readonly header: Omit<SceneDoc, 'parts'> }
+export interface NativeEmissionWork { readonly operations: number; readonly exhausted: boolean; readonly uncertain: boolean; readonly closedMarkerContext: boolean; readonly header: Omit<SceneDoc, 'parts'>; readonly resolveColor?: EmissionColorResolver }
 const emittedOccurrences = new WeakSet<ScenePaintGeometry>()
 export function hasNativeEmissionOccurrence(primitive: ScenePaintGeometry): boolean { return emittedOccurrences.has(primitive) }
 const emissionWork = new WeakMap<ScenePaintGeometryInspection, NativeEmissionWork>()
@@ -29,10 +29,10 @@ export function nativeEmissionWorkOf(inspection: ScenePaintGeometryInspection): 
  * Accessors/unsupported data or an exhausted capture keep paint conditional. */
 export function createNativePaintEmission(maxOperations: number) {
   if (!Number.isSafeInteger(maxOperations) || maxOperations < 0 || maxOperations > MAX_OCCLUSION_OPERATIONS) throw new RangeError('Invalid Native emission work allowance')
-  let operations = 0, exhausted = false, uncertain = false
+  let operations = 0, exhausted = false, uncertain = false, pendingCustomRootStyle = false
   // A deliberately smaller admission domain for new served marker proofs.
   // Existing proofs do not depend on this flat, stylesheet-free context.
-  let closedMarkerContext = true, rootOpens = 0, rootCloses = 0
+  let closedMarkerContext = true, definitionsClosed = true, rootOpens = 0, rootCloses = 0
   const resources = new Map<string, string | undefined>()
   const references: NonNullable<Extract<Leaf, { kind: 'connector' }>['markers']['start']>[] = []
   const pay = (count = 1): boolean => {
@@ -242,7 +242,10 @@ export function createNativePaintEmission(maxOperations: number) {
           if (!pay(typeof colors.font === 'string' ? colors.font.length * 4 : 1) || safeCssFontFamily(colors.font) !== value) uncertain = true
           continue
         }
-        if (!['bg', 'fg', 'line', 'accent', 'muted', 'surface', 'border', 'font'].some(key => `--${key}` === name) || colors[name.slice(2)] !== value) uncertain = true
+        if (!['bg', 'fg', 'line', 'accent', 'muted', 'surface', 'border', 'font'].some(key => `--${key}` === name)) {
+          if (name.startsWith('--')) pendingCustomRootStyle = true
+          else uncertain = true
+        } else if (colors[name.slice(2)] !== value) uncertain = true
       }
       return captured
     },
@@ -280,29 +283,29 @@ export function createNativePaintEmission(maxOperations: number) {
         if (svg !== '</svg>') closedMarkerContext = false
       } else if (node.kind === 'document' && node.element === 'definitions') {
         if (!pay(svg.length * 8)) return false
-        if (svg.includes('<?') || svg.includes('<!')) closedMarkerContext = false
+        if (svg.includes('<?') || svg.includes('<!')) definitionsClosed = false
         const tags = scanSvgStartTags(svg), outer = tags[0]
         if (!outer || outer.name !== 'defs' || outer.selfClosing || outer.attributes.length
-          || !/^[ \t\r\n]*$/.test(svg.slice(0, outer.start))) closedMarkerContext = false
+          || !/^[ \t\r\n]*$/.test(svg.slice(0, outer.start))) definitionsClosed = false
         let resourceCursor = outer?.end ?? 0
         let markerEnd = -1
         for (const tag of tags) {
           if (!pay(tag.attributes.length + 1)) break
           if (tag.name === 'defs') {
-            if (tag.attributes.length || tag.start < markerEnd) closedMarkerContext = false
-          } else if (tag.name !== 'marker' && (tag.start >= markerEnd || !['circle', 'ellipse', 'line', 'rect', 'polygon', 'polyline', 'path'].includes(tag.name))) closedMarkerContext = false
+            if (tag.attributes.length || tag.start < markerEnd) definitionsClosed = false
+          } else if (tag.name !== 'marker' && (tag.start >= markerEnd || !['circle', 'ellipse', 'line', 'rect', 'polygon', 'polyline', 'path'].includes(tag.name))) definitionsClosed = false
           if (tag.name !== 'marker') continue
           const id = decodedSvgAttributeValue(tag, 'id')
           const end = svg.indexOf('</marker>', tag.end)
           if (!id || end < 0 || resources.has(id)) { uncertain = true; continue }
-          if (!/^[ \t\r\n]*$/.test(svg.slice(resourceCursor, tag.start))) closedMarkerContext = false
+          if (!/^[ \t\r\n]*$/.test(svg.slice(resourceCursor, tag.start))) definitionsClosed = false
           markerEnd = end + 9
           resourceCursor = markerEnd
           const bytes = svg.slice(tag.start, end + 9).replace(/(^|\n)[ \t]+(?=<)/g, '$1')
           if (!pay(2)) break
           resources.set(id, bytes)
         }
-        if (!/^[ \t\r\n]*<\/defs>[ \t\r\n]*$/.test(svg.slice(resourceCursor))) closedMarkerContext = false
+        if (!/^[ \t\r\n]*<\/defs>[ \t\r\n]*$/.test(svg.slice(resourceCursor))) definitionsClosed = false
       } else if (node.kind === 'document') closedMarkerContext = false
       return !exhausted
     },
@@ -376,13 +379,18 @@ export function createNativePaintEmission(maxOperations: number) {
       // Unreferenced opaque resources have no descriptor/byte comparison and
       // could contain a shadowing child ID or malformed XML. The new closed
       // domain admits only resources checked against their actual references.
-      if (closedMarkerContext && (!pay() || resources.size !== checked.size)) closedMarkerContext = false
-      if (context.finish(header).uncertain) uncertain = true
+      if (closedMarkerContext && definitionsClosed && (!pay() || resources.size !== checked.size)) closedMarkerContext = false
+      const checkedContext = context.finish(header)
+      // New root bindings require closed definitions and actual resource bytes.
+      // The legacy path cannot silently admit unchecked context with new styles.
+      if (checkedContext.uncertain || pendingCustomRootStyle
+        && (!checkedContext.resolveColor || !definitionsClosed || !pay() || resources.size !== checked.size)) uncertain = true
       // Paid in observe before these immutable occurrences were created.
       // Conditional fallback occurrences already prohibit P, even if rewrapped.
       for (const primitive of inspection.primitives) if (primitive.visibility !== 'conditional') emittedOccurrences.add(primitive)
       emissionWork.set(inspection, Object.freeze({ operations, exhausted, uncertain,
-        closedMarkerContext: closedMarkerContext && !unrecordedPaint && rootOpens === 1 && rootCloses === 1 && !uncertain && !exhausted, header }))
+        closedMarkerContext: closedMarkerContext && definitionsClosed && !unrecordedPaint && rootOpens === 1 && rootCloses === 1 && !uncertain && !exhausted,
+        header, resolveColor: uncertain ? undefined : checkedContext.resolveColor }))
     },
   }
 }

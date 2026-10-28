@@ -601,41 +601,68 @@ test.each(([
   { name: 'stylesheet-hidden-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
   { name: 'resource-hidden-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
   { name: 'undefined-root-color-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'custom-root-color-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'custom-root-cover-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'custom-root-unused-resource-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'optional-palette-transparent-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
 ] as const).flatMap(row => (['native', 'scene'] as const).map(execution => ({ ...row, execution }))))('a $name binds emitted endpoint certification to actual ink through $execution', ({ name, d, start, end, tangent, cardX, witnessX, execution }) => {
   // These authored open paths all end due east, except the reversed cubic.
   // The exact terminal triangle is (52,37.5),(60,40),(52,42.5), or
   // (48,42.5),(40,40),(48,37.5) when reversed. It lies outside the card.
   const undefinedRootColor = name === 'undefined-root-color-cubic'
-  const hidden = name === 'stylesheet-hidden-cubic' || name === 'resource-hidden-cubic' || undefinedRootColor
+  const unusedRootResource = name === 'custom-root-unused-resource-cubic', optionalPaletteTransparent = name === 'optional-palette-transparent-cubic'
+  const customRootColor = name === 'custom-root-color-cubic' || unusedRootResource, customRootCover = name === 'custom-root-cover-cubic'
+  const customRoot = customRootColor || customRootCover
+  const hidden = name === 'stylesheet-hidden-cubic' || name === 'resource-hidden-cubic' || undefinedRootColor || customRootCover || optionalPaletteTransparent
   const stylesheet = '<style>path{marker-end:none !important}</style>'
-  const marker = tipAnchoredArrow('visible-terminal', { width: 8, height: 5 }, 'end', undefinedRootColor ? { fill: 'none', stroke: 'var(--fg)', strokeWidth: '1' } : { fill: '#000', stroke: 'none' }, 'userSpaceOnUse')
-  const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#000' }, resolved: { renderOptions: {} } }
+  const markerFill = customRootColor ? 'var(--ink, #000)' : optionalPaletteTransparent ? 'var(--accent, #000)' : '#000'
+  const marker = tipAnchoredArrow('visible-terminal', { width: 8, height: 5 }, 'end', undefinedRootColor ? { fill: 'none', stroke: 'var(--fg)', strokeWidth: '1' } : { fill: markerFill, stroke: 'none' }, 'userSpaceOnUse')
+  const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#000', ...(optionalPaletteTransparent ? { accent: 'transparent' } : {}) }, resolved: { renderOptions: {} } }
   const producer: DrawingProducer = factory => ({ ...scene([]), colors: context.colors, parts: [
-    factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'),
-    factory.definitions({ id: 'defs' }, `<defs>${name === 'resource-hidden-cubic' ? serializeMarkerResource(marker).replace('<polygon ', '<polygon opacity="0" ') : serializeMarkerResource(marker)}</defs>`),
+    factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80"${customRoot || optionalPaletteTransparent ? ` style="--bg:#fff;--fg:#000;${customRootColor ? '--ink:#f00' : customRootCover ? '--cover:#fff' : '--accent:transparent'}"` : ''}>`),
+    factory.definitions({ id: 'defs' }, `<defs>${name === 'resource-hidden-cubic' ? serializeMarkerResource(marker).replace('<polygon ', '<polygon opacity="0" ') : serializeMarkerResource(marker)}${unusedRootResource ? serializeMarkerResource({ ...marker, id: 'unused-terminal' }) : ''}</defs>`),
     ...(name === 'stylesheet-hidden-cubic' ? [factory.documentContent({ id: 'css', role: 'chrome', nonPaint: 'stylesheet' }, stylesheet)] : []),
     factory.connector({ id: 'visible-edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'path', d, points: [start, end] },
       paint: { stroke: '#000', strokeWidth: '1', strokeLinecap: 'butt', strokeLinejoin: 'round' }, endpoints: { from: 'outside', to: 'card' }, markers: { end: marker } }),
     factory.shape({ id: 'card', role: 'node', geometry: { kind: 'rect', x: cardX, y: 20, width: 30, height: 40 }, paint: { fill: '#fff', stroke: '#888', strokeWidth: '1' } }),
+    ...(customRootCover ? [factory.shape({ id: 'foreign-cover', role: 'node', geometry: { kind: 'rect', x: 50, y: 34, width: 12, height: 12 }, paint: { fill: 'var(--cover, transparent)' } })] : []),
     factory.documentClose(),
   ] })
   const drawing = drawPaintControl(producer, context, execution)
   expect(drawing.svg).toContain(`d="${d}"`)
   const markerEnd = ' marker-end="url(#visible-terminal)"'
-  const markerPolygon = undefinedRootColor ? 'points="0 0, 8 2.5, 0 5" fill="none" stroke="var(--fg)" stroke-width="1"' : 'points="0 0, 8 2.5, 0 5" fill="#000" stroke="none"'
+  const markerPolygon = undefinedRootColor ? 'points="0 0, 8 2.5, 0 5" fill="none" stroke="var(--fg)" stroke-width="1"' : `points="0 0, 8 2.5, 0 5" fill="${markerFill}" stroke="none"`
   expect(drawing.svg.split(markerEnd)).toHaveLength(2)
-  expect(drawing.svg.split(markerPolygon)).toHaveLength(2)
+  expect(drawing.svg.split(markerPolygon)).toHaveLength(unusedRootResource ? 3 : 2)
+  if (unusedRootResource) {
+    expect(drawing.svg).toContain('<marker id="unused-terminal"')
+    expect(drawing.svg).not.toContain('url(#unused-terminal)')
+  }
   expect(drawing.svg).toContain(`<rect x="${cardX}" y="20" width="30" height="40" fill="#fff" stroke="#888" stroke-width="1"`)
+  if (customRootColor) expect(marker.paint?.fill).toBe('var(--ink, #000)')
+  if (customRootCover) expect(drawing.svg).toContain('fill="var(--cover, transparent)"')
+  // Public graphical rendering applies this real postpass after certification.
+  // Keep typed variables intact while observing the actual served colors.
+  const svg = customRoot || optionalPaletteTransparent ? inlineResolvedColors(drawing.svg, context.colors) : drawing.svg
   const font = { fontFiles: [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))], loadSystemFonts: false, defaultFontFamily: 'Inter' }
-  const actual = new Resvg(drawing.svg, { font }).render()
-  const markerRemoved = new Resvg(drawing.svg.replace(markerEnd, ''), { font }).render()
+  const actual = new Resvg(svg, { font }).render()
+  const markerRemoved = new Resvg(svg.replace(markerEnd, ''), { font }).render()
   if (hidden) {
     expect(Buffer.compare(actual.pixels, markerRemoved.pixels)).toBe(0)
-    const exposed = drawing.svg.replace(stylesheet, '').replace('<polygon opacity="0" ', '<polygon ').replace('stroke="var(--fg)"', 'stroke="#000"')
+    const covers = [...svg.matchAll(/<rect\b[^>]*>/g)].map(match => match[0]).filter(tag => tag.includes(' data-id="foreign-cover"'))
+    if (customRootCover) expect(covers).toHaveLength(1)
+    const transparentPolygon = 'points="0 0, 8 2.5, 0 5" fill="transparent" stroke="none"'
+    if (optionalPaletteTransparent) expect(svg).toContain(transparentPolygon)
+    const exposed = customRootCover ? svg.replace(covers[0]!, '') : optionalPaletteTransparent ? svg.replace(transparentPolygon, 'points="0 0, 8 2.5, 0 5" fill="#000" stroke="none"') : svg.replace(stylesheet, '').replace('<polygon opacity="0" ', '<polygon ').replace('stroke="var(--fg)"', 'stroke="#000"')
     expect(Buffer.compare(new Resvg(exposed, { font }).render().pixels, new Resvg(exposed.replace(markerEnd, ''), { font }).render().pixels)).not.toBe(0)
   } else expect(Buffer.compare(actual.pixels, markerRemoved.pixels)).not.toBe(0)
-  if (!undefinedRootColor) {
-    const red = new Resvg(drawing.svg.replace(markerPolygon, 'points="0 0, 8 2.5, 0 5" fill="#f00" stroke="none"'), { font }).render()
+  if (customRootColor) {
+    const pixels = actual.pixels, witness = (40 * actual.width + witnessX) * 4
+    expect(pixels[witness]).toBeGreaterThan(128)
+    expect(pixels[witness + 1]).toBeLessThan(64)
+    expect(pixels[witness + 2]).toBeLessThan(64)
+  } else if (!undefinedRootColor && !optionalPaletteTransparent) {
+    const red = new Resvg(svg.replace(markerPolygon, 'points="0 0, 8 2.5, 0 5" fill="#f00" stroke="none"'), { font }).render()
     const pixels = red.pixels
     const witness = (40 * red.width + witnessX) * 4
     if (hidden) {
@@ -655,7 +682,15 @@ test.each(([
   expect(source.route.contours[0]?.end).toEqual(end)
   expect(source.route.endTangent).toEqual(tangent)
   const proof = drawing.proof
-  if (hidden) expect(proof.status).not.toBe('passed')
+  if (customRootCover) {
+    expect(proof.status).toBe('failed')
+    expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'MARKER_OCCLUDED', id: 'visible-edge', by: 'foreign-cover' }))
+  } else if (unusedRootResource) {
+    // Visible red ink does not qualify the newly admitted custom-root context
+    // while an unreferenced resource has no descriptor/byte authority.
+    expect(proof.status).toBe('unverified')
+    expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'OUTPUT_SCOPE' }))
+  } else if (hidden) expect(proof.status).not.toBe('passed')
   else {
     expect(proof.status).toBe('passed')
     expect(proof.issues).toEqual([])

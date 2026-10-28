@@ -115,11 +115,11 @@ function possibleShapeStroke(piece: Geometry, paint: MarkPaint): boolean {
 /** A filled rectangle's inset is known to be solid, unlike an arbitrary path's
  * conservative envelope. Rounded corners are excluded before transformation.
  */
-function solidInteriors(scene: NativePaintHeader, primitives: readonly ScenePaintPrimitive[]): Surface[] {
+function solidInteriors(primitives: readonly ScenePaintPrimitive[], resolveColor: (value: string) => string | undefined): Surface[] {
   const resolved = new Map<string, boolean>()
   const opaque = (fill: string): boolean => {
     if (resolved.has(fill)) return resolved.get(fill)!
-    const value = resolveInlineColorAttribute(fill, scene.colors)
+    const value = resolveColor(fill)
     const result = !!value && tryParseCssColor(value)?.[3] === 1
     resolved.set(fill, result)
     return result
@@ -933,6 +933,8 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
   }
   const emissionWork = nativeEmissionWorkOf(inspection)
   const sceneWriteWork = scenePathEmissionWorkOf(inspection)
+  const colorHeaderMatches = (!emissionWork || scene === emissionWork.header)
+    && (!sceneWriteWork || scene === sceneWriteWork.scene)
   if (emissionWork && scene !== emissionWork.header) {
     issue({ code: 'OUTPUT_SCOPE', message: 'Retained emission is paired with a different document header' })
     scene = emissionWork.header
@@ -982,7 +984,11 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
     for (const node of projection.nodes) if (node.label?.trim() && node.labelVisibility !== 'hidden' && node.labelVisibility !== 'semantic') label(String(node.id), node.labelBounds, node.labelContainer)
     for (const value of projection.labels ?? []) if (value.text.trim() && value.visibility !== 'hidden' && value.visibility !== 'semantic') label(value.id, value.bounds, value.container)
   }
-  const surfaces = tree(solidInteriors(scene, inspection.primitives))
+  const boundColor = emissionWork?.resolveColor ?? sceneWriteWork?.resolveColor
+  let paletteColor: ReturnType<typeof createInlineColorAttributeResolver> | undefined
+  const resolvePaintColor = (value: string): string | undefined => !colorHeaderMatches ? undefined
+    : boundColor ? boundColor(value) : (paletteColor ??= createInlineColorAttributeResolver())(value, scene.colors)
+  const surfaces = tree(solidInteriors(inspection.primitives, resolvePaintColor))
   if (emissionWork?.uncertain) issue({ code: 'OUTPUT_SCOPE', message: 'Emitted document context or marker resource differs from retained paint evidence' })
   if (sceneWriteWork?.uncertain) issue({ code: 'OUTPUT_SCOPE', message: 'Emitted Scene context or marker resource differs from retained paint evidence' })
   let pairs = 0, operations = (emissionWork?.operations ?? 0) + (sceneWriteWork?.operations ?? 0), exhausted = (emissionWork?.exhausted ?? false) || (sceneWriteWork?.exhausted ?? false)
@@ -1045,7 +1051,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
     if (width === 0 || opacity === 0 || node.stroke.color === 'none' || node.stroke.color === 'transparent') checkShaft = false
     if (!checkShaft && !terminalPath) continue
     if (!strokeAlpha.has(node.stroke.color)) {
-      const value = resolveInlineColorAttribute(node.stroke.color, scene.colors)
+      const value = resolvePaintColor(node.stroke.color)
       strokeAlpha.set(node.stroke.color, value ? tryParseCssColor(value)?.[3] : undefined)
     }
     const alpha = strokeAlpha.get(node.stroke.color)
@@ -1115,8 +1121,6 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
   }
   type MarkerTarget = { primitive: ScenePaintPrimitive; position: 'start' | 'mid' | 'end'; clipEligible: boolean; anchor: ScenePoint; repaint: string; bounds: AxisAlignedBox; hull?: readonly ScenePoint[]; padding?: number; witnesses?: readonly ScenePoint[]; actualInk: boolean; strokeProof?: MarkerPolygonProof; circleStroke?: CircleStrokeProof; semantic: boolean; mayFill: boolean }
   const lastMarkers = new Map<string, MarkerTarget>()
-  let markerColor: ReturnType<typeof createInlineColorAttributeResolver> | undefined
-  const resolveMarkerColor = (value: string): string | undefined => (markerColor ??= createInlineColorAttributeResolver())(value, scene.colors)
   const reserveMarkerGeometry = (geometry: Geometry | undefined): boolean => {
     for (let i = 0; i < 32; i++) if (!work()) return false
     if (geometry?.kind === 'polygon' || geometry?.kind === 'polyline') {
@@ -1256,15 +1260,15 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
       const descriptor = marker.position === 'start' ? node.markers.start : marker.position === 'end' ? node.markers.end : node.markers.mid.length === 1 ? node.markers.mid[0] : undefined
       const measuredWorld = primitive.coverage === 'measured' && !!inverseMatrix(scenePrimitiveMatrix(primitive)!)
       const knownMapping = descriptor?.units === 'userSpaceOnUse' || knownUnitScale
-      const witnesses = measuredWorld && knownMapping ? markerInkWitnesses(descriptor, marker.hull, resolveMarkerColor, work) : undefined
-      const actualInk = measuredWorld && knownMapping && descriptor?.paint?.vectorEffect !== 'non-scaling-stroke' && markerHasInk(descriptor, witnesses, resolveMarkerColor, work)
+      const witnesses = measuredWorld && knownMapping ? markerInkWitnesses(descriptor, marker.hull, resolvePaintColor, work) : undefined
+      const actualInk = measuredWorld && knownMapping && descriptor?.paint?.vectorEffect !== 'non-scaling-stroke' && markerHasInk(descriptor, witnesses, resolvePaintColor, work)
       const previous = lastMarkers.get(key)
       const semantic = options.outputSupported !== false && !scene.family.startsWith('family:') && (['edge', 'relationship'].includes(primitive.role) && !!node.endpoints?.from && !!node.endpoints.to || previous?.semantic === true)
       const matrix = scenePrimitiveMatrix(primitive)
       const exactWorld = primitive.coverage === 'measured' && primitive.visibility !== 'conditional' && (primitive.groupOpacity ?? 1) === 1 && primitive.ancestors.length === 0
         && !!matrix && matrix[0] === 1 && matrix[1] === 0 && matrix[2] === 0 && matrix[3] === 1 && matrix[4] === 0 && matrix[5] === 0
-      const mayFill = markerMayHaveOpaqueFill(resolveMarkerColor, descriptor, work)
-      const strokeProof = semantic && exactWorld ? prepareMarkerPolygonInk(scene, node, descriptor, marker.position, work, resolveMarkerColor) : undefined
+      const mayFill = markerMayHaveOpaqueFill(resolvePaintColor, descriptor, work)
+      const strokeProof = semantic && exactWorld ? prepareMarkerPolygonInk(scene, node, descriptor, marker.position, work, resolvePaintColor) : undefined
       let circleStroke = semantic && exactWorld && !repaired && emissionWork?.closedMarkerContext
         ? prepareCircleStroke(node, descriptor, marker.position, work) : undefined
       if (circleStroke) for (const later of inspection.primitives) {

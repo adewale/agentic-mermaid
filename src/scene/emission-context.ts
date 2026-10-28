@@ -1,4 +1,5 @@
-import { SVG_STYLE_DECLARATIONS } from '../theme.ts'
+import { createInlineColorAttributeResolverForVariables, SVG_STYLE_DECLARATIONS } from '../theme.ts'
+import { isHexColor, tryParseCssColor } from '../shared/color-math.ts'
 import { safeCssFontFamily } from '../shared/css-font.ts'
 import { formatSvgNumber, formatSvgNumericAttribute } from '../shared/svg-number.ts'
 import { decodedSvgAttributeValue, scanSvgStartTags, type SvgStartTagToken } from '../svg-structure.ts'
@@ -8,6 +9,7 @@ import { parseSvgTransform, transformMatrix } from './transforms.ts'
 
 type Header = Pick<SceneDoc, 'width' | 'height' | 'colors'>
 type Pay = (operations: number) => boolean
+export type EmissionColorResolver = (value: string) => string | undefined
 
 /** Check actual document bytes against the existing writer's closed context.
  * Collection belongs to the admission/write traversal; only these retained
@@ -21,6 +23,7 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean }
   const references: MarkerDescriptor[] = []
   const resources = new Map<string, string>()
   const rootVariables = new Set<string>()
+  const rootPaintVariables = new Map<string, string>()
   const ownValue = (value: object, name: string): unknown => {
     const descriptor = Object.getOwnPropertyDescriptor(value, name)
     return descriptor && 'value' in descriptor ? descriptor.value : undefined
@@ -69,6 +72,7 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean }
     if (!/^[ \t\r\n]*>$/.test(svg.slice(cursor, root.end))) return false
     const style = decodedSvgAttributeValue(root, 'style')
     if (style === undefined) return true
+    const hasEntities = root.attributes.find(attribute => attribute.name === 'style')!.value.includes('&')
     const seen = new Set<string>()
     for (const declaration of style.split(';')) {
       if (!declaration.trim()) continue
@@ -78,9 +82,24 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean }
       if (seen.has(name)) return false
       seen.add(name)
       if (name === 'background' && value === 'var(--bg)') continue
-      if (name === '--font' && value === safeCssFontFamily(header.colors.font)) continue
-      if (!['bg', 'fg', 'line', 'accent', 'muted', 'surface', 'border'].some(key => `--${key}` === name)
-        || ownValue(header.colors, name.slice(2)) !== value) return false
+      if (name === '--font') {
+        if (value !== safeCssFontFamily(header.colors.font)) return false
+        continue
+      }
+      const key = name.slice(2)
+      if (['bg', 'fg', 'line', 'accent', 'muted', 'surface', 'border'].some(field => `--${field}` === name)) {
+        if (ownValue(header.colors, key) !== value) return false
+        // Optional non-hex paints come from the served root definitions, not
+        // the fixed palette. Preserve their raw CSS meaning across finalizing.
+        if (hasEntities && key !== 'bg' && key !== 'fg' && !isHexColor(value)) return false
+        if (!hasEntities) rootPaintVariables.set(key, value)
+      } else {
+        // The finalizer reads raw CSS contexts. Entity-encoded definitions
+        // cannot borrow their XML-decoded interpretation as served paint.
+        if (!/^--[A-Za-z][\w-]*$/.test(name) || key.startsWith('_') || hasEntities
+          || value !== 'none' && !tryParseCssColor(value)) return false
+        rootPaintVariables.set(key, value)
+      }
     }
     for (const name of seen) rootVariables.add(name)
     return true
@@ -167,7 +186,7 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean }
     group(shell: Extract<SceneNode, { kind: 'group' }>): void {
       if (reserve(2)) groups.push(shell)
     },
-    finish(header: Header): { readonly uncertain: boolean } {
+    finish(header: Header): { readonly uncertain: boolean; readonly resolveColor?: EmissionColorResolver } {
       if (finished) return Object.freeze({ uncertain: true })
       // This new obligation belongs to actual marker-bearing occurrences.
       // Other charts retain their existing proof scope; this is not evidence
@@ -258,10 +277,23 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean }
         if (!reserve(2)) break
         if (ownValue(header.colors, name) !== undefined && !rootVariables.has(`--${name}`)) uncertain = true
       }
-      if (needsVariables && roots !== 1) uncertain = true
+      if (roots !== 1) uncertain = true
       if (needsDerivedVariables && canonicalStyles === 0) uncertain = true
+      let resolveColor: EmissionColorResolver | undefined
+      if (!uncertain) {
+        // Pay definition string sizes separately from the abstract per-context
+        // palette setup weight below. That weight is not a CPU-operation bound;
+        // the theme kernel's existing contrast-search limits remain unchanged.
+        for (const [name, value] of rootPaintVariables) {
+          if (!reserve(name.length + value.length + 4)) break
+        }
+        if (!uncertain && reserve(4096 + rootPaintVariables.size * 4)) {
+          resolveColor = createInlineColorAttributeResolverForVariables(header.colors, rootPaintVariables)
+          if (!resolveColor) uncertain = true
+        }
+      }
       finished = true
-      return Object.freeze({ uncertain })
+      return Object.freeze({ uncertain, ...(resolveColor ? { resolveColor } : {}) })
     },
   }
 }

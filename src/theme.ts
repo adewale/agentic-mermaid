@@ -669,6 +669,16 @@ export function createInlineColorAttributeResolver(): typeof resolveInlineColorA
   }
 }
 
+/** Bind one immutable emission's retained paint variables to the same kernel
+ * used by SVG colour finalization. Definitions are copied into private state. */
+export function createInlineColorAttributeResolverForVariables(
+  colors: DiagramColors,
+  definitions: ReadonlyMap<string, string>,
+): ((value: string) => string | undefined) | undefined {
+  const resolution = colorResolution(colors, undefined, definitions)
+  return resolution ? value => resolvedInlineColorAttribute(escapeAttr(value), resolution) : undefined
+}
+
 function resolvedInlineColorAttribute(escaped: string, resolution: ReturnType<typeof colorResolution>): string | undefined {
   const resolved = resolution ? resolution.resolveCss(escaped, resolution.vars, 10) : escaped
   // Scene admission excludes context-breaking palette values. Preserve the
@@ -680,7 +690,7 @@ function resolvedInlineColorAttribute(escaped: string, resolution: ReturnType<ty
   return decodeXML(resolved)
 }
 
-function colorResolution(colors: DiagramColors, svg?: string) {
+function colorResolution(colors: DiagramColors, svg?: string, definitions?: ReadonlyMap<string, string>) {
   const palette = diagramColorVariables(colors)
   if (!palette) return undefined
   const rc = resolveColors(colors)
@@ -689,7 +699,7 @@ function colorResolution(colors: DiagramColors, svg?: string) {
   // before using them in style-block fallbacks. Learn those up front so
   // var(--family-token, fallback) prefers the authored token over fallback.
   const projection = svg === undefined ? undefined : projectSvgCss(svg)
-  const vars = projection ? cssPaintDefinitions(projection) : new Map<string, string>()
+  const vars = definitions ? new Map(definitions) : projection ? cssPaintDefinitions(projection) : new Map<string, string>()
   for (const [name, value] of palette) if (name.startsWith('_') || value !== undefined && !vars.has(name)) vars.set(name, value)
   // Literal RGB/named pages were normalized for concrete color-mix math;
   // their authored root tokens must not undo that internal normalization.
