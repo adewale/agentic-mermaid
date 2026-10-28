@@ -2,7 +2,7 @@ import { defineConfig } from 'tsup'
 import { runtimeRenderContractPlugin } from './scripts/build/runtime-render-contract.ts'
 import { compactBrowserModulesPlugin } from './scripts/build/compact-browser-modules.ts'
 import { createRequire } from 'node:module'
-import { resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
 import { readFile } from 'node:fs/promises'
 
 const require = createRequire(import.meta.url)
@@ -32,6 +32,21 @@ export default defineConfig({
   esbuildPlugins: [runtimeRenderContractPlugin({ schemaDocumentation: false, terminalAdapter: false, conformanceObservations: false, coalesceRuntimePrimitives: true, sourceOnlySceneAdmission: true }), {
     name: 'lazy-browser-dependencies',
     setup(build) {
+      // Every public render awaits this core together with its selected family.
+      // Express that complete union in each private facade so shared core code
+      // has one reachability set and can ship in fewer compressed chunks.
+      build.onLoad({ filter: /\/src\/browser-lazy\/families\/[^/]+\.ts$/ }, async args => ({
+        contents: `${await readFile(args.path, 'utf8')}\nexport { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'\n`,
+        loader: 'ts',
+        resolveDir: dirname(args.path),
+      }))
+      // Styled and Native providers are requested after that same core has
+      // loaded. Keep their shared primitives in the complete render union.
+      build.onLoad({ filter: /\/src\/(?:scene\/builtin-backends|layout\/agentic-producer-core)\.ts$/ }, async args => ({
+        contents: `${await readFile(args.path, 'utf8')}\nexport { renderLoadedFamilySvgWithReceipt } from '../browser-lazy/render-core.ts'\n`,
+        loader: 'ts',
+        resolveDir: dirname(args.path),
+      }))
       // The lazy SVG API exposes rendering and receipts, not the Node option
       // and pass/shape inspectors. Omit their literal documentation prose while
       // retaining validation, shape aliases/geometry and executable contracts.
