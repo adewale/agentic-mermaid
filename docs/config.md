@@ -72,11 +72,22 @@ use at least the unavoidable plot width, so infeasible requests do not force
 text into narrower columns without reducing the diagram width. When an
 indivisible grapheme exceeds the available column, the family retains its
 natural wrapping instead of producing a tall column that still cannot fit.
+Short single-line legends can use two measured columns in a fitted top/bottom
+arrangement. They retain source order, reading across then down, without a
+second text measurement or smaller type. Radar's final radius candidate uses
+the horizontal spoke reach; the search still stops after three layouts.
 
 The result can be taller or remain wider than requested. `verifyMermaid` with
 the same `renderOptions` reports `LAYOUT_LIMIT_EXCEEDED` when the bounded
 policy cannot meet the budget. The options leave terminal cell placement
 unchanged. Omitting them preserves the existing graphical layout.
+
+The live editor's **Fit labels to pane** setting applies these budgets to Pie
+and Radar previews. It is a local preference; measured pane width is not
+written into the diagram or shared configuration. Explicit width budgets win.
+Verification and SVG/PNG exports use the effective options of the retained
+preview, and resizing revokes stale export authority until the new preview is
+ready.
 
 ## YAML frontmatter
 

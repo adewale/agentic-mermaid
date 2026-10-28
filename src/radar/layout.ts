@@ -10,7 +10,7 @@ import type {
 import type { RenderOptions } from '../types.ts'
 import type { RadarVisualConfig } from './config.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
-import { layoutTextRows } from '../shared/text-rows.ts'
+import { layoutTextColumns } from '../shared/text-rows.ts'
 import { fitChartWidth } from '../shared/chart-width.ts'
 import { resolveRenderStyle, STROKE_WIDTHS } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
@@ -68,6 +68,7 @@ const R = {
   legendSwatch: 14,
   legendGap: 30,
   legendRowGap: 9,
+  legendColumnGap: 16,
   legendSwatchToText: 8,
   ringLabelFontSize: 9.5,
   /** Padding inside a ring-value knockout box (x each side / y each side). */
@@ -150,9 +151,16 @@ export function layoutRadarChart(
   if (maxWidth === undefined) return natural
   return fitChartWidth(natural, maxWidth, (attempt, previous) => {
     if (attempt === 2 && (visual.width !== undefined || visual.height !== undefined)) return undefined
+    let radius: number | undefined
+    if (attempt === 2) {
+      const horizontalSpans = chart.axes.map((_axis, index) => Math.sin(axisAngle(index, chart.axes.length)))
+      const span = Math.max(0, ...horizontalSpans) - Math.min(0, ...horizontalSpans)
+      const labelSlope = Math.max(1, visual.axisScaleFactor ?? 1) + (visual.axisLabelFactor === undefined ? 0 : visual.axisLabelFactor - 1.05)
+      radius = Math.max(60, natural.radius - Math.max(0, previous.width - maxWidth) / Math.max(1, span * labelSlope))
+    }
     const next = placeRadarChart(chart, options, visual, styleFace, {
       maxWidth,
-      ...(attempt === 2 ? { radius: Math.max(60, natural.radius - Math.max(0, previous.width - maxWidth) / 2) } : {}),
+      ...(radius === undefined ? {} : { radius }),
     })
     // A smaller plot must not trade away scale annotations that were visible
     // at the natural radius. Keep the prior arrangement and report overflow.
@@ -301,8 +309,14 @@ function placeRadarChart(chart: RadarChart, options: RenderOptions, visual: Rada
       ? preparePixelText(block.prepared, { ...block, maxWidth: naturalLegendWrapWidth })
       : block
   }) : []
-  const legendRows = layoutTextRows(legendBlocks.map(block => ({ block })), { gap: R.legendRowGap, minRowHeight: legendSwatch })
-  const legendWidth = wantLegend ? legendSwatch + R.legendSwatchToText + legendRows.width : 0
+  const legendItems = legendBlocks.map(block => ({ block }))
+  const legendRowOptions = {
+    gap: R.legendRowGap, minRowHeight: legendSwatch,
+    leadingWidth: legendSwatch + R.legendSwatchToText, columnGap: R.legendColumnGap,
+    ...(wrapWidth === undefined ? {} : { maxWidth: wrapWidth - marginL - marginR }),
+  }
+  const legendRows = layoutTextColumns(legendItems, legendRowOptions)
+  const legendWidth = wantLegend ? legendRows.width : 0
   const legendHeight = legendRows.height
 
   // --- Canvas: grow to contain every final label box -----------------------
@@ -410,18 +424,18 @@ function placeRadarChart(chart: RadarChart, options: RenderOptions, visual: Rada
   if (wantLegend) {
     const legendX = fit ? (width - legendWidth) / 2 : titleLeftExtra + marginL + extL + extR + R.legendGap
     const legendTop = fit ? cy + extB + R.legendGap : cy - legendHeight / 2
-    const placedLegendRows = layoutTextRows(legendBlocks.map(block => ({ block })), { top: legendTop, gap: R.legendRowGap, minRowHeight: legendSwatch })
+    const placedLegendRows = layoutTextColumns(legendItems, { ...legendRowOptions, top: legendTop })
     chart.curves.forEach((curve, index) => {
-      const { item: { block }, top, height: rowH, textY } = placedLegendRows.rows[index]!
+      const { item: { block }, x = 0, top, height: rowH, textY } = placedLegendRows.rows[index]!
       legend.push({
         label: curve.label,
         lines: block.lines,
         block,
         colorIndex: index,
-        x: round(legendX),
+        x: round(legendX + x),
         y: round(top + (rowH - legendSwatch) / 2),
         swatchSize: legendSwatch,
-        textX: round(legendX + legendSwatch + R.legendSwatchToText),
+        textX: round(legendX + x + legendSwatch + R.legendSwatchToText),
         textY: round(textY),
       })
     })

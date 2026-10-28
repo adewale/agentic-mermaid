@@ -114,4 +114,40 @@ describe('bounded chart width fitting', () => {
     const result = verifyMermaid(source, { renderOptions: { radar: { maxWidth: 360 }, mermaidConfig: { radar: { tickLabels: true } } } })
     expect(result.warnings).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'LAYOUT_LIMIT_EXCEEDED' })]))
   })
+
+  test('short Pie legends pack in source order without reducing selected type or the plot', () => {
+    const labels = ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'Foxtrot', 'Golf', 'Hotel', 'India', 'Juliett', 'Kilo', 'Lima']
+    const source = 'pie title Slice palette\n' + labels.map((label, i) => `"${label}": ${12 - i}`).join('\n')
+    const chart = layoutPieChart(parsePieChart(lines(source)), { pie: { maxWidth: 360 } })
+    expect(chart.width).toBeLessThanOrEqual(360.01)
+    expect(chart.height).toBeLessThan(500)
+    expect(chart.radius).toBe(95)
+    expect(chart.legend.map(row => row.label)).toEqual(labels)
+    expect(chart.legend.every(row => row.block?.fontSize === 13)).toBe(true)
+    expect(chart.legend[0]!.y).toBe(chart.legend[1]!.y)
+    expect(chart.legend[0]!.x).toBeLessThan(chart.legend[1]!.x)
+    expect(chart.legend[2]!.y).toBeGreaterThan(chart.legend[0]!.y)
+  })
+
+  test('short Radar legends share measured column packing and keep series association', () => {
+    const source = 'radar-beta\naxis a["Speed"], b["Quality"], c["Cost"], d["Coverage"]\ncurve alpha["Alpha"]{3,4,2,4}\ncurve beta["Beta"]{4,3,4,2}\ncurve gamma["Gamma"]{2,5,3,4}\ncurve delta["Delta"]{5,2,4,3}\nmax 5'
+    const chart = layoutRadarChart(parseRadarChart(lines(source)), { radar: { maxWidth: 360 } })
+    expect(chart.width).toBeLessThanOrEqual(360.01)
+    expect(chart.legend.map(row => [row.label, row.colorIndex])).toEqual([['Alpha', 0], ['Beta', 1], ['Gamma', 2], ['Delta', 3]])
+    expect(chart.legend.every(row => row.block?.fontSize === 13)).toBe(true)
+    expect(chart.legend[0]!.y).toBe(chart.legend[1]!.y)
+    expect(chart.legend[0]!.x).toBeLessThan(chart.legend[1]!.x)
+    expect(chart.legend[2]!.y).toBeGreaterThan(chart.legend[0]!.y)
+  })
+
+  for (const [axes, values] of [
+    ['Agility, Speed, Strength, Stam["Stamina"], Intel["Intelligence"]', '2,2,3,5,0'],
+    ['m["Math"], s["Science"], e["English"], h["History"], g["Geography"], a["Art"]', '85,90,80,70,75,90'],
+  ]) test(`Radar uses horizontal spoke reach to fit ${values!.split(',').length} axes within three layouts`, () => {
+    const source = `radar-beta\naxis ${axes}\ncurve current{${values}}\nmax 100`
+    const chart = layoutRadarChart(parseRadarChart(lines(source)), { radar: { maxWidth: 360 } })
+    expect(chart.width).toBeLessThanOrEqual(360.01)
+    expect(chart.radius).toBeGreaterThan(60)
+    expect(chart.widthFit?.attempts).toBeLessThanOrEqual(3)
+  })
 })
