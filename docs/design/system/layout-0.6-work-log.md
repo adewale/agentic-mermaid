@@ -1044,3 +1044,141 @@ stroke/contact obligations remain open. Next concrete runtime step is to bind
 all declared Native resources, including unused definitions, to actual bytes
 before broadening row87's stroke/context domain. Full exact-head CI and the
 latest-base recheck follow publication of this verified increment.
+
+
+### Exact CI refusals: bind proof paints to actual root definitions
+
+Runtime/test revision **`2af3348a68ee0fab33d484dac9627ad7076276b0`** repairs
+root-paint correspondence and the unmarked inspection regression introduced
+by the preceding Scene authority increment. The original CI failure population
+remains enrolled. No diagram layout or SVG writer geometry changed.
+
+[CI40740168308](https://github.com/adewale/agentic-mermaid/actions/runs/40740168308)
+completed **failed** on `0cf8d8df830de41dbce1c303a79621a220c017a0`:
+14,584 unit passes / 76 skips / 17 failures. Sixteen untouched large-ring
+Architecture assertions (four backend/fallback modes by four directions)
+expected P and received U; actual endpoint/marker checks passed. The remaining
+failure lost the unmarked inline-text occlusion diagnostic under group opacity.
+Semantic conformance passes 173 tests, with 63/64 qualified and one unavailable;
+882 grammar inputs retain zero untracked defects. Installed consumers and
+functional package checks pass. Quality still fails **23 unique lazy byte
+rows** (17 raw plus six gzip), and the editor raw payload is
+4,490,061 > 4,429,400. Repeated log summaries are not additional violations.
+The existing advisory retains aesthetic tradeoffs; its zero status changes
+refer to missing population members, not paint parity. No limit is raised.
+
+The Architecture producer writes a configured literal root property such as
+`--arch-edge-stroke:#ff0000`. Rejecting that property withdrew valid proofs;
+merely allowing it would be unsound because the previous palette-only resolver
+could certify a fallback while final SVG color resolution used the actual root.
+An operation-owned resolver now uses the existing final-color kernel with a
+private copy of validated, retained definitions. Body opacity, shaft alpha,
+marker witnesses, paint and restoration consume that same resolver. Original
+caller-header identity is checked before diagnostic header replacement;
+a foreign header receives no color authority. Missing/unknown/derived-shadowing,
+duplicate, unresolved and entity-ambiguous custom declarations remain refused.
+The setup reservation of 4,096 is an abstract work weight, not a literal CPU
+bound; existing bounded theme contrast searches are unchanged.
+
+Native's **new custom-root permission** additionally requires its existing
+closed-definitions grammar and paid equality between declared marker resources
+and byte-checked references. The definitions grammar is recorded by the
+existing scan, with no second parser. An extra unused canonical resource keeps
+that new permission U even when its referenced red marker is visibly intact.
+This is a conservative domain control, not a demonstrated hidden-marker defect.
+It does not close Native's preexisting unchecked definitions limitation for all
+old palette-only/unmarked contexts. Scene already requires resource closure.
+
+Without an explicit write receipt, admitted unmarked connectors retain their
+legacy inline-label diagnostics. Marked connectors and explicitly supplied
+receipts retain strict same-write requirements. This grants no new CSS,
+resource, served-geometry or custody qualification to unmarked charts.
+
+Independent controls extend the existing cubic table rather than adding an
+inventory. The finalizer's real SVG and complete Resvg pixels establish:
+
+- A literal custom root alias gives an actually red, contributed marker and P.
+- An opaque root-alias cover hides all contributed marker ink; removing only
+  that cover restores it, and certification reports failed/MARKER_OCCLUDED
+  with the actual foreign owner.
+- Optional `accent:transparent` is an admitted nonhex palette value. Final SVG
+  has a transparent marker, full marker removal changes zero pixels, and a
+  literal black replacement restores it. Both execution paths previously
+  returned P at the internal contact boundary. Retaining the actual standard
+  root definitions now withdraws that false pass. This is not a demonstrated
+  public Mermaid-source defect or a universal nonempty-marker guarantee.
+
+The first deliberately broken resolver experiment was **nondiscriminating**:
+all four tests passed because the cover assertion accepted both F and U. It is
+retained as a failed experiment. Strengthening the authored opaque-cover verdict
+to failed/MARKER_OCCLUDED makes the **same exact fault** fail both cover cases
+(2 P / 2 F); exact source restoration gives 4 P / 0 F, 52 assertions. All seven
+source/test member bytes equal their backups immediately after restoration and
+after that green run. Subsequent authorized accounting-comment, resource-guard
+and palette fixes are separate epochs, not restoration failures.
+
+The two added resource/palette rows give genuine RED **1 P / 3 F**, 49
+assertions. The resource guard alone gives six applicable controls P, 82
+assertions. The combined resource/palette fix gives all eight P, 102 assertions.
+Entity-bearing nonhex optional root declarations remain conservative U; no raw
+CSS parser or permissive entity interpretation is introduced.
+
+Final frozen verification at runtime revision 2af3348a6:
+
+| Evidence | Result |
+| --- | --- |
+| Eight paint/admission/endpoint/inline-label/Block/Requirement owners | 488 P / 0 F; 7,970 assertions |
+| Disjoint Class, font/theme and SVG-postpass owners, six files | 523 P / 0 F; 5,641 assertions |
+| Canonical core and repository type checks | Both pass; repository preparation uses unchanged pinned Trident f080 |
+| Full lint | Pass, 1,905 files; one existing oversized-JSON warning |
+| Six cold public calls | State, Block, Requirement bend0/bend12 and two representative Architecture rings all P; actual SVG bytes equal their retained pre-repair artifacts |
+
+The two owner batches total **1,011 P / 0 F / 13,611 assertions**; the focused
+eight are a subset, not added again. Seven exact source/test copies taken before
+the final checks directly equal the members after all checks. Four earlier
+State/Block/Requirement physical bindings retain their recorded scope. The two
+Architecture final operation receipts are 33,253 and 33,251 / 400,000. These are
+abstract certificate-work receipts, not performance measurements.
+
+Independent Architecture review retains eight saved PNG observations, four per
+arm: default R has 208 contributed pixels per head and 416 for both; explicit
+ELK T has 90 per-head conditional deltas and 284 for both. Overlapping heads
+make those ELK counts nonadditive. Four off-shaft witnesses retain actual red
+ink, disappear with only their own marker removed and survive removal of the
+opposite marker. Ring/card/body/resources, viewport and bundled font bytes are
+preserved. The default arm has no layoutDecision field; no selected-engine
+claim is inferred from its absence. Only two representative arms have this
+independent raster evidence, not all sixteen. Same-call raw State operands
+remain unavailable; the earlier seven authored relationships/six marker poses
+are not broader State parity.
+
+Evidence roots: `/tmp/pr449-block-publication-ci-regression-20261028/` (previous
+CI summary and snapshot maintenance), `large-architecture-ring-ci40740168308/`
+(all RED/GREEN/fault/restoration epochs and final handoff), and
+`root-color-final/` (source freeze, two owner logs, canonical types/lint, six
+full public returns and actual SVGs). Independent readbacks are under
+`/tmp/pr449-independent-ink-peer-20261028/`. No new image is committed: all six
+checked public SVG pictures are byte-identical; the change concerns proof
+status and hidden-paint refusal.
+
+Baseline maintenance is disclosed separately from acquisition: a later theme
+edit affected a hardlinked c807 snapshot member after both successful baseline
+calls and their direct before/after checks. Only the snapshot member was
+restored atomically from Git; all 3,167 archived members then directly matched.
+The recorded calls predate the edit and remain qualified at their recorded
+epochs. That snapshot is not sealed or immutable; future use requires full
+before/after checks and detaching new writer files. This increment performs no
+new baseline render. Details: `STATE-c807-SNAPSHOT-MAINTENANCE.json`.
+
+All five requested GPT-6.1 Sol High agents supplied disjoint implementation or
+falsifiable review. Original rows **77,87,88,89,103,206,209** remain unverified;
+all six acceptance goals remain open, and the separately authored holdout stays
+sealed. General stroke/cubic/cylinder/contact obligations, legacy Native
+resource closure, coverage and pinned public Mermaid/Pele observations remain
+incomplete. Existing Trident peer work stays separately prepared and unshipped.
+No timing/compiler campaign, changed cap/default/version, publication, new
+issue/PR/comment, merge or force push occurred. Live Main
+`019eedd31ed730f12b5047840dd61ab9e3cccd16` is beyond integrated03641 and is not
+jointly qualified. Next: follow the new exact-head CI, repair any correctness
+failures, then bind legacy Native declared resources before broadening row87's
+stroke/context proof domain. No ELK parity claim follows from this increment.
