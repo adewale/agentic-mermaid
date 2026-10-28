@@ -30,6 +30,24 @@ const label = () => {
 }
 const surface = (fill = '#fff') => marks.shape({ id: 'cover', role: 'node', geometry: { kind: 'rect', x: 10, y: 10, width: 80, height: 60 }, paint: { fill } })
 
+test.each(['LR', 'RL'] as const)('rounded endpoint contacts retain strict paint proof in %s', direction => {
+  const source = `flowchart ${direction}\nN0[n0]\nN1[n1]\nN2([n2])\nN3((n3))\nN2 --> N1\nN1 <==> N2\nN0 --> N2\nN2 --> N3\nN0 --> N2`
+  const rendered = renderMermaidSVGWithReceipt(source, { layoutSafety: 'strict', embedFontImport: false })
+  expect(rendered.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [] })
+})
+
+test.each(['contact', 'rx-only', 'ry-only', 'entering', 'unrelated', 'borderless', 'translucent-border', 'unknown-width'] as const)('rounded supporting lines retain actual marker ink obligations (%s)', mode => {
+  // The left semicircle is centred at (58,38), radius18. At y35 its
+  // boundary is58-sqrt(18²-3²), inside the rectangle's otherwise empty corner.
+  const x = 58 - Math.sqrt(18 * 18 - 3 * 3) + (mode === 'entering' ? 2 : 0)
+  const marker = tipAnchoredArrow('rounded-arrow', { width: 8, height: 5 }, 'end', { fill: '#111', stroke: '#111', strokeWidth: '0.75', strokeLinejoin: 'round' }, 'userSpaceOnUse')
+  const edge = marks.connector({ id: 'rounded-edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 10, y1: 35, x2: x, y2: 35 }, paint: { stroke: '#111' }, endpoints: { from: 'outside', to: mode === 'unrelated' ? 'another-node' : 'rounded-node' }, markers: { end: marker } })
+  const card = marks.shape({ id: 'rounded-node', role: 'node', geometry: { kind: 'rect', x: 40, y: 20, width: 50, height: 36, ...(mode !== 'ry-only' ? { rx: 18 } : {}), ...(mode !== 'rx-only' ? { ry: 18 } : {}) }, paint: { fill: '#fff', stroke: mode === 'borderless' ? 'none' : '#111', strokeWidth: mode === 'unknown-width' ? '1em' : '0.75', ...(mode === 'translucent-border' ? { strokeOpacity: '0.5' } : {}) } })
+  const proof = certifyScenePaint(scene([edge, card]))
+  if (['contact', 'rx-only', 'ry-only'].includes(mode)) expect(proof.status).toBe('passed')
+  else expect(proof.status).not.toBe('passed')
+})
+
 test.each(['default-hidden', 'explicit-hidden', 'user-space', 'start', 'reverse-start', 'vertical', 'borderless', 'matched-viewbox', 'visible', 'interior-ref', 'entering', 'tiny-entering', 'scale-hint', 'viewbox', 'rotated', 'diagonal', 'written-mismatch', 'unknown-width', 'unsupported-output'] as const)('a clipped endpoint viewport proves complete marker containment only for %s', mode => {
   const start = mode === 'start' || mode === 'reverse-start', vertical = mode === 'vertical'
   const marker: MarkerDescriptor = tipAnchoredArrow('viewport-arrow', { width: 8, height: 5 }, start && mode !== 'reverse-start' ? 'start' : 'end', { fill: '#111', stroke: '#111', strokeWidth: '0.75', strokeLinejoin: 'round' }, mode === 'user-space' ? 'userSpaceOnUse' : undefined)

@@ -283,6 +283,28 @@ function outsideFilledBody(surface: Surface, bounds: AxisAlignedBox, attached: b
     if (witness) sampleMargin = strokeExtent * (paint.vectorEffect === 'non-scaling-stroke' ? inverseNorm : 1)
     else if (strokeExtent > 0 && sceneGroupOpacity(paint.opacity) !== 0 && sceneGroupOpacity(paint.strokeOpacity) !== 0 && !(attached && contactAllowed && borderWidth > 0) && overlaps(painted, bounds)) return false
     const inset = !witness && attached && contactAllowed ? Math.max(0, borderWidth / 2) : 0
+    if (g.kind === 'rect') {
+      // SVG rounds by an ellipse swept over the remaining central rectangle.
+      // Its support function separates the entire marker hull, rather than
+      // treating empty rounded corners as filled artwork.
+      const rx = Math.min(g.width / 2, g.rx ?? g.ry ?? 0), ry = Math.min(g.height / 2, g.ry ?? g.rx ?? 0)
+      if (rx > 0 && ry > 0) {
+        const cx = g.x + g.width / 2, cy = g.y + g.height / 2
+        const halfWidth = g.width / 2 - rx, halfHeight = g.height / 2 - ry
+        for (const point of samples) {
+          if (!work()) return false
+          const dx = point.x - cx, dy = point.y - cy
+          const nx = (dx - Math.max(-halfWidth, Math.min(halfWidth, dx))) / (rx * rx)
+          const ny = (dy - Math.max(-halfHeight, Math.min(halfHeight, dy))) / (ry * ry)
+          const norm = Math.hypot(nx, ny)
+          if (!norm) continue
+          const x = nx / norm, y = ny / norm
+          const support = halfWidth * Math.abs(x) + halfHeight * Math.abs(y) + Math.hypot(rx * x, ry * y) - inset + sampleMargin
+          if (samples.every(p => work() && (p.x - cx) * x + (p.y - cy) * y >= support - tolerance)) return true
+        }
+        return false
+      }
+    }
     if (g.kind === 'ellipse' || g.kind === 'circle') {
       const rx = g.kind === 'circle' ? g.r : g.rx, ry = g.kind === 'circle' ? g.r : g.ry
       if (!(rx > 0 && ry > 0)) return false
