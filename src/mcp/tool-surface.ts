@@ -377,7 +377,7 @@ function unknownMethod(id: number | string | null, method: string): JsonRpcRespo
 
 export function createExecuteTool(options: { sdkDeclaration: string; hosted?: boolean }): McpToolDefinition {
   const hostedNote = options.hosted
-    ? `Prefer render/verify or mutate/build. SVG/ASCII/layout enforce
+    ? `SVG/ASCII/layout enforce
 security:'strict', embedFontImport:false.
 
 `
@@ -389,7 +389,7 @@ security:'strict', embedFontImport:false.
   return {
     name: 'execute',
     title: 'Execute Mermaid SDK code',
-    description: `Run JavaScript in ${runtime}; return a value. Combine edits.
+    description: `Run JavaScript in ${runtime}; return a value.
 No promises, async/await, dynamic import, or type annotations.
 ${hostedNote}SDK:
 ${options.sdkDeclaration}`,

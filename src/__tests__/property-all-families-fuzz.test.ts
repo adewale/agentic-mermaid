@@ -36,6 +36,8 @@ import { expectWellFormedXml, svgXmlReady } from './helpers/svg-xml.ts'
 
 beforeAll(svgXmlReady)
 
+const erReciprocalChain = "erDiagram\n q00 ||--o{ q01 : rel\n q01 ||--o{ q02 : rel\n q02 ||--o{ q03 : rel\n q01 ||--o{ q00 : extra"
+
 const SEED = 0x5eed1234
 const tagArb = fc.integer({ min: 0, max: 1_000_000 }).map(n => `q${n.toString(36)}`)
 
@@ -413,7 +415,7 @@ describe('universal fuzz: every renderable family (strong output oracles)', () =
           expect(rendererSemanticProjection(layoutMermaid(reparsed.value))).toEqual(rendererSemanticProjection(layoutMermaid(original.value)))
           assertWellFormedSvg(renderMermaidSVG(canonical))
         }),
-        fcParameters({ numRuns: 30, seed: SEED ^ 0x51a1 }),
+        fcParameters({ numRuns: 30, seed: SEED ^ 0x51a1, ...(fam.family === 'er' ? { examples: [[erReciprocalChain]] } : {}) }),
       )
     })
 
@@ -435,7 +437,7 @@ describe('universal fuzz: every renderable family (strong output oracles)', () =
           const graph = graphFor(p.value)
           if (graph) expect(auditRouteContracts(layoutGraphSync(graph), graph)).toEqual([])
         }),
-        fcParameters({ numRuns: 40, seed: SEED }),
+        fcParameters({ numRuns: 40, seed: SEED, ...(fam.family === 'er' ? { examples: [[erReciprocalChain]] } : {}) }),
       )
     })
   }

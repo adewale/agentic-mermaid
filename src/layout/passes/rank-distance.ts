@@ -2,6 +2,10 @@ import type { MermaidGraph, MermaidSubgraph, Point, PositionedEdge, PositionedGr
 import { classifyRoutes, shapePorts, simplifyPolyline } from '../../route-contracts.ts'
 import { DEFAULTS, calculatePathMidpoint, findSubgraph, layoutFlow, nodeCrossCenter, nodeCrossSize, nodeMainCenter, nodeMainSize } from '../geometry.ts'
 import { doglegBetween, routeClearOfNodes } from './shared.ts'
+import { minimumLinkRankGap } from '../link-rank-gap.ts'
+import { onShapeOutline, segmentThroughShape } from '../../layout-rubric.ts'
+import { isOutwardShapeApproach } from '../../shape-clipping.ts'
+import { LayoutCertificationError } from '../certification-error.ts'
 
 export function honorLinkRankDistance(nodes: PositionedNode[], edges: PositionedEdge[], groups: PositionedGroup[], graph: MermaidGraph): void {
   if (!graph.edges.some(e => (e.length ?? 1) > 1)) return
@@ -199,9 +203,12 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
     const exitS = endpointExit(constraint.source), entryT = endpointEntry(constraint.target)
     if (exitS === null || entryT === null) continue
     const currentGap = (entryT - exitS) * f.sign
-    const minGap = DEFAULTS.layerSpacing + (length - 1) * (DEFAULTS.layerSpacing + 40)
+    const minGap = minimumLinkRankGap(length, DEFAULTS.layerSpacing)
     if (currentGap < minGap) moveSet(movableUnit(constraint.source, constraint.target), (minGap - currentGap) * f.sign)
   }
+  // Containment does not impose a forward sibling rank. With no actual move,
+  // its existing inside-facing frame route must not be rebuilt as a dogleg.
+  if (!changed.size) return
   refreshChangedPairs()
 
   // Treat the shove as physical: whatever it lands on is pushed ahead, never
@@ -230,6 +237,11 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
     moveSet(separationUnit(ahead.id, behind.id), f.sign === 1 ? delta : -delta)
     refreshChangedPairs()
   }
+
+  // Group boxes are still at their original positions until regrowth. Keep
+  // only their scalar main spans, and only after an actual rank shove.
+  const originalGroupSpans = new Map<string, { start: number; size: number }>()
+  for (const [id, group] of groupMap) originalGroupSpans.set(id, { start: group[f.main], size: f.main === 'x' ? group.width : group.height })
 
   // Grow/translate every container so it still encloses its (possibly moved) members.
   for (const group of groups) regrowGroup(group)
@@ -261,6 +273,23 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
     }
   }
 
+  // Reconnection must respect the same full live header bands as final
+  // admission, including endpoint ancestors and bands taller than their frame.
+  const headersClear = (points: readonly Point[]): boolean => {
+    for (const group of groupMap.values()) {
+      if (group.concurrencyRegion || group.width === 0) continue
+      const height = group.headerHeight ?? group.height
+      if (!Number.isFinite(height) || height < 0) return false
+      if (height === 0 || group.width <= 0) continue
+      for (let index = 1; index < points.length; index++) {
+        const a = points[index - 1]!, b = points[index]!
+        if (Math.max(a.x, b.x) > group.x && Math.min(a.x, b.x) < group.x + group.width
+          && Math.max(a.y, b.y) > group.y && Math.min(a.y, b.y) < group.y + height) return false
+      }
+    }
+    return true
+  }
+
   // Free-channel centers: midpoints of the gaps between sorted box boundaries
   // along an axis — deterministic, obstacle-derived homes for detour segments
   // when a canonical route below is blocked. Intervals an orthogonal segment
@@ -269,14 +298,129 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
   const channelCenters = (axis: 'x' | 'y'): number[] => {
     const stops = new Set<number>()
     for (const n of nodes) { stops.add(n[axis]); stops.add(n[axis] + (axis === 'x' ? n.width : n.height)) }
+    for (const group of groupMap.values()) {
+      const height = group.concurrencyRegion ? 0 : group.headerHeight ?? group.height
+      if (!(height > 0 && Number.isFinite(height) && group.width > 0)) continue
+      stops.add(group[axis]); stops.add(group[axis] + (axis === 'x' ? group.width : height))
+    }
     const sorted = [...stops].sort((a, b) => a - b)
     const centers: number[] = []
     for (let i = 1; i < sorted.length; i++) if (sorted[i]! - sorted[i - 1]! > 2) centers.push((sorted[i]! + sorted[i - 1]!) / 2)
+    // Midpoints alone cannot bypass two aligned ancestor headers. Reuse the
+    // existing outer-lane clearance, still capped by byProximity's 16 choices.
+    if (axis === f.cross && groupMap.size && sorted.length > 0) {
+      centers.push(sorted[0]! - FEEDBACK_LANE_GAP, sorted.at(-1)! + FEEDBACK_LANE_GAP)
+    }
     return centers
   }
   const crossAxis: 'x' | 'y' = f.main === 'x' ? 'y' : 'x'
   const byProximity = (values: number[], anchor: number): number[] =>
     [...values].sort((a, b) => Math.abs(a - anchor) - Math.abs(b - anchor) || a - b).slice(0, 16)
+
+  const groupParents = new Map<string, string | undefined>()
+  const retainParents = (items: MermaidSubgraph[], parent?: string): void => {
+    for (const group of items) { groupParents.set(group.id, parent); retainParents(group.children, group.id) }
+  }
+  retainParents(graph.subgraphs)
+  const containsEndpoint = (group: string, endpoint: string): boolean => {
+    if ((scopeChainOf.get(endpoint) ?? []).includes(group)) return true
+    for (let parent = groupParents.get(endpoint); parent !== undefined; parent = groupParents.get(parent)) if (parent === group) return true
+    return false
+  }
+  const ownBodiesClear = (points: Point[], edge: PositionedEdge): boolean => {
+    for (const id of [edge.source, edge.target]) {
+      const node = nodeMap.get(id)
+      if (!node) continue
+      for (let index = 1; index < points.length; index++) if (segmentThroughShape(points[index - 1]!, points[index]!, node)) return false
+    }
+    return true
+  }
+  const contactDelta = (id: string): number | undefined => {
+    const node = nodeMap.get(id), group = groupMap.get(id), original = originalGroupSpans.get(id)
+    return node ? mainDelta.get(id) ?? 0 : group && original ? group[f.main] - original.start : undefined
+  }
+  interface StretchSpan { start: number; size: number; delta: number }
+  const stretchSpan = (id: string, other: string): StretchSpan | null => {
+    const node = nodeMap.get(id), delta = mainDelta.get(id) ?? 0
+    const otherScopes = new Set(scopeChainOf.get(other) ?? [])
+    if (groupMap.has(other)) otherScopes.add(other)
+    const owner = groupMap.has(id) ? id : (scopeChainOf.get(id) ?? []).find(scope => !otherScopes.has(scope))
+    if (owner && groupMap.has(owner)) {
+      const original = originalGroupSpans.get(owner)!, group = groupMap.get(owner)!, members = unitNodes(owner)
+      const shift = members.length ? mainDelta.get(members[0]!) ?? 0 : 0
+      if (members.every(member => (mainDelta.get(member) ?? 0) === shift)
+        && (f.main === 'x' ? group.width : group.height) === original.size) {
+        // Regrowth can round a frame differently from adding the requested
+        // node delta. Its retained physical displacement owns boundary ports.
+        return { ...original, delta: group[f.main] - original.start }
+      }
+      if (!node) return null
+    }
+    return node ? { start: node[f.main] - delta, size: nodeMainSize(node, graph.direction), delta } : null
+  }
+  const stretchRetainedRoute = (edge: PositionedEdge): Point[] | null => {
+    const source = stretchSpan(edge.source, edge.target), target = stretchSpan(edge.target, edge.source)
+    if (!source || !target || edge.points.length < 2) return null
+    const [left, right] = source.start <= target.start ? [source, target] : [target, source]
+    const lowEnd = left.start + left.size, highStart = right.start
+    const oldGap = highStart - lowEnd, newGap = highStart + right.delta - (lowEnd + left.delta)
+    // Overlapping/ambiguous units or a collapsed mapping cannot preserve the
+    // original route topology. Let the existing bounded constructors try.
+    const uniform = source.delta === target.delta && Number.isFinite(source.delta)
+    if (!uniform && !(oldGap > 0 && newGap > 0 && [lowEnd, highStart, oldGap, newGap, left.delta, right.delta].every(Number.isFinite))) return null
+    const scale = uniform ? 1 : newGap / oldGap
+    if (!(scale > 0 && Number.isFinite(scale))) return null
+    const project = (value: number): number => uniform ? value + source.delta
+      : value <= lowEnd ? value + left.delta : value >= highStart ? value + right.delta
+        : lowEnd + left.delta + (value - lowEnd) * scale
+    const points = edge.points.map(point => ({ ...point, [f.main]: project(point[f.main]) }))
+    if (points.some(point => !Number.isFinite(point.x) || !Number.isFinite(point.y))) return null
+    // Positive mathematical slope must also retain strict coordinate order
+    // in Float64; a rounded collapse could create a new route contact.
+    const order = edge.points.map(point => point[f.main]).sort((a, b) => a < b ? -1 : a > b ? 1 : 0)
+    for (let index = 1; index < order.length; index++) if (order[index]! > order[index - 1]!
+      && !(project(order[index]!) > project(order[index - 1]!))) return null
+    for (let index = 1; index < points.length; index++) {
+      const a = points[index - 1]!, b = points[index]!
+      if (a.x !== b.x && a.y !== b.y) return null
+      for (const node of nodes) if (segmentThroughShape(a, b, node)) return null
+    }
+    const sourceDelta = contactDelta(edge.source), targetDelta = contactDelta(edge.target)
+    if (sourceDelta === undefined || targetDelta === undefined
+      || points[0]![f.main] !== edge.points[0]![f.main] + sourceDelta
+      || points.at(-1)![f.main] !== edge.points.at(-1)![f.main] + targetDelta) return null
+    if (!contactsClear(points, edge)) return null
+    const ends = new Set([edge.source, edge.target])
+    return routeClearOfNodes(points, nodes, ends) && headersClear(points) ? points : null
+  }
+
+  const translatedContact = (id: string, old: Point | undefined): Point | null => {
+    if (!old) return null
+    const delta = contactDelta(id)
+    if (delta === undefined) return null
+    return { ...old, [f.main]: old[f.main] + delta }
+  }
+  const contactsClear = (points: Point[], edge: PositionedEdge): boolean => {
+    for (const [id, start] of [[edge.source, true], [edge.target, false]] as const) {
+      const node = nodeMap.get(id), group = groupMap.get(id)
+      const owner = node ?? (group ? { id: group.id, label: group.label, shape: 'rectangle' as const, x: group.x, y: group.y, width: group.width, height: group.height } : undefined)
+      if (!owner) return false
+      const port = start ? points[0] : points.at(-1)
+      if (!port) return false
+      let neighbor: Point | undefined
+      for (let index = start ? 1 : points.length - 2; index >= 0 && index < points.length; index += start ? 1 : -1) {
+        const point = points[index]!
+        if (point.x !== port.x || point.y !== port.y) { neighbor = point; break }
+      }
+      if (!neighbor || !onShapeOutline(owner, port)) return false
+      // A frame connected to its own descendant is contacted from its inside.
+      // All leaf contacts and external frame contacts retain outward normals.
+      const inward = !node && containsEndpoint(id, start ? edge.target : edge.source)
+      const ray = inward ? { x: port.x - (neighbor.x - port.x), y: port.y - (neighbor.y - port.y) } : neighbor
+      if (!Number.isFinite(ray.x) || !Number.isFinite(ray.y) || !isOutwardShapeApproach(owner, port, ray)) return false
+    }
+    return true
+  }
 
   // Reconnect every edge after the rank-distance move so no endpoint is left
   // pointing at a node's pre-move position (which would trip the route-staleness
@@ -288,8 +432,15 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
     const cls = edge.edgeIndex !== undefined ? (classes[edge.edgeIndex] ?? 'primary-forward') : 'primary-forward'
     if (cls === 'self-loop') {
       const delta = mainDelta.get(edge.source) ?? 0
-      if (delta !== 0) for (const p of edge.points) p[f.main] += delta
+      if (delta !== 0) edge.points = edge.points.map(point => ({ ...point, [f.main]: point[f.main] + delta }))
       if (delta !== 0 && edge.labelPosition) edge.labelPosition[f.main] += delta
+      continue
+    }
+    const preserveContacts = groupMap.size > 0 && (cls === 'cross-hierarchy' || cls === 'container')
+    const retained = preserveContacts ? stretchRetainedRoute(edge) : null
+    if (retained) {
+      edge.points = retained
+      if (edge.label) edge.labelPosition = calculatePathMidpoint(retained)
       continue
     }
     if (cls === 'feedback') {
@@ -316,7 +467,7 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
         point(mSrc, edgeCross(source)), point(mSrc, col), point(mRung, col), point(mRung, lane), point(mTgt, lane), point(mTgt, edgeCross(target)),
       ]
       const ends = new Set([edge.source, edge.target])
-      const clear = (pts: Point[]): boolean => routeClearOfNodes(simplifyPolyline(pts), nodes, ends)
+      const clear = (pts: Point[]): boolean => routeClearOfNodes(simplifyPolyline(pts), nodes, ends) && headersClear(pts)
       const lanes: Array<[number, (n: PositionedNode) => number]> = [[laneCross, crossMaxEdge], [laneCrossMin, crossMinEdge]]
       let route: Point[] | undefined
       for (const [lane, edgeCross] of lanes) {
@@ -341,8 +492,8 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
       if (edge.label) edge.labelPosition = calculatePathMidpoint(edge.points)
       continue
     }
-    const start = flowPort(edge.source, f.sourceSide)
-    const end = flowPort(edge.target, f.targetSide)
+    const start = preserveContacts ? translatedContact(edge.source, edge.points[0]) : flowPort(edge.source, f.sourceSide)
+    const end = preserveContacts ? translatedContact(edge.target, edge.points.at(-1)) : flowPort(edge.target, f.targetSide)
     if (!start || !end) continue
     // A midpoint elbow can put the dogleg's cross run or its entry riser
     // through a bystander box. When — and only when — the midpoint dogleg is
@@ -353,10 +504,11 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
     // entry port, threadable only through the channel beside it). If every
     // variant is blocked, keep the midpoint for the post-freeze net to repair.
     const ends = new Set([edge.source, edge.target])
-    const clear = (pts: Point[]): boolean => routeClearOfNodes(pts, nodes, ends)
+    const clear = (pts: Point[]): boolean => routeClearOfNodes(pts, nodes, ends) && headersClear(pts) && (!preserveContacts || contactsClear(pts, edge) && ownBodiesClear(pts, edge))
     const lo = Math.min(start[f.main], end[f.main]), hi = Math.max(start[f.main], end[f.main])
     let route = doglegBetween(start, end, graph.direction, (lo + hi) / 2)
-    if (!clear(route)) {
+    let proved = clear(route)
+    if (!proved) {
       let found: Point[] | undefined
       const mains = byProximity(channelCenters(f.main === 'x' ? 'x' : 'y').filter(m => m > lo && m < hi), (lo + hi) / 2)
       for (const m of mains) {
@@ -375,8 +527,11 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
           }
         }
       }
-      if (found) route = found
+      if (found) { route = found; proved = true }
     }
+    if (preserveContacts && !proved) throw new LayoutCertificationError([{
+      strategy: 'link-rank-reconnect', violations: [`edge ${edge.source}->${edge.target}: no proven contact-preserving route after rank move`],
+    }])
     edge.points = route
     if (edge.label) edge.labelPosition = calculatePathMidpoint(edge.points)
   }

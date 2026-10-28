@@ -7,7 +7,7 @@ import { PURE_COMPUTE_ANNOTATIONS, type McpToolDefinition } from './tool-surface
 export const SDK_FAMILIES = BUILTIN_FAMILY_METADATA.map(family => family.id)
 const SDK_FAMILY_SET = new Set<string>(SDK_FAMILIES)
 const DIAGRAM_KIND = SDK_FAMILIES.map(family => `'${family}'`).join(' | ')
-const NARROWERS = BUILTIN_FAMILY_METADATA.map(family => `${family.narrower}(d:ParsedDiagram):ValidDiagram|null`).join('\n')
+const NARROWERS = BUILTIN_FAMILY_METADATA.map(family => `${family.narrower}:NarrowDiagram`).join('\n')
 
 /**
  * The declaration sent with tools/list. Family IR and mutation unions stay out
@@ -41,6 +41,7 @@ interface PreservedValidDiagram {
   }
 }
 type ParsedDiagram = ValidDiagram | ExtensionValidDiagram | PreservedValidDiagram
+type NarrowDiagram = (d: ParsedDiagram) => ValidDiagram | null
 ${CODE_MODE_LAYOUT_SUMMARY_DECLARATION}
 interface VerifyResult{ok:boolean;warnings:unknown[];layout:RenderedLayout;checks?:{renderability:'passed'|'failed'|'not-checked';sourceLoss:'detected'|'not-detected';taskCorrectness:'not-checked'}}
 type MermaidConfigScalar=string|number|boolean|null

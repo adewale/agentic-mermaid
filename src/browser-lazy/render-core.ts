@@ -5,7 +5,7 @@ import type { HtmlEntityTableNotLoadedError } from '../shared/html-entity-table.
 import type { RenderOptions } from '../types.ts'
 import type { GraphicalSvgArtifact } from '../graphical-render.ts'
 import { captureRenderOptions, capturedRenderBackend, resolveRenderRequestForExecution, type ResolvedRenderRequest } from '../render-contract.ts'
-import { DeferredDependencyError } from '../layout/certification-error.ts'
+import { deferredDependency } from '../layout/certification-error.ts'
 import { measureRenderStage } from '../render-stages.ts'
 
 export async function renderLoadedFamilySvg(
@@ -25,7 +25,7 @@ export async function renderLoadedFamilySvgWithReceipt(
   if (capturedRenderBackend(options) !== 'default') await import('../scene/builtin-backends.ts')
   installLoadedFamilyDescriptor(family)
   let request: ResolvedRenderRequest | undefined
-  const loaded = new Map<'ELK' | 'YAML' | 'HTML entities', () => Promise<void>>()
+  const loaded = new Map<'ELK' | 'YAML' | 'Agentic layout' | 'Forest layout' | 'HTML entities', () => Promise<void>>()
   for (;;) {
     try {
       request ??= measureRenderStage('request', () => resolveRenderRequestForExecution(source, options, 'svg', undefined, {
@@ -39,10 +39,11 @@ export async function renderLoadedFamilySvgWithReceipt(
       // their original snapshot across each dependency await. Each named
       // provider may be demanded only once; another loader for the same name
       // cannot turn a failed replay into an unbounded retry.
-      const load = error instanceof DeferredDependencyError ? error.load
+      const deferred = deferredDependency(error)
+      const load = deferred ? deferred.load
         : (error as Partial<HtmlEntityTableNotLoadedError> | undefined)?.loadHtmlEntityTable
-      const dependency = error instanceof DeferredDependencyError
-        ? error.dependency === 'ELK' || error.dependency === 'YAML' ? error.dependency : undefined
+      const dependency = deferred
+        ? deferred.dependency === 'ELK' || deferred.dependency === 'YAML' || deferred.dependency === 'Agentic layout' || deferred.dependency === 'Forest layout' ? deferred.dependency : undefined
         : typeof load === 'function' ? 'HTML entities' : undefined
       if (!dependency || typeof load !== 'function' || loaded.has(dependency) || [...loaded.values()].includes(load)) throw error
       loaded.set(dependency, load)

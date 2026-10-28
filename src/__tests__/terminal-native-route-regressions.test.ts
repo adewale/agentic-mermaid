@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test'
-import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
+import { AsciiWidthError, renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
+import { renderMermaidWithActions } from '../agent/index.ts'
 import { terminalDocumentOf, type TerminalDocument, type TerminalRegion } from '../ascii/terminal-document.ts'
 import { convertToAsciiGraph } from '../ascii/converter.ts'
 import { createMapping } from '../ascii/grid.ts'
@@ -7,6 +8,183 @@ import { drawGraph } from '../ascii/draw.ts'
 import { shapeRegistry } from '../ascii/shapes/index.ts'
 import { parseMermaid } from '../parser.ts'
 import { contactSheetScenarios } from '../../eval/visual-rubric/scenarios.ts'
+import { readFileSync } from 'node:fs'
+import { parseAsciiGoldenFixture } from '../../scripts/ascii-golden-fixture.ts'
+
+const denseClassSource = `classDiagram
+direction TB
+class \`ns:Domain\`["Card 1-0 WWW 👩‍💻"] {
+  +String value0
+}
+class \`class-namespace:Domain\`["Card 1-1 WWWWWWWW"] {
+  +String value1
+  +step1()
+}
+class \`__interface_0\`["Card 1-2 WWWWWW"] {
+  +String value2
+}
+class \`C3\`["Card 1-3 WWWWWWWWW 👩‍💻"] {
+  +String value3
+  +step3()
+}
+class \`C4\`["Card 1-4 WWWWWWW"] {
+  +String value4
+}
+class \`C5\`["Card 1-5 WWWW"] {
+  +String value5
+}
+class \`C6\`["Card 1-6 WWWWWWWW 👩‍💻"] {
+  +String value6
+  +step6()
+}
+class \`C7\`["Card 1-7 WW"] {
+  +String value7
+  +step7()
+}
+class \`C8\`["Card 1-8 W"] {
+  +String value8
+  +step8()
+}
+class \`C9\`["Card 1-9 WWWWWWWWW 👩‍💻"] {
+  +String value9
+}
+\`ns:Domain\` ..> \`class-namespace:Domain\`
+\`ns:Domain\` --> \`__interface_0\` : edge 1 xxxxx
+\`ns:Domain\` ..> \`C3\`
+\`ns:Domain\` *-- \`C4\`
+\`ns:Domain\` ..> \`C5\` : edge 4 x
+\`ns:Domain\` ..|> \`C6\` : edge 5 xxxxxxxxxxxxxxxxx
+\`ns:Domain\` ..> \`C7\` : edge 6 xxxxx
+\`ns:Domain\` --> \`C8\`
+\`ns:Domain\` <|-- \`C9\`
+\`class-namespace:Domain\` -- \`C9\`
+\`__interface_0\` ..> \`C9\` : edge 10 xxxxxxxxxxxxxx
+\`C3\` -- \`C9\`
+\`C4\` <|-- \`C9\`
+\`C5\` <|-- \`C9\` : edge 13 xxxxxxxxx
+\`C6\` -- \`C9\`
+\`C7\` *-- \`C9\`
+\`C8\` ..> \`C9\`
+\`ns:Domain\` ..|> \`class-namespace:Domain\` : edge 17 xxxxxxxxxxxxxxx
+\`C9\` ..> \`C9\` : edge 18 xxxxxxxxxxxx
+note for \`ns:Domain\` "owned note 1<br/>second line"
+note "free note 1"`
+
+// The Class1 hub/parallel/self-route counterexample retains authored
+// endpoint roles and labels survive even when the compact shafts collide.
+test.each([false, true].flatMap(useAscii => (['none', 'ansi16', 'html'] as const).map(colorMode => [useAscii, colorMode] as const)))('Class dense relationships retain certified owned ink (ASCII=%s, %s)', (useAscii, colorMode) => {
+  const source = denseClassSource
+  const result = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode, layoutSafety: 'strict' })
+  expect(result.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [], budget: { exhausted: false, maxOperations: 1_000_000, maxOutputCodeUnits: 2_000_000 } })
+  const doc = terminalDocumentOf(result)!, regions = doc.regions(), edges = regions.filter(region => region.kind === 'edge')
+  expect(edges).toHaveLength(20)
+  for (const edge of edges) {
+    expect(hasOwnedRoute(doc, edge), edge.id).toBe(true)
+    expect(edge.ports).toHaveLength(2)
+    visibleEndpointMarkers(doc, edge)
+  }
+  const owners = [...doc.layoutEvidence().owners].filter(owner => owner.kind === 'edge')
+  expect(owners).toHaveLength(20)
+  expect(owners.every(owner => owner.route === 'connected')).toBe(true)
+  const witnesses = [...(doc.layoutEvidence().pathWitnesses ?? [])]
+  expect(witnesses).toHaveLength(edges.length)
+  expect(witnesses.every(witness => witness !== null && edges.some(edge => edge.id === witness.owner.id))).toBe(true)
+  expect(regions.find(region => region.id === 'relationship:0')).toMatchObject({ from: 'ns:Domain', to: 'class-namespace:Domain' })
+  expect(regions.find(region => region.id === 'relationship:17')).toMatchObject({ from: 'ns:Domain', to: 'class-namespace:Domain', projectedText: 'edge 17 xxxxxxxxxxxxxxx' })
+  expect(regions.find(region => region.id === 'relationship:18')).toMatchObject({ from: 'C9', to: 'C9', projectedText: 'edge 18 xxxxxxxxxxxx' })
+  expect(regions.find(region => region.id === 'ns:Domain')?.projectedText).toContain('Card 1-0 WWW 👩‍💻')
+  expect(regions.find(region => region.id === 'class-namespace:Domain')?.parentId).toBeUndefined()
+  expect(regions.find(region => region.id === '__interface_0')?.kind).toBe('node')
+  expect(regions.find(region => region.annotationTarget?.id === 'ns:Domain')?.projectedText).toBe('owned note 1\nsecond line')
+  expect(regions.find(region => region.id === 'note:1')?.projectedText).toBe('free note 1')
+  expect(visibleEndpointMarkers(doc, edges.find(edge => edge.id === 'relationship:3')!).map(marker => marker.shape)).toEqual(['filled-diamond'])
+  expect(visibleEndpointMarkers(doc, edges.find(edge => edge.id === 'relationship:17')!).map(marker => marker.shape)).toEqual(['open-arrow'])
+  expect(() => doc.assertMarkers()).not.toThrow()
+})
+
+test.each([false, true])('Class safe compact association preserves its reviewed canvas (ASCII=%s)', useAscii => {
+  const fixture = parseAsciiGoldenFixture(readFileSync(new URL(`./testdata/${useAscii ? 'ascii' : 'unicode'}/cls_association.txt`, import.meta.url), 'utf8'))
+  const result = renderMermaidASCIIWithReceipt(fixture.mermaid, { useAscii, colorMode: 'none', paddingX: fixture.paddingX, paddingY: fixture.paddingY, layoutSafety: 'strict' })
+  const canvas = (text: string) => text.split('\n').map(line => line.trimEnd()).join('\n').replace(/^\n+/, '').trimEnd()
+  expect(canvas(result.text)).toBe(canvas(fixture.expected))
+  expect(result.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [] })
+  const doc = terminalDocumentOf(result)!, edge = doc.regions().find(region => region.kind === 'edge')!
+  expect(hasOwnedRoute(doc, edge)).toBe(true)
+  expect(edge).toMatchObject({ from: 'Student', to: 'Course', projectedText: 'enrolls' })
+})
+
+test.each([false, true])('Class recovery keeps hyperlink footers and inert actions (ASCII=%s)', useAscii => {
+  const href = 'https://example.com/docs?x=1&y=2'
+  const source = `${denseClassSource}\nclick \`ns:Domain\` href "${href}" "API reference"`
+  const result = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none', layoutSafety: 'strict' })
+  expect(result.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [] })
+  expect(result.text).toContain(`link ns:Domain: ${href}`)
+  const doc = terminalDocumentOf(result)!
+  expect(doc.regions().filter(region => region.kind === 'edge')).toHaveLength(20)
+  expect([...doc.entries()].filter(([, , cell]) => cell.glyph === '&').every(([, , cell]) => cell.owners.some(owner => owner.kind === 'node' && owner.id === 'ns:Domain'))).toBe(true)
+  const artifact = renderMermaidWithActions(source, { format: 'ascii', options: { useAscii, colorMode: 'none', layoutSafety: 'strict' } })
+  expect(artifact.actionSurface.actions[0]).toMatchObject({ target: 'ns:Domain', href, tooltip: 'API reference', security: 'safe', executable: false })
+  const unsafe = renderMermaidWithActions('classDiagram\nclass A\nclick A href "javascript:alert(1)"', { format: 'ascii', options: { useAscii, colorMode: 'none' } })
+  expect(unsafe.output).not.toContain('javascript:')
+  expect(unsafe.actionSurface.actions[0]).toMatchObject({ target: 'A', href: 'javascript:alert(1)', security: 'unsafe', executable: false })
+})
+
+test('Class recovery includes complete hyperlink footers in its width limit', () => {
+  const href = `https://example.com/${'long'.repeat(200)}`
+  const source = `${denseClassSource}\nclick \`ns:Domain\` href "${href}"`
+  for (const field of ['targetWidth', 'maxWidth'] as const) {
+    let caught: unknown
+    try { renderMermaidASCIIWithReceipt(source, { colorMode: 'none', [field]: 400 }) } catch (error) { caught = error }
+    expect(caught).toBeInstanceOf(AsciiWidthError)
+    expect(caught).toMatchObject({ code: 'ASCII_TARGET_WIDTH_IMPOSSIBLE', requestedWidth: 400, family: 'class' })
+  }
+})
+
+test.each(['TB', 'BT', 'LR', 'RL'].flatMap(direction => [false, true].map(useAscii => [direction, useAscii] as const)))('Class unboxed interfaces use their actual lollipop surface (%s, ASCII=%s)', (direction, useAscii) => {
+  const name = 'Interface 👩‍💻'
+  const result = renderMermaidASCIIWithReceipt(`classDiagram
+direction ${direction}
+namespace Outer {
+  class A["Carrier 👩‍💻"]
+}
+class interface0["Authored interface0"]
+A --() \`${name}\`
+A --() \`${name}\``, { useAscii, colorMode: 'none', layoutSafety: 'strict' })
+  expect(result.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [] })
+  const doc = terminalDocumentOf(result)!, regions = doc.regions(), edges = regions.filter(region => region.kind === 'edge')
+  expect(edges).toHaveLength(2)
+  expect(new Set(edges.map(edge => edge.to)).size).toBe(2)
+  expect(regions.find(region => region.id === 'interface0')?.projectedText).toBe('Authored interface0')
+  expect(regions.find(region => region.id === 'A')?.parentId).toBe('Outer')
+  for (const edge of edges) {
+    expect(edge.from).toBe('A')
+    expect(edge.to).not.toBe('interface0')
+    const node = regions.find(region => region.kind === 'node' && region.id === edge.to)!, port = edge.ports!.find(port => port.end === 'end')!, cell = doc.cell(port.x, port.y)!
+    expect(node.projectedText).toBe(name)
+    expect(node.canvasColStart).toBe(port.x)
+    expect(node.canvasColEnd).toBe(port.x + cell.width)
+    expect(node.canvasRow).toBe(port.y)
+    expect(node.rowSpan ?? 1).toBe(1)
+    expect(cell.marker?.shape).toBe('lollipop')
+    expect(cell.owners).toContainEqual(expect.objectContaining({ id: node.id, kind: 'node' }))
+    expect(cell.owners).toContainEqual(expect.objectContaining({ id: edge.id, kind: 'edge' }))
+    expect(hasOwnedRoute(doc, edge)).toBe(true)
+    expect(visibleEndpointMarkers(doc, edge).map(marker => marker.shape)).toEqual(['lollipop'])
+  }
+  expect(() => doc.assertMarkers()).not.toThrow()
+})
+
+test.each([false, true])('dense parallel relationships retain connected owned ink and physical markers (ASCII=%s)', useAscii => {
+  const source = readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-19.mmd', import.meta.url), 'utf8')
+  const { doc } = render(source, useAscii)
+  const edge = doc.regions().find(region => region.id === 'edge#19:n3->n5')!
+  expect(edge).toMatchObject({ from: 'n3', to: 'n5' })
+  expect(hasOwnedRoute(doc, edge)).toBe(true)
+  expect(edge.ports!.some(port => port.markerProjection)).toBe(false)
+  expect(doc.diagnostics.filter(diagnostic => diagnostic.code === 'TERMINAL_GEOMETRY_COLLISION')).toEqual([])
+  expect(visibleEndpointMarkers(doc, edge).map(marker => marker.shape)).toEqual(['arrow'])
+  expect(() => doc.assertMarkers()).not.toThrow()
+})
 
 function visibleEndpointMarkers(doc: TerminalDocument, edge: TerminalRegion) {
   return edge.ports!.flatMap(port => {
@@ -123,7 +301,7 @@ test('non-geometric terminal families explicitly retain their distinct projectio
   expect(gantt.terminalStyle.diagnostics.filter(diagnostic => diagnostic.feature.endsWith('.dependencies'))).toHaveLength(2)
 })
 
-test.each([false, true])('bounded Flowchart routing retains declined relationships without inventing marker ink (ASCII=%s)', useAscii => {
+test.each([false, true])('bounded Flowchart routing connects previously declined parallel relationships (ASCII=%s)', useAscii => {
   for (const source of [
     'graph RL\nN0[N0]\nN1[N1]\nN2[N2]\nN3[N3]\nN4[N4]\nN5[N5]\nN5 --> N1\nN1 --> N4\nN5 --> N0\nN1 --> N4\nN0 --> N5',
     'graph TD\nN0[N0]\nN1[N1]\nN2[N2]\nN3[N3]\nN4[N4]\nN5[N5]\nN6[N6]\nN3 --> N6\nN3 --> N1\nN1 --> N6\nN1 --> N2\nN1 --> N6',
@@ -132,16 +310,14 @@ test.each([false, true])('bounded Flowchart routing retains declined relationshi
     const doc = terminalDocumentOf(result)!
     const edges = doc.regions().filter(region => region.kind === 'edge')
     expect(edges).toHaveLength(parseMermaid(source).edges.length)
-    const projected = edges.filter(edge => edge.projectedText?.includes(' --> '))
-    expect(projected.length).toBeGreaterThan(0)
-    for (const edge of projected) {
-      expect(edge.projectedText).toContain(`${edge.from} --> ${edge.to}`)
-      expect(result.terminalStyle.diagnostics).toContainEqual(expect.objectContaining({ code: 'TERMINAL_FAMILY_PROJECTION', feature: `graph.${edge.id}.route` }))
-      for (const port of edge.ports ?? []) expect(port.markerProjection).toBe(`graph.${edge.id}.route`)
+    for (const edge of edges) {
+      expect(hasOwnedRoute(doc, edge), edge.id).toBe(true)
+      expect(edge.ports!.some(port => port.markerProjection)).toBe(false)
+      visibleEndpointMarkers(doc, edge)
     }
     expect(() => doc.assertMarkers()).not.toThrow()
-    expect(result.receipt.layoutCertification?.status).not.toBe('passed')
-    expect(() => renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none', layoutSafety: 'strict' })).toThrow('Strict terminal layout safety failed')
+    expect(result.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [] })
+    expect(() => renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none', layoutSafety: 'strict' })).not.toThrow()
   }
 })
 
@@ -151,15 +327,25 @@ function render(source: string, useAscii = false) {
 }
 
 function hasOwnedRoute(doc: TerminalDocument, edge: TerminalRegion): boolean {
-  const [start, end] = edge.ports!
-  const points = new Set([...doc.entries()].filter(([, , cell]) => cell.owners.some(owner => owner.kind === 'edge' && owner.id === edge.id)).map(([x, y]) => `${x},${y}`))
-  points.add(`${start!.x},${start!.y}`); points.add(`${end!.x},${end!.y}`)
-  const queue = [`${start!.x},${start!.y}`], seen = new Set(queue)
+  const [start, end] = edge.ports!.map(port => {
+    const dx = port.side === 'R' ? 1 : port.side === 'L' ? -1 : 0, dy = port.side === 'B' ? 1 : port.side === 'T' ? -1 : 0
+    // Unmarked border ink belongs to the node. Its relationship starts at
+    // the outward-adjacent cell; marked endpoints retain the actual glyph.
+    const offset = port.markers?.length ? port.markerOffset ?? 0 : 1
+    return { x: port.x + dx * offset, y: port.y + dy * offset }
+  })
+  const glyphMasks: Readonly<Record<string, number>> = { '─': 10, '│': 5, '┌': 6, '┐': 12, '└': 3, '┘': 9, '├': 7, '┤': 13, '┬': 14, '┴': 11, '┼': 15, '╌': 10, '┊': 5, '-': 10, '|': 5, '.': 10, ':': 5, '+': 15 }
+  const points = new Map<string, number>([...doc.entries()].flatMap(([x, y, cell]) => {
+    if (!cell.owners.some(owner => owner.kind === 'edge' && owner.id === edge.id)) return []
+    const mask = cell.kind === 'stroke' ? glyphMasks[cell.glyph] : cell.kind === 'marker' ? cell.marker?.direction === 'T' || cell.marker?.direction === 'B' ? 5 : 10 : 0
+    return mask ? [[`${x},${y}`, mask] as const] : []
+  }))
+  const first = `${start!.x},${start!.y}`, queue = points.has(first) ? [first] : [], seen = new Set(queue)
   for (let index = 0; index < queue.length; index++) {
-    const [x, y] = queue[index]!.split(',').map(Number)
-    for (const [nx, ny] of [[x! - 1, y!], [x! + 1, y!], [x!, y! - 1], [x!, y! + 1]]) {
-      const next = `${nx},${ny}`
-      if (points.has(next) && !seen.has(next)) { seen.add(next); queue.push(next) }
+    const [x, y] = queue[index]!.split(',').map(Number), mask = points.get(queue[index]!)!
+    for (const [dx, dy, exit, entry] of [[-1, 0, 8, 2], [1, 0, 2, 8], [0, -1, 1, 4], [0, 1, 4, 1]]) {
+      const next = `${x! + dx!},${y! + dy!}`
+      if ((mask & exit!) && ((points.get(next) ?? 0) & entry!) && !seen.has(next)) { seen.add(next); queue.push(next) }
     }
   }
   return seen.has(`${end!.x},${end!.y}`)
@@ -251,4 +437,46 @@ A --> B : edge`)
     expect([...doc.entries()].some(([x, y, cell]) => Math.abs(x - port.x) + Math.abs(y - port.y) <= 1 && cell.owners.some(owner => owner.kind === 'node' && owner.id === port.nodeId))).toBe(true)
   }
   expect(hasOwnedRoute(doc, edge)).toBe(true)
+})
+
+test.each(['cyclic-labelled-15-chains', 'cyclic-labelled-19'].flatMap(fixture => [false, true].map(useAscii => [fixture, useAscii] as const)))('dense labelled Flow retains complete terminal routes: %s (ASCII=%s)', (fixture, useAscii) => {
+  const source = readFileSync(new URL(`../../eval/layout-compare/fixtures/${fixture}.mmd`, import.meta.url), 'utf8')
+  const result = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none', graphLayout: { backend: 'agentic', fallback: 'none' } })
+  expect(result.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [], budget: { exhausted: false, maxOperations: 1_000_000 } })
+  const parsed = parseMermaid(source), doc = terminalDocumentOf(result)!, regions = doc.regions()
+  const edges = regions.filter(region => region.kind === 'edge')
+  expect(edges).toHaveLength(parsed.edges.length)
+  for (const [index, authored] of parsed.edges.entries()) {
+    const edge = edges.find(region => region.id === `edge#${index}:${authored.source}->${authored.target}`)!
+    expect(edge, `occurrence ${index}`).toBeDefined()
+    expect(edge).toMatchObject({ from: authored.source, to: authored.target })
+    expect(edge.ports).toHaveLength(2)
+    if (authored.label) expect(edge.projectedText).toContain(authored.label)
+  }
+  const affected = fixture === 'cyclic-labelled-15-chains' ? [31] : [19, 25, 22, 42]
+  for (const index of affected) {
+    const authored = parsed.edges[index]!, edge = edges.find(region => region.id === `edge#${index}:${authored.source}->${authored.target}`)!
+    expect(hasOwnedRoute(doc, edge), edge.id).toBe(true)
+    expect(edge.ports!.some(port => port.markerProjection)).toBe(false)
+  }
+})
+
+
+test.each(['TD', 'BT', 'LR', 'RL'])('nested face escape lanes retain parallel and reciprocal routes (%s)', direction => {
+  const source = `flowchart ${direction}
+subgraph Outer[Outer]
+subgraph Inner[Inner]
+A[Source]
+end
+end
+X[Target]
+A --> X
+A --> X
+A --> X
+X --> A`
+  const result = renderMermaidASCIIWithReceipt(source, { colorMode: 'none', layoutSafety: 'strict' })
+  expect(result.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [] })
+  const doc = terminalDocumentOf(result)!, edges = doc.regions().filter(region => region.kind === 'edge')
+  expect(edges).toHaveLength(4)
+  for (const edge of edges) { expect(hasOwnedRoute(doc, edge), edge.id).toBe(true); visibleEndpointMarkers(doc, edge) }
 })

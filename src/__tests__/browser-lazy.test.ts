@@ -7,11 +7,66 @@ import { renderLoadedFamilySvg, renderLoadedFamilySvgWithReceipt } from '../brow
 import { registerStyle } from '../scene/style-registry.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { DeferredDependencyError, LayoutCertificationError } from '../layout/certification-error.ts'
+import { DeferredDependencyError as BackendDeferredDependencyError } from '../layout/backend.ts'
+import { HtmlEntityTableNotLoadedError } from '../shared/html-entity-table.ts'
 import { detectDiagramTypeFromFirstLine } from '../mermaid-source.ts'
 import type { ConfigDiagnostic } from '../types.ts'
 import type { MermaidRuntimeConfig } from '../mermaid-source.ts'
 
 describe('async browser SVG entry', () => {
+  test.each(['Agentic layout', 'Forest layout'])('replays YAML, %s, ELK and entities without changing the admitted request', async producer => {
+    const { default: descriptor } = await import('../browser-lazy/families/pie.ts')
+    const source = 'pie\n "One" : 1'
+    const expected = await renderLoadedFamilySvgWithReceipt(source, {}, descriptor)
+    const loaded: string[] = []
+    const names = ['YAML', producer, 'ELK', 'HTML entities']
+    const dependencies = names.map(name => {
+      const load = async () => { loaded.push(name) }
+      return name === 'HTML entities' ? new HtmlEntityTableNotLoadedError('&hearts;', load)
+        : new BackendDeferredDependencyError(name, load)
+    })
+    const suspended: FamilyDescriptor = { ...descriptor, layout: context => {
+      if (loaded.length < dependencies.length) {
+        const dependency = dependencies[loaded.length]!
+        throw loaded.length === 1 ? new Error('family layout suspended', { cause: dependency }) : dependency
+      }
+      return descriptor.layout!(context)
+    } }
+    expect(await renderLoadedFamilySvgWithReceipt(source, {}, suspended)).toEqual(expected)
+    expect(loaded).toEqual(names)
+  })
+
+  test('propagates acquisition failure and permits a new explicit request to retry', async () => {
+    const { default: descriptor } = await import('../browser-lazy/families/pie.ts')
+    const source = 'pie\n "One" : 1'
+    const expected = await renderLoadedFamilySvgWithReceipt(source, {}, descriptor)
+    const failure = new Error('provider download failed')
+    let loads = 0, ready = false
+    const load = async () => {
+      if (++loads === 1) throw failure
+      ready = true
+    }
+    const suspended: FamilyDescriptor = { ...descriptor, layout: context => {
+      if (!ready) throw new BackendDeferredDependencyError('Forest layout', load)
+      return descriptor.layout!(context)
+    } }
+    await expect(renderLoadedFamilySvgWithReceipt(source, {}, suspended)).rejects.toBe(failure)
+    expect(loads).toBe(1)
+    expect(await renderLoadedFamilySvgWithReceipt(source, {}, suspended)).toEqual(expected)
+    expect(loads).toBe(2)
+  })
+
+  test.each(['unknown provider', 'reused loader'])('bounds replay for %s', async mode => {
+    const { default: descriptor } = await import('../browser-lazy/families/pie.ts')
+    let loads = 0
+    const load = async () => { loads++ }
+    const first = new DeferredDependencyError(mode === 'unknown provider' ? 'Unexpected provider' : 'YAML', load)
+    const repeated = new DeferredDependencyError('ELK', load)
+    const suspended: FamilyDescriptor = { ...descriptor, layout: () => { throw loads ? repeated : first } }
+    await expect(renderLoadedFamilySvg('pie\n "One" : 1', {}, suspended)).rejects.toBe(mode === 'unknown provider' ? first : repeated)
+    expect(loads).toBe(mode === 'unknown provider' ? 0 : 1)
+  })
+
   test.each([
     ['state', 'stateDiagram-v2\n  state "x\naccTitle: y" as A\n  A --> B'],
     ['flowchart', 'flowchart TD\n  A["x\naccTitle: y"] --> B'],
@@ -62,6 +117,40 @@ describe('async browser SVG entry', () => {
       expect(await pending).toEqual(expected)
       expect((await renderLoadedFamilySvgWithReceipt(source, { style }, descriptor)).svg).not.toBe(expected.svg)
     } finally { replacement?.(); dispose() }
+  })
+  test('retains captured options, style and callback while a layout provider loads', async () => {
+    const { default: descriptor } = await import('../browser-lazy/families/pie.ts')
+    const style = 'palette:test/provider-registry-snapshot'
+    const source = 'pie\n "One" : 1'
+    const dispose = registerStyle({ formatVersion: 1, name: style, colors: { fg: '#0000ff' } })
+    let replacement: (() => void) | undefined
+    let release!: () => void, started!: () => void, ready = false
+    const waiting = new Promise<void>(resolve => { release = resolve })
+    const loading = new Promise<void>(resolve => { started = resolve })
+    const load = async () => { started(); await waiting; ready = true }
+    const suspended: FamilyDescriptor = { ...descriptor, layout: context => {
+      if (!ready) throw new BackendDeferredDependencyError('Agentic layout', load)
+      return descriptor.layout!(context)
+    } }
+    const diagnostics: ConfigDiagnostic[] = []
+    let reads = 0
+    const options = { get style() { reads++; return style }, mermaidConfig: { pie: { textPosition: 2 } },
+      onConfigDiagnostic: (value: ConfigDiagnostic) => diagnostics.push(value) }
+    try {
+      const expected = await renderLoadedFamilySvgWithReceipt(source, { ...options, onConfigDiagnostic: () => {} }, descriptor)
+      reads = 0
+      const pending = renderLoadedFamilySvgWithReceipt(source, options, suspended)
+      await loading
+      dispose()
+      replacement = registerStyle({ formatVersion: 1, name: style, colors: { fg: '#ff0000' } })
+      options.mermaidConfig.pie.textPosition = 0.5
+      options.onConfigDiagnostic = () => { throw new Error('replacement callback must not run') }
+      release()
+      expect(await pending).toEqual(expected)
+      expect(reads).toBe(1)
+      expect(diagnostics.map(value => value.field)).toEqual(['pie.textPosition'])
+      expect((await renderLoadedFamilySvgWithReceipt(source, { style }, descriptor)).svg).not.toBe(expected.svg)
+    } finally { release(); replacement?.(); dispose() }
   })
   test('palette-only styles keep optional sketch backends unloaded', async () => {
     const child = Bun.spawn([process.execPath, '-e', `

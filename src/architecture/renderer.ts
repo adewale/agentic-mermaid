@@ -412,7 +412,6 @@ function lowerEdge<T>(marks: DrawingFactory<T>, edge: PositionedArchitectureEdge
   if (visual.edgeBendRadius > 0 && edge.points.length > 2) {
     const projection = projectRoundedConnectorPath(edge.points, visual.edgeBendRadius, {
       metric: 'manhattan',
-      precision: 3,
     })
     return marks.connector({
       id: sceneId,

@@ -55,4 +55,3 @@ export function snapshot(db, includeConfig = false) {
   }
   return { data, errors };
 }
-

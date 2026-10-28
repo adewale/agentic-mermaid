@@ -8,13 +8,13 @@
   },
   "families": {
     "flowchart": {
-      "requests": 40,
+      "requests": 36,
       "raw": 2430000,
       "gzip": 761500,
       "brotli": 618000
     },
     "state": {
-      "requests": 39,
+      "requests": 35,
       "raw": 2430000,
       "gzip": 761000,
       "brotli": 617500
@@ -22,7 +22,7 @@
     "sequence": {
       "requests": 34,
       "raw": 667000,
-      "gzip": 214750,
+      "gzip": 214000,
       "brotli": 190750
     },
     "timeline": {
@@ -50,7 +50,7 @@
       "brotli": 181500
     },
     "architecture": {
-      "requests": 36,
+      "requests": 35,
       "raw": 2318000,
       "gzip": 751000,
       "brotli": 608500
@@ -122,7 +122,7 @@
       "brotli": 174000
     },
     "requirement": {
-      "requests": 31,
+      "requests": 30,
       "raw": 2150000,
       "gzip": 664000,
       "brotli": 532000

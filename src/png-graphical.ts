@@ -17,7 +17,7 @@ import {
   type ResolvedPngOutputPolicy,
 } from './png-contract.ts'
 import { buildPngLegibilityWarnings, type PngLegibilityWarning } from './shared/png-legibility-warnings.ts'
-import { assertFinalSvgByteBudget } from './scene/scene-validation.ts'
+import { assertFinalSvgByteBudget } from './scene/scene-validation-core.ts'
 import { applyOutputSecurityPolicy } from './output-security.ts'
 
 export interface PngGraphicalProjection extends GraphicalSvgArtifact {

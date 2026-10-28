@@ -1,0 +1,21 @@
+{
+  "protocol": "forest-portable-archive-independent-payload-closure-verification@1",
+  "passed": true,
+  "archiveSHA256": "43b248973232ba74ee1c16b5373daf626121b60e3e9f08760ef0a64e5c45a4cf",
+  "archiveBytes": 9556773,
+  "originalPaths": 2163,
+  "uniqueObjects": 1096,
+  "uniqueDecodedBytes": 66253488,
+  "allActualRawFiles": 1101,
+  "originalBaselineOccurrences": 300,
+  "originalBaselineHosts": 60,
+  "recomputedOrdinaryFullPairs": 300,
+  "recomputedOrdinaryUTF8Pairs": 1200,
+  "recomputedHostPairs": 60,
+  "recomputedBrowserFullPairs": 120,
+  "recomputedBrowserUTF8Pairs": 232,
+  "recomputedFreshFaultCanonicalPairs": 2,
+  "originalFailedBrowserPreserved": true,
+  "originalFilesystemPayloadsRead": 0,
+  "rendererOrBrowserImports": 0
+}

@@ -47,9 +47,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     ]),
   }),
   demo: Object.freeze({
-    // Native-family sharing adds one cold module request. Measured at 37
-    // requests, 685,087 raw / 271,814 gzip bytes; retain the byte ceilings.
-    maxRequests: 37,
+    // Keep the existing request ceiling when integrating new native families;
+    // any excess remains a delivery failure alongside the byte ceilings.
+    maxRequests: 36,
     // Optional sketch code stays out of the default Timeline delivery graph.
     // Includes the shared native drawing writer, bounded admission and flat paint evidence.
     // Rebased edit contracts measure 787,643 raw / 302,191 gzip bytes.

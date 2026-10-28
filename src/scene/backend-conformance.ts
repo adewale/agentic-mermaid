@@ -38,7 +38,7 @@ import {
 import { hitTestConnector } from './hit-test.ts'
 import { serializeMarkerResource } from './marker-resources.ts'
 import { serializeLinearGradientResource } from './gradient-resources.ts'
-import { assertFinalSvgByteBudget } from './scene-validation.ts'
+import { assertFinalSvgByteBudget } from './scene-validation-core.ts'
 import {
   connector,
   definitions,

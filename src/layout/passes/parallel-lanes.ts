@@ -1,3 +1,5 @@
+import type { ResolvedRenderStyle } from '../../styles.ts'
+import { measureLabelConflicts } from '../label-conflicts.ts'
 import type { Direction, MermaidGraph, Point, PositionedEdge, PositionedGroup, PositionedNode } from '../../types.ts'
 import { clipEdgeToShape } from '../../shape-clipping.ts'
 import { countEdgeCrossings, countParallelRouteOverlaps, onShapeOutline } from '../../layout-rubric.ts'
@@ -10,6 +12,8 @@ import type { BundledLabelCandidate } from './bundled-labels.ts'
 import { retainConstructedBundleRoutes } from '../bundle-routes.ts'
 import { labelHaloExtension } from '../../shared/edge-label-geometry.ts'
 import { graphEdgeMarkerPaintRegions } from '../../graph-connectors.ts'
+import { routeCandidateMarkerBlocker } from '../route-marker-clearance.ts'
+import { portLaneInkClear, portLaneInkWork, withinPortLaneBudget } from './port-lanes.ts'
 
 export function segmentIntersectsLabelBox(a: Point, b: Point, box: { x: number; y: number; w: number; h: number }, pad = 2): boolean {
   const x1 = box.x - pad, x2 = box.x + box.w + pad, y1 = box.y - pad, y2 = box.y + box.h + pad
@@ -150,7 +154,7 @@ export function applySymmetricParallelEdgeLanes(
         const box = labelBoxAt(p.edge, p.label, style)
         if (source.shape !== 'diamond' && labelTouchesNeighborRoute(p.edge, { x: box.x, y: box.y, w: box.width, h: box.height }, edges)) ok = false
       }
-      if (!ok || !parallelLaneProposalAllowed(edges, proposed)) continue
+      if (!ok || parallelLaneProposalAllowed(edges, proposed, style) !== true) continue
       for (const { edge, points, label } of proposed) {
         edge.points = points
         edge.labelPosition = label
@@ -184,7 +188,25 @@ export function applySymmetricParallelEdgeLanes(
  * duplicates use private lanes below. Fully labeled pairs are owned by
  * `applySymmetricParallelEdgeLanes`; other cases remain with route certification.
  */
-function parallelLaneProposalAllowed(edges: PositionedEdge[], proposed: Array<{ edge: PositionedEdge; points: Point[] }>, options?: { allowCrossingsForOverlap: boolean }): boolean {
+type ParallelLaneProposal = { edge: PositionedEdge; points: Point[]; label?: Point }
+type ParallelLabelClearance = { nodes: PositionedNode[]; style: ResolvedRenderStyle }
+
+function parallelLaneLabelAdmission(edges: PositionedEdge[], proposed: ParallelLaneProposal[], clearance: ParallelLabelClearance): boolean {
+  const proposals = new Map(proposed.map(candidate => [candidate.edge, candidate]))
+  const involved = new Set<number>()
+  const candidate = edges.map((edge, index) => {
+    const proposal = proposals.get(edge)
+    if (!proposal) return edge
+    involved.add(index)
+    // Prove exactly the seat the publisher will use. A guessed midpoint may
+    // reject a safe seat or certify geometry that will never be emitted.
+    return { ...edge, points: proposal.points, labelPosition: proposal.label }
+  })
+  const { nodes, style } = clearance
+  return measureLabelConflicts({ nodes, edges: candidate }, style, involved).total <= measureLabelConflicts({ nodes, edges }, style, involved).total
+}
+
+function parallelLaneProposalAllowed(edges: PositionedEdge[], proposed: ParallelLaneProposal[], style: LabelMetricsStyle, options?: { allowCrossingsForOverlap: boolean; labelClearance?: ParallelLabelClearance }): boolean | 'marker-blocked' {
   const points = new Map(proposed.map(candidate => [candidate.edge, candidate.points]))
   const involved = new Set<number>()
   const candidate = edges.map((edge, index) => {
@@ -193,6 +215,14 @@ function parallelLaneProposalAllowed(edges: PositionedEdge[], proposed: Array<{ 
     involved.add(index)
     return { ...edge, points: route }
   })
+  // Slot allocation is optional. Preserve the live labelled/unrelated seats
+  // too, measuring every proposed occurrence against the SAME staged roster.
+  // Rejecting the whole proposal leaves all old routes and labels untouched.
+  for (const index of involved) {
+    const edge = edges[index]!, staged = candidate[index]!
+    if (routeCandidateMarkerBlocker(edge, staged.points, candidate, style, staged)) return 'marker-blocked'
+  }
+  if (options?.labelClearance && !parallelLaneLabelAdmission(edges, proposed, options.labelClearance)) return false
   const extraCrossings = countEdgeCrossings(candidate, involved) - countEdgeCrossings(edges, involved)
   if (!options?.allowCrossingsForOverlap) return extraCrossings <= 0
   const repairedPairs = countParallelRouteOverlaps(edges, involved) - countParallelRouteOverlaps(candidate, involved)
@@ -210,12 +240,15 @@ export function applyParallelDuplicateLanes(
   graph: MermaidGraph,
   bundled: Set<PositionedEdge>,
   style: LabelMetricsStyle,
+  preserveLabels?: ResolvedRenderStyle,
 ): void {
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
   const f = layoutFlow(graph.direction)
   const TARGET_SEP = 14
   const MARGIN = 5
   const BASE_GAP = 16
+  const proposalOptions = { allowCrossingsForOverlap: true,
+    ...(preserveLabels ? { labelClearance: { nodes, style: preserveLabels } } : {}) }
   const mainSize = (n: PositionedNode) => (f.isHorizontal ? n.width : n.height)
   const crossSize = (n: PositionedNode) => (f.isHorizontal ? n.height : n.width)
   const mk = (mainVal: number, crossVal: number): Point =>
@@ -324,8 +357,6 @@ export function applyParallelDuplicateLanes(
     for (let i = 0; i < k; i++) {
       const { edge, sCross, tCross } = lanes[i]!
       const jog = col[i]!
-      // Near-aligned ports still need a jog; joining their unequal lanes
-      // directly creates a diagonal that later safety checks may not repair.
       const raw = sCross === tCross
         ? [mk(exitMain, sCross), mk(entryMain, tCross)]
         : [mk(exitMain, sCross), mk(jog, sCross), mk(jog, tCross), mk(entryMain, tCross)]
@@ -344,7 +375,7 @@ export function applyParallelDuplicateLanes(
       }
       proposed.push({ edge, points: clipped, label: edge.label ? longestSegmentMidpoint(clipped) : undefined })
     }
-    if (!parallelLaneProposalAllowed(edges, proposed, { allowCrossingsForOverlap: true })) return false
+    if (parallelLaneProposalAllowed(edges, proposed, style, { allowCrossingsForOverlap: true }) !== true) return false
     if (placement !== 'original') {
       const outside = edges.filter(edge => !bucket.includes(edge))
       const candidateRoutes = [...outside, ...proposed.map(p => ({ ...p.edge, points: p.points }))]
@@ -363,6 +394,7 @@ export function applyParallelDuplicateLanes(
         labels.push(haloBoxAt(p.edge, p.label))
       }
     }
+    if (proposalOptions.labelClearance && !parallelLaneLabelAdmission(edges, proposed, proposalOptions.labelClearance)) return false
     for (const { edge, points, label } of proposed) {
       edge.points = points
       edge.labelPosition = label
@@ -487,30 +519,64 @@ export function applyParallelDuplicateLanes(
       a = b + 1
     }
 
-    const proposed: Array<{ edge: PositionedEdge; points: Point[] }> = []
-    let ok = true
-    for (let i = 0; i < k; i++) {
-      const { edge, source, exitMain, sCross, tCross } = lanes[i]!
-      const jog = col[i]!
-      let pts: Point[]
-      if (sCross === tCross) {
-        pts = [mk(exitMain, sCross), mk(entryMain, tCross)]
-      } else {
-        pts = [mk(exitMain, sCross), mk(jog, sCross), mk(jog, tCross), mk(entryMain, tCross)]
+    const proposalFor = (offset: number): ParallelLaneProposal[] | undefined => {
+      const proposed: ParallelLaneProposal[] = []
+      for (let i = 0; i < k; i++) {
+        const { edge, source, exitMain } = lanes[i]!
+        const sCross = lanes[i]!.sCross, tCross = lanes[i]!.tCross + offset
+        const jog = col[i]!
+        let pts: Point[]
+        if (sCross === tCross) {
+          pts = [mk(exitMain, sCross), mk(entryMain, tCross)]
+        } else {
+          pts = [mk(exitMain, sCross), mk(jog, sCross), mk(jog, tCross), mk(entryMain, tCross)]
+        }
+        pts = clipEdgeToShape(pts, source, true)
+        pts = clipEdgeToShape(pts, target, false)
+        pts = simplifyPolyline(pts)
+        if (pts.length < 2 ||
+          !onShapeOutline(source, pts[0]!) ||
+          !onShapeOutline(target, pts[pts.length - 1]!) ||
+          !routeClearOfNodes(pts, nodes, new Set([source.id, target.id]))) return undefined
+        proposed.push({ edge, points: pts })
       }
-      pts = clipEdgeToShape(pts, source, true)
-      pts = clipEdgeToShape(pts, target, false)
-      pts = simplifyPolyline(pts)
-      if (pts.length < 2 ||
-        !onShapeOutline(source, pts[0]!) ||
-        !onShapeOutline(target, pts[pts.length - 1]!) ||
-        !routeClearOfNodes(pts, nodes, new Set([source.id, target.id]))) {
-        ok = false
+      return proposed
+    }
+    let proposed = proposalFor(0)
+    if (!proposed) return
+    const firstAdmission = parallelLaneProposalAllowed(edges, proposed, style, proposalOptions)
+    if (firstAdmission !== true) {
+      if (firstAdmission !== 'marker-blocked' || !withinPortLaneBudget(nodes, edges, groups)) return
+      // The existing five-pixel face margins bound a common translation of
+      // these SAME target slots while preserving the allocated source slots.
+      // Keep every accepted centre proposal;
+      // only a marker-refused one may try the two endpoints of that window.
+      let low = -Infinity, high = Infinity
+      for (const lane of lanes) {
+        low = Math.max(low, lane.source[f.cross] + MARGIN - lane.sCross, target[f.cross] + MARGIN - lane.tCross)
+        high = Math.min(high, lane.source[f.cross] + crossSize(lane.source) - MARGIN - lane.sCross,
+          target[f.cross] + crossSize(target) - MARGIN - lane.tCross)
+      }
+      if (!Number.isFinite(low) || !Number.isFinite(high) || low > 0 || high < 0) return
+      const budget = portLaneInkWork()
+      const guardedOptions = { ...proposalOptions, labelClearance: { nodes, style: style as ResolvedRenderStyle } }
+      let accepted: ParallelLaneProposal[] | undefined
+      for (const offset of [low, high]) {
+        if (budget.remaining <= 0) break
+        if (offset === 0) continue
+        const candidate = proposalFor(offset)
+        if (!candidate || parallelLaneProposalAllowed(edges, candidate, style, guardedOptions) !== true) continue
+        const updates = new Map(candidate.map(proposal => [proposal.edge, proposal.points]))
+        const staged = edges.map(edge => updates.has(edge) ? { ...edge, points: updates.get(edge)! } : edge)
+        // Reuse the existing complete served shaft/node/header admission and
+        // ONE shared work allowance; no refund/reset between the two variants.
+        if (!portLaneInkClear(nodes, staged, nodes, edges, groups, style, budget)) continue
+        accepted = candidate
         break
       }
-      proposed.push({ edge, points: pts })
+      if (!accepted) return
+      proposed = accepted
     }
-    if (!ok || !parallelLaneProposalAllowed(edges, proposed, { allowCrossingsForOverlap: true })) return
     for (const { edge, points } of proposed) {
       edge.points = points
       edge.labelPosition = undefined

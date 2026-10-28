@@ -183,7 +183,9 @@ function extractStateLabels(source: string): ExtractedLabel[] {
 }
 
 export const STATE_AGENT_HOOKS = {
-  renderSource: body => (body.kind === 'opaque' ? 'canonical' : 'serialized'),
+  // Nested bodies omit global statement interleaving. Preserve the source's
+  // paint order; typed mutations rebuild canonicalSource when they commit.
+  renderSource: () => 'canonical',
   extractLabels: extractStateLabels,
   // The verify hook covers body-level structural Tier 1 (EMPTY/MISANCHORED/
   // LABEL_OVERFLOW); verify.ts adds geometric Tier 2 via the graph projection.

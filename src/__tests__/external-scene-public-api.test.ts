@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import * as mainEntry from '../index.ts'
+import { admitSceneDocument as admitBrowserScene } from '../scene/external-data-snapshot.browser.ts'
+import { admitSceneDocument } from '../scene/external-data-snapshot.ts'
 
 // Intentionally import every extension-facing dependency from the published
 // agent entry. A synthetic family must not reach into marks.ts or any built-in
@@ -165,6 +167,18 @@ function descriptor(
 }
 
 describe('public external Scene construction and admission', () => {
+  test('source-only browser admission refuses fresh and already-admitted external Scenes', () => {
+    const scene = buildExternalScene(sceneInput('family:test/browser-domain', { bg: '#ffffff', fg: '#172033' }))
+    expect(validateSceneDoc(scene).valid).toBe(true)
+    expect(DefaultBackend.render(scene, { seed: 0 })).toContain('<svg')
+    // Public construction records the admitted immutable snapshot. The private
+    // browser domain must still refuse it before the shared cache fast path.
+    const internallyAdmitted = admitSceneDocument(scene, 'internal', false)
+    for (const value of [scene, structuredClone(scene), internallyAdmitted]) {
+      expect(() => admitBrowserScene(value)).toThrow('requires a built-in family')
+      expect(() => admitBrowserScene(value, 'internal')).toThrow('requires a built-in family')
+    }
+  })
   test('requires an explicit Scene range for an external family with lowerScene', () => {
     const base = descriptor(
       'missing-scene-range',

@@ -1,10 +1,14 @@
 import { resolveLabelContent } from '../shared/display-text.ts'
-import type { Point, PortSide, PositionedEdge, PositionedGroup, PositionedNode } from '../types.ts'
+import type { Point, PortSide, PositionedEdge, PositionedGroup, PositionedNode, RouteBlocker } from '../types.ts'
 import { graphEdgeTextBlock } from '../graph-text.ts'
 import { clipEdgeToShape } from '../shape-clipping.ts'
-import { LABEL_PILL_PADDING, labelRect } from '../shared/edge-label-geometry.ts'
-import { type LaneContext, opposite } from './route-geometry.ts'
-export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode>, groupMap: ReadonlyMap<string, PositionedGroup>, ctx: Pick<LaneContext, 'nodes' | 'edges' | 'style'>): (edge: PositionedEdge) => PortSide | null {
+import { LABEL_PILL_PADDING, labelHaloExtension, labelRect } from '../shared/edge-label-geometry.ts'
+import { type LaneContext, setRoutePoints, opposite } from './route-geometry.ts'
+import { routeCandidateMarkerBlocker, routeMarkerPaintRegions } from './route-marker-clearance.ts'
+import { nodePaintBounds, paintedStrokeExtent } from '../scene/bounds.ts'
+import { shapeOutline } from '../shape-outline.ts'
+import { STROKE_WIDTHS, type ResolvedRenderStyle } from '../styles.ts'
+export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode>, groupMap: ReadonlyMap<string, PositionedGroup>, ctx: Pick<LaneContext, 'nodes' | 'edges' | 'style' | 'routeChannelGeometry'>, markerBlockers?: RouteBlocker[]): (edge: PositionedEdge) => PortSide | null {
   const style = ctx.style
 
   // ---- Self-loop arc routing (plan §State 6; upstream #6336/#6049) --------
@@ -98,81 +102,20 @@ export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode
       const desired = 24 + rank * Math.max(14, pillMain(side) + 8)
       return { d, desired, clear: clearDepth(side, d) }
     }
-    let chosen: PortSide | null = null
-    let geo: { d: number; desired: number; clear: number } | null = null
-    const allocatedOrder = sideOrder
-      .map((side, preference) => ({ side, preference, rank: sideRank(side) }))
-      .sort((a, b) => a.rank - b.rank || a.preference - b.preference)
-      .map(entry => entry.side)
-    for (const side of allocatedOrder) {
-      if (!sideHasSlot(side)) continue
-      const g = pickGeometry(side)
-      if (g.clear >= Math.min(g.desired, 14)) {
-        chosen = side
-        geo = g
-        break
-      }
-    }
-    if (!chosen || !geo) {
-      // No side offers the minimum arc — keep the widest one (still honest,
-      // still certified; the audit gates verify no overlap was introduced).
-      const available = allocatedOrder.filter(sideHasSlot)
-      if (available.length === 0) return null
-      chosen = available.reduce((best, side) => (pickGeometry(side).clear > pickGeometry(best).clear ? side : best), available[0]!)
-      geo = pickGeometry(chosen)
-    }
-    selfLoopRank.set(sideKey(chosen), sideRank(chosen) + 1)
-    const depth = Math.max(Math.min(geo.desired, geo.clear), 8)
-    const d = geo.d
-
-    const points: Point[] = (() => {
-      switch (chosen) {
-        case 'W':
-          return [
-            { x: node.x, y: cy - d },
-            { x: node.x - depth, y: cy - d },
-            { x: node.x - depth, y: cy + d },
-            { x: node.x, y: cy + d },
-          ]
-        case 'E':
-          return [
-            { x: node.x + node.width, y: cy - d },
-            { x: node.x + node.width + depth, y: cy - d },
-            { x: node.x + node.width + depth, y: cy + d },
-            { x: node.x + node.width, y: cy + d },
-          ]
-        case 'N':
-          return [
-            { x: cx - d, y: node.y },
-            { x: cx - d, y: node.y - depth },
-            { x: cx + d, y: node.y - depth },
-            { x: cx + d, y: node.y },
-          ]
-        default:
-          return [
-            { x: cx - d, y: node.y + node.height },
-            { x: cx - d, y: node.y + node.height + depth },
-            { x: cx + d, y: node.y + node.height + depth },
-            { x: cx + d, y: node.y + node.height },
-          ]
-      }
-    })()
-    // Clip both endpoints onto non-rectangular outlines (diamond facets,
-    // circles, …) — the clip slides the endpoint along its own orthogonal
-    // segment, so orthogonality is preserved.
-    edge.points = clipEdgeToShape(clipEdgeToShape(points, node, true), node, false)
-    if (edge.label && pill) {
+    type LabelUpdate = { edge: PositionedEdge; position: Point; rectIndex?: number }
+    const labelPlanFor = (side: PortSide, depth: number, points: Point[]): LabelUpdate[] | null => {
+      if (!edge.label || !pill) return []
       // Center the pill normally just beyond its outer segment. If a blocker
       // capped two same-side depths close together, shift the later pill only
       // far enough along that segment to clear the earlier pill while staying
       // within the route-label distance contract.
-      const vertical = chosen === 'N' || chosen === 'S'
-      const normalSign = chosen === 'W' || chosen === 'N' ? -1 : 1
-      const tangentSign = chosen === 'W' || chosen === 'S' ? -1 : 1
-      const sideCoord = chosen === 'W' ? node.x : chosen === 'E' ? node.x + node.width : chosen === 'N' ? node.y : node.y + node.height
-      const outer = sideCoord + normalSign * (depth + pillMain(chosen) / 2 + 4)
+      const vertical = side === 'N' || side === 'S'
+      const normalSign = side === 'W' || side === 'N' ? -1 : 1
+      const tangentSign = side === 'W' || side === 'S' ? -1 : 1
+      const sideCoord = side === 'W' ? node.x : side === 'E' ? node.x + node.width : side === 'N' ? node.y : node.y + node.height
+      const outer = sideCoord + normalSign * (depth + pillMain(side) / 2 + 4)
       const crossPitch = (vertical ? pill.width : pill.height) + 2 * LABEL_PILL_PADDING + 2
-      const rank = sideRank(chosen) - 1
+      const rank = sideRank(side)
       let position = vertical ? { x: cx, y: outer } : { x: outer, y: cy }
       const rectAt = (p: Point): { x: number; y: number; w: number; h: number } => ({
         x: p.x - pill.width / 2 - LABEL_PILL_PADDING,
@@ -184,32 +127,180 @@ export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode
       // one tangent and start the later pill on the other. Both remain close
       // to their outer segments, while the wider nested route can pass through
       // the center lane without crossing the earlier pill.
-      const labelSideKey = sideKey(chosen)
+      const labelSideKey = sideKey(side)
       const previousOnSide = selfLoopLabelsBySide.get(labelSideKey) ?? []
+      const updates: Array<{ edge: PositionedEdge; position: Point; rectIndex?: number }> = []
+      const proposedRects = selfLoopLabelRects.slice()
       if (rank > 0) {
         for (const previous of previousOnSide) {
           const old = previous.edge.labelPosition!
-          previous.edge.labelPosition = vertical ? { x: cx - tangentSign * crossPitch, y: old.y } : { x: old.x, y: cy - tangentSign * crossPitch }
-          selfLoopLabelRects[previous.rectIndex] = rectAt(previous.edge.labelPosition)
+          const position = vertical ? { x: cx - tangentSign * crossPitch, y: old.y } : { x: old.x, y: cy - tangentSign * crossPitch }
+          updates.push({ edge: previous.edge, position, rectIndex: previous.rectIndex })
+          proposedRects[previous.rectIndex] = labelRect({ ...previous.edge, labelPosition: position }, style)!
         }
         position = vertical ? { x: cx + tangentSign * crossPitch * rank, y: outer } : { x: outer, y: cy + tangentSign * crossPitch * rank }
       }
-      if (selfLoopLabelRects.some(r => rectsOverlap(rectAt(position), r))) {
+      if (proposedRects.some(r => rectsOverlap(rectAt(position), r))) {
         for (let attempt = 0; attempt < 8; attempt++) {
           const direction = attempt % 2 === 0 ? tangentSign : -tangentSign
           const offset = (1 + Math.floor(attempt / 2)) * crossPitch
           const candidate = vertical ? { x: cx + direction * offset, y: outer } : { x: outer, y: cy + direction * offset }
-          if (!selfLoopLabelRects.some(r => rectsOverlap(rectAt(candidate), r))) {
+          if (!proposedRects.some(r => rectsOverlap(rectAt(candidate), r))) {
             position = candidate
             break
           }
         }
       }
-      edge.labelPosition = position
-      const rectIndex = selfLoopLabelRects.push(rectAt(position)) - 1
-      previousOnSide.push({ edge, rectIndex })
-      selfLoopLabelsBySide.set(labelSideKey, previousOnSide)
+      updates.push({ edge, position })
+      // Prove the COMPLETE prepared pill and halo, including earlier labels a
+      // nested loop would shift. No live seat or occupancy is changed here.
+      const positions = new Map(updates.map(update => [update.edge, update.position]))
+      const paintedLabel = (owner: PositionedEdge, position: Point) => {
+        const rect = labelRect({ ...owner, labelPosition: position }, style)
+        if (!rect) return null
+        const halo = labelHaloExtension(owner, style.lineWidth ?? 1)
+        return { x: rect.x - halo, y: rect.y - halo, w: rect.w + 2 * halo, h: rect.h + 2 * halo }
+      }
+      const bodyStyle = style as Partial<ResolvedRenderStyle>
+      for (const update of updates) {
+        const rect = paintedLabel(update.edge, update.position)
+        const ownRect = labelRect({ ...update.edge, labelPosition: update.position }, style)
+        if (!rect || !ownRect || !Object.values(rect).every(Number.isFinite)) return null
+        const ownPoints = update.edge === edge ? points : update.edge.points
+        let distance = Infinity
+        for (let i = 1; i < ownPoints.length; i++) {
+          const a = ownPoints[i - 1]!, b = ownPoints[i]!
+          if (a.x !== b.x && a.y !== b.y) return null
+          distance = Math.min(distance,
+            Math.max(ownRect.x - Math.max(a.x, b.x), Math.min(a.x, b.x) - ownRect.x - ownRect.w, 0)
+            + Math.max(ownRect.y - Math.max(a.y, b.y), Math.min(a.y, b.y) - ownRect.y - ownRect.h, 0))
+        }
+        // A wider later label may shift an earlier short label off its arc.
+        // Every staged seat must retain the existing self-loop association.
+        if (!(distance <= ownRect.h / 2 + 4)) return null
+        const meets = (x: number, y: number, w: number, h: number): boolean => {
+          // Reject arithmetic/writer uncertainty; never shrink foreign paint.
+          const error = (Math.abs(x) + Math.abs(y) + Math.abs(w) + Math.abs(h) + Math.abs(rect.x) + Math.abs(rect.y) + rect.w + rect.h) * 1e-10 + 1e-9
+          return !Number.isFinite(error) || rectsOverlap(rect, { x: x - error, y: y - error, w: w + 2 * error, h: h + 2 * error })
+        }
+        for (const other of ctx.nodes) {
+          const outline = shapeOutline(other, { fill: other.inlineStyle?.fill ?? bodyStyle.nodeFillColor ?? 'var(--_node-fill)', stroke: other.inlineStyle?.stroke ?? bodyStyle.nodeBorderColor ?? 'var(--_node-stroke)', strokeWidth: other.inlineStyle?.['stroke-width'] ?? String(bodyStyle.nodeLineWidth ?? STROKE_WIDTHS.innerBox) }, bodyStyle.cornerRadius ?? 0)
+          const bounds = nodePaintBounds({ kind: 'shape', id: other.id, role: 'node', geometry: outline.geometry, paint: outline.paint, ...(outline.childPaints ? { childPaints: outline.childPaints } : {}) })
+          if (!bounds || meets(bounds.x0, bounds.y0, bounds.x1 - bounds.x0, bounds.y1 - bounds.y0)) return null
+        }
+        for (const group of groupMap.values()) {
+          const height = group.concurrencyRegion ? 0 : group.headerHeight ?? group.height
+          if (!Number.isFinite(height) || height < 0) return null
+          const extent = paintedStrokeExtent({ stroke: group.inlineStyle?.stroke ?? 'black', strokeWidth: group.inlineStyle?.['stroke-width'] ?? String(bodyStyle.groupLineWidth ?? STROKE_WIDTHS.innerBox) }, true)
+          if (extent === undefined) return null
+          if (height > 0 && meets(group.x - extent, group.y - extent, group.width + 2 * extent, height + 2 * extent)) return null
+        }
+        for (const other of ctx.edges) {
+          const staged = other === edge ? { ...other, points } : other
+          const markers = routeMarkerPaintRegions(staged, style)
+          if (!markers || markers.some(marker => !marker.bounds || meets(marker.bounds.x0, marker.bounds.y0, marker.bounds.x1 - marker.bounds.x0, marker.bounds.y1 - marker.bounds.y0))) return null
+          if (other === update.edge || !other.label) continue
+          const position = positions.get(other) ?? other.labelPosition
+          if (!position) continue
+          const peer = paintedLabel(other, position)
+          if (!peer || meets(peer.x, peer.y, peer.w, peer.h)) return null
+        }
+      }
+      return updates
     }
+    // A side's raw capacity is only a proposal. Its complete marker seats
+    // must also clear the live peer routes before occupancy can be committed.
+    const candidateFor = (side: PortSide, g: { d: number; desired: number; clear: number }): { points: Point[]; labels: LabelUpdate[] } | null => {
+      const depth = Math.max(Math.min(g.desired, g.clear), 8)
+      const d = g.d
+      const points: Point[] = (() => {
+        switch (side) {
+          case 'W':
+            return [
+              { x: node.x, y: cy - d },
+              { x: node.x - depth, y: cy - d },
+              { x: node.x - depth, y: cy + d },
+              { x: node.x, y: cy + d },
+            ]
+          case 'E':
+            return [
+              { x: node.x + node.width, y: cy - d },
+              { x: node.x + node.width + depth, y: cy - d },
+              { x: node.x + node.width + depth, y: cy + d },
+              { x: node.x + node.width, y: cy + d },
+            ]
+          case 'N':
+            return [
+              { x: cx - d, y: node.y },
+              { x: cx - d, y: node.y - depth },
+              { x: cx + d, y: node.y - depth },
+              { x: cx + d, y: node.y },
+            ]
+          default:
+            return [
+              { x: cx - d, y: node.y + node.height },
+              { x: cx - d, y: node.y + node.height + depth },
+              { x: cx + d, y: node.y + node.height + depth },
+              { x: cx + d, y: node.y + node.height },
+            ]
+        }
+      })()
+      // Clip both endpoints onto non-rectangular outlines before measuring
+      // the actual marker pose. Failed seats leave all live routes unchanged.
+      const clipped = clipEdgeToShape(clipEdgeToShape(points, node, true), node, false)
+      const blocker = routeCandidateMarkerBlocker(edge, clipped, ctx.edges, style)
+      if (blocker) { markerBlockers?.push(blocker); return null }
+      const labels = labelPlanFor(side, depth, clipped)
+      return labels ? { points: clipped, labels } : null
+    }
+    let chosen: PortSide | null = null
+    let geo: { d: number; desired: number; clear: number } | null = null
+    let clipped: Point[] | null = null
+    let labelUpdates: LabelUpdate[] = []
+    const allocatedOrder = sideOrder
+      .map((side, preference) => ({ side, preference, rank: sideRank(side) }))
+      .sort((a, b) => a.rank - b.rank || a.preference - b.preference)
+      .map(entry => entry.side)
+    for (const side of allocatedOrder) {
+      if (!sideHasSlot(side)) continue
+      const g = pickGeometry(side)
+      if (g.clear < Math.min(g.desired, 14)) continue
+      const candidate = candidateFor(side, g)
+      if (!candidate) continue
+      chosen = side
+      geo = g
+      clipped = candidate.points
+      labelUpdates = candidate.labels
+      break
+    }
+    if (!chosen || !geo || !clipped) {
+      // Preserve the existing widest-side fallback, requiring the same full
+      // marker admission before it can become a certified loop.
+      const available = allocatedOrder.filter(sideHasSlot)
+      if (available.length === 0) return null
+      const side = available.reduce((best, side) => (pickGeometry(side).clear > pickGeometry(best).clear ? side : best), available[0]!)
+      const g = pickGeometry(side)
+      const candidate = candidateFor(side, g)
+      if (!candidate) return null
+      chosen = side
+      geo = g
+      clipped = candidate.points
+      labelUpdates = candidate.labels
+    }
+    selfLoopRank.set(sideKey(chosen), sideRank(chosen) + 1)
+    setRoutePoints(ctx, edge, clipped)
+    const labelSideKey = sideKey(chosen)
+    const previousOnSide = selfLoopLabelsBySide.get(labelSideKey) ?? []
+    for (const update of labelUpdates) {
+      update.edge.labelPosition = update.position
+      const rect = labelRect(update.edge, style)!
+      if (update.rectIndex !== undefined) selfLoopLabelRects[update.rectIndex] = rect
+      else {
+        const rectIndex = selfLoopLabelRects.push(rect) - 1
+        previousOnSide.push({ edge: update.edge, rectIndex })
+      }
+    }
+    if (labelUpdates.length) selfLoopLabelsBySide.set(labelSideKey, previousOnSide)
     return chosen
   }
   return repairSelfLoopArc

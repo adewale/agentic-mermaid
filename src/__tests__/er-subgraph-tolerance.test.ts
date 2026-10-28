@@ -17,8 +17,9 @@
  *   - the agent body models subgraph identity and ordered group boundaries
  *     around typed relations, and serialization round-trips canonically.
  */
-import { describe, it, expect } from 'bun:test'
+import { describe, it, expect, spyOn } from 'bun:test'
 import { renderMermaidSVG } from '../index.ts'
+import * as elkProducer from '../elk-instance.ts'
 import { parseErDiagram } from '../er/parser.ts'
 import { parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid, layoutMermaid } from '../agent/index.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
@@ -50,6 +51,13 @@ describe('er subgraph native rendering (#103)', () => {
   it('native and lazy rendering expose exhausted contained-route work', async () => {
     const source = ['erDiagram', 'subgraph p', 'subgraph c', 'A', 'end', ...Array.from({ length: 40 }, (_, i) => `B${i}`), 'end', ...Array.from({ length: 1000 }, () => 'p ||--|| c : contains')].join('\n')
     expect(() => renderMermaidSVG(source)).toThrow(ErRouteWorkLimitError)
+    const elk = spyOn(elkProducer, 'elkLayoutSync')
+    try {
+      // This request genuinely spends the common family allowance. A typed
+      // Native refusal cannot buy another 400000 checks by asking for ELK.
+      expect(() => layoutErDiagram(parseErDiagram(toMermaidLines(source)), { graphLayout: { backend: 'agentic', fallback: 'elk' } })).toThrow(ErRouteWorkLimitError)
+      expect(elk).not.toHaveBeenCalled()
+    } finally { elk.mockRestore() }
     const { default: browser } = await import('../browser-lazy/families/er.ts')
     await expect(renderLoadedFamilySvg(source, {}, browser)).rejects.toMatchObject({ name: 'ErRouteWorkLimitError', code: 'ER_ROUTE_WORK_LIMIT' })
   })

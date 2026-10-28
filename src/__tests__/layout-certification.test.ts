@@ -1,8 +1,12 @@
-import '../index.ts'
+import { measureLabelConflicts } from '../layout/label-conflicts.ts'
+import { countEdgeCrossings, countOpposingRouteOverlaps, countParallelRouteOverlaps } from '../layout-rubric.ts'
+import { refineOwnedLayoutCandidate as refineNative, certifyOwnedLayoutCandidate as certifyNative } from '../layout/agentic-producer-core.ts'
+import { renderMermaidSVGWithReceipt } from '../index.ts'
 import { describe, expect, test } from 'bun:test'
-import { certifyLayoutCandidates, certifyLayoutWithRouteAlternative, LayoutCertificationError, MAX_LAYOUT_CANDIDATES } from '../layout/certification.ts'
+import { certifyCandidate, positionedGeometryViolations, positionedHeaderRouteViolations, retainSelection, certifyLayoutCandidates, certifyLayoutWithRouteAlternative, LayoutCertificationError, MAX_LAYOUT_CANDIDATES } from '../layout/certification.ts'
 import { LayoutMetricBudgetError } from '../layout/pass.ts'
 import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
+import { DeferredDependencyError, GraphLayoutUnsupportedError } from '../layout/backend.ts'
 import { LAYOUT_PIPELINE, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { withPerformanceExperiments, type PerformanceExperiment } from '../experimental-performance.ts'
@@ -12,10 +16,45 @@ import { resolveRenderStyle } from '../styles.ts'
 import { positionedToRenderedLayout } from '../agent/layout-to-rendered.ts'
 import { graphTextBlock } from '../graph-text.ts'
 import { assessLayout, hardViolations } from '../layout-rubric.ts'
-import { invalidEndpointApproaches } from '../route-contracts.ts'
-import type { MermaidGraph, PositionedGraph } from '../types.ts'
+import { invalidEndpointApproaches, laneContextFor, directLaneBlockers } from '../route-contracts.ts'
+import type { MermaidGraph, PositionedGraph, PositionedGroup } from '../types.ts'
 
 const source = 'flowchart LR\nA -- first --> B\nB -- second --> A'
+
+// These two literal fixtures contain only rectangular nodes and external frame
+// contacts. Verify their actual complete routes independently of certification.
+function expectClearZeroFixture(positioned: PositionedGraph): void {
+  expect(positioned.nodes.map(node => node.id).sort()).toEqual(['a1', 'a2', 'b1', 'b2', 'c1', 'c2'])
+  expect(positioned.edges.map(edge => [edge.source, edge.target]).sort()).toEqual([
+    ['a1', 'a2'], ['b1', 'b2'], ['c1', 'a2'], ['c1', 'c2'], ['one', 'two'], ['three', 'two'], ['two', 'c2'],
+  ])
+  const groups = [...positioned.groups]
+  for (let cursor = 0; cursor < groups.length; cursor++) groups.push(...groups[cursor]!.children)
+  const owners = new Map([...positioned.nodes, ...groups].map(owner => [owner.id, owner]))
+  const crosses = (a: { x: number; y: number }, b: { x: number; y: number }, box: { x: number; y: number; width: number; height: number }): boolean =>
+    box.width > 0 && box.height > 0 && Math.max(a.x, b.x) > box.x && Math.min(a.x, b.x) < box.x + box.width
+      && Math.max(a.y, b.y) > box.y && Math.min(a.y, b.y) < box.y + box.height
+  for (const edge of positioned.edges) {
+    expect([edge.hasArrowStart, edge.hasArrowEnd, edge.label ?? null]).toEqual([false, true, null])
+    for (let cursor = 1; cursor < edge.points.length; cursor++) {
+      const a = edge.points[cursor - 1]!, b = edge.points[cursor]!
+      expect(a.x === b.x || a.y === b.y).toBe(true)
+      for (const node of positioned.nodes) { expect(node.shape).toBe('rectangle'); expect(crosses(a, b, node)).toBe(false) }
+      for (const group of groups) {
+        expect(Number.isFinite(group.headerHeight) && group.headerHeight! >= 0).toBe(true)
+        if (!group.concurrencyRegion) expect(crosses(a, b, { ...group, height: group.headerHeight! })).toBe(false)
+      }
+    }
+    for (const [id, start] of [[edge.source, true], [edge.target, false]] as const) {
+      const owner = owners.get(id)!, point = start ? edge.points[0]! : edge.points.at(-1)!
+      const next = (start ? edge.points : edge.points.toReversed()).find(next => next.x !== point.x || next.y !== point.y)!
+      expect(point.x === owner.x && next.x < point.x && next.y === point.y
+        || point.x === owner.x + owner.width && next.x > point.x && next.y === point.y
+        || point.y === owner.y && next.y < point.y && next.x === point.x
+        || point.y === owner.y + owner.height && next.y > point.y && next.x === point.x).toBe(true)
+    }
+  }
+}
 
 function routeWitness(graph: MermaidGraph, positions: Record<string, [number, number]>, routes: Array<Array<[number, number]>>, width = 360, height = 280): PositionedGraph {
   return {
@@ -25,7 +64,79 @@ function routeWitness(graph: MermaidGraph, positions: Record<string, [number, nu
   }
 }
 
+const certifyOwnedLayoutCandidate = (...args: [Parameters<typeof certifyNative>[0], Parameters<typeof certifyNative>[1], Parameters<typeof certifyNative>[2]]) =>
+  certifyNative(...args, { certifyCandidate, retainSelection })
+
+const refineOwnedLayoutCandidate = (...args: [Parameters<typeof refineNative>[0], Parameters<typeof refineNative>[1], Parameters<typeof refineNative>[2], Parameters<typeof refineNative>[3]]) =>
+  refineNative(...args, { certifyCandidate, retainSelection, countEdgeCrossings, countOpposingRouteOverlaps, countParallelRouteOverlaps, measureLabelConflicts })
+
 describe('bounded final layout certification', () => {
+  const crossingWitness = () => {
+    const graph = parseMermaid('flowchart LR\nA --> B\nC --> D')
+    const positions: Record<string, [number, number]> = { A: [0, 120], B: [300, 120], C: [100, 0], D: [100, 240] }
+    const first = routeWitness(graph, positions, [[[40, 140], [300, 140]], [[120, 40], [120, 240]]], 360, 340)
+    const other = routeWitness(graph, positions, [[[40, 140], [80, 140], [80, 300], [280, 300], [280, 140], [300, 140]], [[120, 40], [120, 240]]], 360, 340)
+    return { graph, first, other, style: resolveRenderStyle() }
+  }
+
+  test('certifies both owned candidates before preferring fewer final crossings', () => {
+    const { graph, first, other, style } = crossingWitness()
+    expect(refineOwnedLayoutCandidate(graph, style, first, () => other)).toBe(other)
+    expect(other.certification?.status).toBe('passed')
+  })
+
+  test('preserves the owned primary after typed decline or invalid alternative geometry', () => {
+    const { graph, first, other, style } = crossingWitness()
+    expect(refineOwnedLayoutCandidate(graph, style, first, () => { throw new GraphLayoutUnsupportedError('optional channel limit') })).toBe(first)
+    other.edges[0]!.points = []
+    expect(refineOwnedLayoutCandidate(graph, style, first, () => other)).toBe(first)
+  })
+
+  test('certifies a compact candidate after an orientation decline', () => {
+    const { graph, first, other, style } = crossingWitness()
+    expect(refineOwnedLayoutCandidate(graph, style, first, [
+      { strategy: 'orientation', produce: () => { throw new GraphLayoutUnsupportedError('optional orientation limit') } },
+      { strategy: 'compact-ranks', produce: () => other },
+    ])).toBe(other)
+    expect(other.certification).toMatchObject({ status: 'passed', strategy: 'compact-ranks' })
+  })
+
+  test('bounds optional owned trials while retaining the feasible primary', () => {
+    const { graph, first, other, style } = crossingWitness()
+    other.edges[0]!.points = []
+    expect(refineOwnedLayoutCandidate(graph, style, first, [
+      { strategy: 'orientation', produce: () => { throw new GraphLayoutUnsupportedError('optional orientation limit') } },
+      { strategy: 'invalid-compact', produce: () => other },
+      { strategy: 'outside-budget', produce: () => { throw new Error('must not execute beyond two alternatives') } },
+    ])).toBe(first)
+  })
+
+  test.each([new TypeError('unexpected refinement defect'), new DiagramWorkLimitError('nodes', 5_001), new DeferredDependencyError('native', async () => {})])('propagates owned refinement failure %s', failure => {
+    const { graph, first, style } = crossingWitness()
+    expect(() => refineOwnedLayoutCandidate(graph, style, first, () => { throw failure })).toThrow(failure)
+  })
+
+  test('never hides changed meaning in an owned alternative', () => {
+    const { graph, first, other, style } = crossingWitness()
+    other.nodes[0]!.label = 'lost authored identity'
+    expect(() => refineOwnedLayoutCandidate(graph, style, first, () => other)).toThrow(TypeError)
+  })
+  test('owned candidate correspondence failures are engine defects, not recoverable geometry', () => {
+    const graph = parseMermaid('flowchart TD\nA --> B')
+    const changed = layoutGraphSync(graph)
+    changed.nodes[0]!.label = 'changed meaning'
+    expect(() => certifyOwnedLayoutCandidate(graph, resolveRenderStyle({}), { strategy: 'owned', produce: () => changed })).toThrow(TypeError)
+  })
+
+  test('owned candidate exceptions propagate while geometric rejection stays classified', () => {
+    const graph = parseMermaid('flowchart TD\nA --> B')
+    const failure = new TypeError('unexpected solver failure')
+    expect(() => certifyOwnedLayoutCandidate(graph, resolveRenderStyle({}), { strategy: 'owned', produce: () => { throw failure } })).toThrow(failure)
+    const rejected = layoutGraphSync(graph)
+    rejected.edges[0]!.points = []
+    expect(() => certifyOwnedLayoutCandidate(graph, resolveRenderStyle({}), { strategy: 'owned', produce: () => rejected })).toThrow(LayoutCertificationError)
+  })
+
   test.each([false, true])('a rejected conditional solver preserves all four fallbacks with route selection %s', routeSelection => {
     const graph = parseMermaid('flowchart LR\nA --> B')
     const clean = layoutGraphSync(graph)
@@ -93,15 +204,15 @@ describe('bounded final layout certification', () => {
 
   test('readable container titles take precedence over a crossing reduction', () => {
     const graph = parseMermaid('flowchart LR\nsubgraph S[A deliberately long container heading whose complete readable text needs additional horizontal space]\nA --> B\nend\nC --> D')
-    const narrow = routeWitness(graph, { A: [20, 100], B: [260, 100], C: [20, 20], D: [300, 220] }, [
-      [[60, 120], [260, 120]], [[40, 60], [40, 80], [320, 80], [320, 220]],
+    const narrow = routeWitness(graph, { A: [20, 140], B: [260, 140], C: [20, 20], D: [300, 220] }, [
+      [[60, 160], [260, 160]], [[40, 60], [40, 80], [320, 80], [320, 220]],
     ])
-    const wide = routeWitness(graph, { A: [20, 100], B: [260, 100], C: [140, 20], D: [140, 220] }, [
-      [[60, 120], [260, 120]], [[160, 60], [160, 220]],
+    const wide = routeWitness(graph, { A: [20, 140], B: [260, 140], C: [140, 20], D: [140, 220] }, [
+      [[60, 160], [260, 160]], [[180, 40], [890, 40], [890, 120], [160, 120], [160, 220]],
     ], 900)
     const title = graph.subgraphs[0]!.label, style = resolveRenderStyle({})
-    narrow.groups = [{ id: 'S', label: title, x: 0, y: 80, width: 320, height: 80, children: [] }]
-    wide.groups = [{ id: 'S', label: title, x: 0, y: 80, width: 880, height: 80, children: [] }]
+    narrow.groups = [{ id: 'S', label: title, x: 0, y: 80, width: 320, height: 120, children: [] }]
+    wide.groups = [{ id: 'S', label: title, x: 0, y: 80, width: 880, height: 120, children: [] }]
     const preferNext = (positioned: PositionedGraph) => positioned.groups[0]!.width < graphTextBlock(title, style, 'group').width + 24
     const selected = certifyLayoutCandidates(graph, style, [
       { strategy: 'narrow-clear', produce: () => narrow, preferNext },
@@ -305,17 +416,25 @@ describe('bounded final layout certification', () => {
       expect(crossing.certification?.preference.compared).toHaveLength(1)
       calls = 0
       const alreadySeparate = layoutGraphSync(parseMermaid('flowchart TB\nc1-->a2\nsubgraph one\ndirection TB\na1\nend\na1-->a2\nsubgraph two\nb1-->b2\nend\nsubgraph three\nc2\nend\nc1-->c2\none --> two\nthree --> two\ntwo --> c2'))
-      // A distinct route proposal may reuse the same placement even when no
-      // distinct hierarchy strategy is eligible.
-      expect(calls).toBe(2)
-      expect(alreadySeparate.certification?.preference.routing?.preference.compared).toHaveLength(2)
+      // A header-clear, zero-crossing placement has no reason to run the
+      // saved unbundled proposal solely to satisfy a comparison count.
+      expect(calls).toBe(1)
+      expect(alreadySeparate.certification).toMatchObject({ status: 'passed', hardViolations: 0, attempts: 1,
+        preference: { reason: 'first-certified', selectedScore: { edgeCrossings: 0, labelConflicts: 0 } } })
+      expect(alreadySeparate.certification?.preference.compared).toHaveLength(1)
+      expect(alreadySeparate.certification?.preference.routing).toBeUndefined()
+      expectClearZeroFixture(alreadySeparate)
     } finally { firstPass.run = run }
   })
 
   test('a real crossing graph bounds comparisons while retaining authored endpoints and zero-crossing ink', () => {
     const graph = parseMermaid('flowchart TB\nc1-->a2\nsubgraph one\na1\nend\na1-->a2\nsubgraph two\nb1-->b2\nend\nsubgraph three\nc2\nend\nc1-->c2\none --> two\nthree --> two\ntwo --> c2')
     const positioned = layoutGraphSync(graph), certification = positioned.certification!, preference = certification.preference
-    expect(certification).toMatchObject({ status: 'passed', attempts: 2, hardViolations: 0 })
+    expect(certification).toMatchObject({ status: 'passed', hardViolations: 0 })
+    // Rejected header-unsafe proposals consume the existing fallback budget;
+    // only certified placements appear in the comparison evidence below.
+    expect(certification.attempts).toBeLessThanOrEqual(MAX_LAYOUT_CANDIDATES)
+    expect(certification.attempts).toBeGreaterThanOrEqual(preference.compared.length)
     expect(positioned.nodes.map(node => node.id).sort()).toEqual(['a1', 'a2', 'b1', 'b2', 'c1', 'c2'])
     expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label ?? null]).sort()).toEqual([
       ['a1', 'a2', null], ['b1', 'b2', null], ['c1', 'a2', null], ['c1', 'c2', null],
@@ -324,19 +443,17 @@ describe('bounded final layout certification', () => {
     expect(positioned.groups.map(group => ({ id: group.id, nodes: group.nodeIds?.toSorted() })).sort((a, b) => a.id.localeCompare(b.id))).toEqual([
       { id: 'one', nodes: ['a1'] }, { id: 'three', nodes: ['c2'] }, { id: 'two', nodes: ['b1', 'b2'] },
     ])
-    expect(preference.compared).toHaveLength(2)
-    expect(new Set(preference.compared.map(candidate => candidate.strategy)).size).toBe(2)
+    expect(preference.reason).toBe('first-certified')
+    expect(preference.compared).toHaveLength(1)
+    expect(new Set(preference.compared.map(candidate => candidate.strategy)).size).toBe(1)
     const placement = preference.compared.find(candidate => candidate.strategy === certification.strategy)
     expect(placement).toBeDefined()
-    const routing = preference.routing!
-    expect(routing).toBeDefined()
-    expect(routing.preference.compared).toHaveLength(2)
-    expect(new Set(routing.preference.compared.map(candidate => candidate.strategy)).size).toBe(2)
-    expect(routing.preference.compared.find(candidate => candidate.strategy === 'bundled')?.score).toEqual(placement!.score)
-    const selectedRoute = routing.preference.compared.find(candidate => candidate.strategy === routing.strategy)
-    expect(selectedRoute).toBeDefined()
-    expect(preference.selectedScore).toEqual(selectedRoute!.score)
-    expect(preference.selectedScore).toEqual(routing.preference.selectedScore)
+    // The selected placement already has zero crossings and label conflicts;
+    // the bounded selector correctly avoids a cosmetic routing production.
+    expect(preference.routing).toBeUndefined()
+    expect(preference.selectedScore).toEqual(placement!.score)
+    expect(preference.selectedScore.labelConflicts).toBe(0)
+    expectClearZeroFixture(positioned)
     // This fixture has no title-band projection: its score describes this canvas.
     expect(preference.selectedScore.area).toBeCloseTo(positioned.width * positioned.height, 5)
     expect(preference.selectedScore.edgeCrossings).toBe(0)
@@ -348,8 +465,12 @@ describe('bounded final layout certification', () => {
     expect(positioned.edges.map(edge => invalidEndpointApproaches(edge, nodes.get(edge.source), nodes.get(edge.target)))).toEqual(graph.edges.map(() => 0))
     const a1 = nodes.get('a1')!
     const repaired = positioned.edges.find(edge => edge.source === 'a1' && edge.target === 'a2')!
-    expect(repaired.points[0]).toEqual({ x: a1.x, y: a1.y + a1.height / 2 })
-    expect(repaired.routeCertificate).toMatchObject({ sourcePort: 'W', sourcePortAssignment: { side: 'W', port: 'W', slotIndex: 0, slotCount: 1 } })
+    const contact = repaired.points[0]!
+    const side = contact.x === a1.x ? 'W' : contact.x === a1.x + a1.width ? 'E' : contact.y === a1.y ? 'N' : 'S'
+    expect(contact).toEqual(side === 'W' ? { x: a1.x, y: a1.y + a1.height / 2 }
+      : side === 'E' ? { x: a1.x + a1.width, y: a1.y + a1.height / 2 }
+        : { x: a1.x + a1.width / 2, y: side === 'N' ? a1.y : a1.y + a1.height })
+    expect(repaired.routeCertificate).toMatchObject({ sourcePort: side, sourcePortAssignment: { side, port: side, slotIndex: 0, slotCount: 1 } })
     const endpoints = new Map([...positioned.nodes, ...positioned.groups].map(endpoint => [endpoint.id, endpoint]))
     const noise = 1e-6
     for (const edge of positioned.edges) {
@@ -569,6 +690,7 @@ describe('bounded final layout certification', () => {
   test.each([
     new LayoutMetricBudgetError('straighten', 'bends', 0, 4, 2),
     new DiagramWorkLimitError('nodes', 5_001),
+    new DeferredDependencyError('ELK', async () => {}),
   ])('a non-recoverable %s cannot be hidden by an otherwise clean fallback', error => {
     const graph = parseMermaid(source)
     const clean = layoutGraphSync(graph)
@@ -591,5 +713,205 @@ describe('bounded final layout certification', () => {
       ]),
     ).toThrow(error)
     expect(alternateCalls).toBe(0)
+  })
+})
+
+
+describe('final full group-header route geometry', () => {
+  test.each([
+    { name: 'unrelated root header', target: 'dst', points: [[80, 20], [80, 80]], hit: 'root' },
+    { name: 'nested header below the parent band', target: 'dst', points: [[70, 70], [70, 110]], hit: 'nested' },
+    { name: 'authored north exterior contact', target: 'root', points: [[80, 20], [80, 40]], hit: undefined },
+    { name: 'own endpoint approached through its header interior', target: 'root', points: [[80, 80], [80, 40]], hit: 'root' },
+    { name: 'border-only north contact', target: 'dst', points: [[30, 40], [130, 40]], hit: undefined },
+    { name: 'invisible route', target: 'dst', points: [[80, 20], [80, 80]], invisible: true, hit: undefined },
+    { name: 'concurrency region has no own header', target: 'dst', points: [[80, 20], [80, 80]], concurrency: true, hit: undefined },
+    { name: 'explicit zero header', target: 'dst', points: [[80, 20], [80, 80]], height: 0, hit: undefined },
+    { name: 'missing height retains measured band', target: 'dst', points: [[80, 20], [80, 75]], height: undefined, measured: true, hit: 'root' },
+    { name: 'missing height does not reserve the whole group', target: 'dst', points: [[80, 69], [80, 75]], height: undefined, measured: true, hit: undefined },
+  ])('$name', row => {
+    const nested: PositionedGroup = { id: 'nested', label: 'Nested', x: 50, y: 80, width: 60, height: 80, headerHeight: 10, nodeIds: [], children: [] }
+    const root: PositionedGroup = { id: 'root', label: 'Root', x: 30, y: 40, width: 100, height: 160, headerHeight: 'height' in row ? row.height : 20, nodeIds: [], children: [nested], ...('measured' in row ? { labelBlock: graphTextBlock('Root', resolveRenderStyle(), 'group') } : {}), ...('concurrency' in row ? { concurrencyRegion: true as const } : {}) }
+    const positioned: PositionedGraph = { width: 200, height: 240, nodes: [], groups: [root], edges: [{ source: 'src', target: row.target, style: 'invisible' in row ? 'invisible' : 'solid', hasArrowStart: false, hasArrowEnd: true, points: row.points.map(([x, y]) => ({ x: x!, y: y! })) }] }
+    const findings = positionedGeometryViolations(positioned, resolveRenderStyle()).filter(value => value.startsWith('group-header '))
+    expect(findings).toEqual(row.hit ? [`group-header ${row.hit}: edge src->${row.target} segment 1 enters reserved band`] : [])
+  })
+})
+
+
+describe('group headers gate completed candidate consumers', () => {
+  const witness = () => {
+    const graph = parseMermaid('flowchart TB\nsubgraph G[Group]\nX\nend\nA --> B')
+    const positioned = routeWitness(graph, { X: [130, 120], A: [0, 10], B: [80, 180] }, [[[40, 30], [220, 30], [220, 200], [120, 200]]], 260, 230)
+    positioned.groups = [{ id: 'G', label: 'Group', x: 60, y: 60, width: 120, height: 110, headerHeight: 28, nodeIds: ['X'], children: [] }]
+    const crossesHeader = structuredClone(positioned)
+    crossesHeader.edges[0]!.points = [{ x: 40, y: 30 }, { x: 100, y: 30 }, { x: 100, y: 180 }]
+    return { graph, positioned, crossesHeader, style: resolveRenderStyle() }
+  }
+
+  test('a clear shorter shaft cannot make a reserved-header candidate feasible', () => {
+    const { graph, positioned, crossesHeader, style } = witness()
+    expect(hardViolations(assessLayout(graph, crossesHeader, style))).toEqual([])
+    const rejected = certifyCandidate(graph, style, { strategy: 'crosses-header', produce: () => crossesHeader })
+    expect(rejected.certified).toBeUndefined()
+    expect(rejected.attempt.violations).toContain('group-header G: edge A->B segment 2 enters reserved band')
+    expect(certifyLayoutCandidates(graph, style, [
+      { strategy: 'crosses-header', produce: () => crossesHeader },
+      { strategy: 'clear-detour', produce: () => positioned },
+    ])).toBe(positioned)
+  })
+
+  test('a route alternative with fewer bends cannot overwrite a header-clear baseline', () => {
+    const { graph, positioned, crossesHeader, style } = witness()
+    const chosen = certifyLayoutWithRouteAlternative(graph, style,
+      [{ strategy: 'clear-detour', produce: () => positioned }],
+      () => ({ strategy: 'without-generic-bundling', produce: () => crossesHeader }))
+    expect(chosen).toBe(positioned)
+    expect(chosen.certification?.preference?.routing?.preference.reason).toBe('alternative-invalid')
+  })
+})
+
+describe('retained header bands are independent of frame height', () => {
+  const style = resolveRenderStyle()
+  const rows = [
+    {
+      name: 'zero-width band above zero frame',
+      width: 0,
+      frame: 0,
+      height: 28,
+      points: [
+        [80, 20],
+        [80, 90],
+      ],
+      expected: 'clear',
+    },
+    {
+      name: 'positive-width full band beyond frame',
+      width: 100,
+      frame: 0,
+      height: 28,
+      points: [
+        [80, 50],
+        [80, 60],
+      ],
+      expected: 'cross',
+    },
+    {
+      name: 'below full retained band',
+      width: 100,
+      frame: 1,
+      height: 28,
+      points: [
+        [80, 69],
+        [80, 90],
+      ],
+      expected: 'clear',
+    },
+    {
+      name: 'exact lower boundary',
+      width: 100,
+      frame: 1,
+      height: 28,
+      points: [
+        [30, 68],
+        [130, 68],
+      ],
+      expected: 'clear',
+    },
+    {
+      name: 'missing height uses actual text fallback',
+      width: 100,
+      frame: 0,
+      height: undefined,
+      points: [
+        [80, 50],
+        [80, 60],
+      ],
+      expected: 'cross',
+    },
+    {
+      name: 'negative retained height',
+      width: 100,
+      frame: 0,
+      height: -1,
+      points: [
+        [80, 69],
+        [80, 90],
+      ],
+      expected: 'invalid',
+    },
+    {
+      name: 'nonfinite retained height',
+      width: 100,
+      frame: 0,
+      height: NaN,
+      points: [
+        [80, 69],
+        [80, 90],
+      ],
+      expected: 'invalid',
+    },
+    {
+      name: 'infinite retained height',
+      width: 100,
+      frame: 0,
+      height: Infinity,
+      points: [
+        [80, 69],
+        [80, 90],
+      ],
+      expected: 'invalid',
+    },
+  ]
+  for (const row of rows)
+    test('final band: ' + row.name, () => {
+      const group = { id: 'g', label: 'Group', x: 30, y: 40, width: row.width, height: row.frame, headerHeight: row.height, children: [] },
+        edge = { source: 'src', target: 'dst', style: 'solid' as const, hasArrowStart: false, hasArrowEnd: true, points: row.points.map(([x, y]) => ({ x: x!, y: y! })) }
+      const findings = positionedHeaderRouteViolations({ width: 200, height: 240, nodes: [], groups: [group], edges: [edge] }, style)
+      expect(findings).toEqual(row.expected === 'clear' ? [] : row.expected === 'invalid' ? ['group-header g: invalid retained height'] : ['group-header g: edge src->dst segment 1 enters reserved band'])
+    })
+  for (const row of [
+    { name: 'inside measured band beyond frame', height: 28, frame: 0, lo: 50, hi: 60, block: true },
+    { name: 'below measured band beyond frame', height: 28, frame: 1, lo: 69, hi: 90, block: false },
+    { name: 'missing height conservatively reserves whole frame', height: undefined, frame: 160, lo: 100, hi: 120, block: true },
+    { name: 'negative height conservative', height: -1, frame: 0, lo: 100, hi: 120, block: true },
+    { name: 'nonfinite height conservative', height: NaN, frame: 0, lo: 100, hi: 120, block: true },
+    { name: 'infinite height conservative', height: Infinity, frame: 0, lo: 100, hi: 120, block: true },
+  ])
+    test('lane band: ' + row.name, () => {
+      const edge = {
+          source: 'src',
+          target: 'dst',
+          style: 'solid' as const,
+          hasArrowStart: false,
+          hasArrowEnd: true,
+          points: [
+            { x: 80, y: row.lo },
+            { x: 80, y: row.hi },
+          ],
+        },
+        group = { id: 'g', label: 'Group', x: 30, y: 40, width: 100, height: row.frame, headerHeight: row.height, children: [] }
+      const { ctx } = laneContextFor([], [edge], 'TB', style, [group])
+      expect(directLaneBlockers(edge, 80, row.lo, row.hi, ctx)).toEqual(row.block ? [{ kind: 'group-header', id: 'g' }] : [])
+    })
+  test('public empty golden group retains authored identity and its zero-area band', () => {
+    const source = 'graph LR\nsubgraph one\nend\nA --> B\n'
+    const rendered = renderMermaidSVGWithReceipt(source, { embedFontImport: false })
+    expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+    expect(rendered.svg).toContain('data-id="one"')
+    expect(rendered.svg).toContain('data-id="A"')
+    expect(rendered.svg).toContain('data-id="B"')
+    expect(rendered.svg).toContain('data-from="A" data-to="B"')
+    expect(rendered.svg).toContain('marker-end=')
+    const group = /<g\b[^>]*data-id="one"[^>]*>([\s\S]*?)<\/g>/.exec(rendered.svg)![1]!
+    const rect = /<rect\b[^>]*>/.exec(group)![0]
+    expect(rect).toContain('width="0"')
+    expect(rect).toContain('height="0"')
+    const path = /<path\b[^>]*d="([^"]+)"/.exec(group)![1]!,
+      n = path.match(/[-+]?(?:\d*\.\d+|\d+\.?\d*)(?:[eE][-+]?\d+)?/g)!.map(Number)
+    expect(n).toHaveLength(5)
+    expect(n[0]).toBe(n[2])
+    expect(n[2]).toBe(n[4])
+    expect(n[3]! - n[1]!).toBe(28)
   })
 })

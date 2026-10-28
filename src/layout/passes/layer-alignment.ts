@@ -1,6 +1,7 @@
 import type { Direction, Point, PositionedEdge, PositionedNode } from '../../types.ts'
 import { DEFAULTS } from '../geometry.ts'
-import { isOutwardShapeApproach } from '../../shape-clipping.ts'
+import { clipEdgeToShape, isOutwardShapeApproach } from '../../shape-clipping.ts'
+import { trimBoundaryEndpointRuns } from '../../route-contracts.ts'
 
 function outwardEndpoint(points: Point[], node: PositionedNode | undefined, start: boolean): boolean | undefined {
   if (!node) return undefined
@@ -12,6 +13,18 @@ function outwardEndpoint(points: Point[], node: PositionedNode | undefined, star
     if (adjacent.x !== endpoint.x || adjacent.y !== endpoint.y) return isOutwardShapeApproach(node, endpoint, adjacent)
   }
   return false
+}
+
+/** ELK box contacts are trimmed and clipped later. Project that same order on
+ * copies so a cosmetic snap cannot consume a repairable outward approach. */
+function clippedEdge(edge: PositionedEdge, source?: PositionedNode, target?: PositionedNode): PositionedEdge {
+  const projected = { ...edge, points: edge.points
+    .filter((point, index) => index === 0 || point.x !== edge.points[index - 1]!.x || point.y !== edge.points[index - 1]!.y)
+    .map(point => ({ ...point })) }
+  trimBoundaryEndpointRuns(projected, source, target)
+  if (source) projected.points = clipEdgeToShape(projected.points, source, true)
+  if (target) projected.points = clipEdgeToShape(projected.points, target, false)
+  return projected
 }
 
 /** Project the same endpoint adjustment for admission and commit. Retaining
@@ -162,11 +175,19 @@ export function alignLayerNodes(
         const before = { ...edge, points: shiftedEndpointPoints(edge.points, isHorizontal, deltas.get(edge.source), deltas.get(edge.target)) }
         const after = { ...edge, points: shiftedEndpointPoints(edge.points, isHorizontal,
           moves.get(edge.source) ?? deltas.get(edge.source), moves.get(edge.target) ?? deltas.get(edge.target)) }
+        let clippedBefore: PositionedEdge | undefined, clippedAfter: PositionedEdge | undefined
         for (const start of [true, false]) {
           const endpoint = start ? edge.source : edge.target
           const node = nodeMap.get(endpoint), projected = projectedNodes.get(endpoint) ?? node
-          if (outwardEndpoint(before.points, node, start) === true &&
-            outwardEndpoint(after.points, projected, start) !== true) breaksApproach = true
+          let wasOutward = outwardEndpoint(before.points, node, start), remainsOutward: boolean | undefined
+          if (wasOutward === true) remainsOutward = outwardEndpoint(after.points, projected, start)
+          else {
+            clippedBefore ??= clippedEdge(before, nodeMap.get(edge.source), nodeMap.get(edge.target))
+            clippedAfter ??= clippedEdge(after, projectedNodes.get(edge.source) ?? nodeMap.get(edge.source), projectedNodes.get(edge.target) ?? nodeMap.get(edge.target))
+            wasOutward = outwardEndpoint(clippedBefore.points, node, start)
+            remainsOutward = outwardEndpoint(clippedAfter.points, projected, start)
+          }
+          if (wasOutward === true && remainsOutward !== true) breaksApproach = true
         }
       }
     }
