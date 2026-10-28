@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { beforeAll, describe, expect, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
 import mermaid from 'mermaid'
 import { asEr, mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
@@ -14,8 +14,9 @@ const source = `erDiagram
 `
 
 describe('ER multiple-class shorthand (Mermaid 11.16.0)', () => {
+  beforeAll(() => { mermaid.initialize({ startOnLoad: false }) })
+
   test('pinned Mermaid DB applies both classes to both existing entities', async () => {
-    mermaid.initialize({ startOnLoad: false })
     const upstream = await mermaid.mermaidAPI.getDiagramFromText(source)
     const entities = (upstream.db as unknown as { getEntities(): Map<string, { cssClasses: string }> }).getEntities()
     expect(entities.get('CUSTOMER')?.cssClasses).toBe('default vip hot')

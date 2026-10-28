@@ -1,5 +1,8 @@
-import { ZENUML_AGENT_HOOKS } from './zenuml-body.ts'
-import { EVENTMODELING_AGENT_HOOKS } from './eventmodeling-body.ts'
+import { ZENUML_SOURCE_HOOKS } from './zenuml-body.ts'
+import { EVENTMODELING_SOURCE_HOOKS } from './eventmodeling-body.ts'
+import { mutateZenUML } from '../zenuml/native-body.ts'
+import type { ZenUMLMutationOp } from '../zenuml/native-types.ts'
+import { mutateEventModeling } from '../eventmodeling/body.ts'
 // Complete SDK hooks compose the shared source operations with mutation.
 // Private source-only workers import families-source-hooks.ts directly.
 import type { FamilyOperations } from './family-registry.ts'
@@ -147,6 +150,18 @@ export const C4_AGENT_HOOKS = {
   mutate: (body, op) => (body.kind === 'c4' ? mutateC4(body, op as never) : err<MutationError>({ code: 'UNSUPPORTED_FAMILY', message: 'C4 source contains unmodeled syntax; preserve it verbatim or edit source explicitly.' })),
 } satisfies FamilyOperations
 
+export const EVENTMODELING_AGENT_HOOKS: FamilyOperations = {
+  ...EVENTMODELING_SOURCE_HOOKS,
+  mutate: (body, op) => (body.kind === 'eventmodeling' ? mutateEventModeling(body, op as never) : err({ code: 'UNSUPPORTED_FAMILY', message: 'Unmodeled Event Modeling source remains preserved' })),
+}
+
+export const ZENUML_AGENT_HOOKS: FamilyOperations = {
+  ...ZENUML_SOURCE_HOOKS,
+  mutate: (body, op) => body.kind === 'zenuml'
+    ? mutateZenUML(body, op as ZenUMLMutationOp)
+    : err({ code: 'UNSUPPORTED_FAMILY', message: 'Unmodeled ZenUML source remains preserved.' }),
+}
+
 export const BUILTIN_AGENT_HOOKS = /* @__PURE__ */ Object.freeze({
   flowchart: FLOWCHART_AGENT_HOOKS,
   state: STATE_AGENT_HOOKS,
@@ -169,5 +184,3 @@ export const BUILTIN_AGENT_HOOKS = /* @__PURE__ */ Object.freeze({
   eventmodeling: EVENTMODELING_AGENT_HOOKS,
   ...STABLE_FAMILY_AGENT_HOOKS,
 }) satisfies Readonly<Record<DiagramKind, FamilyOperations>>
-export { EVENTMODELING_AGENT_HOOKS } from './eventmodeling-body.ts'
-export { ZENUML_AGENT_HOOKS } from './zenuml-body.ts'

@@ -248,7 +248,12 @@ export interface ConnectorMarkerPaintRegion {
 }
 
 /** Individual marker occurrences from the native connector authority. */
-export function connectorMarkerPaintRegions(node: Pick<ConnectorMark, 'route' | 'stroke' | 'markers' | 'transform'>, parentTransform?: SceneTransform): ConnectorMarkerPaintRegion[] {
+export function connectorMarkerPaintRegions(node: {
+  route: Pick<ConnectorMark['route'], 'geometry' | 'closed' | 'contours'>
+  stroke: Pick<ConnectorMark['stroke'], 'width'>
+  markers: ConnectorMark['markers']
+  transform?: SceneTransform
+}, parentTransform?: SceneTransform): ConnectorMarkerPaintRegion[] {
   const geometry = node.route.geometry, endpoints = connectorEndpointAnchors(geometry, node.route.closed)
   const mids = connectorMidpoints(geometry, node.route.closed)
   const transform = composedTransform(parentTransform, node.transform)
