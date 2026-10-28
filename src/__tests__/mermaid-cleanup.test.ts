@@ -132,13 +132,17 @@ describe('cleanup at public source boundaries', () => {
   test('render requests retain exact authored slices after transport decoding', async () => {
     const { resolveRenderRequest } = await import('../render-contract.ts')
     const { renderMermaidSVG } = await import('../index.ts')
-    const source = '\uFEFF---\r\ntitle: Map\r\n---\r\nflowchart LR\r\n  A["&lt;literal&gt; &#x1F600;"] --> B'
+    const source = '\uFEFF---\r\ntitle: Map\r\n---\r\n%%{init: {flowchart: {rankSpacing: 80}}}%%\r\nflowchart LR\r\n%% Keep this note\r\n  A["&lt;b&gt;literal&lt;/b&gt; &#x1F600;"] --> B'
     const request = resolveRenderRequest(source, {}, 'svg')
     expect(request.source.originalText).toBe(source)
     const receipt = request.source.cleanup!
-    const start = receipt.text.indexOf('<literal>')
-    expect(authoredMermaidSlice(receipt, start, start + '<literal> 😀'.length)).toBe('&lt;literal&gt; &#x1F600;')
-    expect(request.source.authoredFamilyLines?.[1]).toContain('&lt;literal&gt;')
+    const start = receipt.text.indexOf('<b>literal</b>')
+    expect(authoredMermaidSlice(receipt, start, start + '<b>literal</b> 😀'.length)).toBe('&lt;b&gt;literal&lt;/b&gt; &#x1F600;')
+    expect(request.source.authoredFamilyBody).toContain('&lt;b&gt;literal&lt;/b&gt;')
+    const svg = renderMermaidSVG(source)
+    const text = [...svg.matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/g)].map(match => match[1]).join('')
+    expect(text).toContain('&lt;b&gt;literal&lt;/b&gt; 😀')
+    expect(svg).not.toContain('Keep this note')
     const { parseRegisteredMermaid } = await import('../agent/parse.ts')
     const { serializeMermaid } = await import('../agent/serialize.ts')
     const { readC4Source } = await import('../c4/parser.ts')

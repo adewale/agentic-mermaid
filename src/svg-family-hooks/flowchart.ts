@@ -6,7 +6,7 @@ import { flowchartStatementEnds } from '../flowchart-lexer.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { parseFlowchartRenderSource } from '../parser.ts'
 import { lowerGraphScene } from '../renderer.ts'
-import { frontmatterTitle, normalizeMermaidSource } from '../mermaid-source.ts'
+import { frontmatterTitle } from '../mermaid-source.ts'
 import { checkAllGraphAuthoredStyles } from '../shared/style-props.ts'
 
 /** The flowchart SVG hooks: one definition for the complete renderer
@@ -23,7 +23,7 @@ export const FLOWCHART_SVG_HOOKS = {
     renderOptions: resolveFlowchartRenderOptions(ctx.source.frontmatter, ctx.renderOptions),
   }),
   layout: ctx => {
-    const graph = parseFlowchartRenderSource(normalizeMermaidSource(ctx.source.originalText).familyBody, ctx.source.familyBody)
+    const graph = parseFlowchartRenderSource(ctx.source.authoredFamilyBody ?? ctx.source.familyBody, ctx.source.familyBody)
     checkAllGraphAuthoredStyles(graph)
     applyFlowchartLabelWrapping(graph, ctx.renderOptions, ctx.styleFace)
     const diagramTitle = frontmatterTitle(ctx.source.frontmatter)
