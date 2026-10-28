@@ -27,7 +27,7 @@ function option(name: string, fallback: string): string {
   return value
 }
 if (args.includes('--help')) {
-  console.log('bun run eval/mermaid-modern-compat/grammar-run.ts [--mermaid-dir PATH] [--reference-dir PATH] [--fuzz 5000] [--seed 7] [--workers 4] [--families flowchart,sequence | --native-only] [--docs-only] [--corpus-limit 0] [--candidates-per-family 8] [--reduce-checks 150] [--output PATH]')
+  console.log('bun run eval/mermaid-modern-compat/grammar-run.ts [--mermaid-dir PATH] [--reference-dir PATH] [--fuzz 5000] [--seed 7] [--workers 4] [--families flowchart,sequence | --native-only] [--docs-only] [--corpus-limit 0] [--candidates-per-family 0] [--reduce-checks 150] [--output PATH]')
   process.exit(0)
 }
 const upstream = resolve(option('--mermaid-dir', process.env.MERMAID_UPSTREAM_DIR ?? join(HERE, '../../../mermaid')))
@@ -37,7 +37,7 @@ const fuzz = Number(option('--fuzz', '5000')),
   seed = Number(option('--seed', '7')),
   workers = Number(option('--workers', '4')),
   corpusLimit = Number(option('--corpus-limit', '0')),
-  candidatesPerFamily = Number(option('--candidates-per-family', '8')),
+  candidatesPerFamily = Number(option('--candidates-per-family', '0')),
   reduceChecks = Number(option('--reduce-checks', '150'))
 if (!Number.isSafeInteger(fuzz) || fuzz < 0 || fuzz > 100_000) throw new Error('--fuzz must be 0..100000 per family')
 if (!Number.isSafeInteger(seed)) throw new Error('--seed must be an integer')
@@ -358,7 +358,7 @@ function mutate(seeds: readonly Sample[], fragments: readonly string[], rnd: () 
 const inProgress = join(output, 'in-progress.json')
 const entering = (family: string, id: string, stage: string, source: string): void => writeFileSync(inProgress, JSON.stringify({ family, id, stage, source }) + '\n')
 /** Silent reads reduced per family; the rest are counted, not reduced. */
-const SILENT_REDUCTIONS = candidatesPerFamily
+const SILENT_REDUCTIONS = args.includes('--candidates-per-family') ? candidatesPerFamily : 8
 interface ContractExample {
   family: string
   id: string
@@ -460,7 +460,7 @@ async function worker(): Promise<void> {
             let verify: string[] | undefined
             const sameFamily = agentic.envelope.family === family
             const sourceOnly = sameFamily && agentic.envelope.status === 'accepted' && (agentic.envelope.representation === 'opaque' || agentic.envelope.representation === 'preserved')
-            if ((!before.accepted && readsAsFamily(family!, agentic)) || sourceOnly) {
+            if ((!before.accepted && readsAsFamily(family!, agentic)) || (candidatesPerFamily > 0 && sourceOnly)) {
               if (!before.accepted && readsAsFamily(family!, agentic)) c.readsMermaidRejects++
               entering(family!, sample.id, 'verify', sample.source)
               verify = verifyCodes(sample.source)
