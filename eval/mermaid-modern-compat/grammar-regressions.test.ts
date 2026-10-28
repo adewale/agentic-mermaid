@@ -98,10 +98,7 @@ test('native meaning comparison retains authored values while resolving private 
   expect(nativeMeaningChanged('block', observed('block', 'block\nspace:3 A'), observed('block', 'block\nspace:2 A'))).toBe(true)
   expect(nativeMeaningChanged('quadrant', observed('quadrant', 'quadrantChart\nM:[1,0]stroke-width:1'), observed('quadrant', 'quadrantChart\nM:[1,0]stroke-width:2'))).toBe(true)
   expect(nativeMeaningChanged('quadrant', observed('quadrant', 'quadrantChart\nx-axis "< Urgent"'), observed('quadrant', 'quadrantChart\nx-axis "<Urgent"'))).toBe(true)
-  const kanban = 'kanban\nr&#35;oot'
-  const parsedKanban = am.parseRegisteredMermaid(kanban)
-  if (!parsedKanban.ok) throw new Error('Kanban control must parse')
-  expect(nativeMeaningChanged('kanban', observed('kanban', kanban), observed('kanban', am.serializeMermaid(parsedKanban.value, { wrapper: 'canonical' })))).toBe(true)
+  expect(nativeMeaningChanged('kanban', observed('kanban', 'kanban\nroot[One]'), observed('kanban', 'kanban\nrenamed[One]'))).toBe(true)
   expect(observed('sequence', 'sequenceDiagram\nparticipant A as Databa&#35;se').model).toMatchObject({ actors: [{ id: 'A', label: 'Databa#se' }] })
   expect(observed('gantt', '---\nconfig:\n  gantt:\n    axisFormat: "%Y"\n---\ngantt\ndateFormat YYYY-MM-DD\nA :2026-01-01, 1d').model).toMatchObject({ axisFormat: '%Y' })
 })

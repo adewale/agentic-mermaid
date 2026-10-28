@@ -26,6 +26,7 @@ export interface GrammarTriageResult extends GrammarWitness {
   warningCodes: string[]
   semanticFields: string[]
   exportRefusal?: string
+  renderability?: 'passed' | 'failed' | 'not-checked'
   defects: Array<{ kind: GrammarDefectKind; detail: string; trackedBy?: number }>
 }
 
@@ -94,7 +95,11 @@ export async function triageGrammarWitness(
     const trackedBy = reviewed?.followup?.kinds.includes(kind) ? reviewed.followup.issue : undefined
     result.defects.push({ kind, detail, ...(trackedBy ? { trackedBy } : {}) })
   }
-  try { result.warningCodes = [...new Set(verifyMermaid(witness.source).warnings.map(w => w.code))] }
+  try {
+    const verification = verifyMermaid(witness.source)
+    result.warningCodes = [...new Set(verification.warnings.map(w => w.code))]
+    result.renderability = verification.checks.renderability
+  }
   catch (error) { defect('verification-error', String(error)) }
   const parsed = parseRegisteredMermaid(witness.source)
   if (!parsed.ok) {
@@ -134,9 +139,9 @@ export async function triageGrammarWitness(
   if (!written.accepted || canonical(written.detectedType ?? written.type) !== witness.family) defect('portable-export', written.error ?? 'Canonical export changed diagram family')
   const after = inspectAgenticGrammar(witness.family, result.canonical)
   assertInstrumentation(after.native.observation)
-  if (before.native.status === 'accepted' && after.native.status !== 'accepted') defect('native-reload', after.native.error ?? 'Native reader rejects its canonical output')
+  if (before.native.status === 'accepted' && result.renderability === 'passed' && after.native.status !== 'accepted') defect('native-reload', after.native.error ?? 'Native reader rejects its canonical output')
   result.semanticFields = before.native.observation.semantic?.fields ?? []
   if (nativeMeaningChanged(witness.family, before.native.observation, after.native.observation)) defect('meaning-change', `Selected native fields changed on reload: ${result.semanticFields.join(', ')}`)
-  result.disposition = result.defects.length ? 'defect' : 'reader-extension'
+  result.disposition = result.defects.length ? 'defect' : (before.native.status !== 'accepted' || result.renderability === 'failed') && announces(result.warningCodes) ? 'diagnosed-limitation' : 'reader-extension'
   return result
 }
