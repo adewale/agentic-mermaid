@@ -58,6 +58,10 @@ const WORKLOADS = {
     { id: 'subgraphs-12x8', source: flowchartSubgraphs(12, 8) },
   ],
   sequence: [{ id: '20-participants-300-messages', source: lines('sequenceDiagram', 300, i => `  P${i % 20}->>P${(i * 7 + 1) % 20}: message ${i}`), expectedSvgLabels: Array.from({ length: 300 }, (_, i) => `message ${i}`) }],
+  zenuml: [{ id: '20-participants-100-messages', source: lines('zenuml', 100, i => `P${i % 20}->P${(i + 1) % 20}: message${i}`), expectedSvgLabels: Array.from({ length: 100 }, (_, i) => `message${i}`) }],
+  // Each Event frame emits its canonical id/type and entity in one text block;
+  // the release observer compares the complete block after removing SVG tags.
+  eventmodeling: [{ id: '100-frames', source: lines('eventmodeling', 100, i => `tf ${i + 1} ${i % 2 ? 'evt' : 'cmd'} Step${i}`), expectedSvgLabels: Array.from({ length: 100 }, (_, i) => `${i + 1} · ${i % 2 ? 'event' : 'command'}Step${i}`) }],
   class: [{ id: '80-classes', source: lines('classDiagram', 80, i => [`  class C${i} {`, `    +int field${i}`, `    +method${i}()`, '  }', ...(i > 0 ? [`  C${Math.floor((i - 1) / 2)} <|-- C${i}`] : [])]) }],
   state: [{ id: '80-states', source: lines('stateDiagram-v2', 80, i => [`  S${i} --> S${i + 1}: e${i}`, ...(i % 5 === 0 ? [`  S${i + 1} --> S${Math.max(0, i - 3)}`] : [])]) }],
   er: [{ id: '40-entities', source: lines('erDiagram', 40, i => [`  E${i} {`, '    int id PK', `    string name${i}`, '  }', ...(i > 0 ? [`  E${Math.floor((i - 1) / 2)} ||--o{ E${i} : has`] : [])]) }],
