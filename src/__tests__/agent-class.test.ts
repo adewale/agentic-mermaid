@@ -4,9 +4,10 @@ import { describe, expect, test } from 'bun:test'
 import { decodeHTML } from 'entities'
 import { classUnsupportedSyntaxWarnings } from '../agent/class-body.ts'
 import { applyOps, asClass, mutate, mutateChecked, parseRegisteredMermaid as parseMermaid, renderMermaidSVG, renderMermaidASCII, serializeMermaid, verifyMermaid, synthesizeFromGraph } from '../agent/index.ts'
-import { renderMermaidSVG as renderSourceSVG, renderMermaidASCII as renderSourceASCII } from '../index.ts'
-import type { ClassMutationOp } from '../agent/types.ts'
+import { renderMermaidSVG as renderSourceSVG, renderMermaidSVGWithReceipt, renderMermaidASCII as renderSourceASCII } from '../index.ts'
+import type { ClassBody, ClassMutationOp } from '../agent/types.ts'
 import { parseClassDiagram } from '../class/parser.ts'
+import { decodedSvgAttributeValue, scanSvgStartTags, type SvgStartTagToken } from '../svg-structure.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 // Independent consumer projection: Mermaid resolves DB markers in HTML.
@@ -175,6 +176,122 @@ describe('class — parse', () => {
     if (!changed.ok) throw new Error(JSON.stringify(changed.error))
     const reloaded = asClass(parse(serializeMermaid(changed.value)))
     expect(reloaded?.body.classes).toEqual([expect.objectContaining({ id: 'A', label: 'Before; after', namespace: 'Domain', members: ['+String name'] }), expect.objectContaining({ id: 'B', namespace: 'Domain', members: [] })])
+  })
+
+  test('authored namespace shadows retain members and distinct relationship occurrences through reload and SVG', () => {
+    // New development evidence, not the unrecovered Class64 or the sealed holdout.
+    // These identities, immediate owners and ordered occurrences precede parsing.
+    const expectedClasses = [
+      ['ns:Outer.Shared', '衝突しない監査記録', 'Outer.Shared', ['+String 非常に長い監査履歴の所有者識別子']],
+      ['Agent', '担当者', 'Outer.Shared', ['+save履歴(更新要求 request) String']],
+      ['Mirror', '担当者', 'Shared', ['+String 表示名']],
+      ['Contract', undefined, undefined, ['<<interface>>', '+ack() Boolean']],
+    ]
+    // Source, target, kind, marker ownership, label, cardinalities, marker resources, dash.
+    const expectedRelations = [
+      ['Agent', 'Mirror', 'association', 'to', '記録する', '1', '*', '', 'cls-arrow', false],
+      ['Agent', 'Mirror', 'association', 'to', '監査する', '0..1', '1', '', 'cls-arrow', false],
+      ['Mirror', 'Agent', 'dependency', 'to', '応答する', undefined, undefined, '', 'cls-arrow', true],
+      ['Agent', 'Agent', 'association', 'to', '再試行', undefined, undefined, '', 'cls-arrow', false],
+      ['Contract', 'Agent', 'realization', 'from', '実装する', undefined, undefined, 'cls-inherit', '', true],
+    ] as const
+    const expectedNamespaces = [['Outer', undefined], ['Outer.Shared', 'Outer'], ['Shared', undefined]]
+    const source = [
+      'classDiagram',
+      'namespace Outer {',
+      'namespace Shared {',
+      'class `ns:Outer.Shared`["衝突しない監査記録"] {',
+      '+String 非常に長い監査履歴の所有者識別子',
+      '}',
+      'class Agent["担当者"] {',
+      '+save履歴(更新要求 request) String',
+      '}',
+      '}',
+      '}',
+      'namespace Shared {',
+      'class Mirror["担当者"] {',
+      '+String 表示名',
+      '}',
+      '}',
+      'class Contract {',
+      '<<interface>>',
+      '+ack() Boolean',
+      '}',
+      'Agent "1" --> "*" Mirror : 記録する',
+      'Agent "0..1" --> "1" Mirror : 監査する',
+      'Mirror ..> Agent : 応答する',
+      'Agent --> Agent : 再試行',
+      'Contract <|.. Agent : 実装する',
+      'note for `ns:Outer.Shared` "監査記録の所有者を保持する"',
+    ].join('\n')
+    const facts = (body: ClassBody) => ({
+      classes: body.classes.map(node => [node.id, node.label, node.namespace, node.members]),
+      // Canonical dotted paths imply their unlabeled structural parents.
+      namespaces: [...new Set(body.namespaces?.flatMap(namespace => {
+        const parts = namespace.name.split('.')
+        return parts.map((_part, index) => parts.slice(0, index + 1).join('.'))
+      }))],
+      relations: body.relations.map(relation => [relation.from, relation.to, relation.kind, relation.markerAt, relation.label, relation.fromCardinality, relation.toCardinality]),
+      notes: body.notes,
+    })
+    const expected = {
+      classes: expectedClasses,
+      namespaces: ['Outer', 'Outer.Shared', 'Shared'],
+      relations: expectedRelations.map(([from, to, kind, markerAt, label, fromCardinality, toCardinality]) => [from, to, kind, markerAt, label, fromCardinality, toCardinality]),
+      notes: [{ for: 'ns:Outer.Shared', text: '監査記録の所有者を保持する' }],
+    }
+    const original = asClass(parse(source))
+    if (!original) throw new Error('authored Class interaction must retain an editable model')
+    expect(facts(original.body)).toEqual(expected)
+    const collision = mutate(original, { kind: 'rename_class', from: 'Mirror', to: 'Agent' })
+    expect(collision).toEqual({ ok: false, error: { code: 'DUPLICATE_CLASS', message: 'class Agent already exists' } })
+    expect(facts(original.body)).toEqual(expected)
+    const json = synthesizeFromGraph(JSON.parse(JSON.stringify({ kind: 'class', body: original.body })))
+    if (!json.ok) throw new Error(JSON.stringify(json.error))
+    const reloaded = [original, asClass(parse(serializeMermaid(original)))!, asClass(parse(serializeMermaid(json.value)))!]
+    for (const diagram of reloaded) {
+      expect(facts(diagram.body)).toEqual(expected)
+      for (const backend of ['agentic', 'elk'] as const) {
+        const rendered = renderMermaidSVGWithReceipt(diagram, { security: 'strict', embedFontImport: false, graphLayout: { backend, fallback: 'none' } })
+        expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: backend, role: 'primary' })])
+        const svg = rendered.svg, tags = scanSvgStartTags(svg)
+        const attr = (tag: SvgStartTagToken, name: string) => decodedSvgAttributeValue(tag, name)
+        const cards = tags.filter(tag => tag.name === 'g' && attr(tag, 'class') === 'class-node')
+        expect(cards.map(tag => [attr(tag, 'data-id'), attr(tag, 'data-label')])).toEqual([
+          ['ns:Outer.Shared', '衝突しない監査記録'], ['Agent', '担当者'], ['Mirror', '担当者'], ['Contract', 'Contract'],
+        ])
+        expect(tags.filter(tag => tag.name === 'g' && attr(tag, 'class') === 'namespace').map(tag => [attr(tag, 'data-id'), attr(tag, 'data-parent-id')])).toEqual(expectedNamespaces)
+        expect(tags.filter(tag => attr(tag, 'class') === 'class-relationship').map(tag => [
+          attr(tag, 'data-from'), attr(tag, 'data-to'), attr(tag, 'data-type'), attr(tag, 'data-marker-at'), attr(tag, 'data-label'),
+          attr(tag, 'data-from-cardinality'), attr(tag, 'data-to-cardinality'),
+          attr(tag, 'marker-start')?.match(/#([^)]*)/)?.[1] ?? '', attr(tag, 'marker-end')?.match(/#([^)]*)/)?.[1] ?? '', attr(tag, 'stroke-dasharray') !== undefined,
+        ])).toEqual(expectedRelations.map(relation => [...relation]))
+        const texts = [...svg.matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/g)].map(match => decodeHTML(match[1]!.replace(/<[^>]+>/g, '')))
+        for (const label of ['記録する', '監査する', '応答する', '再試行', '実装する']) expect(texts.filter(text => text === label)).toHaveLength(1)
+        // Read text inside its actual class wrapper, including nested text groups.
+        const ownText = (tag: SvgStartTagToken) => {
+          let depth = 1, end = tag.end
+          for (const group of svg.slice(tag.end).matchAll(/<\/?g\b[^>]*>/g)) {
+            if (group[0].startsWith('</')) depth--
+            else if (!group[0].endsWith('/>')) depth++
+            if (depth === 0) { end = tag.end + group.index!; break }
+          }
+          return decodeHTML(svg.slice(tag.end, end).replace(/<[^>]+>/g, '')).replace(/\s+/g, '')
+        }
+        expect(ownText(cards[0]!)).toContain('衝突しない監査記録')
+        expect(ownText(cards[0]!)).toContain('+String非常に長い監査履歴の所有者識別子')
+        expect(ownText(cards[1]!)).toContain('担当者')
+        expect(ownText(cards[1]!)).toContain('+save履歴(更新要求request):String')
+        expect(ownText(cards[2]!)).toContain('担当者')
+        expect(ownText(cards[2]!)).toContain('+String表示名')
+        expect(attr(cards[3]!, 'data-annotation')).toBe('interface')
+        expect(ownText(cards[3]!)).toContain('interface')
+        expect(ownText(cards[3]!)).toContain('+ack():Boolean')
+        const notes = tags.filter(tag => tag.name === 'g' && attr(tag, 'class') === 'class-note')
+        expect(notes.map(tag => attr(tag, 'data-for'))).toEqual(['ns:Outer.Shared'])
+        expect(ownText(notes[0]!)).toContain('監査記録の所有者を保持する')
+      }
+    }
   })
 
   test('quoted notes create their target and survive escaping on reload', () => {
