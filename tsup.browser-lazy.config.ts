@@ -1,5 +1,6 @@
 import { defineConfig } from 'tsup'
 import { runtimeRenderContractPlugin } from './scripts/build/runtime-render-contract.ts'
+import { compactBrowserModulesPlugin } from './scripts/build/compact-browser-modules.ts'
 import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
 import { readFile } from 'node:fs/promises'
@@ -53,7 +54,7 @@ export default defineConfig({
       build.onResolve({ filter: /\/agentic-layered\.ts$/ }, args =>
         args.kind === 'dynamic-import' ? undefined : { path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) })
     },
-  }],
+  }, compactBrowserModulesPlugin()],
   esbuildOptions(options) {
     options.chunkNames = 'browser-lazy/chunks/[name]-[hash]'
     options.assetNames = 'browser-lazy/assets/[name]-[hash]'

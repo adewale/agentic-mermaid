@@ -65,7 +65,8 @@ function newestBuildInputMtime(): number {
     }
   }
   visit(join(REPO, 'src'))
-  for (const file of ['package.json', 'tsup.config.ts', 'tsup.browser.config.ts', 'tsup.browser-lazy.config.ts', 'tsup.zenuml.config.ts', 'scripts/build/runtime-render-contract.ts']) visit(join(REPO, file))
+  visit(join(REPO, 'scripts/build'))
+  for (const file of ['package.json', 'bun.lock', 'tsup.config.ts', 'tsup.browser.config.ts', 'tsup.browser-lazy.config.ts', 'tsup.zenuml.config.ts']) visit(join(REPO, file))
   return newest
 }
 
