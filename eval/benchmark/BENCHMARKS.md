@@ -4,6 +4,8 @@ A benchmark is useful when it answers a decision you actually face. The diagnost
 
 **Start here:** use community admission to find unsupported or broken inputs; use authored meaning/paint checks to investigate fidelity; use first-result/scaling experiments for performance decisions. The six-input community speed core is a narrow repeat workload, not evidence of general rendering speed.
 
+The [27–28 October historical campaign](../../docs/benchmarks/campaign-2026-10-28.md) retains AM PR comparisons and backend/source-suite findings separately from Trident’s ecosystem scores. It is not a current release qualification.
+
 ## Run product diagnostics
 
 Run `bun run bench --list --profile full` to inspect prerequisites, then
@@ -22,7 +24,7 @@ conflicting versions within the same catalog comparison still fail admission.
 
 For a frozen release comparison, supply `--candidate-tarball` and its
 `--candidate-sha256`, plus `--baseline-tarball` and its `--baseline-sha256`.
-Both the Node and browser release suites use those selected archives. The Node
+Both the Node and browser release suites use those selected archives. An explicit baseline tarball takes precedence over a baseline directory supplied for another diagnostic. Endpoint-marker source checks instead accept `--baseline-checkout` and `--candidate-checkout`; they require clean built Git roots, not installed package directories. The Node
 suite blocks a baseline archive without its digest instead of substituting npm
 `latest`; npm selection is used only when no directory or archive baseline was
 selected.
