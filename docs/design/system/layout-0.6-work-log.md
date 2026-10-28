@@ -556,3 +556,92 @@ Raw-only improvement is not CI success. Saved inputs, actual transformed bytes
 and failed measurements remain under `/tmp/pr449-editor-literal-*20261028*`.
 No existing cap, work limit, API, default, provider, security, receipt or check
 has been removed or relaxed. All six0.6goals and seven original U remain open.
+
+
+Main advanced during this repair. Integrated `03641ceb98170eaa39a924097f796221d1e22a22`
+(#556 delivery and #563 empty-wrapper guard) at
+`09022c703ace5ffb857d128b09694d556b277b61`, after independently verified commits
+`defce2218` (caption) and `ec54da0f7` (capability cells). Core types and route
+owner pass after the test literal correction; repository types and1898-file
+lint pass with the retained oversized-JSON warning. Main's raised editor caps
+are explicitly not adopted: original4429400raw/1334500gzip stay enforced.
+The earlier coalescing patch is preserved in Git stash and an exact temp patch,
+initially unapplied during combined measurement; no concurrent edit discarded.
+Main's incoming compactor uses a source-recipe hash despite CLAUDE's own-input
+hash rule; this upstream mechanism is recorded, not presented as compliant or
+silently rewritten into another compiler. Its annotated source/import lineage
+is pre-SWC and final bytes are post-SWC; inspect actual emitted edges before
+calling that graph final. The saved final-esbuild prototype is unshipped.
+
+Actual combined standalone is4469719raw/1348374gzip:40319/13874over original
+caps. Actual lazy canonical build retains19violations, down from62, with request
+limits clear; no green qualification. Identifier-preserving primary Bun was
+negative (2rawbytes saved,18gzip worse) in the prior same-capability epoch.
+An isolated pinned Terser5.44.1 saved-input comparison is authorized as a
+standard build-only alternative; root dependencies are unchanged pending a
+positive result. No custom string-pool transform or packed runtime ships.
+
+
+Combined eight-owner qualification is525P/0F,4176assertions. The first batch
+had25sandbox child-pipe/esbuild EPERM failures; those logs remain. Only the
+three affected owners were rerun using the required network-enabled execution
+profile, yielding wrapper75P,cleanup14P,metadata projection6P. No test assertion
+or runtime check changed. The coalescing stash patch was reapplied to config
+with stash retained; canonical outputs drop67to62modules and leave exactly
+four raw failures: Packet740over,Kanban51over,Ishikawa876over,ZenUML77over.
+Allgzip/Brotli/request caps pass. Actual final static/dynamic import sets and
+UTF8size annotations match every emitted module; publicDTS is unchanged.
+Evidence: `/tmp/pr449-lazy-integrated09022-coalescing-*20261028*` and
+`/tmp/pr449-20261028-main09022-owner-controls/FINAL-SUMMARY.json`.
+
+Standard SWC hoist-vars and hoist-functions variants worsen both raw/gzip and
+remain unshipped. Terser3passes timed out at117seconds without runtime output;
+Terser1pass completes but is46017raw/6477gzip worse on exactfullHTML. No root
+dependency or compiler helper changed. These are compiler experiment outcomes,
+not product API refusals or new benchmark timing observations. A private
+provider/core union extension and primitive-literal pooling followed by stock
+mangling are under bounded investigation only; neither is qualified yet.
+
+
+Further private provider/core union coalescing clears ALL original lazy caps.
+Styled and Native providers already load after core; their private facades now
+re-export that same core. Independent review finds only dynamic back-edges,
+no static initialization cycle or new getter/option reads. Actual canonical
+build has59JSmodules. Every actual import and finalUTF8byte size matches the
+annotated metafile. Initial and all25family static source unions, including
+zero-byte origins, remain exact; publicDTS remains identical. Initial improves
+4requests/15428rawto3/15408raw,5856gzip/5228Brotli. Former raw failures now have
+margins Packet1454,Ishikawa1310,Kanban2129,ZenUML2179,Architecture2878bytes.
+Built YAML/entity/placement checks also pass. Exactbytes/metas/config retained
+in `/tmp/pr449-lazy-integrated09022-provider-artifact-20261028/`.
+
+Actual emitted Chromium owner is26P/0F,831assertions: all25families xcrisp,
+hand-drawn andwatercolor compare exactSVG and FULLreceipts; NativezeroELK,
+truefallbackonly, recovery, getter/YAML/entities and hostileCSS pass. Local
+Firefox/WebKit are unavailable and remain enrolled for fullCI. The first
+manual invocation wrongly used repository-rootcwd, loading the unit preload
+and forcingSceneassertions against browserNative receipts. It produced10P/16F;
+those logs remain. Canonical runnercwd=e2e has its ownno-preload bunfig, so the
+unchanged26cases pass after correcting invocation only. No harness edit,
+receipt field removal, JSONnormalization or assertion/cap relaxation fixed it.
+Evidence: `/tmp/pr449-lazy-provider-chromium-canonical-owners-20261028.log`.
+
+Editor remains unqualified. Thirteen generic lexically ordered literal-pool
+profiles followed by stock mangling allfail gzip; best4368466raw/1339715gzip,
+still5215gzip over. Six property-overlap/far-gap variants also fail; no source
+helper or rootdependency was added. Finite declaration-order/mangler variants
+and once-cachedmodule-local representation research remain pending. No packed
+runtime, newbrowserloader, solver tuning or timing campaign is introduced.
+
+
+Verified lazy change committed at `fcd9297c3`; the original editor budget
+contract restored after Main integration is `432b85a3911e1e9433bccdcf7d520eae87b30e08`.
+Canonical core and repository types pass on this combined source;1901-file
+lint passes with the one existing oversized-JSON warning. Compiler/schema
+owners525P and canonical emittedChromium owners26P remain applicable: these
+commits only record the tested source/config and stricter retained testcaps.
+The editor remains failed; no final CI readiness is claimed. Current best
+unshipped pool-plus-stockmangling/Terser-format experiment is4368584raw and
+1336443gzip,1943gzip over. Direct-to-Terser variants also fail; no rootdependency
+or private representation helper has been adopted. Remaining renderer correctness,
+peer/holdout/aesthetics/performance goals are unchanged.
