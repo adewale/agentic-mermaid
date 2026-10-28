@@ -2389,6 +2389,43 @@ describe('port ranking — sharp bits win when a side carries one line (issue #2
     ])
   })
 
+  it.each(['TD', 'LR', 'BT', 'RL'] as const)('keeps two private captioned diamond routes to the same target in %s', direction => {
+    const turns = ['TD', 'LR', 'BT', 'RL'].indexOf(direction)
+    const rotate = ({ x, y }: Point): Point => {
+      for (let turn = 0; turn < turns; turn++) [x, y] = [y, -x]
+      return { x, y }
+    }
+    const nodes: PositionedNode[] = [
+      { id: 'Q', label: 'Decision', shape: 'diamond' as const, x: 0, y: 0, width: 160, height: 160 },
+      { id: 'T', label: 'Destination', shape: 'rectangle' as const, x: 30, y: 300, width: 100, height: 40 },
+    ].map(node => {
+      const a = rotate(node), b = rotate({ x: node.x + node.width, y: node.y + node.height })
+      return { ...node, x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), width: Math.abs(a.x - b.x), height: Math.abs(a.y - b.y) }
+    })
+    // Independently authored outline contacts: the diamond's lower facets
+    // contain (40,120)/(120,120), and the target's top is y300. Each caption
+    // has its own vertical shaft, separated by 80px before any optional move.
+    const routes = [
+      [{ x: 40, y: 120 }, { x: 40, y: 220 }, { x: 55, y: 220 }, { x: 55, y: 300 }],
+      [{ x: 120, y: 120 }, { x: 120, y: 220 }, { x: 105, y: 220 }, { x: 105, y: 300 }],
+    ].map(points => points.map(rotate))
+    const captions = [{ x: 40, y: 200 }, { x: 120, y: 200 }].map(rotate)
+    const edges: PositionedEdge[] = routes.map((points, index) => ({
+      id: index === 0 ? 'first-route' : 'second-route', edgeIndex: index,
+      source: 'Q', target: 'T', label: index === 0 ? 'first' : 'second',
+      style: 'solid', hasArrowStart: false, hasArrowEnd: true,
+      points: points.map(point => ({ ...point })), labelPosition: { ...captions[index]! },
+    }))
+    const beforeNodes = structuredClone(nodes)
+    alignPortLanes(nodes, edges, [], direction, resolveRenderStyle())
+    expect(edges.map(edge => edge.labelPosition)).toEqual(captions)
+    expect(nodes).toEqual(beforeNodes)
+    expect(edges.map(edge => edge.points)).toEqual(routes)
+    expect(edges.map(edge => [edge.id, edge.edgeIndex, edge.source, edge.target, edge.label])).toEqual([
+      ['first-route', 0, 'Q', 'T', 'first'], ['second-route', 1, 'Q', 'T', 'second'],
+    ])
+  })
+
   it('a TD decision fork/rejoin exits the diamond through lower facet ports before honoring target lanes', () => {
     const positioned = layoutGraphSync(parseMermaid(`flowchart TD
   A[Start] --> B{Decision?}

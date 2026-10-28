@@ -888,11 +888,15 @@ export function alignPortLaneCandidate(
     }
     for (const src of nodes) {
       if (src.shape !== 'diamond' || frozen.has(src.id) || inGroup(src)) continue
-      // Exactly two forward edges, both leaving src for distinct PORT_EXACT
-      // targets, none labeled-feedback, and src emits nothing else forward.
+      // Exactly two forward edges into PORT_EXACT targets, none labeled-
+      // feedback, and src emits nothing else forward. Mixed captioned/plain
+      // duplicates retain their established allocation for the bundle owner.
       const out = edges.filter(e => e.source === src.id && e.target !== src.id &&
         e.points.length >= 2 && isForwardMonotone(e))
       if (out.length !== 2) continue
+      // Moving one shared target twice collapses both painted captions onto
+      // the final lane. Keep their independent routes and label allocations.
+      if (out[0]!.target === out[1]!.target && out.every(edge => !!edge.label)) continue
       if (out.some(e => { const t = nodeMap.get(e.target); return !t || !PORT_EXACT.has(t.shape) })) continue
       if (out.some(e => frozen.has(e.target) || centeredHubs.has(e.target) || inGroup(nodeMap.get(e.target)!))) continue
       // Order the two edges by their target's current cross position: the
