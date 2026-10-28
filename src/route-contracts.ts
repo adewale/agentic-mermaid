@@ -1266,6 +1266,16 @@ export function repairLabelsOffOwnRoute(positioned: { nodes: PositionedNode[]; e
   }
 }
 
+function segmentHitsLoopLabel(a: Point, b: Point, rect: LabelPaintRect): boolean {
+  if (Math.abs(a.x - b.x) <= EPS) {
+    return a.x > rect.x + EPS && a.x < rect.x + rect.w - EPS && Math.min(Math.max(a.y, b.y), rect.y + rect.h) - Math.max(Math.min(a.y, b.y), rect.y) > EPS
+  }
+  if (Math.abs(a.y - b.y) <= EPS) {
+    return a.y > rect.y + EPS && a.y < rect.y + rect.h - EPS && Math.min(Math.max(a.x, b.x), rect.x + rect.w) - Math.max(Math.min(a.x, b.x), rect.x) > EPS
+  }
+  return false
+}
+
 /**
  * Post-freeze label repair for pill-vs-pill collisions ACROSS edges. The
  * shared-trunk repair separates labels whose ROUTES share a trunk; parallel
@@ -1429,7 +1439,14 @@ export function separateEdgeLabelPills(
         const result: Point[] = [], staged = new Map<PositionedEdge, Point>()
         // The other member is excluded ONLY while proposing; final transaction
         // validation below sees BOTH staged seats against ALL live paint.
-        const clear = (point: Point): boolean => seat.clear(subject, point, staged, blocked, ignored)
+        const clear = (point: Point): boolean => {
+          if (subject.source === subject.target) {
+            if (!pay(subject.points.length + 8)) return false
+            const rect = labelRect({ ...subject, labelPosition: point }, style)
+            if (!rect || subject.points.some((p, index) => index > 0 && segmentHitsLoopLabel(subject.points[index - 1]!, p, rect))) return false
+          }
+          return seat.clear(subject, point, staged, blocked, ignored)
+        }
         for (const point of slots(subject, [], overhang, { clear, pay })) {
           if (!pay(1)) return undefined
           result.push(point)
@@ -1649,15 +1666,6 @@ export function auditRouteContracts(positioned: { nodes: PositionedNode[]; edges
     const y = horizontal.a.y
     return x > Math.min(horizontal.a.x, horizontal.b.x) + EPS && x < Math.max(horizontal.a.x, horizontal.b.x) - EPS && y > Math.min(vertical.a.y, vertical.b.y) + EPS && y < Math.max(vertical.a.y, vertical.b.y) - EPS
   }
-  const segmentHitsRect = (a: Point, b: Point, rect: { x: number; y: number; w: number; h: number }): boolean => {
-    if (Math.abs(a.x - b.x) <= EPS) {
-      return a.x > rect.x + EPS && a.x < rect.x + rect.w - EPS && Math.min(Math.max(a.y, b.y), rect.y + rect.h) - Math.max(Math.min(a.y, b.y), rect.y) > EPS
-    }
-    if (Math.abs(a.y - b.y) <= EPS) {
-      return a.y > rect.y + EPS && a.y < rect.y + rect.h - EPS && Math.min(Math.max(a.x, b.x), rect.x + rect.w) - Math.max(Math.min(a.x, b.x), rect.x) > EPS
-    }
-    return false
-  }
   for (let i = 0; i < loops.length; i++) {
     const edge = loops[i]!
     const cert = edge.routeCertificate
@@ -1705,7 +1713,7 @@ export function auditRouteContracts(positioned: { nodes: PositionedNode[]; edges
     }
     const ownLabel = labelRect(edge, style)
     if (ownLabel) {
-      const labelHitsRoute = loops.some(route => route.points.some((point, index) => index > 0 && segmentHitsRect(route.points[index - 1]!, point, ownLabel)))
+      const labelHitsRoute = loops.some(route => route.points.some((point, index) => index > 0 && segmentHitsLoopLabel(route.points[index - 1]!, point, ownLabel)))
       if (labelHitsRoute) findings.push({ code: 'ROUTE_SELF_LOOP_OCCUPANCY', edge: id, kind: 'label-route' })
     }
   }
