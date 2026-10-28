@@ -4,7 +4,7 @@ import { fcParameters } from './helpers/fc-parameters.ts'
 import { buildRoutePortHints, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { applyRouteContracts, auditRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, laneContextFor, straightLaneFor, recertifyReroutedEdge, shapePorts, simplifyPolyline, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills } from '../route-contracts.ts'
-import { assessLayout, countEdgeCrossings, countParallelRouteOverlaps, hardViolations, measureRubricMetrics, onShapeOutline, segmentThroughShape } from '../layout-rubric.ts'
+import { assessLayout, countEdgeCrossings, countOpposingRouteOverlaps, countParallelRouteOverlaps, hardViolations, measureRubricMetrics, onShapeOutline, segmentThroughShape } from '../layout-rubric.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { layoutMermaid, parseRegisteredMermaid as agentParse, verifyMermaid } from '../agent/index.ts'
 import type { AnyPort, Point, PositionedEdge, PositionedGraph, PositionedGroup, PositionedNode } from '../types.ts'
@@ -26,6 +26,17 @@ import { labelSeatPaintContext } from '../layout/graph-paint-support.ts'
 import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
 
 describe('outward exact endpoint approaches', () => {
+  it.each((['LR', 'RL', 'TD', 'BT'] as const).flatMap(direction => [false, true].map(labelled => [direction, labelled] as const)))('keeps feedback approaches outward through optional alignment in %s layouts (labels: %s)', (direction, labelled) => {
+    const source = `flowchart ${direction}\nN0[n0]\nN1[n1]\nN2([n2])\nN3((n3))\nN2 -->${labelled ? '|forward|' : ''} N1\nN1 <==>${labelled ? '|back and forward|' : ''} N2\nN0 --> N2\nN2 --> N3\nN0 --> N2`
+    const graph = parseMermaid(source), positioned = layoutGraphSync(graph)
+    expect(positioned.certification?.status).toBe('passed')
+    expect(positioned.edges.map(edge => [edge.source, edge.target, edge.style, edge.hasArrowStart, edge.hasArrowEnd])).toEqual(graph.edges.map(edge => [edge.source, edge.target, edge.style, edge.hasArrowStart, edge.hasArrowEnd]))
+    expect(hardViolations(assessLayout(graph, positioned))).toEqual([])
+    expect(auditRouteContracts(positioned, graph)).toEqual([])
+    expect(countOpposingRouteOverlaps(positioned.edges)).toBe(0)
+    expect(verifyMermaid(source).ok).toBe(true)
+    expect(renderMermaidSVG(source)).toContain('<svg')
+  })
   const source = 'flowchart LR\nsubgraph S\nA\nend\nA o-- kept label --o B'
   const rotate = (point: Point, turns: number): Point => {
     let { x, y } = point
