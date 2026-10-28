@@ -1,4 +1,4 @@
-import { rerouteEdgesThroughNodes } from '../layout/passes/index.ts'
+import { rerouteEdgesThroughNodes } from '../layout/passes/obstacle-routing.ts'
 import { findLabelSlot, simplifyPolyline } from '../route-contracts.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { pointOnRoutingBoundary, shapeCardinalPorts } from '../shape-outline.ts'

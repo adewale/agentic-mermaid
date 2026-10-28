@@ -1,3 +1,5 @@
+import { eventRelations, eventType } from '../../src/eventmodeling/parser.ts'
+import type { EventModelingBody } from '../../src/eventmodeling/types.ts'
 import type { NativeDb } from './runtime.ts'
 import { normalizeMermaidSource, parseForAst, unavailable } from './runtime.ts'
 import { readSequenceStatements } from '../../src/sequence/parser.ts'
@@ -85,6 +87,13 @@ function flattenTree(root: any): any[] { return root ? [root, ...(root.children 
 
 export function nativeGetters(db: NativeDb, key: string): any {
   const family = db.context.family, model = db.model
+  // A semantic relation projection of native state. No DOM boxes, positions,
+  // text metrics or missing payloads are synthesized to imitate Mermaid.
+  if (family === 'eventmodeling' && key === 'getState') return () => {
+    if (!model) throw Error('No data for EventModel')
+    return { relations: eventRelations(model).map(edge => ({ sourceBox: { frame: { name: edge.from } }, targetBox: { frame: { name: edge.to } } })) }
+  }
+
   if (key === 'Cardinality') return ER_ENUM
   if (key === 'Identification') return { IDENTIFYING: 'IDENTIFYING', NON_IDENTIFYING: 'NON_IDENTIFYING' }
   if (key === 'LINETYPE') return SEQUENCE_LINES
@@ -224,7 +233,7 @@ export function nativeGetters(db: NativeDb, key: string): any {
   return undefined
 }
 
-const AST_NAMES: Record<string, string> = { pie: 'Pie', packet: 'Packet', radar: 'Radar', architecture: 'Architecture', gitgraph: 'GitGraph', treemap: 'Treemap' }
+const AST_NAMES: Record<string, string> = { pie: 'Pie', packet: 'Packet', radar: 'Radar', architecture: 'Architecture', gitgraph: 'GitGraph', treemap: 'Treemap', eventmodeling: 'EventModel' }
 function kanbanNodes(model: any): any[] { return (model?.columns ?? []).flatMap((column: any) => [{ ...column, level: 0 }, ...column.tasks.map((task: any) => ({ ...task, level: 1, parentId: column.id }))]) }
 export function nativeAst(name: string, source: string): any {
   const family = name.toLowerCase()
@@ -239,6 +248,28 @@ export function nativeAst(name: string, source: string): any {
       const consumed = events.filter(event => event.unit === 'statement' && event.kind === 'field')
       value = { ...common, blocks: model.fields.map((field: any, index: number) => ({ $type: 'PacketBlock', label: field.label,
         ...(consumed[index]?.text?.trimStart().startsWith('+') ? { bits: field.end - field.start + 1 } : { start: field.start, ...(/^\d+\s*-/.test(consumed[index]?.text?.trimStart() ?? '') ? { end: field.end } : {}) }) })) }
+    } else if (family === 'eventmodeling') {
+      const body = model as EventModelingBody
+      const authoredTypes = new Map<string, string>()
+      for (const event of events) {
+        if (event.unit !== 'statement') continue
+        const frame = event.text?.match(/^(?:tf|timeframe|rf|resetframe)\s+(\d{1,3})\s+(\w+)/)
+        if (frame) authoredTypes.set(frame[1]!, frame[2]!)
+      }
+      const frames = body.frames.map(frame => {
+        const authored = authoredTypes.get(frame.id)
+        return { $type: frame.reset ? 'EmResetFrame' : 'EmTimeFrame', name: frame.id, entityIdentifier: frame.entity,
+          // Preserve a grammar spelling only when it denotes the actual native
+          // value. No upstream expectation or reconstructed geometry is read.
+          modelEntityType: authored && eventType(authored) === frame.type ? authored : frame.type,
+          sourceFrames: frame.sources.map(id => ({ $refText: id })),
+        }
+      })
+      value = { ...common, frames, modelEntities: body.entities.map(name => ({ name })),
+        dataEntities: Object.entries(body.data).map(([name, data]) => ({ name, ...data })),
+        noteEntities: body.notes.map(note => ({ sourceFrame: { $refText: note.frame }, ...note.data })),
+        gwtEntities: body.specifications.map(spec => ({ sourceFrame: { $refText: spec.frame }, givenStatements: spec.given, whenStatements: spec.when, thenStatements: spec.then })),
+      }
     } else if (family === 'architecture') {
       const item = (type: string, entity: any) => ({ $type: type, id: entity.id, title: entity.label === entity.id ? undefined : entity.label, icon: entity.icon, iconText: entity.iconText, in: entity.parentId })
       value = { ...common, groups: model.groups.map((entity: any) => item('Group', entity)), services: model.services.map((entity: any) => item('Service', entity)), junctions: model.junctions.map((entity: any) => item('Junction', entity)),

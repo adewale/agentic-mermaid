@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { renderMermaidSVG } from '../index.ts'
+import { renderMermaidSVG, renderMermaidSVGWithReceipt } from '../index.ts'
 import { layoutMermaidWithReceipt } from '../agent/index.ts'
 import { scanSvgStartTags } from '../svg-structure.ts'
 import type { RenderOptions } from '../types.ts'
@@ -165,6 +165,27 @@ describe('family-owned endpoint and visible-marker contact (#258)', () => {
     expect(Number(b!.r)).toBe(40)
     expect(Math.hypot(Number(a!.cx) - Number(b!.cx), Number(a!.cy) - Number(b!.cy)) - Number(a!.r) - Number(b!.r)).toBeGreaterThanOrEqual(36)
   })
+
+  for (const graphLayout of [undefined, { backend: 'elk' }, { backend: 'agentic', fallback: 'none' }, { backend: 'agentic', fallback: 'elk' }] as const) {
+    for (const [from, to] of [['R', 'L'], ['L', 'R'], ['T', 'B'], ['B', 'T']]) {
+      test(`large Architecture ring binds shaft and visible marker contacts to actual paint: ${graphLayout?.backend ?? 'default'}/${graphLayout?.fallback ?? 'none'}/${from}`, () => {
+        const source = `architecture-beta\njunction j\nservice b(server)[B]\nj:${from}<-->${to}:b`
+        const result = renderMermaidSVGWithReceipt(source, { ...options(3, false), ...(graphLayout ? { graphLayout } : {}), architecture: { visual: { junctionOuterRadius: 40 } } })
+        for (const contact of architectureContacts(result.svg, 'junction-ring:j', 'service-card:b')) {
+          expect(contact.shaft).toBeLessThan(1e-6)
+          expect(contact.visible).toBeLessThan(1e-6)
+        }
+        // The hidden viewport bounds every tip stroke at the attachment
+        // plane, resolving the former un-clipped envelope uncertainty.
+        for (const marker of tags(result.svg).filter(tag => tag.name === 'marker')) {
+          expect(marker.attrs.overflow).not.toBe('visible')
+          expect([0, Number(marker.attrs.markerWidth)]).toContain(Number(marker.attrs.refX))
+        }
+        expect(result.receipt.layoutCertification?.scope).toBe('native-scene')
+        expect(result.receipt.layoutCertification?.status).toBe('passed')
+      })
+    }
+  }
 
   for (const width of [1.5, 3]) for (const rough of [false, true]) {
     test(`Journey's free axis overhang is not a node-contact failure: ${width}px/${rough}`, () => {

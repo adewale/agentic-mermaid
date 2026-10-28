@@ -166,6 +166,16 @@ export function getSequenceBlockScope(block: Block): SequenceBlockScope | undefi
   return blockScopes.get(block)
 }
 
+/** Native language projections retain lexical events that message intervals
+ * alone cannot distinguish, including empty branches and adjacent notes. */
+export function setSequenceBlockScope(block: Block, scope: SequenceBlockScope): void {
+  blockScopes.set(block, scope)
+}
+
+export function setSequenceBlockBoundaries(diagram: SequenceDiagram, boundaries: SequenceBlockBoundary[]): void {
+  blockBoundaries.set(diagram, boundaries)
+}
+
 /** One message-line grammar shared by renderer and agent parsers. */
 export function parseSequenceMessageLine(line: string): ParsedSequenceMessageLine | null {
   let prefix = sequenceMessagePrefix(line)

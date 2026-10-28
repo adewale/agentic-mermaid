@@ -88,10 +88,16 @@ const ownershipGoldenIds = new Set(['corpus/flowchart/94', 'corpus/flowchart/95'
 const fixtures: Fixture[] = [
   {
     id: 'flowchart-curved-port-diagonal',
-    title: 'A curved cardinal port survives placement until route repair',
+    title: 'Curved-node Flowchart survives chain alignment',
     source: 'flowchart TD\nA["ok"]\nB{"warnings"}\nC{"x"}\nD["ok"]\nE(["process the input"])\nA --> B\nB --> C\nB --> D\nA --> E\nE --> D',
     captureLayout: true,
-    cue: 'The baseline throws a clipping port-rate error and has no drawing. After, inspect all five cards and five relationships, especially the stadium-to-rectangle connection. The existing structural property checks identities, containment and final route contracts; this witness does not establish general routing or visual superiority.',
+    cue: 'Both current revisions render all five cards and five relationships. Main already fixes the historical clipping refusal by preserving straight geometry during chain movement. Inspect the stadium-to-rectangle connection; the retained structural-property example checks identities, containment and final route contracts. This is regression evidence, not a new rendering improvement.',
+  },
+  {
+    id: 'native-eventmodeling', title: 'Event Modeling: frames, namespace return and reset references',
+    source: 'eventmodeling\ntitle Cart information flow\ntf 01 ui Cart.UI\ntf 02 cmd Cart.AddItem { description: string }\ntf 03 evt Cart.ItemAdded\nrf 04 evt Stock.Changed\ntf 05 pcr Stock.Refresh\nrf 06 rmo Cart.Items ->> 03 ->> 04\ntf 07 ui Cart.UI',
+    captureLayout: true, pngWidth: 1400,
+    cue: 'The baseline reports unsupported family. Inspect the two Cart.UI frames in one lane, the complete data label, no inferred predecessor into reset frame 04, and both explicit arrows into frame 06. Public semantic tests separately assert the IDs and endpoints. This sample does not establish all typography or connector combinations.',
   },
   {
     id: 'grammar-ishikawa-header',

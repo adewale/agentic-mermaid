@@ -397,7 +397,19 @@ export function transformedBounds(box: AxisAlignedBox, transform?: SceneTransfor
   if (!transform) return box
   if (transform.kind === 'rotate') return rotateBoxBounds(box, { x: transform.cx, y: transform.cy }, transform.angle)
   const m = transformMatrix(transform)
-  const corners = [[box.x0, box.y0], [box.x0, box.y1], [box.x1, box.y0], [box.x1, box.y1]]
+  // Observe mutable caller fields in the same corner order before selecting
+  // a translation shortcut. Zero coordinates retain all four signed-zero extrema.
+  const x00 = box.x0, y00 = box.y0, x01 = box.x0, y01 = box.y1,
+    x10 = box.x1, y10 = box.y0, x11 = box.x1, y11 = box.y1
+  if (m[0] === 1 && m[1] === 0 && m[2] === 0 && m[3] === 1
+    && x00 === x01 && y00 === y10 && x10 === x11 && y01 === y11
+    && x00 !== 0 && y00 !== 0 && x10 !== 0 && y01 !== 0
+    && Number.isFinite(x00) && Number.isFinite(y00) && Number.isFinite(x10) && Number.isFinite(y01)) {
+    const first = transformPoint({ x: x00, y: y00 }, m), last = transformPoint({ x: x11, y: y11 }, m)
+    return Number.isFinite(first.x) && Number.isFinite(first.y) && Number.isFinite(last.x) && Number.isFinite(last.y)
+      ? { x0: Math.min(first.x, last.x), y0: Math.min(first.y, last.y), x1: Math.max(first.x, last.x), y1: Math.max(first.y, last.y) } : undefined
+  }
+  const corners = [[x00, y00], [x01, y01], [x10, y10], [x11, y11]]
     .map(([x, y]) => transformPoint({ x: x!, y: y! }, m))
   return corners.every(point => Number.isFinite(point.x) && Number.isFinite(point.y)) ? pointsBounds(corners) : undefined
 }
@@ -407,6 +419,13 @@ function composedTransform(parent: SceneTransform | undefined, child: SceneTrans
   if (!child) return parent
   const [a, b, c, d, e, f] = composeMatrices(transformMatrix(parent), transformMatrix(child))
   return { kind: 'matrix', a, b, c, d, e, f }
+}
+
+/** An open explicit two-point polyline has one segment and no stroke join.
+ * Paths/closed contours retain their conservative extent, regardless of their
+ * sampled point count. Cap extent remains owned by paintedStrokeExtent. */
+export function connectorStrokeHasJoins(route: Pick<ConnectorMark['route'], 'geometry' | 'closed'>): boolean {
+  return route.geometry.kind !== 'line' && !(route.geometry.kind === 'polyline' && route.geometry.points.length === 2 && !route.closed)
 }
 
 /** Numeric user-unit/px strokes have a typed extent. Relative and unresolved
@@ -496,7 +515,7 @@ export function ribbonEndOvershoot(near: number, far: number, rise: number, half
 function connectorPaintBounds(node: ConnectorMark, transform?: SceneTransform): AxisAlignedBox | undefined {
   const geometry = node.route.geometry
   const local = geometryBounds(geometry)
-  const extent = paintedStrokeExtent({ stroke: node.stroke.color, strokeWidth: String(node.stroke.width), strokeLinecap: node.stroke.lineCap, strokeLinejoin: node.stroke.lineJoin, strokeMiterlimit: String(node.stroke.miterLimit) }, geometry.kind !== 'line')
+  const extent = paintedStrokeExtent({ stroke: node.stroke.color, strokeWidth: String(node.stroke.width), strokeLinecap: node.stroke.lineCap, strokeLinejoin: node.stroke.lineJoin, strokeMiterlimit: String(node.stroke.miterLimit) }, connectorStrokeHasJoins(node.route))
   if (!local || extent === undefined) return undefined
   const singleCubic = geometry.kind === 'path' && node.stroke.lineCap === 'butt' && !node.stroke.nonScaling
     ? ribbonCubicStrokeBounds(geometry.d, numericStrokeWidth(node.stroke.width) / 2) : undefined

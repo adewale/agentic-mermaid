@@ -1,3 +1,4 @@
+import type { EventModelingValidDiagram, EventModelingMutationOp } from './types.ts'
 import type { PacketMutationOp, PacketValidDiagram, KanbanMutationOp, KanbanValidDiagram, RequirementMutationOp, RequirementValidDiagram, TreemapMutationOp, TreemapValidDiagram, IshikawaMutationOp, IshikawaValidDiagram, BlockMutationOp, BlockValidDiagram } from './types.ts'
 import { emptyC4Body } from '../c4/parser.ts'
 import type { C4Variant } from '../c4/types.ts'
@@ -17,6 +18,7 @@ import type { C4MutationOp, C4ValidDiagram } from './types.ts'
 // and verify says Mermaid rejects it.
 // ============================================================================
 
+import type { ZenUMLMutationOp, ZenUMLValidDiagram } from './types.ts'
 import type { Direction } from '../types.ts'
 import { applyMutationBatch } from './mutate.ts'
 import { serializeMermaid } from './serialize.ts'
@@ -137,6 +139,10 @@ function emptyBody(kind: DiagramKind, opts: CreateMermaidOptions): Exclude<Diagr
       return { kind: 'requirement', direction: 'TB', requirements: [], elements: [], relations: [], classDefs: [] }
     case 'treemap':
       return { kind: 'treemap', nodes: [], classDefs: Object.create(null) }
+    case 'zenuml':
+      return { kind: 'zenuml', participants: [], statements: [] }
+    case 'eventmodeling':
+      return { kind: 'eventmodeling', frames: [], entities: [], data: Object.create(null), notes: [], specifications: [] }
     case 'ishikawa':
       return { kind: 'ishikawa', nodes: [] }
     case 'block':
@@ -165,6 +171,8 @@ export function createMermaid(kind: 'packet', opts?: CreateMermaidOptions): Pack
 export function createMermaid(kind: 'kanban', opts?: CreateMermaidOptions): KanbanValidDiagram
 export function createMermaid(kind: 'requirement', opts?: CreateMermaidOptions): RequirementValidDiagram
 export function createMermaid(kind: 'treemap', opts?: CreateMermaidOptions): TreemapValidDiagram
+export function createMermaid(kind: 'zenuml', opts?: CreateMermaidOptions): ZenUMLValidDiagram
+export function createMermaid(kind: 'eventmodeling', opts?: CreateMermaidOptions): EventModelingValidDiagram
 export function createMermaid(kind: 'ishikawa', opts?: CreateMermaidOptions): IshikawaValidDiagram
 export function createMermaid(kind: 'block', opts?: CreateMermaidOptions): BlockValidDiagram
 export function createMermaid(kind: DiagramKind, opts?: CreateMermaidOptions): MutableValidDiagram
@@ -205,6 +213,8 @@ export function buildMermaid(kind: 'packet', ops: PacketMutationOp[], opts?: Cre
 export function buildMermaid(kind: 'kanban', ops: KanbanMutationOp[], opts?: CreateMermaidOptions): Result<KanbanValidDiagram, BuildError>
 export function buildMermaid(kind: 'requirement', ops: RequirementMutationOp[], opts?: CreateMermaidOptions): Result<RequirementValidDiagram, BuildError>
 export function buildMermaid(kind: 'treemap', ops: TreemapMutationOp[], opts?: CreateMermaidOptions): Result<TreemapValidDiagram, BuildError>
+export function buildMermaid(kind: 'zenuml', ops: ZenUMLMutationOp[], opts?: CreateMermaidOptions): Result<ZenUMLValidDiagram, BuildError>
+export function buildMermaid(kind: 'eventmodeling', ops: EventModelingMutationOp[], opts?: CreateMermaidOptions): Result<EventModelingValidDiagram, BuildError>
 export function buildMermaid(kind: 'ishikawa', ops: IshikawaMutationOp[], opts?: CreateMermaidOptions): Result<IshikawaValidDiagram, BuildError>
 export function buildMermaid(kind: 'block', ops: BlockMutationOp[], opts?: CreateMermaidOptions): Result<BlockValidDiagram, BuildError>
 export function buildMermaid(kind: DiagramKind, ops: AnyMutationOp[], opts?: CreateMermaidOptions): Result<MutableValidDiagram, BuildError>

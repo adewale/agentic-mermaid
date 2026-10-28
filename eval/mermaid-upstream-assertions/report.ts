@@ -3,7 +3,7 @@ import { relative } from 'node:path'
 import type { upstreamSpecFiles } from './inventory.ts'
 
 type Spec = ReturnType<typeof upstreamSpecFiles>[number]
-type Audit = { file: string; name: string; path: string[]; inputs: Array<{ family: string; source: string; accepted?: boolean; error?: string }>; unavailable: string[] }
+type Audit = { file: string; name: string; path: string[]; inputs: Array<{ family: string; source: string; accepted?: boolean; error?: string }>; checks?: Array<{ family: string; operation: string; targetType?: string; sourceTypes?: Array<string | null> }>; unavailable: string[] }
 type Assertion = { ancestorTitles: string[]; fullName: string; title: string; status: string; failureMessages: string[] }
 type Suite = { name: string; message: string; assertionResults: Assertion[] }
 type Cause = 'passed' | 'native-refusal' | 'assertion-mismatch' | 'adapter-unavailable' | 'reference-unqualified' | 'skipped'
@@ -32,7 +32,7 @@ export function assertionReport(upstream: string, specs: Spec[], candidatePath: 
     references.set(key, [...references.get(key) ?? [], assertion])
   }
   const byFile = new Map(specs.map(spec => [spec.path, spec.family]))
-  const cases: Array<{ family: string; file: string; name: string; cause: Cause; candidateStatus: string; referenceStatus?: string; unavailable: string[]; inputs: Audit['inputs']; failures: string[] }> = []
+  const cases: Array<{ family: string; file: string; name: string; cause: Cause; candidateStatus: string; referenceStatus?: string; unavailable: string[]; inputs: Audit['inputs']; checks: NonNullable<Audit['checks']>; referenceChecks: NonNullable<Audit['checks']>; failures: string[] }> = []
   for (const suite of candidate.testResults as Suite[]) for (const assertion of suite.assertionResults) {
     const key = JSON.stringify([suite.name, assertion.fullName])
     const control = references.get(key)?.shift()
@@ -47,7 +47,7 @@ export function assertionReport(upstream: string, specs: Spec[], candidatePath: 
     else if (audit?.inputs.some(input => input.accepted === false)) cause = 'native-refusal'
     else cause = 'assertion-mismatch'
     cases.push({ family: byFile.get(suite.name) ?? 'unknown', file: relative(upstream, suite.name), name: assertion.fullName, cause,
-      candidateStatus: assertion.status, referenceStatus: control?.status, unavailable: audit?.unavailable ?? ['Missing per-case audit receipt'], inputs: audit?.inputs ?? [], failures: assertion.failureMessages })
+      candidateStatus: assertion.status, referenceStatus: control?.status, unavailable: audit?.unavailable ?? ['Missing per-case audit receipt'], inputs: audit?.inputs ?? [], checks: audit?.checks ?? [], referenceChecks: referenceAudit?.checks ?? [], failures: assertion.failureMessages })
   }
   const families = [...new Set(specs.map(spec => spec.family))].sort().map(family => {
     const selected = cases.filter(entry => entry.family === family)

@@ -116,6 +116,54 @@ Use the same render options for verification and rendering. A style can affect
 layout and typography as well as paint. Changing `seed` rerolls styled ink
 without changing the semantic layout.
 
+### Graph layout selection
+
+Omitting `graphLayout` retains the existing automatic policy, including the
+guarded forest optimization. Force ELK with `graphLayout: { backend: 'elk' }`,
+or opt into the owned producer:
+
+```ts
+import { renderMermaidSVGWithReceipt } from 'agentic-mermaid'
+
+const source = 'flowchart LR; Idea --> Ship'
+const { svg, receipt } = renderMermaidSVGWithReceipt(source, {
+  graphLayout: { backend: 'agentic', fallback: 'elk' },
+})
+console.log(receipt.layoutDecisions)
+```
+
+Agentic currently supports measured Flowchart and State graphs, including directed
+cycles, self-loops, shapes and edge labels, fan-in, parallel edges, disconnected
+components and long links. Independent nested scopes retain frame endpoints,
+headers and local directions, including State composites and concurrent regions. State pseudostates, configured fork/join dimensions and notes
+use the shared family sizing and projection rules.
+The shared geometry pipeline clips ports to each actual shape outline.
+Bounded cross-hierarchy leaf and frame routes retain authored endpoints, and
+empty frames retain measured headers. Class cards/namespaces, ER frames and
+relations, Requirement cards, and Architecture compounds use the owned kernel
+with their specialized family geometry. Architecture applies final authored
+side constraints and routing after placement. Unsupported hints and constraints, overlapping
+node/frame identities, and exhausted bounded searches still decline explicitly. ELK support remains available for every existing
+ELK family. Omitting fallback makes an unsupported Agentic request throw
+`GraphLayoutUnsupportedError`; requesting `fallback: 'elk'` records the actual
+selection in `layoutDecisions` and emits a fallback diagnostic. An ELK fallback
+is not an Agentic completion. Unexpected engine defects and global work limits
+are not hidden by fallback.
+
+The async `agentic-mermaid/browser/lazy` entry downloads ELK only when the
+selected layout actually needs it. A successful strict Agentic render does not
+fetch ELK; requested fallback still loads it when native placement declines.
+ELK selection likewise leaves the native solver unfetched. Backend payload
+reports include the selected solver's dynamic dependencies.
+The synchronous `agentic-mermaid/browser` entry remains an all-in-one bundle.
+
+The CLI accepts `am render diagram.mmd --graph-layout agentic
+--graph-layout-fallback elk`. Mermaid source configuration is preserved and is
+not an alias for these options. Terminal-cell placement retains its family
+rules; optional graphical companions and Architecture's pixel placement honor
+the selector. See the [backend design](https://github.com/adewale/agentic-mermaid/blob/ce240587211b90395a820115d2503b73bf5ff4e3/docs/design/system/layout-backends.md) for
+qualification and comparative measurement.
+
 ## Resolved paths and text
 
 Use this API when another renderer needs the artwork AM actually drew,
@@ -232,6 +280,7 @@ for precedence and custom looks. This table is generated from runtime descriptor
 | Option | Type | Default | Meaning and applicability |
 |---|---|---|---|
 | `layoutHints` | `{ ranks?: Record<string, number>; adjacent?: string[][]; shortEdges?: string[] }` | unset | Relative ranks, sibling adjacency and short-edge preferences. Built-in families: flowchart, state. Not consumed by terminal output. |
+| `graphLayout` | `{ backend: 'elk' \| 'agentic'; fallback?: 'none' \| 'elk' }` | `elk`, no fallback | Graph geometry producer and explicit Agentic fallback policy. Built-in families: flowchart, state, architecture, class, er, requirement. |
 | `layoutSafety` | `'report' \| 'strict'` | `report` | Report bounded layout evidence, or require a passed final certificate. Strict mode rejects missing or unverified evidence. |
 | `bg` | `string` | `#FFFFFF` | Background color or CSS variable. |
 | `fg` | `string` | `#27272A` | Primary foreground and text color. |

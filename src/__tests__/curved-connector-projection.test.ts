@@ -3,6 +3,9 @@ import { describe, expect, test } from 'bun:test'
 import { lowerArchitectureScene } from '../architecture/renderer.ts'
 import { DEFAULT_ARCHITECTURE_VISUAL } from '../architecture/config.ts'
 import { lowerClassScene } from '../class/renderer.ts'
+import { lowerBlockScene } from '../block/renderer.ts'
+import { layoutBlockDiagram } from '../block/layout.ts'
+import { parseBlockDiagram } from '../block/parser.ts'
 import { lowerErScene } from '../er/renderer.ts'
 import { lowerJourneyScene } from '../journey/renderer.ts'
 import { layoutJourneyDiagram, resolveJourneyRequestAppearance } from '../journey/layout.ts'
@@ -58,19 +61,39 @@ function pointToRouteDistance(point: ScenePoint, route: readonly ScenePoint[]): 
   return minimum
 }
 
-function assertRoundedProjection(connector: ConnectorMark): void {
+function assertRoundedProjection(connector: ConnectorMark, offset = 0): void {
+  const route = RIGHT_ANGLE_POINTS.map(point => ({ x: point.x + offset, y: point.y + offset }))
+  const midpoint = { x: ROUNDED_MIDPOINT.x + offset, y: ROUNDED_MIDPOINT.y + offset }
   expect(connector.route.geometry.kind).toBe('path')
   if (connector.route.geometry.kind !== 'path') return
-  expect(connector.route.geometry.d).toBe(ROUNDED_D)
+  if (offset === 0) expect(connector.route.geometry.d).toBe(ROUNDED_D)
+  // Inspect the actual M/L/Q spelling independently of the curve projector.
+  // Endpoint legs and both sides of the quadratic join must stay cardinal.
+  const emitted = /\bd="([^"]*)"/.exec(sceneNodeSerialization(connector))![1]!
+  const values = emitted.match(/[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi)!.map(Number)
+  expect(emitted.match(/[MLQ]/g)).toEqual(['M', 'L', 'Q', 'L'])
+  expect(values).toHaveLength(10)
+  expect(values[0]).toBeCloseTo(route[0]!.x, 9)
+  expect(values[1]).toBeCloseTo(route[0]!.y, 9)
+  expect(values[8]).toBeCloseTo(route[2]!.x, 9)
+  expect(values[9]).toBeCloseTo(route[2]!.y, 9)
+  expect(values[3]).toBe(values[1])
+  expect(values[5]).toBe(values[3])
+  expect(values[6]).toBe(values[4])
+  expect(values[8]).toBe(values[6])
+  expect(values[2]).toBeGreaterThan(values[0]!)
+  expect(values[4]).toBeGreaterThan(values[2]!)
+  expect(values[7]).toBeGreaterThan(values[5]!)
+  expect(values[9]).toBeGreaterThan(values[7]!)
   expect(connector.route.geometry.points.length).toBeGreaterThan(RIGHT_ANGLE_POINTS.length)
   expect(connector.route.geometry.points.some(point =>
-    Math.hypot(point.x - ROUNDED_MIDPOINT.x, point.y - ROUNDED_MIDPOINT.y) < 1e-9)).toBe(true)
-  expect(pointToRouteDistance(ROUNDED_MIDPOINT, RIGHT_ANGLE_POINTS))
+    Math.hypot(point.x - midpoint.x, point.y - midpoint.y) < 1e-9)).toBe(true)
+  expect(pointToRouteDistance(midpoint, route))
     .toBeGreaterThan(connector.hit.strokeWidth / 2)
-  expect(hitTestConnector(connector, ROUNDED_MIDPOINT)).toBe(true)
+  expect(hitTestConnector(connector, midpoint)).toBe(true)
   expect(connector.route.contours).toEqual([{
-    start: RIGHT_ANGLE_POINTS[0]!,
-    end: RIGHT_ANGLE_POINTS[2]!,
+    start: route[0]!,
+    end: route[2]!,
     closed: false,
     startTangent: { x: 1, y: 0 },
     endTangent: { x: 0, y: 1 },
@@ -79,7 +102,7 @@ function assertRoundedProjection(connector: ConnectorMark): void {
   expect(connector.route.endTangent).toEqual({ x: 0, y: 1 })
   expect(connector.hit.geometry).toBe(connector.route.geometry)
   expect(connector.terminalProjection.geometry).toBe(connector.route.geometry)
-  expect(sceneNodeSerialization(connector)).toContain(`d="${ROUNDED_D}"`)
+  if (offset === 0) expect(sceneNodeSerialization(connector)).toContain(`d="${ROUNDED_D}"`)
 }
 
 interface Cubic {
@@ -215,7 +238,7 @@ describe('curved connector lowering projections', () => {
     )
   })
 
-  test('flowchart rounded edges expose flattened quadratic corners', () => {
+  test.each([0, 32.123456789])('flowchart rounded edges expose flattened quadratic corners at offset %s', offset => {
     assertRoundedProjection(onlyConnector(lowerGraphScene({
       positioned: {
         width: 120,
@@ -225,15 +248,15 @@ describe('curved connector lowering projections', () => {
         edges: [{
           source: 'A', target: 'B', style: 'solid',
           hasArrowStart: false, hasArrowEnd: false,
-          points: RIGHT_ANGLE_POINTS.map(point => ({ ...point })),
+          points: RIGHT_ANGLE_POINTS.map(point => ({ x: point.x + offset, y: point.y + offset })),
         }],
       },
       colors: COLORS,
       resolved: { renderOptions: {}, styleFace: { edge: { bendRadius: 20 } } },
-    })))
+    })), offset)
   })
 
-  test('architecture rounded edges share the same quadratic projection', () => {
+  test.each([0, 32.123456789])('architecture rounded edges share the same quadratic projection at offset %s', offset => {
     assertRoundedProjection(onlyConnector(lowerArchitectureScene({
       positioned: {
         width: 120,
@@ -246,7 +269,7 @@ describe('curved connector lowering projections', () => {
           target: { id: 'B', side: 'B', boundary: 'item' },
           hasArrowStart: false,
           hasArrowEnd: false,
-          points: RIGHT_ANGLE_POINTS.map(point => ({ ...point })),
+          points: RIGHT_ANGLE_POINTS.map(point => ({ x: point.x + offset, y: point.y + offset })),
           placement: 'satisfied',
           sourceFacesTarget: true,
           targetFacesSource: true,
@@ -260,10 +283,10 @@ describe('curved connector lowering projections', () => {
           visual: { ...DEFAULT_ARCHITECTURE_VISUAL, edgeBendRadius: 20 },
         },
       },
-    })))
+    })), offset)
   })
 
-  test('class rounded relationships share the same quadratic projection', () => {
+  test.each([0, 32.123456789])('class rounded relationships share the same quadratic projection at offset %s', offset => {
     assertRoundedProjection(onlyConnector(lowerClassScene({
       positioned: {
         width: 120,
@@ -276,15 +299,29 @@ describe('curved connector lowering projections', () => {
           to: 'B',
           type: 'association',
           markerAt: 'to',
-          points: RIGHT_ANGLE_POINTS.map(point => ({ ...point })),
+          points: RIGHT_ANGLE_POINTS.map(point => ({ x: point.x + offset, y: point.y + offset })),
         }],
       },
       colors: COLORS,
       resolved: { renderOptions: {}, styleFace: { edge: { bendRadius: 20 } } },
-    })))
+    })), offset)
   })
 
-  test('ER rounded relationships share the same quadratic projection', () => {
+  test.each([0, 32.123456789])('block rounded edges retain the same normal joins at offset %s', offset => {
+    const positioned = layoutBlockDiagram(parseBlockDiagram('block-beta\nA-->B'))
+    assertRoundedProjection(onlyConnector(lowerBlockScene({
+      positioned: {
+        ...positioned,
+        nodes: [],
+        edges: [{ ...positioned.edges[0]!, points: RIGHT_ANGLE_POINTS.map(point => ({ x: point.x + offset, y: point.y + offset })) }],
+        style: { ...positioned.style, edgeBendRadius: 20 },
+      },
+      colors: COLORS,
+      resolved: { renderOptions: {} },
+    })), offset)
+  })
+
+  test.each([0, 32.123456789])('ER rounded relationships share the same quadratic projection at offset %s', offset => {
     assertRoundedProjection(onlyConnector(lowerErScene({
       positioned: {
         width: 120,
@@ -298,11 +335,11 @@ describe('curved connector lowering projections', () => {
           cardinality2: 'one',
           label: '',
           identifying: true,
-          points: RIGHT_ANGLE_POINTS.map(point => ({ ...point })),
+          points: RIGHT_ANGLE_POINTS.map(point => ({ x: point.x + offset, y: point.y + offset })),
         }],
       },
       colors: COLORS,
       resolved: { renderOptions: {}, styleFace: { edge: { bendRadius: 20 } } },
-    })))
+    })), offset)
   })
 })

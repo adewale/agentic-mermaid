@@ -15,6 +15,8 @@ import { resolveRenderRequestForExecution } from '../render-contract.ts'
 import type { GroupMark } from '../scene/ir.ts'
 import { wcagContrastRatio } from '../shared/color-math.ts'
 import { fcParameters } from './helpers/fc-parameters.ts'
+import { renderMermaidSVGWithReceipt } from '../index.ts'
+import { scanSvgStartTags } from '../svg-structure.ts'
 
 const cases = JSON.parse(readFileSync(new URL('../../eval/mermaid-block-bench/cases.json', import.meta.url), 'utf8')) as { id: string; source: string; expect: unknown }[]
 function semantic(body: BlockBody) {
@@ -107,6 +109,30 @@ describe('native block', () => {
       expect(renderMermaidASCII(c.source).trim()).not.toBe('')
       expect(layoutMermaid(parsed).bounds.w).toBeGreaterThan(0)
     })
+  test.each([
+    { name: 'solid', link: '-->', pattern: 'solid', thickness: 'normal' },
+    { name: 'dotted', link: '-.->', pattern: 'dotted', thickness: 'normal' },
+    { name: 'thick', link: '==>', pattern: 'solid', thickness: 'thick' },
+  ])('authored $name links retain their actual SVG pattern and endpoints', ({ link, pattern, thickness }) => {
+    const source = `block\nA["First"] B["Second"]\nA ${link} B`,
+      parsed = structured(source)
+    expect(parsed.body.edges).toHaveLength(1)
+    expect(parsed.body.edges[0]).toMatchObject({ start: 'A', end: 'B', pattern, thickness })
+    for (const bendRadius of [0, 12]) {
+      const result = renderMermaidSVGWithReceipt(source, { style: { roles: { relationship: { bendRadius } } } })
+      expect(result.receipt.layoutCertification?.status).toBe('passed')
+      const edge = scanSvgStartTags(result.svg).find(tag => tag.attributes.some(attribute => attribute.name === 'data-role' && attribute.value === 'edge'))!
+      const attrs = Object.fromEntries(edge.attributes.map(attribute => [attribute.name, attribute.value]))
+      expect(attrs['data-id']).toBe(parsed.body.edges[0]!.id)
+      expect(attrs['data-from']).toBe('A')
+      expect(attrs['data-to']).toBe('B')
+      expect(attrs['marker-end']).toBeDefined()
+      expect(attrs['stroke-dasharray']).toBe(pattern === 'dotted' ? '2 4' : undefined)
+      expect(attrs['stroke-width']).toBe(thickness === 'thick' ? '3' : '1')
+      expect(result.svg).toContain('First')
+      expect(result.svg).toContain('Second')
+    }
+  })
   test('typed edits preserve nested titled composites, gap cells and edge identity', () => {
     const first = structured('block\ncolumns 2\nblock:g["Measured group"]\na["First"] b["Second"]\nend\nspace\na --> b\na -- "second link" --> b\n'),
       renamed = mutate(first, { kind: 'rename_block', from: 'a', to: 'api' })

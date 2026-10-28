@@ -1,8 +1,8 @@
-import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import { inkOnNodeFill } from '../color-resolver.ts'
 import { escapeAttr, escapeDisplayAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
+import { type DrawingDocument, type DrawingFactory, sceneLowering } from '../scene/drawing.ts'
 import type { MarkAttributes, MarkerDescriptor, TextMark } from '../scene/ir.ts'
 import { serializeMarkerResources } from '../scene/marker-resources.ts'
 import { hashId } from '../scene/seed.ts'
@@ -15,11 +15,11 @@ import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { diagramTitleFields, FONT_SIZES, FONT_WEIGHTS, resolveRenderStyle, STROKE_WIDTHS } from '../styles.ts'
 import { buildShadowDefs, buildStyleBlock, type DiagramColors, svgOpenTag } from '../theme.ts'
 import type { RenderContext } from '../types.ts'
-import { classInterfaceMarker } from './interface-occurrences.ts'
 import { CLASS_STYLE_DEFAULTS, CLS, classAnnotationBlock, classMemberBlock, classTextBlock } from './layout.ts'
 import { classRelationshipLineStyle } from './parser.ts'
+import { classCaptionAnchor, classCardinalityAnchor, classMarkerResources, getMarkerDefId, RELATION_LABEL_HALO_WIDTH, RELATION_LABEL_OFFSET_Y } from './relationship-paint.ts'
 import { decodeClassText, memberToString } from './text.ts'
-import type { ClassMember, PositionedClassDiagram, PositionedClassNamespace, PositionedClassNode, PositionedClassNote, PositionedClassRelationship, RelationshipType } from './types.ts'
+import type { ClassMember, PositionedClassDiagram, PositionedClassNamespace, PositionedClassNode, PositionedClassNote, PositionedClassRelationship } from './types.ts'
 
 // ============================================================================
 // Class diagram SVG renderer
@@ -182,53 +182,6 @@ export function lowerClassDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContex
  *
  * Uses var(--_arrow) for fill/stroke and var(--bg) for hollow marker fills.
  */
-function classMarkerResources(style: ResolvedRenderStyle): readonly MarkerDescriptor[] {
-  const edgeColor = style.edgeStrokeColor ?? 'var(--_arrow)'
-  const triangle = [
-    { x: 0, y: 0 },
-    { x: 12, y: 5 },
-    { x: 0, y: 10 },
-  ]
-  const diamond = [
-    { x: 7, y: 1 },
-    { x: 13, y: 6 },
-    { x: 7, y: 11 },
-    { x: 1, y: 6 },
-  ]
-  return [
-    { id: 'cls-inherit', shape: 'triangle', size: { width: 12, height: 10 }, ref: { x: 12, y: 5 }, orient: 'auto-start-reverse', overflow: 'visible', geometry: { kind: 'polygon', points: triangle }, paint: { fill: 'var(--bg)', stroke: edgeColor, strokeWidth: '1.5' } },
-    { id: 'cls-composition', shape: 'diamond', size: { width: 14, height: 12 }, viewBox: { x: 0, y: 0, width: 14, height: 12 }, ref: { x: 13, y: 6 }, orient: 'auto-start-reverse', overflow: 'hidden', geometry: { kind: 'polygon', points: diamond }, paint: { fill: edgeColor, stroke: edgeColor, strokeWidth: '1' } },
-    {
-      id: 'cls-aggregation',
-      shape: 'diamond-open',
-      size: { width: 14, height: 12 },
-      viewBox: { x: 0, y: 0, width: 14, height: 12 },
-      ref: { x: 13, y: 6 },
-      orient: 'auto-start-reverse',
-      overflow: 'hidden',
-      geometry: { kind: 'polygon', points: diamond },
-      paint: { fill: 'var(--bg)', stroke: edgeColor, strokeWidth: '1.5' },
-    },
-    {
-      id: 'cls-arrow',
-      shape: 'open-arrow',
-      size: { width: 8, height: 6 },
-      ref: { x: 8, y: 3 },
-      orient: 'auto-start-reverse',
-      overflow: 'visible',
-      geometry: {
-        kind: 'polyline',
-        points: [
-          { x: 0, y: 0 },
-          { x: 8, y: 3 },
-          { x: 0, y: 6 },
-        ],
-      },
-      paint: { fill: 'none', stroke: edgeColor, strokeWidth: '1.5' },
-    },
-    classInterfaceMarker(edgeColor),
-  ]
-}
 
 // ============================================================================
 // Namespace box rendering (ELK compound groups — flowchart subgraph pattern)
@@ -356,7 +309,7 @@ function renderClassBox<T>(marks: DrawingFactory<T>, cls: PositionedClassNode, s
       id: `class:${cls.id}:box`,
       role: 'class-box',
       geometry: { kind: 'rect', x, y, width, height, rx: style.cornerRadius ?? 0, ry: style.cornerRadius ?? 0 },
-      paint: { fill: boxFill, stroke: boxStroke, strokeWidth: String(boxStrokeWidth) },
+      paint: { fill: boxFill, stroke: boxStroke, strokeWidth: String(boxStrokeWidth), ...(local['stroke-dasharray'] !== undefined ? { strokeDasharray: local['stroke-dasharray'] } : {}) },
     }),
   })
 
@@ -369,7 +322,7 @@ function renderClassBox<T>(marks: DrawingFactory<T>, cls: PositionedClassNode, s
       id: `class:${cls.id}:header`,
       role: 'group-header',
       geometry: { kind: 'path', d: headerPath },
-      paint: { fill: headerFill, stroke: boxStroke, strokeWidth: String(boxStrokeWidth) },
+      paint: { fill: headerFill, stroke: boxStroke, strokeWidth: String(boxStrokeWidth), ...(local['stroke-dasharray'] !== undefined ? { strokeDasharray: local['stroke-dasharray'] } : {}) },
     }),
   })
 
@@ -418,7 +371,7 @@ function renderClassBox<T>(marks: DrawingFactory<T>, cls: PositionedClassNode, s
 
   // Divider line between header and attributes
   const attrTop = y + headerHeight
-  children.push({ indent: 2, node: renderDivider(marks, cls.id, 'attrs', x, attrTop, width, style) })
+  children.push({ indent: 2, node: renderDivider(marks, cls.id, 'attrs', x, attrTop, width, style, local['stroke-dasharray']) })
 
   // Attributes
   const memberRowH = 20
@@ -430,7 +383,7 @@ function renderClassBox<T>(marks: DrawingFactory<T>, cls: PositionedClassNode, s
 
   // Divider line between attributes and methods
   const methodTop = attrTop + attrHeight
-  children.push({ indent: 2, node: renderDivider(marks, cls.id, 'methods', x, methodTop, width, style) })
+  children.push({ indent: 2, node: renderDivider(marks, cls.id, 'methods', x, methodTop, width, style, local['stroke-dasharray']) })
 
   // Methods
   for (let i = 0; i < cls.methods.length; i++) {
@@ -449,14 +402,14 @@ function renderClassBox<T>(marks: DrawingFactory<T>, cls: PositionedClassNode, s
 }
 
 /** Compartment divider line (header/attributes and attributes/methods). */
-function renderDivider<T>(marks: DrawingFactory<T>, clsId: string, which: 'attrs' | 'methods', x: number, lineY: number, width: number, style: ResolvedRenderStyle): T {
+function renderDivider<T>(marks: DrawingFactory<T>, clsId: string, which: 'attrs' | 'methods', x: number, lineY: number, width: number, style: ResolvedRenderStyle, strokeDasharray?: string): T {
   const stroke = style.nodeBorderColor ?? 'var(--_node-stroke)'
   const strokeWidth = Math.min(style.nodeLineWidth, STROKE_WIDTHS.innerBox)
   return marks.shape({
     id: `class:${clsId}:divider:${which}`,
     role: 'chrome',
     geometry: { kind: 'line', x1: x, y1: lineY, x2: x + width, y2: lineY },
-    paint: { stroke, strokeWidth: String(strokeWidth) },
+    paint: { stroke, strokeWidth: String(strokeWidth), ...(strokeDasharray !== undefined ? { strokeDasharray } : {}) },
   })
 }
 
@@ -572,13 +525,7 @@ function classRelationshipEndpoints(rel: PositionedClassRelationship) {
  * Render a relationship line with appropriate markers and semantic attributes.
  * Includes data-* attributes for programmatic inspection.
  */
-function renderRelationship<T>(
-  marks: DrawingFactory<T>,
-  rel: PositionedClassRelationship,
-  style: ResolvedRenderStyle,
-  sceneId: string,
-  markerResources: readonly MarkerDescriptor[],
-): T {
+function renderRelationship<T>(marks: DrawingFactory<T>, rel: PositionedClassRelationship, style: ResolvedRenderStyle, sceneId: string, markerResources: readonly MarkerDescriptor[]): T {
   const labels = rel.label
     ? [
         {
@@ -652,7 +599,6 @@ function renderRelationship<T>(
   if (style.edgeBendRadius > 0 && rel.points.length > 2) {
     const projection = projectRoundedConnectorPath(rel.points, style.edgeBendRadius, {
       metric: 'manhattan',
-      precision: 3,
     })
     return marks.connector({
       id: sceneId,
@@ -682,14 +628,7 @@ function renderRelationship<T>(
 /** Marker-only carrier painted after class boxes. The connector remains the
  * semantic authority; this carrier exists only to prevent node surfaces
  * from occluding endpoint symbols. */
-function renderRelationshipMarkerOverlay<T>(
-  marks: DrawingFactory<T>,
-  rel: PositionedClassRelationship,
-  style: ResolvedRenderStyle,
-  index: number,
-  relationshipId: string,
-  markerResources: readonly MarkerDescriptor[],
-): T | null {
+function renderRelationshipMarkerOverlay<T>(marks: DrawingFactory<T>, rel: PositionedClassRelationship, style: ResolvedRenderStyle, index: number, relationshipId: string, markerResources: readonly MarkerDescriptor[]): T | null {
   if (rel.points.length < 2) return null
   const startType = rel.markerAt === 'from' || rel.markerAt === 'both' ? (rel.fromType ?? rel.type) : undefined
   const endType = rel.markerAt === 'to' || rel.markerAt === 'both' ? (rel.toType ?? rel.type) : undefined
@@ -714,7 +653,6 @@ function renderRelationshipMarkerOverlay<T>(
   if (style.edgeBendRadius > 0 && rel.points.length > 2) {
     const projection = projectRoundedConnectorPath(rel.points, style.edgeBendRadius, {
       metric: 'manhattan',
-      precision: 3,
     })
     return marks.connector({ ...fields, geometry: projection.geometry, route: { contours: projection.contours } })
   }
@@ -722,24 +660,6 @@ function renderRelationshipMarkerOverlay<T>(
 }
 
 /** Map relationship type to its SVG marker definition ID */
-function getMarkerDefId(type: RelationshipType): string | null {
-  switch (type) {
-    case 'inheritance':
-    case 'realization':
-      return 'cls-inherit'
-    case 'composition':
-      return 'cls-composition'
-    case 'aggregation':
-      return 'cls-aggregation'
-    case 'association':
-    case 'dependency':
-      return 'cls-arrow'
-    case 'lollipop':
-      return 'cls-lollipop'
-    default:
-      return null
-  }
-}
 
 /** Render relationship labels and cardinality text (supports multi-line).
  *  Returns one text mark per label/cardinality; when the relationship has
@@ -758,7 +678,7 @@ function renderRelationshipLabels<T>(marks: DrawingFactory<T>, rel: PositionedCl
 
   // Label — prefer layout-computed position (collision-aware), fall back to midpoint
   if (rel.label) {
-    const pos = rel.labelPosition ?? midpoint(rel.points)
+    const pos = classCaptionAnchor(rel)!
     const labelBlock = rel.labelBlock ?? classTextBlock(resolveLabelContent(rel.label, rel.labelContent), style, 'edge')
     const label = labelBlock.text
     out.push(
@@ -768,7 +688,7 @@ function renderRelationshipLabels<T>(marks: DrawingFactory<T>, rel: PositionedCl
         text: label,
         block: labelBlock,
         x: pos.x,
-        y: pos.y - 8,
+        y: pos.y - RELATION_LABEL_OFFSET_Y,
         fontSize: style.edgeLabelFontSize,
         anchor: 'middle',
         paint,
@@ -778,10 +698,7 @@ function renderRelationshipLabels<T>(marks: DrawingFactory<T>, rel: PositionedCl
 
   // From cardinality (near start)
   if (rel.fromCardinality) {
-    const p = rel.points[0]!
-    const next = rel.points[1]!
-    const offset = cardinalityOffset(p, next)
-    const position = rel.fromCardinalityPosition ?? { x: p.x + offset.x, y: p.y + offset.y }
+    const position = classCardinalityAnchor(rel, 'from')!
     const block = rel.fromCardinalityBlock ?? preparePixelText(resolveLabelContent(rel.fromCardinality, rel.fromCardinalityContent), { fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing })
     out.push(
       marks.text({
@@ -800,10 +717,7 @@ function renderRelationshipLabels<T>(marks: DrawingFactory<T>, rel: PositionedCl
 
   // To cardinality (near end)
   if (rel.toCardinality) {
-    const p = rel.points[rel.points.length - 1]!
-    const prev = rel.points[rel.points.length - 2]!
-    const offset = cardinalityOffset(p, prev)
-    const position = rel.toCardinalityPosition ?? { x: p.x + offset.x, y: p.y + offset.y }
+    const position = classCardinalityAnchor(rel, 'to')!
     const block = rel.toCardinalityBlock ?? preparePixelText(resolveLabelContent(rel.toCardinality, rel.toCardinalityContent), { fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing })
     out.push(
       marks.text({
@@ -824,27 +738,6 @@ function renderRelationshipLabels<T>(marks: DrawingFactory<T>, rel: PositionedCl
 }
 
 /** Halo behind relationship labels and cardinalities. */
-const RELATION_LABEL_HALO_WIDTH = 3
-
-/** Get the midpoint of a point array */
-function midpoint(points: Array<{ x: number; y: number }>): { x: number; y: number } {
-  if (points.length === 0) return { x: 0, y: 0 }
-  const mid = Math.floor(points.length / 2)
-  return points[mid]!
-}
-
-/** Calculate offset for cardinality label perpendicular to edge direction */
-function cardinalityOffset(from: { x: number; y: number }, to: { x: number; y: number }): { x: number; y: number } {
-  const dx = to.x - from.x
-  const dy = to.y - from.y
-  // Place label perpendicular to the edge, 14px away
-  if (Math.abs(dx) > Math.abs(dy)) {
-    // Mostly horizontal — offset vertically
-    return { x: dx > 0 ? 14 : -14, y: -10 }
-  }
-  // Mostly vertical — offset horizontally
-  return { x: -14, y: dy > 0 ? 14 : -14 }
-}
 
 // ============================================================================
 // Utilities

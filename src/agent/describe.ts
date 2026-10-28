@@ -1,3 +1,6 @@
+import { projectZenUMLSequence, type ZenUMLMessageContext, type ZenUMLNoteContext } from '../zenuml/native-sequence.ts'
+import type { Actor } from '../sequence/types.ts'
+import { eventLanes, eventRelations } from '../eventmodeling/parser.ts'
 import { isStableFamilyBody, stableFamilyCount, stableFamilyTree } from './stable-family-adapters.ts'
 
 // ============================================================================
@@ -43,11 +46,21 @@ export interface DescribeOptions {
 /** Structured accessibility tree (#7349): the graph as a list of nodes + edges. */
 export interface DescribeTree {
   kind: string
+  /** Visible document title, when retained by this family's readback. */
+  title?: string
   nodes: Array<{
     id: string
     label: string
     parentId?: string
     value?: number
+    /** Renderer-owned endpoint, not an authored participant. */
+    external?: true
+    zenuml?: { kind: 'participant'; type: Actor['type'] } | (Pick<ZenUMLNoteContext, 'sourceId' | 'callAncestors' | 'scopes'> & {
+      kind: 'note'
+      actorIds: readonly string[]
+      position: ZenUMLNoteContext['note']['position']
+      afterIndex: number
+    })
     c4?: ({ category: 'element'; effectiveShape: C4Shape } & Pick<C4Element, 'kind' | 'external' | 'shape' | 'parentId'>) | ({ category: 'boundary' } & Pick<C4Boundary, 'kind' | 'parentId'>)
   }>
   edges: Array<{
@@ -55,6 +68,7 @@ export interface DescribeTree {
     to: string
     label?: string
     sequence?: { fragmentIndex: number; branchIndex: number; fragmentKind: string; branchLabel?: string }
+    zenuml?: Pick<ZenUMLMessageContext, 'kind' | 'sourceId' | 'callAncestors' | 'scopes'> & { id: string }
     c4?: Pick<C4Relationship, 'id' | 'order' | 'index' | 'macro' | 'direction' | 'bidirectional' | 'reversed'> & {
       authoredFrom: string
       authoredTo: string
@@ -110,6 +124,11 @@ export function describeMermaid(d: ParsedDiagram, opts: DescribeOptions = {}): s
     const total = d.body.links.reduce((sum, link) => sum + link.value, 0)
     return `A sankey diagram flowing ${total} across ${d.body.links.length} link(s) between ${nodes.size} node(s).`
   }
+  if (d.body.kind === 'zenuml') {
+    const model = projectZenUMLSequence(d.body)
+    return `A ZenUML interaction${model.title === undefined ? '' : ` titled ${JSON.stringify(model.title)}`} with ${model.actors.filter(actor => !actor.external).length} participants, ${model.messages.length} messages and ${model.blocks.length} control scopes.`
+  }
+  if (d.body.kind === 'eventmodeling') return `An Event Modeling diagram with ${d.body.frames.length} frames and ${eventRelations(d.body).length} relations.`
   if (isStableFamilyBody(d.body)) {
     const count = stableFamilyCount(d.body)
     return `A ${d.kind} diagram with ${count.nodes} item(s), ${count.groups} group(s) and ${count.edges} relationship(s).`
@@ -272,6 +291,23 @@ export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
       }
       tree.edges.push({ from: link.source, to: link.target, label: String(link.value) })
     }
+  } else if (d.body.kind === 'zenuml') {
+    const notes: DescribeTree['nodes'] = []
+    const model = projectZenUMLSequence(d.body, {
+      message: ({ message, kind, sourceId, callAncestors, scopes }) => {
+        tree.edges.push({ from: message.from, to: message.to, label: message.label, zenuml: { id: message.id!, kind, sourceId, callAncestors, scopes } })
+      },
+      note: ({ note, sourceId, callAncestors, scopes }) => {
+        notes.push({ id: note.id!, label: displayText(resolveLabelContent(note.text, note.textContent)), ...(note.parentId ? { parentId: note.parentId } : {}), zenuml: { kind: 'note', sourceId, actorIds: note.actorIds, position: note.position, afterIndex: note.afterIndex, callAncestors, scopes } })
+      },
+    })
+    if (model.title !== undefined) tree.title = model.title
+    tree.nodes.push(...model.actors.map(actor => ({ id: actor.id, label: actor.external ? 'External caller' : actor.label, ...(actor.external ? { external: true as const } : { zenuml: { kind: 'participant' as const, type: actor.type } }) })), ...notes)
+  } else if (d.body.kind === 'eventmodeling') {
+    const lanes = eventLanes(d.body)
+    tree.nodes.push(...lanes.map(lane => ({ id: lane.id, label: lane.label })))
+    tree.nodes.push(...d.body.frames.map(frame => ({ id: frame.id, label: frame.entity, parentId: lanes.find(lane => lane.members.includes(frame.id))!.id })))
+    tree.edges.push(...eventRelations(d.body))
   } else if (isStableFamilyBody(d.body)) {
     const semantics = stableFamilyTree(d.body)
     tree.nodes.push(...semantics.nodes)

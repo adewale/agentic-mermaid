@@ -27,6 +27,7 @@ import { luminanceContrastRatio, srgbRelativeLuminance, tryParseCssColor } from 
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { countPolylineCrossings } from '../shared/edge-crossings.ts'
 import { measureRenderedLabelConflicts, type LabelConflictCounts } from '../layout/label-conflicts.ts'
+import { countOpposingRouteOverlaps, countParallelRouteOverlaps } from '../layout-rubric.ts'
 
 export interface QualityMetrics {
   /** Evidence from the actual native paint projection, when this layout retains it. */
@@ -49,6 +50,12 @@ export interface QualityMetrics {
   labelEdgeProximity: number  // pixels; Infinity if no edge labels
   /** Padded label-pill conflicts for graph families with retained pill geometry. */
   labelConflicts?: LabelConflictCounts
+  /** Visible graph edge pairs sharing collinear ink. These remain distinct
+   * from proper crossings; hiding a crossing in shared ink is not a win.
+   * Parallel excludes self-loops, matching the existing route rubric. */
+  routeOverlaps?: { parallel: number; opposing: number }
+  /** Raw visible polyline geometry, without subjective bundle/bend exemptions. */
+  routeGeometry?: { bends: number; length: number; area: number }
   minimumNodeSpacing: number  // pixels; Infinity when fewer than two nodes
   elementDensity: number  // nodes + edges per 10,000 canvas pixels
   minimumTextContrast: number | null  // WCAG ratio; null when requested paints cannot be resolved
@@ -196,6 +203,24 @@ export function measureQuality(
   options: QualityMeasurementOptions = {},
 ): QualityMetrics {
   const labelConflicts = measureRenderedLabelConflicts(layout)
+  const graphEdges = layout.edges.map(edge => ({
+    source: edge.from, target: edge.to, style: edge.visibility === 'hidden' ? 'invisible' as const : 'solid' as const,
+    points: edge.path.map(([x, y]) => ({ x, y })),
+  }))
+  let bends = 0, length = 0
+  for (const edge of layout.edges) {
+    if (edge.visibility === 'hidden') continue
+    let previous: readonly [number, number] | undefined
+    for (let i = 1; i < edge.path.length; i++) {
+      const a = edge.path[i - 1]!, b = edge.path[i]!
+      const dx = b[0] - a[0], dy = b[1] - a[1], span = Math.hypot(dx, dy)
+      if (span <= GEOM_EPS) continue
+      const ray = [dx / span, dy / span] as const
+      if (previous && (Math.abs(previous[0] * ray[1] - previous[1] * ray[0]) > GEOM_EPS || previous[0] * ray[0] + previous[1] * ray[1] < 0)) bends++
+      previous = ray
+      length += span
+    }
+  }
   return {
     ...(renderedPaintCertification(layout) ? { paintCertification: renderedPaintCertification(layout) } : {}),
     edgeCrossings: countEdgeCrossings(layout.edges),
@@ -215,6 +240,8 @@ export function measureQuality(
     whitespaceBalance: measureWhitespaceBalance(layout),
     labelEdgeProximity: measureLabelEdgeProximity(layout),
     ...(labelConflicts ? { labelConflicts } : {}),
+    routeOverlaps: { parallel: countParallelRouteOverlaps(graphEdges), opposing: countOpposingRouteOverlaps(graphEdges) },
+    routeGeometry: { bends, length, area: layout.bounds.w * layout.bounds.h },
     minimumNodeSpacing: measureMinimumNodeSpacing(layout),
     elementDensity: measureElementDensity(layout),
     minimumTextContrast: measureMinimumTextContrast(options),

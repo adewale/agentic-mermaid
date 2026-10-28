@@ -39,6 +39,8 @@ export type SequenceActorType = 'participant' | 'actor' | 'boundary' | 'control'
 export type SequenceMessageHead = 'none' | 'filled' | 'open' | 'cross' | 'half-top' | 'half-bottom' | 'stick-top' | 'stick-bottom'
 
 export interface Actor {
+  /** An incoming endpoint outside the authored participants; no header/lifeline. */
+  external?: true
   wrap?: boolean
   id: string
   label: string
@@ -82,6 +84,9 @@ export interface SequenceActivationEvent {
 }
 
 export interface Message {
+  /** Identity and lexical fragment supplied by another native sequence language. */
+  id?: string
+  parentId?: string
   /** Effective soft-wrap control; absent retains the renderer's default. */
   wrap?: boolean
   from: string
@@ -105,6 +110,8 @@ export interface Message {
 }
 
 export interface Block {
+  id?: string
+  parentId?: string
   wrap?: boolean
   /** Block type keyword */
   type: 'loop' | 'alt' | 'opt' | 'par' | 'par_over' | 'critical' | 'break' | 'rect'
@@ -122,6 +129,8 @@ export interface Block {
 }
 
 export interface Note {
+  id?: string
+  parentId?: string
   wrap?: boolean
   /** Which actor(s) the note is attached to */
   actorIds: string[]
@@ -208,6 +217,7 @@ export interface PositionedBlockHeader {
 }
 
 export interface PositionedActor {
+  external?: true
   menuBlock?: PixelTextBlock
   id: string
   label: string
@@ -234,6 +244,8 @@ export interface Lifeline {
 }
 
 export interface PositionedMessage {
+  id?: string
+  parentId?: string
   from: string
   to: string
   label: string
@@ -276,6 +288,8 @@ export interface PositionedBlockDivider {
 }
 
 export interface PositionedBlock {
+  id?: string
+  parentId?: string
   type: Block['type']
   label: string
   color?: string
@@ -292,6 +306,8 @@ export interface PositionedBlock {
 }
 
 export interface PositionedNote {
+  id?: string
+  parentId?: string
   block?: PixelTextBlock
   text: string
   x: number

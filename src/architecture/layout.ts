@@ -1,12 +1,16 @@
 import { architectureIconFallbackBlock } from './icon-layout.ts'
 import { assertArchitectureDiagramWork } from '../shared/diagram-limits.ts'
+import { LayoutCertificationError } from '../layout/certification-error.ts'
 import type { Point, RenderOptions } from '../types.ts'
 import { ARCHITECTURE_DEFAULT_LAYER_SPACING, ARCHITECTURE_DEFAULT_NODE_SPACING, DEFAULT_ARCHITECTURE_VISUAL, architectureLayoutMetrics } from './config.ts'
 import type { ArchitectureLayoutMetrics } from './config.ts'
-import { layoutGraphSync } from '../layout-engine.ts'
+import { layoutElkGraphPlacementSync, layoutNativeGraphPlacementSync } from '../layout-engine.ts'
+import { runMeasuredGraphBackend } from '../layout/backend.ts'
 import { architectureToMermaidGraph } from './parser.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
+import { improveArchitectureSiblingSlots } from '../layout/agentic-layered.ts'
+import { countOpposingRouteOverlaps, countParallelRouteOverlaps } from '../layout-rubric.ts'
 import type {
   ArchitectureChildRef,
   ArchitectureDiagram,
@@ -72,6 +76,9 @@ export function layoutArchitectureDiagram(
   const groupText = new Map(diagram.groups.map(group => [group.id, roleBlock(group.label, 'group')]))
   const edgeText = diagram.edges.map(edge => edge.label === undefined ? undefined : roleBlock(edge.label, 'edge'))
   const graph = architectureToMermaidGraph(diagram)
+  const requestedHeaderMinimum = options.architecture?.visual?.groupHeaderHeight
+  if (requestedHeaderMinimum !== undefined && (!Number.isFinite(requestedHeaderMinimum) || requestedHeaderMinimum <= 0)) throw new RangeError('Invalid Architecture group-header minimum')
+  const reservedHeaderPadding = requestedHeaderMinimum === undefined ? undefined : Math.max(GROUP_EDGE_PAD, typography.groupPaddingY)
   const junctionDiameter = 2 * (typography.junctionOuterRadius ?? DEFAULT_ARCHITECTURE_VISUAL.junctionOuterRadius)
   for (const [id, block] of serviceText) graph.nodes.get(id)!.label = block.text
   const iconTextBlocks = new Map(diagram.services.filter(service => service.iconText !== undefined).map(service => [service.id, preparePixelText(service.iconText!, {
@@ -85,11 +92,12 @@ export function layoutArchitectureDiagram(
   }
   const prepareGroup = (group: typeof graph.subgraphs[number]): void => {
     group.label = groupText.get(group.id)!.text
+    if (requestedHeaderMinimum !== undefined) group.headerMinHeight = requestedHeaderMinimum
     group.children.forEach(prepareGroup)
   }
   graph.subgraphs.forEach(prepareGroup)
   graph.edges.forEach((edge, index) => { edge.label = edgeText[index]?.text })
-  const positioned = layoutGraphSync(graph, {
+  const placementOptions = {
     // Keep placement clearance separate from the drawn surface. Larger rings
     // reserve their own footprint instead of borrowing State's fixed size.
     nodeSizes: new Map(diagram.junctions.map(junction => [junction.id, {
@@ -99,7 +107,6 @@ export function layoutArchitectureDiagram(
     padding: options.padding ?? 40,
     nodeSpacing: options.nodeSpacing ?? ARCHITECTURE_DEFAULT_NODE_SPACING,
     layerSpacing: options.layerSpacing ?? ARCHITECTURE_DEFAULT_LAYER_SPACING,
-    preserveSubgraphChildOrder: true,
     // The graph's temporary routes do not describe the side-constrained paths
     // below. Their cosmetic score cannot rank Architecture's final artifact.
     compareRoutePreferences: false,
@@ -134,176 +141,224 @@ export function layoutArchitectureDiagram(
         lineWidth: metrics.groupLineWidth,
       },
     } : undefined,
-  })
-
+  }
   const servicesById = new Map(diagram.services.map((service) => [service.id, service]))
   const groupsById = new Map(diagram.groups.map((group) => [group.id, group]))
   const junctionsById = new Map(diagram.junctions.map((junction) => [junction.id, junction]))
 
-  const services: PositionedArchitectureService[] = []
-  const junctions: PositionedArchitectureJunction[] = []
-  const serviceBounds = new Map<string, Bounds>()
-  const junctionBounds = new Map<string, Bounds>()
+  // Backend selection owns the completed family artifact. A raw placement
+  // cannot publish success before its actual alignments, contacts and headers
+  // have passed; fallback reuses this request's prepared graph and text.
+  const finish = (positioned: ReturnType<typeof layoutNativeGraphPlacementSync>, nativePlacement: boolean): PositionedArchitectureDiagram => {
+    const services: PositionedArchitectureService[] = []
+    const junctions: PositionedArchitectureJunction[] = []
+    const serviceBounds = new Map<string, PositionedArchitectureService>()
+    const junctionBounds = new Map<string, PositionedArchitectureJunction>()
 
-  for (const node of positioned.nodes) {
-    const bounds = { x: node.x, y: node.y, width: node.width, height: node.height }
-    if (servicesById.has(node.id)) {
-      const service = servicesById.get(node.id)!
-      services.push({ ...bounds, id: service.id, label: service.label, labelBlock: serviceText.get(service.id), ...(service.iconText !== undefined ? { iconText: service.iconText, iconTextBlock: iconTextBlocks.get(service.id) } : {}), iconFallbackBlock: architectureIconFallbackBlock(service.icon, typography.serviceIconSize ?? DEFAULT_ARCHITECTURE_VISUAL.serviceIconSize), icon: service.icon, parentId: service.parentId })
-      serviceBounds.set(node.id, bounds)
-    } else if (junctionsById.has(node.id)) {
-      const junction = junctionsById.get(node.id)!
-      const ring = {
-        x: node.x + (node.width - junctionDiameter) / 2,
-        y: node.y + (node.height - junctionDiameter) / 2,
-        width: junctionDiameter,
-        height: junctionDiameter,
+    for (const node of positioned.nodes) {
+      if (servicesById.has(node.id)) {
+        const service = servicesById.get(node.id)!
+        const placed: PositionedArchitectureService = { x: node.x, y: node.y, width: node.width, height: node.height, id: service.id, label: service.label, labelBlock: serviceText.get(service.id), ...(service.iconText !== undefined ? { iconText: service.iconText, iconTextBlock: iconTextBlocks.get(service.id) } : {}), iconFallbackBlock: architectureIconFallbackBlock(service.icon, typography.serviceIconSize ?? DEFAULT_ARCHITECTURE_VISUAL.serviceIconSize), icon: service.icon, parentId: service.parentId }
+        services.push(placed)
+        serviceBounds.set(node.id, placed)
+      } else if (junctionsById.has(node.id)) {
+        const junction = junctionsById.get(node.id)!
+        const placed: PositionedArchitectureJunction = {
+          x: node.x + (node.width - junctionDiameter) / 2,
+          y: node.y + (node.height - junctionDiameter) / 2,
+          width: junctionDiameter,
+          height: junctionDiameter,
+          id: junction.id,
+          parentId: junction.parentId,
+        }
+        junctions.push(placed)
+        junctionBounds.set(node.id, placed)
       }
-      junctions.push({ ...ring, id: junction.id, parentId: junction.parentId })
-      junctionBounds.set(node.id, ring)
     }
-  }
 
-  // Keep architecture SVG layering stable even when the graph engine changes
-  // compound-node layout order: root services render before grouped services,
-  // then source order decides ties.
-  const serviceOrder = new Map(diagram.services.map((service, index) => [service.id, index]))
-  services.sort((a, b) => {
-    const topLevelDelta = Number(Boolean(a.parentId)) - Number(Boolean(b.parentId))
-    return topLevelDelta || (serviceOrder.get(a.id) ?? 0) - (serviceOrder.get(b.id) ?? 0)
-  })
+    // Keep architecture SVG layering stable even when the graph engine changes
+    // compound-node layout order: root services render before grouped services,
+    // then source order decides ties.
+    const serviceOrder = new Map(diagram.services.map((service, index) => [service.id, index]))
+    services.sort((a, b) => {
+      const topLevelDelta = Number(Boolean(a.parentId)) - Number(Boolean(b.parentId))
+      return topLevelDelta || (serviceOrder.get(a.id) ?? 0) - (serviceOrder.get(b.id) ?? 0)
+    })
 
-  // Upstream `align row|column` is a geometry constraint, not parser
-  // tolerance. Apply it after the graph engine establishes a deterministic
-  // order and before group bounds/architecture routes are frozen. Members are
-  // packed in directive order on the free axis, so collapsing a vertical stack
-  // into a row (or vice versa) cannot create sibling overlap.
-  applyArchitectureAlignments(
-    diagram,
-    services,
-    junctions,
-    options.nodeSpacing ?? ARCHITECTURE_DEFAULT_NODE_SPACING,
-  )
-  // Alignment mutates positioned items after their initial bounds maps were
-  // built. Refresh the route lookup so every side anchor follows the aligned
-  // card/ring rather than the pre-constraint ELK coordinate.
-  for (const service of services) serviceBounds.set(service.id, service)
-  for (const junction of junctions) junctionBounds.set(junction.id, junction)
+    // Upstream `align row|column` is a geometry constraint, not parser
+    // tolerance. Apply it after the graph engine establishes a deterministic
+    // order and before group bounds/architecture routes are frozen. Directive
+    // order seeds the free-axis positions; complete-component gap repair then
+    // preserves visibility when row and column requests intersect.
+    applyArchitectureAlignments(
+      diagram,
+      services,
+      junctions,
+      options.nodeSpacing ?? ARCHITECTURE_DEFAULT_NODE_SPACING,
+    )
+    // Arrays and route lookups share the actual positioned items, so every
+    // alignment/side-constraint move updates their authored contacts together.
 
-  const flatGroups = new Map<string, PositionedArchitectureGroup>()
-  const groups = positioned.groups.map((group) => mapGroup(group, groupsById, flatGroups))
-  for (const group of flatGroups.values()) {
-    group.labelBlock = groupText.get(group.id)
-    group.iconFallbackBlock = architectureIconFallbackBlock(group.icon, typography.iconSize ?? DEFAULT_ARCHITECTURE_VISUAL.iconSize)
-  }
-  expandGroupBounds(groups, services, junctions, diagram.alignments.length > 0)
-  const sideConstraintsChanged = applyArchitectureSideConstraints(
-    diagram,
-    services,
-    junctions,
-    flatGroups,
-    options.nodeSpacing ?? ARCHITECTURE_DEFAULT_NODE_SPACING,
-  )
-  if (sideConstraintsChanged) {
-    // Port constraints can reorder a child or a whole nested group. Refit once
-    // more before resolving `{group}` anchors and route obstacles.
-    expandGroupBounds(groups, services, junctions, true)
-    for (const service of services) serviceBounds.set(service.id, service)
-    for (const junction of junctions) junctionBounds.set(junction.id, junction)
-  }
-
-  const positionedJunctionsById = new Map(junctions.map(junction => [junction.id, junction]))
-  const edges = diagram.edges.map((edge) =>
-    routeArchitectureEdge(
-      edge,
+    const flatGroups = new Map<string, PositionedArchitectureGroup>()
+    const groups = positioned.groups.map((group) => mapGroup(group, groupsById, flatGroups))
+    for (const group of flatGroups.values()) {
+      group.labelBlock = groupText.get(group.id)
+      group.iconFallbackBlock = architectureIconFallbackBlock(group.icon, typography.iconSize ?? DEFAULT_ARCHITECTURE_VISUAL.iconSize)
+    }
+    expandGroupBounds(groups, services, junctions, diagram.alignments.length > 0, reservedHeaderPadding)
+    let legalSlots: (() => boolean) | undefined
+    const sideConstraintsChanged = applyArchitectureSideConstraints(
+      diagram,
+      services,
+      junctions,
+      flatGroups,
+      options.nodeSpacing ?? ARCHITECTURE_DEFAULT_NODE_SPACING,
       servicesById,
+      groupsById,
+      junctionsById,
       serviceBounds,
       junctionBounds,
-      flatGroups,
-      services,
-      positionedJunctionsById,
+      nativePlacement ? validate => { legalSlots = validate } : undefined,
+      reservedHeaderPadding,
     )
-  )
-  edges.forEach((edge, index) => { edge.labelBlock = edgeText[index] })
-  separateEdgeLabels(edges, services, metrics)
-
-  const titleBlock = diagram.title ? preparePixelText(diagram.title, {
-    display: 'formatted', transform: metrics?.groupTextTransform,
-    fontSize: ARCHITECTURE_TITLE_FONT_SIZE, fontWeight: ARCHITECTURE_TITLE_FONT_WEIGHT, safeFont: true,
-  }) : undefined
-  const titleText = titleBlock?.text
-  const titleHeight = titleBlock ? titleBlock.height - (titleBlock.lineHeight - titleBlock.fontSize) : 0
-  let width = positioned.width
-  let height = positioned.height
-  if (diagram.alignments.length > 0 || sideConstraintsChanged) {
-    // Alignment may collapse several old ranks into one; derive the canvas
-    // from post-constraint geometry instead of retaining ELK's stale extent.
-    width = Math.max(
-      80,
-      ...services.map(service => service.x + service.width + 40),
-      ...junctions.map(junction => junction.x + junction.width + 40),
-      ...groups.map(group => group.x + group.width + 40),
-    )
-    height = Math.max(
-      80,
-      ...services.map(service => service.y + service.height + 40),
-      ...junctions.map(junction => junction.y + junction.height + 40),
-      ...groups.map(group => group.y + group.height + 40),
-    )
-  }
-  if (titleText) {
-    width = Math.max(width, titleBlock!.width + TITLE_SIDE_PADDING * 2)
-    // The centered title owns its complete block. Move the graph as one unit
-    // so nested groups, ports and routed labels retain their relative geometry.
-    const titleTop = TITLE_Y - ARCHITECTURE_TITLE_FONT_SIZE / 2
-    const contentTop = Math.min(...services.map(s => s.y), ...junctions.map(j => j.y), ...[...flatGroups.values()].map(g => g.y))
-    const shiftY = Math.max(0, titleTop + titleHeight + 11 - contentTop)
-    const shiftGroup = (group: PositionedArchitectureGroup): void => {
-      group.y += shiftY
-      group.children.forEach(shiftGroup)
+    if (sideConstraintsChanged) {
+      // Port constraints can reorder a child or a whole nested group. Refit once
+      // more before resolving `{group}` anchors and route obstacles.
+      expandGroupBounds(groups, services, junctions, true, reservedHeaderPadding)
     }
-    groups.forEach(shiftGroup)
-    for (const service of services) service.y += shiftY
-    for (const junction of junctions) junction.y += shiftY
+
+    if (diagram.alignments.length) {
+      // Side ordering and container cleanup must preserve every fixed-axis
+      // component before final contacts and route obstacles are derived.
+      const alignedItems = new Map([...services, ...junctions].map(item => [item.id, item]))
+      const alignmentFailures = diagram.alignments.flatMap(alignment => {
+        const centers = alignment.members.map(id => {
+          const item = alignedItems.get(id)!
+          return alignment.axis === 'row' ? item.y + item.height / 2 : item.x + item.width / 2
+        })
+        return Math.max(...centers) - Math.min(...centers) <= ROUTE_EPSILON ? [] : [`${alignment.axis} alignment lost for ${alignment.members.join(', ')}`]
+      })
+      if (alignmentFailures.length) throw new LayoutCertificationError([{ strategy: 'architecture-final-alignments', violations: alignmentFailures }])
+    }
+
+    const routeEdges = () => diagram.edges.map((edge) =>
+      routeArchitectureEdge(
+        edge,
+        servicesById,
+        serviceBounds,
+        junctionBounds,
+        flatGroups,
+        services,
+        junctionBounds,
+      )
+    )
+    let edges = routeEdges()
+    if (legalSlots) edges = improveArchitectureSiblingSlots(diagram, services, edges, routeEdges, legalSlots, routes => {
+      // Private all-pair shaft grouping, with the public predicates' unchanged
+      // thresholds. Keep generic metric dependencies out of the optional solver.
+      const ink = routes.map(({ points }) => ({ points, style: 'solid' as const, source: '', target: '_' }))
+      return countOpposingRouteOverlaps(ink) || countParallelRouteOverlaps(ink)
+    })
+    edges.forEach((edge, index) => { edge.labelBlock = edgeText[index] })
+    separateEdgeLabels(edges, services, metrics)
+
+    const titleBlock = diagram.title ? preparePixelText(diagram.title, {
+      display: 'formatted', transform: metrics?.groupTextTransform,
+      fontSize: ARCHITECTURE_TITLE_FONT_SIZE, fontWeight: ARCHITECTURE_TITLE_FONT_WEIGHT, safeFont: true,
+    }) : undefined
+    const titleText = titleBlock?.text
+    const titleHeight = titleBlock ? titleBlock.height - (titleBlock.lineHeight - titleBlock.fontSize) : 0
+    let width = positioned.width
+    let height = positioned.height
+    if (diagram.alignments.length > 0 || sideConstraintsChanged) {
+      // Alignment may collapse several old ranks into one; derive the canvas
+      // from post-constraint geometry instead of retaining ELK's stale extent.
+      width = Math.max(
+        80,
+        ...services.map(service => service.x + service.width + 40),
+        ...junctions.map(junction => junction.x + junction.width + 40),
+        ...groups.map(group => group.x + group.width + 40),
+      )
+      height = Math.max(
+        80,
+        ...services.map(service => service.y + service.height + 40),
+        ...junctions.map(junction => junction.y + junction.height + 40),
+        ...groups.map(group => group.y + group.height + 40),
+      )
+    }
+    if (titleText) {
+      width = Math.max(width, titleBlock!.width + TITLE_SIDE_PADDING * 2)
+      // The centered title owns its complete block. Move the graph as one unit
+      // so nested groups, ports and routed labels retain their relative geometry.
+      const titleTop = TITLE_Y - ARCHITECTURE_TITLE_FONT_SIZE / 2
+      const contentTop = Math.min(...services.map(s => s.y), ...junctions.map(j => j.y), ...[...flatGroups.values()].map(g => g.y))
+      const shiftY = Math.max(0, titleTop + titleHeight + 11 - contentTop)
+      const shiftGroup = (group: PositionedArchitectureGroup): void => {
+        group.y += shiftY
+        group.children.forEach(shiftGroup)
+      }
+      groups.forEach(shiftGroup)
+      for (const service of services) service.y += shiftY
+      for (const junction of junctions) junction.y += shiftY
+      for (const edge of edges) {
+        for (const point of edge.points) point.y += shiftY
+        if (edge.labelPosition) edge.labelPosition.y += shiftY
+      }
+      height = Math.max(height + shiftY, titleTop + titleHeight + 20)
+    }
     for (const edge of edges) {
-      for (const point of edge.points) point.y += shiftY
-      if (edge.labelPosition) edge.labelPosition.y += shiftY
+      for (const point of edge.points) {
+        width = Math.max(width, point.x + 40)
+        height = Math.max(height, point.y + 40)
+      }
+      if (edge.labelPosition) {
+        width = Math.max(width, edge.labelPosition.x + 72)
+        height = Math.max(height, edge.labelPosition.y + 28)
+      }
     }
-    height = Math.max(height + shiftY, titleTop + titleHeight + 20)
-  }
-  for (const edge of edges) {
-    for (const point of edge.points) {
-      width = Math.max(width, point.x + 40)
-      height = Math.max(height, point.y + 40)
-    }
-    if (edge.labelPosition) {
-      width = Math.max(width, edge.labelPosition.x + 72)
-      height = Math.max(height, edge.labelPosition.y + 28)
-    }
-  }
 
-  for (const service of services) {
-    const iconX = service.x + typography.servicePaddingX
-    service.labelPosition = {
-      x: service.iconTextBlock
-        ? iconX + service.iconTextBlock.width + (service.iconTextBlock.width ? 10 : 0)
-        : service.icon
-        ? iconX + (typography.serviceIconSize ?? DEFAULT_ARCHITECTURE_VISUAL.serviceIconSize) + Math.max(10, typography.servicePaddingX * 0.7)
-        : iconX,
-      y: service.y + service.height / 2,
+    for (const service of services) {
+      const iconX = service.x + typography.servicePaddingX
+      service.labelPosition = {
+        x: service.iconTextBlock
+          ? iconX + service.iconTextBlock.width + (service.iconTextBlock.width ? 10 : 0)
+          : service.icon
+          ? iconX + (typography.serviceIconSize ?? DEFAULT_ARCHITECTURE_VISUAL.serviceIconSize) + Math.max(10, typography.servicePaddingX * 0.7)
+          : iconX,
+        y: service.y + service.height / 2,
+      }
+    }
+    // Route proposals are checked again after all side constraints, slot moves
+    // and title translations, against the actual final family header geometry.
+    const headers = [...flatGroups.values()].flatMap(group => {
+      const header = architectureHeaderObstacle(group)
+      return header ? [header] : []
+    })
+    const headerFailures = edges.flatMap(edge => headers
+      .filter(header => !routeClearsObstacles(edge.points, [header]))
+      .map(header => `edge ${edge.source.id}->${edge.target.id}: crosses group ${header.id} header`))
+    if (reservedHeaderPadding !== undefined) for (const group of flatGroups.values()) {
+      const children = [...group.children, ...services.filter(service => service.parentId === group.id), ...junctions.filter(junction => junction.parentId === group.id)]
+      for (const child of children) if (child.y < group.y + group.headerHeight! + reservedHeaderPadding) headerFailures.push(`group ${group.id}: child ${child.id} lacks reserved header clearance`)
+    }
+    if (headerFailures.length) throw new LayoutCertificationError([{ strategy: 'architecture-final-headers', violations: headerFailures }])
+    return {
+      width,
+      height,
+      ...(titleText ? { title: { text: titleText, x: width / 2, y: TITLE_Y + (titleHeight - ARCHITECTURE_TITLE_FONT_SIZE) / 2, block: titleBlock } } : {}),
+      groups,
+      services,
+      junctions,
+      edges,
+      accessibilityTitle: diagram.accessibilityTitle,
+      accessibilityDescription: diagram.accessibilityDescription,
     }
   }
-  return {
-    width,
-    height,
-    ...(titleText ? { title: { text: titleText, x: width / 2, y: TITLE_Y + (titleHeight - ARCHITECTURE_TITLE_FONT_SIZE) / 2, block: titleBlock } } : {}),
-    groups,
-    services,
-    junctions,
-    edges,
-    accessibilityTitle: diagram.accessibilityTitle,
-    accessibilityDescription: diagram.accessibilityDescription,
-  }
+  return runMeasuredGraphBackend(options,
+    () => finish(layoutNativeGraphPlacementSync(graph, placementOptions), true),
+    () => finish(layoutElkGraphPlacementSync(graph, { ...placementOptions, preserveSubgraphChildOrder: true }), false),
+    true,
+  )
 }
 
 type AlignableArchitectureItem = PositionedArchitectureService | PositionedArchitectureJunction
@@ -322,8 +377,8 @@ function applyArchitectureAlignments(
     diagram.alignments.filter(alignment => alignment.axis === 'row').flatMap(alignment => alignment.members),
   )
 
-  // Constraints are declarative: source order must not change the solution.
-  // Establish row lanes first, then project column components onto them.
+  // Fixed-axis requests are declarative. Seed row lanes first, then project
+  // columns; complete component normalization below preserves intersections.
   const orderedAlignments = [
     ...diagram.alignments.filter(alignment => alignment.axis === 'row'),
     ...diagram.alignments.filter(alignment => alignment.axis === 'column'),
@@ -376,21 +431,6 @@ function applyArchitectureAlignments(
     if (alignment.axis !== 'column') continue
     for (let i = 1; i < alignment.members.length; i++) union(alignment.members[0]!, alignment.members[i]!)
   }
-  for (const alignment of diagram.alignments) {
-    if (alignment.axis !== 'row') continue
-    const members = alignment.members.map(id => byId.get(id)).filter((item): item is AlignableArchitectureItem => item !== undefined)
-    let cursor = -Infinity
-    for (const member of members) {
-      if (member.x < cursor) {
-        const delta = cursor - member.x
-        const component = find(member.id)
-        for (const item of byId.values()) {
-          if (find(item.id) === component) item.x += delta
-        }
-      }
-      cursor = member.x + member.width + spacing
-    }
-  }
 
   // Collapsing a stack into a row can land on an unrelated item that occupied
   // the row's original middle rank. Move that obstacle's whole row component
@@ -412,6 +452,73 @@ function applyArchitectureAlignments(
     if (alignment.axis !== 'row') continue
     for (let i = 1; i < alignment.members.length; i++) rowUnion(alignment.members[0]!, alignment.members[i]!)
   }
+  if (diagram.alignments.length) {
+    // Distinct items cannot share both authored center coordinates. Reject
+    // this contradiction instead of repeatedly separating one requested axis.
+    const centers = new Map<string, Map<string, string>>()
+    for (const item of byId.values()) {
+      const row = rowFind(item.id), column = find(item.id)
+      let columns = centers.get(row)
+      if (!columns) { columns = new Map(); centers.set(row, columns) }
+      const previous = columns.get(column)
+      if (previous !== undefined) throw new LayoutCertificationError([{ strategy: 'architecture-alignments', violations: [`incompatible row and column constraints tie distinct items ${previous} and ${item.id}`] }])
+      columns.set(column, item.id)
+    }
+  }
+  // Overlapping directives denote one fixed-axis component. Sequential
+  // pair projection can leave an earlier member at an obsolete center.
+  // Normalize the complete components before the existing free-axis repair.
+  if (diagram.alignments.length) {
+    for (const axis of ['row', 'column'] as const) {
+      const component = axis === 'row' ? rowFind : find
+      const centers = new Map<string, number>()
+      for (const item of byId.values()) {
+        const root = component(item.id), value = axis === 'row' ? item.y + item.height / 2 : item.x + item.width / 2
+        centers.set(root, Math.min(centers.get(root) ?? Infinity, value))
+      }
+      for (const item of byId.values()) {
+        const center = centers.get(component(item.id))!
+        const previous = axis === 'row' ? item.y + item.height / 2 : item.x + item.width / 2
+        if (Math.abs(previous - center) <= ROUTE_EPSILON) continue
+        if (axis === 'row') item.y = center - item.height / 2
+        else item.x = center - item.width / 2
+      }
+    }
+  }
+  if (diagram.alignments.length) for (const axis of ['row', 'column'] as const) {
+    const fixed = axis === 'row' ? rowFind : find, movable = axis === 'row' ? find : rowFind
+    const coordinate = axis === 'row' ? 'x' : 'y', extent = axis === 'row' ? 'width' : 'height'
+    const components = new Map<string, AlignableArchitectureItem[]>(), lanes = new Map<string, AlignableArchitectureItem[]>()
+    for (const item of byId.values()) {
+      const root = movable(item.id), lane = fixed(item.id)
+      const members = components.get(root) ?? []; members.push(item); components.set(root, members)
+      const row = lanes.get(lane) ?? []; row.push(item); lanes.set(lane, row)
+    }
+    const centers = new Map<string, number>(), names = new Map<string, string>()
+    for (const [root, members] of components) {
+      centers.set(root, Math.min(...members.map(item => item[coordinate] + item[extent] / 2)))
+      names.set(root, members.map(item => item.id).sort(compareCodePointStrings)[0]!)
+    }
+    // Alignment constrains centers, not free-axis precedence. Choose one
+    // deterministic component order for ALL lanes, so every required gap
+    // propagates forward once, including cross-axis component translations.
+    const order = [...components.keys()].sort((a, b) => centers.get(a)! - centers.get(b)! || compareCodePointStrings(names.get(a)!, names.get(b)!))
+    const rank = new Map(order.map((root, index) => [root, index]))
+    const predecessors = new Map<string, Array<{ before: AlignableArchitectureItem; after: AlignableArchitectureItem }>>()
+    for (const members of lanes.values()) {
+      members.sort((a, b) => rank.get(movable(a.id))! - rank.get(movable(b.id))!)
+      for (let index = 1; index < members.length; index++) {
+        const before = members[index - 1]!, after = members[index]!, root = movable(after.id)
+        const previous = predecessors.get(root) ?? []; previous.push({ before, after }); predecessors.set(root, previous)
+      }
+    }
+    for (const root of order) {
+      let delta = 0
+      for (const { before, after } of predecessors.get(root) ?? []) delta = Math.max(delta, before[coordinate] + before[extent] + spacing - after[coordinate])
+      if (delta > 0) for (const item of components.get(root)!) item[coordinate] += delta
+    }
+  }
+
   for (let pass = 0; pass < 2; pass++) {
     for (const alignment of diagram.alignments) {
       if (alignment.axis !== 'row') continue
@@ -462,13 +569,15 @@ function applyArchitectureSideConstraints(
   junctions: PositionedArchitectureJunction[],
   groups: Map<string, PositionedArchitectureGroup>,
   spacing: number,
+  serviceMeta: Map<string, ArchitectureService>,
+  groupMeta: Map<string, ArchitectureGroup>,
+  junctionMeta: Map<string, ArchitectureDiagram['junctions'][number]>,
+  positionedServices: Map<string, Bounds>,
+  positionedJunctions: Map<string, Bounds>,
+  retainLegality?: (validate: () => boolean) => void,
+  reservedHeaderPadding?: number,
 ): boolean {
   let changed = false
-  const groupMeta = new Map(diagram.groups.map(group => [group.id, group]))
-  const serviceMeta = new Map(diagram.services.map(service => [service.id, service]))
-  const junctionMeta = new Map(diagram.junctions.map(junction => [junction.id, junction]))
-  const positionedServices = new Map(services.map(service => [service.id, service]))
-  const positionedJunctions = new Map(junctions.map(junction => [junction.id, junction]))
   const unitKey = (kind: ArchitectureChildRef['kind'], id: string): string => `${kind}:${id}`
   const splitUnitKey = (key: string): { kind: ArchitectureChildRef['kind']; id: string } => {
     const separator = key.indexOf(':')
@@ -668,7 +777,7 @@ function applyArchitectureSideConstraints(
     }
     // A nested reorder can enlarge its container; refresh before a parent-level
     // constraint uses that group as one sibling unit.
-    expandGroupBounds(roots, services, junctions, true)
+    expandGroupBounds(roots, services, junctions, true, reservedHeaderPadding)
   }
 
   // A reorder inside one group can move an aligned member without its peers
@@ -704,7 +813,7 @@ function applyArchitectureSideConstraints(
     }
     align(entries, 0)
   }
-  if (alignmentsChanged) expandGroupBounds(roots, services, junctions, true)
+  if (alignmentsChanged) expandGroupBounds(roots, services, junctions, true, reservedHeaderPadding)
 
   // A child reorder can enlarge its parent into a formerly clear sibling (for
   // example two root groups stacked vertically). Resolve those secondary
@@ -764,10 +873,23 @@ function applyArchitectureSideConstraints(
       }
       placed.push(root)
     }
-    expandGroupBounds(roots, services, junctions, true)
+    expandGroupBounds(roots, services, junctions, true, reservedHeaderPadding)
   }
+  // Native optional slot trials reuse exactly the authored constraints and
+  // sibling geometry already owned by this pass. No trial refits groups.
+  retainLegality?.(() => constraints.every(({ axis, before, after }) => {
+    const a = unitBounds(before)!, b = unitBounds(after)!
+    return a[axis] + (axis === 'x' ? a.width : a.height) + spacing <= b[axis] + ROUTE_EPSILON
+  }) && (reservedHeaderPadding === undefined || [...groups.values()].every(group => siblingRefs(group.id).every(ref => {
+    const child = unitBounds(unitKey(ref.kind, ref.id))
+    return child === undefined || child.y >= group.y + group.headerHeight! + reservedHeaderPadding
+  }))) && contexts.every(context => {
+    const bounds = siblingRefs(context.parentId).map(ref => unitBounds(unitKey(ref.kind, ref.id))).filter((bound): bound is Bounds => bound !== undefined)
+    return bounds.every((bound, index) => bounds.slice(index + 1).every(other => !overlaps(bound, other)))
+  }))
   return changed
 }
+
 
 function mapGroup(
   group: LayoutGroup,
@@ -796,8 +918,9 @@ function expandGroupBounds(
   services: PositionedArchitectureService[],
   junctions: PositionedArchitectureJunction[],
   refitAfterAlignment: boolean,
+  reservedHeaderPadding?: number,
 ): void {
-  for (const group of groups) expandSingleGroup(group, services, junctions, refitAfterAlignment)
+  for (const group of groups) expandSingleGroup(group, services, junctions, refitAfterAlignment, reservedHeaderPadding)
 }
 
 function expandSingleGroup(
@@ -805,9 +928,10 @@ function expandSingleGroup(
   services: PositionedArchitectureService[],
   junctions: PositionedArchitectureJunction[],
   refitAfterAlignment: boolean,
+  reservedHeaderPadding?: number,
 ): Bounds {
   const childBounds: Bounds[] = []
-  for (const child of group.children) childBounds.push(expandSingleGroup(child, services, junctions, refitAfterAlignment))
+  for (const child of group.children) childBounds.push(expandSingleGroup(child, services, junctions, refitAfterAlignment, reservedHeaderPadding))
   for (const service of services) {
     if (service.parentId === group.id) childBounds.push(service)
   }
@@ -824,7 +948,8 @@ function expandSingleGroup(
   // group border (#90). The graph engine already reserves the header strip, so
   // the padded top never rises above group.y and the header stays clear.
   const minX = Math.min(group.x, ...childBounds.map(child => child.x - GROUP_EDGE_PAD))
-  const minY = Math.min(group.y, ...childBounds.map(child => child.y - GROUP_EDGE_PAD))
+  const topPadding = reservedHeaderPadding === undefined ? GROUP_EDGE_PAD : group.headerHeight! + reservedHeaderPadding
+  const minY = Math.min(group.y, ...childBounds.map(child => child.y - topPadding))
   const maxX = Math.max(group.x + group.width, ...childBounds.map(child => child.x + child.width + GROUP_EDGE_PAD))
   const maxY = refitAfterAlignment
     ? Math.max(group.y + 48, ...childBounds.map(child => child.y + child.height + GROUP_EDGE_PAD))
@@ -908,17 +1033,27 @@ function routeArchitectureEdge(
 
 interface RouteObstacle extends Bounds {
   id: string
-  kind: 'service' | 'junction' | 'group'
+  kind: 'service' | 'junction' | 'group' | 'group-header'
 }
 
 const ROUTE_CLEARANCE = 6
 const ROUTE_EPSILON = 0.001
 
+/** The family renderer uses this retained measured band verbatim. */
+function architectureHeaderObstacle(group: PositionedArchitectureGroup): RouteObstacle | undefined {
+  const height = group.headerHeight
+  // The writer uses the retained band height independently of its frame.
+  if (height === undefined || !Number.isFinite(height) || height < 0) {
+    throw new LayoutCertificationError([{ strategy: 'architecture-final-headers', violations: [`group ${group.id}: missing or invalid measured header height`] }])
+  }
+  return height > 0 ? { id: group.id, kind: 'group-header', x: group.x, y: group.y, width: group.width, height } : undefined
+}
+
 /**
  * Node cards, junctions, and unrelated group interiors are hard route
- * obstacles. Ancestor groups of either endpoint are excluded: an item-level
- * edge must be able to leave its own container, while `{group}` endpoints are
- * anchored to that container boundary explicitly.
+ * obstacles. An endpoint ancestor keeps its measured header as an obstacle:
+ * an item-level edge may leave the body but cannot traverse its title band.
+ * A `{group}` north exterior contact touches only the open band boundary.
  */
 function architectureRouteObstacles(
   edge: ArchitectureDiagram['edges'][number],
@@ -957,8 +1092,10 @@ function architectureRouteObstacles(
     obstacles.push(inflate(junction.id, 'junction', junction))
   }
   for (const group of groups.values()) {
-    if (excludedGroups.has(group.id)) continue
-    obstacles.push(inflate(group.id, 'group', group))
+    if (excludedGroups.has(group.id)) {
+      const header = architectureHeaderObstacle(group)
+      if (header) obstacles.push(header)
+    } else obstacles.push(inflate(group.id, 'group', group))
   }
   return obstacles
 }
@@ -979,7 +1116,20 @@ function routeClearsObstacles(points: Point[], obstacles: RouteObstacle[]): bool
   return true
 }
 
-function segmentCrossesObstacleInterior(a: Point, b: Point, obstacle: Bounds): boolean {
+function segmentCrossesObstacleInterior(a: Point, b: Point, obstacle: RouteObstacle): boolean {
+  if (obstacle.kind === 'group-header') {
+    let low = 0, high = 1
+    for (const [start, delta, min, max] of [
+      [a.x, b.x - a.x, obstacle.x, obstacle.x + obstacle.width],
+      [a.y, b.y - a.y, obstacle.y, obstacle.y + obstacle.height],
+    ]) {
+      if (delta === 0) { if (start! <= min! || start! >= max!) return false; continue }
+      const first = (min! - start!) / delta!, last = (max! - start!) / delta!
+      low = Math.max(low, Math.min(first, last)); high = Math.min(high, Math.max(first, last))
+      if (low >= high) return false
+    }
+    return low < high
+  }
   if (Math.abs(a.y - b.y) <= ROUTE_EPSILON) {
     return a.y > obstacle.y + ROUTE_EPSILON
       && a.y < obstacle.y + obstacle.height - ROUTE_EPSILON
@@ -1058,9 +1208,11 @@ function routeOrthogonalAroundObstacles(
   const points: Point[] = []
   const indexByCoordinate = new Map<string, number>()
   const key = (x: number, y: number): string => `${x}\u0000${y}`
-  const insideObstacle = (x: number, y: number): boolean => obstacles.some(obstacle =>
-    x > obstacle.x + ROUTE_EPSILON && x < obstacle.x + obstacle.width - ROUTE_EPSILON
-      && y > obstacle.y + ROUTE_EPSILON && y < obstacle.y + obstacle.height - ROUTE_EPSILON)
+  const insideObstacle = (x: number, y: number): boolean => obstacles.some(obstacle => {
+    const inset = obstacle.kind === 'group-header' ? 0 : ROUTE_EPSILON
+    return x > obstacle.x + inset && x < obstacle.x + obstacle.width - inset
+      && y > obstacle.y + inset && y < obstacle.y + obstacle.height - inset
+  })
 
   for (const y of ys) {
     for (const x of xs) {
@@ -1316,34 +1468,21 @@ function movePoint(point: Point, side: ArchitectureEndpoint['side'], distance: n
   }
 }
 
-function simplifyOrthogonalPoints(points: Point[]): Point[] {
+export function simplifyOrthogonalPoints(points: Point[]): Point[] {
   const simplified: Point[] = []
-
+  let previousInput: Point | undefined
   for (const point of points) {
-    const last = simplified[simplified.length - 1]
-    if (last && last.x === point.x && last.y === point.y) {
-      continue
+    // Deduplicate authored neighbors before reducing collinearity: a U-turn
+    // can introduce equal endpoints which the old reduction retained.
+    if (previousInput && previousInput.x === point.x && previousInput.y === point.y) continue
+    previousInput = point
+    while (simplified.length > 1) {
+      const prev = simplified[simplified.length - 2]!, curr = simplified[simplified.length - 1]!
+      if ((prev.x === curr.x && curr.x === point.x) || (prev.y === curr.y && curr.y === point.y)) simplified.pop()
+      else break
     }
     simplified.push(point)
   }
-
-  let changed = true
-  while (changed) {
-    changed = false
-    for (let i = 1; i < simplified.length - 1; i++) {
-      const prev = simplified[i - 1]!
-      const curr = simplified[i]!
-      const next = simplified[i + 1]!
-      const sameX = prev.x === curr.x && curr.x === next.x
-      const sameY = prev.y === curr.y && curr.y === next.y
-      if (sameX || sameY) {
-        simplified.splice(i, 1)
-        changed = true
-        break
-      }
-    }
-  }
-
   return simplified
 }
 

@@ -6,6 +6,11 @@ import { TerminalDocument, type TerminalMarker } from '../ascii/terminal-documen
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { terminalDocumentOf } from '../ascii/terminal-document.ts'
 import { allocateTerminalRoute, paintTerminalRoute } from '../ascii/terminal-route.ts'
+import { reserveGraphEdgeCapacity } from '../ascii/graph-capacity.ts'
+import { convertToAsciiGraph } from '../ascii/converter.ts'
+import { parseMermaid } from '../parser.ts'
+import { gridToDrawingCoord } from '../ascii/grid.ts'
+import { drawBox } from '../ascii/draw.ts'
 
 describe('bounded terminal search occupancy', () => {
   test('current bounds follow replacement, deletion, cloning and clearing', () => {
@@ -187,4 +192,30 @@ test('an unarrowed Architecture face port connects to its card without inventing
   expect(document.cell(source.x, source.y)?.glyph).toBe('-')
   expect(document.cell(source.x, source.y)?.stroke?.mask).toBe(10)
   expect(document.cell(source.x + 1, source.y)?.owners.some(owner => owner.id === edge.id)).toBe(true)
+})
+
+test.each(['LR', 'RL', 'TD', 'BT'] as const)('terminal escape capacity grows the trailing spacer, not an adjacent body (%s)', direction => {
+  const horizontal = direction === 'LR' || direction === 'RL', reverse = direction === 'RL' || direction === 'BT'
+  const graph = convertToAsciiGraph(parseMermaid('flowchart LR\nA --> B\nA --> B\nA --> B'), {
+    useAscii: false, paddingX: 3, paddingY: 3, boxBorderPadding: 1, graphDirection: horizontal ? 'LR' : 'TD',
+  })
+  graph.nodes[0]!.gridCoord = horizontal ? { x: reverse ? 3 : 0, y: 0 } : { x: 0, y: reverse ? 3 : 0 }
+  graph.nodes[1]!.gridCoord = horizontal ? { x: reverse ? 0 : 3, y: 0 } : { x: 0, y: reverse ? 0 : 3 }
+  graph.columnWidth = new Map([[0, 1], [1, 5], [2, 1], [3, 1], [4, 5], [5, 1]])
+  graph.rowHeight = new Map([[0, 1], [1, 5], [2, 1], [3, 1], [4, 5], [5, 1]])
+  const measure = () => new Map(graph.nodes.map(node => {
+    const origin = gridToDrawingCoord(graph, node.gridCoord!), body = drawBox(node, graph)
+    return [node, { minX: origin.x, minY: origin.y, maxX: origin.x + body.width - 1, maxY: origin.y + body.height - 1 }] as const
+  }))
+  const before = measure()
+  reserveGraphEdgeCapacity(graph, measure, new Set(graph.edges))
+  const after = measure(), axis = horizontal ? 'X' : 'Y'
+  const intervals = graph.nodes.map(node => {
+    const old = before.get(node)!, current = after.get(node)!
+    expect(current[`max${axis}`] - current[`min${axis}`]).toBe(old[`max${axis}`] - old[`min${axis}`])
+    return [current[`min${axis}`], current[`max${axis}`]] as const
+  }).sort((a, b) => a[0] - b[0])
+  // Three independently allocated contacts need two approach cells, a bend
+  // cell, and two lanes each. The body painter is the dimension oracle.
+  expect(intervals[1]![0] - intervals[0]![1]).toBeGreaterThanOrEqual(9)
 })

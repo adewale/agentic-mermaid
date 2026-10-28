@@ -16,9 +16,15 @@ export function lowerIshikawaDrawing<T>(marks: DrawingFactory<T>, { positioned: 
   const parts: T[] = []
   parts.push(marks.definitions({ id: 'defs', markerResources: [marker] }, `<defs>${serializeMarkerResources([marker])}</defs>`))
   if (diagram.title) parts.push(marks.text(diagramTitleFields(diagram.title, style)))
+  const effect = diagram.nodes.find(item => item.depth === 0)
   if (diagram.spine.length)
     parts.push(
-      marks.connector({ id: 'spine', role: 'rail', geometry: { kind: 'polyline', points: diagram.spine }, lineStyle: 'solid', paint: { stroke: style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: String(style.lineWidth) }, relationship: { kind: 'effect-spine', direction: 'forward' }, markers: { end: marker } }),
+      marks.connector({
+        id: 'spine', role: 'rail', geometry: { kind: 'polyline', points: diagram.spine }, lineStyle: 'solid',
+        paint: { stroke: style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: String(style.lineWidth) },
+        ...(effect ? { endpoints: { to: effect.node.id, end: { owner: { id: effect.node.id, role: 'node' as const }, point: diagram.spine.at(-1)! } } } : {}),
+        relationship: { kind: 'effect-spine', direction: 'forward' }, markers: { end: marker },
+      }),
     )
   for (const branch of diagram.branches)
     parts.push(

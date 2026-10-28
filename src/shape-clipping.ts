@@ -123,25 +123,13 @@ export function trimOccludedShapeEndpoint(points: Point[], node: PositionedNode,
 /** Clip an ELK endpoint to the routing boundary paired with its painted shape. */
 export function clipEdgeToShape(points: Point[], node: PositionedNode, isStart: boolean): Point[] {
   if (points.length < 2) return points
-  const profile = shapeRoutingProfile(node)
-  const boundary = profile.boundary
+  const boundary = shapeRoutingProfile(node).boundary
   // ELK already routes box-shaped nodes to their exact painted boundary. A
   // second rectangle clip is not merely redundant: after node equalisation it
   // can collapse a short labelled edge without moving its label. Conservative
   // envelopes are likewise not claims about a painted outline, so they must not
   // trigger a geometric repair.
   if (boundary.kind === 'rect' || boundary.kind === 'envelope' || boundary.kind === 'none') return points
-  const endpoint = isStart ? points[0]! : points.at(-1)!
-  const adjacent = isStart ? points[1]! : points.at(-2)!
-  const dx = adjacent.x - endpoint.x, dy = adjacent.y - endpoint.y
-  // Placement may leave a diagonal for route-contract repair. A curved
-  // cardinal contact with an outward component is already on the convex
-  // outline; projecting its dominant axis can move it along a flat boundary segment.
-  if (boundary.kind !== 'polygon' && Math.abs(dx) > 1e-6 && Math.abs(dy) > 1e-6) {
-    const near = (port: Point) => Math.abs(port.x - endpoint.x) <= 1e-6 && Math.abs(port.y - endpoint.y) <= 1e-6
-    if (dy < 0 && near(profile.sides.N.preferred) || dy > 0 && near(profile.sides.S.preferred)
-      || dx < 0 && near(profile.sides.W.preferred) || dx > 0 && near(profile.sides.E.preferred)) return points
-  }
   const result = [...points]
   if (isStart) result[0] = clipWithBoxSide(points[0]!, points[1]!, node, boundary)
   else {

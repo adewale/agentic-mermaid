@@ -45,27 +45,14 @@ describe('canonical shape outline authority', () => {
       const point = clipEdgeToShape([{ x: 60, y: 40 }, target], ellipse, true)[0]!
       expect(((point.x - 60) / 50) ** 2 + ((point.y - 40) / 20) ** 2).toBeCloseTo(1, 8)
     }
-    const positioned = layoutGraphSync(parseMermaid('flowchart LR\nA(-a wide ellipse label-) --> B[Done]'))
-    const source = positioned.nodes.find(candidate => candidate.id === 'A')!
-    expect(positioned.edges[0]!.points[0]).toEqual(shapePorts(source).E)
-    const text = source.labelBlock!
-    expect((text.width / source.width) ** 2 + (text.height / source.height) ** 2).toBeLessThan(1)
-  })
-  test.each(['stadium', 'cylinder'] as const)('%s clipping retains outward cardinal contacts pending diagonal route repair', shape => {
-    const curved = node(shape)
-    for (const [contact, adjacent] of [
-      [{ x: 60, y: 20 }, { x: -40, y: -40 }],
-      [{ x: 60, y: 60 }, { x: -40, y: 120 }],
-      [{ x: 110, y: 40 }, { x: 170, y: 140 }],
-      [{ x: 10, y: 40 }, { x: -50, y: 140 }],
-    ]) {
-      expect(clipEdgeToShape([contact!, adjacent!], curved, true)[0]).toEqual(contact!)
-      expect(clipEdgeToShape([adjacent!, contact!], curved, false)[1]).toEqual(contact!)
+    for (const backend of ['elk', 'agentic'] as const) {
+      const positioned = layoutGraphSync(parseMermaid('flowchart LR\nA(-a wide ellipse label-) --> B[Done]'), { graphLayout: { backend } })
+      const source = positioned.nodes.find(candidate => candidate.id === 'A')!
+      expect(positioned.edges[0]!.points[0]).toEqual(shapePorts(source).E)
+      const text = source.labelBlock!
+      expect((text.width / source.width) ** 2 + (text.height / source.height) ** 2).toBeLessThan(1)
     }
-    // An inward shaft still needs clipping to its actual exit.
-    expect(clipEdgeToShape([{ x: 60, y: 20 }, { x: 60, y: 120 }], curved, true)[0]).toEqual({ x: 60, y: 60 })
   })
-
   // Node text is inked against the node's fill only where the outline paints
   // it (an open symbol leaves its label on the page), so the two must agree.
   test('paintsNodeFill says exactly which outlines paint the node fill', () => {

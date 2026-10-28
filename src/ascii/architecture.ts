@@ -30,6 +30,10 @@ import { displayText, normalizeBrTags } from '../multiline-utils.ts'
 import { oneRowDisplayText } from './multiline-utils.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { terminalIds } from './identity.ts'
+import { TERMINAL_CERTIFICATION_LIMITS } from './terminal-limits.ts'
+import { AsciiWidthError } from './width-error.ts'
+import { LayoutCertificationError } from '../layout/certification-error.ts'
+import type { RenderOptions } from '../types.ts'
 
 interface CellBox {
   id: string
@@ -42,9 +46,10 @@ interface CellBox {
   labelLines: string[]
   icon?: string
   depth: number
+  clearance?: Partial<Record<ArchitectureEndpoint['side'], number>>
 }
 
-interface ArchitectureAsciiOptions {
+interface ArchitectureAsciiOptions extends Pick<RenderOptions, 'graphLayout'> {
   maxWidth?: number
   targetWidth?: number
 }
@@ -66,7 +71,7 @@ export function renderArchitectureTerminal(
   const diagram = parseArchitectureDiagram(lines)
   diagram.title ??= config.title === undefined ? undefined : normalizeBrTags(config.title)
   const generated = terminalIds([...diagram.services.map(service => service.id), ...diagram.groups.map(group => group.id), ...diagram.junctions.map(junction => junction.id)])
-  const positioned = layoutArchitectureDiagram(diagram)
+  const positioned = layoutArchitectureDiagram(diagram, options)
   const terminalBudget = options.targetWidth ?? options.maxWidth ?? config.targetWidth ?? config.maxWidth
   const endpointId = (endpoint: ArchitectureEndpoint): string => endpoint.boundary === 'group' ? diagram.services.find(service => service.id === endpoint.id)?.parentId ?? endpoint.id : endpoint.id
   const faceDemand = countFaceDemand(diagram.edges.flatMap(edge => [edge.source, edge.target].map(endpoint => ({ id: endpointId(endpoint), side: endpoint.side }))))
@@ -91,64 +96,145 @@ export function renderArchitectureTerminal(
   const xScale = Math.max(BASE_X_PIXELS_PER_CELL, (maxPixelX - minPixelX) / usableBudget)
   const titleLines = positioned.title ? wrapText(displayText(positioned.title.text), terminalBudget) : []
   const titleRows = titleLines.length ? titleLines.length + 1 : 0
-  const projectX = (x: number): number => leftMargin + Math.round((x - minPixelX) / xScale)
-  const projectY = (y: number): number => OUTER_MARGIN + titleRows + Math.round((y - minPixelY) / Y_PIXELS_PER_ROW)
+  const aligned = diagram.alignments.length > 0
+  const pixelItems = aligned ? [...positioned.services, ...positioned.junctions] : []
+  // Quantize each complete authored fixed-axis component once, including
+  // overlapping directives, rather than rounding its members independently.
+  const centerCoordinates = (axis: 'row' | 'column'): Map<string, number> => {
+    const links = new Map<string, string>()
+    const find = (id: string): string => {
+      let root = id
+      while (links.has(root)) root = links.get(root)!
+      while (id !== root) { const next = links.get(id)!; links.set(id, root); id = next }
+      return root
+    }
+    for (const alignment of diagram.alignments) if (alignment.axis === axis) for (const id of alignment.members.slice(1)) {
+      const a = find(alignment.members[0]!), b = find(id)
+      if (a !== b) links.set(b, a)
+    }
+    const centers = new Map<string, number>()
+    for (const item of pixelItems) {
+      const root = find(item.id), value = axis === 'row' ? item.y + item.height / 2 : item.x + item.width / 2
+      centers.set(root, Math.min(centers.get(root) ?? Infinity, value))
+    }
+    return new Map(pixelItems.map(item => [item.id, centers.get(find(item.id))!]))
+  }
+  const rowCenters = aligned ? centerCoordinates('row') : undefined
+  const columnCenters = aligned ? centerCoordinates('column') : undefined
+  const projectBoxes = (expansion: number) => {
+    let originX = leftMargin, originY = OUTER_MARGIN + titleRows
+    const projectX = (x: number): number => originX + Math.round((x - minPixelX) * expansion / xScale)
+    const projectY = (y: number): number => originY + Math.round((y - minPixelY) * expansion / Y_PIXELS_PER_ROW)
+    const serviceBoxes = new Map<string, CellBox>()
+    for (const service of positioned.services) {
+      const labelLines = serviceLabelLines(service.label, service.icon, service.iconText).flatMap(line => wrapText(line, terminalBudget ? Math.max(1, terminalBudget - 8) : undefined))
+      const contentWidth = Math.max(1, ...labelLines.map(visualWidth))
+      serviceBoxes.set(service.id, {
+        id: service.id,
+        kind: 'service',
+        parentId: service.parentId,
+        x: projectX(service.x),
+        y: projectY(service.y),
+        width: Math.max(contentWidth + 2, Math.ceil(service.width / xScale), 5, minimum(service.id).width),
+        height: Math.max(labelLines.length + 2, Math.ceil(service.height / Y_PIXELS_PER_ROW) + 1, 3, minimum(service.id).height),
+        labelLines,
+        icon: service.icon,
+        depth: groupDepth(diagram, service.parentId) + 1,
+      })
+    }
 
-  const serviceBoxes = new Map<string, CellBox>()
-  for (const service of positioned.services) {
-    const labelLines = serviceLabelLines(service.label, service.icon, service.iconText).flatMap(line => wrapText(line, terminalBudget ? Math.max(1, terminalBudget - 8) : undefined))
-    const contentWidth = Math.max(1, ...labelLines.map(visualWidth))
-    serviceBoxes.set(service.id, {
-      id: service.id,
-      kind: 'service',
-      parentId: service.parentId,
-      x: projectX(service.x),
-      y: projectY(service.y),
-      width: Math.max(contentWidth + 2, Math.ceil(service.width / xScale), 5, minimum(service.id).width),
-      height: Math.max(labelLines.length + 2, Math.ceil(service.height / Y_PIXELS_PER_ROW) + 1, 3, minimum(service.id).height),
-      labelLines,
-      icon: service.icon,
-      depth: groupDepth(diagram, service.parentId) + 1,
+    const junctionBoxes = new Map<string, CellBox>()
+    for (const junction of positioned.junctions) {
+      const mark = config.useAscii ? '(*)' : '◉'
+      const label = `${mark} ${junction.id}`
+      junctionBoxes.set(junction.id, {
+        id: junction.id,
+        kind: 'junction',
+        parentId: junction.parentId,
+        x: projectX(junction.x),
+        y: projectY(junction.y),
+        width: Math.max(visualWidth(label) + 2, minimum(junction.id).width),
+        height: Math.max(3, minimum(junction.id).height),
+        labelLines: [label],
+        depth: groupDepth(diagram, junction.parentId) + 1,
+      })
+    }
+
+    if (aligned) {
+      for (const item of [...positioned.services, ...positioned.junctions]) {
+        const box = serviceBoxes.get(item.id) ?? junctionBoxes.get(item.id)!
+        box.x = projectX(columnCenters!.get(item.id)!) - Math.floor((box.width - 1) / 2)
+        box.y = projectY(rowCenters!.get(item.id)!) - Math.floor((box.height - 1) / 2)
+      }
+      // Keep every child and its later containing frame in the same translation.
+      const nodes = [...serviceBoxes.values(), ...junctionBoxes.values()]
+      const shiftX = Math.max(0, OUTER_MARGIN - Math.min(Infinity, ...nodes.map(box => box.x)))
+      const shiftY = Math.max(0, OUTER_MARGIN + titleRows - Math.min(Infinity, ...nodes.map(box => box.y)))
+      originX += shiftX; originY += shiftY
+      for (const box of nodes) { box.x += shiftX; box.y += shiftY }
+    }
+
+    const groupBoxes = buildGroupBoxes(
+      diagram,
+      positioned.groups,
+      serviceBoxes,
+      junctionBoxes,
+      projectX,
+      projectY,
+      xScale / expansion,
+      terminalBudget,
+      Y_PIXELS_PER_ROW / expansion,
+    )
+    for (const group of groupBoxes.values()) {
+      const topDemand = faceDemand.get(group.id)?.T ?? 0
+      group.width = Math.max(group.width, minimum(group.id).width, topDemand ? visualWidth(group.labelLines[0] ?? '') + 3 + topDemand * 3 + 2 : 0)
+      group.height = Math.max(group.height, minimum(group.id).height)
+    }
+    const allBoxes = [...groupBoxes.values(), ...serviceBoxes.values(), ...junctionBoxes.values()]
+    for (const edge of diagram.edges) for (const [endpoint, arrow] of [[edge.source, edge.hasArrowStart], [edge.target, edge.hasArrowEnd]] as const) {
+      const box = allBoxes.find(box => box.id === endpointId(endpoint))
+      if (box) { box.clearance ??= {}; box.clearance[endpoint.side] = Math.max(box.clearance[endpoint.side] ?? 0, arrow ? 2 : 1) }
+    }
+    settleArchitectureBoxes(allBoxes)
+    return { serviceBoxes, junctionBoxes, groupBoxes, allBoxes }
+  }
+  let expansion = 1
+  let projection = projectBoxes(expansion)
+  const losesAlignment = (): boolean => {
+    const byId = new Map([...projection.serviceBoxes, ...projection.junctionBoxes])
+    return diagram.alignments.some(alignment => {
+      const centers = alignment.members.map(id => {
+        const box = byId.get(id)!
+        return alignment.axis === 'row' ? box.y + (box.height - 1) / 2 : box.x + (box.width - 1) / 2
+      })
+      return Math.max(...centers) - Math.min(...centers) > 0.5
     })
   }
-
-  const junctionBoxes = new Map<string, CellBox>()
-  for (const junction of positioned.junctions) {
-    const mark = config.useAscii ? '(*)' : '◉'
-    const label = `${mark} ${junction.id}`
-    junctionBoxes.set(junction.id, {
-      id: junction.id,
-      kind: 'junction',
-      parentId: junction.parentId,
-      x: projectX(junction.x),
-      y: projectY(junction.y),
-      width: Math.max(visualWidth(label) + 2, minimum(junction.id).width),
-      height: Math.max(3, minimum(junction.id).height),
-      labelLines: [label],
-      depth: groupDepth(diagram, junction.parentId) + 1,
-    })
+  while (aligned && losesAlignment()) {
+    // Text and marker envelopes can exceed their pixel-to-cell footprint.
+    // Re-space the same positioned model before painting; never move one
+    // aligned member to an unrelated row or reset a final certificate.
+    expansion *= 2
+    const width = Math.max(1, ...projection.allBoxes.map(box => right(box) + 1))
+    if (terminalBudget !== undefined && width > terminalBudget) throw new AsciiWidthError(terminalBudget, width, 'architecture', 'MINIMUM_GEOMETRY')
+    if (!Number.isSafeInteger(expansion) || expansion > TERMINAL_CERTIFICATION_LIMITS.maxOperations || projection.allBoxes.some(box => !Number.isSafeInteger(box.x + box.width) || !Number.isSafeInteger(box.y + box.height))) throw new LayoutCertificationError([{ strategy: 'architecture-terminal-alignment', violations: ['aligned cell projection exceeds its allocation bound'] }])
+    projection = projectBoxes(expansion)
+    const rightmost = Math.max(1, ...projection.allBoxes.map(box => right(box) + 1))
+    const bottommost = Math.max(1, ...projection.allBoxes.map(box => bottom(box) + 1))
+    if (!Number.isSafeInteger(rightmost * bottommost) || rightmost * bottommost > TERMINAL_CERTIFICATION_LIMITS.maxOperations) throw new LayoutCertificationError([{ strategy: 'architecture-terminal-alignment', violations: ['aligned cell projection exceeds its allocation bound'] }])
   }
-
-  const groupBoxes = buildGroupBoxes(
-    diagram,
-    positioned.groups,
-    serviceBoxes,
-    junctionBoxes,
-    projectX,
-    projectY,
-    xScale,
-    terminalBudget,
-  )
-  for (const group of groupBoxes.values()) {
-    group.width = Math.max(group.width, minimum(group.id).width)
-    group.height = Math.max(group.height, minimum(group.id).height)
+  if (expansion > 1 && terminalBudget !== undefined) {
+    const width = Math.max(1, ...projection.allBoxes.map(box => right(box) + 1))
+    if (width > terminalBudget) throw new AsciiWidthError(terminalBudget, width, 'architecture', 'MINIMUM_GEOMETRY')
   }
-  const allBoxes = [...groupBoxes.values(), ...serviceBoxes.values(), ...junctionBoxes.values()]
-  settleArchitectureBoxes(allBoxes)
+  const { serviceBoxes, junctionBoxes, groupBoxes, allBoxes } = projection
   // Crop empty leading geometry before emission so ownership and text coordinates
   // never require reparsing/stripping a serialized result.
   const top = positioned.title ? 0 : Math.min(Infinity, ...allBoxes.map(box => box.y))
   if (Number.isFinite(top) && top > 4) for (const box of allBoxes) box.y -= top - 4
+  const dx = Math.max(0, ...allBoxes.map(box => (box.clearance?.L ?? 0) - box.x))
+  const dy = Math.max(0, ...allBoxes.map(box => (box.clearance?.T ?? 0) - box.y))
+  for (const box of allBoxes) { box.x += dx; box.y += dy }
   const maxRight = Math.max(OUTER_MARGIN + 1, ...titleLines.map(line => visualWidth(line) + OUTER_MARGIN * 2), ...allBoxes.map(right))
   const maxBottom = Math.max(OUTER_MARGIN + titleRows + 1, ...allBoxes.map(bottom))
   const canvas = mkCanvas(maxRight + OUTER_MARGIN + 8, maxBottom + OUTER_MARGIN + 5)
@@ -180,32 +266,62 @@ export function renderArchitectureTerminal(
   const portFor = (box: CellBox, side: ArchitectureEndpoint['side']): GridCoord => {
     const key = `${box.id}:${side}`, index = portCursors.get(key) ?? 0, count = faceDemand.get(box.id)?.[side] ?? 1
     portCursors.set(key, index + 1)
-    return allocateFacePort(box, side, index, count)
+    // Group titles replace top-border ink. Attach beyond their complete
+    // display width, where the physical contact is still an owned frame.
+    const header = box.kind === 'group' && side === 'T' ? visualWidth(box.labelLines[0] ?? '') + 3 : 0
+    return allocateFacePort(header ? { ...box, x: box.x + header, width: box.width - header } : box, side, index, count)
   }
+  // Reserve every occurrence before routing: a later endpoint marker must not
+  // overwrite an earlier shaft that happened to cross its allocated cell.
+  const allocated = diagram.edges.map(edge => {
+    const source = endpointBox(edge.source), target = endpointBox(edge.target)
+    return source && target ? {
+      source, target,
+      start: portFor(source, edge.source.side),
+      end: portFor(target, edge.target.side),
+    } : undefined
+  })
+  const outward = (port: GridCoord, side: ArchitectureEndpoint['side']) => ({ x: port.x + (side === 'R' ? 1 : side === 'L' ? -1 : 0), y: port.y + (side === 'B' ? 1 : side === 'T' ? -1 : 0) })
+  const reservedPorts = allocated.flatMap((ports, index) => {
+    const edge = diagram.edges[index]!
+    return ports ? [ports.start, ...(edge.hasArrowStart ? [outward(ports.start, edge.source.side)] : []), ports.end, ...(edge.hasArrowEnd ? [outward(ports.end, edge.target.side)] : [])] : []
+  })
   const unrouted: Array<{ owner: TerminalOwner; edge: ArchitectureEdge }> = []
 
   for (const [edgeIndex, edge] of diagram.edges.entries()) {
-    const owner = canvas.element({ id: generated(`edge:${edgeIndex}`), kind: 'edge', from: edge.source.id, to: edge.target.id })
+    const owner = canvas.element({ id: generated(`edge:${edgeIndex}`), kind: 'edge', from: edge.source.id, to: edge.target.id, route: 'connected' })
     activeOwner = owner
-    const source = endpointBox(edge.source)
-    const target = endpointBox(edge.target)
-    if (!source || !target) {
+    const ports = allocated[edgeIndex]
+    if (!ports) {
       unrouted.push({ owner, edge })
       canvas.report({ code: 'TERMINAL_FAMILY_PROJECTION', feature: `architecture.${owner.id}.endpoint`, message: 'An Architecture endpoint has no allocated service, junction or group boundary; the complete relationship is retained in an owned endpoint summary.' })
       continue
     }
-    const start = portFor(source, edge.source.side)
-    const end = portFor(target, edge.target.side)
-    canvas.port(owner, { nodeId: source.id, x: start.x, y: start.y, side: edge.source.side, end: 'start' })
-    canvas.port(owner, { nodeId: target.id, x: end.x, y: end.y, side: edge.target.side, end: 'end' })
+    const { source, target, start, end } = ports
+    canvas.port(owner, { nodeId: edge.source.id, ...(edge.source.boundary === 'group' ? { boundary: { id: source.id, kind: 'group' as const } } : {}), x: start.x, y: start.y, side: edge.source.side, end: 'start' })
+    canvas.port(owner, { nodeId: edge.target.id, ...(edge.target.boundary === 'group' ? { boundary: { id: target.id, kind: 'group' as const } } : {}), x: end.x, y: end.y, side: edge.target.side, end: 'end' })
     const inward = { T: 'B', B: 'T', L: 'R', R: 'L' } as const
     canvas.expectMarkers(owner, 'start', edge.hasArrowStart ? [{ shape: 'arrow', direction: inward[edge.source.side], ascii: config.useAscii }] : [])
     canvas.expectMarkers(owner, 'end', edge.hasArrowEnd ? [{ shape: 'arrow', direction: inward[edge.target.side], ascii: config.useAscii }] : [])
     const obstacles = obstacleGrid(edge)
+    const startExit = outward(start, edge.source.side), endExit = outward(end, edge.target.side)
+    const ownContacts = new Set([start, end, ...(edge.hasArrowStart ? [startExit] : []), ...(edge.hasArrowEnd ? [endExit] : [])].map(gridKey))
+    for (const port of reservedPorts) if (!ownContacts.has(gridKey(port))) obstacles.set(gridKey(port), true)
     const separated = new OccupancyMap(obstacles)
     for (const key of connections.keys()) separated.set(key, true)
     separated.delete(gridKey(start)); separated.delete(gridKey(end))
-    const found = getPath(separated, start, end, preferredDirection(edge.source.side)) ?? getPath(obstacles, start, end, preferredDirection(edge.source.side))
+    const same = (a: GridCoord, b: GridCoord) => a.x === b.x && a.y === b.y
+    const endpointStep = (a: GridCoord, b: GridCoord): boolean => (!same(a, start) || !edge.hasArrowStart || same(b, startExit)) && (!same(b, end) || !edge.hasArrowEnd || same(a, endExit))
+    const crossingStep = (a: GridCoord, b: GridCoord): boolean => endpointStep(a, b) && [a, b].every(point => {
+      const dirs = connections.get(gridKey(point))
+      if (!dirs) return true
+      // A foreign run can be crossed perpendicularly; sharing its shaft or
+      // turning on its corner would make unrelated relationships join.
+      return dirs.size === 2 && (a.x === b.x
+        ? dirs.has('E') && dirs.has('W')
+        : dirs.has('N') && dirs.has('S'))
+    })
+    const found = same(start, end) ? null : getPath(separated, start, end, preferredDirection(edge.source.side), endpointStep) ?? getPath(obstacles, start, end, preferredDirection(edge.source.side), crossingStep)
     if (!found) {
       unrouted.push({ owner, edge })
       canvas.projectMarkers(owner, `architecture.${owner.id}.route`)
@@ -238,11 +354,15 @@ export function renderArchitectureTerminal(
   }
 
   const labelBoxes: CellBox[] = []
+  const routeCells: CellBox[] = edgePaths.some(({ edge }) => edge.label) ? [...connections.keys()].map(key => {
+    const [x, y] = key.split(',').map(Number)
+    return { id: '', kind: 'junction', x: x!, y: y!, width: 1, height: 1, labelLines: [], depth: 0 }
+  }) : []
   for (const { edge, points, owner } of edgePaths) {
     activeOwner = owner
     if (!edge.label) continue
     const text = `[${oneRowDisplayText(edge.label)}]`
-    const placement = placeEdgeLabel(text, points, [...allBoxes, ...labelBoxes])
+    const placement = placeEdgeLabel(text, points, [...allBoxes, ...labelBoxes, ...routeCells])
     writeText(placement, text, true)
     labelBoxes.push({
       id: `edge-label-${labelBoxes.length}`,
@@ -399,6 +519,7 @@ function buildGroupBoxes(
   projectY: (y: number) => number,
   xScale: number,
   terminalBudget?: number,
+  yScale = Y_PIXELS_PER_ROW,
 ): Map<string, CellBox> {
   const positioned = new Map(flattenGroups(positionedGroups).map(group => [group.id, group]))
   const boxes = new Map<string, CellBox>()
@@ -409,7 +530,7 @@ function buildGroupBoxes(
     let x = projectX(source.x)
     let y = projectY(source.y)
     let width = Math.max(8, ...labelLines.map(line => visualWidth(line) + 4), Math.ceil(source.width / xScale))
-    let height = Math.max(labelLines.length + BOX_GAP + 2, Math.ceil(source.height / Y_PIXELS_PER_ROW) + 1)
+    let height = Math.max(labelLines.length + BOX_GAP + 2, Math.ceil(source.height / yScale) + 1)
     const children = [
       ...[...services.values()].filter(child => child.parentId === group.id),
       ...[...junctions.values()].filter(child => child.parentId === group.id),
@@ -448,6 +569,7 @@ function buildGroupBoxes(
 /** Resolve integer-cell growth in the containment tree before any ink is emitted. */
 function settleArchitectureBoxes(boxes: CellBox[]): void {
   const children = (parentId?: string) => boxes.filter(box => box.parentId === parentId)
+  const envelope = (box: CellBox): CellBox => ({ ...box, x: box.x - (box.clearance?.L ?? 0), y: box.y - (box.clearance?.T ?? 0), width: box.width + (box.clearance?.L ?? 0) + (box.clearance?.R ?? 0), height: box.height + (box.clearance?.T ?? 0) + (box.clearance?.B ?? 0) })
   const move = (box: CellBox, dy: number): void => {
     box.y += dy
     if (box.kind === 'group') for (const child of children(box.id)) move(child, dy)
@@ -462,9 +584,9 @@ function settleArchitectureBoxes(boxes: CellBox[]): void {
       // Every header line is occupied geometry, including an empty group header.
       if (parent && box.y < parent.y + parent.labelLines.length + BOX_GAP) move(box, parent.y + parent.labelLines.length + BOX_GAP - box.y)
       for (;;) {
-        const blockers = placed.filter(other => boxesOverlap(box, other))
+        const blockers = placed.filter(other => boxesOverlap(envelope(box), envelope(other)))
         if (!blockers.length) break
-        move(box, Math.max(...blockers.map(other => bottom(other) + BOX_GAP + 1)) - box.y)
+        move(box, Math.max(...blockers.map(other => bottom(other) + Math.max(BOX_GAP, (other.clearance?.B ?? 0) + (box.clearance?.T ?? 0)) + 1)) - box.y)
       }
       placed.push(box)
     }

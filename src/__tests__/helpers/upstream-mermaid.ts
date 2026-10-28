@@ -3,7 +3,9 @@
 //
 // Run the public Mermaid implementation in Node with an isolated DOM. The
 // worker owns real DOMPurify state; no sanitizer hooks or identity shim enter
-// either the test process or the independent reference process.
+// either the test process or the independent reference process. ZenUML calls
+// the pinned registered addon plus its real core parser; the shim alone is not
+// counted as syntax acceptance.
 
 import { join } from 'node:path'
 
@@ -103,12 +105,17 @@ const REPLY = '\u0001am-upstream\u0001'
 
 const WORKER = `
 import { JSDOM } from 'jsdom'
-const dom = new JSDOM('<!doctype html><html><body></body></html>')
-for (const key of ['window', 'document', 'navigator', 'HTMLElement', 'SVGElement', 'Element', 'Node', 'Option']) {
+const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'http://localhost/' })
+for (const key of ['window', 'document', 'navigator', 'HTMLElement', 'SVGElement', 'Element', 'Node', 'Option', 'location', 'localStorage']) {
   Object.defineProperty(globalThis, key, { configurable: true, value: dom.window[key] })
 }
 const { default: mermaid } = await import('mermaid')
 mermaid.initialize({ startOnLoad: false })
+const { createZenUMLReference } = await import(${JSON.stringify(new URL('../../../eval/mermaid-modern-compat/zenuml-reference.mjs', import.meta.url).href)})
+const { readFileSync } = await import('node:fs')
+const mermaidVersion = JSON.parse(readFileSync(new URL('../package.json', import.meta.resolve('mermaid')), 'utf8')).version
+const zen = createZenUMLReference(mermaid, mermaidVersion)
+const referenceDiagram = source => zen.diagram(source)
 const REPLY = ${JSON.stringify(REPLY)}
 function flowchart(db) {
   if (typeof db?.getVertices !== 'function' || typeof db?.getEdges !== 'function') return undefined
@@ -155,8 +162,7 @@ async function project(sources, projection) {
   const results = []
   for (const source of sources) {
     try {
-      await mermaid.parse(source)
-      results.push({ ok: true, value: await projection(await mermaid.mermaidAPI.getDiagramFromText(source)) })
+      results.push({ ok: true, value: await projection(await referenceDiagram(source)) })
     } catch (error) {
       results.push(failure(error))
     }
@@ -178,10 +184,9 @@ for await (const chunk of process.stdin) {
       } else {
         const source = typeof request === 'string' ? request : request.source
         if (request?.publicParse) {
-          reply = { ok: !!await mermaid.parse(source, { suppressErrors: true }) }
+          reply = { ok: !!await referenceDiagram(source) }
         } else {
-          await mermaid.parse(source)
-          const diagram = await mermaid.mermaidAPI.getDiagramFromText(source)
+          const diagram = await referenceDiagram(source)
           reply = typeof request === 'string'
             ? { ok: true, type: diagram.type, flowchart: flowchart(diagram.db), sequence: sequence(diagram.db) }
             : { ok: true, type: diagram.type, database: database(diagram.db) }

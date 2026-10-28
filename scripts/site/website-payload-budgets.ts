@@ -47,6 +47,8 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     ]),
   }),
   demo: Object.freeze({
+    // Keep the existing request ceiling when integrating new native families;
+    // any excess remains a delivery failure alongside the byte ceilings.
     maxRequests: 36,
     // Optional sketch code stays out of the default Timeline delivery graph.
     // Includes the shared native drawing writer, bounded admission and flat paint evidence.

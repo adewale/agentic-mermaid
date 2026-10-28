@@ -37,6 +37,13 @@ hosted render tools share the classifier in `src/state/config.ts`;
 
 ## Input model
 
+Rendering a parsed State diagram uses its `canonicalSource` to retain global
+statement and paint order, which the nested `StateBody` does not record.
+`mutate`, builders and payload loading rebuild that source when publishing
+changes. Use `mutate` for typed edits; after manual body edits, serialize and
+reparse before rendering. Serialization preserves ownership and content but
+does not promise the original interleaving of statements across scopes.
+
 Modeled constructs (both surfaces):
 
 - `stateDiagram-v2` / `stateDiagram`

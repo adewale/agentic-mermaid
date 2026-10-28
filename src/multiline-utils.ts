@@ -20,7 +20,12 @@ import { sanitizeDisplayLines } from './shared/text-controls.ts'
  * maps markdown-lite emphasis (`**b**`, `*i*`, `~~s~~`) to those tags.
  */
 export function normalizeBrTags(label: string, escapedLineBreaks = true): string {
-  return normalizePlainLabel(label, escapedLineBreaks)
+  return normalizeMarkdownEmphasis(normalizePlainLabel(label, escapedLineBreaks))
+}
+
+/** Shared markdown-lite emphasis, without a family's quoting or line grammar. */
+export function normalizeMarkdownEmphasis(label: string): string {
+  return label
     // Markdown formatting → HTML tags (order matters: ** before *)
     .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
     .replace(/(?<!\*)\*([^\s*](?:[^*]*[^\s*])?)\*(?!\*)/g, '<i>$1</i>')
