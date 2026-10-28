@@ -1,3 +1,5 @@
+import { ZENUML_OP_SCHEMAS } from '../zenuml/native-ops.ts'
+import { EVENTMODELING_OP_SCHEMAS } from '../eventmodeling/ops.ts'
 import { KANBAN_OP_SCHEMAS } from '../kanban/ops.ts'
 import { PACKET_OP_SCHEMAS } from '../packet/ops.ts'
 import { BLOCK_OP_SCHEMAS } from '../block/ops.ts'
@@ -74,8 +76,6 @@ const numArr = (required = true): FieldSpec => ({ type: 'number-array', required
 const objOrNull = (required = true): FieldSpec => ({ type: 'object-or-null', required })
 const objArr = (required = true): FieldSpec => ({ type: 'object-array', required })
 const oneOf = (values: readonly string[], required = true, nullable = false): FieldSpec => ({ type: 'enum', values, nullable, required })
-const NATIVE_DATA_TYPES = Object.freeze(['json', 'jsobj', 'figma', 'salt', 'uri', 'md', 'html', 'text'])
-const zenScope = () => ({ parentId: str(false), branchIndex: num(false), index: num(false) })
 /** Attach a discovery note (mutator-enforced constraint or omit-default) to a
  *  field spec without changing its shape validation. */
 const withNote = (spec: FieldSpec, note: string): FieldSpec => ({ ...spec, note })
@@ -403,44 +403,8 @@ const C4_SCHEMA: Record<string, OpSpec> = {
 }
 
 export const OP_SCHEMAS: Record<DiagramKind, Record<string, OpSpec>> = {
-  eventmodeling: {
-    set_title: { fields: { title: strOrNull() } },
-    add_frame: { fields: { id: str(), entityType: oneOf(['ui', 'processor', 'command', 'readmodel', 'event']), entity: str(), reset: bool(false), sources: strArr(false), index: num(false) } },
-    rename_frame: { fields: { from: str(), to: str() } },
-    add_entity: { fields: { entity: str() } },
-    remove_entity: { fields: { entity: str(), cascade: bool(false) } },
-    set_specification: { fields: { frame: str(), given: objArr(), when: objArr(false), then: objArr(), occurrence: num(false) } },
-    remove_specification: { fields: { frame: str(), occurrence: num(false) } },
-    set_note: { fields: { index: num(), text: str(), dataType: oneOf(NATIVE_DATA_TYPES, false, true) } },
-    remove_note: { fields: { index: num() } },
-    remove_frame: { fields: { id: str(), cascade: bool(false) } },
-    set_frame_entity: { fields: { id: str(), entity: str(), entityType: oneOf(['ui', 'processor', 'command', 'readmodel', 'event'], false) } },
-    set_frame_sources: { fields: { id: str(), sources: strArr(), reset: bool(false) } },
-    move_frame: { fields: { id: str(), index: num() } },
-    set_frame_data: { fields: { id: str(), text: strOrNull(), dataType: oneOf(NATIVE_DATA_TYPES, false, true), reference: strOrNull(false) } },
-    set_data: { fields: { id: str(), text: str(), dataType: oneOf(NATIVE_DATA_TYPES, false, true) } },
-    add_note: { fields: { frame: str(), text: str(), dataType: oneOf(NATIVE_DATA_TYPES, false) } },
-    set_accessibility_title: { fields: { title: strOrNull() } },
-    set_accessibility_description: { fields: { description: strOrNull() } },
-  },
-  zenuml: {
-    set_title: { fields: { title: strOrNull() } },
-    add_participant: { fields: { id: str(), label: str(false), participantType: oneOf(['participant', 'actor', 'boundary', 'control', 'entity', 'database', 'collections', 'queue'], false), index: num(false) } },
-    set_participant_label: { fields: { id: str(), label: str() } },
-    rename_participant: { fields: { from: str(), to: str() } },
-    add_message: { fields: { from: str(), to: str(), text: str(), mode: oneOf(['async', 'reply'], false), ...zenScope() } },
-    add_call: { fields: { from: str(false), to: str(), method: str(), assignment: str(false), assignmentType: str(false), ...zenScope() } },
-    add_creation: { fields: { from: str(false), to: str(), arguments: str(false), ...zenScope() } },
-    add_region: { fields: { regionType: oneOf(['loop', 'alt', 'opt', 'par', 'try']), label: str(false), ...zenScope() } },
-    add_branch: { fields: { id: str(), label: str() } },
-    set_branch_label: { fields: { id: str(), branchIndex: num(), label: str() } },
-    add_return: { fields: { parentId: str(), text: str(), branchIndex: num(false), index: num(false) } },
-    add_comment: { fields: { parentId: str(false), text: str(), branchIndex: num(false), index: num(false) } },
-    set_message_text: { fields: { id: str(), text: str() } },
-    remove_statement: { fields: { id: str() } },
-    set_accessibility_title: { fields: { title: strOrNull() } },
-    set_accessibility_description: { fields: { description: strOrNull() } },
-  },
+  zenuml: ZENUML_OP_SCHEMAS,
+  eventmodeling: EVENTMODELING_OP_SCHEMAS,
   flowchart: FLOWCHART_SCHEMA,
   state: STATE_SCHEMA,
   sequence: SEQUENCE_SCHEMA,

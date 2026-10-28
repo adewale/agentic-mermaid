@@ -162,6 +162,8 @@ export interface MermaidSubgraph {
    *  when something comes first (an architecture group's icon). Defaults to
    *  the style's group label padding. */
   titleOffset?: number
+  /** @internal Family projection request; measured text can require more. */
+  headerMinHeight?: number
 }
 
 // ============================================================================
@@ -191,6 +193,8 @@ export interface RenderContext<TPositioned extends PositionedDiagram = Positione
 }
 
 export interface PositionedGraph extends PositionedDiagram {
+  /** Deterministic evidence for the graph geometry producer. */
+  layoutDecision?: import('./layout/backend.ts').GraphLayoutDecision
   width: number
   height: number
   nodes: PositionedNode[]
@@ -340,7 +344,7 @@ export interface RoutePortAssignment {
 }
 
 export interface RouteBlocker {
-  kind: 'node' | 'label' | 'channel' | 'span' | 'crossing' | 'port'
+  kind: 'node' | 'label' | 'channel' | 'span' | 'crossing' | 'port' | 'group-header'
   id: string
 }
 
@@ -423,7 +427,7 @@ export type FamilyEdgeRouteCertificate =
     obstacleFree: boolean
   }
   | {
-    family: 'sequence'
+    family: 'sequence' | 'zenuml'
     edgeIndex: number
     routeClass: 'family-layout'
     invariant: 'lifeline-message' | 'self-message' | 'unverified-family-route'
@@ -463,6 +467,8 @@ export interface PositionedGroup {
   /** Authored direct leaf ownership, retained independently of geometry. */
   nodeIds?: string[]
   headerHeight?: number
+  /** @internal Retained family placement request; absent on ordinary graphs. */
+  headerMinHeight?: number
   labelBlock?: PixelTextBlock
   id: string
   label: string
@@ -508,9 +514,17 @@ export interface GraphLayoutHints {
   shortEdges?: readonly string[]
 }
 
+export interface GraphLayoutOptions {
+  backend: 'elk' | 'agentic'
+  /** Agentic may explicitly fall back to ELK; omitted means none. */
+  fallback?: 'none' | 'elk'
+}
+
 export interface RenderOptions {
   /** Explicit deterministic Flowchart/State placement preferences; included in render receipts. */
   layoutHints?: GraphLayoutHints
+  /** Graph geometry producer; omitted preserves the existing ELK pipeline. */
+  graphLayout?: GraphLayoutOptions
   /** Require complete native layout evidence, or report explicit limitations. */
   layoutSafety?: 'report' | 'strict'
   /** Background color → CSS variable --bg. Default: '#FFFFFF' */

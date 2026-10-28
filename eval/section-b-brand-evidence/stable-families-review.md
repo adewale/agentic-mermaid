@@ -1,28 +1,5 @@
 # Stable-family visual review
 
-## Event Modeling and ZenUML enrollment, 2026-10-27
-
-The Codex agent inspected all eight new cells at their native 520 × 380 size:
-both families in the sentinel, warm editorial, light technical and dark
-operations variants. Event Modeling keeps the three ordered lanes, all frame
-labels and directed contacts. ZenUML keeps Client and API, the checkout call,
-receipt reply and activation, with the expected opposite message directions.
-The expanded sheet contains 100 cells at 1560 × 14024.
-
-After aligning the four variant bands, 87 previous cells are pixel-identical.
-Five previous cells each differ at one antialiased heading pixel: editorial
-Journey and Architecture; technical Pie, Quadrant and Radar. Their diagram
-bodies and the other 87 bodies remain pixel-identical. No previous diagram
-geometry change is approved by this enrollment.
-
-The approval binds the exact PNG bytes. Reproduce with
-`bun run gallery:section-b`; the owning test also regenerates the complete
-sheet. This is agent review of small examples, not human approval, deployed
-site parity or a proof for arbitrary density, fonts or displays. Independent
-identity, marker, style and layout checks protect the corresponding contracts.
-
-The older reviews below retain their original populations and dates.
-
 Reviewed 2026-10-19 by the Codex agent, after production-code freeze.
 This is agent review, not human approval or deployed-site parity.
 
@@ -97,3 +74,50 @@ or displays. No rendering logic or test assertion changed for this refresh.
 ### PR #456 category and authored-label follow-up
 
 The incremental agent review inspected five native-size before/after pairs: the sentinel Pie role key and GitGraph in all four variants. Pie now binds its Pro key to the same role paint as the mark. GitGraph shows the authored merge label and opaque rails; its shorter canvas fits at a larger size. All other 87 cells are pixel-identical. The exact image digest and bounded approval are in `visual-approval.json`.
+
+
+## Event Modeling enrollment, 2026-10-27
+
+The Codex agent inspected the four new Event Modeling cells at native 520 × 380. UI, command and event frames occupy separate bands with directed connectors. Complete labels and lane headings remain readable in the sentinel, warm editorial, light technical and dark operations styles. These small fixtures establish style participation; they do not establish readability at arbitrary density.
+
+Pixel comparison against the previous approved sheet found changes only in the four formerly empty final cells. All 92 existing cells, headings and background are pixel-identical. The sheet remains 1560 × 12504. The approval record binds the reviewed PNG bytes and records this agent review, not human approval.
+
+
+## PR #545 style-consumption follow-up
+
+The Codex agent inspected all four Event Modeling cells at native size after consuming group padding and shared rounded connector projection. All 92 other cells, headings and background are pixel-identical. Sentinel rounded elbows are now visible; each look's measured lane padding applies. Complete frame/lane labels and connector ownership remain readable. The approval record gives exact changed-pixel counts and the reviewed PNG digest. This is agent review of these finite fixtures, not human approval or a general beauty claim.
+
+
+## PR #545 painted-connection follow-up, 27 October 2026
+
+The reviewed sheet now has SHA-256
+`bbb35fe92bab6c51dc72245066d02f3f11f859eb5c2aac22690a9114ecbde119`.
+Compared with `29090e03c33d599b627d0c78fa50d4a2cce418d787b385b02882a01a9e2ca4dd`,
+only the four Event Modeling cells changed: 17,054 / 12,889 / 11,328 / 10,104 pixels
+in sentinel/editorial/technical/operations order. All other 92 cells, headings
+and background are pixel-identical.
+
+The native renderer now reserves painted stroke extent in its measured frames
+and docks each relation at that outer boundary. This keeps small heads outside
+thick outlines; separate slots also expose multiple explicit inputs in the
+rich fixture. All four 520×380 cells were inspected at native size. Words,
+lane ownership, typography and palette distinctions remain readable, and the
+heads reach their corresponding painted frames. The seven affected Event SVG
+goldens were independently reviewed in the existing styled-output workflow.
+
+This is agent review of these finite renders. It does not establish human
+approval, arbitrary density, extreme custom Look fidelity or deployed parity.
+
+
+## PR #545 native Zen enrollment, 27 October 2026
+
+The 25-family sheet has 100 cells at 1560 × 14024, digest `22f0c15f725e19a135a8233cf3960ea786dffbc178813432bf2551498f07c578`.
+Matching each family and variant across the changed sheet height found 91
+existing cells pixel-identical; five cells each differ by one antialiasing
+pixel. The four added Zen cells were inspected
+at native 520 × 380: the sentinel, warm editorial, light technical and dark
+operations retain distinct typography, spacing, corner shape, strokes and
+palettes. Both participant headers and message labels remain readable, with
+reciprocal arrows touching the intended lifelines. The richer checkout fixture
+has separate reviewed SVG goldens for branch returns, nested activation and
+creation. This is bounded agent review, not human approval or deployed parity.

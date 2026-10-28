@@ -21,7 +21,7 @@ function plain(value, seen = new Map(), path = '$') {
   else {
     out = {};
     for (const key of Object.keys(value).sort()) {
-      if (omittedKeys.has(key) || key.startsWith('$') && !['$type', '$refText'].includes(key)) continue;
+      if (omittedKeys.has(key) || key.startsWith('$')) continue;
       const descriptor = Object.getOwnPropertyDescriptor(value, key);
       if (!descriptor || !('value' in descriptor)) continue;
       const entry = plain(descriptor.value, seen, `${path}[${JSON.stringify(key)}]`);
@@ -31,8 +31,6 @@ function plain(value, seen = new Map(), path = '$') {
   seen.delete(value);
   return out;
 }
-
-export const snapshotValue = plain;
 
 export function snapshot(db, includeConfig = false) {
   const names = new Set();
@@ -57,4 +55,3 @@ export function snapshot(db, includeConfig = false) {
   }
   return { data, errors };
 }
-

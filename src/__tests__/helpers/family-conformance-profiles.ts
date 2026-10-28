@@ -17,6 +17,82 @@ const EVAL_ROOT = join(ROOT, 'eval')
 export const COMPLEXITY_STRATA = ['minimal', 'representative', 'dense', 'text-stress', 'family-risk', 'corpus-outlier'] as const
 export type ComplexityStratum = (typeof COMPLEXITY_STRATA)[number]
 
+interface AuthoredClassRelationship {
+  from: string
+  to: string
+  arrow: string
+  type: 'association' | 'dependency' | 'aggregation' | 'inheritance' | 'link-solid'
+  markerAt: 'from' | 'to' | 'none'
+  marker?: string
+  label?: string
+  fromCardinality?: string
+  toCardinality?: string
+}
+
+/** Development inputs, not the sequestered 0.6 holdout. Expectations are authored
+ * before source construction; neither a parser nor layout supplies this model. */
+export function classDevelopmentCase(count: number, variant: number, directed = true) {
+  if (!Number.isInteger(count) || count < 8 || count > 24 || !Number.isInteger(variant) || variant < 0 || variant > 7) throw new RangeError('Bounded Class development case')
+  const split = Math.floor(count / 3)
+  const classes = Array.from({ length: count }, (_, index) => ({
+    id: index === 0 ? 'ns:Domain' : index === 1 ? 'class-namespace:Domain' : `C${index}`,
+    label: index < 2 ? 'Shared record' : `Record ${index}${variant % 2 ? ' café 東京 with retained payload and ownership' : ''}`,
+    namespace: index === count - 1 ? undefined : index < split ? 'Domain' : index < 2 * split ? 'Domain.Inner' : 'App',
+    attribute: `+String field${index}`,
+    method: `+read${index}() String`,
+    methodDisplay: `+ read${index}(): String`,
+  }))
+  const namespaces = [
+    { id: 'Domain', name: 'Domain', parentId: undefined },
+    { id: 'Domain.Inner', name: 'Inner', parentId: 'Domain' },
+    { id: 'App', name: 'App', parentId: undefined },
+  ].map(namespace => ({ ...namespace, classIds: classes.filter(cls => cls.namespace === namespace.id).map(cls => cls.id) }))
+  const kinds = [
+    { arrow: '-->', type: 'association', markerAt: 'to', marker: 'cls-arrow' },
+    { arrow: '..>', type: 'dependency', markerAt: 'to', marker: 'cls-arrow' },
+    { arrow: 'o--', type: 'aggregation', markerAt: 'from', marker: 'cls-aggregation' },
+    { arrow: '<|--', type: 'inheritance', markerAt: 'from', marker: 'cls-inherit' },
+  ] as const
+  const relationships: AuthoredClassRelationship[] = Array.from({ length: count - 2 }, (_, index) => ({
+    ...kinds[(index + variant) % kinds.length]!,
+    from: classes[index]!.id,
+    to: classes[index + 1]!.id,
+    label: `step ${index}`,
+    fromCardinality: '1',
+    toCardinality: '*',
+  }))
+  // Identical occurrences and a reciprocal must remain a multiset, not a set.
+  relationships.push({ ...relationships[0]! })
+  relationships.push({ ...relationships[0]!, from: classes[1]!.id, to: classes[0]!.id })
+  const self: AuthoredClassRelationship = { from: classes[2]!.id, to: classes[2]!.id, arrow: '--', type: 'link-solid', markerAt: 'none' }
+  const notes = [
+    { for: classes[0]!.id, text: `Keep record identity ${variant}` },
+    { for: classes.at(-1)!.id, text: `Isolated declaration ${variant} remains authored` },
+  ]
+  const quote = (id: string) => `\`${id}\``
+  const declaration = (cls: (typeof classes)[number]) => [`class ${quote(cls.id)}["${cls.label}"] {`, cls.attribute, cls.method, '}']
+  const direction = variant % 2 ? 'LR' : 'TB'
+  const body = [
+    'classDiagram',
+    ...(directed ? [`direction ${direction}`] : []),
+    'namespace Domain {',
+    ...classes.filter(cls => cls.namespace === 'Domain').flatMap(declaration),
+    'namespace Inner {',
+    ...classes.filter(cls => cls.namespace === 'Domain.Inner').flatMap(declaration),
+    '}',
+    '}',
+    'namespace App {',
+    ...classes.filter(cls => cls.namespace === 'App').flatMap(declaration),
+    '}',
+    ...declaration(classes.at(-1)!),
+    ...relationships.map(rel => `${quote(rel.from)} "${rel.fromCardinality}" ${rel.arrow} "${rel.toCardinality}" ${quote(rel.to)} : ${rel.label}`),
+    `${quote(self.from)} ${self.arrow} ${quote(self.to)}`,
+    ...notes.map(note => `note for ${quote(note.for)} "${note.text}"`),
+  ].join('\n')
+  const prefix = variant % 3 === 0 ? '%% retained development prefix\n' : variant % 3 === 1 ? '%%{init: {"class":{"hierarchicalNamespaces":true}}}%%\n%% retained development prefix\n' : '---\ntitle: Class development\n---\n%% retained development prefix\n'
+  return { source: prefix + body, bodySource: body, directed, expected: { classes, namespaces, relationships: [...relationships, self], notes, direction: (directed ? direction : 'TB') as 'LR' | 'TB' } }
+}
+
 export const FAMILY_CITIZENSHIP_GALLERY_OPTIONS = { style: 'publication-figure', seed: 17, security: 'strict', embedFontImport: false } as const satisfies RenderOptions
 
 export interface FamilyCitizenshipWitness {
@@ -50,34 +126,53 @@ export interface FamilyConformanceProfile {
  * particular test.
  */
 export const FAMILY_CONFORMANCE_PROFILES: Readonly<Record<DiagramKind, FamilyConformanceProfile>> = {
-  eventmodeling: {
-    family: 'eventmodeling', citizenship: {
-      source: 'eventmodeling\ntitle Shopping cart\ntf 01 ui Shop.Cart\ntf 02 cmd Shop.AddItem { sku: Book }\ntf 03 evt Shop.ItemAdded\ntf 04 rmo Shop.CartItems ->> 03\ntf 05 ui Shop.Cart',
-      options: FAMILY_CITIZENSHIP_GALLERY_OPTIONS,
-      count: { nodes: 5, edges: 4, groups: 3 },
-      facts: ['frame 01 time ui "Shop.Cart"', 'edge 03 -> 04 explicit', 'frame 02 data " sku: Book "'],
-      visibleText: ['ItemAdded', 'CartItems', 'sku: Book'],
-      edit: { op: { kind: 'set_frame_entity', id: '02', entity: 'Shop.AddBook' }, beforeFacts: ['frame 02 time command "Shop.AddItem"'], afterFacts: ['frame 02 time command "Shop.AddBook"'] },
-      assertDomain: (_diagram, layout) => { expect(layout.edges.map(edge => [edge.from, edge.to])).toEqual([['01', '02'], ['02', '03'], ['03', '04'], ['04', '05']]); expect(layout.groups.find(group => group.id === 'lane:Shop · UI / Automation')?.members).toEqual(['01', '05']) },
-    },
-    // Lane borders use the shared line paint; frame borders use automatic node ink.
-    riskFixture: 'eventmodeling-demo.mmd', riskOptions: {}, outlines: { kind: 'automatic', roles: ['node'] },
-    textStressSource: 'eventmodeling\ntitle 東京 café é 👩‍💻\ntf 01 ui Cart { שלום مرحبا 長いラベル }\ntf 02 cmd Add { café 東京 }',
-  },
   zenuml: {
-    family: 'zenuml', citizenship: {
-      source: 'zenuml\ntitle Checkout\n@Actor User\nUser->API.checkout() {\n Store.reserve() {\n  return reservation\n }\n return confirmation\n}',
+    family: 'zenuml',
+    citizenship: {
+      source: readFileSync(join(EVAL_ROOT, 'layout-compare/fixtures/zenuml-native-checkout.mmd'), 'utf8'),
       options: FAMILY_CITIZENSHIP_GALLERY_OPTIONS,
-      count: { nodes: 3, edges: 4, groups: 0 },
-      facts: ['edge User -> API : checkout()', 'edge API -> Store : reserve()', 'edge Store -> API : reservation', 'edge API -> User : confirmation'],
-      visibleText: ['API', 'Store', 'reserve()', 'confirmation'],
-      edit: { op: { kind: 'set_participant_label', id: 'User', label: 'Shopper' }, beforeFacts: ['participant User actor "User"'], afterFacts: ['participant User actor "Shopper"'] },
-      assertDomain: (_diagram, layout) => expect(layout.edges.map(edge => [edge.from, edge.to])).toEqual([['User', 'API'], ['API', 'Store'], ['Store', 'API'], ['API', 'User']]),
+      count: { nodes: 4, edges: 7, groups: 1 },
+      facts: ['participant Buyer : Customer', 'message Buyer -> API : checkout()', 'message API -> Buyer : ready'],
+      visibleText: ['Customer', 'checkout()', 'result = reserve()', 'accepted', 'rejected'],
+      edit: { op: { kind: 'rename_participant', id: 'Stock', newId: 'Inventory' }, beforeFacts: ['message API -> Stock : result = reserve()', 'message Stock -> API : accepted', 'message Stock -> API : rejected'], afterFacts: ['message API -> Inventory : result = reserve()', 'message Inventory -> API : accepted', 'message Inventory -> API : rejected'] },
+      assertDomain: (diagram, layout) => {
+        if (diagram.body.kind !== 'zenuml') throw Error('Expected native ZenUML')
+        expect(diagram.body.participants.slice(0, 2).map(participant => participant.id)).toEqual(['Buyer', 'API'])
+        expect(diagram.body.participants.length).toBe(3)
+        const store = diagram.body.participants[2]!.id
+        expect(['Stock', 'Inventory']).toContain(store)
+        expect(layout.edges.map(edge => [edge.from, edge.to])).toEqual([['Buyer', 'API'], ['API', store], [store, 'API'], [store, 'API'], ['API', 'ticket:Ticket'], ['ticket:Ticket', 'API'], ['API', 'Buyer']])
+        expect(layout.edges.filter(edge => edge.parentId).length).toBe(2)
+      },
     },
-    riskFixture: 'zenuml-demo.mmd', riskOptions: {}, outlines: { kind: 'automatic', roles: ['actor', 'activation'] },
-    textStressSource: 'zenuml\ntitle 東京 café é 👩‍💻\nA as שלום مرحبا\nB as 長いラベル\nA->B: café 東京 👩‍💻',
+    outlines: { kind: 'automatic', roles: ['actor', 'block'] },
+    riskFixture: '../../../eval/layout-compare/fixtures/zenuml-native-checkout.mmd', riskOptions: {},
+    textStressSource: 'zenuml\nA->B: 東京 café é 👩‍💻 שלום مرحبا',
   },
-
+  eventmodeling: {
+    family: 'eventmodeling',
+    citizenship: {
+      source: readFileSync(join(EVAL_ROOT, 'stable-families/fixtures/eventmodeling.mmd'), 'utf8'),
+      options: FAMILY_CITIZENSHIP_GALLERY_OPTIONS,
+      count: { nodes: 7, edges: 6, groups: 5 },
+      facts: ['relation 01 -> 02 inferred', 'relation 02 -> 03 inferred', 'relation 03 -> 06 explicit', 'relation 04 -> 06 explicit', 'relation 06 -> 07 inferred'],
+      visibleText: ['Cart.UI', 'Cart.AddItem', 'description: string', 'Show the latest cart items'],
+      edit: { op: { kind: 'set_data', id: 'Items', data: { type: 'jsobj', text: 'count: 2' } }, beforeFacts: ['data Items {"type":"jsobj","text":"count: 1"}'], afterFacts: ['data Items {"type":"jsobj","text":"count: 2"}'] },
+      assertDomain: (diagram, layout) => {
+        if (diagram.body.kind !== 'eventmodeling') throw Error('Expected Event Modeling')
+        expect(diagram.body.frames.map(frame => frame.id)).toEqual(['01', '02', '03', '04', '05', '06', '07'])
+        expect(diagram.body.frames[3]!.reset).toBe(true)
+        expect(diagram.body.frames[3]!.sources).toEqual([])
+        expect(diagram.body.frames[5]).toMatchObject({ reset: true, sources: ['03', '04'], dataReference: 'Items' })
+        expect(diagram.body.notes).toEqual([{ frame: '06', data: { text: 'Show the latest cart items' } }])
+        expect(diagram.body.specifications[0]).toMatchObject({ frame: '06', given: [{ type: 'event', entity: 'InitialItems' }], when: [{ type: 'command', entity: 'AddItem' }], then: [{ type: 'event', entity: 'ItemAdded' }] })
+        expect(layout.groups.find(group => group.members.includes('01'))?.members).toEqual(['01', '07'])
+      },
+    },
+    outlines: { kind: 'automatic', roles: ['node', 'group'] },
+    riskFixture: 'eventmodeling-demo.mmd', riskOptions: {},
+    textStressSource: 'eventmodeling\ntf 01 ui Cart.UI { 東京 café é 👩‍💻 שלום مرحبا }',
+  },
   packet: {
     family: 'packet',
     citizenship: {

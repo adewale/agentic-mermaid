@@ -1,4 +1,11 @@
 import type { Direction, Point, PositionedEdge, PositionedGroup, PositionedNode } from '../../types.ts'
+import type { ResolvedRenderStyle } from '../../styles.ts'
+import { shapeOutline } from '../../shape-outline.ts'
+import { clipEdgeToShape } from '../../shape-clipping.ts'
+import { nodePaintBounds, paintedStrokeExtent } from '../../scene/bounds.ts'
+import { shape } from '../../scene/marks.ts'
+import { formatSvgNumber } from '../../shared/svg-number.ts'
+import { routeCandidateMarkerBlocker, routeMarkerPaintRegions } from '../route-marker-clearance.ts'
 import { retainConstructedBundleRoutes } from '../bundle-routes.ts'
 
 /**
@@ -18,29 +25,59 @@ function findGroupsContainingPoint(
   return result
 }
 
-/**
- * Bundle contract (docs/design/system/route-contracts.md): a rebuilt trunk/branch
- * path may not pass through any node other than the edge's own endpoints.
- * The half-pixel tolerance lets a path graze a border without counting.
- */
+/** Rebuilt bundles are optional. Their complete shaft and marker paint must
+ * clear foreign artwork and full reserved header bands before publication. */
 function bundlePathClear(
-  points: Point[],
+  edge: PositionedEdge,
   nodes: PositionedNode[],
-  sourceId: string,
-  targetId: string,
+  groups: readonly PositionedGroup[],
+  style: ResolvedRenderStyle,
 ): boolean {
-  for (const n of nodes) {
-    if (n.id === sourceId || n.id === targetId) continue
-    for (let i = 1; i < points.length; i++) {
-      const a = points[i - 1]!, b = points[i]!
-      const xLo = Math.min(a.x, b.x), xHi = Math.max(a.x, b.x)
-      const yLo = Math.min(a.y, b.y), yHi = Math.max(a.y, b.y)
-      if (xHi > n.x + 0.5 && xLo < n.x + n.width - 0.5 && yHi > n.y + 0.5 && yLo < n.y + n.height - 0.5) {
-        return false
-      }
+  const numericWidth = (authored: string | undefined, fallback: number): number | undefined => {
+    if (authored !== undefined && !/^\s*[+]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?(?:px)?\s*$/i.test(authored)) return undefined
+    const n = authored === undefined ? fallback : Number.parseFloat(authored)
+    return Number.isFinite(n) && n >= 0 ? Number(formatSvgNumber(n)) : undefined
+  }
+  const stroke = numericWidth(edge.inlineStyle?.['stroke-width'], style.lineWidth * (edge.style === 'thick' ? 2 : 1))
+  const radius = style.edgeBendRadius
+  if (stroke === undefined || !Number.isFinite(radius) || radius < 0) return false
+  const extent = paintedStrokeExtent({ stroke: '#000', strokeWidth: String(stroke) }, true)
+  if (extent === undefined) return false
+  const pad = extent + radius
+  const points = edge.points.map(p => ({ x: Number(formatSvgNumber(p.x)), y: Number(formatSvgNumber(p.y)) }))
+  if (!points.every(p => Number.isFinite(p.x) && Number.isFinite(p.y))) return false
+  const shafts = points.slice(1).map((b, i) => {
+    const a = points[i]!
+    return { x0: Math.min(a.x, b.x) - pad, x1: Math.max(a.x, b.x) + pad, y0: Math.min(a.y, b.y) - pad, y1: Math.max(a.y, b.y) + pad }
+  })
+  const overlap = (a: { x0: number; x1: number; y0: number; y1: number }, b: { x0: number; x1: number; y0: number; y1: number }): boolean => {
+    const error = (Math.abs(a.x0) + Math.abs(a.x1) + Math.abs(a.y0) + Math.abs(a.y1) + Math.abs(b.x0) + Math.abs(b.x1) + Math.abs(b.y0) + Math.abs(b.y1)) * 1e-10 + 1e-9
+    return !Number.isFinite(error) || a.x1 + error > b.x0 && a.x0 < b.x1 + error && a.y1 + error > b.y0 && a.y0 < b.y1 + error
+  }
+  const markers = routeMarkerPaintRegions(edge, style)
+  if (!markers || markers.length !== Number(Boolean(edge.hasArrowStart)) + Number(Boolean(edge.hasArrowEnd))) return false
+  for (const node of nodes) {
+    const border = numericWidth(node.inlineStyle?.['stroke-width'], style.nodeLineWidth)
+    if (border === undefined) return false
+    const outline = shapeOutline(node, { fill: '#000', stroke: '#000', strokeWidth: String(border) }, style.cornerRadius)
+    const box = nodePaintBounds(shape({ id: node.id, role: 'node', geometry: outline.geometry, paint: outline.paint,
+      ...(outline.childPaints ? { childPaints: outline.childPaints } : {}) }))
+    if (!box) return false
+    if (node.id !== edge.source && node.id !== edge.target && shafts.some(shaft => overlap(shaft, box))) return false
+    for (const marker of markers) {
+      const owner = marker.position === 'start' ? edge.source : edge.target
+      if (owner !== node.id && (!marker.bounds || overlap(marker.bounds, box))) return false
     }
   }
-  return true
+  const headerClear = (group: PositionedGroup): boolean => {
+    const height = group.concurrencyRegion ? 0 : group.headerHeight ?? group.height
+    if (height > 0) {
+      const band = { x0: group.x, x1: group.x + group.width, y0: group.y, y1: group.y + height }
+      if (shafts.some(shaft => overlap(shaft, band)) || markers.some(marker => !marker.bounds || overlap(marker.bounds, band))) return false
+    }
+    return group.children.every(headerClear)
+  }
+  return groups.every(headerClear)
 }
 
 /**
@@ -99,10 +136,24 @@ export function bundleEdgePaths(
   edges: PositionedEdge[],
   nodes: PositionedNode[],
   groups: PositionedGroup[],
-  direction: Direction
+  direction: Direction,
+  style: ResolvedRenderStyle,
 ): Set<PositionedEdge> {
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
   const processed = new Set<PositionedEdge>()
+  const admittedMembers = <T extends { edge: PositionedEdge }>(members: T[], candidates: Map<PositionedEdge, Point[]>): T[] => {
+    for (const [edge, points] of candidates) {
+      const source = nodeMap.get(edge.source)!, target = nodeMap.get(edge.target)!
+      candidates.set(edge, clipEdgeToShape(clipEdgeToShape(points, source, true), target, false))
+    }
+    const staged = edges.map(edge => candidates.has(edge) ? { ...edge, points: candidates.get(edge)! } : edge)
+    return members.filter(member => {
+      const points = candidates.get(member.edge)!
+      const candidate = staged[edges.indexOf(member.edge)]!
+      return bundlePathClear(candidate, nodes, groups, style)
+        && !routeCandidateMarkerBlocker(member.edge, points, staged, style, candidate)
+    })
+  }
 
   const isLR = direction === 'LR'
   const isRL = direction === 'RL'
@@ -192,7 +243,7 @@ export function bundleEdgePaths(
         }
       }
 
-      const clear = members.filter(m => bundlePathClear(candidates.get(m.edge)!, nodes, m.edge.source, m.edge.target))
+      const clear = admittedMembers(members, candidates)
       if (clear.length === members.length) {
         for (const { edge } of members) {
           edge.points = candidates.get(edge)!
@@ -284,7 +335,7 @@ export function bundleEdgePaths(
         }
       }
 
-      const clear = members.filter(m => bundlePathClear(candidates.get(m.edge)!, nodes, m.edge.source, m.edge.target))
+      const clear = admittedMembers(members, candidates)
       if (clear.length === members.length) {
         for (const { edge } of members) {
           edge.points = candidates.get(edge)!

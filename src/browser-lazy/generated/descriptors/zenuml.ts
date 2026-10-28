@@ -14,7 +14,8 @@ const descriptorData = Object.freeze({
   "aliases": [],
   "config": {
     "section": "zenuml",
-    "keys": []
+    "keys": [],
+    "noopKeys": []
   },
   "identity": {
     "id": "family:zenuml",
@@ -35,8 +36,8 @@ const descriptorData = Object.freeze({
   "semanticRoles": [
     "prelude",
     "title",
-    "chrome",
     "defs",
+    "chrome",
     "actor",
     "lifeline",
     "activation",
@@ -66,15 +67,6 @@ const descriptorData = Object.freeze({
       ]
     },
     {
-      "role": "chrome",
-      "primitive": "document",
-      "applicability": "applicable",
-      "realization": "native",
-      "evidence": [
-        "src/__tests__/section-a-family-descriptor-conformance.test.ts"
-      ]
-    },
-    {
       "role": "defs",
       "primitive": "document",
       "applicability": "applicable",
@@ -86,6 +78,15 @@ const descriptorData = Object.freeze({
     {
       "role": "defs",
       "primitive": "marker",
+      "applicability": "applicable",
+      "realization": "native",
+      "evidence": [
+        "src/__tests__/section-a-family-descriptor-conformance.test.ts"
+      ]
+    },
+    {
+      "role": "chrome",
+      "primitive": "document",
       "applicability": "applicable",
       "realization": "native",
       "evidence": [
@@ -237,7 +238,7 @@ const descriptorData = Object.freeze({
       ]
     }
   ],
-  "example": "zenuml\nClient->API.checkout() {\n  return receipt\n}"
+  "example": "zenuml\nAlice->Bob: Hello\nBob->Alice: Reply"
 } as const),
   detect: familyDetection.detectsZenumlFamily,
   detectLoose: familyDetection.detectsZenumlFamily,

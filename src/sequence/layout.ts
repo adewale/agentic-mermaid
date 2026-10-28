@@ -643,6 +643,22 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
   }
 
   // Completed fragments are reused unchanged by all output projections.
+  for (const actor of actors) if (diagram.actors[actorIndex.get(actor.id)!]?.external) actor.external = true
+  for (const [index, message] of messages.entries()) {
+    const source = diagram.messages[index]!
+    if (source.id !== undefined) message.id = source.id
+    if (source.parentId !== undefined) message.parentId = source.parentId
+  }
+  for (const [index, block] of blocks.entries()) {
+    const source = diagram.blocks[index]!
+    if (source.id !== undefined) block.id = source.id
+    if (source.parentId !== undefined) block.parentId = source.parentId
+  }
+  for (const [index, note] of positionedNotes.entries()) {
+    const source = diagram.notes[index]
+    if (note && source?.id !== undefined) note.id = source.id
+    if (note && source?.parentId !== undefined) note.parentId = source.parentId
+  }
   const notes = positionedNotes.filter((n): n is PositionedNote => n !== undefined)
 
   const maxBlockBottom = blocks.reduce((max, b) => Math.max(max, b.y + b.height), 0)

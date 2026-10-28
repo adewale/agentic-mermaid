@@ -14,7 +14,7 @@ Leading wrappers are preserved by the shared source envelope.
 
 ## Placement and aesthetics
 
-Placement is a family-specific measured grid. Shape artwork and attachment ports reuse shapeOutline; Scene marks, prepared text, markers and output-security boundaries are shared. Terminal placement runs the same abstract cell allocation with cell measurements, not scaled pixel coordinates. Nonrectangular block artwork is represented by terminal frames; directional block-arrow labels identify their directions.
+Placement is a family-specific measured grid. Shape artwork and attachment ports reuse shapeOutline; Scene parts, prepared text, markers and output-security boundaries are shared. Terminal placement runs the same abstract cell allocation with cell measurements, not scaled pixel coordinates. Nonrectangular block artwork is represented by terminal frames; directional block-arrow labels identify their directions.
 
 The family uses Agentic Mermaid typography, theme tokens, readable padding and deterministic styling.
 Mermaid is the syntax and semantic oracle; its pixels and layout are not rendering targets.

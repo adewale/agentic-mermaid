@@ -1,29 +1,32 @@
-import type { AsciiContext } from '../agent/family-registry.ts'
-import { parseEventModeling, eventModelingLane, eventModelingRelations, eventModelingSpecificationLines } from '../eventmodeling/parser.ts'
+import { prepareDisplayText } from '../shared/display-text.ts'
 import { TerminalDocument } from './terminal-document.ts'
+import { parseEventModeling, eventLane, eventRelations } from '../eventmodeling/parser.ts'
+import { eventFrameText } from '../eventmodeling/layout.ts'
+import { convertToAsciiGraph } from './converter.ts'
+import { createMapping } from './grid.ts'
+import { drawGraph } from './draw.ts'
 import { terminalArtifact } from './terminal-artifact.ts'
-import { wrapText } from './wrap.ts'
-export function renderEventModelingTerminal(ctx: AsciiContext) {
-  const body = parseEventModeling(ctx.source.authoredFamilyBody ?? ctx.source.familyBody), document = new TerminalDocument()
-  document.report({ code: 'TERMINAL_FAMILY_PROJECTION', feature: 'eventmodeling.timeline', message: 'Timeline columns and swimlanes are projected as ordered frames with explicit incoming frame IDs; terminal cells do not encode elapsed time.' })
-  const line = (text: string, id: string) => {
-    const prefix = /^\[\d+\] /.exec(text)?.[0] ?? ''
-    const width = ctx.options.targetWidth === undefined ? undefined : Math.max(1, ctx.options.targetWidth - prefix.length)
-    for (const [index, value] of wrapText(text.slice(prefix.length), width).entries()) document.line([
-      ...(prefix ? [{ text: index ? ' '.repeat(prefix.length) : prefix, kind: 'surface' as const, owner: { id, kind: 'node' as const } }] : []),
-      { text: value, role: 'text', owner: { id, kind: 'node' } },
-    ])
+import type { AsciiConfig, ColorMode, AsciiTheme } from './types.ts'
+import type { MermaidGraph } from '../types.ts'
+export function renderEventModelingTerminal(source: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme) {
+  const body = parseEventModeling(source)
+  const graph: MermaidGraph = {
+    direction: 'LR',
+    nodes: new Map(
+      body.frames.map(frame => [frame.id, { id: frame.id, label: `${eventLane(frame)}\n${eventFrameText(body, frame)}`, labelContent: { value: `${eventLane(frame)}\n${eventFrameText(body, frame)}`, prepared: prepareDisplayText(`${eventLane(frame)}\n${eventFrameText(body, frame)}`, 'literal') }, shape: 'rectangle' }]),
+    ),
+    edges: eventRelations(body).map(edge => ({ id: edge.id, source: edge.from, target: edge.to, style: 'solid', hasArrowStart: false, hasArrowEnd: true })),
+    subgraphs: [],
+    classDefs: new Map(),
+    classAssignments: new Map(),
+    nodeStyles: new Map(),
+    linkStyles: new Map(),
   }
-  if (body.title ?? ctx.config.title) line((body.title ?? ctx.config.title)!, 'title')
-  const relations = eventModelingRelations(body)
-  for (const frame of body.frames) {
-    line(`[${frame.id}] ${frame.entityType} ${frame.entity} — ${eventModelingLane(frame)}`, frame.id)
-    const incoming = relations.filter(edge => edge.to === frame.id)
-    if (incoming.length) line(`  ${incoming.map(edge => edge.from).join(', ')} ${ctx.config.useAscii ? '->' : '→'} ${frame.id}`, frame.id)
-    const data = frame.data ?? body.data.find(item => item.id === frame.dataReference)?.value
-    if (data) for (const row of data.text.split('\n')) line(`  ${row}`, frame.id)
-    for (const note of body.notes.filter(note => note.frame === frame.id)) line(`  Note: ${note.text}`, frame.id)
-    for (const spec of body.specifications.filter(spec => spec.frame === frame.id)) for (const text of eventModelingSpecificationLines(spec)) line(`  ${text}`, frame.id)
-  }
-  return terminalArtifact(document, { colorMode: ctx.colorMode, theme: ctx.theme })
+  const positioned = convertToAsciiGraph(graph, { ...config, graphDirection: 'LR' })
+  createMapping(positioned)
+  drawGraph(positioned)
+  const document = new TerminalDocument()
+  const top = body.title ? (document.textBlock(0, 0, [body.title], { role: 'text', owner: { id: 'title', kind: 'label' } })?.height ?? 0) + 1 : 0
+  document.overlay(positioned.canvas, 0, top)
+  return terminalArtifact(document, { colorMode, theme })
 }

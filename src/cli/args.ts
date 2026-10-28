@@ -31,6 +31,8 @@ const FLAG_SPEC_TABLE = {
   style: { arg: 'NAMES|file' },
   seed: { arg: 'N' },
   options: { arg: 'JSON|file' },
+  'graph-layout': { arg: 'elk|agentic' },
+  'graph-layout-fallback': { arg: 'none|elk' },
   ops: { arg: 'JSON|file' },
   output: { arg: 'FILE' },
   format: { arg: 'fmt' },
@@ -99,7 +101,7 @@ export const PNG_RENDER_FLAGS = Object.freeze(Object.values(PNG_CLI_FLAG_BINDING
 // Command ownership is the second half of the flag contract: recognizing a
 // name globally is not permission to ignore it on an unrelated command.
 export const COMMAND_FLAGS = {
-  render: ['help', 'json', 'certificates', 'watch', 'style', 'seed', 'options', 'output', 'format', 'security', 'gantt-today', 'target-width', ...PNG_RENDER_FLAGS, 'o'],
+  render: ['help', 'json', 'certificates', 'watch', 'style', 'seed', 'options', 'graph-layout', 'graph-layout-fallback', 'output', 'format', 'security', 'gantt-today', 'target-width', ...PNG_RENDER_FLAGS, 'o'],
   verify: ['help', 'json', 'suppress', 'label-cap', 'style'],
   parse: ['help', 'json'],
   serialize: ['help'],

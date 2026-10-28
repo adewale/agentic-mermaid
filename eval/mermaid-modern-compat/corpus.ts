@@ -2,7 +2,6 @@ import { createHash } from 'node:crypto'
 import { readdirSync, readFileSync } from 'node:fs'
 import { basename, join, relative } from 'node:path'
 import ts from 'typescript'
-import { externalFirstPartyFamilies, upstreamFamilySourceDirectory } from '../shared/upstream-family-sources.ts'
 
 export interface Provenance {
   kind: 'docs' | 'spec' | 'probe' | 'authored' | 'mutation'
@@ -43,7 +42,7 @@ export function harvestModernCorpus(upstream: string, includeSpecs: boolean) {
   }
   const docsDir = join(upstream, 'packages/mermaid/src/docs/syntax')
   const docFiles = readdirSync(docsDir)
-    .filter(file => file.endsWith('.md') && file !== 'examples.md')
+    .filter(file => file.endsWith('.md') && !['examples.md', 'zenuml.md'].includes(file))
     .sort()
   const expectedFamilies = new Set(docFiles.map(docFamily))
   for (const file of docFiles) {
@@ -58,12 +57,12 @@ export function harvestModernCorpus(upstream: string, includeSpecs: boolean) {
   let skippedInterpolatedTemplates = 0
   if (includeSpecs) {
     const firstHeader =
-      /^(?:---|(?:flowchart|graph|sequenceDiagram|classDiagram|stateDiagram|erDiagram|journey|gantt|pie|quadrantChart|requirement(?:Diagram)?|gitGraph|C4\w+|mindmap|timeline|sankey|xychart|block|packet|kanban|architecture|radar|eventmodeling|zenuml|treemap|venn|ishikawa|wardley|cynefin|treeView|railroad|agentflow|usecase|swimlane|info)\b)/i
-    function walk(dir: string, familyHint?: string): void {
+      /^(?:---|(?:flowchart|graph|sequenceDiagram|classDiagram|stateDiagram|erDiagram|journey|gantt|pie|quadrantChart|requirement(?:Diagram)?|gitGraph|C4\w+|mindmap|timeline|sankey|xychart|block|packet|kanban|architecture|radar|eventmodeling|treemap|venn|ishikawa|wardley|cynefin|treeView|railroad|agentflow|usecase|swimlane|info)\b)/i
+    function walk(dir: string): void {
       for (const entry of readdirSync(dir, { withFileTypes: true })) {
         const full = join(dir, entry.name)
         if (entry.isDirectory()) {
-          walk(full, familyHint)
+          walk(full)
           continue
         }
         if (!/\.(?:spec|test)\.[jt]s$/.test(entry.name)) continue
@@ -73,7 +72,7 @@ export function harvestModernCorpus(upstream: string, includeSpecs: boolean) {
           if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
             const text = node.text.trim()
             if (firstHeader.test(text)) {
-              const familyDir = familyHint ?? relative(join(upstream, 'packages/mermaid/src/diagrams'), full).split('/')[0]!
+              const familyDir = relative(join(upstream, 'packages/mermaid/src/diagrams'), full).split('/')[0]!
               add(text, { kind: 'spec', file: relative(upstream, full), line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1, familyHint: canonical(familyDir) })
             }
           }
@@ -83,7 +82,6 @@ export function harvestModernCorpus(upstream: string, includeSpecs: boolean) {
       }
     }
     walk(join(upstream, 'packages/mermaid/src/diagrams'))
-    for (const family of externalFirstPartyFamilies) walk(upstreamFamilySourceDirectory(upstream, family), family)
   }
   return { corpus, expectedFamilies, docFiles, skippedInterpolatedTemplates }
 }

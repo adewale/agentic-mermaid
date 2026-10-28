@@ -1,8 +1,11 @@
 eventmodeling
-title Order lifecycle
-tf 01 ui Shop.Cart
-tf 02 cmd Shop.AddItem { sku: Book }
-tf 03 evt Shop.ItemAdded
-rf 04 evt Inventory.StockChanged
-tf 05 rmo Shop.CartItems ->> 03 ->> 04
-tf 06 ui Shop.Cart
+title Cart information flow
+tf 01 ui Cart.UI
+tf 02 cmd Cart.AddItem { description: string }
+tf 03 evt Cart.ItemAdded
+tf 04 rmo Cart.Items
+tf 05 ui Cart.UI
+rf 06 evt Stock.InventoryChanged
+tf 07 pcr Stock.InventoryProcessor
+tf 08 cmd Cart.ChangeInventory
+tf 09 evt Cart.InventoryChanged

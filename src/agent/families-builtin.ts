@@ -1,7 +1,5 @@
-import { EVENTMODELING_AGENT_HOOKS } from './eventmodeling-body.ts'
 import { ZENUML_AGENT_HOOKS } from './zenuml-body.ts'
-export { EVENTMODELING_AGENT_HOOKS } from './eventmodeling-body.ts'
-export { ZENUML_AGENT_HOOKS } from './zenuml-body.ts'
+import { EVENTMODELING_AGENT_HOOKS } from './eventmodeling-body.ts'
 import { readAuthoredGrammarAccessibility } from '../shared/grammar-text.ts'
 import { C4AmbiguousArgumentError, parseC4Diagram } from '../c4/parser.ts'
 import { buildC4SourceMap, lintC4, mutateC4, parseC4Body, renderC4 } from './c4-body.ts'
@@ -185,7 +183,9 @@ function extractStateLabels(source: string): ExtractedLabel[] {
 }
 
 export const STATE_AGENT_HOOKS = {
-  renderSource: body => (body.kind === 'opaque' ? 'canonical' : 'serialized'),
+  // Nested bodies omit global statement interleaving. Preserve the source's
+  // paint order; typed mutations rebuild canonicalSource when they commit.
+  renderSource: () => 'canonical',
   extractLabels: extractStateLabels,
   // The verify hook covers body-level structural Tier 1 (EMPTY/MISANCHORED/
   // LABEL_OVERFLOW); verify.ts adds geometric Tier 2 via the graph projection.
@@ -1471,8 +1471,6 @@ export const C4_AGENT_HOOKS = {
 } satisfies FamilyOperations
 
 export const BUILTIN_AGENT_HOOKS = /* @__PURE__ */ Object.freeze({
-  eventmodeling: EVENTMODELING_AGENT_HOOKS,
-  zenuml: ZENUML_AGENT_HOOKS,
   flowchart: FLOWCHART_AGENT_HOOKS,
   state: STATE_AGENT_HOOKS,
   sequence: SEQUENCE_AGENT_HOOKS,
@@ -1490,5 +1488,10 @@ export const BUILTIN_AGENT_HOOKS = /* @__PURE__ */ Object.freeze({
   radar: RADAR_AGENT_HOOKS,
   sankey: SANKEY_AGENT_HOOKS,
   c4: C4_AGENT_HOOKS,
+  zenuml: ZENUML_AGENT_HOOKS,
+  eventmodeling: EVENTMODELING_AGENT_HOOKS,
   ...STABLE_FAMILY_AGENT_HOOKS,
 }) satisfies Readonly<Record<DiagramKind, FamilyOperations>>
+export { EVENTMODELING_AGENT_HOOKS } from './eventmodeling-body.ts'
+
+export { ZENUML_AGENT_HOOKS } from './zenuml-body.ts'

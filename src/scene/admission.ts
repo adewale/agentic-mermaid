@@ -10,7 +10,7 @@ import { sceneAssertionsEnabled } from './assertions.ts'
 import {
   SceneValidationError,
   type SceneValidationDiagnostic,
-} from './scene-validation.ts'
+} from './scene-validation-core.ts'
 
 function visit(nodes: readonly SceneNode[], callback: (node: SceneNode, path: string) => void, prefix = 'scene.parts'): void {
   nodes.forEach((node, index) => {

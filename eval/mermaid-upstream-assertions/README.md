@@ -15,7 +15,7 @@ bun run eval:mermaid-assertions --upstream ../mermaid --reference ../mermaid-ref
 Node runs Vitest; Bun runs the coordinator. The source checkout must have the
 exact policy pin and clean tracked files. The independently installed reference
 must match Mermaid 12.2.0 and parser 2.0.1. The normal reference setup uses jsdom
-26.1.0, the release's ZenUML addon 1.0.1 and its locked engine 3.49.2. Generated JSON, logs and the Markdown breakdown belong in the ignored
+26.1.0. Generated JSON, logs and the Markdown breakdown belong in the ignored
 `results/` directory or the chosen output directory.
 
 The existing semantic CI lane runs the same command and uploads the reports,
@@ -28,13 +28,6 @@ supported family's source directory, plus its parser-package test file when
 present. Renderer and database-helper files are attempted too; they are not
 silently excluded. The inventory scope is family suites, rather than all Mermaid
 application, integration, browser or accessibility suites.
-
-The policy's `source` metadata selects package ownership. Core families use
-`packages/mermaid/src/diagrams`; the external first-party ZenUML family uses
-`packages/mermaid-zenuml/src`. Both source inventories retain the original
-renderer/helper callbacks and record unavailable native/private projections as
-coverage gaps. A missing package directory fails discovery instead of silently
-producing an empty suite. `report.json` records each family's actual source root.
 
 The Vite adapter changes **import declarations only** in those files and the
 original parser test helper. Test bodies, data, assertions, snapshots and original
@@ -54,12 +47,6 @@ and any unavailable API. An unavailable operation cannot pass accidentally when
 an original negative assertion catches its exception: the after-case guard
 records and fails that boundary. A case that never invokes a native parser is
 also marked outside the adapted input-language boundary.
-
-An unavailable private helper constructed during suite registration stays an
-opaque handle until a test uses it, so it cannot prevent the original callbacks
-from registering. Construction/use during a test still fails and records the
-adapter boundary; a direct helper/renderer test without a native parse cannot
-earn native assertion credit.
 
 `report.json` and `report.md` show all registered cases by family and disjoint
 cause:

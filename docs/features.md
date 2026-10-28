@@ -29,10 +29,6 @@ capability evidence. Run `am capabilities --json` for the current roster and
 per-family operation shapes. (The Section A capability report is no longer
 published.)
 
-Native [Event Modeling and ZenUML](./native-eventmodeling-and-zenuml.md) use the
-same synchronous, DOM-free renderer and typed editing loop. Their upstream
-maturity classification remains separate from implemented capabilities.
-
 **Structured-or-opaque rule:** every family either has a structured body
 or preserves source verbatim. Constructs are never silently dropped.
 
@@ -75,7 +71,7 @@ Agentic Mermaid outputs **SVG, PNG, ASCII, Unicode, and JSON layout** from the s
 
 - **Tier 1 (structural, universal):** <!-- BEGIN GENERATED: warning-codes:structural -->`EMPTY_DIAGRAM`, `EDGE_MISANCHORED`, `OFF_CANVAS`, `GROUP_BREACH`, `UNKNOWN_SHAPE`, `LABEL_OVERFLOW`, `UNRESOLVABLE_SCHEDULE`, `RENDER_FAILED`, `INTERNAL_ERROR`<!-- END GENERATED: warning-codes:structural -->. `RENDER_FAILED` is structural, so a clean verify proves the source actually renders.
 - **Tier 2 (geometric — route tripwires for flowchart/state, anchor/overlap checks for class/ER):** <!-- BEGIN GENERATED: warning-codes:geometric -->`NODE_OVERLAP`, `CONTENT_OCCLUDED`, `LAYOUT_LIMIT_EXCEEDED`, `ROUTE_SELF_CROSS`, `ROUTE_HITCH`, `ROUTE_UNEXPLAINED_BEND`, `ROUTE_LABEL_ON_SHARED_TRUNK`, `ROUTE_SELF_LOOP_OCCUPANCY`, `ROUTE_CONTAINER_MISANCHOR`, `ROUTE_SHAPE_MISANCHOR`, `ROUTE_STALE_AFTER_NODE_MOVE`<!-- END GENERATED: warning-codes:geometric -->.
-- **Tier 3 (lint and inspect-only policy):** <!-- BEGIN GENERATED: warning-codes:lint -->`DUPLICATE_EDGE`, `UNREACHABLE_NODE`, `DECISION_BRANCH_UNLABELED`, `FLOW_IMBALANCE`, `COMMENT_DROPPED`, `UNSUPPORTED_SYNTAX`, `CONTENT_DROPPED_ON_ROUNDTRIP`, `INEFFECTIVE_CONFIG`, `LOW_CONTRAST`, `LABELS_HIDDEN`, `SCALE_RANGE_EXCLUDES_ZERO`, `BAR_RANGE_EXCLUDES_ZERO`, `VALUES_OUTSIDE_RANGE`, `BRAND_CONSTRAINT_WARNING`, `BRAND_CONSTRAINT_ERROR`<!-- END GENERATED: warning-codes:lint -->. Only the caller-selected `action: "error"` Brand constraint code flips `verify.ok`.
+- **Tier 3 (lint and inspect-only policy):** <!-- BEGIN GENERATED: warning-codes:lint -->`DUPLICATE_EDGE`, `UNREACHABLE_NODE`, `DECISION_BRANCH_UNLABELED`, `FLOW_IMBALANCE`, `COMMENT_DROPPED`, `UNSUPPORTED_SYNTAX`, `CONTENT_DROPPED_ON_ROUNDTRIP`, `EVENT_SOURCE_TYPE`, `INEFFECTIVE_CONFIG`, `LOW_CONTRAST`, `LABELS_HIDDEN`, `SCALE_RANGE_EXCLUDES_ZERO`, `BAR_RANGE_EXCLUDES_ZERO`, `VALUES_OUTSIDE_RANGE`, `BRAND_CONSTRAINT_WARNING`, `BRAND_CONSTRAINT_ERROR`<!-- END GENERATED: warning-codes:lint -->. Only the caller-selected `action: "error"` Brand constraint code flips `verify.ok`.
 - **Perceptual quality** — `measureQuality` / `checkQuality` (edge
   crossings, label legibility, whitespace balance, …). See [`quality.md`](./quality.md).
 

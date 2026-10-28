@@ -185,6 +185,7 @@ compatibility notes.
 
 - [System architecture](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/system/README.md) — **start here** for the rendered resolved-request, family-descriptor, positioned-artifact, and output-security overview (dogfooded, drift-proof).
 - [API reference](./docs/api.md) — renderers, agent API, options, CLI/MCP pointers.
+- [Vocabulary](./docs/api.md#vocabulary) — families, source objects, Scene parts, resolved primitives and typed-family narrowing.
 - [Agent API cookbook](./docs/agent-api-cookbook.md) — practical recipes for agents.
 - [Theming](./docs/theming.md) — two-color themes, built-ins, Shiki compatibility.
 - [Custom style cookbook](./docs/custom-style-cookbook.md) — JSON style files, screenshots, schema usage, and CLI commands.
@@ -210,3 +211,6 @@ Agentic Mermaid is a fork of Beautiful Mermaid by [Luki Labs](https://github.com
 ## License
 
 MIT
+
+Native Event Modeling and ZenUML authoring and rendering have documented
+[capability and runtime contracts](docs/eventmodeling-and-zenuml.md).

@@ -469,7 +469,7 @@ describe('canonical terminal output policy', () => {
   })
 
   test('metadata rejects a preserved parsed family before recovering drawing failures', () => {
-    const parsed = parseRegisteredMermaid('venn-beta\n  preserved experimental payload')
+    const parsed = parseRegisteredMermaid('swimlane-beta\n  preserved experimental payload')
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) return
     expect(parsed.value.body.kind).toBe('preserved')

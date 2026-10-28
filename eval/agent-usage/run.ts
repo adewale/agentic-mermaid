@@ -5,14 +5,14 @@ import { serializeMermaid } from '../../src/agent/serialize.ts'
 import { verifyMermaid } from '../../src/agent/verify.ts'
 import {
   asArchitecture,
+  asEventModeling,
+  asZenUML,
   asPacket,
   asKanban,
   asRequirement,
   asBlock,
   asTreemap,
   asIshikawa,
-  asEventModeling,
-  asZenUml,
   asC4,
   asClass,
   asEr,
@@ -83,10 +83,42 @@ function promptTask(task: string, context: string, source?: string): string {
 
 const C4_CACHE_INPUT = 'C4Container\nSystem_Boundary(platform, "Platform") {\n  Container(api, "API", "TypeScript", "Serves requests")\n  ContainerDb(db, "DB", "PostgreSQL", "Stores records")\n}\nRel(api, db, "Reads", "SQL")'
 
-const EVENT_MODEL_INPUT = 'eventmodeling\ntf 1 ui Shop.Cart\ntf 2 cmd Shop.AddItem ->> 1 { sku: Book }'
-const ZEN_UML_INPUT = 'zenuml\nInventory\nClient->Shop.checkout() {\n  Payment.charge()\n  return receipt\n}'
+const ZENUML_INPUT = 'zenuml\nBuyer as Customer\nAPI\nStock\nBuyer->API.checkout() {\n  Stock.reserve()\n}'
+const ZENUML_GOAL = ZENUML_INPUT.replaceAll('Stock', 'Inventory')
 
+const EVENTMODELING_INPUT = 'eventmodeling\ntf 01 ui Cart.UI\ntf 02 cmd Cart.AddItem { description: string }\ntf 03 evt Cart.ItemAdded'
+const EVENTMODELING_GOAL = EVENTMODELING_INPUT + '\nrf 04 rmo Cart.Items ->> 03'
 export const DEFAULT_CASES: AgentUsageEvalCase[] = [
+  {
+    id: 'zenuml_rename_inventory', family: 'zenuml', input: ZENUML_INPUT,
+    prompt: promptTask('Rename participant Stock to Inventory using checked native mutation, verify and serialize.', 'Preserve the Customer alias, Buyer-to-API checkout call and nested inventory reservation.', ZENUML_INPUT),
+    script: `
+      const parsed = mermaid.parseRegisteredMermaid(${JSON.stringify(ZENUML_INPUT)})
+      if (!parsed.ok) return { error: 'parse' }
+      const diagram = mermaid.asZenUML(parsed.value)
+      if (!diagram) return { error: 'not-zenuml' }
+      const changed = mermaid.mutate(diagram, { kind: 'rename_participant', id: 'Stock', newId: 'Inventory' })
+      if (!changed.ok) return { error: changed.error }
+      const verified = mermaid.verifyMermaid(changed.value)
+      if (!verified.ok) return { error: 'verify', warnings: verified.warnings }
+      return { source: mermaid.serializeMermaid(changed.value) }
+    `,
+  },
+  {
+    id: 'eventmodeling_add_read_model', family: 'eventmodeling', input: EVENTMODELING_INPUT,
+    prompt: promptTask('Append reset frame 04, a Cart.Items read model with explicit input from frame 03. Use typed mutation, verify and serialize.', 'Keep every existing frame ID, type, entity and the complete description data.', EVENTMODELING_INPUT),
+    script: `
+      const parsed = mermaid.parseRegisteredMermaid(${JSON.stringify(EVENTMODELING_INPUT)})
+      if (!parsed.ok) return { error: 'parse' }
+      const body = mermaid.asEventModeling(parsed.value)
+      if (!body) return { error: 'not-eventmodeling' }
+      const changed = mermaid.mutate(body, { kind: 'insert_frame', frame: { id: '04', reset: true, type: 'readmodel', entity: 'Cart.Items', sources: ['03'] } })
+      if (!changed.ok) return { error: changed.error }
+      const verified = mermaid.verifyMermaid(changed.value)
+      if (!verified.ok) return { error: 'verify', warnings: verified.warnings }
+      return { source: mermaid.serializeMermaid(changed.value) }
+    `,
+  },
   {
     id: 'cache_between_api_and_db',
     family: 'flowchart',
@@ -567,42 +599,6 @@ export const DEFAULT_CASES: AgentUsageEvalCase[] = [
       return { source: mermaid.serializeMermaid(r1.value) }
     `,
   },
-  {
-    id: 'eventmodeling_add_item_event',
-    family: 'eventmodeling',
-    prompt: promptTask('Append event frame 3 for Shop.ItemAdded, with explicit source frame 2, using structured mutation, verify, then serialize.', 'Keep UI frame 1 for Shop.Cart and command frame 2 for Shop.AddItem, its explicit source 1 and sku: Book payload.', EVENT_MODEL_INPUT),
-    input: EVENT_MODEL_INPUT,
-    script: `
-      const parsed = mermaid.parseRegisteredMermaid(${JSON.stringify(EVENT_MODEL_INPUT)})
-      if (!parsed.ok) return { error: 'parse' }
-      const model = mermaid.asEventModeling(parsed.value)
-      if (!model) return { error: 'not-eventmodeling' }
-      const changed = mermaid.mutate(model, { kind: 'add_frame', id: '3', entityType: 'event', entity: 'Shop.ItemAdded', sources: ['2'] })
-      if (!changed.ok) return { error: changed.error }
-      const verify = mermaid.verifyMermaid(changed.value)
-      if (!verify.ok) return { error: 'verify', warnings: verify.warnings }
-      return { source: mermaid.serializeMermaid(changed.value) }
-    `,
-  },
-  {
-    id: 'zenuml_add_nested_reservation',
-    family: 'zenuml',
-    prompt: promptTask('Insert Inventory.reserve() before Payment.charge() inside Shop.checkout using structured mutation, verify, then serialize.', 'Keep the Client caller, Shop.checkout scope, Payment.charge() and final return receipt. Inventory is already declared; do not add a top-level call.', ZEN_UML_INPUT),
-    input: ZEN_UML_INPUT,
-    script: `
-      const parsed = mermaid.parseRegisteredMermaid(${JSON.stringify(ZEN_UML_INPUT)})
-      if (!parsed.ok) return { error: 'parse' }
-      const model = mermaid.asZenUml(parsed.value)
-      if (!model) return { error: 'not-zenuml' }
-      const call = model.body.statements.find(statement => statement.kind === 'message' && statement.to === 'Shop')
-      if (!call) return { error: 'missing-checkout' }
-      const changed = mermaid.mutate(model, { kind: 'add_call', to: 'Inventory', method: 'reserve()', parentId: call.id, index: 0 })
-      if (!changed.ok) return { error: changed.error }
-      const verify = mermaid.verifyMermaid(changed.value)
-      if (!verify.ok) return { error: 'verify', warnings: verify.warnings }
-      return { source: mermaid.serializeMermaid(changed.value) }
-    `,
-  },
 ]
 
 // Knowledge-proof cases: the correct output depends on facts only the
@@ -641,6 +637,8 @@ function authorCase(id: string, family: DiagramKind, task: string, context: stri
 }
 
 export const CREATE_CASES: AgentUsageEvalCase[] = [
+  authorCase('author_zenuml_source', 'zenuml', 'Create a ZenUML diagram, verify and return valid source.', 'Declare Buyer as Customer, API and Inventory. Buyer calls API.checkout(); inside that call API calls Inventory.reserve().', ZENUML_GOAL),
+  authorCase('author_eventmodeling_source', 'eventmodeling', 'Create an Event Modeling diagram from the context, verify and return valid Mermaid source.', 'Ordered frames: 01 UI Cart.UI; 02 command Cart.AddItem with inline description: string; 03 event Cart.ItemAdded; reset 04 read model Cart.Items explicitly referencing 03.', EVENTMODELING_GOAL),
   authorCase(
     'author_state_source',
     'state',
@@ -788,18 +786,6 @@ export const CREATE_CASES: AgentUsageEvalCase[] = [
     'A fishbone with effect Slow release; Process has Manual checks, and Tooling has Slow builds and Cold caches.',
     'ishikawa\nSlow release\nProcess\n  Manual checks\nTooling\n  Slow builds\n  Cold caches',
   ),
-  authorCase(
-    'author_eventmodeling_source', 'eventmodeling',
-    'Create a new Event Modeling diagram as source, parse it, verify it, then return the source.',
-    'A shopping flow: UI frame 1 Shop.Cart; command frame 2 Shop.AddItem with explicit source 1 and payload sku: Book; event frame 3 Shop.ItemAdded with explicit source 2.',
-    EVENT_MODEL_INPUT + '\ntf 3 evt Shop.ItemAdded ->> 2',
-  ),
-  authorCase(
-    'author_zenuml_source', 'zenuml',
-    'Create a new ZenUML diagram as source, parse it, verify it, then return the source.',
-    'Client calls Shop.checkout(); inside that call Shop invokes Inventory.reserve(), then Payment.charge(), then returns receipt to Client. All calls are synchronous.',
-    'zenuml\nInventory\nClient->Shop.checkout() {\n  Inventory.reserve()\n  Payment.charge()\n  return receipt\n}',
-  ),
 ]
 
 /** The live-model suite: exactly one create and one mutate case per family. */
@@ -884,6 +870,8 @@ export function requiresStructuredMutation(id: string): boolean {
 }
 
 const STRUCTURED_CASES = new Set([
+  'zenuml_rename_inventory',
+  'eventmodeling_add_read_model',
   'cache_between_api_and_db',
   'canonical_add_cache_messy',
   'stray_end_source_fallback',
@@ -909,8 +897,6 @@ const STRUCTURED_CASES = new Set([
   'block_rename_database',
   'treemap_update_design_value',
   'ishikawa_add_cache_cause',
-  'eventmodeling_add_item_event',
-  'zenuml_add_nested_reservation',
 ])
 
 type MutableFamily = Extract<SdkCall, { verb: 'narrow' }>['family']
@@ -1017,14 +1003,14 @@ function checkTrace(id: string, input: string | undefined, trace: SdkCall[]): bo
   if (id === 'radar_add_beta_curve') return checkMutationTrace(id, input, 'radar', trace) && hasMutationOps(trace, input, ['add_curve'])
   if (id === 'sankey_add_losses_flow') return checkMutationTrace(id, input, 'sankey', trace) && hasMutationOps(trace, input, ['add_link'])
   if (id === 'c4_add_cache_container') return checkMutationTrace(id, input, 'c4', trace) && hasMutationOps(trace, input, ['add_element', 'add_relationship'])
+  if (id === 'zenuml_rename_inventory') return checkMutationTrace(id, input, 'zenuml', trace) && hasMutationOps(trace, input, ['rename_participant'])
+  if (id === 'eventmodeling_add_read_model') return checkMutationTrace(id, input, 'eventmodeling', trace) && hasMutationOps(trace, input, ['insert_frame'])
   if (id === 'packet_add_checksum') return checkMutationTrace(id, input, 'packet', trace) && hasMutationOps(trace, input, ['add_field'])
   if (id === 'kanban_move_completed_task') return checkMutationTrace(id, input, 'kanban', trace) && hasMutationOps(trace, input, ['move_task'])
   if (id === 'requirement_rename_evidence') return checkMutationTrace(id, input, 'requirement', trace) && hasMutationOps(trace, input, ['rename_node', 'update_requirement'])
   if (id === 'block_rename_database') return checkMutationTrace(id, input, 'block', trace) && hasMutationOps(trace, input, ['rename_block'])
   if (id === 'treemap_update_design_value') return checkMutationTrace(id, input, 'treemap', trace) && hasMutationOps(trace, input, ['set_value'])
   if (id === 'ishikawa_add_cache_cause') return checkMutationTrace(id, input, 'ishikawa', trace) && hasMutationOps(trace, input, ['add_cause'])
-  if (id === 'eventmodeling_add_item_event') return checkMutationTrace(id, input, 'eventmodeling', trace) && hasMutationOps(trace, input, ['add_frame'])
-  if (id === 'zenuml_add_nested_reservation') return checkMutationTrace(id, input, 'zenuml', trace) && hasMutationOps(trace, input, ['add_call'])
   return false
 }
 
@@ -1122,6 +1108,10 @@ function narrow<T>(source: string, as: (d: ParsedDiagram) => T | null): T | null
 }
 const dequote = (s: string) => s.replace(/^"|"$/g, '')
 
+function eventModelingGoal(source: string): boolean {
+  const frames = narrow(source, asEventModeling)?.body.frames
+  return Boolean(frames && frames.length === 4 && frames.every((frame, index) => frame.id === ['01','02','03','04'][index] && frame.type === ['ui','command','event','readmodel'][index] && frame.entity === ['Cart.UI','Cart.AddItem','Cart.ItemAdded','Cart.Items'][index]) && frames[1]!.data?.text === ' description: string ' && frames[3]!.reset && isDeepStrictEqual(frames[3]!.sources, ['03']))
+}
 function packetGoal(source: string): boolean {
   const fields = narrow(source, asPacket)?.body.fields
   return Boolean(fields?.length === 3 && fields.every((field, i) => field.start === i * 8 && field.end === i * 8 + 7 && field.label === ['Version', 'Payload', 'Checksum'][i]))
@@ -1194,23 +1184,19 @@ function ishikawaGoal(source: string): boolean {
     tooling = nodes?.find(n => n.label === 'Tooling' && n.parentId === effect?.id)
   return Boolean(nodes?.length === 6 && effect && process && tooling && nodes.some(n => n.label === 'Manual checks' && n.parentId === process.id) && ['Slow builds', 'Cold caches'].every(label => nodes.some(n => n.label === label && n.parentId === tooling.id)))
 }
-function eventModelingGoal(source: string): boolean {
-  const body = narrow(source, asEventModeling)?.body
-  return Boolean(body?.frames.length === 3 && body.frames.every((frame, index) =>
-    frame.id === String(index + 1) && frame.entity === ['Shop.Cart', 'Shop.AddItem', 'Shop.ItemAdded'][index]
-    && frame.entityType === ['ui', 'command', 'event'][index] && !frame.reset
-    && frame.sources.join(',') === ['', '1', '2'][index])
-    && body.frames[1]?.data?.text.trim() === 'sku: Book')
-}
-function zenUmlGoal(source: string): boolean {
-  const body = narrow(source, asZenUml)?.body, call = body?.statements[0]
-  if (body?.statements.length !== 1 || call?.kind !== 'message' || call.from !== 'Client' || call.to !== 'Shop' || call.text !== 'checkout()' || call.mode !== 'sync' || call.children.length !== 3) return false
-  const [reserve, charge, reply] = call.children
-  return Boolean(reserve?.kind === 'message' && reserve.to === 'Inventory' && (reserve.from ?? 'Shop') === 'Shop' && reserve.text === 'reserve()' && reserve.mode === 'sync' && !reserve.children.length
-    && charge?.kind === 'message' && charge.to === 'Payment' && (charge.from ?? 'Shop') === 'Shop' && charge.text === 'charge()' && charge.mode === 'sync' && !charge.children.length
-    && reply?.kind === 'return' && reply.text === 'receipt')
+function zenUMLInventoryGoal(source: string): boolean {
+  const body = narrow(source, asZenUML)?.body
+  if (!body || body.participants.length !== 3 || body.statements.length !== 1) return false
+  const call = body.statements[0]
+  return body.participants.some(p => p.id === 'Buyer' && p.label === 'Customer') &&
+    body.participants.some(p => p.id === 'API') && body.participants.some(p => p.id === 'Inventory') &&
+    call?.kind === 'call' && call.from === 'Buyer' && call.to === 'API' && call.label === 'checkout()' &&
+    call.children.length === 1 && call.children[0]?.kind === 'call' &&
+    call.children[0].to === 'Inventory' && call.children[0].label === 'reserve()'
 }
 const CREATE_ORACLES: Record<string, (source: string) => boolean> = {
+  author_zenuml_source: zenUMLInventoryGoal,
+  author_eventmodeling_source: eventModelingGoal,
   author_state_source: s => {
     const t = new Set(narrow(s, asState)?.body.transitions.map(x => `${x.from}->${x.to}`))
     return ['Red->Green', 'Green->Yellow', 'Yellow->Red'].every(e => t.has(e))
@@ -1285,8 +1271,6 @@ const CREATE_ORACLES: Record<string, (source: string) => boolean> = {
   author_block_source: blockGoal,
   author_treemap_source: treemapGoal,
   author_ishikawa_source: ishikawaGoal,
-  author_eventmodeling_source: eventModelingGoal,
-  author_zenuml_source: zenUmlGoal,
 }
 
 function checkTask(id: string, input: string | undefined, value: unknown, trace: SdkCall[], sourceOnly = false): boolean {
@@ -1297,9 +1281,13 @@ function checkTask(id: string, input: string | undefined, value: unknown, trace:
   }
   if (id === 'author_auth_flow_source') return checkAuthFlowSourceTask(value)
   if (id === 'author_api_sequence_source') return checkApiSequenceSourceTask(value)
-  if (id === 'eventmodeling_add_item_event' || id === 'zenuml_add_nested_reservation') {
+  if (id === 'zenuml_rename_inventory') {
     const source = serializedSource(value, trace)
-    return Boolean(source && (id === 'eventmodeling_add_item_event' ? eventModelingGoal(source) : zenUmlGoal(source)))
+    return Boolean(source && zenUMLInventoryGoal(source))
+  }
+  if (id === 'eventmodeling_add_read_model') {
+    const source = serializedSource(value, trace)
+    return Boolean(source && eventModelingGoal(source))
   }
   if (id === 'packet_add_checksum') {
     const source = serializedSource(value, trace)

@@ -2,11 +2,6 @@
 
 This opt-in evaluation uses an independently installed Mermaid **12 or newer** as a parser/DB reference. It borrows Pele's combination of upstream documentation/spec corpora and seeded mutation testing. It does not compare layout or pixels against Mermaid.
 
-The source census includes documented core diagrams and first-party external
-families. ZenUML's syntax page and its real `packages/mermaid-zenuml/src` suites
-participate; it is identified separately from the core-family count. Missing
-reviewed package roots fail discovery rather than becoming empty corpora.
-
 The label census observes the current upstream docs, retained official fences,
 legacy docs corpus, imported upstream benchmark and every registered family
 example. Its expectations come from the independent reference's actual DB
@@ -83,7 +78,7 @@ The assessment distinguishes these observations and comparisons:
   native parser's own units, not invented Mermaid terminals or `yy` calls.
   Every observed native attempt is repeated without hooks; acceptance, error
   and complete native model must remain equal or the assessment fails.
-- **Selected native semantics:** independent adapters for every enrolled native family
+- **Selected native semantics:** independent adapters for all 17 families
   compare declared semantic fields in actual native models against actual
   reference getters, builder calls or AST. They retain ordered values and
   parent relationships, normalize documented defaults and generated identities,
@@ -108,21 +103,6 @@ The assessment distinguishes these observations and comparisons:
   drops the `RelIndex` index and upserts repeated endpoint pairs in its getters;
   Agentic retains independent interactions. Ordered calls can therefore agree
   while the selected result models differ, as the reviewed repeated-pair case asserts.
-  Event Modeling expands actual `setAst` frame operands; its result and label
-  projections read the actual Langium AST. Its `getState()` requires browser
-  geometry, so a Node/jsdom `getBBox` error remains recorded rather than being
-  replaced with fake measurement. The declared operation scope includes frame
-  identities, explicit references, reset and inline payloads; named data, notes,
-  specifications and inferred layout relations remain outside that scope.
-  ZenUML registers the pinned Mermaid addon, but its no-op parser cannot prove
-  acceptance. The reference also installs the exact addon and engine versions
-  from the pinned source/lockfile (1.0.1 and 3.49.2). It runs the real engine's
-  ANTLR grammar, observes completed statement-rule commits before `exitRule`
-  releases each context, and separately reads the engine's participant/message
-  model. These selected calls/explicit returns retain order and endpoints;
-  grammar-token equivalence, region writes, annotations and generated assignment
-  replies remain outside the operation projection. Private observation seams
-  are version-checked and refuse an unreviewed package build.
 - **Grammar round trip:** compares reference tokens, ordered model calls or
   AST, and stable model values for the original source against the reference
   parsing Agentic's structured serialization. Exact token/action differences

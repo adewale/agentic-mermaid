@@ -23,6 +23,13 @@ Flowchart essentials: quote any label carrying punctuation (`id["HTTPS /api/sess
 
 ## Step 3 — Do the task (the one safe loop)
 
+<!-- BEGIN GENERATED: family-narrowing -->
+Narrowing selects a structured, typed family with an as* helper. It does not select one element or freeze layout coordinates.
+<!-- END GENERATED: family-narrowing -->
+
+For drawing APIs, use the [library vocabulary](/docs/api/#vocabulary): source
+objects, Scene parts and resolved primitives describe different layers.
+
 - **For a new diagram, author Mermaid source directly** from the Context — or build it with `buildMermaid(kind, ops)` — then parse it. No mutation ceremony. Match the family to the request and open with that family's own header keyword (from `capabilities.json` `families[].headers`, e.g. `architecture-beta`, `classDiagram`, `stateDiagram-v2`) — do not default to `flowchart`/`graph`. For the family's exact edge/relationship syntax, read its `example` in `capabilities.json` (only flowchart's is spelled out below); e.g. class inheritance is `Base <|-- Derived`, ER cardinality is `A ||--o{ B : label`, architecture edges are `api:R --> L:db`.
 - **For an existing diagram, parse it,** narrow with the matching `as*` helper (`asFlowchart`, `asSequence`, `asGantt`, …), and prefer the smallest `mutate(...)` operation over rewriting source. Inside `execute`, call `mutate(...)` once per op on the parsed diagram — do not hand-assemble a new source string, even for a trivial-looking edit. State diagrams narrow via `asState` (not `asFlowchart`). Mutation ops use a `kind` discriminator (for example `{ kind: "add_edge", from, to, label }`). An op array handed to `mutate` is rejected. Library callers can batch with `applyOps({ source, ops })`; hosted MCP callers can use the declarative `mutate` tool. Code Mode intentionally exposes neither of those batch wrappers, so repeat `mermaid.mutate(d, op)` there.
 - If no typed operation fits, make the smallest source-level edit and say `source-level fallback`.

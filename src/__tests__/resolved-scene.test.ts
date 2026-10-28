@@ -9,42 +9,38 @@ import raynerGroups from './testdata/rayner-528/architecture-groups.json'
 import { createScenePartCapture } from '../scene/part-capture.ts'
 
 describe('renderResolvedScene', () => {
-  test.each([
-    {
-      family: 'eventmodeling',
-      source: 'eventmodeling\nrf 01 ui Cart.UI\nrf 02 cmd Cart.Add { productId: 7 }\nrf 03 evt Cart.Added ->> 02',
-      edges: [['02', '03']],
-      words: ['productId: 7', 'Added'],
-    },
-    {
-      family: 'zenuml',
-      source: 'zenuml\nClient->API.checkout() {\n Inventory.reserve() { return reservation }\n return receipt\n}',
-      edges: [['Client', 'API'], ['API', 'Inventory'], ['Inventory', 'API'], ['API', 'Client']],
-      words: ['checkout()', 'reserve()', 'reservation', 'receipt'],
-    },
-  ])('resolves actual $family artwork while retaining authored endpoint and text ownership', ({ source, edges, words }) => {
-    const parsed = parseRegisteredMermaid(source)
-    expect(parsed.ok).toBe(true)
-    if (!parsed.ok) throw new Error('Expected a native diagram')
-    for (const style of [undefined, 'hand-drawn']) {
-      const options = { ...(style ? { style } : {}), seed: 7 }
-      const resolved = renderResolvedScene(source, options)
-      expect(resolved.svg).toBe(renderMermaidSVG(source, options))
-      expect(renderResolvedScene(parsed.value, options)).toEqual(resolved)
-      expect(resolved).toEqual(JSON.parse(JSON.stringify(resolved)))
-      const nodes = resolved.parts.flatMap(part => part.node.kind === 'group' ? part.node.children.map(child => child.node) : [part.node])
-      expect(nodes.filter(node => node.kind === 'connector' && node.endpoints?.from).map(node => node.kind === 'connector' && [node.endpoints?.from, node.endpoints?.to])).toEqual(edges.map(edge => [...edge]))
-      const visible = resolved.parts.flatMap(part => part.primitives).filter(primitive => primitive.kind === 'text').map(primitive => primitive.text).join('\n')
-      for (const word of words) expect(visible).toContain(word)
-      expect(resolved.parts.some(part => part.primitives.some(primitive => primitive.kind === 'path' && primitive.marker))).toBe(true)
-    }
-  })
-
   test.each([...raynerTitles, ...raynerGroups])('keeps original Rayner $id as a resolved-scene acceptance case', ({ source, style }) => {
     const result = renderResolvedScene(source, { style })
     expect(result.svg).toBe(renderMermaidSVG(source, { style }))
     expect(result.parts.flatMap(part => part.primitives).length).toBeGreaterThan(0)
     expect(result).toEqual(JSON.parse(JSON.stringify(result)))
+  })
+
+  test.each([
+    { family: 'class', source: 'classDiagram\nclass A\nclass B\nA <|-- B : inherits\nclassDef default fill:#ffeecc,stroke:#112233,stroke-width:3px,stroke-dasharray:7 3\nclassDef accent fill:#bbf,stroke:#f66,stroke-width:2px\nclass B accent\nstyle B stroke-dasharray:5 5,color:#fff', a: 'class:A', b: 'class:B', relationship: 'rel:A->B#0' },
+    { family: 'er', source: 'erDiagram\nA ||--o{ B : links\nclassDef default fill:#ffeecc,stroke:#112233,stroke-width:3px,stroke-dasharray:7 3\nclassDef accent fill:#bbf,stroke:#f66,stroke-width:2px\nclass B accent\nstyle B stroke-dasharray:5 5,color:#fff', a: 'entity:A', b: 'entity:B', relationship: 'rel:A-B#0' },
+  ])('keeps $family authored paint and dashes identical to public SVG', ({ source, a, b, relationship }) => {
+    for (const backend of ['agentic', 'elk'] as const) {
+      const options = { graphLayout: { backend, fallback: 'none' as const }, bg: '#ffffff', fg: '#102030', seed: 7, compact: true, idPrefix: 'resolved-paint-', font: 'Inter' }
+      const result = renderResolvedScene(source, options)
+      expect(result.svg).toBe(renderMermaidSVG(source, options))
+      expect(result.colors).toMatchObject({ bg: '#ffffff', fg: '#102030' })
+      const first = result.parts.find(part => part.id === a)!, second = result.parts.find(part => part.id === b)!
+      expect(first.node.kind).toBe('group')
+      expect(second.node.kind).toBe('group')
+      if (first.node.kind !== 'group' || second.node.kind !== 'group') throw new Error('Expected owned entity groups')
+      const firstBox = first.node.children.find(child => child.node.kind === 'shape' && child.node.geometry.kind === 'rect')?.node
+      const secondBox = second.node.children.find(child => child.node.kind === 'shape' && child.node.geometry.kind === 'rect')?.node
+      if (firstBox?.kind !== 'shape' || secondBox?.kind !== 'shape') throw new Error('Expected retained body rectangles')
+      expect(firstBox.paint).toMatchObject({ fill: '#ffeecc', stroke: '#112233', strokeWidth: '3', strokeDasharray: '7 3' })
+      expect(secondBox.paint).toMatchObject({ fill: '#bbf', stroke: '#f66', strokeWidth: '2', strokeDasharray: '5 5' })
+      expect(first.primitives.find(primitive => primitive.kind === 'path')?.paint).toMatchObject({ fill: '#ffeecc', stroke: '#112233', strokeWidth: 3, dashArray: [7, 3] })
+      expect(second.primitives.find(primitive => primitive.kind === 'path')?.paint).toMatchObject({ fill: '#bbbbff', stroke: '#ff6666', strokeWidth: 2, dashArray: [5, 5] })
+      expect(second.primitives).toContainEqual(expect.objectContaining({ kind: 'text', text: 'B', paint: expect.objectContaining({ fill: '#ffffff' }) }))
+      const edge = result.parts.find(part => part.id === relationship)!
+      expect(edge.node.kind === 'connector' && edge.node.endpoints).toMatchObject({ from: 'A', to: 'B' })
+      expect(result).toEqual(JSON.parse(JSON.stringify(result)))
+    }
   })
 
   test('preserves parallel and reciprocal connector identities beside nested Unicode labels', () => {

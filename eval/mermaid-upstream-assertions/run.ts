@@ -1,10 +1,9 @@
 import { mkdirSync, readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs'
-import { resolve, join, dirname, relative } from 'node:path'
+import { resolve, join, dirname } from 'node:path'
 import { createRequire } from 'node:module'
 import { spawnSync } from 'node:child_process'
 import { upstreamSpecFiles } from './inventory.ts'
 import { assertionReport, reportMarkdown } from './report.ts'
-import { upstreamFamilySourceDirectory } from '../shared/upstream-family-sources.ts'
 
 const root = resolve(import.meta.dirname, '../..')
 const args = process.argv.slice(2)
@@ -26,9 +25,7 @@ const dirty = spawnSync('git', ['status', '--porcelain', '--untracked-files=no']
 if (dirty.status !== 0 || dirty.stdout.trim()) throw new Error('Upstream tracked source must be clean: original assertions must remain unchanged')
 const referenceRequire = createRequire(join(reference, 'package.json'))
 const versions: Record<string, string> = {}
-const zenCoreVersion = readFileSync(join(upstream, 'pnpm-lock.yaml'), 'utf8').match(/  packages\/mermaid-zenuml:\n[\s\S]*?'@zenuml\/core':\n\s+specifier:[^\n]*\n\s+version: ([\d.]+)/)?.[1]
-if (!zenCoreVersion) throw new Error('Missing pinned ZenUML engine version in the upstream lockfile')
-for (const [name, expected] of [['mermaid', policy.pin.version], ['@mermaid-js/parser', JSON.parse(readFileSync(join(upstream, 'packages/parser/package.json'), 'utf8')).version], ['jsdom', '26.1.0'], ['@mermaid-js/mermaid-zenuml', JSON.parse(readFileSync(join(upstream, 'packages/mermaid-zenuml/package.json'), 'utf8')).version], ['@zenuml/core', zenCoreVersion]]) {
+for (const [name, expected] of [['mermaid', policy.pin.version], ['@mermaid-js/parser', JSON.parse(readFileSync(join(upstream, 'packages/parser/package.json'), 'utf8')).version], ['jsdom', '26.1.0']]) {
   const manifest = referenceRequire.resolve.paths(name)?.map(directory => join(directory, name, 'package.json')).find(existsSync)
   if (!manifest) throw new Error(`Missing independent reference dependency ${name}`)
   versions[name] = JSON.parse(readFileSync(manifest, 'utf8')).version
@@ -56,7 +53,7 @@ for (const mode of ['reference', 'candidate']) {
 const report = assertionReport(upstream, specs, join(out, 'candidate-vitest.json'), join(out, 'reference-vitest.json'), join(out, 'candidate-audit.jsonl'), join(out, 'reference-audit.jsonl'))
 const candidateHead = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).stdout.trim()
 const candidateStatus = spawnSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).stdout
-const result = { pin: policy.pin, versions, sourceRoots: Object.fromEntries(families.map(family => [family, relative(upstream, upstreamFamilySourceDirectory(upstream, family))])), candidate: { baseCommit: candidateHead, workingTreeModified: Boolean(candidateStatus.trim()), nativeEntry: process.env.AM_ASSERT_NATIVE_ENTRY ?? 'working tree' }, nodeVersion: spawnSync('node', ['--version'], { encoding: 'utf8' }).stdout.trim(), generatedAt: new Date().toISOString(), ...report }
+const result = { pin: policy.pin, versions, candidate: { baseCommit: candidateHead, workingTreeModified: Boolean(candidateStatus.trim()), nativeEntry: process.env.AM_ASSERT_NATIVE_ENTRY ?? 'working tree' }, nodeVersion: spawnSync('node', ['--version'], { encoding: 'utf8' }).stdout.trim(), generatedAt: new Date().toISOString(), ...report }
 writeFileSync(join(out, 'report.json'), JSON.stringify(result, null, 2) + '\n')
 writeFileSync(join(out, 'report.md'), reportMarkdown(report))
 console.log(JSON.stringify({ report: join(out, 'report.json'), ...report.totals }, null, 2))

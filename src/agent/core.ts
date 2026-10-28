@@ -635,5 +635,7 @@ export type { IshikawaBody, IshikawaMutationOp, IshikawaValidDiagram } from './t
 export { asBlock } from './types.ts'
 export type { BlockBody, BlockMutationOp, BlockValidDiagram } from './types.ts'
 
-export { asEventModeling, asZenUml } from './types.ts'
-export type { EventModelingBody, EventModelingMutationOp, EventModelingValidDiagram, ZenUmlBody, ZenUmlMutationOp, ZenUmlValidDiagram } from './types.ts'
+export { asZenUML } from './types.ts'
+export type { ZenUMLBody, ZenUMLMutationOp, ZenUMLValidDiagram, ZenUMLParticipant, ZenUMLStatement, ZenUMLBranch } from './types.ts'
+export { asEventModeling } from './types.ts'
+export type { EventModelingBody, EventModelingMutationOp, EventModelingValidDiagram, EventFrame, EventFrameType, EventData, EventSpecification } from './types.ts'

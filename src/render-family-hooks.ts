@@ -1,8 +1,7 @@
-import { EVENTMODELING_SVG_HOOKS } from './svg-family-hooks/eventmodeling.ts'
 import { ZENUML_SVG_HOOKS } from './svg-family-hooks/zenuml.ts'
+import { renderZenUMLTerminal } from './ascii/zenuml.ts'
+import { EVENTMODELING_SVG_HOOKS } from './svg-family-hooks/eventmodeling.ts'
 import { renderEventModelingTerminal } from './ascii/eventmodeling.ts'
-import { parseZenUml } from './zenuml/parser.ts'
-import { projectZenUmlSequence } from './zenuml/projection.ts'
 import { PACKET_SVG_HOOKS } from './svg-family-hooks/packet.ts'
 import { preservedMermaidFamilyText } from './mermaid-source.ts'
 import { renderPacketTerminal } from './ascii/packet.ts'
@@ -76,6 +75,10 @@ import { STATE_SVG_HOOKS } from './svg-family-hooks/state.ts'
 import { TIMELINE_SVG_HOOKS } from './svg-family-hooks/timeline.ts'
 import { XYCHART_SVG_HOOKS } from './svg-family-hooks/xychart.ts'
 
+export const ZENUML_RENDER_HOOKS = { ...ZENUML_SVG_HOOKS, renderAscii: nativeTerminalRenderer(ctx => renderZenUMLTerminal(ctx.source.authoredFamilyBody ?? ctx.source.familyBody, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth)) }
+
+export const EVENTMODELING_RENDER_HOOKS = { ...EVENTMODELING_SVG_HOOKS, renderAscii: nativeTerminalRenderer(ctx => renderEventModelingTerminal(ctx.source.authoredFamilyBody ?? ctx.source.familyBody, ctx.config, ctx.colorMode, ctx.theme)) }
+
 type BuiltinRenderHooks = Pick<FamilyDescriptor, 'normalizeRequest' | 'layout' | 'projectPositioned' | 'renderAscii' | 'lowerScene'>
 
 function renderFlowchartTerminal(ctx: AsciiContext, model = terminalInputModel(ctx.source.originalText, ctx.source.familyBody)): TerminalArtifact {
@@ -118,7 +121,7 @@ function renderArchitectureTerminalWithContext(ctx: AsciiContext): TerminalArtif
   // precedence (explicit RenderOptions > source config > defaults) and the
   // terminal projector has sanitized it. Re-reading raw themeVariables here
   // created a second, unsafe color authority unique to Architecture.
-  return renderArchitectureTerminal(architectureSourceLines(ctx.source), ctx.config, ctx.colorMode, ctx.theme, ctx.options)
+  return renderArchitectureTerminal(architectureSourceLines(ctx.source), ctx.config, ctx.colorMode, ctx.theme, { ...ctx.options, graphLayout: ctx.renderOptions.graphLayout })
 }
 
 export const FLOWCHART_RENDER_HOOKS = {
@@ -146,10 +149,7 @@ export const SEQUENCE_RENDER_HOOKS = {
 
 export const CLASS_RENDER_HOOKS = {
   ...CLASS_SVG_HOOKS,
-  renderAscii: /* @__PURE__ */ nativeTerminalRenderer(ctx => renderClassTerminal(
-    ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth,
-    (ctx.source.authoredFamilyLines ?? ctx.source.familyLines).join('\n'),
-  )),
+  renderAscii: /* @__PURE__ */ nativeTerminalRenderer(ctx => renderClassTerminal(ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth, (ctx.source.authoredFamilyLines ?? ctx.source.familyLines).join('\n'))),
 } satisfies BuiltinRenderHooks
 
 export const ER_RENDER_HOOKS = {
@@ -251,7 +251,6 @@ export const C4_RENDER_HOOKS = {
   }),
 } satisfies BuiltinRenderHooks
 
-
 export const PACKET_RENDER_HOOKS = /* @__PURE__ */ { ...PACKET_SVG_HOOKS, renderAscii: /* @__PURE__ */ nativeTerminalRenderer(ctx => renderPacketTerminal(ctx)) }
 
 export const KANBAN_RENDER_HOOKS = /* @__PURE__ */ { ...KANBAN_SVG_HOOKS, renderAscii: /* @__PURE__ */ nativeTerminalRenderer(ctx => renderKanbanTerminal(ctx)) }
@@ -264,12 +263,7 @@ export const ISHIKAWA_RENDER_HOOKS = /* @__PURE__ */ { ...ISHIKAWA_SVG_HOOKS, re
 
 export const BLOCK_RENDER_HOOKS = /* @__PURE__ */ { ...BLOCK_SVG_HOOKS, renderAscii: /* @__PURE__ */ nativeTerminalRenderer(ctx => renderBlockTerminal(ctx.source.familyBody, ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, ctx.options.targetWidth)) }
 
-export const EVENTMODELING_RENDER_HOOKS = /* @__PURE__ */ { ...EVENTMODELING_SVG_HOOKS, renderAscii: /* @__PURE__ */ nativeTerminalRenderer(renderEventModelingTerminal) }
-export const ZENUML_RENDER_HOOKS = /* @__PURE__ */ { ...ZENUML_SVG_HOOKS, renderAscii: /* @__PURE__ */ nativeTerminalRenderer(ctx => renderSequenceTerminal('', ctx.config, ctx.colorMode, ctx.theme, (ctx.familyConfig?.sequence as ReturnType<typeof resolveSequenceConfig>) ?? {}, ctx.options.targetWidth, undefined, projectZenUmlSequence(parseZenUml(ctx.source.authoredFamilyBody ?? ctx.source.familyBody)))) }
-
 export const BUILTIN_RENDER_HOOKS = /* @__PURE__ */ Object.freeze({
-  eventmodeling: EVENTMODELING_RENDER_HOOKS,
-  zenuml: ZENUML_RENDER_HOOKS,
   flowchart: FLOWCHART_RENDER_HOOKS,
   state: STATE_RENDER_HOOKS,
   sequence: SEQUENCE_RENDER_HOOKS,
@@ -294,4 +288,6 @@ export const BUILTIN_RENDER_HOOKS = /* @__PURE__ */ Object.freeze({
   gantt: GANTT_RENDER_HOOKS,
   mindmap: MINDMAP_RENDER_HOOKS,
   gitgraph: GITGRAPH_RENDER_HOOKS,
+  zenuml: ZENUML_RENDER_HOOKS,
+  eventmodeling: EVENTMODELING_RENDER_HOOKS,
 }) satisfies Readonly<Record<DiagramKind, BuiltinRenderHooks>>

@@ -8,12 +8,12 @@ import { executeInSandbox } from '../mcp/sandbox.ts'
 
 const CASES = [
   {
-    source: '---\ntitle: Preserved Venn model\n---\n%%{init: {"theme":"base"}}%%\n%% keep me\nvenn-beta\n  opaque { bytes }\n',
+    source: '---\ntitle: Preserved Swimlane\n---\n%%{init: {"theme":"base"}}%%\n%% keep me\nswimlane-beta\n  opaque { bytes }\n',
     code: 'UNSUPPORTED_FAMILY',
     classification: 'unsupported',
     representation: 'opaque',
-    header: 'venn-beta',
-    family: 'venn',
+    header: 'swimlane-beta',
+    family: 'swimlane',
   },
   {
     source: '\uFEFF\n%% untouched\nfutureDiagram-v99\n  opaque { bytes }\n',
@@ -117,9 +117,9 @@ describe('forward-compatible unregistered family envelopes', () => {
         code: 'UNKNOWN_HEADER',
       },
       {
-        source: 've&#110;n-beta\n  opaque { bytes }\n',
-        authoredHeader: 've&#110;n-beta',
-        semanticHeader: 'venn-beta',
+        source: 'swimlane&#45;beta\n  opaque { bytes }\n',
+        authoredHeader: 'swimlane&#45;beta',
+        semanticHeader: 'swimlane-beta',
         code: 'UNSUPPORTED_FAMILY',
       },
     ] as const
@@ -157,6 +157,14 @@ describe('forward-compatible unregistered family envelopes', () => {
         assertDiagnostic(error)
       }
     }
+  })
+
+  test('documented Event Modeling has native identities and public output support', () => {
+    const source = 'eventmodeling\ntf 01 ui CartUI\ntf 02 cmd AddItem\ntf 03 evt ItemAdded'
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed).toMatchObject({ ok: true, value: { kind: 'eventmodeling', body: { kind: 'eventmodeling', frames: [{ id: '01', entity: 'CartUI' }, { id: '02', entity: 'AddItem' }, { id: '03', entity: 'ItemAdded' }] } } })
+    expect(renderMermaidSVG(source)).toContain('ItemAdded')
+    expect(renderMermaidASCII(source)).toContain('AddItem')
   })
 
   test('entity-encoded registered headers have parse, render, terminal, and layout parity', () => {

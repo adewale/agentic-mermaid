@@ -26,7 +26,7 @@ import { HOSTED_MCP_SERVER_NAME, HOSTED_TOOLS, SUPPORTED_PROTOCOL_VERSIONS } fro
 import { MCP_SERVER_VERSION } from '../src/mcp/tool-surface.ts'
 import { resolveBuildGitSha } from './build-provenance.ts'
 import { AI_CATALOG_RESOURCES } from './agent-resource-inventory.ts'
-import { CLEAN_PAGE_ROUTES, DYNAMIC_CLEAN_REDIRECT_LINES, staticRedirectLines } from './src/site-routes.ts'
+import { CLEAN_PAGE_ROUTES, DYNAMIC_CLEAN_REDIRECT_LINES, markdownAlternative, staticRedirectLines } from './src/site-routes.ts'
 import { HOMEPAGE_AGENT_POINTER } from '../eval/agent-usage/homepage-prompt.ts'
 import { EDITOR_EXAMPLES } from '../editor/examples.ts'
 import { samples as RICH_EXAMPLES } from '../scripts/site/samples-data.ts'
@@ -101,15 +101,19 @@ function rewriteUrl(value: string): string {
   return value
 }
 
-const agentDiscoveryLinks = [
-  '<link rel="alternate" type="text/markdown" href="/index.md">',
-  '<link rel="alternate" type="text/plain" href="/llms.txt">',
-  '<link rel="alternate" type="application/json" href="/capabilities.json">',
-  '<link rel="alternate" type="text/markdown" href="/agent-instructions.md">',
-  '<link rel="alternate" type="application/json" href="/.well-known/mcp.json">',
+const relatedAgentLinks = [
+  '<link rel="describedby" type="text/plain" href="/llms.txt">',
+  '<link rel="describedby" type="application/json" href="/capabilities.json">',
+  '<link rel="describedby" type="text/markdown" href="/agent-instructions.md">',
+  '<link rel="service-desc" type="application/json" href="/.well-known/mcp.json">',
   '<link rel="mcp-server" type="application/mcp-server-card+json" href="/.well-known/mcp/server-card.json">',
   '<link rel="ai-catalog" type="application/json" href="/.well-known/ai-catalog.json">',
 ].join('\n')
+
+function agentDiscoveryLinks(route: string): string {
+  const markdownPath = markdownAlternative(route)
+  return (markdownPath ? `<link rel="alternate" type="text/markdown" href="${markdownPath}">\n` : '') + relatedAgentLinks
+}
 
 function addHeadDescription(html: string) {
   if (html.includes('name="description"')) return html
@@ -118,12 +122,13 @@ function addHeadDescription(html: string) {
   return html.replace(/<meta name="viewport"[^>]*>/, '$&\n<meta name="description" content="Agentic Mermaid renders, verifies, and edits Mermaid diagrams locally, with compact agent instructions for CLI, library, and MCP use.">')
 }
 
-function addAgentDiscoveryLinks(html: string) {
-  if (html.includes('rel="alternate" type="application/json" href="/capabilities.json"')) return html
+function addAgentDiscoveryLinks(html: string, route: string) {
+  if (html.includes('rel="describedby" type="application/json" href="/capabilities.json"')) return html
+  const links = agentDiscoveryLinks(route)
   if (/<link rel="stylesheet" href="([^\"]+)"\s*>/.test(html)) {
-    return html.replace(/<link rel="stylesheet" href="([^\"]+)"\s*>/, '<link rel="stylesheet" href="$1">\n' + agentDiscoveryLinks)
+    return html.replace(/<link rel="stylesheet" href="([^\"]+)"\s*>/, '<link rel="stylesheet" href="$1">\n' + links)
   }
-  return html.replace('</head>', agentDiscoveryLinks + '\n</head>')
+  return html.replace('</head>', links + '\n</head>')
 }
 
 function addSkipLink(html: string, target = 'main') {
@@ -163,7 +168,7 @@ function setNavCurrent(html: string, currentHref = '') {
 }
 
 function transformHtml(html: string, currentHref = '', route = ''): string {
-  const transformed = setNavCurrent(ensureMainId(addSkipLink(addFooter(addAgentDiscoveryLinks(addStructuredData(addSocialMeta(addHeadDescription(rewriteAttrs(html)), route), route))))), currentHref)
+  const transformed = setNavCurrent(ensureMainId(addSkipLink(addFooter(addAgentDiscoveryLinks(addStructuredData(addSocialMeta(addHeadDescription(rewriteAttrs(html)), route), route), route)))), currentHref)
   return makePreFocusable(transformed)
 }
 
@@ -177,7 +182,7 @@ function transformEditorHtml(html: string): string {
   out = out.replace(/href="\/beautiful-mermaid\/"/g, 'href="/"')
   out = addHeadDescription(out)
   out = addSocialMeta(out, '/editor/')
-  out = addAgentDiscoveryLinks(out)
+  out = addAgentDiscoveryLinks(out, EDITOR_ROUTE)
   out = addSkipLink(out, 'editor-main')
   return out
 }
@@ -315,10 +320,6 @@ async function externalizeExecutableInlineScripts(html: string) {
 
 async function emitShell(rel: string, title: string, lead: string, body: string, currentHref = '', meta = '', actions = '') {
   let html = pageShell(title, lead, body, currentHref, meta, actions, '/' + rel.replace(/index\.html$/, ''))
-  if (rel === 'docs/api/index.html' || rel === 'docs/api/advanced/index.html') {
-    const markdownPath = '/' + rel.replace(/index\.html$/, 'index.md')
-    html = html.replace('<link rel="alternate" type="text/markdown" href="/index.md">', `<link rel="alternate" type="text/markdown" href="${markdownPath}">`)
-  }
   if (rel === 'examples/index.html' || rel.startsWith('examples/style-palette/') || rel.startsWith('examples/corpus/')) {
     html = html.replace('</head>', `<link rel="stylesheet" href="/${EXAMPLES_STYLE_REL}">\n</head>`)
   }
@@ -447,9 +448,9 @@ function renderRichExampleSvg(sample: any, id: string, request = richExampleRend
 // Examples page carries the agentic narrative — prompt, trace, render, deep
 // link — rather than a bare source dump. Keyed by family id.
 const FAMILY_AGENT_TASK: Record<BuiltinFamilyId, { prompt: string; trace: string }> = {
-  eventmodeling: { prompt: 'Change a command entity while retaining frame identity, namespace and explicit sources.', trace: 'asEventModeling · mutate(set_frame_entity) · verify · serialize' },
-  zenuml: { prompt: 'Rename a participant without redirecting nested calls or returns.', trace: 'asZenUml · mutate(rename_participant) · verify · serialize' },
   flowchart: { prompt: 'Add a labeled failure branch and verify that every decision exit is named.', trace: 'asFlowchart · mutate(add_edge/set_label) · verify' },
+  zenuml: { prompt: 'Model nested checkout calls with a stock decision and explicit replies.', trace: 'asZenUML · mutate(rename_participant/insert_statement) · verify' },
+  eventmodeling: { prompt: 'Insert an event frame and keep explicit source references attached to their authored IDs.', trace: 'asEventModeling · mutate(insert_frame/set_frame) · verify' },
   state: { prompt: 'Add a retry transition from Failed back to Idle, then verify before returning source.', trace: 'asState · mutate(add_transition) · verify' },
   sequence: { prompt: 'Insert the verification call before export and keep participant order stable.', trace: 'asSequence · mutate(add_message) · verify' },
   timeline: { prompt: 'Add a Review period with one approval event without rewriting other periods.', trace: 'asTimeline · mutate(add_period) · verify' },
@@ -491,9 +492,9 @@ function exampleFamilyDescription(familyId: string, fallback: string) {
 }
 
 const STYLE_THEME_PAIR_BY_FAMILY: Record<BuiltinFamilyId, { look: string; theme: string; seed: number }> = {
-  eventmodeling: { look: 'ops-schematic', theme: 'github-light', seed: 0 },
-  zenuml: { look: 'publication-figure', theme: 'github-light', seed: 0 },
   flowchart: { look: 'watercolor', theme: 'paper', seed: 4 },
+  zenuml: { look: 'hand-drawn', theme: 'dracula', seed: 17 },
+  eventmodeling: { look: 'publication-figure', theme: 'github-light', seed: 0 },
   state: { look: 'chalkboard', theme: 'dusk', seed: 2 },
   architecture: { look: 'blueprint', theme: 'nord', seed: 1 },
   sequence: { look: 'publication-figure', theme: 'github-light', seed: 0 },

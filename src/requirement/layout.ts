@@ -1,5 +1,8 @@
 import type { ElkExtendedEdge, ElkNode } from 'elkjs'
 import { elkLayoutSync } from '../elk-instance.ts'
+import { layoutAgenticGraph, type AgenticLayout } from '../layout/agentic-layered.ts'
+import { runMeasuredGraphBackend } from '../layout/backend.ts'
+import { measureRenderStage } from '../render-stages.ts'
 import { resolveRoleStyle } from '../scene/roles.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { assertRequirementDiagramWork } from '../shared/diagram-limits.ts'
@@ -63,45 +66,64 @@ export function layoutRequirementDiagram(model: RequirementBody, options: Render
       width = Math.max(minWidth, header.width + insetX * 2, measured.width + insetX * 2)
     return { id: record.name, requirement, element, x: 0, y: 0, width, height, header, rows, paddingX: insetX, headerHeight, style: props }
   })
-  const byId = new Map(nodes.map(n => [n.id, n])),
-    idMap = new Map(nodes.map((n, i) => [n.id, `n${i}`]))
+  const indices = new Map(nodes.map((node, index) => [node.id, index]))
   const labels = model.relations.map(e => preparePixelText(`<<${e.type}>>`, { fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, transform: style.edgeTextTransform, letterSpacing: style.edgeLetterSpacing }))
-  const elkEdges: ElkExtendedEdge[] = model.relations.map((edge, i) => {
-    if (!byId.has(edge.src) || !byId.has(edge.dst)) throw new Error(`Requirement relation ${edge.id} references an undeclared endpoint`)
-    return { id: `e${i}`, sources: [idMap.get(edge.src)!], targets: [idMap.get(edge.dst)!], labels: [{ text: labels[i]!.text, width: labels[i]!.width + 16, height: labels[i]!.height + 10 }] }
-  })
-  const graph: ElkNode = {
-    id: 'requirement-layout',
-    layoutOptions: {
-      'elk.algorithm': 'layered',
-      'elk.direction': ({ TB: 'DOWN', BT: 'UP', LR: 'RIGHT', RL: 'LEFT' } as const)[model.direction],
-      'elk.edgeRouting': 'ORTHOGONAL',
-      'elk.spacing.nodeNode': String(options.nodeSpacing ?? metric('nodeSpacing', 40, 0, Infinity)),
-      'elk.layered.spacing.nodeNodeBetweenLayers': String(options.layerSpacing ?? metric('rankSpacing', 72, 0, Infinity)),
-      'elk.padding': `[top=${pad},left=${pad},bottom=${pad},right=${pad}]`,
-    },
-    children: nodes.map(n => ({ id: idMap.get(n.id)!, width: n.width, height: n.height })),
-    edges: elkEdges,
+  for (const edge of model.relations) {
+    if (!indices.has(edge.src) || !indices.has(edge.dst)) throw new Error(`Requirement relation ${edge.id} references an undeclared endpoint`)
   }
-  const result = nodes.length ? elkLayoutSync(graph) : { ...graph, width: pad * 2, height: pad * 2 }
+  const nodeSpacing = options.nodeSpacing ?? metric('nodeSpacing', 40, 0, Infinity),
+    layerSpacing = options.layerSpacing ?? metric('rankSpacing', 72, 0, Infinity)
+  type Placement = Pick<AgenticLayout, 'width' | 'height' | 'nodes' | 'edges'>
+  const result = runMeasuredGraphBackend<Placement>(options, () => {
+    return measureRenderStage('agentic', () => layoutAgenticGraph({
+      nodes: nodes.map(node => ({ id: node.id, width: node.width, height: node.height })),
+      edges: model.relations.map((edge, index) => ({ source: indices.get(edge.src)!, target: indices.get(edge.dst)!, minSpan: 1,
+        label: { width: labels[index]!.width + 16, height: labels[index]!.height + 10 } })),
+      direction: model.direction, padding: pad, nodeSpacing, layerSpacing, edgeSpacing: Math.max(6, style.lineWidth + 4),
+    }))
+  }, () => {
+    const idMap = new Map(nodes.map((node, index) => [node.id, `n${index}`]))
+    const elkEdges: ElkExtendedEdge[] = model.relations.map((edge, i) => ({ id: `e${i}`, sources: [idMap.get(edge.src)!], targets: [idMap.get(edge.dst)!], labels: [{ text: labels[i]!.text, width: labels[i]!.width + 16, height: labels[i]!.height + 10 }] }))
+    const graph: ElkNode = {
+      id: 'requirement-layout',
+      layoutOptions: {
+        'elk.algorithm': 'layered',
+        'elk.direction': ({ TB: 'DOWN', BT: 'UP', LR: 'RIGHT', RL: 'LEFT' } as const)[model.direction],
+        'elk.edgeRouting': 'ORTHOGONAL',
+        'elk.spacing.nodeNode': String(nodeSpacing),
+        'elk.layered.spacing.nodeNodeBetweenLayers': String(layerSpacing),
+        'elk.padding': `[top=${pad},left=${pad},bottom=${pad},right=${pad}]`,
+      },
+      children: nodes.map(n => ({ id: idMap.get(n.id)!, width: n.width, height: n.height })),
+      edges: elkEdges,
+    }
+    const placed = nodes.length ? elkLayoutSync(graph) : { ...graph, width: pad * 2, height: pad * 2 }
+    const positions = nodes.map(() => ({ x: 0, y: 0 }))
+    for (const child of placed.children ?? []) positions[Number(child.id.slice(1))] = { x: child.x ?? 0, y: child.y ?? 0 }
+    return { width: placed.width ?? 0, height: placed.height ?? pad * 2, nodes: positions,
+      edges: model.relations.map((_, index) => {
+        const edge = placed.edges?.[index], label = edge?.labels?.[0]
+        return { points: (edge?.sections ?? []).flatMap(s => [s.startPoint, ...(s.bendPoints ?? []), s.endPoint]),
+          ...(label?.x !== undefined ? { labelPosition: { x: label.x + (label.width ?? 0) / 2, y: (label.y ?? 0) + (label.height ?? 0) / 2 } } : {}) }
+      }) }
+  })
   const band = diagramTitleBand(model.title, style),
     titleHeight = band?.height ?? 0
   const width = Math.max(result.width ?? 0, (band?.width ?? 0) + pad * 2, pad * 2),
     height = (result.height ?? pad * 2) + titleHeight
-  for (const child of result.children ?? []) {
-    const node = nodes[Number(child.id.slice(1))]!
-    node.x = (child.x ?? 0) + (width - (result.width ?? width)) / 2
-    node.y = (child.y ?? 0) + titleHeight
+  for (const [index, position] of result.nodes.entries()) {
+    const node = nodes[index]!
+    node.x = position.x + (width - result.width) / 2
+    node.y = position.y + titleHeight
   }
   const edges = model.relations.map((edge, i) => {
-    const output = result.edges?.[i],
-      sections = output?.sections ?? []
-    const points = sections.flatMap(s => [s.startPoint, ...(s.bendPoints ?? []), s.endPoint]).map(p => ({ x: p.x + (width - (result.width ?? width)) / 2, y: p.y + titleHeight }))
+    const output = result.edges[i]
+    const points = (output?.points ?? []).map(p => ({ x: p.x + (width - result.width) / 2, y: p.y + titleHeight }))
     if (points.length < 2) throw new Error(`No route for requirement relation ${edge.id}`)
     const label = labels[i]!,
-      placed = output?.labels?.[0],
+      placed = output?.labelPosition,
       midpoint = points[Math.floor(points.length / 2)]!
-    const labelPosition = placed?.x !== undefined ? { x: placed.x + (placed.width ?? 0) / 2 + (width - (result.width ?? width)) / 2, y: (placed.y ?? 0) + (placed.height ?? 0) / 2 + titleHeight } : midpoint
+    const labelPosition = placed ? { x: placed.x + (width - result.width) / 2, y: placed.y + titleHeight } : midpoint
     return { ...edge, points, label, labelPosition }
   })
   return { model, width, height, nodes, edges, style, ...(band ? { title: positionDiagramTitle(band, width, pad) } : {}) }

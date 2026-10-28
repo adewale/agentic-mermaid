@@ -243,6 +243,15 @@ export const WARNING_CATALOG: Readonly<Record<WarningCode, WarningDescription>> 
     fix: 'Do not serialize the typed tree for this diagram — fall back to source-level edits so nothing is lost, and report the source; the before/after counts on the warning pinpoint what vanished.',
     origins: ['engine'],
   },
+  EVENT_SOURCE_TYPE: {
+    summary: 'An explicit Event Modeling input connects frame types outside the domain source rules. The source and connection remain renderable; inspect node, source and message.',
+    guideNote: 'inspect the named Event Modeling source and target frame types; rendering preserves the authored connection',
+    what: 'an explicit source frame has the wrong domain type for its target.',
+    triggers: 'A command sourced from something other than UI/processor, an event from something other than a command, a read model from something other than an event, or UI/processor from something other than a read model.',
+    fix: 'Correct the source reference or the authored frame type. Keep the connection when it deliberately documents a domain violation; the diagnostic remains advisory.',
+    example: 'eventmodeling\ntf 01 rmo CartItems\ntf 02 evt CartChanged ->> 01',
+    origins: ['source'],
+  },
   INEFFECTIVE_CONFIG: {
     summary: "A Mermaid config field has no effect on this family's geometry or paint: it is accepted for config-shape compatibility but not wired (e.g. Journey's sequence-era fields `boxMargin`, `rightAngles`, …), unknown to the family's config section, or given an invalid value. Payload names the `field`. Accepting-and-ignoring silently misleads migrating users; this lint says so.",
     guideNote: "a Mermaid config field has no effect on this family's output — it was accepted for compatibility but is not wired, is unknown to the family, or has an invalid value (the warning names the field)",

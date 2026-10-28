@@ -4,6 +4,11 @@
 
 **System architecture overview.** For the how-the-engine-works entry point — the rendered three-stacks diagram and the routing/layout design docs — start at [`docs/design/system/README.md`](./docs/design/system/README.md).
 
+**Vocabulary.** Use the [library definitions](./docs/api.md#vocabulary) for
+family, source object, Scene part and resolved primitive. Narrowing selects
+the typed family; it does not select one object or keep other objects' positions
+fixed. Existing `SceneNode` and `*Mark` type names describe Scene parts.
+
 **Thesis.** Agents authoring Mermaid diagrams today regenerate the whole source on every edit, or render to PNG and read it back with vision. The Beautiful Mermaid renderer foundation already fixed the worst of the rendering side (sync + DOM-free + ASCII). Agentic Mermaid adds the editing surface — structured verification, typed mutation, round-trippable IR — so an agent can edit one node and trust the result without ever opening an image.
 
 ---
@@ -141,6 +146,7 @@ Tier 3 warnings are family-specific quality hints for "common LLM mistakes" that
 | `COMMENT_DROPPED` | warning | A parsed payload carries a known comment-loss receipt, including payloads produced by older serializers. Current built-in serializers retain detected comments; Flowchart and State anchor them to statements, and other structured families append unassociated comments. The warning carries occurrence count and original line numbers. |
 | `UNSUPPORTED_SYNTAX` | warning | The source uses Mermaid syntax that is preserved losslessly but not fully modeled by local structured mutation/render semantics (for example flowchart edge IDs, edge metadata, click/href directives, or markdown strings), or, with `syntax: "empty_layout"`, the source carries content but the local layout renders a 0x0 canvas with no nodes, edges, or groups. Payload includes `syntax`, optional `line`, and `message`. |
 | `CONTENT_DROPPED_ON_ROUNDTRIP` | warning | The structured `{nodes, edges, groups}` tally changed across a parse → serialize → re-parse cycle, so canonical serialization is silently dropping or duplicating content even though the bytes may re-parse (payload carries `before`/`after` counts). The faithfulness analogue of `COMMENT_DROPPED` — "100% parse success is not faithfulness". Runs on every verify, for every family; opaque bodies (byte-verbatim) are exempt. |
+| `EVENT_SOURCE_TYPE` | warning | An explicit Event Modeling input connects frame types outside the domain source rules. The source and connection remain renderable; inspect node, source and message. |
 | `INEFFECTIVE_CONFIG` | warning | A Mermaid config field has no effect on this family's geometry or paint: it is accepted for config-shape compatibility but not wired (e.g. Journey's sequence-era fields `boxMargin`, `rightAngles`, …), unknown to the family's config section, or given an invalid value. Payload names the `field`. Accepting-and-ignoring silently misleads migrating users; this lint says so. |
 | `LOW_CONTRAST` | warning | A concrete authored paint remains authoritative but misses a measurable contrast threshold against the final resolved opaque background. Payload names the `field`, `foreground`, `background`, measured `ratio`, and required `minimum`; verification diagnoses without repainting authored intent. Transparent output is not measured because its host backdrop is unknown. |
 | `LABELS_HIDDEN` | warning | A chart's layout left out text the source asked for because it did not fit. XY chart: `target: "x-axis"` lists the authored category names the axis does not draw (tick labels thinned to avoid overlap, or the whole category axis dropped when its widest name does not fit); `target: "data-labels"` lists the bars (`category = value`) whose value label fits neither inside the bar nor in the plot beyond its end — shorten the names, flip with `set_orientation {horizontal: true}`, or widen the value range. Quadrant chart: `target: "point-labels"` lists the points whose label collides with labels placed first — spread the points, shorten the names, or enlarge the chart. The chart still renders; `describe` still lists every category and point, so this lint is the only signal that a reader cannot see them. |
@@ -404,7 +410,7 @@ MermaidSeqBench is wired as an external corpus signal; live model transcript eva
 
 ## What Code Mode unlocks
 
-The Code Mode MCP raises the ceiling on what an agent can do with the library in one call. We initially framed the agent surface as a fixed set of verbs (parse, verify, mutate, serialize) where each verb is one round-trip. Code Mode reframes the surface as a typed library that the agent composes against — and the only thing we ship is the small set of primitives plus a sandbox. The agent supplies the algorithm.
+The Code Mode MCP raises the ceiling on what an agent can do with the library in one call. We initially framed the agent surface as a fixed set of verbs (parse, verify, mutate, serialize) where each verb is one round-trip. Code Mode reframes the surface as a typed library that the agent composes against — and the only thing we ship is the small set of typed operations plus a sandbox. The agent supplies the algorithm.
 
 Concrete consequences, in roughly descending impact:
 

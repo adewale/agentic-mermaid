@@ -1,24 +1,29 @@
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
-import { parseEventModeling } from '../eventmodeling/parser.ts'
+import { eventModelingStatementEnds, parseEventModeling } from '../eventmodeling/parser.ts'
 import { layoutEventModeling } from '../eventmodeling/layout.ts'
 import { lowerEventModelingScene } from '../eventmodeling/renderer.ts'
-import { retainedLabelGeometry, retainedLabelBounds, canvasOf, labelRect, f } from '../positioned-views/geometry.ts'
-import type { PositionedEventModeling } from '../eventmodeling/layout.ts'
-import type { FamilyPositionedProjectionContext, FamilyPositionedView } from '../agent/family-registry.ts'
-export function projectEventModelingPositioned({ positioned: p }: FamilyPositionedProjectionContext<PositionedEventModeling>): FamilyPositionedView {
-  return {
-    version: 1, bounds: { w: f(p.width), h: f(p.height) },
-    nodes: p.frames.map(item => ({ id: item.frame.id, x: f(item.x), y: f(item.y), w: f(item.width), h: f(item.height), shape: 'rectangle', label: item.label, parentId: `lane:${item.lane}`, ...retainedLabelGeometry(item.block, item.x + item.width / 2, item.y + item.height / 2, item) })),
-    edges: p.relations.map(edge => ({ id: edge.id, from: edge.from, to: edge.to, path: edge.points.map(point => [f(point.x), f(point.y)]) })),
-    groups: p.lanes.map(lane => ({ id: `lane:${lane.id}`, label: lane.label, x: f(8), y: f(lane.y), w: f(p.width - 16), h: f(lane.height), members: p.frames.filter(item => item.lane === lane.id).map(item => item.frame.id) })),
-    labels: p.title ? [{ id: 'title', text: p.title.text, bounds: retainedLabelBounds(p.title.block, p.title.x, p.title.y), container: labelRect(canvasOf(p)) }] : [],
-  }
-}
+import { f, retainedLabelGeometry } from '../positioned-views/geometry.ts'
+import type { DiagramColors } from '../theme.ts'
 export const EVENTMODELING_SVG_HOOKS = {
+  normalizeRequest: ctx => {
+    const config = ctx.source.config.eventmodeling as Record<string, unknown> | undefined
+    const padding = config?.padding
+    const rowHeight = config?.rowHeight
+    return { renderOptions: { ...ctx.renderOptions, ...(ctx.renderOptions.padding === undefined && typeof padding === 'number' && Number.isFinite(padding) && padding >= 0 ? { padding } : {}) }, familyConfig: { rowHeight: typeof rowHeight === 'number' && Number.isFinite(rowHeight) && rowHeight >= 0 ? rowHeight : 0 }, appearance: { family: { palette: ctx.colors } } }
+  },
+  statementEnds: eventModelingStatementEnds,
   layout: ctx => {
     const body = parseEventModeling(ctx.source.authoredFamilyBody ?? ctx.source.familyBody)
-    body.title ??= typeof ctx.source.frontmatter.title === 'string' ? ctx.source.frontmatter.title : undefined
-    return layoutResult(layoutEventModeling(body, ctx.renderOptions, ctx.styleFace))
+    if (body.title === undefined && typeof ctx.source.frontmatter.title === 'string') body.title = ctx.source.frontmatter.title
+    return layoutResult(layoutEventModeling(body, ctx.renderOptions, ctx.styleFace, ctx.familyConfig?.rowHeight as number | undefined, ctx.familyAppearance?.palette as DiagramColors | undefined))
   },
-  projectPositioned: positionedView(projectEventModelingPositioned), lowerScene: scene(lowerEventModelingScene),
+  projectPositioned: positionedView<ReturnType<typeof layoutEventModeling>>(({ positioned: p }) => ({
+    version: 1,
+    bounds: { w: f(p.width), h: f(p.height) },
+    nodes: p.nodes.map(node => ({ id: node.id, x: f(node.x), y: f(node.y), w: f(node.width), h: f(node.height), shape: 'rectangle', label: node.frame.entity, parentId: node.lane, ...retainedLabelGeometry(node.block, node.x + node.width / 2, node.y + node.height / 2, node) })),
+    edges: p.edges.map(edge => ({ id: edge.id, from: edge.from, to: edge.to, path: edge.points.map(point => [f(point.x), f(point.y)]) })),
+    groups: p.lanes.map(lane => ({ id: lane.id, label: lane.label, x: f(lane.x), y: f(lane.y), w: f(lane.width), h: f(lane.height), members: p.nodes.filter(node => node.lane === lane.id).map(node => node.id) })),
+    labels: [],
+  })),
+  lowerScene: scene(lowerEventModelingScene),
 } satisfies BrowserSvgFamilyHooks

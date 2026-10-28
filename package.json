@@ -40,7 +40,12 @@
       "default": "./dist/browser-lazy/index.js"
     },
     "./style-spec.schema.json": "./docs/schemas/style-spec.schema.json",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./zenuml": {
+      "types": "./dist/zenuml.d.ts",
+      "import": "./dist/zenuml.js",
+      "default": "./dist/zenuml.js"
+    }
   },
   "unpkg": "./dist/browser.global.js",
   "jsdelivr": "./dist/browser.global.js",
@@ -161,7 +166,7 @@
     "bench:release:browser": "bun run eval/trident/run.ts source bench:release:browser",
     "harvest:upstream": "bun run eval/mermaid-upstream-suite-bench/harvest.ts",
     "harvest:upstream:refresh-check": "bun run eval/mermaid-upstream-suite-bench/refresh-check.ts",
-    "build": "bun run generate:sdk && tsup && bun run build:browser && bun run build:browser:lazy",
+    "build": "bun run generate:sdk && tsup && bun run build:browser && bun run build:browser:lazy && bun run build:zenuml",
     "build:browser": "tsup --config tsup.browser.config.ts",
     "build:browser:lazy": "bun run scripts/build/clean-browser-lazy.ts && bun run generate:browser-families && tsup --config tsup.browser-lazy.config.ts",
     "check:browser-lazy": "bun run scripts/build/browser-lazy-report.ts",
@@ -231,14 +236,15 @@
     "bench:lint": "bun run eval/trident/run.ts lint",
     "bench:community:update": "bun run eval/trident/run.ts community:update",
     "bench:portable": "bun run eval/trident/run.ts portable",
-    "bench:portable:build": "bun run eval/trident/run.ts build"
+    "bench:portable:build": "bun run eval/trident/run.ts build",
+    "build:zenuml": "tsup --config tsup.zenuml.config.ts"
   },
   "dependencies": {
     "@resvg/resvg-js": "2.6.2",
     "acorn": "8.16.0",
     "d3-format": "3.1.0",
     "d3-sankey": "0.12.3",
-    "elkjs": "^0.11.0",
+    "elkjs": "0.11.1",
     "entities": "^7.0.1",
     "yaml": "^2.8.3"
   },
@@ -264,11 +270,14 @@
   "devDependencies": {
     "@arethetypeswrong/cli": "0.18.5",
     "@biomejs/biome": "2.5.5",
+    "@mermaid-js/mermaid-zenuml": "1.0.1",
     "@modelcontextprotocol/sdk": "1.32.1",
     "@resvg/resvg-wasm": "2.6.2",
+    "@swc/core": "1.15.8",
     "@types/bun": "^1.3.9",
     "@types/d3-format": "3.0.4",
     "@types/d3-sankey": "^0.12.5",
+    "@zenuml/core": "3.47.9",
     "beautiful-mermaid": "1.1.3",
     "fast-check": "^4.6.0",
     "jsdom": "26.1.0",
@@ -278,12 +287,12 @@
     "playwright": "^1.58.2",
     "publint": "0.3.24",
     "roughjs": "4.6.6",
+    "saxes": "6.0.0",
     "shiki": "^3.19.0",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
     "upng-js": "^2.1.0",
     "vitest": "4.1.11",
-    "wrangler": "4.149.0",
-    "saxes": "6.0.0"
+    "wrangler": "4.149.0"
   }
 }

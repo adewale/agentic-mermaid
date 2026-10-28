@@ -156,6 +156,14 @@ describe('forward-compatible family classification', () => {
         expected: { code: 'UNSUPPORTED_FAMILY', classification: 'unsupported', family: 'usecase', header: 'usecase-beta' },
       },
       {
+        source: 'swimlane-beta\n  preserved future payload\n',
+        expected: { code: 'UNSUPPORTED_FAMILY', classification: 'unsupported', family: 'swimlane', header: 'swimlane-beta' },
+      },
+      {
+        source: 'swimlane-beta\n  preserve external grammar\n',
+        expected: { code: 'UNSUPPORTED_FAMILY', classification: 'unsupported', family: 'swimlane', header: 'swimlane-beta' },
+      },
+      {
         source: 'c4-beta\n  preserve the future dialect\n',
         expected: { code: 'UNKNOWN_HEADER', classification: 'unknown', family: undefined, header: 'c4-beta' },
       },

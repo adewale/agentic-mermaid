@@ -8,6 +8,28 @@ import type { SankeyRuntimeConfig } from '../index.ts'
 
 const BASIC = 'sankey-beta\n  Coal,Electricity,127.93\n  Gas,Electricity,80\n  Electricity,Homes,120'
 
+test('Sankey repeated headers share one direct and typed CSV reading', async () => {
+  const { renderMermaidSVG: directSVG, renderMermaidASCII: directASCII } = await import('../index.ts')
+  const { startUpstreamMermaid } = await import('./helpers/upstream-mermaid.ts')
+  const upstream = startUpstreamMermaid()
+  try {
+    const source = 'sankey\nsankey-beta\nA,B,2\nsankey\n"sankey",B,3'
+    expect(() => directSVG(source)).not.toThrow()
+    const parsed = sankey(source)
+    expect(parsed.body.links).toEqual([{ source: 'A', target: 'B', value: 2 }, { source: 'sankey', target: 'B', value: 3 }])
+    expect(directSVG(source)).toBe(renderMermaidSVG(parsed))
+    expect(directASCII(source)).toBe(renderMermaidASCII(parsed))
+    expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'sankey_repeated_header' }))
+    const written = serializeMermaid(parsed)
+    expect(await upstream.publicAccepts(written)).toBe(true)
+    expect(sankey(written).body.links).toEqual(parsed.body.links)
+    const { parseSankeyDiagram } = await import('../sankey/parser.ts')
+    const quoted = 'sankey\n"North\nsankey\nAmerica",B,1'
+    expect(parseSankeyDiagram(quoted.split('\n')).nodes).toContain('North\nsankey\nAmerica')
+    expect(verifyMermaid(quoted).warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'sankey_repeated_header')).toBe(false)
+  } finally { upstream.close() }
+})
+
 test('Sankey directive-like identities remain source-preserved extensions', async () => {
   const { startUpstreamMermaid } = await import('./helpers/upstream-mermaid.ts')
   const upstream = startUpstreamMermaid()

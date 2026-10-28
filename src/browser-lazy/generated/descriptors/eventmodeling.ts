@@ -16,11 +16,19 @@ const descriptorData = Object.freeze({
     "section": "eventmodeling",
     "keys": [
       "padding",
-      "rowHeight"
+      "rowHeight",
+      "useWidth",
+      "useMaxWidth",
+      "theme",
+      "look",
+      "layout"
     ],
     "noopKeys": [
-      "padding",
-      "rowHeight"
+      "useWidth",
+      "useMaxWidth",
+      "theme",
+      "look",
+      "layout"
     ]
   },
   "identity": {
@@ -39,8 +47,8 @@ const descriptorData = Object.freeze({
   "semanticChannels": [],
   "semanticRoles": [
     "prelude",
-    "chrome",
     "title",
+    "chrome",
     "node",
     "label",
     "group",
@@ -58,6 +66,15 @@ const descriptorData = Object.freeze({
       ]
     },
     {
+      "role": "title",
+      "primitive": "text",
+      "applicability": "applicable",
+      "realization": "native",
+      "evidence": [
+        "src/__tests__/section-a-family-descriptor-conformance.test.ts"
+      ]
+    },
+    {
       "role": "chrome",
       "primitive": "document",
       "applicability": "applicable",
@@ -67,8 +84,8 @@ const descriptorData = Object.freeze({
       ]
     },
     {
-      "role": "title",
-      "primitive": "text",
+      "role": "chrome",
+      "primitive": "shape",
       "applicability": "applicable",
       "realization": "native",
       "evidence": [

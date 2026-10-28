@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="283.53" height="240.5" viewBox="0 0 283.53 240.5" style="--bg:#08111f;--fg:#e6f4ff;--line:#5a7c99;--accent:#2dd4bf;--muted:#8aa6bf;--surface:#102033;--border:#2e4c63;--font:Inter;background:#08111f" class="am-11r4jqj0sdabto">
+<svg xmlns="http://www.w3.org/2000/svg" width="280" height="249" viewBox="0 0 280 249" style="--bg:#08111f;--fg:#e6f4ff;--line:#5a7c99;--accent:#2dd4bf;--muted:#8aa6bf;--surface:#102033;--border:#2e4c63;--font:Inter;background:#08111f" class="am-10v0noi1kwi8c4">
 <style>
-  svg.am-11r4jqj0sdabto { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
-  svg.am-11r4jqj0sdabto {
+  svg.am-10v0noi1kwi8c4 { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-10v0noi1kwi8c4 {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #e6f4ff;
     --_text-sec:      #8aa6bf;
@@ -17,7 +17,7 @@
     --_key-badge:     #1e2835;
   }
 </style>
-<rect width="283.53" height="240.5" fill="#08111f" data-backdrop="page" />
+<rect width="280" height="249" fill="#08111f" data-backdrop="page" />
 <defs>
   <marker id="seq-arrow" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
     <polygon points="0 0, 8 2.5, 0 5" fill="#e6f4ff" />
@@ -41,27 +41,23 @@
     <path d="M0 5 L8 2.5" fill="none" stroke="#e6f4ff" stroke-width="1.5" />
   </marker>
 </defs>
-<line class="lifeline" data-actor="Client" x1="73.53" y1="101.9" x2="73.53" y2="210.5" stroke="#e6f4ff" stroke-width="1.5" stroke-dasharray="6 4" data-relationship="lifeline" data-direction="undirected" />
-<line class="lifeline" data-actor="API" x1="213.53" y1="75" x2="213.53" y2="210.5" stroke="#e6f4ff" stroke-width="1.5" stroke-dasharray="6 4" data-relationship="lifeline" data-direction="undirected" />
-<rect class="activation" data-actor="API" x="208.53" y="127.9" width="10" height="61.95" fill="#102033" stroke="#e6f4ff" stroke-width="0.75" data-id="activation:API#0" data-role="activation" />
-<g class="message" data-label="checkout()" data-line-style="solid" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:Client-&gt;API#0" data-role="message">
-  <line x1="73.53" y1="127.9" x2="213.53" y2="127.9" stroke="#e6f4ff" stroke-width="2" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:Client-&gt;API#0:line" data-role="message" data-from="Client" data-to="API" role="graphics-symbol" aria-roledescription="relation" aria-label="Client to API: checkout()" />
-  <text x="143.53" y="117.1" text-anchor="middle" font-size="12" font-weight="600" fill="#e6f4ff" data-prepared-text="true" dy="4.2" textLength="62.28" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">checkout()</text>
+<text x="140" y="41.7" class="diagram-title" text-anchor="middle" font-size="18" font-weight="600" letter-spacing="0.06" fill="#e6f4ff" data-id="diagram-title" data-role="title" data-prepared-text="true" dy="6.3"><tspan x="93.11" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="12.96" lengthAdjust="spacingAndGlyphs">R</tspan><tspan x="106.13" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="12.96" lengthAdjust="spacingAndGlyphs">E</tspan><tspan x="119.15" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="12.96" lengthAdjust="spacingAndGlyphs">Q</tspan><tspan x="132.17" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="12.96" lengthAdjust="spacingAndGlyphs">U</tspan><tspan x="145.19" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="12.96" lengthAdjust="spacingAndGlyphs">E</tspan><tspan x="158.21" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="12.96" lengthAdjust="spacingAndGlyphs">S</tspan><tspan x="171.23" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="15.66" lengthAdjust="spacingAndGlyphs">T</tspan></text>
+<line class="lifeline" data-actor="A" x1="70" y1="110.4" x2="70" y2="219" stroke="#e6f4ff" stroke-width="1.5" stroke-dasharray="6 4" data-relationship="lifeline" data-direction="undirected" />
+<line class="lifeline" data-actor="B" x1="210" y1="110.4" x2="210" y2="219" stroke="#e6f4ff" stroke-width="1.5" stroke-dasharray="6 4" data-relationship="lifeline" data-direction="undirected" />
+<g class="message" data-label="request" data-line-style="solid" data-start-head="none" data-end-head="open" data-central-start="false" data-central-end="false" data-self="false" data-id="statement:1" data-role="message">
+  <line x1="70" y1="136.4" x2="210" y2="136.4" stroke="#e6f4ff" stroke-width="2" marker-end="url(#seq-arrow-open)" data-relationship="sequence-message" data-direction="forward" data-id="statement:1:line" data-role="message" data-from="A" data-to="B" role="graphics-symbol" aria-roledescription="relation" aria-label="A to B: request" />
+  <text x="140" y="125.6" text-anchor="middle" font-size="12" font-weight="600" fill="#e6f4ff" data-prepared-text="true" dy="4.2" textLength="46.44" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">request</text>
 </g>
-<g class="message" data-label="receipt" data-line-style="dashed" data-start-head="none" data-end-head="open" data-central-start="false" data-central-end="false" data-self="false" data-id="message:API-&gt;Client#0" data-role="message">
-  <line x1="213.53" y1="169.2" x2="73.53" y2="169.2" stroke="#e6f4ff" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#seq-arrow-open)" data-relationship="sequence-message" data-direction="forward" data-id="message:API-&gt;Client#0:line" data-role="message" data-from="API" data-to="Client" role="graphics-symbol" aria-roledescription="relation" aria-label="API to Client: receipt" />
-  <text x="143.53" y="158.4" text-anchor="middle" font-size="12" font-weight="600" fill="#e6f4ff" data-prepared-text="true" dy="4.2" textLength="42.12" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">receipt</text>
+<g class="message" data-label="response" data-line-style="solid" data-start-head="none" data-end-head="open" data-central-start="false" data-central-end="false" data-self="false" data-id="statement:2" data-role="message">
+  <line x1="210" y1="177.7" x2="70" y2="177.7" stroke="#e6f4ff" stroke-width="2" marker-end="url(#seq-arrow-open)" data-relationship="sequence-message" data-direction="forward" data-id="statement:2:line" data-role="message" data-from="B" data-to="A" role="graphics-symbol" aria-roledescription="relation" aria-label="B to A: response" />
+  <text x="140" y="166.9" text-anchor="middle" font-size="12" font-weight="600" fill="#e6f4ff" data-prepared-text="true" dy="4.2" textLength="57.96" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">response</text>
 </g>
-<g class="actor" data-id="Client" data-label="Client" data-type="actor" data-role="actor">
-  <g transform="translate(53.64,32.21) scale(1.6575)">
-    <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" fill="none" stroke="#e6f4ff" stroke-width="0.844645550528" />
-    <path d="M15 10C15 11.6569 13.6569 13 12 13C10.3431 13 9 11.6569 9 10C9 8.34315 10.3431 7 12 7C13.6569 7 15 8.34315 15 10Z" fill="none" stroke="#e6f4ff" stroke-width="0.844645550528" />
-    <path d="M5.62842 18.3563C7.08963 17.0398 9.39997 16 12 16C14.6 16 16.9104 17.0398 18.3716 18.3563" fill="none" stroke="#e6f4ff" stroke-width="0.844645550528" />
-  </g>
-  <text x="73.53" y="88.8" text-anchor="middle" font-size="14" font-weight="700" fill="#e6f4ff" data-prepared-text="true" dy="4.9" textLength="39.06" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Client</text>
+<g class="actor" data-id="A" data-label="A" data-type="participant" data-role="actor">
+  <rect x="30" y="65.4" width="80" height="45" rx="10" ry="10" fill="#102033" stroke="#e6f4ff" stroke-width="1.4" data-id="actor:A:box" data-role="actor" />
+  <text x="70" y="87.9" text-anchor="middle" font-size="14" font-weight="700" fill="#e6f4ff" data-prepared-text="true" dy="4.9" textLength="12.18" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">A</text>
 </g>
-<g class="actor" data-id="API" data-label="API" data-type="participant" data-role="actor">
-  <rect x="173.53" y="30" width="80" height="45" rx="10" ry="10" fill="#102033" stroke="#e6f4ff" stroke-width="1.4" data-id="actor:API:box" data-role="actor" />
-  <text x="213.53" y="52.5" text-anchor="middle" font-size="14" font-weight="700" fill="#e6f4ff" data-prepared-text="true" dy="4.9" textLength="25.62" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">API</text>
+<g class="actor" data-id="B" data-label="B" data-type="participant" data-role="actor">
+  <rect x="170" y="65.4" width="80" height="45" rx="10" ry="10" fill="#102033" stroke="#e6f4ff" stroke-width="1.4" data-id="actor:B:box" data-role="actor" />
+  <text x="210" y="87.9" text-anchor="middle" font-size="14" font-weight="700" fill="#e6f4ff" data-prepared-text="true" dy="4.9" textLength="12.18" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">B</text>
 </g>
 </svg>

@@ -371,6 +371,15 @@ endpoints too; the tested two-ended forms already agree with upstream on
 identity. Markers and solid/dashed shafts remain explicit properties, rather
 than creating synthetic classes that collide with authored names.
 
+### Authored empty Class namespaces remain visible
+
+Mermaid 12.2.0 rejects a namespace with no members. Agentic preserves that clear
+authored container as opaque source and draws its measured frame, including in
+documents with no classes. It retains the existing portability warning and
+source-only edit policy; drawing the frame does not make the source portable.
+Freestanding Class notes are accepted by Mermaid and remain visible without
+requiring a class or namespace.
+
 ### Sequence numbering keeps authored control intent
 
 Bare `autonumber` enables or resumes numbering without resetting its counter or increment. `autonumber off` hides numbers while semantic messages continue advancing the retained counter; a late first enable therefore uses the message ordinal. An explicit start resets the counter, and a start without an increment selects increment one. This corrects earlier accidental resets on repeated enable or resume.
@@ -835,7 +844,39 @@ grammar applies. Flowchart functional values and Requirement functions or
 meaningful spaces still have no demonstrated portable field spelling under the
 pin. Invalid XML/control-character values remain outside the writable domain.
 
+### Event Modeling metadata and literal payloads
+
+The shipped Mermaid 12.2.0 / parser 2.0.1 rejects in-body Event Modeling
+`title`, `accTitle` and `accDescr`, although the pinned Langium source declares
+those productions. Agentic reads them and retains their meaning. Its writer
+uses one merged YAML title field and the existing native accessibility-comment
+transport. Unrelated wrapper fields and comments survive title edits. Mermaid
+accepts that output but currently omits the YAML title from its Event Modeling
+SVG and ignores native accessibility comments; Agentic paints the title and
+exposes the accessibility envelope. Verification names the accessibility limit.
+
+Event Modeling data is literal content in both graphical and terminal outputs.
+The whole authored inline string survives; Agentic does not reproduce the
+pinned upstream renderer's reported final-character loss. Reserved grammar
+words used as identifiers are generous reads with an `UNSUPPORTED_SYNTAX`
+warning. Writers reject them until renamed rather than emit invalid Mermaid.
+
 ### Follow-up to #494: generous reads and portable writes
+
+The #548–#552 repairs align direct source rendering with typed admission.
+Ishikawa header comments are classified by its native parser. Standalone
+repeated Sankey headers are diagnosed and ignored outside quoted CSV records;
+header-looking lines inside a quoted field remain payload. Canonical exports
+write one header. Malformed CSV data rows still fail explicitly.
+
+Class text escapes greedy `direction TB/BT/RL/LR` tokens before statement
+construction. Greedy direction tokens in identities or raw inline members
+have no lossless spelling and remain diagnosed source-only reads. Explicitly
+empty Class labels and quote-requiring
+Quadrant labels starting with a literal backtick have no supported lossless
+token in the pinned grammar. They retain native source rendering and a syntax
+diagnostic, with typed editing and synthesis refused. Absent Class labels,
+nonempty whitespace labels and writable bare Quadrant backticks remain distinct.
 
 Class and C4 can retain an explicitly empty accessibility description, although
 Mermaid 12.2.0 rejects its empty `accDescr` block. Verification names that

@@ -47,9 +47,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     ]),
   }),
   demo: Object.freeze({
-    // The two new lazy family entries split shared chunks: c2862e8 loads 37
-    // requests on the default Timeline route without loading either renderer.
-    maxRequests: 37,
+    // Keep the existing request ceiling when integrating new native families;
+    // any excess remains a delivery failure alongside the byte ceilings.
+    maxRequests: 36,
     // Optional sketch code stays out of the default Timeline delivery graph.
     // Includes the shared native drawing writer, bounded admission and flat paint evidence.
     // Rebased edit contracts measure 787,643 raw / 302,191 gzip bytes.

@@ -260,14 +260,14 @@ describe('schema covers every mutable family (§11)', () => {
     radar: { kind: 'add_axis', id: 'a' },
     sankey: { kind: 'add_link', source: 'A', target: 'B', value: 1 },
     c4: { kind: 'add_element', element: { id: 'service', label: 'Service', kind: 'system' } },
+    eventmodeling: { kind: 'insert_frame', frame: { id: '01', reset: false, type: 'ui', entity: 'Main', sources: [] } },
+    zenuml: { kind: 'upsert_participant', participant: { id: 'API', label: 'API', annotations: [] } },
     packet: { kind: 'add_field', label: 'Byte', bits: 8 },
     kanban: { kind: 'add_column', id: 'todo', label: 'To do' },
     requirement: { kind: 'add_requirement', requirement: { name: 'response', text: 'Respond promptly' } },
     treemap: { kind: 'add_node', label: 'Investment', value: 10 },
     ishikawa: { kind: 'set_effect', label: 'Release delay' },
     block: { kind: 'add_block', block: { id: 'service', label: 'Service', type: 'square' } },
-    eventmodeling: { kind: 'add_frame', id: '1', entityType: 'ui', entity: 'Screen' },
-    zenuml: { kind: 'add_participant', id: 'A' },
   }
 
   test('every family in MUTATION_OPS_BY_FAMILY has a schema and builds a valid op', () => {

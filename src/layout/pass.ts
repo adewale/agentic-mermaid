@@ -1,3 +1,5 @@
+export { MAX_PREFERENCE_NODES, MAX_PREFERENCE_EDGES, withinLayoutPreferenceBudget } from './route-geometry.ts'
+
 // The LayoutPass abstraction — see docs/design/system/route-contracts.md §8.
 //
 // Generic over the concrete context so this module has NO dependency on the

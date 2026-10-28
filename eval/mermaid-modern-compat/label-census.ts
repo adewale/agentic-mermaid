@@ -16,7 +16,9 @@ const text = (value: unknown): string => typeof value === 'string' ? value : ''
 
 export interface ReferenceLabel { path: string; text: string }
 
-/** Read authored label fields from independent DB getters. No Agentic parser,
+/** Read authored label fields from independent DB getters or the explicitly
+ * tagged upstream Event Modeling parser AST (its Node getState needs real DOM
+ * geometry and remains unavailable). No Agentic parser,
  * renderer, label helper or harvested local expectation participates here. */
 export function referenceLabels(family: string, reply: ReferenceReply): ReferenceLabel[] | undefined {
   if (!reply.ok) return undefined
@@ -36,6 +38,10 @@ export function referenceLabels(family: string, reply: ReferenceReply): Referenc
   }
   add('getDiagramTitle', db.getDiagramTitle)
   switch (family) {
+    case 'eventmodeling':
+      if (!reply.parserAst?.value) return undefined
+      fields('parserAst.frames', rows(row(reply.parserAst.value).frames), 'entityIdentifier')
+      break
     case 'flowchart':
     case 'state':
     case 'class':
@@ -51,16 +57,6 @@ export function referenceLabels(family: string, reply: ReferenceReply): Referenc
     case 'sequence':
       fields('getActors', pairs(db.getActors), 'description')
       fields('getMessages', rows(db.getMessages).filter(message => typeof message.from === 'string' && typeof message.to === 'string' && message.type !== 2), 'message')
-      break
-    case 'eventmodeling':
-      rows(row(db.getEventModel).frames).forEach((frame, index) => {
-        add(`getEventModel.frames[${index}].entityIdentifier`, text(frame.entityIdentifier).split('.').at(-1))
-        if (typeof frame.dataInlineValue === 'string') add(`getEventModel.frames[${index}].dataInlineValue`, frame.dataInlineValue.slice(1, -1))
-      })
-      break
-    case 'zenuml':
-      fields('getZenModel.participants', rows(row(db.getZenModel).participants), 'label')
-      fields('getZenModel.messages', rows(row(db.getZenModel).messages), 'label')
       break
     case 'timeline':
     case 'journey':
@@ -177,7 +173,7 @@ export function labelCensus(family: string, reference: ReferenceReply, diagram: 
   } catch (error) { surfaces.ascii = surfaces.meta = { error: String(error) } }
   return {
     status: 'measured' as const,
-    scope: 'Reference DB authored node/group/relationship labels, titles, category names, task/event/actor labels, tags, XY point labels and C4 descriptive fields. Class/ER members, accessibility and sequence notes/control labels are not included. Visibility is not inferred: explicitly hidden labels remain candidates for semantic review. Matches are existential text-presence diagnostics, not identity or multiplicity proofs.',
+    scope: 'Reference DB or independently installed Event Modeling parser AST authored node/group/relationship labels, titles, category names, task/event/actor labels, tags, XY point labels and C4 descriptive fields. Class/ER members, accessibility and sequence notes/control labels are not included. Visibility is not inferred: explicitly hidden labels remain candidates for semantic review. Matches are existential text-presence diagnostics, not identity or multiplicity proofs.',
     surfaces,
     metrics: { scope: 'Aggregate label measurement counts; metrics do not expose per-label text', value: metrics },
     labels: expected.map(label => ({ ...label, display: censusDisplayText(label.text), presence: Object.fromEntries(Object.entries(surfaces).map(([name, surface]) => [name, surface.values === undefined ? null : surface.values.some(value => censusDisplayText(value).includes(censusDisplayText(label.text)))])) })),

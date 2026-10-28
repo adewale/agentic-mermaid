@@ -163,7 +163,8 @@ function slantedPolygonVertices(node: PositionedNode): Point[] {
 /**
  * Whether an axis-aligned segment passes through a node's rendered footprint
  * (not merely its bbox — a route grazing the empty corner outside a circle's
- * disk or a diamond's facet is legal). Half-pixel tolerance throughout.
+ * disk or a diamond's facet is legal). Plain and explicitly decorated full
+ * rectangles use their open interior; curved shapes retain the tolerance.
  */
 export function segmentThroughShape(a: Point, b: Point, node: PositionedNode): boolean {
   const cx = node.x + node.width / 2
@@ -172,8 +173,18 @@ export function segmentThroughShape(a: Point, b: Point, node: PositionedNode): b
   const hh = node.height / 2
   const xLo = Math.min(a.x, b.x), xHi = Math.max(a.x, b.x)
   const yLo = Math.min(a.y, b.y), yHi = Math.max(a.y, b.y)
-  const inBbox = xHi > node.x + 0.5 && xLo < node.x + node.width - 0.5 &&
-    yHi > node.y + 0.5 && yLo < node.y + node.height - 0.5
+  // Independently restate the renderer's classic cylinder core (cap ry = 7).
+  // Its curved caps keep the existing graze policy; their empty corners do
+  // not justify a tolerance inside the core's straight, fully painted sides.
+  if (node.shape === 'cylinder' && (node.semanticShape === undefined || node.semanticShape === 'cyl')
+    && node.height > 14 && xHi > node.x && xLo < node.x + node.width
+    && yHi > node.y + 7 && yLo < node.y + node.height - 7) return true
+  const rectangularBody = (node.shape === 'rectangle' || node.shape === 'subroutine')
+    && (node.semanticShape === undefined || node.semanticShape === 'rect' || node.semanticShape === 'fr-rect'
+      || node.semanticShape === 'lin-rect' || node.semanticShape === 'div-rect' || node.semanticShape === 'win-pane')
+  const inset = rectangularBody ? 0 : 0.5
+  const inBbox = xHi > node.x + inset && xLo < node.x + node.width - inset &&
+    yHi > node.y + inset && yLo < node.y + node.height - inset
   if (!inBbox) return false
 
   // For curved/pointed shapes, occlusion means penetrating DEEPER than the
@@ -269,15 +280,17 @@ export function countEdgeCrossings(edges: readonly PositionedEdge[], involved?: 
 
 /** Same-endpoint parallel routes sharing visible collinear ink cannot be
  * distinguished along that span. Endpoint distance alone does not prove this. */
-export function countParallelRouteOverlaps(edges: readonly PositionedEdge[], involved?: ReadonlySet<number>): number {
-  const pairs = new Map<string, Array<{ edge: PositionedEdge; index: number }>>()
+type InkEdge = Pick<PositionedEdge, 'source' | 'target' | 'style' | 'points'>
+
+export function countParallelRouteOverlaps(edges: readonly InkEdge[], involved?: ReadonlySet<number>): number {
+  const pairs = new Map<string, Array<{ edge: InkEdge; index: number }>>()
   edges.forEach((edge, index) => {
     if (edge.style === 'invisible' || edge.source === edge.target) return
     const key = JSON.stringify([edge.source, edge.target])
     const group = pairs.get(key) ?? []
     group.push({ edge, index }); pairs.set(key, group)
   })
-  const sharesSpan = (a: PositionedEdge, b: PositionedEdge): boolean => {
+  const sharesSpan = (a: InkEdge, b: InkEdge): boolean => {
     for (let i = 1; i < a.points.length; i++) for (let j = 1; j < b.points.length; j++) {
       const p = a.points[i - 1]!, q = a.points[i]!, r = b.points[j - 1]!, s = b.points[j]!
       if (Math.abs(p.x - q.x) <= 0.01 && Math.abs(r.x - s.x) <= 0.01 && Math.abs(p.x - r.x) <= 0.5 && Math.min(Math.max(p.y, q.y), Math.max(r.y, s.y)) - Math.max(Math.min(p.y, q.y), Math.min(r.y, s.y)) > 1) return true
