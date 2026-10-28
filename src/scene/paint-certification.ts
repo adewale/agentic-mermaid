@@ -149,10 +149,11 @@ function solidInteriors(scene: NativePaintHeader, primitives: readonly ScenePain
     // A translucent wrapper lets what lies beneath show through. Each SVG
     // child replaces the summary paint completely and has its own fill alpha.
     if (primitive.groupOpacity !== undefined) continue
-    const pieces = node.geometry.kind === 'compound' ? node.geometry.children : undefined
-    const singleGeometry = pieces ? undefined : node.geometry
-    const paints = pieces?.map((_, index) => node.geometry.kind === 'compound' ? node.childPaints?.[index] ?? node.paint : node.paint)
-    const singlePaint = pieces ? undefined : node.geometry.kind === 'compound' ? node.childPaints?.[0] ?? node.paint : node.paint
+    const { geometry, paint: shapePaint, childPaints } = node
+    const pieces = geometry.kind === 'compound' ? geometry.children : undefined
+    const singleGeometry = pieces ? undefined : geometry
+    const paints = pieces?.map((_, index) => childPaints?.[index] ?? shapePaint)
+    const singlePaint = pieces ? undefined : shapePaint
     const filled = pieces?.map((piece, index) => possibleShapeFill(piece, paints![index]!))
     const singleFilled = pieces ? false : possibleShapeFill(singleGeometry!, singlePaint!)
     const stroked = pieces?.map((piece, index) => possibleShapeStroke(piece, paints![index]!))
@@ -163,7 +164,6 @@ function solidInteriors(scene: NativePaintHeader, primitives: readonly ScenePain
     const transform: SceneTransform = { kind: 'matrix', a, b, c, d, e, f }
     let bounds: AxisAlignedBox | undefined
     const partBounds: Array<AxisAlignedBox | undefined> | undefined = pieces ? [] : undefined
-    let singleBounds: AxisAlignedBox | undefined
     for (let index = 0, count = pieces?.length ?? 1; index < count; index++) {
       if (pieces && !(index in pieces)) continue
       const geometry = pieces ? pieces[index]! : singleGeometry!, paint = paints ? paints[index]! : singlePaint!
@@ -173,14 +173,13 @@ function solidInteriors(scene: NativePaintHeader, primitives: readonly ScenePain
       const painted = nodePaintBounds({ kind: 'shape', id: primitive.id, role: primitive.role, geometry, paint }, transform)
       const part = painted ?? primitive.bounds!
       if (partBounds) partBounds[index] = part
-      else singleBounds = part
       bounds = unionSceneBounds(bounds, part)
     }
     if (!bounds) continue
-    const candidate = { primitive, bounds, borderWidth: outlines.get(outlineKey(primitive, node.geometry)), ...(node.geometry.kind === 'compound' ? {
-      partBorderWidths: pieces ? pieces.map(child => outlines.get(outlineKey(primitive, child)) ?? 0) : [outlines.get(outlineKey(primitive, singleGeometry!)) ?? 0],
-      partOwnBorderWidths: paints?.map(opaqueOutlineWidth),
-      partFilled: filled ?? [singleFilled], partBounds: partBounds ?? [singleBounds],
+    const candidate = { primitive, bounds, borderWidth: outlines.get(outlineKey(primitive, geometry)), ...(pieces ? {
+      partBorderWidths: pieces.map(child => outlines.get(outlineKey(primitive, child)) ?? 0),
+      partOwnBorderWidths: paints!.map(opaqueOutlineWidth),
+      partFilled: filled!, partBounds: partBounds!,
     } : {}) }
     // A rotated/sheared AABB is not a solid rectangle. Keep it out of this
     // exact test instead of interpreting empty corners as painted pixels.
@@ -222,6 +221,7 @@ function outsideFilledBody(surface: Surface, bounds: AxisAlignedBox, attached: b
   if (shape?.kind !== 'shape') return false
   const inverse = inverseMatrix(scenePrimitiveMatrix(surface.primitive)!)
   if (!inverse) return false
+  const { geometry, paint: shapePaint, childPaints } = shape
   const corners = (hull ?? [{ x: bounds.x0, y: bounds.y0 }, { x: bounds.x0, y: bounds.y1 }, { x: bounds.x1, y: bounds.y0 }, { x: bounds.x1, y: bounds.y1 }]).map(point => transformPoint(point, inverse))
   const [a, b, c, d] = inverse
   const inverseNorm = (Math.hypot(a + d, b - c) + Math.hypot(a - d, b + c)) / 2
@@ -231,27 +231,10 @@ function outsideFilledBody(surface: Surface, bounds: AxisAlignedBox, attached: b
   // that declared border band; a marker entering the filled body stays checked.
   let contactAllowed = false
   let contactWitness: ScenePoint | undefined
-  // Cylinders emit their filled body and its straight outlines separately.
-  // A side line may supply the existing attached-border band only when it
-  // actually traces that filled rectangle's complete side at this anchor.
-  const sideOutlineWidth = (rect: Extract<Geometry, { kind: 'rect' }>, a: ScenePoint, b: ScenePoint, onlyLine?: Geometry): number => {
-    if (!attached || !contactAllowed || !localAnchor || shape.geometry.kind !== 'compound'
-      || rect.rx || rect.ry || inverse[0] !== 1 || inverse[1] !== 0 || inverse[2] !== 0 || inverse[3] !== 1 || inverse[4] !== 0 || inverse[5] !== 0
-      || !surface.partFilled?.[shape.geometry.children.indexOf(rect)]) return 0
-    const onSide = a.x === b.x && localAnchor.x === a.x && localAnchor.y > Math.min(a.y, b.y) && localAnchor.y < Math.max(a.y, b.y)
-      || a.y === b.y && localAnchor.y === a.y && localAnchor.x > Math.min(a.x, b.x) && localAnchor.x < Math.max(a.x, b.x)
-    if (!onSide) return 0
-    for (let index = 0; index < shape.geometry.children.length; index++) {
-      if (!work()) return 0
-      const line = shape.geometry.children[index]!, width = surface.partOwnBorderWidths?.[index] ?? 0
-      if (line.kind !== 'line' || onlyLine && line !== onlyLine || !(width > 0)) continue
-      if (line.x1 === a.x && line.y1 === a.y && line.x2 === b.x && line.y2 === b.y
-        || line.x2 === a.x && line.y2 === a.y && line.x1 === b.x && line.y1 === b.y) return width
-    }
-    return 0
-  }
-  const outside = (g: Geometry, borderWidth = surface.borderWidth ?? 0, paint = shape.paint, filled = true, painted = surface.bounds, witness?: ScenePoint): boolean => {
+  let sideContact: readonly Geometry[] = []
+  const outside = (g: Geometry, borderWidth = surface.borderWidth ?? 0, paint = shapePaint, filled = true, painted = surface.bounds, witness?: ScenePoint): boolean => {
     if (!work()) return false
+    if (!witness && sideContact.includes(g)) return true
     if (witness && (witness.x < painted.x0 || witness.x > painted.x1 || witness.y < painted.y0 || witness.y > painted.y1)) return true
     const samples = witness ? [transformPoint(witness, inverse)] : corners
     let sampleMargin = witness ? 0 : margin
@@ -259,22 +242,13 @@ function outsideFilledBody(surface: Surface, bounds: AxisAlignedBox, attached: b
     const lineTolerance = witness ? -1e-8 : 0
     // The shape writer admits one compound level only. Never reinterpret
     // nested indices as the root's independently painted siblings.
-    if (g.kind === 'compound') return g === shape.geometry && g.children.length <= 64 && g.children.every((child, index) => child.kind !== 'compound' && outside(child, surface.partBorderWidths?.[index] ?? 0, shape.childPaints?.[index] ?? shape.paint, surface.partFilled?.[index] ?? true, surface.partBounds?.[index] ?? surface.bounds, witness))
+    if (g.kind === 'compound') return g === geometry && g.children.length <= 64 && g.children.every((child, index) => child.kind !== 'compound' && outside(child, surface.partBorderWidths?.[index] ?? 0, childPaints?.[index] ?? shapePaint, surface.partFilled?.[index] ?? true, surface.partBounds?.[index] ?? surface.bounds, witness))
     if (!filled) {
       // An absent/translucent fill does not occlude the retained ink, but its
       // independently emitted stroke still needs a conservative separator.
       if (sceneGroupOpacity(paint.opacity) === 0 || sceneGroupOpacity(paint.strokeOpacity) === 0 || paintedStrokeExtent(paint, g.kind !== 'line') === 0) return true
     }
     if (g.kind === 'line') {
-      if (!witness && contactWitness && shape.geometry.kind === 'compound' && shape.geometry.children.some(rect => {
-        if (rect.kind !== 'rect') return false
-        const boundary = [{ x: rect.x, y: rect.y }, { x: rect.x + rect.width, y: rect.y }, { x: rect.x + rect.width, y: rect.y + rect.height }, { x: rect.x, y: rect.y + rect.height }]
-        return boundary.some((a, index) => {
-          const b = boundary[(index + 1) % boundary.length]!, width = sideOutlineWidth(rect, a, b, g)
-          const dx = b.x - a.x, dy = b.y - a.y, length = Math.hypot(dx, dy)
-          return width > 0 && length > 0 && samples.every(p => work() && dx * (p.y - a.y) - dy * (p.x - a.x) <= (width / 2 - sampleMargin) * length)
-        })
-      })) return outside(g, borderWidth, paint, filled, painted, contactWitness)
       // Only a real endpoint cap contact may reuse the same point already
       // clear of EVERY endpoint piece. A line through the marker body retains
       // its complete hull check even if some filled witnesses survive.
@@ -339,16 +313,30 @@ function outsideFilledBody(surface: Surface, bounds: AxisAlignedBox, attached: b
     if (!direction || !points.every((a, i) => points.every(point => work() && direction * cross(a, points[(i + 1) % points.length]!, point) >= -(witness || strict ? 0 : 1e-8)))) return false
     return points.some((a, i) => {
       const b = points[(i + 1) % points.length]!, length = Math.hypot(b.x - a.x, b.y - a.y)
-      const sideInset = !witness && g.kind === 'rect' ? Math.max(inset, sideOutlineWidth(g, a, b) / 2) : inset
-      return length > 0 && samples.every(p => work() && direction * cross(a, b, p) <= (sideInset - sampleMargin + tolerance) * length)
+      return length > 0 && samples.every(p => work() && direction * cross(a, b, p) <= (inset - sampleMargin + tolerance) * length)
     })
   }
   // A contact allowance cannot establish visibility by itself. At least one
   // actual marker-ink point must clear every emitted endpoint piece, including
   // its full stroke, before allowing a partial owned border contact.
-  if (attached) contactWitness = witnesses?.find(witness => work() && outside(shape.geometry, surface.borderWidth ?? 0, shape.paint, true, surface.bounds, witness))
+  if (attached) contactWitness = witnesses?.find(witness => work() && outside(geometry, surface.borderWidth ?? 0, shapePaint, true, surface.bounds, witness))
   contactAllowed = contactWitness !== undefined
-  return outside(shape.geometry)
+  // Native cylinders emit a bare body first, then its left/right side lines.
+  // Other child orders retain uncertainty. Every cap/extra piece stays checked.
+  if (contactAllowed && localAnchor && geometry.kind === 'compound'
+    && inverse.every((value, index) => value === [1, 0, 0, 1, 0, 0][index])) {
+    const body = geometry.children[0]
+    if (work() && body?.kind === 'rect' && !body.rx && !body.ry && surface.partFilled?.[0]
+      && paintedStrokeExtent(childPaints?.[0] ?? shapePaint, false) === 0) {
+      const index = localAnchor.x === body.x ? 1 : localAnchor.x === body.x + body.width ? 2 : 0
+      const line = geometry.children[index], width = surface.partOwnBorderWidths?.[index] ?? 0
+      if (index && line?.kind === 'line' && width > 0 && line.x1 === line.x2 && line.x1 === localAnchor.x
+        && Math.min(line.y1, line.y2) === body.y && Math.max(line.y1, line.y2) === body.y + body.height
+        && localAnchor.y > body.y && localAnchor.y < body.y + body.height
+        && corners.every(point => work() && (index === 1 ? -1 : 1) * (point.x - line.x1) >= margin - width / 2)) sideContact = [body, line]
+    }
+  }
+  return outside(geometry)
 }
 
 /** A hidden, unscaled SVG marker viewport clips ALL resource ink, including
@@ -875,6 +863,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
     if (failure) failed = true
     else unverified = true
   }
+  const potentialOcclusion = (id: string, by: string, message: string): void => issue({ code: 'POTENTIAL_OCCLUSION', id, by, message })
   const emissionWork = nativeEmissionWorkOf(inspection)
   if (emissionWork && scene !== emissionWork.header) {
     issue({ code: 'OUTPUT_SCOPE', message: 'Retained emission is paired with a different document header' })
@@ -959,7 +948,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
       if (++pairs > MAX_OCCLUSION_PAIRS) { exhausted = true; return }
       if (surface.primitive.order <= primitive.order || !overlaps(surface.bounds, primitive.bounds!)) continue
       if (surface.interiors?.some(interior => work() && contains(interior, primitive.bounds!))) issue({ code: 'TEXT_OCCLUDED', id: primitive.id, by: surface.primitive.id, message: `Retained text is fully covered by later opaque artwork owned by ${surface.primitive.owner.id}` }, true)
-      else issue({ code: 'POTENTIAL_OCCLUSION', id: primitive.id, by: surface.primitive.id, message: 'Later filled artwork overlaps the occupied text band; its exact ink intersection is unverified' })
+      else potentialOcclusion(primitive.id, surface.primitive.id, 'Later filled artwork overlaps the occupied text band; its exact ink intersection is unverified')
     }
   }
   for (const primitive of inspection.primitives) if (primitive.kind === 'text' && primitive.coverage === 'measured' && primitive.visibility !== 'conditional') check(surfaces, primitive)
@@ -1005,7 +994,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
           if (relation === 'attached') continue
           if (exactInk && line && separatedOrthogonalStroke(line, surface.bounds, node.stroke, width, extent, matrix, work)) continue
           if (exactInk && relation === 'unrelated' && line && surface.interiors?.some(interior => work() && lineCrossesInterior(line, interior))) issue({ code: 'CONNECTOR_CARD_CROSSING', id: primitive.id, by: surface.primitive.id, message: `Final connector shaft crosses opaque artwork owned by unrelated ${noteCore ? 'note' : 'card'} ${surface.primitive.owner.id}` }, true)
-          else issue({ code: 'POTENTIAL_OCCLUSION', id: primitive.id, by: surface.primitive.id, message: noteCore ? 'Final connector envelope intersects unrelated filled note artwork; actual route/note crossing is unverified' : 'Final connector envelope intersects unrelated filled card artwork; actual route/card crossing is unverified' })
+          else potentialOcclusion(primitive.id, surface.primitive.id, noteCore ? 'Final connector envelope intersects unrelated filled note artwork; actual route/note crossing is unverified' : 'Final connector envelope intersects unrelated filled card artwork; actual route/card crossing is unverified')
         }
       }
       walk(surfaces)
@@ -1074,7 +1063,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
         const clipped = clippedEndpointMarkerBounds(connector, descriptor, target.position, target.bounds, target.anchor, work)
         if (clipped && outsideFilledBody(surface, clipped, attached, undefined, 0, work, target.witnesses, target.anchor, true)) continue
       }
-      issue({ code: 'POTENTIAL_OCCLUSION', id: target.primitive.id, by: surface.primitive.id, message: 'Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified' })
+      potentialOcclusion(target.primitive.id, surface.primitive.id, 'Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified')
     }
   }
   const markerTargets = Array.from(lastMarkers.values())
@@ -1095,7 +1084,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
         || !primitive.bounds || !overlaps(primitive.bounds, target.bounds)) continue
       if (++pairs > MAX_OCCLUSION_PAIRS) { exhausted = true; break }
       const markerLater = target.primitive.order > primitive.order
-      issue({ code: 'POTENTIAL_OCCLUSION', id: markerLater ? primitive.id : target.primitive.id, by: markerLater ? target.primitive.id : primitive.id, message: markerLater ? 'Later endpoint-marker ink overlaps occupied text; actual text visibility is unverified.' : 'Later occupied text or its halo overlaps an endpoint marker; actual marker ink visibility is unverified.' })
+      potentialOcclusion(markerLater ? primitive.id : target.primitive.id, markerLater ? target.primitive.id : primitive.id, markerLater ? 'Later endpoint-marker ink overlaps occupied text; actual text visibility is unverified.' : 'Later occupied text or its halo overlaps an endpoint marker; actual marker ink visibility is unverified.')
     }
   }
   for (let earlierIndex = 0; earlierIndex < markerTargets.length; earlierIndex++) {
@@ -1150,7 +1139,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
         if (!advanced) break
       }
       if (result === 'covered' && !exhausted) issue({ code: 'MARKER_OCCLUDED', id: earlier.primitive.id, by: later.primitive.id, message: 'Later opaque endpoint-marker fill covers actual stroke ink of a distinct marker.' }, true)
-      else if (result === 'unknown') issue({ code: 'POTENTIAL_OCCLUSION', id: earlier.primitive.id, by: later.primitive.id, message: 'Distinct endpoint-marker envelopes overlap; actual marker ink separation is unverified.' })
+      else if (result === 'unknown') potentialOcclusion(earlier.primitive.id, later.primitive.id, 'Distinct endpoint-marker envelopes overlap; actual marker ink separation is unverified.')
     }
   }
   if (exhausted) issue({ code: 'CHECK_BUDGET', message: `Occlusion checking reached its ${MAX_OCCLUSION_PAIRS}-pair or ${MAX_OCCLUSION_OPERATIONS}-operation limit` })
