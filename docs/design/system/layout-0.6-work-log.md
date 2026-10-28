@@ -801,3 +801,246 @@ final combined owners, core/repo types, lint, paired bytes and source epoch),
 `/tmp/pr449-independent-ink-peer-20261028/` (independent runtime/ink/peer
 readback), and `/tmp/pr449-20261028-cubic-served-review/`. These are retained
 review evidence, not committed derived fixtures or tests of test presence.
+
+
+### Exact c807 CI: real Scene regressions retained, repair in progress
+
+[CI 40719610783](https://github.com/adewale/agentic-mermaid/actions/runs/40719610783)
+checks out exact `c807afa61d951684ea3511a795ec5cf9e056c8b7` directly, not a
+merge with current Main. It finishes failed: 14,559 unit passes, 76 skips and
+9 failures. All nine are regressions introduced by the new proof domain:
+the existing strict publication Block case and eight existing rounded
+Requirement self-loop cases (four directions under both graph backends).
+The 312 local paint/validation/crisp owners did not cover this production
+Scene path. Do not report c807 as correctness-green or ready.
+
+Semantic conformance remains 173 pass / 0 fail, 63/64 assertions qualified
+plus one unavailable; grammar triage retains 882 inputs, zero untracked defects
+and zero unreviewed disagreements. Installed consumers on Node22/24, package
+inventory, CLI/MCP, dist, quickstarts, browser-site, site payload and backend
+review pass. The quality suite passes types, lint and its 513-diagram /
+2,052-format audit (zero hard/soft/render errors), but fails six raw lazy caps:
+Architecture 2,320,823 > 2,318,000; Packet 590,747 > 586,500; Kanban 598,572 >
+595,000; Treemap 609,332 > 606,000; Ishikawa 590,891 > 586,500; ZenUML 673,272 >
+669,750. These are newly observed delivery regressions after the correctness
+code, retained under unchanged caps. Browser has 21 passes and one editor raw
+failure: 4,475,423 > 4,429,400; its gzip assertion is not reached. Advisory
+quality remains failed. No compiler/byte tuning or check relaxation follows.
+
+The Block failure is independently reproduced with its untouched owning test:
+1 failure / 36 assertions. All four actual refused paths are open M/L/Q and
+end in eastward straight L segments; this is not an arc-tangent problem.
+Strict rendering deliberately selects the retained Scene adapter. Admission
+already writes and caches immutable leaf fragments before certification, but
+inspection lacks the Native-only emission authority required by the repair.
+The untouched Requirement owner reproduces eight failures / 128 assertions:
+its bend-radius-zero companions pass and radius-12 paths become unverified.
+A representative actual northward terminal has tip
+(155.088123456,131.823456789). Actual numeric spelling can differ from raw
+sampled endpoint operands, so a boolean Scene stamp or epsilon comparison is
+not a sound fix. Full SVGs and receipts are retained in
+`/tmp/pr449-block-publication-ci-regression-20261028/`.
+
+Before further implementation, the published PR contract was expanded:
+collect actual tokens and committed-fragment receipts during the existing
+admission serialization transaction, retain them with the exact positioned
+Scene, and bind fresh occurrence ancestry/ownership at inspection. No global
+observer/node proof cache, second writer, additional path parse, cap increase
+or generic mutable/getter admission is allowed. Changed served d needs a
+paid shallow private paint projection before existing geometry measurement,
+plus complete served shaft/marker and original conservative bounds propagated
+through viewport/occlusion/restoration consumers. Raw public Scene and emitted
+SVG stay separate and unchanged. Missing/foreign/cache-only receipts and
+alternative backends stay unverified. Implementation and GREEN are pending at
+this entry; no proposed bridge is described as completed.
+
+Separate peer work: eight saved-artifact Resvg 2.6.2 observations preserve
+actual SVG bytes and use supported Inter Regular/Medium fontFiles. Whole-image
+marker removal changes 41 pixels for retained historical Agentic row87 and
+52 pixels for the pinned public Pele circle. Independent PNG decoding agrees.
+However, Pele's intended #1f1f1f circle becomes black in this consumer; its
+shaft is hidden, and bodies/text are black. This establishes isolated circle
+RGBA contribution only, not readable connectivity or intended peer styling.
+Browser CSS/fonts and internal algorithm remain unavailable. No Pele/browser
+bug or default-peer correctness pass is inferred. See
+`/tmp/pr449-row87-saved-raster-20261028/` and independent second readback.
+
+A shared Trident model-normalization patch is prepared separately at
+`/tmp/pr449-trident-flowchart-marker-proposal-20261028/flowchart-marker-normalization.patch`.
+It preserves circle/cross markers, distinguishes marker presence from arrow
+direction, and keeps unknown relationship evidence unavailable. Literal owner
+controls are genuinely RED 3 pass / 11 fail before and GREEN 14 pass / 0 fail
+with 79 assertions; scoped types/lint and independent review pass. The saved
+public Pele raw model confirms arrow_circle now maps to end circle, retaining
+A/B and endpoint order. Initial Bun deserialization of Node V8 failed and is
+retained; Node24 readback succeeds. Neither canonical AM nor canonical pinned
+Trident is changed by this prepared patch; no PR/pin/publication is created.
+It grants no physical marker or algorithm credit.
+
+Read-only simplification work identifies a smaller next row87 obligation:
+validate all captured declared marker resources against their actual bytes,
+including unused definitions. Require own fields/slots, exact canonical bytes,
+reference agreement and duplicate/shadow/CSS/mutation falsifiers. This alone
+cannot promote row87; root/group/style, fractional units/body and text remain.
+The independent ellipse note preserves a literal off-support arrow whose tip
+is exactly on an ellipse yet whose filled triangle intrudes beyond the owned
+border band; tip contact plus an outward shaft is insufficient. This is
+proposed coverage, not an executed regression or new false pass:
+`/tmp/pr449-20261028-cubic-served-review/NEXT-ELLIPSE-CONTACT.md`.
+
+### Scene repair: broader-owner failures remain enrolled
+
+The draft restores the original strict Block and eight Requirement failures.
+Focused final-ink/authority controls pass 47 tests / 720 assertions; canonical
+core/repository types and lint pass. Three cold public SVGs (Block and both
+Requirement bend modes) are byte-identical to c807. Saved full-viewport marker
+removal observations show the Block shared ingress pair contributes 30 pixels,
+store/audit 36 each, and the Requirement north arrow 42. Shared coincident
+markers receive pair credit only. These observations qualify those artifacts,
+not the entire draft or the original seven diagrams.
+
+The broader six owning suites subsequently give **402 pass / 5 fail / 6,623
+assertions**. Four losses concern concurrent State labels, Architecture BUG-37,
+Native Class clearance and an eight-point ER crossing diagnostic. The fifth is
+an unexpected ELK fork/join State promotion from U to P, still unqualified.
+These failures block committing the draft. The four-point served-polyline
+ceiling demonstrably masks the ER crossing; the other longer-route failures
+remain enrolled until verified after repair. Do not replace their expectations
+with generic uncertainty.
+
+A separate four-point zero-immediate-terminal control was initially mistaken
+for a positive. Actual whole-image marker removal changes zero pixels, while
+removing its cover reveals 30. Both execution paths incorrectly passed. The
+shared certifier now withholds marker credit for a zero immediate marked
+segment; the adverse remains enrolled, alongside a nondegenerate positive.
+Normative preceding-segment fallback alone is insufficient final-ink evidence.
+
+Before further edits, the PR contract records the principled ceiling removal:
+prepay safe finite coordinate-count work under the same 400,000 allowance,
+collect every actual token during the existing formatter replacement pass,
+construct immutable served points/contours there, preserve raw conservative
+and served envelopes, and consume without another point walk. Refusal preserves
+the SVG and uncertainty; unchanged long integer polylines keep their existing
+fast path. No arbitrary larger ceiling, extra parser, cap increase or timing
+campaign is authorized. Implementation and qualification are pending.
+
+An exact c807 State baseline is now acquired with one uninstrumented public
+ELK/fallback-none call and Scene assertions enabled: U, seven markers, 1,378
+operations, two join-endpoint overlap issues. All 3,167 recovered Git members
+are directly byte-equal before/after execution; unchanged files use hardlinks
+and all active writers' files are independent copies. Its complete SVG equals
+the historical row123 SVG, but current-candidate ink and raw route operands
+remain unobserved. CSS hiding and substituted invisible definition negatives
+are prepared to challenge the new Scene authority before any promotion.
+
+Evidence is retained under
+`/tmp/pr449-block-publication-ci-regression-20261028/` and independent readback
+under `/tmp/pr449-independent-ink-peer-20261028/`. Live Main is now
+`f8180b1050afe453a3d5b2184e62313d7b2ebd34`, beyond integrated 03641; it is not
+jointly qualified. All six goals and original seven uncertainties remain open;
+the holdout remains sealed. Five Sol6.1High agents continue disjoint work.
+
+### Verified Scene write/proof boundary repair
+
+Runtime/test revision **`26f8f991bc08d5f6a21153e923b54d49964a0e3e`** binds
+Scene proofs to opaque, operation-owned receipts captured during the existing
+admission serialization. Missing, foreign, cache-only, forged-observer and
+wrong-header observations remain unverified. Inspection binds fresh ancestry,
+ownership and order; alternate backends gain no default-writer authority. The
+existing admission registry moves to an acyclic leaf module rather than being
+duplicated. Raw public geometry remains separate from private served geometry.
+
+Changed polylines now consume all actual tokens during the existing formatter
+replacement pass, with safe finite `48*N+128` work prepaid before allocation
+under the same 400,000 allowance. Immutable point slots and constant-time array
+finalization avoid another point traversal. First/last nonzero raw and served
+tangents, contours and raw bounds are derived in that pass. The arbitrary
+four-vertex ceiling is removed; unchanged integer 4,000/50,000-point owners
+still pass. Raw radial node/viewport bounds remain conservative; precise raw
+and served marker poses feed overlap checks. The first attempt incorrectly
+used radial bounds for marker/text overlap and caused three bend-zero
+Requirement refusals. Their untouched expectations now pass without weakening
+text checks. Zero immediate marked segments retain uncertainty: the apparent
+preceding-segment fallback does not establish actual final ink.
+
+Hostile-context controls found three concrete false passes in the draft:
+stylesheet-hidden cubic markers under both execution paths and an invisible
+substituted marker definition under Scene. Marker removal changes zero pixels;
+removing only the hiding context restores ink. Exact c807 reproduction shows
+the Native stylesheet defect already existed at the internal draw/certify
+boundary; no public Mermaid-source defect is inferred from that fixture.
+Shared paid context checks now reject these cases. They reuse canonical style
+declaration data from its owning producer, compare actual Scene marker bytes
+with immutable descriptors, bind palette variables and exact group matrices,
+and retain generic CSS/getter/mutable/definition isolation.
+
+The initial context gate overreached: one complete registry-derived diagnostic
+enrolled **25 examples: 19 P / 6 U / 0 errors**, retaining Timeline, XYChart,
+Pie, Quadrant, Radar and Sankey refusals. A separate thick Sankey call is U;
+there are 26 calls total, not 26 registry examples. These failures concern
+unrelated title IDs, responsive roots, hover styles, group variables and
+gradient ribbons. The corrected gate derives its obligation privately from
+actual non-invisible marked connector occurrences, with no family exception
+or caller-supplied authority flag. Unmarked charts retain their previous proof
+domain and receive no new CSS/resource/visible-ink qualification. The existing
+registry owner now passes through all examples. This is a scope correction,
+not evidence that those unrelated contexts are closed.
+
+Eight other failing owner assertions assumed palette variables that their bare
+SVG roots never declared. All original bare inputs remain enrolled as adverse
+Native observations; explicit root-bound counterparts retain the original
+status, issue and count expectations. Their SVGs differ only by that literal
+root binding. Raw generic Scene checks remain unchanged. These fixture fixes
+are not eight demonstrated public rendering defects.
+
+Final frozen verification:
+
+| Evidence | Result |
+| --- | --- |
+| Focused final-ink/context and untouched Block/Requirement controls | 60 P / 0 F; 871 assertions (subset of the owners below) |
+| Six paint/validation/crisp/Block/Requirement owners | 417 P / 0 F; 6,872 assertions |
+| Full Class backend plus font/theme owners, five files | 511 P / 0 F; 5,474 assertions |
+| Canonical core/repository types | Both pass; repository preparation uses unchanged pinned Trident f080 |
+| Full lint | Pass, 1,905 files; one existing oversized-JSON warning |
+| Four final cold public captures | State, Block, Requirement bend0/bend12 all P; complete SVGs directly byte-equal c807 |
+
+The two disjoint owner batches total **928 tests / 12,346 assertions**; the
+focused subset is not added again. All checks use the unchanged caps. Final
+State has 34,120/400,000 operations and seven markers; Block 69,964,
+Requirement bend0 26,288 and bend12 26,230. These are certificate work receipts,
+not timing or performance comparisons.
+
+The exact ELK/no-fallback State transition is independently supported: seven
+authored ordered relationships, six distinct marker poses, all six contributing
+34 PNG pixels under bundled Inter fonts. Coincident incoming join markers count
+as one paired pose. Served borderless contact and clipping agree; final SVG
+equals c807 and the saved raster input. Raw same-call route/body operands remain
+unavailable, so no raw floating-point explanation is asserted. This qualifies
+the bounded observable U-to-P transition, not general State correctness. Final
+Block/Requirement SVG equality also retains the earlier six physical artifact
+observations at their recorded scope.
+
+Evidence: `/tmp/pr449-block-publication-ci-regression-20261028/` contains
+`FOCUSED-final-scoped-context.log`, `OWNERS-final-scoped-context.log`,
+`CLASS-FONT-THEME-scoped-final.log`, canonical `*-scoped-final.log` statics,
+`FINAL-SCOPED-ARTIFACT-COMPARISON.json`,
+`STATE-FINAL-C807-COMPARISON.json`, `B-FINAL-HANDOFF.md`, all earlier failures,
+and the complete final source patch. Independent final State readback is
+`/tmp/pr449-independent-ink-peer-20261028/STATE-FINAL-EPOCH-BINDING-READBACK.json`.
+All 20 committed source/test members directly equal the post-capture frozen
+worktree. Writer handoffs establish that epoch; no pre-call source-byte snapshot
+or own-source hash is claimed. Closed regenerable font caches were deleted only
+after directly comparing their files with owning assets; no adverse evidence
+or source was deleted.
+
+Five requested Sol6.1High agents contributed disjoint implementation and
+falsifiable reviews. No timing campaign, compiler experiment, holdout access,
+peer publication, cap relaxation, release/default change, merge or force push
+occurred. Original rows 77/87/88/89/103/206/209 remain unverified and all six
+acceptance goals remain open. Native's preexisting unchecked extra-unused-defs
+context remains a source-derived limit; no new executed shadow-ID false-pass
+claim is made. Unsupported arc/mid/closed-path cases and general circle/cylinder
+stroke/contact obligations remain open. Next concrete runtime step is to bind
+all declared Native resources, including unused definitions, to actual bytes
+before broadening row87's stroke/context domain. Full exact-head CI and the
+latest-base recheck follow publication of this verified increment.
