@@ -397,10 +397,10 @@ it('resolved circle and ellipse paths preserve the native stroke traversal for d
 
 it('standalone editor stays within its single-renderer payload budget', async () => {
   const html = new Uint8Array(await Bun.file(join(ROOT, 'editor.html')).arrayBuffer())
-  // Budget reviewed with native Event Modeling and ZenUML in #545.
-  // One renderer serves both realms; the relative gate also rejects unapproved growth.
-  expect(html.byteLength).toBeLessThanOrEqual(4_493_100)
-  expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_354_150)
+  // Keep this campaign's original ceilings while integrating Main's delivery
+  // changes. One renderer serves both realms; relative growth is checked too.
+  expect(html.byteLength).toBeLessThanOrEqual(4_429_400)
+  expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_334_500)
   const runtime = new TextDecoder().decode(html).match(/<script type="module" id="editor-runtime">([\s\S]*?)<\/script>/)?.[1]
   expect(runtime).toBeDefined()
   // These literals belong to the page catalog, not its private renderer worker.
