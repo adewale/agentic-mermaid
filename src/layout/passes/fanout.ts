@@ -40,6 +40,44 @@ function containingGroups(node: PositionedNode, groups: PositionedGroup[]): stri
   return flattenPositionedGroups(groups).filter(group => rectInsideGroup(node, group)).map(group => group.id).join('\u0000')
 }
 
+/** The forward edges of a fan-out the symmetric emitter owns, sorted by
+ * target cross centre, or undefined. A rectangle or diamond source emits to
+ * 2–3 rectangle leaves fed only by it, peers on one rank that do not reach
+ * each other; a grouped rectangle source owns only targets in its groups.
+ * `raw` is the source's forward edges. */
+export function symmetricFanout(
+  source: PositionedNode,
+  raw: readonly PositionedEdge[],
+  edges: readonly PositionedEdge[],
+  nodeMap: ReadonlyMap<string, PositionedNode>,
+  groups: PositionedGroup[],
+  direction: Direction,
+  reaches: (from: string, to: string) => boolean,
+): PositionedEdge[] | undefined {
+  if (raw.length < 2 || raw.length > 3) return undefined
+  if (source.shape !== 'rectangle' && source.shape !== 'diamond') return undefined
+  const routeOnly = source.shape !== 'diamond' && nodeInsideGroups(source, groups)
+  const sorted = [...raw].sort((a, b) => nodeCrossCenter(nodeMap.get(a.target)!, direction) - nodeCrossCenter(nodeMap.get(b.target)!, direction))
+  const targets = sorted.map(e => nodeMap.get(e.target)!).filter(Boolean)
+  if (targets.length !== sorted.length) return undefined
+  const scope = routeOnly ? containingGroups(source, groups) : ''
+  if (!targets.every(t => t.shape === 'rectangle' && (routeOnly ? containingGroups(t, groups) === scope : source.shape === 'diamond' || !nodeInsideGroups(t, groups)))) return undefined
+  // Same-rank gate. Fan-out targets drift apart on the main axis when their
+  // label widths differ ("warnings" 97px vs "ok" 60px → ~32px apart), so the
+  // tolerance must clear that width-driven drift to see them as peers — while
+  // staying below layerSpacing (48) so genuinely different ranks are still
+  // rejected. The peer confirmation just below is the real safety net, so
+  // loosening this gate cannot equalize non-peers. (Equalizing such peers is
+  // exactly the symmetry the diamond/"warnings"/"ok" fan-out wants; verified
+  // byte-identical on the corpus, which has no fan-out in the 28–40px band.)
+  if (!sameFlowLayer(targets, direction, 40)) return undefined
+  if (!targets.every(t => edges.every(e => e.source !== t.id && (e.target !== t.id || e.source === source.id)))) return undefined
+  for (let i = 0; i < targets.length; i++) for (let j = 0; j < targets.length; j++) {
+    if (i !== j && reaches(targets[i]!.id, targets[j]!.id)) return undefined
+  }
+  return sorted
+}
+
 export function applySymmetricFanoutEmissions(
   nodes: PositionedNode[],
   edges: PositionedEdge[],
@@ -58,34 +96,15 @@ export function applySymmetricFanoutEmissions(
   }
   const f = layoutFlow(graph.direction)
   for (const [sourceId, raw] of bySource) {
-    if (raw.length < 2 || raw.length > 3) continue
     const source = nodeMap.get(sourceId)
-    if (!source || (source.shape !== 'rectangle' && source.shape !== 'diamond')) continue
+    const sorted = source && symmetricFanout(source, raw, edges, nodeMap, groups, graph.direction, reaches)
+    if (!source || !sorted) continue
+    const targets = sorted.map(e => nodeMap.get(e.target)!)
     // A grouped rectangle keeps ELK's target placement: moving a member would
     // need its group refitted. Its fork is still emitted symmetrically, with
     // one shared elbow and level label seats; the terminal runs follow the
     // targets where ELK centred them under the source.
     const routeOnly = source.shape !== 'diamond' && nodeInsideGroups(source, groups)
-    const sorted = [...raw].sort((a, b) => nodeCrossCenter(nodeMap.get(a.target)!, graph.direction) - nodeCrossCenter(nodeMap.get(b.target)!, graph.direction))
-    const targets = sorted.map(e => nodeMap.get(e.target)!).filter(Boolean)
-    if (targets.length !== sorted.length) continue
-    const scope = routeOnly ? containingGroups(source, groups) : ''
-    if (!targets.every(t => t.shape === 'rectangle' && (routeOnly ? containingGroups(t, groups) === scope : source.shape === 'diamond' || !nodeInsideGroups(t, groups)))) continue
-    // Same-rank gate. Fan-out targets drift apart on the main axis when their
-    // label widths differ ("warnings" 97px vs "ok" 60px → ~32px apart), so the
-    // tolerance must clear that width-driven drift to see them as peers — while
-    // staying below layerSpacing (48) so genuinely different ranks are still
-    // rejected. The peer confirmation just below is the real safety net, so
-    // loosening this gate cannot equalize non-peers. (Equalizing such peers is
-    // exactly the symmetry the diamond/"warnings"/"ok" fan-out wants; verified
-    // byte-identical on the corpus, which has no fan-out in the 28–40px band.)
-    if (!sameFlowLayer(targets, graph.direction, 40)) continue
-    if (!targets.every(t => edges.every(e => e.source !== t.id && (e.target !== t.id || e.source === source.id)))) continue
-    let peer = true
-    for (let i = 0; i < targets.length; i++) for (let j = 0; j < targets.length; j++) {
-      if (i !== j && reaches(targets[i]!.id, targets[j]!.id)) peer = false
-    }
-    if (!peer) continue
     if (routeOnly) {
       // The straightener's own lanes stand when they already mirror about the
       // source: a symmetric pair of straight lines needs no constructed fork.

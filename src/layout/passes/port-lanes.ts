@@ -2,10 +2,11 @@ import type { DiamondFacet, Direction, MermaidGraph, Point, PositionedEdge, Posi
 import { portEndpointRate, segmentThroughShape } from '../../layout-rubric.ts'
 import { centerOutLabelSamples, diamondFacetPorts, invalidEndpointApproaches, labelPaintClearance, labelRect, laneContextFor, PORT_EXACT, recertifyReroutedEdge, shapePorts, simplifyPolyline, straightLaneFor } from '../../route-contracts.ts'
 import type { LabelMetricsStyle } from '../../route-contracts.ts'
-import { DEFAULTS, layoutDebug, layoutEnvFlag } from '../geometry.ts'
+import { DEFAULTS, graphReachability, layoutDebug, layoutEnvFlag } from '../geometry.ts'
 import { corankFanInSpokes } from './peers.ts'
 import { reanchorOffOutlineEndpoints } from './obstacle-routing.ts'
-import { sameFlowLayer } from './shared.ts'
+import { positionedEdgeForwardish } from './shared.ts'
+import { symmetricFanout } from './fanout.ts'
 import { tryStraighten } from '../route-lanes.ts'
 import { shapeOutline } from '../../shape-outline.ts'
 import { geometryBounds, nodePaintBounds, paintedStrokeExtent, unionSceneBounds } from '../../scene/bounds.ts'
@@ -1072,10 +1073,9 @@ export function alignPortLaneCandidate(
     }
   }
 
-  const peerFanoutSource = (src: PositionedNode): boolean => {
-    const targets = edges.filter(o => o.source === src.id && o.target !== src.id && isForwardMonotone(o)).map(o => nodeMap.get(o.target))
-    return targets.length >= 2 && targets.length <= 3 && targets.every(t => t !== undefined) && sameFlowLayer(targets as PositionedNode[], direction, 40)
-  }
+  let reaches: ((from: string, to: string) => boolean) | undefined
+  const emitterOwnsFanout = (src: PositionedNode): boolean =>
+    symmetricFanout(src, edges.filter(o => o.source === src.id && positionedEdgeForwardish(o, nodeMap, direction)), edges, nodeMap, groups, direction, reaches ??= graphReachability(edges)) !== undefined
 
   for (const e of edges) {
     if (facetAligned.has(e)) continue
@@ -1099,10 +1099,10 @@ export function alignPortLaneCandidate(
     // Primary-forward shape: a monotone staircase along the flow axis (a
     // feedback loop or container route must not be retargeted at a port).
     if (!isForwardMonotone(e) || simplifyPolyline(e.points).length > 4) continue
-    // A source fanning out to same-rank peers belongs to the symmetric
-    // emitter: sliding it over one child leaves the other branch carrying the
-    // whole offset, so only the child may move onto the source's lane.
-    const moved = moveSafe(tgt, d, e) ? tgt : !peerFanoutSource(src) && moveSafe(src, -d, e) ? src : null
+    // A fan-out the symmetric emitter owns stays where it is: sliding its
+    // source over one child leaves the other branch carrying the whole
+    // offset, so only the child may move onto the source's lane.
+    const moved = moveSafe(tgt, d, e) ? tgt : !emitterOwnsFanout(src) && moveSafe(src, -d, e) ? src : null
     if (moved) {
       layoutDebug('[apl] slide', moved.id, 'by', (moved === tgt ? d : -d).toFixed(1), 'for', e.source, '->', e.target)
       apply(moved, moved === tgt ? d : -d, e)
