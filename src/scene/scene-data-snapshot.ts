@@ -1,3 +1,5 @@
+import { admittedSceneRecord, recordAdmittedScene } from './scene-admission-state.ts'
+export { recordAdmittedScene } from './scene-admission-state.ts'
 /**
  * One bounded immutable snapshot for external Scene data.
  *
@@ -11,7 +13,7 @@ import { transferRetainedPixelText } from '../shared/prepared-text.ts'
 import type { SceneDoc } from './ir.ts'
 import { SCENE_VALIDATION_LIMITS, SceneValidationError, sceneValidationMode } from './scene-validation-core.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
-import { transferSceneNodeSerialization } from './serialization.ts'
+import { transferSceneNodeSerialization, type SceneSerializationObserver } from './serialization.ts'
 import { materializeOwnTerminalProjection } from './deferred-terminal-projection.ts'
 
 export interface ExternalDataSnapshotLimits {
@@ -223,35 +225,28 @@ export function snapshotBoundedExternalData(
  * another admission gate re-proves nothing. Only this module records documents,
  * so a caller cannot forge membership.
  */
-const ADMITTED_SCENES = new WeakMap<object, { mode: 'internal' | 'external'; crossChecks: boolean }>()
-
-/** Record a document this module froze that passed `mode` admission. */
-export function recordAdmittedScene(scene: SceneDoc, mode: 'internal' | 'external', crossChecks = true): void {
-  ADMITTED_SCENES.set(scene, { mode, crossChecks })
-}
-
-export type SceneAdmissionValidator = (value: unknown, mode: 'internal' | 'external' | undefined, crossChecks: boolean) => asserts value is SceneDoc
+export type SceneAdmissionValidator = (value: unknown, mode: 'internal' | 'external' | undefined, crossChecks: boolean, serializationObserver?: SceneSerializationObserver) => asserts value is SceneDoc
 
 function refuseExternalBrowserScene(): never {
   throw new SceneValidationError([{ code: 'SCENE_DOCUMENT', path: 'scene.family', message: 'source-only browser admission requires a built-in family' }])
 }
 
-export function admitSceneDocumentWith(value: unknown, mode: 'internal' | 'external' | undefined, crossChecks: boolean, validate: SceneAdmissionValidator, internalOnly = false): SceneDoc {
+export function admitSceneDocumentWith(value: unknown, mode: 'internal' | 'external' | undefined, crossChecks: boolean, validate: SceneAdmissionValidator, internalOnly = false, serializationObserver?: SceneSerializationObserver): SceneDoc {
   // Look up before reading any property: a caller Proxy sees no trap here.
-  const prior = typeof value === 'object' && value !== null ? ADMITTED_SCENES.get(value) : undefined
+  const prior = typeof value === 'object' && value !== null ? admittedSceneRecord(value) : undefined
   if (internalOnly && (mode === 'external' || prior !== undefined && (prior.mode === 'external' || sceneValidationMode(value) === 'external'))) refuseExternalBrowserScene()
   const requiredChecks = mode !== 'internal' || crossChecks
   if (prior !== undefined && prior.mode === (mode ?? sceneValidationMode(value))) {
     // A prior cheap admission cannot stand in for a later strict request.
     if ((prior.mode === 'external' || crossChecks) && !prior.crossChecks) {
-      validate(value, prior.mode, true)
+      validate(value, prior.mode, true, serializationObserver)
       recordAdmittedScene(value as SceneDoc, prior.mode, true)
     }
     return value as SceneDoc
   }
   const admitted = snapshotBoundedExternalData(value, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, 'scene')
   if (internalOnly && sceneValidationMode(admitted) === 'external') refuseExternalBrowserScene()
-  validate(admitted, mode, mode !== 'internal' || crossChecks)
+  validate(admitted, mode, mode !== 'internal' || crossChecks, serializationObserver)
   recordAdmittedScene(admitted as SceneDoc, mode ?? sceneValidationMode(admitted), requiredChecks)
   return admitted as SceneDoc
 }

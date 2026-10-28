@@ -1,6 +1,11 @@
-import type { SceneDoc, SceneNode } from './ir.ts'
+import { MAX_OCCLUSION_OPERATIONS } from './paint-work.ts'
+import { connectorContourSemantics } from './connector-geometry.ts'
+import { isAdmittedSceneDocument } from './scene-admission-state.ts'
+import type { SceneDoc, SceneNode, Geometry } from './ir.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { writeConnectorSvg, writeShapeSvg, writeTextSvg, type SvgGeometryWriteSink } from './svg-writer.ts'
+import { writtenPolylineProjectionOf } from './written-geometry.ts'
+import { createEmissionContext } from './emission-context.ts'
 
 // SVG serialization is backend-private state, not part of the public Scene IR.
 // Shape, text and connector marks are written from their typed fields when
@@ -17,6 +22,159 @@ const WRITABLE_SCENE_NODES = new WeakSet<object>()
 /** Writer output for frozen (admitted) leaf marks, which cannot change after. */
 const WRITTEN_SCENE_NODES = new WeakMap<object, string>()
 const POSSIBLE_FITTED_TEXT = /<\s*text/i
+
+/** First-write data belongs to one admission transaction, not a global node
+ * proof cache. A later request cannot borrow an earlier cached serialization. */
+declare const sceneWriteObserver: unique symbol
+export interface SceneSerializationObserver { readonly [sceneWriteObserver]: true }
+type SceneWriteCallback = (node: SceneNode, source: Geometry, served: Geometry | undefined, svg: string) => void
+interface SceneWriteRecorder {
+  reserve(): boolean
+  reserveProjection(operations: number): boolean
+  document(node: Extract<SceneNode, { kind: 'document' }>, svg: string): void
+  connector(node: ConnectorNode): void
+  group(node: Extract<SceneNode, { kind: 'group' }>): void
+  record: SceneWriteCallback
+}
+// Explicit transaction tokens identify recorders; there is no active global
+// observer, and callers cannot invoke or substitute a recorder callback.
+const sceneWriteObservers = new WeakMap<SceneSerializationObserver, SceneWriteRecorder>()
+type ConnectorNode = Extract<SceneNode, { kind: 'connector' }>
+interface WrittenPath { readonly source: Geometry; readonly svg: string; readonly served: ConnectorNode; readonly conditional: boolean; readonly path: boolean }
+export interface SceneWriteWork { readonly scene: SceneDoc; readonly operations: number; readonly exhausted: boolean; readonly uncertain: boolean }
+
+const ownValue = (value: object, key: string): unknown => {
+  const descriptor = Object.getOwnPropertyDescriptor(value, key)
+  return descriptor && 'value' in descriptor ? descriptor.value : undefined
+}
+
+class CapturedSceneWrites {
+  readonly #scene: SceneDoc
+  readonly #paths: ReadonlyMap<SceneNode, WrittenPath>
+  readonly #operations: number
+  readonly #exhausted: boolean
+  readonly #maxOperations: number
+  readonly #uncertain: boolean
+  constructor(scene: SceneDoc, paths: ReadonlyMap<SceneNode, WrittenPath>, operations: number, exhausted: boolean, maxOperations: number, uncertain: boolean) {
+    this.#scene = scene; this.#paths = paths; this.#operations = operations; this.#exhausted = exhausted; this.#maxOperations = maxOperations; this.#uncertain = uncertain
+  }
+
+  begin(scene: SceneDoc) {
+    if (scene !== this.#scene) return undefined
+    let operations = this.#operations, exhausted = this.#exhausted
+    return {
+      node: (node: Exclude<SceneNode, { kind: 'group' }>): WrittenPath | undefined => {
+        if (exhausted || operations > this.#maxOperations - 16) { exhausted = true; return undefined }
+        operations += 16
+        const written = this.#paths.get(node)
+        if (!written || WRITTEN_SCENE_NODES.get(node) !== written.svg) return undefined
+        const route = ownValue(node, 'route')
+        if (!route || typeof route !== 'object' || ownValue(route, 'geometry') !== written.source) return undefined
+        return written
+      },
+      work: (): SceneWriteWork => Object.freeze({ scene, operations, exhausted, uncertain: this.#uncertain }),
+    }
+  }
+}
+const issuedSceneWrites = new WeakSet<CapturedSceneWrites>()
+Object.freeze(CapturedSceneWrites.prototype)
+export type SceneWriteReceipt = CapturedSceneWrites
+
+export function beginSceneWriteInspection(receipt: SceneWriteReceipt | undefined, scene: SceneDoc) {
+  try { return receipt !== undefined && issuedSceneWrites.has(receipt) && receipt instanceof CapturedSceneWrites && isAdmittedSceneDocument(scene) ? receipt.begin(scene) : undefined } catch { return undefined }
+}
+
+export function createSceneWriteCapture(maxOperations: number) {
+  if (!Number.isSafeInteger(maxOperations) || maxOperations < 0 || maxOperations > MAX_OCCLUSION_OPERATIONS) throw new RangeError('Invalid Scene write work allowance')
+  let operations = 0, exhausted = false, finished = false
+  const paths = new Map<SceneNode, WrittenPath>()
+  const pay = (count: number): boolean => {
+    if (exhausted || !Number.isSafeInteger(count) || count < 0 || count > maxOperations - operations) { exhausted = true; return false }
+    operations += count
+    return true
+  }
+  const context = createEmissionContext(pay)
+  const replace = <T extends object>(source: T, key: string, value: unknown): T | undefined => {
+    if (!pay(2)) return undefined
+    const keys = Object.getOwnPropertyNames(source)
+    if (!pay(keys.length * 3) || !Object.hasOwn(source, key)) return undefined
+    const result = Object.create(Object.getPrototypeOf(source)) as T
+    for (const name of keys) {
+      const descriptor = Object.getOwnPropertyDescriptor(source, name)!
+      Object.defineProperty(result, name, name === key ? { ...descriptor, value } : descriptor)
+    }
+    return Object.preventExtensions(result)
+  }
+  const record: SceneWriteCallback = (node, source, served, svg) => {
+    if (finished || !pay(64) || node.kind !== 'connector') return
+    const route = ownValue(node, 'route')
+    if (!route || typeof route !== 'object' || ownValue(route, 'geometry') !== source) return
+    let paintNode = node, conditional = !served || served.kind !== source.kind
+    if (served && !conditional && served !== source) {
+      if (ownValue(node, 'transform') || ownValue(route, 'closed') || served.kind === 'polyline' && node.markers.mid.length !== 0) conditional = true
+      else if (served.kind === 'path') {
+        if (typeof ownValue(source, 'd') !== 'string') return
+        const geometry = replace(source, 'd', served.d)
+        const paintRoute = geometry && replace(route, 'geometry', geometry)
+        const overlay = paintRoute && replace(node, 'route', paintRoute)
+        if (!overlay) return
+        paintNode = overlay
+      } else if (served.kind === 'line' || served.kind === 'polyline') {
+        if (!pay(192)) return
+        const projection = served.kind === 'polyline' ? writtenPolylineProjectionOf(served) : undefined
+        if (served.kind === 'polyline' && !projection) return
+        Object.freeze(served)
+        const contours = projection?.contours ?? connectorContourSemantics(served, false)
+        if (!projection) {
+          for (const contour of contours) {
+            Object.freeze(contour.start); Object.freeze(contour.end)
+            if (contour.startTangent) Object.freeze(contour.startTangent)
+            if (contour.endTangent) Object.freeze(contour.endTangent)
+            Object.freeze(contour)
+          }
+          Object.freeze(contours)
+        }
+        const first = contours[0], last = contours.at(-1)
+        conditional = !first || !last || (served.kind === 'polyline'
+          ? projection!.collapsed
+          : first.start.x === last.end.x && first.start.y === last.end.y)
+        if (!pay(2)) return
+        const routeKeys = Object.getOwnPropertyNames(node.route)
+        if (!pay(routeKeys.length * 3 + 12)) return
+        const paintRoute = Object.create(Object.getPrototypeOf(node.route)) as ConnectorNode['route']
+        for (const key of routeKeys) {
+          const descriptor = Object.getOwnPropertyDescriptor(node.route, key)!
+          const value = key === 'geometry' ? served : key === 'contours' ? contours : key === 'startTangent' ? first?.startTangent : key === 'endTangent' ? last?.endTangent : descriptor.value
+          Object.defineProperty(paintRoute, key, { ...descriptor, value })
+        }
+        Object.preventExtensions(paintRoute)
+        const overlay = replace(node, 'route', paintRoute)
+        if (!overlay) return
+        paintNode = overlay
+      } else conditional = true
+    }
+    if (paths.has(node)) { paths.delete(node); exhausted = true; return }
+    paths.set(node, Object.freeze({ source, svg, served: paintNode, conditional, path: source.kind === 'path' }))
+  }
+  const observe = Object.freeze(Object.create(null)) as SceneSerializationObserver
+  sceneWriteObservers.set(observe, { reserve: () => !finished && pay(192), reserveProjection: operations => !finished && pay(operations),
+    document: (node, svg) => { if (!finished) context.document(node, svg) },
+    connector: node => { if (!finished) context.connector(node) },
+    group: node => { if (!finished) context.group(node) }, record })
+  return {
+    observe,
+    finish(scene: SceneDoc): SceneWriteReceipt | undefined {
+      if (finished) throw new Error('Scene write capture already finished')
+      finished = true
+      if (!isAdmittedSceneDocument(scene)) return undefined
+      const result = context.finish(scene)
+      const receipt = new CapturedSceneWrites(scene, paths, operations, exhausted, maxOperations, result.uncertain)
+      Object.freeze(receipt)
+      issuedSceneWrites.add(receipt)
+      return receipt
+    },
+  }
+}
 
 interface SerializedAttribute {
   readonly name: string
@@ -132,31 +290,51 @@ export function sceneNodeSerialization(node: SceneNode): string {
 }
 
 /** Observe only this actual write. Cached markup supplies no new receipt. */
-export function sceneNodeSerializationObserved(node: SceneNode, sink: SvgGeometryWriteSink): string {
-  return serializeSceneNode(node, sink)
+export function sceneNodeSerializationObserved(node: SceneNode, sink?: SvgGeometryWriteSink, observer?: SceneSerializationObserver): string {
+  return serializeSceneNode(node, sink, observer)
 }
 
-function serializeSceneNode(node: SceneNode, sink?: SvgGeometryWriteSink): string {
+function serializeSceneNode(node: SceneNode, sink?: SvgGeometryWriteSink, observer?: SceneSerializationObserver): string {
+  const recorder = observer && sceneWriteObservers.get(observer)
   const stored = SERIALIZED_SCENE_NODES.get(node)
-  if (stored !== undefined) return stored
+  if (stored !== undefined) {
+    if (node.kind === 'document') recorder?.document(node, stored)
+    return stored
+  }
   if (!WRITABLE_SCENE_NODES.has(node)) throw new TypeError(`Scene node "${node.id}" has no admitted SVG serialization`)
   const written = WRITTEN_SCENE_NODES.get(node)
   if (written !== undefined) return written
-  const svg = writeSceneNode(node, sink)
+  let source: Geometry | undefined, served: Geometry | undefined, received = false, invalid = false, projectionReserved = false
+  if (node.kind === 'group') recorder?.group(node)
+  if (node.kind === 'connector') recorder?.connector(node)
+  const watched = recorder && node.kind === 'connector' && recorder.reserve()
+  const geometrySink: SvgGeometryWriteSink | undefined = watched ? Object.assign((geometry: Geometry, written: Geometry | undefined) => {
+    if (received) { invalid = true; return }
+    received = true
+    source = geometry
+    served = written
+    sink?.(geometry, written)
+  }, { reserveProjection: (geometry: Geometry, operations: number) => {
+    if (node.kind !== 'connector' || geometry !== node.route.geometry || projectionReserved) { invalid = true; return false }
+    projectionReserved = true
+    return recorder!.reserveProjection(operations)
+  } }) : sink
+  const svg = writeSceneNode(node, geometrySink, observer)
   // A group is written from its children each time: its children array is
   // not part of what freezing it protects.
   if (node.kind !== 'group' && Object.isFrozen(node)) WRITTEN_SCENE_NODES.set(node, svg)
+  if (watched && source && !invalid && source === node.route.geometry) recorder!.record(node, source, served, svg)
   return svg
 }
 
-function writeSceneNode(node: SceneNode, sink?: SvgGeometryWriteSink): string {
+function writeSceneNode(node: SceneNode, sink?: SvgGeometryWriteSink, observer?: SceneSerializationObserver): string {
   switch (node.kind) {
     case 'shape': return writeShapeSvg(node, sink)
     case 'text': return writeTextSvg(node)
     case 'connector': return writeConnectorSvg(node, sink)
     case 'group': return [
       node.open,
-      ...node.children.map(child => indentLines(sceneNodeSerialization(child.node), child.indent)),
+      ...node.children.map(child => indentLines(serializeSceneNode(child.node, undefined, observer), child.indent)),
       node.close,
     ].join(node.join)
     case 'document': throw new TypeError(`Scene node "${node.id}" has no admitted SVG serialization`)

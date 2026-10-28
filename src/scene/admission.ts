@@ -1,3 +1,4 @@
+import type { SceneSerializationObserver } from './serialization.ts'
 /** One family-aware admission gate between Scene lowering and every backend. */
 
 import type { FamilyDescriptor } from '../agent/families.ts'
@@ -25,9 +26,9 @@ function visit(nodes: readonly SceneNode[], callback: (node: SceneNode, path: st
  * descriptor's complete role x primitive ledger. Every family returns the
  * bounded immutable snapshot that every backend must serialize.
  */
-export function admitFamilyScene(descriptor: FamilyDescriptor, value: unknown, crossChecks = sceneAssertionsEnabled()): SceneDoc {
+export function admitFamilyScene(descriptor: FamilyDescriptor, value: unknown, crossChecks = sceneAssertionsEnabled(), serializationObserver?: SceneSerializationObserver): SceneDoc {
   const external = descriptor.id.startsWith('family:')
-  const scene = admitSceneDocument(value, external ? 'external' : 'internal', crossChecks)
+  const scene = admitSceneDocument(value, external ? 'external' : 'internal', crossChecks, serializationObserver)
   // Native declarations are exercised by strict/verify/test admission. An
   // ordinary owned lowering cannot change the registered role ledger; external
   // producers always reconcile their emitted primitives against that ledger.

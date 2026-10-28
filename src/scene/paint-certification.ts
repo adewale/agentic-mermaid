@@ -3,7 +3,8 @@ import { connectorMarkerPaintRegions, connectorStrokeHasJoins, expandSceneBounds
 import type { AxisAlignedBox } from '../shared/transformed-bounds.ts'
 import { createInlineColorAttributeResolver, resolveInlineColorAttribute } from '../theme.ts'
 import { tryParseCssColor, type RgbaColor } from '../shared/color-math.ts'
-import { inspectScenePaintGeometry, paintPrimitiveSource, scenePrimitiveMatrix, sceneGroupOpacity, type ScenePaintGeometryInspection, type NativeConnectorPaintSource, type ScenePaintGeometry as ScenePaintPrimitive } from './inspection.ts'
+import { hasScenePathEmissionOccurrence, hasSceneWriteEmissionOccurrence, inspectScenePaintGeometry, paintPrimitiveSource, scenePathEmissionWorkOf, scenePrimitiveMatrix, sceneGroupOpacity, type ScenePaintGeometryInspection, type NativeConnectorPaintSource, type ScenePaintGeometry as ScenePaintPrimitive } from './inspection.ts'
+import type { SceneWriteReceipt } from './serialization.ts'
 import type { ConnectorContourSemantics, Geometry, MarkPaint, SceneDoc, SceneOwner, ScenePoint, SceneTransform, MarkerDescriptor } from './ir.ts'
 import { composeMatrices, inverseMatrix, transformMatrix, transformPoint } from './transforms.ts'
 import { formatSvgNumber, formatSvgNumericAttribute } from '../shared/svg-number.ts'
@@ -915,8 +916,8 @@ const ENDPOINT_ROLES = new Set([...CARD_ROLES, 'group', 'note', 'actor', 'juncti
  * The certificate covers retained native geometry, not every antialiased pixel
  * or arbitrary CSS/backend changes. It never treats path-hull overlap as proof.
  */
-export function certifyScenePaint(scene: SceneDoc, projection?: Pick<RenderedLayout, 'nodes' | 'labels'>, options: { outputSupported?: boolean } = {}): PaintLayoutCertification {
-  return certifyNativePaint(scene, inspectScenePaintGeometry(scene), projection, options)
+export function certifyScenePaint(scene: SceneDoc, projection?: Pick<RenderedLayout, 'nodes' | 'labels'>, options: { outputSupported?: boolean; sceneWriteReceipt?: SceneWriteReceipt } = {}): PaintLayoutCertification {
+  return certifyNativePaint(scene, inspectScenePaintGeometry(scene, options.sceneWriteReceipt), projection, options)
 }
 
 export type NativePaintHeader = Pick<SceneDoc, 'family' | 'width' | 'height' | 'colors'>
@@ -931,13 +932,19 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
     else unverified = true
   }
   const emissionWork = nativeEmissionWorkOf(inspection)
+  const sceneWriteWork = scenePathEmissionWorkOf(inspection)
   if (emissionWork && scene !== emissionWork.header) {
     issue({ code: 'OUTPUT_SCOPE', message: 'Retained emission is paired with a different document header' })
     scene = emissionWork.header
   }
+  if (sceneWriteWork && scene !== sceneWriteWork.scene) {
+    issue({ code: 'OUTPUT_SCOPE', message: 'Retained Scene writes are paired with a different document' })
+    scene = sceneWriteWork.scene
+  }
   let x0 = 0, y0 = 0, x1 = scene.width, y1 = scene.height, conditional = 0
   for (const primitive of inspection.primitives) {
     if (!emissionWork && hasNativeEmissionOccurrence(primitive)) issue({ code: 'OUTPUT_SCOPE', message: 'Native paint occurrences have no bound emission context' })
+    if (!sceneWriteWork && hasSceneWriteEmissionOccurrence(primitive)) issue({ code: 'OUTPUT_SCOPE', message: 'Scene paint occurrences have no bound write context' })
     if (primitive.visibility === 'conditional') { conditional++; continue }
     if (primitive.coverage === 'unmeasured') issue({ code: 'UNMEASURED_PAINT', id: primitive.id, message: primitive.reason ?? 'Paint geometry is unavailable' })
     if (primitive.text && primitive.coverage !== 'non-painting' && primitive.text.measurement !== 'prepared') issue({ code: 'UNPREPARED_TEXT', id: primitive.id, message: 'Text was not retained from layout preparation' })
@@ -977,7 +984,8 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
   }
   const surfaces = tree(solidInteriors(scene, inspection.primitives))
   if (emissionWork?.uncertain) issue({ code: 'OUTPUT_SCOPE', message: 'Emitted document context or marker resource differs from retained paint evidence' })
-  let pairs = 0, operations = emissionWork?.operations ?? 0, exhausted = emissionWork?.exhausted ?? false
+  if (sceneWriteWork?.uncertain) issue({ code: 'OUTPUT_SCOPE', message: 'Emitted Scene context or marker resource differs from retained paint evidence' })
+  let pairs = 0, operations = (emissionWork?.operations ?? 0) + (sceneWriteWork?.operations ?? 0), exhausted = (emissionWork?.exhausted ?? false) || (sceneWriteWork?.exhausted ?? false)
   const work = (): boolean => {
     if (operations >= MAX_OCCLUSION_OPERATIONS) { exhausted = true; return false }
     operations++
@@ -1022,6 +1030,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
   // These belong to this paid occurrence walk, not to a mutable source node or
   // its sampled hit route. Only an emitted path token can supply marker pose.
   const pathContours = new Map<ScenePaintPrimitive, readonly ConnectorContourSemantics[]>()
+  const occurrenceBounds = new Map<ScenePaintPrimitive, AxisAlignedBox>()
   for (const primitive of inspection.primitives) {
     if (!work()) break
     const node = paintPrimitiveSource(primitive)
@@ -1052,12 +1061,18 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
       if (!terminalPath) continue
       checkShaft = false
     }
+    let servedShaftBounds: AxisAlignedBox | undefined
     const visit = (part: TypedPathSegment): boolean => {
       if (!work()) return false
-      if (!checkShaft) return true
+      if (extent === undefined) return true
       const bounds = node.stroke.nonScaling
-        ? expandSceneBounds(transformedBounds(part.bounds, transform)!, extent!)
-        : transformedBounds(expandSceneBounds(part.bounds, extent!), transform)!
+        ? expandSceneBounds(transformedBounds(part.bounds, transform)!, extent)
+        : transformedBounds(expandSceneBounds(part.bounds, extent), transform)!
+      if (terminalPath) {
+        for (let i = 0; i < 4; i++) if (!work()) return false
+        servedShaftBounds = unionSceneBounds(servedShaftBounds, bounds)
+      }
+      if (!checkShaft) return true
       const line = part.line?.map(point => transformPoint(point, matrix)) as [ScenePoint, ScenePoint] | undefined
       const walk = (branch: Tree | undefined): void => {
         if (exhausted || !work() || !branch || !overlaps(branch.bounds, bounds)) return
@@ -1084,7 +1099,12 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
       let retained: readonly ConnectorContourSemantics[] | undefined
       const complete = visitTypedPathSegments(geometry.d, visit, work, terminalPath ? contours => { retained = contours } : undefined)
       if (!complete && !exhausted) issue({ code: 'UNMEASURED_PAINT', id: primitive.id, message: 'Final connector segments could not be measured from typed path geometry' })
-      if (terminalPath && complete && retained && hasNativeEmissionOccurrence(primitive)) pathContours.set(primitive, retained)
+      if (terminalPath && complete && retained && (hasNativeEmissionOccurrence(primitive) || hasScenePathEmissionOccurrence(primitive))) {
+        if (!work() || !work() || !work() || !work()) continue
+        pathContours.set(primitive, retained)
+        const bounds = unionSceneBounds(primitive.bounds, servedShaftBounds)
+        if (bounds) occurrenceBounds.set(primitive, bounds)
+      }
     } else {
       const points = geometry.kind === 'line' ? [{ x: geometry.x1, y: geometry.y1 }, { x: geometry.x2, y: geometry.y2 }] : geometry.points
       for (let i = 1; i < points.length; i++) {
@@ -1111,6 +1131,37 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
   for (const primitive of inspection.primitives) {
     const node = paintPrimitiveSource(primitive)
     if (primitive.kind !== 'connector' || node?.kind !== 'connector' || node.lineStyle === 'invisible' || primitive.coverage === 'non-painting') continue
+    const ownData = (value: object, key: string): unknown => {
+      const descriptor = Object.getOwnPropertyDescriptor(value, key)
+      return descriptor && 'value' in descriptor ? descriptor.value : undefined
+    }
+    if (node.route.geometry.kind === 'polyline' && (node.markers.start || node.markers.end)) {
+      // A zero immediate SVG segment has not established the visible marker
+      // pose represented by a nonzero sampled-route fallback. Inspect only
+      // the two marked endpoint pairs, including unchanged emitted operands.
+      let paid = true
+      for (let i = 0; i < 40; i++) if (!work()) paid = false
+      if (!paid) continue
+      const points = ownData(node.route.geometry, 'points')
+      const length = Array.isArray(points) ? ownData(points, 'length') : undefined
+      const point = (index: number): readonly [number, number] | undefined => {
+        const value = ownData(points as object, String(index))
+        if (!value || typeof value !== 'object') return undefined
+        const x = ownData(value, 'x'), y = ownData(value, 'y')
+        return typeof x === 'number' && Number.isFinite(x) && typeof y === 'number' && Number.isFinite(y) ? [x, y] : undefined
+      }
+      let known = typeof length === 'number' && Number.isSafeInteger(length) && length >= 2
+      if (known) for (const position of ['start', 'end'] as const) {
+        if (!node.markers[position]) continue
+        const index = position === 'start' ? 0 : (length as number) - 2
+        const first = point(index), second = point(index + 1)
+        if (!first || !second || first[0] === second[0] && first[1] === second[1]) known = false
+      }
+      if (!known) {
+        issue({ code: 'UNMEASURED_PAINT', id: primitive.id, message: 'Polyline endpoint marker has no nonzero immediate emitted terminal segment' })
+        continue
+      }
+    }
     const contours = node.route.geometry.kind === 'path' ? pathContours.get(primitive) : undefined
     if (node.route.geometry.kind === 'path' && node.markers.mid.length) {
       issue({ code: 'UNMEASURED_PAINT', id: primitive.id, message: 'Path midpoint markers have no emitted vertex-direction authority' })
@@ -1123,10 +1174,6 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
     let retainedContours: readonly ConnectorContourSemantics[] | undefined
     let sampledPoints: readonly ScenePoint[] | undefined
     let sampledSubpaths: readonly { readonly points: readonly ScenePoint[]; readonly closed: boolean }[] | undefined
-    const ownData = (value: object, key: string): unknown => {
-      const descriptor = Object.getOwnPropertyDescriptor(value, key)
-      return descriptor && 'value' in descriptor ? descriptor.value : undefined
-    }
     if (contours) {
       let paid = true
       for (let i = 0; i < 24; i++) if (!work()) paid = false
@@ -1145,11 +1192,10 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
       issue({ code: 'UNMEASURED_PAINT', id: primitive.id, message: 'Emitted path contours disagree with retained marker occurrence topology' })
       continue
     }
-    let knownTerminals = true
+    let knownTerminals = true, changedEndpoints = false
     if (contours) for (let contourIndex = 0; contourIndex < contours.length; contourIndex++) {
-      // The original complete envelope is centred on these retained endpoints.
-      // A changed endpoint needs a separate full-envelope/ownership proof; do
-      // not borrow mutable/inherited sampled point fields to supply it.
+      // Sampled anchors still own their original conservative envelope. Read
+      // only retained data here; actual direction and anchors come from d.
       let paid = true
       for (let i = 0; i < 40; i++) if (!work()) paid = false
       if (!paid) { knownTerminals = false; break }
@@ -1167,16 +1213,25 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
       if (!points?.length) { knownTerminals = false; continue }
       for (const field of ['start', 'end'] as const) {
         const retained = Object.getOwnPropertyDescriptor(original, field)?.value as ScenePoint | undefined
-        if (!retained || Object.getOwnPropertyDescriptor(retained, 'x')?.value !== contour[field].x
-          || Object.getOwnPropertyDescriptor(retained, 'y')?.value !== contour[field].y) knownTerminals = false
+        if (!retained || typeof retained !== 'object') { knownTerminals = false; continue }
+        const rx = ownData(retained, 'x'), ry = ownData(retained, 'y')
+        if (!Number.isFinite(rx) || !Number.isFinite(ry)) knownTerminals = false
+        if (rx !== contour[field].x || ry !== contour[field].y) changedEndpoints = true
         const sampled = ownData(points, String(field === 'start' ? 0 : points.length - 1))
-        if (!sampled || typeof sampled !== 'object' || ownData(sampled, 'x') !== contour[field].x
-          || ownData(sampled, 'y') !== contour[field].y) knownTerminals = false
+        if (!sampled || typeof sampled !== 'object') { knownTerminals = false; continue }
+        const sx = ownData(sampled, 'x'), sy = ownData(sampled, 'y')
+        if (!Number.isFinite(sx) || !Number.isFinite(sy)) knownTerminals = false
+        if (sx !== contour[field].x || sy !== contour[field].y) changedEndpoints = true
       }
       if (contour.closed || node.markers.start && !contour.startTangent || node.markers.end && !contour.endTangent) knownTerminals = false
     }
     if (!knownTerminals) {
       issue({ code: 'UNMEASURED_PAINT', id: primitive.id, message: 'Emitted path endpoints, closure or nonzero direction lack complete retained authority' })
+      continue
+    }
+    if (changedEndpoints && (node.markers.start && node.markers.start.units !== 'userSpaceOnUse'
+      || node.markers.end && node.markers.end.units !== 'userSpaceOnUse')) {
+      issue({ code: 'UNMEASURED_PAINT', id: primitive.id, message: 'Changed path anchors require explicit user-space marker units' })
       continue
     }
     const ownInverse = inverseMatrix(transformMatrix(node.transform))
@@ -1185,7 +1240,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
     const parent: SceneTransform = { kind: 'matrix', a, b, c, d, e, f }
     let reserved = true
     if (contours) for (let i = 0; i < contours.length; i++) {
-      for (let j = 0; j < 8; j++) if (!work()) reserved = false
+      for (let j = 0; j < 24; j++) if (!work()) reserved = false
       if (node.markers.start && !reserveMarkerGeometry(node.markers.start.geometry)) reserved = false
       if (node.markers.end && !reserveMarkerGeometry(node.markers.end.geometry)) reserved = false
       if (!reserved) break
@@ -1225,7 +1280,13 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
       // tolerated source tangent metadata cannot hide a later-body query.
       const retainedBounds = unionSceneBounds(marker.bounds, originalRegions?.[markerIndex]?.bounds)!
       const bounds = circleStroke ? unionSceneBounds(retainedBounds, circleStroke.bounds)! : retainedBounds
-      if (contours && !contains(finalBounds, bounds)) issue({ code: 'UNMEASURED_PAINT', id: primitive.id, message: 'Final viewport does not contain the complete emitted path marker envelope' })
+      if (contours) {
+        // Preserve the raw envelope and add every actual served pose. The
+        // complete occurrence also governs later-restoration pruning below.
+        const complete = unionSceneBounds(occurrenceBounds.get(primitive), bounds)!
+        occurrenceBounds.set(primitive, complete)
+        if (!contains(finalBounds, complete)) issue({ code: 'UNMEASURED_PAINT', id: primitive.id, message: 'Final viewport does not contain the complete emitted path envelope' })
+      }
       lastMarkers.set(key, { primitive, position: marker.position, clipEligible: semantic && exactWorld && knownMapping, anchor: marker.anchor, repaint: marker.repaint, bounds, hull: marker.hull, padding: marker.padding, witnesses, actualInk, strokeProof, circleStroke, semantic, mayFill })
     }
   }
@@ -1301,7 +1362,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
         for (let primitiveIndex = 0; primitiveIndex < primitives.length; primitiveIndex++) {
           const primitive = primitives[primitiveIndex]!
           if (!work()) break
-          const b = primitive.bounds
+          const b = occurrenceBounds.get(primitive) ?? primitive.bounds
           if (primitive.order <= later.primitive.order || primitive.coverage === 'non-painting') continue
           if (!b) { restored = true; break }
           if (b.x0 > proof.x || proof.x > b.x1 || b.y0 > proof.y || proof.y > b.y1) continue
@@ -1333,7 +1394,10 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
   }
   if (exhausted) issue({ code: 'CHECK_BUDGET', message: `Occlusion checking reached its ${MAX_OCCLUSION_PAIRS}-pair or ${MAX_OCCLUSION_OPERATIONS}-operation limit` })
   // Mandatory final certification of the chosen viewport, including markers.
-  for (const primitive of inspection.primitives) if (primitive.bounds && primitive.visibility !== 'conditional' && !contains(finalBounds, primitive.bounds, ARITHMETIC_NOISE)) issue({ code: 'UNMEASURED_PAINT', id: primitive.id, message: 'Final viewport does not contain retained paint' }, true)
+  for (const primitive of inspection.primitives) {
+    const bounds = occurrenceBounds.get(primitive) ?? primitive.bounds
+    if (bounds && primitive.visibility !== 'conditional' && !contains(finalBounds, bounds, ARITHMETIC_NOISE)) issue({ code: 'UNMEASURED_PAINT', id: primitive.id, message: 'Final viewport does not contain retained paint' }, true)
+  }
   return Object.freeze({ version: 1, unit: 'px', scope: 'native-scene', status: failed ? 'failed' : unverified ? 'unverified' : 'passed', viewport, attempts: repaired ? 2 : 1, repairs: Object.freeze(repaired ? ['expand-viewport' as const] : []), coverage: Object.freeze({ measured: inspection.coverage.measured, unmeasured: inspection.coverage.unmeasured, preparedText: inspection.coverage.preparedText, fallbackText: inspection.coverage.fallbackText, conditional }), checks: Object.freeze({ primitives: inspection.primitives.length, labels, occlusionPairs: Math.min(pairs, MAX_OCCLUSION_PAIRS), maxOcclusionPairs: MAX_OCCLUSION_PAIRS, operations, maxOperations: MAX_OCCLUSION_OPERATIONS, markers: lastMarkers.size }), issues: Object.freeze(issues), limitations: Object.freeze(['Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.', 'Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof.']) })
 }
 

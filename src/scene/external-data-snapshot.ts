@@ -1,3 +1,4 @@
+import type { SceneSerializationObserver } from './serialization.ts'
 /** Full public Scene admission; native browser builds select the private
  * built-in-only twin while sharing snapshot ownership and validation rules. */
 import type { SceneDoc } from './ir.ts'
@@ -16,6 +17,6 @@ export function admitBackendSceneDocument(value: unknown): SceneDoc {
   return admitSceneDocument(value)
 }
 
-export function admitSceneDocument(value: unknown, mode?: 'internal' | 'external', crossChecks = sceneAssertionsEnabled()): SceneDoc {
-  return admitSceneDocumentWith(value, mode, crossChecks, assertAdmissibleSceneDoc)
+export function admitSceneDocument(value: unknown, mode?: 'internal' | 'external', crossChecks = sceneAssertionsEnabled(), serializationObserver?: SceneSerializationObserver): SceneDoc {
+  return admitSceneDocumentWith(value, mode, crossChecks, assertAdmissibleSceneDoc, false, serializationObserver)
 }

@@ -26,12 +26,12 @@ export function formatSvgNumber(value: number): string {
 }
 
 /** Numeric SVG payloads share one spelling; semantic strings stay verbatim. */
-export function formatSvgNumericAttribute(name: string, value: string, changedToken?: (offset: number, literal: string) => boolean | void): string {
+export function formatSvgNumericAttribute(name: string, value: string, changedToken?: (offset: number, literal: string) => boolean | void, numericToken?: (literal: string, raw: string) => boolean | void): string {
   if (value.length < 13 || !SVG_LONG_DECIMAL.test(value)) return value
   // Retain only short numeric fields, never complete SVG or semantic payloads.
   const key = value.length <= 512 ? `${name}\0${value}` : undefined
   const cached = key === undefined ? undefined : attributeSpellings.get(key)
-  if (cached !== undefined && !changedToken) return cached
+  if (cached !== undefined && !changedToken && !numericToken) return cached
   const numeric = SVG_NUMERIC_ATTRIBUTES.has(name) && SCALAR_SVG_NUMBER.test(value)
     || (name === 'viewBox' || name === 'points' || name === 'stroke-dasharray') && /^[-+\d.eE,\s]+$/.test(value)
     || name === 'd' && /^[MmZzLlHhVvCcSsQqTtAa\d.eE,+\s-]+$/.test(value)
@@ -39,14 +39,21 @@ export function formatSvgNumericAttribute(name: string, value: string, changedTo
       && /^(?:(?:matrix|translate|scale|rotate|skewX|skewY)\s*\([-+\d.eE,\s]+\)\s*)+$/.test(value)
   if (!numeric) return value
   const formatted = value.replace(SVG_NUMBER, (token, index: number) => {
-    if (!SVG_LONG_DECIMAL.test(token)) return token
+    if (!SVG_LONG_DECIMAL.test(token)) {
+      if (numericToken?.(token, token) === false) numericToken = undefined
+      return token
+    }
     const number = Number(token)
-    if (!Number.isFinite(number)) return token
+    if (!Number.isFinite(number)) {
+      if (numericToken?.(token, token) === false) numericToken = undefined
+      return token
+    }
     const formatted = formatSvgNumber(number)
     // SVG paths allow adjacent decimal tokens without whitespace. Preserve
     // their boundary if rounding changes a leading dot into a digit.
     const literal = token.startsWith('.') && index > 0 && /[\d.]/.test(value[index - 1]!)
       ? ` ${formatted}` : formatted
+    if (numericToken?.(literal, token) === false) numericToken = undefined
     // Offsets belong to the original attribute. An occurrence-owned writer
     // may retain changed typed operands here, without parsing emitted SVG.
     if (literal !== token && changedToken?.(index, literal) === false) changedToken = undefined

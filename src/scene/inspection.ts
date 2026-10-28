@@ -1,8 +1,9 @@
+import { isAdmittedSceneDocument } from './scene-admission-state.ts'
 import { tryParseCssColor } from '../shared/color-math.ts'
 import type { ConnectorMark, MarkPaint, SceneDoc, SceneNode, SceneOwner, SceneRole, SceneTransform, ShapeMark, TextMark } from './ir.ts'
 import { connectorInlineLabelVisualBounds, nodePaintBounds, transformedBounds } from './bounds.ts'
 import { composeMatrices, IDENTITY_MATRIX, transformMatrix, type AffineMatrix } from './transforms.ts'
-import { sceneNodeSerialization } from './serialization.ts'
+import { sceneNodeSerialization, beginSceneWriteInspection, type SceneWriteReceipt, type SceneWriteWork } from './serialization.ts'
 import type { AxisAlignedBox } from '../shared/transformed-bounds.ts'
 
 export interface ScenePaintPrimitive {
@@ -59,6 +60,13 @@ const nativeSources = new WeakMap<ScenePaintGeometry, NativePaintSource>()
 export function paintPrimitiveSource(primitive: ScenePaintGeometry): NativePaintSource | undefined {
   return nativeSources.get(primitive) ?? sources.get(primitive)
 }
+
+const scenePathOccurrences = new WeakSet<ScenePaintGeometry>()
+const sceneWriteOccurrences = new WeakSet<ScenePaintGeometry>()
+export function hasSceneWriteEmissionOccurrence(primitive: ScenePaintGeometry): boolean { return sceneWriteOccurrences.has(primitive) }
+const sceneWriteWork = new WeakMap<ScenePaintGeometryInspection, SceneWriteWork>()
+export function hasScenePathEmissionOccurrence(primitive: ScenePaintGeometry): boolean { return scenePathOccurrences.has(primitive) }
+export function scenePathEmissionWorkOf(inspection: ScenePaintGeometryInspection): SceneWriteWork | undefined { return sceneWriteWork.get(inspection) }
 
 const worldMatrices = new WeakMap<ScenePaintGeometry, AffineMatrix>()
 const IDENTITY_PAINT_MATRIX: AffineMatrix = Object.freeze([1, 0, 0, 1, 0, 0])
@@ -124,8 +132,11 @@ export function inspectScenePrimitives(scene: SceneDoc): ScenePaintInspection {
   })) as ScenePaintInspection
 }
 
-export function inspectScenePaintGeometry(scene: SceneDoc): ScenePaintGeometryInspection {
-  return inspectScene(scene)
+export function inspectScenePaintGeometry(scene: SceneDoc, receipt?: SceneWriteReceipt): ScenePaintGeometryInspection {
+  const writes = beginSceneWriteInspection(receipt, scene)
+  const inspection = inspectScene(scene, undefined, writes, receipt !== undefined || isAdmittedSceneDocument(scene))
+  if (writes) sceneWriteWork.set(inspection, writes.work())
+  return inspection
 }
 
 function hasDisplayedText(block: Extract<SceneNode, { kind: 'text' }>['block'], text: string): boolean {
@@ -202,9 +213,10 @@ function nativePaintSource(node: Exclude<SceneNode, { kind: 'group' }>): NativeP
 function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDetails, native = false) {
   const primitives: ScenePaintGeometry[] = []
   const coverage = { measured: 0, unmeasured: 0, nonPainting: 0, preparedText: 0, fallbackText: 0 }
-  const leaf = (node: Exclude<SceneNode, { kind: 'group' }>, key: string, parent: AffineMatrix | undefined, ancestors: readonly SceneOwner[], conditional: boolean, groupOpacity: number, explicitOwner?: SceneOwner): void => {
+  const leaf = (semanticNode: Exclude<SceneNode, { kind: 'group' }>, key: string, parent: AffineMatrix | undefined, ancestors: readonly SceneOwner[], conditional: boolean, groupOpacity: number, explicitOwner?: SceneOwner, servedNode?: Exclude<SceneNode, { kind: 'group' }>, pathAuthority = false): void => {
+    const node = servedNode ?? semanticNode
     const owner = explicitOwner ?? node.owner ?? ancestors.at(-1) ?? node.identity ?? { id: node.id, role: node.role }
-    const source = native ? nativePaintSource(node) : undefined
+    const source = native || servedNode ? nativePaintSource(node) : undefined
     const hidden = groupOpacity === 0 || nonPainting(node)
     const [a, b, c, d, e, f] = parent ?? IDENTITY_MATRIX
     const parentTransform: SceneTransform | undefined = parent || node.transform ? { kind: 'matrix', a, b, c, d, e, f } : undefined
@@ -226,7 +238,9 @@ function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDet
       ...(node.kind === 'text' ? { text: Object.freeze({ measurement: node.measurement ?? 'unavailable', ...retainText?.(node.text, node.block, true) }) } : {}),
     })
     if (source) nativeSources.set(primitive, source)
-    else sources.set(primitive, node)
+    if (!native) sources.set(primitive, semanticNode)
+    if (servedNode && primitive.visibility !== 'conditional') sceneWriteOccurrences.add(primitive)
+    if (pathAuthority && primitive.visibility !== 'conditional') scenePathOccurrences.add(primitive)
     worldMatrices.set(primitive, matrix)
     primitives.push(primitive)
     if (hidden) coverage.nonPainting++
@@ -254,7 +268,7 @@ function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDet
         text: Object.freeze({ measurement: label.block ? 'prepared' : 'fallback', ...retainText?.(label.text, label.block) }),
       })
       if (source) nativeSources.set(inline, source)
-      else sources.set(inline, node)
+      if (!native) sources.set(inline, semanticNode)
       worldMatrices.set(inline, matrix)
       primitives.push(inline)
       if (hidden) coverage.nonPainting++
@@ -272,7 +286,7 @@ function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDet
   }
 }
 
-function inspectScene(scene: SceneDoc, retainText?: TextDetails): ScenePaintGeometryInspection {
+function inspectScene(scene: SceneDoc, retainText?: TextDetails, writes?: ReturnType<typeof beginSceneWriteInspection>, requireWritten = false): ScenePaintGeometryInspection {
   const recorder = createPaintRecorder(scene, retainText)
   const walk = (nodes: readonly SceneNode[], prefix: string, parent: AffineMatrix, ancestors: readonly SceneOwner[], conditional = false, groupOpacity = 1): void => {
     nodes.forEach((node, index) => {
@@ -280,7 +294,10 @@ function inspectScene(scene: SceneDoc, retainText?: TextDetails): ScenePaintGeom
       if (node.kind === 'group') {
         const own = node.identity ?? { id: node.id, role: node.role }
         walk(node.children.map(child => child.node), key, composeMatrices(parent, transformMatrix(node.transform)), Object.freeze([...ancestors, ownerSnapshot(own)]), conditional || node.visibility === 'conditional', multiplySceneOpacity(groupOpacity, sceneGroupOpacity(node.paint?.opacity)))
-      } else recorder.leaf(node, key, parent, ancestors, conditional, groupOpacity)
+      } else {
+        const written = writes?.node(node)
+        recorder.leaf(node, key, parent, ancestors, conditional || !!written?.conditional || requireWritten && node.kind === 'connector' && node.lineStyle !== 'invisible' && !written, groupOpacity, undefined, written?.served, written?.path)
+      }
     })
   }
   walk(scene.parts, 'scene', IDENTITY_MATRIX, Object.freeze([]))

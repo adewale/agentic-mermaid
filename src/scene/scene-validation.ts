@@ -6,7 +6,7 @@ import { escapeAttr, escapeXml } from '../multiline-utils.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
 import { nodeWorldBounds } from './bounds.ts'
 import { canonicalExternalNode } from './external-projection.ts'
-import { canonicalizeSceneNodeSerialization, sceneNodeSerialization } from './serialization.ts'
+import { canonicalizeSceneNodeSerialization, sceneNodeSerialization, type SceneSerializationObserver } from './serialization.ts'
 import type { SceneDoc, SceneNode, SceneOwner } from './ir.ts'
 import {
   add, record, structurallyEqual, SCENE_VALIDATION_LIMITS,
@@ -243,8 +243,8 @@ export function validateSceneDoc(value: unknown, options: SceneValidationOptions
  * assertions are on; every other rule, and every rule for external Scenes,
  * always applies.
  */
-export function assertAdmissibleSceneDoc(value: unknown, mode: 'internal' | 'external' | undefined, crossChecks: boolean): asserts value is SceneDoc {
-  const result = validateSceneDocument(value, { mode }, crossChecks || sceneValidationMode(value, { mode }) === 'external', EXTERNAL_DOCUMENT_CHECKS)
+export function assertAdmissibleSceneDoc(value: unknown, mode: 'internal' | 'external' | undefined, crossChecks: boolean, serializationObserver?: SceneSerializationObserver): asserts value is SceneDoc {
+  const result = validateSceneDocument(value, { mode }, crossChecks || sceneValidationMode(value, { mode }) === 'external', EXTERNAL_DOCUMENT_CHECKS, serializationObserver)
   if (!result.valid) throw new SceneValidationError(result.diagnostics)
 }
 

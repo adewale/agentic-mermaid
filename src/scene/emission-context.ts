@@ -1,0 +1,267 @@
+import { SVG_STYLE_DECLARATIONS } from '../theme.ts'
+import { safeCssFontFamily } from '../shared/css-font.ts'
+import { formatSvgNumber, formatSvgNumericAttribute } from '../shared/svg-number.ts'
+import { decodedSvgAttributeValue, scanSvgStartTags, type SvgStartTagToken } from '../svg-structure.ts'
+import type { ConnectorMark, DocumentMark, MarkerDescriptor, SceneDoc, SceneNode } from './ir.ts'
+import { serializeMarkerResource } from './marker-resources.ts'
+import { parseSvgTransform, transformMatrix } from './transforms.ts'
+
+type Header = Pick<SceneDoc, 'width' | 'height' | 'colors'>
+type Pay = (operations: number) => boolean
+
+/** Check actual document bytes against the existing writer's closed context.
+ * Collection belongs to the admission/write traversal; only these retained
+ * fragments are checked once the same transaction supplies its header. */
+export function createEmissionContext(pay: Pay, options: { resources?: boolean } = {}) {
+  let uncertain = false, finished = false
+  let hasMarkedConnector = false
+  let needsVariables = false, needsDerivedVariables = false, canonicalStyles = 0, roots = 0
+  const documents: Array<{ node: DocumentMark; svg: string }> = []
+  const groups: Array<Extract<SceneNode, { kind: 'group' }>> = []
+  const references: MarkerDescriptor[] = []
+  const resources = new Map<string, string>()
+  const rootVariables = new Set<string>()
+  const ownValue = (value: object, name: string): unknown => {
+    const descriptor = Object.getOwnPropertyDescriptor(value, name)
+    return descriptor && 'value' in descriptor ? descriptor.value : undefined
+  }
+  const reserve = (count: number): boolean => {
+    if (finished || !Number.isSafeInteger(count) || count < 0 || !pay(count)) { uncertain = true; return false }
+    return true
+  }
+  const variableUse = (value: string): void => {
+    if (value.includes('var(')) needsVariables = true
+    if (value.includes('var(--_')) needsDerivedVariables = true
+  }
+  const canonicalStyle = (body: string, header: Header): boolean => {
+    const font = safeCssFontFamily(header.colors.font ?? 'Inter')
+    if (!font) return false
+    const fallback = /^[A-Za-z0-9][A-Za-z0-9 _-]*$/.test(font) ? `'${font}'` : font
+    let cursor = 0
+    const consume = (literal: string): boolean => {
+      if (!body.startsWith(literal, cursor)) return false
+      cursor += literal.length
+      return true
+    }
+    if (!consume('\n') || !consume(SVG_STYLE_DECLARATIONS.fontPrefix) || !consume(fallback)
+      || !consume(SVG_STYLE_DECLARATIONS.fontSuffix) || !consume('\n')) return false
+    if (body.startsWith(SVG_STYLE_DECLARATIONS.mono, cursor)
+      && (!consume(SVG_STYLE_DECLARATIONS.mono) || !consume('\n'))) return false
+    return consume('  svg {') && consume(SVG_STYLE_DECLARATIONS.derived) && consume('\n  }\n') && cursor === body.length
+  }
+  const rootMatches = (svg: string, root: SvgStartTagToken, header: Header): boolean => {
+    if (root.selfClosing || decodedSvgAttributeValue(root, 'xmlns') !== 'http://www.w3.org/2000/svg') return false
+    const width = formatSvgNumber(header.width), height = formatSvgNumber(header.height)
+    if (decodedSvgAttributeValue(root, 'width') !== width || decodedSvgAttributeValue(root, 'height') !== height) return false
+    const viewBox = decodedSvgAttributeValue(root, 'viewBox')
+    if (viewBox !== undefined && viewBox !== `0 0 ${width} ${height}`) return false
+    if (decodedSvgAttributeValue(root, 'class')?.split(/\s+/).includes('mono')) return false
+    const names = new Set<string>()
+    let cursor = root.start + 4
+    for (const attribute of root.attributes) {
+      if (!['xmlns', 'width', 'height', 'viewBox', 'style', 'role', 'class'].includes(attribute.name)
+        && !attribute.name.startsWith('data-') && !attribute.name.startsWith('aria-')) return false
+      if (names.has(attribute.name) || !/^[ \t\r\n]+$/.test(svg.slice(cursor, attribute.nameStart))
+        || svg.slice(attribute.nameStart, attribute.valueStart) !== `${attribute.name}=${attribute.quote}`) return false
+      names.add(attribute.name)
+      cursor = attribute.valueEnd + 1
+    }
+    if (!/^[ \t\r\n]*>$/.test(svg.slice(cursor, root.end))) return false
+    const style = decodedSvgAttributeValue(root, 'style')
+    if (style === undefined) return true
+    const seen = new Set<string>()
+    for (const declaration of style.split(';')) {
+      if (!declaration.trim()) continue
+      const colon = declaration.indexOf(':')
+      if (colon < 0) return false
+      const name = declaration.slice(0, colon).trim(), value = declaration.slice(colon + 1).trim()
+      if (seen.has(name)) return false
+      seen.add(name)
+      if (name === 'background' && value === 'var(--bg)') continue
+      if (name === '--font' && value === safeCssFontFamily(header.colors.font)) continue
+      if (!['bg', 'fg', 'line', 'accent', 'muted', 'surface', 'border'].some(key => `--${key}` === name)
+        || ownValue(header.colors, name.slice(2)) !== value) return false
+    }
+    for (const name of seen) rootVariables.add(name)
+    return true
+  }
+  const readDefinitions = (svg: string, tags: readonly SvgStartTagToken[]): void => {
+    const outer = tags[0]
+    if (!outer || outer.name !== 'defs' || outer.selfClosing || outer.attributes.length
+      || !/^[ \t\r\n]*$/.test(svg.slice(0, outer.start))) { uncertain = true; return }
+    let cursor = outer.end, markerEnd = -1
+    for (const tag of tags) {
+      if (tag === outer) continue
+      if (tag.name !== 'marker') {
+        if (tag.start >= markerEnd || !['circle', 'ellipse', 'line', 'rect', 'polygon', 'polyline', 'path'].includes(tag.name)) uncertain = true
+        continue
+      }
+      if (tag.start < markerEnd) { uncertain = true; continue }
+      const id = decodedSvgAttributeValue(tag, 'id'), end = svg.indexOf('</marker>', tag.end)
+      if (end < 0) { uncertain = true; return }
+      if (!id || resources.has(id) || !/^[ \t\r\n]*$/.test(svg.slice(cursor, tag.start))) { uncertain = true; continue }
+      markerEnd = end + 9
+      cursor = markerEnd
+      resources.set(id, svg.slice(tag.start, markerEnd).replace(/(^|\n)[ \t]+(?=<)/g, '$1'))
+    }
+    if (!/^[ \t\r\n]*<\/defs>[ \t\r\n]*$/.test(svg.slice(cursor))) uncertain = true
+  }
+  const markupCost = (value: unknown, depth = 0): number | undefined => {
+    if (!reserve(1) || depth > 64) return undefined
+    if (typeof value === 'string') return value.length * 6 + 2
+    if (typeof value === 'number') return 32
+    if (!value || typeof value !== 'object') return 8
+    if (!reserve(1)) return undefined
+    const keys = Object.getOwnPropertyNames(value)
+    if (!reserve(keys.length)) return undefined
+    let cost = 64
+    for (const key of keys) {
+      if (!reserve(3)) return undefined
+      const descriptor = Object.getOwnPropertyDescriptor(value, key)
+      if (!descriptor || !('value' in descriptor)) return undefined
+      const child = markupCost(descriptor.value, depth + 1)
+      if (child === undefined) return undefined
+      cost += key.length + 16 + child
+      if (!Number.isSafeInteger(cost)) return undefined
+    }
+    return cost
+  }
+  const same = (left: unknown, right: unknown): boolean => {
+    if (!reserve(1)) return false
+    if (typeof left === 'string' && typeof right === 'string') return reserve(left.length + right.length) && left === right
+    if (left === right) return true
+    if (!left || !right || typeof left !== 'object' || typeof right !== 'object' || !reserve(2)) return false
+    const keys = Object.getOwnPropertyNames(left), other = Object.getOwnPropertyNames(right)
+    if (!reserve(keys.length + other.length) || keys.length !== other.length) return false
+    for (const key of keys) {
+      if (!reserve(3)) return false
+      const a = Object.getOwnPropertyDescriptor(left, key), b = Object.getOwnPropertyDescriptor(right, key)
+      if (!a || !b || !('value' in a) || !('value' in b) || a.enumerable !== b.enumerable || !same(a.value, b.value)) return false
+    }
+    return true
+  }
+  return {
+    document(node: DocumentMark, svg: string): void {
+      if (!reserve(3)) return
+      documents.push({ node, svg })
+    },
+    connector(node: ConnectorMark): void {
+      if (!reserve(3)) return
+      if (node.lineStyle === 'invisible' || !node.markers.start && !node.markers.end && node.markers.mid.length === 0) return
+      hasMarkedConnector = true
+      if (!reserve(node.stroke.color.length * 2 + 4)) return
+      variableUse(node.stroke.color)
+      if (!reserve(node.markers.mid.length * 2 + 4)) return
+      const reference = (marker: MarkerDescriptor | undefined): void => {
+        if (!marker) return
+        if (options.resources !== false) { references.push(marker); return }
+        for (const field of ['fill', 'stroke'] as const) {
+          const value = marker.paint?.[field]
+          if (value !== undefined && reserve(value.length * 2 + 2)) variableUse(value)
+        }
+      }
+      reference(node.markers.start)
+      for (const marker of node.markers.mid) reference(marker)
+      reference(node.markers.end)
+    },
+    group(shell: Extract<SceneNode, { kind: 'group' }>): void {
+      if (reserve(2)) groups.push(shell)
+    },
+    finish(header: Header): { readonly uncertain: boolean } {
+      if (finished) return Object.freeze({ uncertain: true })
+      // This new obligation belongs to actual marker-bearing occurrences.
+      // Other charts retain their existing proof scope; this is not evidence
+      // that their unrelated styles, resources or responsive units are closed.
+      if (!hasMarkedConnector) {
+        finished = true
+        return Object.freeze({ uncertain: false })
+      }
+      const font = ownValue(header.colors, 'font')
+      if (!reserve(typeof font === 'string' ? font.length * 4 + 16 : 16)) {
+        finished = true
+        return Object.freeze({ uncertain: true })
+      }
+      for (const { node, svg } of documents) {
+        if (!reserve(svg.length * 8 + 128)) break
+        if (svg.includes('<?') || svg.includes('<!')) { uncertain = true; continue }
+        const tags = scanSvgStartTags(svg)
+        if (node.element === 'open') {
+          if (++roots > 1) uncertain = true
+          const root = tags[0]
+          if (!root || root.name !== 'svg' || !rootMatches(svg, root, header)
+            || tags.some((tag, index) => index > 0 && !['title', 'desc', 'style'].includes(tag.name))) uncertain = true
+          for (const tag of tags) if (tag !== root && tag.name !== 'style' && tag.attributes.length) uncertain = true
+        }
+        let styleEnd = -1
+        for (const tag of tags) {
+          if (tag.name !== 'style') continue
+          if (tag.start < styleEnd) { uncertain = true; continue }
+          const end = svg.indexOf('</style>', tag.end)
+          if (end < 0) { uncertain = true; break }
+          styleEnd = end + 8
+          if (tag.selfClosing || tag.attributes.length || end < 0 || !canonicalStyle(svg.slice(tag.end, end), header)) uncertain = true
+          else { canonicalStyles++; needsVariables = true }
+        }
+        if (options.resources === false) continue
+        if (node.element === 'definitions') readDefinitions(svg, tags)
+        if (node.markerResources) {
+          if (!reserve(node.markerResources.length * 2)) break
+          for (const marker of node.markerResources) references.push(marker)
+        }
+      }
+      for (const shell of groups) {
+        const svg = shell.open
+        if (!reserve(svg.length * 8 + 64)) break
+        const tag = scanSvgStartTags(svg)[0]
+        if (!tag || tag.name !== 'g' || decodedSvgAttributeValue(tag, 'style') !== undefined
+          || decodedSvgAttributeValue(tag, 'opacity') !== shell.paint?.opacity
+          || decodedSvgAttributeValue(tag, 'fill') !== undefined || shell.paint?.fill !== undefined
+          || tag.attributes.some(attribute => attribute.name === 'id')
+          || decodedSvgAttributeValue(tag, 'class')?.split(/\s+/).includes('mono')) uncertain = true
+        if (!tag) continue
+        const names = new Set<string>()
+        for (const attribute of tag.attributes) {
+          if (names.has(attribute.name) || !/^(?:class|data-[a-z0-9-]+|role|aria-[a-z]+|tabindex|pointer-events|transform|opacity)$/.test(attribute.name)) uncertain = true
+          names.add(attribute.name)
+        }
+        const raw = decodedSvgAttributeValue(tag, 'transform')
+        if (raw === undefined) {
+          if (shell.transform !== undefined) uncertain = true
+        } else {
+          const actual = parseSvgTransform(raw), typed = shell.transform && transformMatrix(shell.transform)
+          if (formatSvgNumericAttribute('transform', raw) !== raw || !actual || !typed
+            || !actual.every((value, index) => Number.isFinite(value) && Number.isFinite(typed[index]) && value === typed[index])) uncertain = true
+        }
+      }
+      if (options.resources !== false) {
+        const checked = new Map<string, MarkerDescriptor>()
+        for (const marker of references) {
+          if (!reserve(3)) break
+          const prior = checked.get(marker.id)
+          if (prior) {
+            if (!same(prior, marker)) uncertain = true
+            continue
+          }
+          const cost = markupCost(marker)
+          if (cost === undefined || !reserve(cost * 2)) { uncertain = true; break }
+          try {
+            const expected = serializeMarkerResource(marker, { indent: 0 }).replace(/(^|\n)[ \t]+(?=<)/g, '$1')
+            if (!reserve(expected.length * 3)) break
+            variableUse(expected)
+            if (resources.get(marker.id) !== expected) uncertain = true
+            else checked.set(marker.id, marker)
+          } catch { uncertain = true }
+        }
+        if (!reserve(1) || checked.size !== resources.size) uncertain = true
+      }
+      if (needsVariables) for (const name of ['bg', 'fg', 'line', 'accent', 'muted', 'surface', 'border'] as const) {
+        if (!reserve(2)) break
+        if (ownValue(header.colors, name) !== undefined && !rootVariables.has(`--${name}`)) uncertain = true
+      }
+      if (needsVariables && roots !== 1) uncertain = true
+      if (needsDerivedVariables && canonicalStyles === 0) uncertain = true
+      finished = true
+      return Object.freeze({ uncertain })
+    },
+  }
+}

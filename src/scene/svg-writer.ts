@@ -6,7 +6,7 @@
 // typography, transforms, markers, identity and ARIA come from the mark.
 // ============================================================================
 
-import type { ConnectorLabelDescriptor, ConnectorMark, Geometry, MarkAttributes, MarkPaint, SceneTransform, ShapeMark, TextMark } from './ir.ts'
+import type { ConnectorLabelDescriptor, ConnectorMark, Geometry, MarkAttributes, MarkPaint, ScenePoint, SceneTransform, ShapeMark, TextMark } from './ir.ts'
 import type { SvgSemanticIdentity } from './identity.ts'
 import type { SvgSemanticAccessibility } from './accessibility.ts'
 import { hasDomSvgIdentityRole } from './identity.ts'
@@ -14,10 +14,15 @@ import { serializeTransform } from './transforms.ts'
 import { connectorInlineLabelText } from './bounds.ts'
 import { escapeAttr, escapeXml, renderMultilineText } from '../multiline-utils.ts'
 import { formatSvgNumber, formatSvgNumericAttribute } from '../shared/svg-number.ts'
+import { connectorUnitTangent } from './connector-geometry.ts'
+import { createWrittenPolyline } from './written-geometry.ts'
 
 /** A receipt from this actual geometry write, never from cached markup.
  * Undefined served geometry means numeric spelling exceeded bounded custody. */
-export type SvgGeometryWriteSink = (source: Geometry, served: Geometry | undefined) => void
+export type SvgGeometryWriteSink = ((source: Geometry, served: Geometry | undefined) => void) & {
+  /** Bound to this operation's ledger; called before variable projection work. */
+  readonly reserveProjection?: (source: Geometry, operations: number) => boolean
+}
 
 /** One append-only writer for a mark. Attribute emission does not allocate
  * arrays, one-element spread operands, or temporary `name="value"` strings.
@@ -27,8 +32,8 @@ class SvgWriter {
 
   raw(text: string): void { this.value += text }
 
-  attribute(name: string, value: string | number, changedToken?: (offset: number, literal: string) => boolean | void): string {
-    const literal = typeof value === 'number' ? formatSvgNumber(value) : formatSvgNumericAttribute(name, value, changedToken)
+  attribute(name: string, value: string | number, changedToken?: (offset: number, literal: string) => boolean | void, numericToken?: (literal: string, raw: string) => boolean | void): string {
+    const literal = typeof value === 'number' ? formatSvgNumber(value) : formatSvgNumericAttribute(name, value, changedToken, numericToken)
     this.value += ` ${name}="${typeof value === 'number' ? literal : escapeAttr(literal)}"`
     return literal
   }
@@ -122,31 +127,62 @@ function geometryAttributes(out: SvgWriter, geometry: ElementGeometry, sink?: Sv
     case 'polygon':
     case 'polyline': {
       let points = ''
-      // Only two-point carriers need a bounded served-coordinate projection.
-      // Larger unchanged carriers retain their existing immutable operands;
-      // a changed token explicitly declines their new authority.
       const observed = geometry.kind === 'polyline' ? sink : undefined
-      const offsets = observed && geometry.points.length === 2 ? [] as number[] : undefined
-      const coordinates = offsets ? [] as number[] : undefined
-      for (let i = 0; i < geometry.points.length; i++) {
-        const point = geometry.points[i]!
-        const x = `${point.x}`, y = `${point.y}`, prefix = i ? ' ' : ''
-        if (offsets && coordinates) {
-          offsets.push(points.length + prefix.length, points.length + prefix.length + x.length + 1)
-          coordinates.push(Number(x), Number(y))
-        }
+      let pointCount = 0
+      for (; pointCount < geometry.points.length; pointCount++) {
+        const point = geometry.points[pointCount]!
+        const x = `${point.x}`, y = `${point.y}`, prefix = pointCount ? ' ' : ''
         points += `${prefix}${x},${y}`
       }
-      let changed = false, understood = true
-      out.attribute('points', points, observed ? (offset, literal) => {
-        changed = true
-        if (!offsets || !coordinates) return false
-        const coordinate = offsets.indexOf(offset)
-        if (coordinate < 0 || !Number.isFinite(Number(literal))) { understood = false; return }
-        coordinates[coordinate] = Number(literal)
+      let tokens = 0, understood = true, changed = false, x = 0, rawX = 0
+      let projected: ScenePoint[] | undefined, previous: ScenePoint | undefined
+      let firstTangent: ScenePoint | undefined, lastTangent: ScenePoint | undefined
+      let rawPrevious: ScenePoint | undefined, rawFirstTangent: ScenePoint | undefined, rawLastTangent: ScenePoint | undefined
+      let rawX0 = Infinity, rawY0 = Infinity, rawX1 = -Infinity, rawY1 = -Infinity
+      let rawStartX = 0, rawStartY = 0, rawEndX = 0, rawEndY = 0
+      const literal = out.attribute('points', points, undefined, observed ? (literal, raw) => {
+        if (tokens === 0) {
+          const cost = pointCount * 48 + 128
+          if (!Number.isSafeInteger(pointCount) || pointCount < 2 || !Number.isSafeInteger(cost) || !observed.reserveProjection?.(geometry, cost)) { understood = false; return false }
+          projected = []
+        }
+        if (tokens >= pointCount * 2) { understood = false; return false }
+        const value = Number(literal), original = Number(raw)
+        if (!Number.isFinite(value) || !Number.isFinite(original)) { understood = false; return false }
+        changed ||= value !== original
+        if (tokens++ % 2 === 0) { x = value; rawX = original; return }
+        const point = Object.freeze({ x, y: value })
+        const rawPoint = Object.freeze({ x: rawX, y: original })
+        Object.defineProperty(projected, tokens / 2 - 1, { value: point, enumerable: true, writable: false, configurable: false })
+        if (previous) {
+          const tangent = connectorUnitTangent(previous, point)
+          if (tangent) { lastTangent = Object.freeze(tangent); firstTangent ??= lastTangent }
+        }
+        if (rawPrevious) {
+          const tangent = connectorUnitTangent(rawPrevious, rawPoint)
+          if (tangent) { rawLastTangent = Object.freeze(tangent); rawFirstTangent ??= rawLastTangent }
+        }
+        previous = point
+        rawPrevious = rawPoint
+        rawX0 = Math.min(rawX0, rawX); rawY0 = Math.min(rawY0, original)
+        rawX1 = Math.max(rawX1, rawX); rawY1 = Math.max(rawY1, original)
+        if (tokens === 2) { rawStartX = rawX; rawStartY = original }
+        rawEndX = rawX; rawEndY = original
       } : undefined)
-      if (observed) observed(geometry, !changed ? geometry : coordinates && understood
-        ? { kind: 'polyline', points: [{ x: coordinates[0]!, y: coordinates[1]! }, { x: coordinates[2]!, y: coordinates[3]! }] } : undefined)
+      if (observed) {
+        let served: Geometry | undefined = literal === points ? geometry : undefined
+        if (changed && understood && tokens === pointCount * 2 && projected?.length === pointCount) {
+          Object.defineProperty(projected, 'length', { writable: false })
+          Object.preventExtensions(projected)
+          const contour = Object.freeze({ start: projected[0]!, end: projected.at(-1)!, closed: false,
+            ...(firstTangent ? { startTangent: firstTangent } : {}), ...(lastTangent ? { endTangent: lastTangent } : {}) })
+          served = createWrittenPolyline(projected, { contours: Object.freeze([contour]), collapsed: !firstTangent,
+            rawBounds: Object.freeze({ x0: rawX0, y0: rawY0, x1: rawX1, y1: rawY1 }),
+            rawStart: Object.freeze({ x: rawStartX, y: rawStartY }), rawEnd: Object.freeze({ x: rawEndX, y: rawEndY }),
+            ...(rawFirstTangent ? { rawStartTangent: rawFirstTangent } : {}), ...(rawLastTangent ? { rawEndTangent: rawLastTangent } : {}) })
+        }
+        observed(geometry, served)
+      }
       return
     }
     case 'path': {

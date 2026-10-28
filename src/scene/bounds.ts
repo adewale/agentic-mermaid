@@ -5,6 +5,7 @@ import { connectorEndpointAnchors, connectorMidpoints } from './connector-geomet
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import { resolveLabelContent } from '../shared/display-text.ts'
 import { composeMatrices, inverseMatrix, transformMatrix, transformPoint } from './transforms.ts'
+import { writtenPolylineProjectionOf } from './written-geometry.ts'
 
 function pointsBounds(points: Array<{ x: number; y: number }>): AxisAlignedBox | undefined {
   if (points.length === 0) return undefined
@@ -204,8 +205,8 @@ export function geometryBounds(geometry: Geometry): AxisAlignedBox | undefined {
     case 'circle': return { x0: geometry.cx - geometry.r, y0: geometry.cy - geometry.r, x1: geometry.cx + geometry.r, y1: geometry.cy + geometry.r }
     case 'ellipse': return { x0: geometry.cx - geometry.rx, y0: geometry.cy - geometry.ry, x1: geometry.cx + geometry.rx, y1: geometry.cy + geometry.ry }
     case 'line': return { x0: Math.min(geometry.x1, geometry.x2), y0: Math.min(geometry.y1, geometry.y2), x1: Math.max(geometry.x1, geometry.x2), y1: Math.max(geometry.y1, geometry.y2) }
-    case 'polygon':
-    case 'polyline': return pointsBounds(geometry.points)
+    case 'polygon': return pointsBounds(geometry.points)
+    case 'polyline': return unionSceneBounds(pointsBounds(geometry.points), writtenPolylineProjectionOf(geometry)?.rawBounds)
     case 'compound': {
       let bounds: AxisAlignedBox | undefined
       for (const child of geometry.children) {
@@ -298,14 +299,20 @@ export interface ConnectorMarkerPaintRegion {
 /** Individual marker occurrences from the native connector authority. */
 export function connectorMarkerPaintRegions(node: Pick<ConnectorMark, 'route' | 'stroke' | 'markers' | 'transform'>, parentTransform?: SceneTransform, servedContours?: readonly ConnectorContourSemantics[]): ConnectorMarkerPaintRegion[] {
   const geometry = node.route.geometry, endpoints = servedContours ? { starts: servedContours.map(contour => contour.start), ends: servedContours.map(contour => contour.end) } : connectorEndpointAnchors(geometry, node.route.closed)
-  const mids = connectorMidpoints(geometry, node.route.closed)
+  const written = geometry.kind === 'polyline' ? writtenPolylineProjectionOf(geometry) : undefined
+  const mids = node.markers.mid.length ? connectorMidpoints(geometry, node.route.closed) : []
   const transform = composedTransform(parentTransform, node.transform)
   const result: ConnectorMarkerPaintRegion[] = []
   const include = (position: ConnectorMarkerPaintRegion['position'], marker: MarkerDescriptor | undefined, anchor: ScenePoint | undefined, tangent?: ScenePoint): void => {
     if (!marker || !anchor) return
     const angle = typeof marker.orient === 'number' ? marker.orient : tangent ? Math.atan2(tangent.y, tangent.x) * 180 / Math.PI + (position === 'start' && marker.orient === 'auto-start-reverse' ? 180 : 0) : undefined
     const strokeWidth = numericStrokeWidth(node.stroke.width)
-    const local = markerBoundsAt(marker, anchor, strokeWidth, true, angle)
+    // The original operands retain their conservative envelope. Only the
+    // served pose below supplies a hull or visible-ink/contact witness.
+    const rawAnchor = position === 'start' ? written?.rawStart : position === 'end' ? written?.rawEnd : undefined
+    const rawTangent = position === 'start' ? written?.rawStartTangent : position === 'end' ? written?.rawEndTangent : undefined
+    const rawAngle = typeof marker.orient === 'number' ? marker.orient : rawTangent ? Math.atan2(rawTangent.y, rawTangent.x) * 180 / Math.PI + (position === 'start' && marker.orient === 'auto-start-reverse' ? 180 : 0) : undefined
+    const local = unionSceneBounds(markerBoundsAt(marker, anchor, strokeWidth, true, angle), markerBoundsAt(marker, rawAnchor, strokeWidth, true, rawAngle))
     const matrix = transformMatrix(transform)
     // Equality is about the actual resource, orientation, unit scale and
     // composed linear transform, rather than an owner or resource count.
@@ -356,6 +363,11 @@ function connectorLocalBounds(node: ConnectorMark): AxisAlignedBox | undefined {
   const anchors = connectorEndpointAnchors(geometry, node.route.closed)
   for (const anchor of anchors.starts) local = unionSceneBounds(local, markerBoundsAt(node.markers.start, anchor, width))!
   for (const anchor of anchors.ends) local = unionSceneBounds(local, markerBoundsAt(node.markers.end, anchor, width))!
+  const written = geometry.kind === 'polyline' ? writtenPolylineProjectionOf(geometry) : undefined
+  if (written) {
+    local = unionSceneBounds(local, markerBoundsAt(node.markers.start, written.rawStart, width))!
+    local = unionSceneBounds(local, markerBoundsAt(node.markers.end, written.rawEnd, width))!
+  }
   const interior = connectorMidpoints(geometry, node.route.closed)
   if (node.markers.mid.length === 1) {
     for (const anchor of interior) local = unionSceneBounds(local, markerBoundsAt(node.markers.mid[0], anchor, width))!
@@ -579,6 +591,11 @@ function connectorPaintBounds(node: ConnectorMark, transform?: SceneTransform): 
       ? mids.map(anchor => ({ marker: node.markers.mid[0]!, anchor }))
       : node.markers.mid.map((marker, index) => ({ marker, anchor: mids[index] }))),
   ]
+  const written = geometry.kind === 'polyline' ? writtenPolylineProjectionOf(geometry) : undefined
+  if (written) {
+    if (node.markers.start) markers.push({ marker: node.markers.start, anchor: written.rawStart })
+    if (node.markers.end) markers.push({ marker: node.markers.end, anchor: written.rawEnd })
+  }
   for (const { marker, anchor } of markers) {
     const bounds = markerBoundsAt(marker, anchor, width, true)
     const world = bounds && transformedBounds(bounds, transform)

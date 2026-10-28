@@ -10,8 +10,11 @@ import { deferredTerminalProjectionInput, copyDeferredTerminalProjection } from 
 import { transferSceneNodeSerialization } from './serialization.ts'
 import type { SvgGeometryWriteSink } from './svg-writer.ts'
 import { connectorContourSemantics } from './connector-geometry.ts'
+import { writtenPolylineProjectionOf } from './written-geometry.ts'
+import { MAX_OCCLUSION_OPERATIONS } from './paint-work.ts'
+import { createEmissionContext } from './emission-context.ts'
 
-export const MAX_OCCLUSION_OPERATIONS = 400_000
+export { MAX_OCCLUSION_OPERATIONS } from './paint-work.ts'
 
 type Leaf = Exclude<SceneNode, { kind: 'group' }>
 export interface NativeEmissionWork { readonly operations: number; readonly exhausted: boolean; readonly uncertain: boolean; readonly closedMarkerContext: boolean; readonly header: Omit<SceneDoc, 'parts'> }
@@ -25,6 +28,7 @@ export function nativeEmissionWorkOf(inspection: ScenePaintGeometryInspection): 
  * the original operands still supply validation and SVG serialization.
  * Accessors/unsupported data or an exhausted capture keep paint conditional. */
 export function createNativePaintEmission(maxOperations: number) {
+  if (!Number.isSafeInteger(maxOperations) || maxOperations < 0 || maxOperations > MAX_OCCLUSION_OPERATIONS) throw new RangeError('Invalid Native emission work allowance')
   let operations = 0, exhausted = false, uncertain = false
   // A deliberately smaller admission domain for new served marker proofs.
   // Existing proofs do not depend on this flat, stylesheet-free context.
@@ -37,6 +41,7 @@ export function createNativePaintEmission(maxOperations: number) {
     operations += count
     return true
   }
+  const context = createEmissionContext(pay, { resources: false })
   const failed = Symbol('unsupported-emission')
   type CaptureContext = 'leaf' | 'route' | 'geometry' | 'points' | 'point'
   const copy = (value: unknown, depth = 0, parents = new Set<object>(), context?: CaptureContext): unknown => {
@@ -242,6 +247,7 @@ export function createNativePaintEmission(maxOperations: number) {
       return captured
     },
     group(shell: Extract<SceneNode, { kind: 'group' }>) {
+      context.group(shell)
       closedMarkerContext = false
       if (!pay(shell.open.length * 8)) return undefined
       const tag = scanSvgStartTags(shell.open)[0]
@@ -259,6 +265,8 @@ export function createNativePaintEmission(maxOperations: number) {
       // Every inline label can add one primitive; noninline labels only make
       // this a conservative upper bound. Failed reservations are conditional.
       if (!pay(2 * (1 + (node.kind === 'connector' ? node.labels.length : 0)))) return false
+      if (node.kind === 'document') context.document(node, svg)
+      else if (node.kind === 'connector') context.connector(node)
       const opens = node.kind === 'document' && node.element === 'open'
       if (opens ? rootOpens !== 0 || rootCloses !== 0 : rootOpens !== 1 || rootCloses !== 0) closedMarkerContext = false
       if (node.kind === 'connector') {
@@ -305,37 +313,45 @@ export function createNativePaintEmission(maxOperations: number) {
       transferSceneNodeSerialization(node, captured)
       const geometry = captured.kind === 'shape' ? captured.geometry : captured.kind === 'connector' && captured.lineStyle !== 'invisible' ? captured.route.geometry : undefined
       const supported = geometry?.kind === 'line' || geometry?.kind === 'polyline' || captured.kind === 'connector' && geometry?.kind === 'path'
-      // Constant reservation owns the writer receipt and at most four changed
-      // coordinate tokens. No additional point/token pass is performed.
-      const reserved = supported && pay(64)
-      let received = false, invalid = false, served: Geometry | undefined
-      const svg = write(captured, reserved ? (source, written) => {
+      // Constant custody is separate from variable projection work. The writer
+      // reserves the entire token stream before allocating its first point.
+      const reserved = supported && pay(192)
+      let received = false, invalid = false, projectionReserved = false, served: Geometry | undefined
+      const sink: SvgGeometryWriteSink | undefined = reserved ? Object.assign((source: Geometry, written: Geometry | undefined) => {
         if (source !== geometry || received) { invalid = true; return }
         received = true
         served = written
-      } : undefined)
+      }, { reserveProjection: (source: Geometry, operations: number) => {
+        if (source !== geometry || projectionReserved) { invalid = true; return false }
+        projectionReserved = true
+        return pay(operations)
+      } }) : undefined
+      const svg = write(captured, sink)
       const retained = { node: captured, paintNode: captured, svg, conditional: false }
       if (!supported) return retained
       // A cached serialization, missing/duplicate receipt, failed capture or
       // unsupported numeric projection cannot borrow another write's proof.
       if (!reserved || !received || invalid || !served || served.kind !== geometry.kind) return { ...retained, conditional: true }
       if (served === geometry) return retained
-      if (captured.transform || captured.kind === 'connector' && captured.route.closed) return { ...retained, conditional: true }
+      if (captured.transform || captured.kind === 'connector' && (captured.route.closed || served.kind === 'polyline' && captured.markers.mid.length !== 0)) return { ...retained, conditional: true }
       if (!pay(48)) return { ...retained, conditional: true }
       // A path receipt owns only the actual d literal. Keep the already paid,
       // immutable routing metadata; the certifier measures actual d segments.
       const path = captured.kind === 'connector' && captured.route.geometry.kind === 'path' && served.kind === 'path'
         ? replaceField(captured.route.geometry, 'd', served.d) : undefined
       if (served.kind === 'path' && !path) return { ...retained, conditional: true }
-      const frozen = path ?? snapshot(served)
+      const projection = served.kind === 'polyline' ? writtenPolylineProjectionOf(served) : undefined
+      const frozen = path ?? (served.kind === 'polyline' ? projection && served : snapshot(served))
       if (!frozen) return { ...retained, conditional: true }
       const start = frozen.kind === 'line' ? { x: frozen.x1, y: frozen.y1 } : frozen.kind === 'polyline' ? frozen.points[0] : undefined
       const end = frozen.kind === 'line' ? { x: frozen.x2, y: frozen.y2 } : frozen.kind === 'polyline' ? frozen.points.at(-1) : undefined
-      const collapsed = !start || !end || start.x === end.x && start.y === end.y
+      const collapsed = !start || !end || (frozen.kind === 'polyline'
+        ? projection!.collapsed
+        : start.x === end.x && start.y === end.y)
       if (captured.kind === 'shape') return { ...retained, paintNode: Object.freeze({ ...captured, geometry: frozen }), conditional: collapsed }
-      if (captured.kind !== 'connector' || !pay(32)) return { ...retained, conditional: true }
+      if (captured.kind !== 'connector' || !pay(64)) return { ...retained, conditional: true }
       // Rebuild directions from served coordinates, never round unit tangents.
-      const contours = path ? captured.route.contours : snapshot(connectorContourSemantics(frozen as typeof captured.route.geometry, false))
+      const contours = path ? captured.route.contours : projection?.contours ?? snapshot(connectorContourSemantics(frozen as typeof captured.route.geometry, false))
       if (!contours) return { ...retained, conditional: true }
       const route = Object.freeze({ ...captured.route, geometry: frozen, contours,
         startTangent: contours[0]?.startTangent, endTangent: contours.at(-1)?.endTangent })
@@ -361,6 +377,7 @@ export function createNativePaintEmission(maxOperations: number) {
       // could contain a shadowing child ID or malformed XML. The new closed
       // domain admits only resources checked against their actual references.
       if (closedMarkerContext && (!pay() || resources.size !== checked.size)) closedMarkerContext = false
+      if (context.finish(header).uncertain) uncertain = true
       // Paid in observe before these immutable occurrences were created.
       // Conditional fallback occurrences already prohibit P, even if rewrapped.
       for (const primitive of inspection.primitives) if (primitive.visibility !== 'conditional') emittedOccurrences.add(primitive)

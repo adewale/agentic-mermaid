@@ -38,7 +38,7 @@ import { BUILTIN_SCENE_ROLE_TRAITS, sceneRoleTraits } from './roles.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
 import { inspectSvgOnce } from '../svg-inspection-cache.ts'
 import type { SvgGeometryWriteSink } from './svg-writer.ts'
-import { canonicalizeSceneNodeSerialization, sceneNodeSerialization, sceneNodeSerializationObserved } from './serialization.ts'
+import { canonicalizeSceneNodeSerialization, sceneNodeSerialization, sceneNodeSerializationObserved, type SceneSerializationObserver } from './serialization.ts'
 import { MARK_CLASS_TOKENS, MARK_DATA_KEY, WRITER_OWNED_DATA_KEYS } from './svg-writer.ts'
 
 export const SCENE_VALIDATION_VERSION = 2 as const
@@ -661,6 +661,7 @@ function validateMarker(
 }
 
 export interface ValidationState {
+  readonly serializationObserver?: SceneSerializationObserver
   readonly diagnostics: MutableDiagnostic[]
   readonly external: boolean
   readonly aggregateBudgets: boolean
@@ -704,7 +705,7 @@ function validateRole(kind: string, value: unknown, path: string, state: Validat
 function validateNodeSerialization(value: SceneNode, path: string, state: ValidationState, sink?: SvgGeometryWriteSink): string | undefined {
   let serialized: string | undefined
   try {
-    serialized = sink ? sceneNodeSerializationObserved(value, sink) : sceneNodeSerialization(value)
+    serialized = sink || state.serializationObserver ? sceneNodeSerializationObserved(value, sink, state.serializationObserver) : sceneNodeSerialization(value)
     if (boundedUtf8ByteLength(serialized, MAX_SERIALIZATION_BYTES_PER_NODE) > MAX_SERIALIZATION_BYTES_PER_NODE) {
       add(state.diagnostics, 'SCENE_DOCUMENT', path, 'has an oversized SVG serialization')
     }
@@ -1566,7 +1567,7 @@ export interface ExternalSceneDocumentChecks {
   canonical(scene: SceneDoc, diagnostics: SceneValidationDiagnostic[]): void
 }
 
-export function validateSceneDocument(value: unknown, options: SceneValidationOptions, crossChecks: boolean, externalChecks?: ExternalSceneDocumentChecks): SceneValidationResult {
+export function validateSceneDocument(value: unknown, options: SceneValidationOptions, crossChecks: boolean, externalChecks?: ExternalSceneDocumentChecks, serializationObserver?: SceneSerializationObserver): SceneValidationResult {
   const diagnostics: MutableDiagnostic[] = []
   if (!record(value)) {
     return Object.freeze({
@@ -1584,7 +1585,7 @@ export function validateSceneDocument(value: unknown, options: SceneValidationOp
   if (!Array.isArray(value.parts)) {
     add(diagnostics, 'SCENE_DOCUMENT', 'scene.parts', 'must be an array')
   } else {
-    const state = createValidationState(diagnostics, external, crossChecks)
+    const state = { ...createValidationState(diagnostics, external, crossChecks), serializationObserver }
     if (value.parts.length > MAX_SCENE_NODES) add(diagnostics, 'SCENE_BOUNDS', 'scene.parts', 'contains too many top-level Scene nodes')
     for (let index = 0; index < Math.min(value.parts.length, MAX_SCENE_NODES); index++) {
       validateNode(value.parts[index], `scene.parts[${index}]`, state, 0)

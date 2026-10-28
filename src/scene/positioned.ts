@@ -1,4 +1,6 @@
-import { assertBackendConformance, isBuiltinDefaultBackend } from './backend.ts'
+import { createSceneWriteCapture, type SceneWriteReceipt } from './serialization.ts'
+import { MAX_OCCLUSION_OPERATIONS } from './native-paint-emission.ts'
+import { assertBackendConformance, isBuiltinDefaultBackend, isOriginalEnrolledDefaultBackend, getBackendDescriptor } from './backend.ts'
 import { nativeDrawingOf, originalNativeDrawingOf, type DrawingProducer } from './drawing.ts'
 import { drawNative, type NativeDrawing } from './native-drawing.ts'
 import type { FamilyLayoutResult } from '../agent/families.ts'
@@ -14,7 +16,7 @@ import { certifyNativePaint, certifyScenePaint, type PaintLayoutCertification } 
 import { observeCache, observeFallback } from '../performance-observations.ts'
 import { cachedNativeDrawing, retainNativeDrawing, type RetainedNativeDrawing } from '../experimental/position-cache.ts'
 
-interface PositionedScene { scene: SceneDoc; crossChecks: boolean; certification?: PaintLayoutCertification }
+interface PositionedScene { scene: SceneDoc; crossChecks: boolean; writes?: SceneWriteReceipt; certification?: PaintLayoutCertification }
 type RenderableNativeDrawing = Pick<NativeDrawing, 'svg' | 'preparedText'>
 interface PositionedNative { drawing: RenderableNativeDrawing; producer: DrawingProducer; evidence?: NativeDrawing; certification?: PaintLayoutCertification }
 const native = new WeakMap<FamilyLayoutResult, WeakMap<ResolvedRenderRequest, PositionedNative>>()
@@ -40,10 +42,13 @@ export function retainedPositionedScene(request: ResolvedRenderRequest, layout: 
   const colors = request.output === 'png' && request.appearance.colors.embedFontImport !== false
     ? { ...request.appearance.colors, embedFontImport: false } : request.appearance.colors
   const assertions = sceneAssertionsEnabled(request)
+  const writer = plan.backend ?? (plan.mode === 'layout' && request.appearance.inferredBackend === 'default' ? getBackendDescriptor('default') : undefined)
+  const writes = !plan.family.id.startsWith('family:') && writer && isBuiltinDefaultBackend(writer.backend) && isOriginalEnrolledDefaultBackend(writer.backend)
+    ? createSceneWriteCapture(MAX_OCCLUSION_OPERATIONS) : undefined
   const lower = () => plan.family.lowerScene!({ positioned: layout.positioned, colors, resolved: resolvedFamilyRenderContextOf(request) })
   const scene = withTextMeasurementExecution(plan.textMeasurement, () => admitFamilyScene(plan.family,
-    !assertions && !plan.family.id.startsWith('family:') ? withDeferredTerminalProjections(lower) : lower(), assertions))
-  requests.set(request, { scene, crossChecks: assertions })
+    !assertions && !plan.family.id.startsWith('family:') ? withDeferredTerminalProjections(lower) : lower(), assertions, writes?.observe))
+  requests.set(request, { scene, crossChecks: assertions, writes: writes?.finish(scene) })
   return scene
 }
 
@@ -131,5 +136,7 @@ export function positionedPaintCertification(request: ResolvedRenderRequest, lay
   if (entry.certification) return entry.certification
   const plan = resolvedRenderExecutionPlanOf(request)
   const supported = !request.appearance.colors.shadow && (plan.mode === 'layout' ? request.appearance.inferredBackend === 'default' : plan.mode === 'scene' && plan.backend?.inputName === 'default')
-  return entry.certification = certifyScenePaint(scene, retainedFamilyProjection(layout), { outputSupported: supported })
+  const writer = plan.backend ?? (plan.mode === 'layout' && request.appearance.inferredBackend === 'default' ? getBackendDescriptor('default') : undefined)
+  const written = supported && writer && isBuiltinDefaultBackend(writer.backend) && isOriginalEnrolledDefaultBackend(writer.backend)
+  return entry.certification = certifyScenePaint(scene, retainedFamilyProjection(layout), { outputSupported: supported, sceneWriteReceipt: written ? entry.writes : undefined })
 }
