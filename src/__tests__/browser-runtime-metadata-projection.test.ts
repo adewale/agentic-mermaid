@@ -220,11 +220,11 @@ test('compacted ESM preserves live bindings, observable getters, arity and recip
   const chunkNames: string[][] = []
   for (const generation of ['first', 'changed']) {
     const before = new Map<string, string>()
-    const outdir = join(temporary, `compacted-${generation}`)
+    const outdir = join(temporary, 'compacted')
     const result = await build({
       absWorkingDir: temporary, entryPoints: [entry, peer], outdir,
       bundle: true, splitting: true, format: 'esm', platform: 'browser', target: 'es2022',
-      minify: true, write: false, metafile: true, chunkNames: 'chunks/[name]-[hash]', outExtension: { '.js': '.mjs' },
+      minify: true, write: false, metafile: true, entryNames: '[name]-[hash]', chunkNames: 'chunks/[name]-[hash]', outExtension: { '.js': '.mjs' },
       // The incoming recipe models the optimizer changing between releases.
       // Both banners reach esbuild before its chunk-content hashes are made.
       banner: { js: `/* fixture optimizer recipe ${generation} */` },
