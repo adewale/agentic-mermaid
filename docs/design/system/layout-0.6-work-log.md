@@ -699,3 +699,105 @@ of an obsoleteephemeralbunxESLintcache in its separate verifiedarchive. All
 regular member bytes and symlink targets directly match before cleanup. Only
 regenerableNodebytecode/font caches were otherwise cleared. Source worktrees,
 proof/failed-case artifacts and base frozen dependencies remain intact.
+
+
+### Same-emission marker authority and authored Class interactions — 28 October
+
+Runtime repair: `f56279e5b7e256877054076487449238021a0bc6`.
+Authored Class coverage: `e0b6dfebb9051250a8a6bdd31442decd58bbac9d`.
+Both follow published `f16a03a70cef591913e27520b388095b414a06c1`, which
+integrates Main `03641ceb98170eaa39a924097f796221d1e22a22`. The live Main ref
+was `42ed120b6d650d80634cdc35fc44c196c409f7fe` at the final local check;
+this tranche has not been qualified against that newer base. The GitHub PR
+snapshot returned older refs; live Git refs are authoritative. PR #449 remains
+closed/merged and these are retained-branch follow-ups, not changes on Main.
+
+The same five requested GPT-6.1 Sol High agents divided writer custody,
+emitted-path authority, independent paint controls, authored Class coverage,
+and independent end-to-end source/ink review. Source writers were disjoint;
+product operations were serialized. Standalone compiler/byte experiments were
+stopped on the renewed correctness instruction. No performance campaign ran.
+
+The writer now returns a per-write receipt for actual line/polyline numbers
+and path `d`. Captured raw operands remain validation/serialization inputs;
+inspection retains served operands without a second geometry writer, points
+parse, or global identity proof cache. Own inert operands, complete receipts,
+correct source identity and paid work are required. Missing/cache-hit receipts,
+mutation, getters, unknown CSS/resources and unsupported changed geometry retain
+strict uncertainty. Descriptor overlays preserve optional marker metadata and
+the deferred terminal projection without invoking its getter.
+
+The existing paid path walk retains actual emitted C/S/Q/T and linear terminal
+directions, including collapsed-control/zero-segment fallback. Proof authority
+is restricted to same-emission Native open, non-arc contours with exact owned
+sampled endpoints and matching topology. Original conservative marker bounds
+are unioned with served bounds rather than shrunk. Arcs, midpoint markers,
+closed/directionless paths, rounded/mismatched endpoints and unbound generic
+Scene paths remain unverified. No operation or delivery cap was relaxed.
+
+The owning paint tests reproduce four genuine baseline failures: a rounded
+polyline hidden by its endpoint card, fractional polyline inspection retaining
+raw rather than served coordinates, a cubic whose actual terminal derivative
+opposes its sampled chord, and a cubic whose control rounding changes the SVG
+fallback direction. Initial targeted baseline: 4 pass / 4 fail. After repair,
+three demonstrated hidden-marker false passes become unverified; the visible
+fractional polyline keeps passed with correct served coordinates. These are
+soundness repairs, not repairs to hidden drawings or original-seven promotions.
+Seven independently authored visible C/Q/S/T/relative controls retain passed;
+a visible unsupported arc changes from passed to unverified and stays enrolled.
+
+Full-viewport native Resvg marker-removal and cover-removal controls observe
+actual ink independently of the certificate. All 128 paired SVG/PNG artifacts
+are directly byte-identical between the exact f16 source snapshot and frozen
+candidate. Thus pictures did not change. The two early RED runs used an
+unsupported fontBuffers option; their text-free geometry comparisons remain
+valid, but no font-loaded claim is made for those runs. Final controls use the
+supported fontFiles option with bundled Inter. Earlier source-hash provenance
+claims violated repository policy and are withdrawn, not relabelled as direct
+pre/post byte evidence. Source binding uses explicit writer freeze/handoffs;
+post-capture source copies and exact Git diff remain retained. The 842-file
+baseline snapshot was subsequently checked directly against exact Git members.
+
+Class coverage combines nested/shadowed names, generated-looking IDs, equal
+visible labels with distinct identities, Unicode members, parallel/reciprocal/
+self relations, interface realization and note ownership. Literal authored
+facts are checked through source/canonical/JSON reload and strict Native/ELK
+actual SVG identities, parents, ordered relations, labels and marker ends.
+The full Class owner passes 145 tests / 2,043 assertions. A seeded relation-
+deduplicating fault fails the new case; this establishes discrimination, not a
+pre-existing product defect. Ancestor namespace declaration normalization is
+intentional; actual three namespace frames and ownership are observed.
+
+Final combined paint/native-validation/deferred/crisp owners: 312 pass,
+0 fail, 1,773 assertions, including unchanged 4k/50k point budget positives
+under the existing 400,000 limit. Canonical core and repository types pass;
+full lint checks 1,901 files with no errors and one existing oversized-file
+warning. The final Class readonly type correction changes no expected values;
+its focused rerun passes 126 assertions. No local full-suite repetition was
+performed; a fresh exact-head CI is required after publication. Earlier CI
+40704506275 remains historical f219 evidence (14,554 unit passes, 76 skips,
+173 semantic passes), not a result for this source. The original standalone
+editor caps remain failed; package inventory was repaired separately at f510.
+
+Independent peer work executed one pinned Pele 1.9.0 public parse/render for
+original row 87. Raw author correspondence A to B / arrow_circle and the public
+default API call pass. Its filled circle differs stylistically from our hollow
+ring. Internal algorithm and physical peer ink/font admission remain unverified.
+The pinned Trident adapter incorrectly normalizes arrow_circle to arrow; retain
+raw evidence and prepare its shared repair separately, rather than adding an
+AM harness workaround. No new public Mermaid acquisition was performed.
+
+Original rows 77, 87, 88, 89, 103, 206 and 209 remain unverified. Historical
+28 engine/cache packets were independently read back, without promoting them
+to current acquisition or sound certification. All six acceptance goals remain
+open; the independent holdout remains sealed. Next concrete runtime step is
+row 87's complete same-emission CSS/resource/body/context authority, followed
+by stroke-only marker and compound-cylinder obligations. Unsupported path
+cases above remain explicit counterexamples to a general cubic-parity claim.
+
+Local evidence: `/tmp/pr449-20261028-served-token-controls/` (RED logs,
+final combined owners, core/repo types, lint, paired bytes and source epoch),
+`/tmp/pr449-20261028-authored-class-controls/` (owner and seeded fault),
+`/tmp/pr449-independent-ink-peer-20261028/` (independent runtime/ink/peer
+readback), and `/tmp/pr449-20261028-cubic-served-review/`. These are retained
+review evidence, not committed derived fixtures or tests of test presence.
