@@ -1,4 +1,5 @@
 import { expect, test } from 'bun:test'
+import { Resvg } from '@resvg/resvg-js'
 import * as marks from '../scene/marks.ts'
 import { createNativeSceneValidator, SCENE_VALIDATION_LIMITS, SceneValidationError } from '../scene/scene-validation.ts'
 import { deferredTerminalProjectionInput, withDeferredTerminalProjections } from '../scene/deferred-terminal-projection.ts'
@@ -191,26 +192,61 @@ test.each([4_000, 50_000])('a clear admitted immutable native polyline retains f
   expect(proof.status, JSON.stringify(proof.issues)).toBe('passed')
 })
 
-test.each(['different-viewport', 'transparent-root'] as const)('native paint cannot certify unsupported emitted root context for %s', mode => {
+test.each(['ordinary', 'whitespace', 'plain-text', 'grouped-marker', 'spaced-title', 'selfclosing-desc', 'prefix-text', 'prefix-angle', 'suffix-angle', 'early-close-text', 'different-viewport', 'transparent-root'] as const)('native paint preserves actual emitted root context for %s', mode => {
   const marker = tipAnchoredArrow('viewport-custody-arrow', { width: 8, height: 5 }, 'end', { fill: '#000' }, 'userSpaceOnUse')
   const context = { positioned: { width: 200, height: 100 }, colors: header.colors, resolved: { renderOptions: {} } }
-  const producer: DrawingProducer = factory => ({ ...header, parts: [
-    factory.documentOpen({ id: 'root', width: 200, height: 100, colors: header.colors, transparent: false, font: 'Inter', hasMonoFont: false }, mode === 'different-viewport'
-      ? '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="100">'
-      : '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100" opacity="0">'),
-    factory.definitions({ id: 'markers' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
-    factory.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 20, y1: 40, x2: 50, y2: 40 }, paint: { stroke: '#000' }, endpoints: { from: 'outside', to: 'cover' }, markers: { end: marker } }),
-    factory.shape({ id: 'cover', role: 'node', geometry: { kind: 'rect', x: 90, y: 10, width: 35, height: 70 }, paint: { fill: '#fff' } }),
-    factory.documentClose(),
-  ] })
+  const root = '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">'
+  const openings: Record<string, string> = {
+    whitespace: ` \t\r\n${root}\n\t `,
+    'plain-text': `${root}stray`,
+    'spaced-title': `${root}<title >x</title >`,
+    'selfclosing-desc': `${root}<desc/>`,
+    'prefix-text': `stray${root}`,
+    'prefix-angle': `<${root}`,
+    'suffix-angle': `${root}<`,
+    'early-close-text': `${root}</svg>stray`,
+    'different-viewport': '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="100">',
+    'transparent-root': '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100" opacity="0">',
+  }
+  const opening = openings[mode] ?? root
+  const producer: DrawingProducer = factory => {
+    const open = factory.documentOpen({ id: 'root', width: 200, height: 100, colors: header.colors, transparent: false, font: 'Inter', hasMonoFont: false }, opening)
+    const definitions = factory.definitions({ id: 'markers' }, `<defs>${serializeMarkerResource(marker)}</defs>`)
+    const edge = factory.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 20, y1: 40, x2: 50, y2: 40 }, paint: { stroke: '#000' }, endpoints: { from: 'outside', to: 'cover' }, markers: { end: marker } })
+    const artwork = mode === 'grouped-marker' ? factory.group({ id: 'edge-group', role: 'chrome', open: '<g>', close: '</g>', children: [{ node: edge, indent: 2 }] }) : edge
+    return { ...header, parts: [open, definitions, artwork,
+      factory.shape({ id: 'cover', role: 'node', geometry: { kind: 'rect', x: 90, y: 10, width: 35, height: 70 }, paint: { fill: '#fff' } }),
+      factory.documentClose(),
+    ] }
+  }
   const drawing = drawNative(producer, context, 'flowchart')
-  const root = scanSvgStartTags(drawing.svg).find(tag => tag.name === 'svg')!
-  expect(Object.fromEntries(root.attributes.map(attribute => [attribute.name, attribute.value]))).toMatchObject(mode === 'different-viewport' ? { width: '30', height: '100' } : { width: '200', height: '100', opacity: '0' })
-  expect(root.attributes.some(attribute => attribute.name === 'viewBox')).toBe(false)
+  expect(drawing.svg.startsWith(opening)).toBe(true)
+  const malformed = ['prefix-text', 'prefix-angle', 'suffix-angle', 'early-close-text'].includes(mode)
+  const parse = () => new Resvg(drawing.svg, { font: { loadSystemFonts: false } })
+  // Check the complete artifact with an independent XML consumer before
+  // inspecting its certificate. Scanner acceptance is not XML validity.
+  if (malformed) expect(parse).toThrow()
+  else expect(parse).not.toThrow()
+  const positive = ['ordinary', 'whitespace', 'plain-text', 'grouped-marker', 'spaced-title', 'selfclosing-desc'].includes(mode)
+  if (positive) {
+    const pixels = parse().render().pixels
+    let dark = 0
+    for (let index = 0; index < pixels.length; index += 4) {
+      if (pixels[index + 3]! > 0 && pixels[index]! < 80 && pixels[index + 1]! < 80 && pixels[index + 2]! < 80) dark++
+    }
+    expect(dark).toBeGreaterThan(0)
+  }
+  const emittedRoot = scanSvgStartTags(drawing.svg).find(tag => tag.name === 'svg')!
+  expect(Object.fromEntries(emittedRoot.attributes.map(attribute => [attribute.name, attribute.value]))).toMatchObject(mode === 'different-viewport' ? { width: '30', height: '100' } : { width: '200', height: '100' })
+  if (mode === 'transparent-root') expect(emittedRoot.attributes.find(attribute => attribute.name === 'opacity')?.value).toBe('0')
+  expect(emittedRoot.attributes.some(attribute => attribute.name === 'viewBox')).toBe(false)
   // The narrow standalone viewport clips the marker's x42..50 fill; opacity0
   // instead hides it inside a matching viewport. Neither emitted root is
   // described by the typed 200px opaque canvas used for paint checking.
-  expect(certifyNativePaint(drawing.header, drawing.paint).status).not.toBe('passed')
+  const proof = certifyNativePaint(drawing.header, drawing.paint)
+  if (positive) expect(proof.status, JSON.stringify(proof.issues)).toBe('passed')
+  else expect(proof.status).not.toBe('passed')
+  if (malformed) expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'OUTPUT_SCOPE' }))
 })
 
 test('native paint inspects the same document occurrence roster that it emits', () => {

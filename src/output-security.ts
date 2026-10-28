@@ -148,6 +148,12 @@ function hasWellFormedXmlReferences(source: string): boolean {
   return true
 }
 
+/** Validate a text span inside an already delimited SVG element. */
+export function isWellFormedSvgText(value: string): boolean {
+  return hasOnlyXmlCharacters(value) && !value.includes('<') && !value.includes(']]>')
+    && hasWellFormedXmlReferences(value)
+}
+
 /** Linear, dependency-free XML well-formedness gate shared by backend
  * admission and every final SVG result. It deliberately accepts only the
  * bounded XML subset an SVG serializer needs: one paired `<svg>` root,

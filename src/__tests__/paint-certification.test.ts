@@ -608,6 +608,10 @@ test.each(([
   { name: 'declared-unused-resource-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
   { name: 'unused-child-id-shadow-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
   { name: 'unused-primitive-id-shadow-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'earlier-title-id-shadow-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'earlier-description-id-shadow-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'distinct-title-id-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'distinct-description-id-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
   { name: 'optional-palette-transparent-cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
 ] as const).flatMap(row => (['native', 'scene'] as const).map(execution => ({ ...row, execution }))))('a $name binds emitted endpoint certification to actual ink through $execution', ({ name, d, start, end, tangent, cardX, witnessX, execution }) => {
   // These authored open paths all end due east, except the reversed cubic.
@@ -620,6 +624,11 @@ test.each(([
   const shadowPolygon = '<polygon id="visible-terminal" points="0 0, 1 0, 0 1" fill="#000" />'
   const shadow = name === 'unused-child-id-shadow-cubic' ? `<marker id="unused-terminal" markerWidth="1" markerHeight="1" refX="0" refY="0">${shadowPolygon}</marker>`
     : name === 'unused-primitive-id-shadow-cubic' ? shadowPolygon : ''
+  const documentElement = name === 'earlier-title-id-shadow-cubic' || name === 'distinct-title-id-cubic' ? 'title' : name === 'earlier-description-id-shadow-cubic' || name === 'distinct-description-id-cubic' ? 'description' : undefined
+  const documentIdCollision = name === 'earlier-title-id-shadow-cubic' || name === 'earlier-description-id-shadow-cubic'
+  const documentDomId = documentIdCollision ? 'visible-terminal' : 'document-accessibility'
+  const documentTag = documentElement === 'title' ? 'title' : 'desc'
+  const documentMarkup = documentElement ? `<${documentTag} id="${documentDomId}">Accessible drawing</${documentTag}>` : ''
   const customRootColor = name === 'custom-root-color-cubic' || unusedRootResource, customRootCover = name === 'custom-root-cover-cubic'
   const customRoot = customRootColor || customRootCover
   const hidden = name === 'stylesheet-hidden-cubic' || name === 'resource-hidden-cubic' || undefinedRootColor || customRootCover || optionalPaletteTransparent || shadow !== ''
@@ -630,6 +639,7 @@ test.each(([
   const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#000', ...(optionalPaletteTransparent ? { accent: 'transparent' } : {}) }, resolved: { renderOptions: {} } }
   const producer: DrawingProducer = factory => ({ ...scene([]), colors: context.colors, parts: [
     factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80"${customRoot || optionalPaletteTransparent ? ` style="--bg:#fff;--fg:#000;${customRootColor ? '--ink:#f00' : customRootCover ? '--cover:#fff' : '--accent:transparent'}"` : ''}>`),
+    ...(documentElement ? [factory.documentText({ id: 'document-accessibility', element: documentElement, text: 'Accessible drawing', domId: documentDomId })] : []),
     factory.definitions({ id: 'defs', ...(declaredUnusedResource ? { markerResources: [marker, unusedMarker] } : {}) }, `<defs>${name === 'resource-hidden-cubic' ? serializeMarkerResource(marker).replace('<polygon ', '<polygon opacity="0" ') : serializeMarkerResource(marker)}${unusedResource ? serializeMarkerResource(unusedMarker) : ''}${shadow}</defs>`),
     ...(name === 'stylesheet-hidden-cubic' ? [factory.documentContent({ id: 'css', role: 'chrome', nonPaint: 'stylesheet' }, stylesheet)] : []),
     factory.connector({ id: 'visible-edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'path', d, points: [start, end] },
@@ -640,6 +650,11 @@ test.each(([
   ] })
   const drawing = drawPaintControl(producer, context, execution)
   expect(drawing.svg).toContain(`d="${d}"`)
+  if (documentMarkup) {
+    expect(drawing.svg.split(documentMarkup)).toHaveLength(2)
+    expect(drawing.svg.split(' id="visible-terminal"')).toHaveLength(documentIdCollision ? 3 : 2)
+    expect(drawing.svg.indexOf(documentMarkup)).toBeLessThan(drawing.svg.indexOf('<defs>'))
+  }
   const markerEnd = ' marker-end="url(#visible-terminal)"'
   const markerPolygon = undefinedRootColor ? 'points="0 0, 8 2.5, 0 5" fill="none" stroke="var(--fg)" stroke-width="1"' : `points="0 0, 8 2.5, 0 5" fill="${markerFill}" stroke="none"`
   expect(drawing.svg.split(markerEnd)).toHaveLength(2)
@@ -703,9 +718,10 @@ test.each(([
   if (customRootCover) {
     expect(proof.status).toBe('failed')
     expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'MARKER_OCCLUDED', id: 'visible-edge', by: 'foreign-cover' }))
-  } else if (unusedRootResource || legacyUnusedResource || shadow) {
-    // Unchecked definitions cannot certify either real or shadowed head ink.
-    // The declared canonical unused resource above retains its own authority.
+  } else if (unusedRootResource || legacyUnusedResource || shadow || documentIdCollision) {
+    // Document IDs also own URL lookup: earlier title/desc collisions hide
+    // these heads in Chromium, although Resvg retains their visible ink.
+    // Declared canonical unused resources retain their own authority.
     expect(proof.status).toBe('unverified')
     expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'OUTPUT_SCOPE' }))
   } else if (hidden) expect(proof.status).not.toBe('passed')

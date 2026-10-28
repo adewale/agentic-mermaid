@@ -1,6 +1,7 @@
 import { createInlineColorAttributeResolverForVariables, SVG_STYLE_DECLARATIONS } from '../theme.ts'
 import { isHexColor, tryParseCssColor } from '../shared/color-math.ts'
 import { safeCssFontFamily } from '../shared/css-font.ts'
+import { isWellFormedSvgText } from '../output-security.ts'
 import { formatSvgNumber, formatSvgNumericAttribute } from '../shared/svg-number.ts'
 import { decodedSvgAttributeValue, scanSvgStartTags, type SvgStartTagToken } from '../svg-structure.ts'
 import type { ConnectorMark, DocumentMark, MarkerDescriptor, SceneDoc, SceneNode } from './ir.ts'
@@ -17,10 +18,12 @@ export type EmissionColorResolver = (value: string) => string | undefined
 export function createEmissionContext(pay: Pay, options: { resources?: boolean } = {}) {
   let uncertain = false, finished = false
   let hasMarkedConnector = false
+  let documentPosition: 'before' | 'inside' | 'after' = 'before'
   let needsVariables = false, needsDerivedVariables = false, canonicalStyles = 0, roots = 0
   const documents: Array<{ node: DocumentMark; svg: string }> = []
   const groups: Array<Extract<SceneNode, { kind: 'group' }>> = []
   const references: MarkerDescriptor[] = []
+  const markerIds = new Set<string>()
   const resources = new Map<string, string>()
   const rootVariables = new Set<string>()
   const rootPaintVariables = new Map<string, string>()
@@ -104,6 +107,29 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean }
     for (const name of seen) rootVariables.add(name)
     return true
   }
+  const rootPreludeMatches = (svg: string, tags: readonly SvgStartTagToken[], header: Header): boolean => {
+    const root = tags[0]
+    if (!root || root.name !== 'svg' || !/^[ \t\r\n]*$/.test(svg.slice(0, root.start))
+      || !rootMatches(svg, root, header)) return false
+    let cursor = root.end
+    for (const tag of tags) {
+      if (tag === root) continue
+      if (!['title', 'desc', 'style'].includes(tag.name) || tag.start < cursor
+        || !isWellFormedSvgText(svg.slice(cursor, tag.start))
+        || !/^[ \t\r\n]*(?:>|\/>)$/.test(svg.slice(tag.start + tag.name.length + 1, tag.end))) return false
+      if (tag.selfClosing) {
+        if (tag.name === 'style') return false
+        cursor = tag.end
+        continue
+      }
+      const end = svg.indexOf('<', tag.end), closeEnd = svg.indexOf('>', end)
+      if (end < 0 || closeEnd < 0 || !svg.startsWith(`</${tag.name}`, end)
+        || !/^[ \t\r\n]*>$/.test(svg.slice(end + tag.name.length + 2, closeEnd + 1))
+        || tag.name !== 'style' && !isWellFormedSvgText(svg.slice(tag.end, end))) return false
+      cursor = closeEnd + 1
+    }
+    return isWellFormedSvgText(svg.slice(cursor))
+  }
   const readDefinitions = (svg: string, tags: readonly SvgStartTagToken[]): void => {
     const outer = tags[0]
     if (!outer || outer.name !== 'defs' || outer.selfClosing || outer.attributes.length
@@ -162,17 +188,29 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean }
   return {
     document(node: DocumentMark, svg: string): void {
       if (!reserve(3)) return
+      if (node.element === 'open') {
+        if (documentPosition !== 'before') uncertain = true
+        documentPosition = 'inside'
+      } else if (node.element === 'close') {
+        if (documentPosition !== 'inside' || svg !== '</svg>') uncertain = true
+        documentPosition = 'after'
+      } else if (documentPosition !== 'inside') uncertain = true
       documents.push({ node, svg })
     },
     connector(node: ConnectorMark): void {
       if (!reserve(3)) return
       if (node.lineStyle === 'invisible' || !node.markers.start && !node.markers.end && node.markers.mid.length === 0) return
       hasMarkedConnector = true
+      if (documentPosition !== 'inside') uncertain = true
       if (!reserve(node.stroke.color.length * 2 + 4)) return
       variableUse(node.stroke.color)
       if (!reserve(node.markers.mid.length * 2 + 4)) return
       const reference = (marker: MarkerDescriptor | undefined): void => {
         if (!marker) return
+        const id = ownValue(marker, 'id')
+        if (typeof id !== 'string') { uncertain = true; return }
+        if (!reserve(id.length * 2 + 4)) return
+        markerIds.add(id)
         if (options.resources !== false) { references.push(marker); return }
         for (const field of ['fill', 'stroke'] as const) {
           const value = marker.paint?.[field]
@@ -204,12 +242,15 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean }
         if (!reserve(svg.length * 8 + 128)) break
         if (svg.includes('<?') || svg.includes('<!')) { uncertain = true; continue }
         const tags = scanSvgStartTags(svg)
+        if (node.element !== 'definitions') for (const tag of tags) {
+          const id = decodedSvgAttributeValue(tag, 'id')
+          if (id !== undefined && markerIds.has(id)) uncertain = true
+        }
         if (node.element === 'open') {
           if (++roots > 1) uncertain = true
-          const root = tags[0]
-          if (!root || root.name !== 'svg' || !rootMatches(svg, root, header)
-            || tags.some((tag, index) => index > 0 && !['title', 'desc', 'style'].includes(tag.name))) uncertain = true
-          for (const tag of tags) if (tag !== root && tag.name !== 'style' && tag.attributes.length) uncertain = true
+          // The existing fragment reservation pays these exact token/text
+          // spans; the shared scanner remains the only markup inventory.
+          if (!rootPreludeMatches(svg, tags, header)) uncertain = true
         }
         let styleEnd = -1
         for (const tag of tags) {
@@ -277,7 +318,7 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean }
         if (!reserve(2)) break
         if (ownValue(header.colors, name) !== undefined && !rootVariables.has(`--${name}`)) uncertain = true
       }
-      if (roots !== 1) uncertain = true
+      if (roots !== 1 || documentPosition !== 'after') uncertain = true
       if (needsDerivedVariables && canonicalStyles === 0) uncertain = true
       let resolveColor: EmissionColorResolver | undefined
       if (!uncertain) {
