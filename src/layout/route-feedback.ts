@@ -21,20 +21,19 @@ export function tightenOuterFeedback(edge: PositionedEdge, ctx: LaneContext, nod
     const graphAxis = ctx.axis
     const crossOf = (pt: Point) => pt[graphAxis.cross]
     const mainOf = (pt: Point) => pt[graphAxis.main]
-    // The outer channel is the run at the route's extreme cross value.
-    const crossValues = points.map(crossOf)
-    const extremeHi = Math.max(...crossValues)
-    const extremeLo = Math.min(...crossValues)
-    const startCross = crossOf(points[0]!)
-    const extreme = Math.abs(extremeHi - startCross) >= Math.abs(extremeLo - startCross) ? extremeHi : extremeLo
+    // A laterally displaced target can be farther from the source than the
+    // return channel. Its short terminal stub is not the feedback run: choose
+    // the longest existing segment against the declared flow, retaining the
+    // first on a tie. Head/tail shortcuts still prove their new hops below.
     let runStart = -1
+    let reverseLength = EPS
     for (let i = 1; i < points.length; i++) {
-      if (Math.abs(crossOf(points[i - 1]!) - extreme) < EPS && Math.abs(crossOf(points[i]!) - extreme) < EPS) {
-        runStart = i - 1
-        break
-      }
+      if (Math.abs(crossOf(points[i - 1]!) - crossOf(points[i]!)) >= EPS) continue
+      const length = (mainOf(points[i - 1]!) - mainOf(points[i]!)) * graphAxis.sign
+      if (length > reverseLength) { reverseLength = length; runStart = i - 1 }
     }
     if (runStart < 1) return false // no excursion before the channel run
+    const extreme = crossOf(points[runStart]!)
     const run = [points[runStart]!, points[runStart + 1]!]
     const runDir = Math.sign(mainOf(run[1]!) - mainOf(run[0]!))
     const p0 = points[0]!

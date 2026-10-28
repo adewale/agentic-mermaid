@@ -1386,3 +1386,34 @@ test.each(['LR', 'RL'] as const)('ELK cyclic15 uses the serialized terminal pose
   expect(result.svg).toContain('data-from="n6" data-to="n11"')
   expect(result.svg).toContain('data-from="n4" data-to="n11"')
 })
+
+
+test.each(['exact', 'rounded'].flatMap(pose => ['known', 'known-vars', 'known-transform', 'context-stroke', 'context-fill', 'currentColor', 'inherited', 'unknown-var', 'mixed-fill', 'mixed-stroke', 'omitted-fill', 'omitted-stroke', 'opacity-var', 'width-var', 'offset-var'].map(paint => [pose, paint] as const)))('shared marker repaint keeps %s pose and %s paint distinct', (pose, mode) => {
+  const paint: MarkPaint = { fill: '#fff', stroke: '#111', strokeWidth: '1.5' }
+  if (['context-stroke', 'context-fill', 'currentColor', 'inherited', 'unknown-var'].includes(mode)) paint.fill = paint.stroke = mode === 'inherited' ? 'inherit' : mode === 'unknown-var' ? 'var(--host)' : mode
+  if (mode === 'known-vars') { paint.fill = 'var(--bg)'; paint.stroke = 'var(--fg)' }
+  if (mode === 'mixed-fill') paint.fill = 'context-stroke'
+  if (mode === 'mixed-stroke') paint.stroke = 'context-stroke'
+  if (mode === 'omitted-fill') delete paint.fill
+  if (mode === 'omitted-stroke') delete paint.stroke
+  if (mode === 'opacity-var') paint.opacity = 'var(--host)'
+  if (mode === 'width-var') paint.strokeWidth = 'var(--host)'
+  if (mode === 'offset-var') paint.strokeDashoffset = 'var(--host)'
+  const marker: MarkerDescriptor = { id: 'shared-resource', shape: 'diamond', units: 'userSpaceOnUse', orient: 'auto-start-reverse', overflow: 'visible', size: { width: 14, height: 12 }, viewBox: { x: 0, y: 0, width: 14, height: 12 }, ref: { x: 13, y: 6 }, geometry: { kind: 'polygon', points: [{ x: 7, y: 1 }, { x: 13, y: 6 }, { x: 7, y: 11 }, { x: 1, y: 6 }] }, paint }
+  const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => ({ ...scene([]), parts: [
+    factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'),
+    factory.definitions({ id: 'resources' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
+    ...['earlier', 'later'].map(id => factory.connector({ id, role: 'edge', owner: { id, role: 'edge' }, lineStyle: 'solid', endpoints: { from: 'shared-source', to: id }, geometry: { kind: 'line', x1: 70, y1: 30, x2: 20, y2: pose === 'rounded' && id === 'later' ? 30 + 1e-13 : 30 }, paint: { stroke: id === 'earlier' ? '#111' : '#fff', strokeWidth: '1' }, ...(mode === 'known-transform' ? { transform: { kind: 'matrix' as const, a: 1, b: 0, c: 0, d: 1, e: 1, f: 0 } } : {}), markers: { start: marker } })),
+    factory.documentClose(),
+  ] })
+  const drawing = drawNative(producer, context, 'flowchart')
+  expect(drawing.svg.match(/id="shared-resource"/g)).toHaveLength(1)
+  expect(drawing.svg.match(/<line x1="70" y1="30" x2="20" y2="30"/g)).toHaveLength(2)
+  const expected = ['known', 'known-vars'].includes(mode) || mode === 'known-transform' && pose === 'exact' ? 'passed' : 'unverified'
+  for (const proof of [certifyScenePaint(producer(marks, context)), certifyNativePaint(drawing.header, drawing.paint)]) {
+    expect(proof.status).toBe(expected)
+    if (expected === 'unverified') expect(proof.issues.some(issue => issue.code === 'POTENTIAL_OCCLUSION' || issue.code === 'UNMEASURED_PAINT')).toBe(true)
+    else expect(proof.issues).toEqual([])
+  }
+})
