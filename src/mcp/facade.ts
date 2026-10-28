@@ -31,6 +31,8 @@ type TraceNarrowFamily = Extract<ExecutionTraceCall, { verb: 'narrow' }>['family
 export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxError?: (message: string) => Error, isClosed?: () => boolean, hostPolicy?: CodeModeHostPolicy, beforeSdkCall?: () => string | undefined, onTraceCall?: (call: ExecutionTraceCall) => void): typeof mermaid {
   const diagramIds = new WeakMap<object, number>()
   const trusted = new WeakSet<object>()
+  const sourceResults = new WeakSet<object>()
+  const preservedSources = new WeakMap<object, string>()
   const hardened = new WeakMap<object, unknown>()
   const raw = new WeakMap<object, object>()
   let nextId = 1
@@ -395,6 +397,7 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
     asBlock: mermaid.asBlock,
 
     mutate: mermaid.mutate,
+    mutatePreservingSource: mermaid.mutatePreservingSource,
     verifyMermaid: mermaid.verifyMermaid,
     analyzeMermaid: mermaid.analyzeMermaid,
     analyzeMermaidSource: mermaid.analyzeMermaidSource,
@@ -467,10 +470,10 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
         push({ verb: 'narrow', family: narrowerFamily(prop), input, ok: r !== null })
         return harden(r)
       })
-    } else if (prop === 'mutate')
+    } else if (prop === 'mutate' || prop === 'mutatePreservingSource')
       value = harden((d: any, op: any) => {
         assertOpen()
-        requireTrustedDiagram(d, 'mutate')
+        requireTrustedDiagram(d, prop)
         const opForHost = jsonClone(op)
         const call: Extract<ExecutionTraceCall, { verb: 'mutate' }> = {
           verb: 'mutate',
@@ -482,11 +485,16 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
         // mutateChecked runs the shape validator before the mutator: the SAME
         // choke point the declarative applyOps path funnels through, so an op
         // rejected here is rejected identically there (no second validator).
-        const r = hostCall(() => mermaid.mutateChecked(rawOf(d), opForHost))
+        const r = hostCall(() => prop === 'mutatePreservingSource' ? mermaid.mutatePreservingSource(rawOf(d), opForHost) : mermaid.mutateChecked(rawOf(d), opForHost))
         if (r.ok) {
-          trustDiagram(r.value)
-          call.output = idOf(r.value)
-          call.fingerprint = fingerprint(r.value)
+          const output = 'diagram' in r.value ? r.value.diagram : r.value
+          trustDiagram(output)
+          if ('diagram' in r.value) {
+            sourceResults.add(r.value)
+            preservedSources.set(output, r.value.source)
+          }
+          call.output = idOf(output)
+          call.fingerprint = fingerprint(output)
         }
         if (!r.ok && Array.isArray(opForHost)) {
           return harden({ ...r, error: { ...r.error, message: r.error.message.replace('applyOps({ source, family, ops }) to edit source', 'the declarative mutate tool to edit source') } })
@@ -635,7 +643,8 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
     try {
       const rawObj = rawOf(value)
       // Unwrap a Result<diagram> ({ ok:true, value:<diagram> }) to the diagram.
-      const candidate = rawObj && typeof rawObj === 'object' && !Array.isArray(rawObj) && (rawObj as { ok?: unknown }).ok === true && 'value' in (rawObj as object) ? rawOf((rawObj as { value: unknown }).value) : rawObj
+      let candidate = rawObj && typeof rawObj === 'object' && !Array.isArray(rawObj) && (rawObj as { ok?: unknown }).ok === true && 'value' in (rawObj as object) ? rawOf((rawObj as { value: unknown }).value) : rawObj
+      if (candidate && typeof candidate === 'object' && sourceResults.has(candidate)) candidate = (candidate as { diagram: unknown }).diagram
       if (isDiagramLike(candidate) && trusted.has(candidate as object)) {
         const d = candidate as unknown as Parameters<typeof mermaid.serializeMermaid>[0] & { kind: DiagramKind }
         const { accepted, verification } = verifyMutationResult(d)
@@ -651,7 +660,8 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
             },
           }
         }
-        return { ok: true, family: d.kind, source: mermaid.serializeMermaid(d), verify: summary }
+        const exact = preservedSources.get(d)
+        return { ok: true, family: d.kind, source: exact ?? mermaid.serializeMermaid(d), verify: summary, ...(exact !== undefined ? { mode: 'source-preserving' } : {}) }
       }
     } catch {
       // A returned value whose inspection trips a post-close proxy guard (e.g. a

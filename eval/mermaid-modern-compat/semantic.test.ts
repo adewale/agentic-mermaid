@@ -10,7 +10,7 @@ import { admitCurrentReference, currentReferencePin, startModernReference, type 
 import { startGrammarReference } from './grammar-reference.ts'
 import type { FlowchartValidDiagram, JourneyMutationOp, ParsedDiagram } from '../../src/agent/types.ts'
 import { BUILTIN_FAMILY_METADATA } from '../../src/agent/families.ts'
-import { censusDisplayText, labelCensus } from './label-census.ts'
+import { censusDisplayText, labelCensus, referenceLabels } from './label-census.ts'
 import { officialCorpusInventory } from '../shared/official-fences.ts'
 import { inspectAgenticGrammar } from './grammar-agentic.ts'
 import { nativeMeaningChanged } from './grammar-triage.ts'
@@ -115,6 +115,21 @@ semantic('ZenUML official sources, canonical writes and checked edits use the re
   expect(layout.edges.filter(edge => edge.label?.text === 'accepted' || edge.label?.text === 'rejected').map(edge => [edge.from, edge.to])).toEqual([['Inventory', 'API'], ['Inventory', 'API']])
   expect(layout.edges.find(edge => edge.label?.text === 'result = reserve()')?.to).toBe('Inventory')
   expect(layout.edges.find(edge => edge.label?.text === 'checkout()')?.from).toBe('Buyer')
+  const messages = am.parseRegisteredMermaid('zenuml\nAlice->Bob: Hello\nBob->Alice: Reply')
+  if (!messages.ok || messages.value.body.kind !== 'zenuml') throw Error('Expected native message edit control')
+  const first = messages.value.body.statements[0]!
+  if (first.kind !== 'message') throw Error('Expected a message statement')
+  const edited = am.mutateChecked(messages.value, { kind: 'set_statement', id: first.id, statement: { ...first, label: 'Updated Hello' } })
+  if (!edited.ok) throw Error(edited.error.message)
+  for (const [diagram, labels] of [[messages.value, ['Alice', 'Bob', 'Hello', 'Reply']], [edited.value, ['Alice', 'Bob', 'Updated Hello', 'Reply']]] as const) {
+    const reference = await accepted(am.serializeMermaid(diagram, { wrapper: 'canonical' }))
+    expect(reference.parserAst?.unavailable).toContain('not an AST')
+    expect(referenceLabels('zenuml', reference)?.map(label => label.text)).toEqual([...labels])
+    const census = labelCensus('zenuml', reference, diagram, am.renderMermaidSVG(diagram))
+    if (census.status !== 'measured') throw Error(census.reason)
+    expect(census.labels.length).toBeGreaterThan(0)
+    for (const label of census.labels) for (const surface of ['model', 'facts', 'svg', 'ascii', 'meta']) expect(label.presence[surface]).toBe(true)
+  }
 })
 
 function svgGroups(svg: string, id: string): string[] {
@@ -867,19 +882,12 @@ for (const source of [
 }
 
 for (const family of BUILTIN_FAMILY_METADATA) {
-  semantic(`independent label surfaces: ${family.id}`, 'FamilyDescriptor.example through the independent reference DB, or explicitly tagged upstream Event Modeling parser AST', async () => {
+  semantic(`independent label surfaces: ${family.id}`, 'FamilyDescriptor.example through independent DB, tagged Event Modeling parser AST or tagged public ZenUML rendered SVG text', async () => {
     const reference = await accepted(family.example)
     const parsed = am.parseRegisteredMermaid(family.example)
     if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
     const census = labelCensus(family.id, reference, parsed.value, am.renderMermaidSVG(parsed.value))
-    if (census.status !== 'measured') {
-      if (family.id === 'zenuml' && reference.parserIdentity?.parser === '@zenuml/core@3.47.9' && reference.parserAst?.unavailable) return {
-        status: 'unavailable',
-        reason: `${reference.parserIdentity.parser}: ${reference.parserAst.unavailable}; independent label parity cannot be measured`,
-        parserIdentity: reference.parserIdentity,
-      }
-      throw new Error(census.reason)
-    }
+    if (census.status !== 'measured') throw new Error(census.reason)
     expect(census.labels.length).toBeGreaterThan(0)
     for (const label of census.labels) {
       for (const surface of ['model', 'facts', 'svg', 'ascii', 'meta']) {

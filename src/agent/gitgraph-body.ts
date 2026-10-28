@@ -1,4 +1,4 @@
-import { GitGraphParseError, gitGraphStatementEnds, parseGitGraph, serializeGitGraph } from '../gitgraph/parser.ts'
+import { GitGraphParseError, parseGitGraph, quoteGitGraphString as quote, serializeGitGraph } from '../gitgraph/parser.ts'
 import type { GitGraphCommit } from '../gitgraph/types.ts'
 import { gitGraphCommitLabel } from '../gitgraph/types.ts'
 import { labelOverflowCollector, setOptionalField } from './body-utils.ts'
@@ -10,36 +10,8 @@ export function parseGitGraphBody(source: string, options: import('../gitgraph/p
   return { kind: 'gitgraph', ...parseGitGraph(source, options) }
 }
 
-export function gitGraphCommentTextProblem(source: string): string | undefined {
-  // The public prepass normalizes CR first, then uses JavaScript multiline
-  // anchors (which also see LS/PS) while its comment payload stops only at LF.
-  const normalized = source.replace(/\r\n?/g, '\n')
-  const lines = normalized.split(/[\n\u2028\u2029]/)
-  const endings = normalized.match(/[\n\u2028\u2029]/g) ?? []
-  const header = lines.findIndex(line => /^\s*gitGraph\b/i.test(line))
-  if (header < 0) return
-  const bodyLines = lines.slice(header + 1)
-  const ends = gitGraphStatementEnds(bodyLines)
-  for (let start = 0; start < bodyLines.length; start++) {
-    const end = ends[start] ?? start
-    for (let line = start + 1; line <= end; line++) {
-      // Public Mermaid removes physical comments before its string lexer.
-      // Entity shielding would change GitGraph's literal identities.
-      if (/^[^\S\r\n]*%%(?!\{)[^\n]+/.test(bodyLines[line]! + (endings[header + 1 + line] ?? ''))) return 'A multiline GitGraph string contains a comment-looking line removed by Mermaid preprocessing; source and native rendering are preserved without typed editing.'
-    }
-    start = end
-  }
-}
-
-export function gitGraphSerializationProblem(body: GitGraphBody): string | undefined {
-  return gitGraphCommentTextProblem(serializeGitGraph(body))
-}
-
 export function renderGitGraphBody(body: GitGraphBody): string {
-  const source = serializeGitGraph(body)
-  const problem = gitGraphCommentTextProblem(source)
-  if (problem) throw new Error(problem)
-  return source
+  return serializeGitGraph(body)
 }
 
 function cloneBody(body: GitGraphBody): GitGraphBody {
@@ -51,16 +23,11 @@ function cloneBody(body: GitGraphBody): GitGraphBody {
   }
 }
 
-function quote(value: string): string {
-  return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
-}
-
 function appendStatement(body: GitGraphBody, statement: string): Result<GitGraphBody, MutationError> {
   try {
     const parsed = parseGitGraph(renderGitGraphBody(body).trimEnd() + `\n  ${statement}\n`, { mainBranchName: body.mainBranchName, mainBranchOrder: body.branches.find(branch => branch.name === body.mainBranchName)?.order, title: body.title })
     const next: GitGraphBody = { kind: 'gitgraph', ...parsed }
-    const problem = gitGraphSerializationProblem(next)
-    return problem ? err({ code: 'INVALID_OP', message: problem }) : ok(next)
+    return ok(next)
   } catch (error) {
     return err({ code: 'INVALID_OP', message: error instanceof Error ? error.message : String(error) })
   }

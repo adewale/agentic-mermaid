@@ -11,6 +11,7 @@ import type { AsciiRenderOptions } from './ascii/index.ts'
 import type { RenderOptions } from './types.ts'
 import type { BrowserPngRasterizer } from './browser-png.ts'
 import type { PortablePngOutputOptions } from './png-contract.ts'
+import type { ApplyOpsInput } from './agent/apply.ts'
 
 export function createBrowserEditorAdapter(load: () => PreviewWorkerClient | Promise<PreviewWorkerClient>, onRuntimeStatus?: (available: boolean) => void) {
   let generation = 0, loaded: PreviewWorkerClient | undefined
@@ -29,6 +30,10 @@ export function createBrowserEditorAdapter(load: () => PreviewWorkerClient | Pro
     }
   }
   return {
+    applyOps(source: string, ops: unknown, mode?: ApplyOpsInput['mode']) {
+      const snapshot = structuredClone(ops)
+      return execute(client => client.applyOps(source, snapshot, mode))
+    },
     renderMermaidSVGWithReceipt(source: string, options: RenderOptions = {}) {
       const snapshot = structuredClone(options)
       return execute(client => client.render(source, snapshot))

@@ -174,6 +174,39 @@ function workerHarness(timeout = 30_000) {
 }
 
 describe('persistent preview worker queue', () => {
+  test('editor source edits use the queued worker and discard results after the draft changes', async () => {
+    const h = workerHarness(), adapter = createBrowserEditorAdapter(() => h.client)
+    const source = 'flowchart TD\nA[Old]\nclassDef retained border:1px s:::colid red'
+    try {
+      const ops = [{ kind: 'set_label', target: 'A', label: 'Reviewed' }]
+      const edited = adapter.applyOps(source, ops, 'source-preserving')
+      await Promise.resolve()
+      ops[0]!.label = 'Changed after submission'
+      expect(h.sent[0]).toMatchObject({ operation: 'mutate', source, mode: 'source-preserving', ops: [{ label: 'Reviewed' }] })
+      h.replyArtifact(1, { mutation: { ok: true, source: source + '\nA[Reviewed]', mode: 'source-preserving', family: 'flowchart', verify: { ok: true, warnings: [] } } })
+      expect(await edited).toMatchObject({ ok: true, mode: 'source-preserving' })
+      const stale = adapter.applyOps(source, ops, 'source-preserving').catch(error => error)
+      await Promise.resolve()
+      adapter.cancelPendingRender()
+      h.replyArtifact(2, { mutation: { ok: false, family: 'flowchart', error: { code: 'INVALID_OP', message: 'stale failure' } } })
+      expect(await stale).toBeInstanceOf(PreviewSupersededError)
+    } finally { h.client.dispose() }
+  })
+
+  test('editor worker performs source edits through the real mutation pipeline', async () => {
+    const client = new PreviewWorkerClient(() => new Worker(new URL('../browser-preview-worker.ts', import.meta.url), { type: 'module' }))
+    try {
+      const source = 'classDiagram\nnamespace `~`{class P}'
+      const before = await client.render(source, {})
+      expect(before.svg).not.toContain('read()')
+      const result = await client.applyOps(source, [{ kind: 'add_member', class: 'P', text: '+read()' }], 'source-preserving')
+      expect(result).toMatchObject({ ok: true, mode: 'source-preserving', verify: { warnings: expect.arrayContaining([expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX' })]) } })
+      if (!result.ok) throw new Error(result.error.message)
+      expect(result.source.startsWith(source)).toBe(true)
+      expect(result.source).toContain('+read()')
+      expect((await client.render(result.source, {})).svg).toContain('read()')
+    } finally { client.dispose() }
+  })
   test.each(['dependency import', 'worker error'])('reports runtime availability across a failed %s and successful retry', async failure => {
     const h = workerHarness(), availability: boolean[] = []
     const adapter = createBrowserEditorAdapter(() => h.client, available => availability.push(available))

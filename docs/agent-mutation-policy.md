@@ -47,7 +47,59 @@ For source-level bodies, the safe loop is:
 4. verify;
 5. only then return or serialize.
 
-`am mutate` should return `UNSUPPORTED_FAMILY` for those bodies.
+Ordinary `am mutate` returns `UNSUPPORTED_FAMILY` for those bodies. Explicit
+source-preserving mutation supports four bounded operations on opaque inputs:
+
+- Class `add_member`: append an ordinary attribute or method declaration.
+- Class `remove_member`: remove an unambiguous member that owns one complete
+  physical line, without comments or directives. The index follows authored
+  member order, including annotations; selecting an annotation is refused.
+- Flowchart `set_label`: append a label override for an existing native node.
+- Flowchart `rename_node`: replace owned lexical node identities. Class, style,
+  click/href dependencies and colliding group identities are refused.
+
+These edits retain bytes outside the owned edit ranges and compare the complete
+native read-back with the requested change before committing. Unsupported or
+ambiguous ownership, dependency changes and semantic mismatches reject the edit
+atomically. A repeated label with no semantic change retains the exact source,
+including its final newline spelling.
+
+```ts
+const edited = mutatePreservingSource(diagram, {
+  kind: 'set_label', target: 'A', label: 'Reviewed',
+})
+if (edited.ok) {
+  const verification = verifyMermaid(edited.value.diagram)
+  if (!verification.ok) throw new Error('verify failed')
+  // Inspect warnings and save exact source; do not canonicalize it.
+  await save(edited.value.source)
+}
+```
+
+The result is `{ source, diagram }`. Its exact `source` is the save artifact;
+the ordinary serializer may normalize the final newline. The diagram remains
+opaque and retains its portability warning. This API does not make invalid
+Mermaid syntax portable, admit every member/label payload, or expose opaque
+bodies through structural narrowers. Structured inputs should use `mutate`;
+the default mutation mode retains its structured-only contract.
+
+The same explicit mode is available through the workflow surfaces:
+
+- Library batches: `applyOps({ source, ops, mode: 'source-preserving' })`.
+- CLI: `am mutate diagram.mmd --op '<JSON>' --preserve-source`; JSONL mutation
+  requests use `preserveSource: true`.
+- Declarative MCP `mutate`: pass `mode: 'source-preserving'` with `source` and
+  `ops`.
+- Code Mode: `mermaid.mutatePreservingSource(diagram, op)` returns the same
+  `{ source, diagram }` result as the library. Returning that successful result
+  or its diagram produces a verified envelope with the exact edited source.
+- Editor adapter: programmatic `applyOps(source, ops, 'source-preserving')`
+  queues the edit in the persistent worker; it does not add an editor control.
+
+Batch success includes `mode: 'source-preserving'` and verification diagnostics.
+A failed batch emits no edited source, even when earlier operations succeeded.
+Builders have no original source and do not accept this mode. These entrypoints
+do not remove the portability warning or promise portable Mermaid export.
 
 ## Why not every syntax construct?
 

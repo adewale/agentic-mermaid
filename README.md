@@ -173,6 +173,7 @@ Rules:
 - Mutation ops use `kind`, not `type`.
 - Run `verifyMermaid` before every commit point.
 - Do not call `mutate` on opaque fallback bodies; the narrower returns `null` for unmodeled syntax.
+- For opaque Class/Flowchart inputs, bounded [source-preserving edits](./docs/agent-mutation-policy.md) support Class `add_member`/`remove_member` and Flowchart `set_label`/`rename_node`. Use `mutatePreservingSource`, `applyOps` with `mode: 'source-preserving'`, or CLI `--preserve-source`; MCP and the editor worker expose the same explicit mode. Save exact source and inspect the retained portability diagnostics; ambiguous ownership and unsupported dependencies refuse atomically.
 
 ## Supported diagram families
 
