@@ -5,9 +5,9 @@ import { clipEdgeToShape } from '../../shape-clipping.ts'
 import { nodePaintBounds, paintedStrokeExtent } from '../../scene/bounds.ts'
 import { shape } from '../../scene/marks.ts'
 import { formatSvgNumber } from '../../shared/svg-number.ts'
-import { routeCandidateMarkerBlocker, routeMarkerPaintRegions } from '../route-marker-clearance.ts'
+import { edgesMayShareTerminal, routeCandidateMarkerBlocker, routeMarkerPaintRegions } from '../route-marker-clearance.ts'
 import { retainConstructedBundleRoutes } from '../bundle-routes.ts'
-import { countOpposingRoutePartners } from '../../shared/edge-overlaps.ts'
+import { opposingRoutePartners } from '../../shared/edge-overlaps.ts'
 import { terminalHookLength } from '../route-geometry.ts'
 import { hookedElbow } from './shared.ts'
 
@@ -150,12 +150,17 @@ export function bundleEdgePaths(
       candidates.set(edge, clipEdgeToShape(clipEdgeToShape(points, source, true), target, false))
     }
     const staged = edges.map(edge => candidates.has(edge) ? { ...edge, points: candidates.get(edge)! } : edge)
-    // A shared trunk may not run back along another edge's shaft (e.g. the
-    // reverse route leaving the same port): opposing ink hides which owns it.
+    // Ink shared in opposite directions reads as a bus: each route seems to
+    // reach the other's target. A trunk may run back along another edge only
+    // where both readings are real edges painted alike (a complete bipartite
+    // join), never along e.g. the reverse route leaving the same port.
+    const realEdge = (source: string, target: string) => edges.some(edge => edge.source === source && edge.target === target)
+    const misleads = (member: PositionedEdge, other: PositionedEdge) => !edgesMayShareTerminal(member, other)
+      || !realEdge(member.source, other.target) || !realEdge(other.source, member.target)
     const opposingAdded = (member: PositionedEdge, candidate: PositionedEdge): boolean => {
       const others = edges.filter(edge => edge !== member)
-      const after = countOpposingRoutePartners(candidate, others)
-      return after > 0 && after > countOpposingRoutePartners(member, others)
+      const after = opposingRoutePartners(candidate, others).filter(other => misleads(member, other)).length
+      return after > 0 && after > opposingRoutePartners(member, others).filter(other => misleads(member, other)).length
     }
     return members.filter(member => {
       const points = candidates.get(member.edge)!

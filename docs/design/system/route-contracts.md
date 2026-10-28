@@ -279,6 +279,13 @@ before they are assigned; a blocked member falls out of the bundle (keeping
 its ELK route, which the route-contract pass then straightens or explains),
 and the junction is re-derived from the members that remain.
 
+A member also falls out when its trunk would add ink shared in opposite
+directions with another edge (#566). Such ink reads as a bus: each route
+seems to reach the other's target. It is admitted only when both of those
+readings are real edges painted alike, as in the complete bipartite join of
+`A & B --> C & D`. A fan-in trunk laid back along the reverse route that
+leaves the same port does not qualify.
+
 Bundle exemptions also cover symmetric convergence and separated parallel
 lanes. Their bounded producers retain ownership of the actual related routes;
 the public `bundle` certificate label cannot create it. Clipping and polyline

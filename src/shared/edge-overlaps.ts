@@ -39,22 +39,22 @@ export function countOpposingRouteOverlaps(edges: readonly InkEdge[]): number {
   return pairs.size
 }
 
-/** The pairs `countOpposingRouteOverlaps` counts for one route: how many of
- * `others` run back along it. Scoring one changed route against fixed peers
- * this way avoids re-sweeping every other pair. */
-export function countOpposingRoutePartners(route: InkEdge, others: readonly InkEdge[]): number {
+/** The pairs `countOpposingRouteOverlaps` counts for one route: those of
+ * `others` that run back along it. Scoring one changed route against fixed
+ * peers this way avoids re-sweeping every other pair. */
+export function opposingRoutePartners<T extends InkEdge>(route: InkEdge, others: readonly T[]): T[] {
   const mine = axisRuns(route, 0)
-  if (mine.length === 0) return 0
+  const partners: T[] = []
+  if (mine.length === 0) return partners
   const box = routeBounds(route)
-  let count = 0
   for (const other of others) {
     // Shared ink lies inside both routes' bounds; most peers are elsewhere.
     const near = routeBounds(other)
     if (near.x0 > box.x1 + 0.01 || near.x1 < box.x0 - 0.01 || near.y0 > box.y1 + 0.01 || near.y1 < box.y0 - 0.01) continue
     if (axisRuns(other, 1).some(b => mine.some(a =>
-      a.horizontal === b.horizontal && a.sign !== b.sign && Math.abs(a.cross - b.cross) <= 0.01 && Math.min(a.hi, b.hi) - Math.max(a.lo, b.lo) > 0.01))) count++
+      a.horizontal === b.horizontal && a.sign !== b.sign && Math.abs(a.cross - b.cross) <= 0.01 && Math.min(a.hi, b.hi) - Math.max(a.lo, b.lo) > 0.01))) partners.push(other)
   }
-  return count
+  return partners
 }
 
 function routeBounds(edge: InkEdge): { x0: number; y0: number; x1: number; y1: number } {
