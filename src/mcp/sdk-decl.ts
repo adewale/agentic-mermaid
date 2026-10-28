@@ -370,7 +370,7 @@ ${CODE_MODE_RENDER_METHOD_DECLARATIONS}
   // Opaque Class: add_member/remove_member; Flowchart: set_label/rename_node.
   // Save value.source exactly; verify value.diagram. Ambiguous ownership and
   // unsupported dependencies refuse; portability diagnostics remain present.
-  mutatePreservingSource(d: ParsedDiagram, op: MutationOp): Result<{ source: string; diagram: ParsedDiagram }, { code: string; message: string }>
+  mutatePreservingSource(d: ParsedDiagram, op: AnyMutationOp): Result<{ source: string; diagram: ParsedDiagram }, { code: string; message: string }>
 }
 
 // Conventions:
