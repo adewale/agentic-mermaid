@@ -33,6 +33,34 @@ function structured(source: string) {
   return narrowed
 }
 describe('native requirement', () => {
+  test('horizontal whitespace preserves declaration line breaks while malformed headers remain diagnosed source', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const [header, declaration] of [['requirementDiagram ', 'requirement"_"{\n}'], ['requirementDiagram \t', 'requirement "__test_req__" {\nid:simulation 1\ntext: "First\nSecond"\n}'], ['requirement \t', 'requirement"_"{\n}']] as const) {
+        const source = `${header}\n${declaration}`
+        expect(await upstream.publicAccepts(source)).toBe(false)
+        const diagram = structured(source)
+        expect(diagram.body.requirements[0]!.name).toBe(declaration.includes('__test_req__') ? '__test_req__' : '_')
+        expect(() => renderSourceSVG(source)).not.toThrow()
+        expect(renderSourceASCII(source)).toContain(diagram.body.requirements[0]!.name)
+        expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'requirement_whitespace', line: 1 }))
+        const saved = serializeMermaid(diagram, { wrapper: 'canonical' })
+        expect(await upstream.publicAccepts(saved)).toBe(true)
+        expect(semantic(structured(saved).body)).toEqual(semantic(diagram.body))
+        expect(renderSourceSVG(saved)).toBe(renderSourceSVG(source))
+      }
+      const control = 'requirementDiagram\n  \nrequirement r {\ntext: Plain text   \n}\n'
+      expect(await upstream.publicAccepts(control)).toBe(true)
+      expect(verifyMermaid(control).warnings).not.toContainEqual(expect.objectContaining({ syntax: 'requirement_whitespace' }))
+      const source = 'requirement;Diagram\nrequirement valid {\ntext: Keep me\n}'
+      const parsed = parse(source)
+      if (!parsed.ok) throw Error('Malformed Requirement source must be preserved')
+      expect(parsed.value.body.kind).toBe('opaque')
+      expect(serializeMermaid(parsed.value).trimEnd()).toBe(source)
+      expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'RENDER_FAILED' }))
+      expect(mutate(parsed.value, { kind: 'set_title', title: 'Changed' }).ok).toBe(false)
+    } finally { upstream.close() }
+  })
   test('raw entity-like style tokens preserve source and drawing while refusing typed output', async () => {
     const upstream = startUpstreamMermaid()
     try {

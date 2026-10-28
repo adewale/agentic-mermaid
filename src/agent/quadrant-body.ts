@@ -149,13 +149,15 @@ export function parseQuadrantBody(lines: string[]): QuadrantBody | null {
 
 /** Mermaid represents semantic line breaks inside one statement as `<br/>`. */
 function encodeMultilineText(text: string): string {
-  return text.replace(/\r?\n/g, '<br/>')
+  return text.replaceAll('&', '&amp;').replace(/\r?\n/g, '<br/>')
 }
 
 /** Label, axis or quadrant text, quoted where Mermaid reads it only quoted.
  * A "…" string runs across a line break, so the break is written as one. */
 function renderText(text: string): string {
-  return quadrantTextSource(text, true)
+  // The shared render request resolves XML transport references once. Keep
+  // literal reference-looking text intact through that same source boundary.
+  return quadrantTextSource(text.replaceAll('&', '&amp;'), true)
 }
 
 function renderAxis(keyword: 'x-axis' | 'y-axis', axis: QuadrantAxis): string {

@@ -16,6 +16,128 @@ import { fcParameters } from './helpers/fc-parameters.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 import { projectEntityMarkers } from '../shared/mermaid-entity-display.ts'
 
+test('Kanban nested metadata aliases remain writable after an edit shares nested values', async () => {
+  const upstream = startUpstreamMermaid()
+  try {
+    const source = 'kanban\nTodo\n  card[Work]@{\n    first: &shared\n      value: A&amp;amp; B\n    second: *shared\n  }'
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw Error('Kanban alias metadata must parse')
+    const diagram = asKanban(parsed.value)!
+    expect(diagram.body.columns[0]!.tasks[0]!.metadata).toEqual({ first: { value: 'A&amp; B' }, second: { value: 'A&amp; B' } })
+    const shared = { value: 'A&amp; B' }
+    const edited = mutate(diagram, { kind: 'set_task_metadata', id: 'card', metadata: { first: shared, second: shared } })
+    expect(edited.ok).toBe(true)
+    if (!edited.ok) throw Error(edited.error.message)
+    const saved = serializeMermaid(edited.value, { wrapper: 'canonical' })
+    expect(await upstream.publicAccepts(saved)).toBe(true)
+    const reloaded = parseRegisteredMermaid(saved)
+    if (!reloaded.ok) throw Error('Saved Kanban metadata must parse')
+    expect(asKanban(reloaded.value)!.body.columns[0]!.tasks[0]!.metadata).toEqual({ first: { value: 'A&amp; B' }, second: { value: 'A&amp; B' } })
+  } finally { upstream.close() }
+})
+
+test('Kanban metadata preserves literal entity markers and authored codes through YAML and public edits', async () => {
+  const upstream = startUpstreamMermaid()
+  try {
+    const parsed = parseRegisteredMermaid('kanban\nTodo\n  card[Work]')
+    if (!parsed.ok) throw Error('Kanban must parse')
+    const strings = ['ﬂ°°35¶ß', 'ﬂ°quot¶ß', 'ﬂ°', '¶ß', '#35;', '#quot;', '\uE00035\uE000', '\\uFB02°°35¶ß', 'ﬂ°°35¶ß "a}b" #quot; & %%{text}']
+    for (const nested of [false, true]) {
+      const metadata = Object.fromEntries(strings.map(value => [value, nested ? { [value]: [value, { value }] } : value]))
+      const edited = mutate(asKanban(parsed.value)!, { kind: 'set_task_metadata', id: 'card', metadata })
+      if (!edited.ok) throw Error(edited.error.message)
+      const saved = serializeMermaid(edited.value, { wrapper: 'canonical' })
+      expect(await upstream.publicAccepts(saved)).toBe(true)
+      expect(parseKanbanDiagram(saved).columns[0]!.tasks[0]!.metadata).toEqual(metadata)
+      const reloaded = parseRegisteredMermaid(saved)
+      if (!reloaded.ok) throw Error('Saved Kanban metadata must parse')
+      expect(asKanban(reloaded.value)!.body.columns[0]!.tasks[0]!.metadata).toEqual(metadata)
+    }
+    const source = 'kanban\nTodo\n  card[Work]@{ "ﬂ°°35¶ß": "literal ﬂ°quot¶ß", "\\uFB02°°35¶ß escaped": "\\uFB02°°35¶ß", code: #quot;, collision: "\\uE00035\\uE000", numeric: #35; }'
+    const expected = { 'ﬂ°°35¶ß': 'literal ﬂ°quot¶ß', 'ﬂ°°35¶ß escaped': 'ﬂ°°35¶ß', code: '#quot;', collision: '\uE00035\uE000', numeric: '#35;' }
+    expect(parseKanbanDiagram(source).columns[0]!.tasks[0]!.metadata).toEqual(expected)
+    const observed = parseRegisteredMermaid(source)
+    if (!observed.ok) throw Error('Authored Kanban metadata must parse')
+    expect(asKanban(observed.value)!.body.columns[0]!.tasks[0]!.metadata).toEqual(expected)
+    for (const [key, fragment] of [['ﬂ°°35¶ß', '"literal ﬂ°quot¶ß"'], ['ﬂ°°35¶ß escaped', '"\\uFB02°°35¶ß"'], ['code', '#quot;'], ['numeric', '#35;']]) {
+      const span = observed.value.source.spans?.metadata?.get('card')?.get(key!)?.value
+      expect(span).toBeDefined()
+      expect(source.slice(span!.start.offset, span!.end.offset)).toBe(fragment!)
+    }
+    const aliases = 'kanban\nTodo\n  card[Work]@{\n first: &shared\n  "ﬂ°°35¶ß": #quot;\n second: *shared\n}'
+    expect(parseKanbanDiagram(aliases).columns[0]!.tasks[0]!.metadata).toEqual({ first: { 'ﬂ°°35¶ß': '#quot;' }, second: { 'ﬂ°°35¶ß': '#quot;' } })
+    for (const [label, display] of [['Override', 'Override'], ['ﬂ°°35¶ß', 'ﬂ°°35¶ß'], ['#35;', '#'], ['#quot;', '"']]) {
+      const metadata = label === '#35;' ? { label, details: { note: 'ﬂ°°35¶ß' } } : { label }
+      const edited = mutate(asKanban(parsed.value)!, { kind: 'set_task_metadata', id: 'card', metadata })
+      if (!edited.ok) throw Error(edited.error.message)
+      expect(asKanban(edited.value)!.body.columns[0]!.tasks[0]!.label).toBe(display!)
+      const saved = serializeMermaid(edited.value, { wrapper: 'canonical' })
+      expect(await upstream.publicAccepts(saved)).toBe(true)
+      if (label !== 'ﬂ°°35¶ß') {
+        const reference = await upstream.project(saved, diagram => diagram.db.getData().nodes.find((node: any) => node.id === 'card').label)
+        if (!reference.ok) throw Error(reference.error)
+        expect(projectEntityMarkers(String(reference.value))).toBe(display!)
+      }
+      expect(parseKanbanDiagram(saved).columns[0]!.tasks[0]).toMatchObject({ label: display, metadata: { label } })
+      const reloaded = parseRegisteredMermaid(saved)
+      if (!reloaded.ok) throw Error('Metadata label must reload')
+      expect(asKanban(reloaded.value)!.body.columns[0]!.tasks[0]).toMatchObject({ label: display, metadata: { label } })
+      const added = mutate(asKanban(parsed.value)!, { kind: 'add_task', id: 'new', column: 'Todo', label: 'Declaration', metadata: { ...metadata, icon: 'star' } })
+      if (!added.ok) throw Error(added.error.message)
+      expect(asKanban(added.value)!.body.columns[0]!.tasks[1]).toMatchObject({ label: display, icon: 'star', metadata: { label } })
+      expect(parseKanbanDiagram(serializeMermaid(added.value, { wrapper: 'canonical' })).columns[0]!.tasks[1]).toMatchObject({ label: display, metadata: { label } })
+      const implicit = parseRegisteredMermaid('kanban\nTodo\n [Implicit]')
+      if (!implicit.ok) throw Error('Implicit card must parse')
+      const renamed = mutate(asKanban(implicit.value)!, { kind: 'set_task_label', id: 'Implicit', label: label! })
+      if (!renamed.ok) throw Error(renamed.error.message)
+      expect(parseKanbanDiagram(serializeMermaid(renamed.value, { wrapper: 'canonical' })).columns[0]!.tasks[0]).toMatchObject({ sourceId: 'Implicit', label })
+    }
+    for (const body of ['"#35;": first, "\\x2335;": last', 'nested:\n  "#35;": first\n  "\\x2335;": last']) {
+      expect(() => parseKanbanDiagram(`kanban\nTodo\n card[Work]@{${body}}`)).toThrow('duplicate metadata key')
+    }
+  } finally { upstream.close() }
+})
+
+test('Kanban XML transport references retain displayed identities, parents and metadata through saving and editing', async () => {
+  const upstream = startUpstreamMermaid()
+  try {
+    for (const [source, id, label] of [
+      ['kanban\nr&#35;oot\n  child[Child]', 'r#oot', 'r#oot'],
+      ['kanban\n&#35;    root@{ i }', '#    root', '#    root'],
+      ["kanban\n&#35;    root@{ icon: star, label: 'x things' }", '#    root', 'x things'],
+      ['kanban\nr&amp;amp;oot\n  child[Child]@{assigned: "A&amp;amp; B"}', 'r&amp;oot', 'r&amp;oot'],
+    ] as const) {
+      const parsed = parseRegisteredMermaid(source)
+      if (!parsed.ok) throw Error('Kanban must parse')
+      const diagram = asKanban(parsed.value)!
+      expect(diagram.body.columns[0]).toMatchObject({ id, sourceId: id, label })
+      const span = diagram.source.spans?.labels.get(`group:${id}`)
+      expect(span).toBeDefined()
+      expect(source.slice(span!.start.offset, span!.end.offset)).toBe(source.split('\n')[1]!.split('@{')[0]!)
+      const saved = serializeMermaid(diagram, { wrapper: 'canonical' })
+      expect(await upstream.publicAccepts(saved)).toBe(true)
+      const records = (text: string) => scanSvgStartTags(renderMermaidSVG(text)).filter(tag => tag.name === 'g' && decodedSvgAttributeValue(tag, 'data-id') !== undefined).map(tag => [decodedSvgAttributeValue(tag, 'data-id'), decodedSvgAttributeValue(tag, 'data-parent')])
+      expect(records(saved)).toEqual(records(source))
+      expect(renderMermaidSVG(saved)).toContain(label.replaceAll('&', '&amp;'))
+      if (diagram.body.columns[0]!.tasks.length) {
+        expect(diagram.body.columns[0]!.tasks[0]!.id).toBe('child')
+        if (source.includes('assigned:')) {
+          expect(diagram.body.columns[0]!.tasks[0]!.metadata.assigned).toBe('A&amp; B')
+          const reloaded = parseRegisteredMermaid(saved)
+          if (!reloaded.ok) throw Error('Saved Kanban must parse')
+          expect(asKanban(reloaded.value)!.body.columns[0]!.tasks[0]!.metadata.assigned).toBe('A&amp; B')
+        }
+        const edited = mutate(diagram, { kind: 'set_task_label', id: 'child', label: 'Edited' })
+        if (!edited.ok) throw Error(edited.error.message)
+        expect(records(serializeMermaid(edited.value))).toEqual([[id, undefined], ['child', id]])
+        const terminal = renderMermaidASCIIWithMeta(edited.value, { colorMode: 'none' })
+        expect(terminal.regions.filter(region => region.kind === 'band').map(region => region.id)).toEqual([id])
+        expect(terminal.ascii).toContain('Edited')
+      } else expect(diagram.body.columns[0]!.metadata).toEqual(source.includes('icon:') ? { icon: 'star', label: 'x things' } : { i: null })
+    }
+  } finally { upstream.close() }
+})
+
 test('Kanban group padding reserves real space around cards independently of node padding', () => {
   const source = 'kanban\n  todo[To do]\n    work[日本 delivery]@{assigned: "Alice"}\n  done[Done]',
     style = { roles: { group: { paddingX: 40, paddingY: 37 }, node: { paddingX: 12, paddingY: 11 } } },
@@ -285,8 +407,8 @@ test('Kanban payload parsing decodes transport XML once and preserves authored l
   const parsed = parseRegisteredMermaid(source)
   if (!parsed.ok) throw Error(JSON.stringify(parsed.error))
   const body = asKanban(parsed.value)!.body
-  expect(body.columns[0]?.sourceId).toBe('A&amp;amp;@{literal\rB')
-  const span = parsed.value.source.spans?.labels.get('group:A&amp;amp;@{literal\rB')
+  expect(body.columns[0]?.sourceId).toBe('A&amp;@{literal\rB')
+  const span = parsed.value.source.spans?.labels.get('group:A&amp;@{literal\rB')
   expect(span).toBeDefined()
   expect(source.slice(span!.start.offset, span!.end.offset)).toBe('A&amp;amp;@{literal\rB')
   const expected = ['A&amp;@{literal\rB', 'Task&amp;\rOne']

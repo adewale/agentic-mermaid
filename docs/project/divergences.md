@@ -889,6 +889,18 @@ shield percent signs with entity codes in labels and IDs, and with YAML hex
 escapes in metadata strings, including nested records. The text survives both
 preprocessing and native round trips without becoming an init directive.
 
+Kanban metadata retains literal private-marker text such as `ﬂ°°35¶ß`,
+including nested keys and values and YAML-escaped spellings. Mermaid's global
+entity prepass conflates those keys with authored `#35;` codes; Agentic keeps
+their provenance through YAML and shields hashes in portable metadata writes.
+Metadata `label` values interpret authored Mermaid codes (`#35;` displays `#`),
+whereas `set_task_label` takes literal display text. Literal marker text stays
+literal in metadata labels. Keys that collide after restoring authored codes
+are rejected, including nested keys, rather than silently losing an entry.
+Mermaid accepts these portable writes, but its final display decoder can still
+conflate a literal private marker with an entity; Agentic retains the literal
+text rather than reproducing that display loss.
+
 C4 reads titles and accessibility fields inside boundaries as global metadata
 and warns that Mermaid requires them at document scope. Portable writes move
 them after the header while preserving containment. Mermaid's C4 grammar maps

@@ -4,8 +4,8 @@ import type { NormalizedMermaidSource } from '../mermaid-source.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { assertDiagramWorkLimit } from '../shared/diagram-limits.ts'
 import { decodeMermaidEntities } from '../shared/mermaid-entity-display.ts'
-import { fromEntityMarkers, toEntityMarkers } from '../shared/mermaid-entities.ts'
-import { readMetadataBlock } from '../shared/metadata-yaml.ts'
+import { encodeMermaidAuthoredEntities } from '../shared/mermaid-entities.ts'
+import { protectMetadataEntities, readMetadataBlock } from '../shared/metadata-yaml.ts'
 import { DeferredDependencyError } from '../layout/certification-error.ts'
 import { observeParserMutation, observeParserStatement, parserObservationActive, withParserObservation } from '../shared/parser-observation.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
@@ -14,6 +14,11 @@ import type { KanbanBody, KanbanColumn, KanbanItem } from './types.ts'
 
 const OPEN = /(\(\(|\{\{|\(-|-\)|\)\)|\[|\(|\))/
 const CLOSE: Readonly<Record<string, string>> = { '[': ']', '(': ')', '((': '))', '{{': '}}', ')': '(', '))': '((', '(-': '-)', '-)': '(-' }
+
+/** Metadata labels interpret authored codes while retaining literal marker text. */
+export function kanbanMetadataLabel(value: unknown): string | undefined {
+  return value ? decodeMermaidEntities(encodeMermaidAuthoredEntities(String(value))) : undefined
+}
 
 /** Lexical ranges are observed only when a caller requests parser provenance.
  * YAML still has one semantic authority: readMetadataBlock above. */
@@ -25,21 +30,10 @@ function metadataRanges(block: string, end: number, offset: number): Array<{ nam
     result: Array<{ name: string; keyStart: number; keyEnd: number; valueStart: number; valueEnd: number }> = []
   // Use the same entity prepass as metadata YAML: a bare #quot; must not
   // become a YAML comment. Retain the edits to recover original byte ranges.
-  const edits: Array<{ start: number; end: number; sourceStart: number; sourceEnd: number }> = []
-  let delta = 0
-  for (const match of raw.matchAll(/#\w+;/g)) {
-    const marker = toEntityMarkers(match[0]), start = match.index + delta
-    edits.push({ start, end: start + marker.length, sourceStart: match.index, sourceEnd: match.index + match[0].length })
-    delta += marker.length - match[0].length
-  }
-  const authored = (at: number): number => {
-    let lo = 0, hi = edits.length
-    while (lo < hi) { const mid = (lo + hi) >>> 1; if (edits[mid]!.start <= at) lo = mid + 1; else hi = mid }
-    const edit = edits[lo - 1]
-    return base + (edit ? at < edit.end ? edit.sourceStart : at - edit.end + edit.sourceEnd : at)
-  }
-  for (const range of readYamlMappingRanges(toEntityMarkers(raw))) {
-    result.push({ name: fromEntityMarkers(range.name), keyStart: authored(range.keyStart), keyEnd: authored(range.keyEnd), valueStart: authored(range.valueStart), valueEnd: authored(range.valueEnd) })
+  const protectedBody = protectMetadataEntities(raw)
+  const authored = (at: number): number => base + protectedBody.sourceOffset(at)
+  for (const range of readYamlMappingRanges(protectedBody.text)) {
+    result.push({ name: protectedBody.restore(range.name), keyStart: authored(range.keyStart), keyEnd: authored(range.keyEnd), valueStart: authored(range.valueStart), valueEnd: authored(range.valueEnd) })
   }
   return result
 }
@@ -196,7 +190,9 @@ export function parseKanbanDiagram(input: readonly string[] | string, accessibil
     reportComment(suffix, index + bodyLine)
     if (parserObservationActive('kanban')) observeParserStatement('kanban', 'node', lines.slice(startIndex, index + 1).join('\n'), { line: startIndex + bodyLine, unit: 'normalized' })
     rawId = decodeMermaidEntities(rawId)
-    label = decodeMermaidEntities(label)
+    // Metadata labels interpret authored codes, but literal marker-looking
+    // text is still content; only declaration labels use upstream markers.
+    label = kanbanMetadataLabel(metadata.label) ?? decodeMermaidEntities(label)
     const occurrence = counters.get(rawId) ?? 0
     counters.set(rawId, occurrence + 1)
     let id = occurrence ? `${rawId}#${occurrence + 1}` : rawId
