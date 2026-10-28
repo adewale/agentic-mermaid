@@ -43,6 +43,8 @@ import type {
 import { ok, err } from './types.ts'
 import { graphClassNames } from '../shared/graph-classes.ts'
 import { edgeSelectorIndices } from '../shared/edge-selectors.ts'
+import { normalizeMermaidSource, normalizeMermaidRenderSource } from '../mermaid-source.ts'
+import { appendSourceStatement, sameSourceMeaning } from './source-mutation.ts'
 
 export type FlowchartBody = Extract<DiagramBody, { kind: 'flowchart' }>
 
@@ -729,6 +731,30 @@ function styleProps(props: Record<string, string>, classDefinition = false): str
 // serialized source re-parses to.
 export function mutateFlowchart(body: FlowchartBody, op: FlowchartMutationOp): Result<FlowchartBody, MutationError> {
   return mutateFlowchartGraph(cloneGraph(body.graph), op)
+}
+
+/** Appending label-only metadata preserves the existing node's shape, media,
+ * classes and membership. Both native interpretations certify that frame. */
+export function mutateFlowchartSource(source: string, op: FlowchartMutationOp): Result<string, MutationError> {
+  if (op.kind !== 'set_label') return err({ code: 'INVALID_OP', message: 'Source-preserving Flowchart edits support only set_label on an existing native node' })
+  try {
+    const views = [normalizeMermaidSource, normalizeMermaidRenderSource]
+    const before = views.map(normalize => parseFlowchartLegacy(normalize(source).familyBody))
+    if (before.some(graph => !graph.nodes.has(op.target))) return err({ code: 'NODE_NOT_FOUND', message: `Source-preserving Flowchart label target "${op.target}" must name an existing native node in both source views` })
+    const label = op.label.trim()
+    if (before.every(graph => graph.nodes.get(op.target)!.label === label)) return ok(source)
+    const expected = before.map(graph => mutateFlowchart({ kind: 'flowchart', graph }, op))
+    const candidate = appendSourceStatement(source, `${op.target}@{ label: ${quoteMetadataLabel(label)} }`)
+    for (let index = 0; index < views.length; index++) {
+      const result = expected[index]!
+      if (!result.ok) return result
+      const actual = parseFlowchartLegacy(views[index]!(candidate).familyBody)
+      if (!sameSourceMeaning(result.value.graph, actual)) return err({ code: 'INVALID_OP', message: 'Source-preserving Flowchart label cannot be written without changing the requested value or another native graph field' })
+    }
+    return ok(candidate)
+  } catch (error) {
+    return err({ code: 'INVALID_OP', message: `Source-preserving Flowchart label could not be verified: ${error instanceof Error ? error.message : String(error)}` })
+  }
 }
 
 export function createFlowchartMutationDraft(body: FlowchartBody): (op: FlowchartMutationOp) => Result<FlowchartBody, MutationError> {

@@ -49,6 +49,31 @@ For source-level bodies, the safe loop is:
 
 `am mutate` should return `UNSUPPORTED_FAMILY` for those bodies.
 
+The library also exposes `mutatePreservingSource(diagram, op)` for a bounded
+subset of opaque Class and Flowchart inputs. It supports adding an ordinary
+Class member and setting an existing Flowchart node's label. A family appends
+a declaration, preserving the entire authored prefix, and compares the full
+native model with the requested change before committing. A mismatch rejects
+the edit atomically. A repeated label with no semantic change retains the exact
+source, including its final newline spelling.
+
+```ts
+const edited = mutatePreservingSource(diagram, {
+  kind: 'set_label', target: 'A', label: 'Reviewed',
+})
+if (edited.ok) {
+  // Save source directly; diagram is reparsed for rendering and verification.
+  await save(edited.value.source)
+}
+```
+
+The result is `{ source, diagram }`. Its exact `source` is the save artifact;
+the ordinary serializer may normalize the final newline. The diagram remains
+opaque and retains its portability warning. This API does not make invalid
+Mermaid syntax portable, admit every member/label payload, or expose opaque
+bodies through structural narrowers. Structured inputs should use `mutate`;
+CLI, MCP, builders and batches retain their existing structured-only contract.
+
 ## Why not every syntax construct?
 
 Because "structured mutation" is a much stronger promise than parsing enough to render.

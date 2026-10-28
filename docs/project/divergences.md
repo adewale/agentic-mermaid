@@ -907,8 +907,12 @@ and its namespace DB does not decode an alternative escaped spelling. Tildes
 later in an emitted backtick atom remain writable. A Flowchart style containing
 the exact raw value `border:1px s:::colid red` likewise remains source-preserved:
 Mermaid tokenizes `:::` as a style separator, while accepted backslash or
-whitespace alternatives change the stored value. Typed writes refuse these
-cases instead of changing identities or discarding authored style text.
+whitespace alternatives change the stored value. Portable structural writes
+refuse these cases instead of changing identities or discarding authored style
+text. The explicit library `mutatePreservingSource` path can add an ordinary
+Class member or change an existing Flowchart node label while retaining the
+original source and its portability diagnostic; it does not promise a portable
+canonical export. See [source-level editing](../agent-mutation-policy.md).
 
 GitGraph STRING fields use the pinned Langium escape codec, including escaped
 line breaks. Writers shield comment/directive percent signs, entity delimiters

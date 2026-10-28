@@ -331,6 +331,10 @@ export interface FamilyOperations {
   serialize?: (body: FamilyParsedBody, meta?: Readonly<ValidDiagramMeta>) => string
   /** Optional: family-specific structured mutation. */
   mutate?: (body: DiagramBody, op: AnyMutationOp) => Result<DiagramBody, MutationError>
+  /** Optional source-preserving edit. Retain the full authored prefix and
+   * verify the complete native model against the requested semantic delta.
+   * This does not grant canonical portability or structured-body admission. */
+  mutateSource?: (source: string, op: AnyMutationOp) => Result<string, MutationError>
   /** Optional: family-specific verify (Tier 1 + Tier 2). Returns warnings only.
    * The hook alone does not make public verification native: verification also
    * consumes the family's executable SVG and positioned-layout projections. */
@@ -1451,6 +1455,7 @@ const FAMILY_DESCRIPTOR_FIELDS = Object.freeze([
   'buildSourceMap',
   'serialize',
   'mutate',
+  'mutateSource',
   'verify',
   'layout',
   'projectPositioned',

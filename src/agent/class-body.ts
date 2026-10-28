@@ -33,10 +33,11 @@ import { classInterfaceSide, createClassInterfaceAllocator } from '../class/inte
 
 import { decodeXML } from 'entities'
 import type { ClassStatementNode } from '../class/parser.ts'
-import { classCommentRejections, classDiagramHasStatement, MERMAID_DIRECTIVE_RE, parseClassBodyAnnotationToken, parseClassMember, parseClassRelationship, readClassStatements, readsAsClassName, supportedRelationEndpoint, withoutStyleComment } from '../class/parser.ts'
+import { classCommentRejections, classDiagramHasStatement, MERMAID_DIRECTIVE_RE, parseClassBodyAnnotationToken, parseClassDiagram, parseClassMember, parseClassRelationship, readClassStatements, readsAsClassName, supportedRelationEndpoint, withoutStyleComment } from '../class/parser.ts'
 import { classTextLabel, decodeClassText, hasClassDirectionToken, memberToString, writeClassText } from '../class/text.ts'
 import { toMermaidLines } from '../mermaid-source-wrapper.ts'
-import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
+import { parseAccessibilityDirective, withAccessibilityFields } from '../shared/accessibility-directives.ts'
+import { normalizeMermaidSource, withFrontmatterTitle } from '../mermaid-source.ts'
 import { prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
 import { mermaidEntityPrepass } from '../shared/mermaid-entities.ts'
 import { compactStyleDeclarations, ownStyleDeclarations, parseMutableStyleProps, parseStyleDeclarations, projectStyleDeclarations, retainedStyleDeclarations, unsafeStylePaintError, type StyleDeclaration } from '../shared/style-props.ts'
@@ -45,6 +46,7 @@ import { labelOverflowCollector } from './body-utils.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 import type { ClassBody, ClassMutationOp, ClassNamespaceDecl, ClassNode, ClassNote, ClassRelation, ClassRelationKind, LayoutWarning, MutationError, Result, VerifyOptions } from './types.ts'
 import { err, ok } from './types.ts'
+import { appendSourceStatement, sameSourceMeaning } from './source-mutation.ts'
 
 // ---- Parser ---------------------------------------------------------------
 
@@ -686,6 +688,34 @@ export function mutateClass(body: ClassBody, op: ClassMutationOp): Result<ClassB
   // relation order after removal/addition, retaining authored labels and boxes.
   const canonical = parseClassBody(renderClass(next).trimEnd().split('\n').slice(1))
   return canonical ? ok(canonical) : err({ code: 'INVALID_OP', message: 'Class edit could not retain its lollipop interface occurrences in Mermaid source' })
+}
+
+/** Append one member without rewriting source-only namespace identities or
+ * authored declarations. The native reader must realize exactly that delta. */
+export function mutateClassSource(source: string, op: ClassMutationOp): Result<string, MutationError> {
+  if (op.kind !== 'add_member') return err({ code: 'INVALID_OP', message: 'Source-preserving Class edits support add_member only' })
+  const invalid = validateClassMembers([op.text])
+  if (invalid) return err(invalid)
+  const member = parseClassMember(op.text)
+  if (parseClassBodyAnnotationToken(op.text.trim()) !== null || !member?.member.name.trim()) return err({ code: 'INVALID_OP', message: 'Source-preserving add_member requires an attribute or method, not an annotation or empty member' })
+  const read = (text: string) => {
+    const normalized = normalizeMermaidSource(text, {}, 'render')
+    return withFrontmatterTitle(withAccessibilityFields(parseClassDiagram(normalized.familyLines, normalized.authoredFamilyLines ?? normalized.familyLines), normalized.accessibility), normalized.frontmatter)
+  }
+  try {
+    const before = read(source), target = before.classes.find(node => node.id === op.class)
+    if (!target) return err({ code: 'CLASS_NOT_FOUND', message: `class ${op.class} not found` })
+    if (target.isInterface) return err({ code: 'INVALID_OP', message: 'An interface occurrence has no class member compartment' })
+    const field = member.isMethod ? 'methods' : 'attributes'
+    const expected = { ...before, classes: before.classes.map(node => node === target ? { ...node, [field]: [...node[field], member.member] } : node) }
+    // Reopening the same class retains its original namespace claim. A
+    // separate `ID : member` cannot name every quoted ID (notably IPC::Sender).
+    const candidate = appendSourceStatement(source, `class ${quoteIfNeeded(target.id)} {\n  ${op.text}\n}`)
+    if (!sameSourceMeaning(read(candidate), expected)) return err({ code: 'INVALID_OP', message: 'The appended declaration would change Class meaning beyond the requested member' })
+    return ok(candidate)
+  } catch (error) {
+    return err({ code: 'INVALID_OP', message: error instanceof Error ? error.message : String(error) })
+  }
 }
 
 function mutateClassBody(body: ClassBody, op: ClassMutationOp): Result<ClassBody, MutationError> {

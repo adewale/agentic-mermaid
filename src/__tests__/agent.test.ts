@@ -4,7 +4,10 @@
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
-import { mutate } from '../agent/mutate.ts'
+import { mutate, mutatePreservingSource } from '../agent/mutate.ts'
+import { parseMermaid as parseNativeFlowchart } from '../parser.ts'
+import { normalizeMermaidSource, normalizeMermaidRenderSource } from '../mermaid-source.ts'
+import { renderMermaidSVG, renderMermaidASCII } from '../index.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid, synthesizeFromGraph } from '../agent/serialize.ts'
 import type { FlowchartMutationOp, FlowchartValidDiagram, SequenceValidDiagram } from '../agent/types.ts'
@@ -28,6 +31,102 @@ function sequence(src: string): SequenceValidDiagram {
   if (!s) throw new Error('not sequence')
   return s
 }
+
+describe('explicit source-preserving Flowchart labels', () => {
+  const style = 'classDef exClass background:#bbb,border:1px s:::colid red;'
+  const retained = `graph TD\n   \n      A[ h ] -- hello --> B[" test "]:::exClass & C --> D;\n      ${style}`
+  test('edits a native node while retaining the exact unsupported classDef and original bytes', () => {
+    const diagram = parse(retained)
+    expect(diagram.body.kind).toBe('opaque')
+    expect(mutate(diagram, { kind: 'set_label', target: 'A', label: 'Changed' }).ok).toBe(false)
+    const edited = mutatePreservingSource(diagram, { kind: 'set_label', target: 'A', label: 'Changed' })
+    expect(edited.ok).toBe(true)
+    if (!edited.ok) throw new Error(edited.error.message)
+    expect(edited.value.source.startsWith(retained)).toBe(true)
+    expect(edited.value.source).toContain(style)
+    expect(edited.value.diagram.body.kind).toBe('opaque')
+    expect(edited.value.diagram.source.spans?.preserved.source.end.offset).toBe(edited.value.source.length)
+    expect(verifyMermaid(edited.value.diagram).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'flowchart_style_value' }))
+    const graph = parseNativeFlowchart(normalizeMermaidSource(edited.value.source).familyBody)
+    expect(graph.nodes.get('A')?.label).toBe('Changed')
+    expect(graph.classDefs.get('exClass')).toEqual({ background: '#bbb', border: '1px s:::colid red' })
+    const svg = renderMermaidSVG(edited.value.diagram, { embedFontImport: false })
+    const paintedText = [...svg.matchAll(/<text\b[^>]*>(.*?)<\/text>/gs)].map(match => match[1]!.replace(/<[^>]*>/g, ''))
+    expect(paintedText).toContain('Changed')
+    expect(paintedText).not.toContain('h')
+    expect(paintedText).toContain('hello')
+    const ascii = renderMermaidASCII(edited.value.diagram, { colorMode: 'none' })
+    expect(ascii).toContain('Changed')
+    expect(ascii).toContain('hello')
+    expect(ascii).toContain('test')
+  })
+  test('retains both complete native graph frames through nested shape, style and link label edits', () => {
+    const source = ['---', 'title: Keep wrapper', '---', 'flowchart LR', 'subgraph S[Group]', '  A{Old}:::exClass --> B@{ shape: delay, label: Wait }', 'end', 'style A color:red', 'linkStyle 0 stroke:blue', 'click A href "https://example.com"', style, ''].join('\r\n')
+    let diagram = parse(source), previous = source
+    for (const label of ['Changed', 'Second']) {
+      const result = mutatePreservingSource(diagram, { kind: 'set_label', target: 'A', label })
+      if (!result.ok) throw new Error(result.error.message)
+      expect(result.value.source.startsWith(previous)).toBe(true)
+      expect(result.value.source.slice(0, source.length)).toBe(source)
+      expect(result.value.source).toContain(style + '\r\n')
+      expect(result.value.diagram.meta.wrapperSource).toBe('---\r\ntitle: Keep wrapper\r\n---\r\n')
+      for (const normalize of [normalizeMermaidSource, normalizeMermaidRenderSource]) {
+        const before = parseNativeFlowchart(normalize(previous).familyBody)
+        const after = parseNativeFlowchart(normalize(result.value.source).familyBody)
+        expect(after.nodes.get('A')).toEqual({ ...before.nodes.get('A')!, label })
+        expect(after.nodes.get('A')?.shape).toBe('diamond')
+        expect(after.nodes.get('A')?.href).toBe('https://example.com')
+        expect(after.subgraphs[0]?.nodeIds).toEqual(['A', 'B'])
+        expect(after.nodes.get('B')).toMatchObject({ shape: 'rounded', semanticShape: 'delay', authoredShape: 'delay' })
+        after.nodes.set('A', before.nodes.get('A')!)
+        expect(after).toEqual(before)
+      }
+      diagram = result.value.diagram
+      previous = result.value.source
+    }
+  })
+  test('returns exact bytes for no-op labels and refuses edge or unsupported operations atomically', () => {
+    const diagram = parse(retained)
+    const noop = mutatePreservingSource(diagram, { kind: 'set_label', target: 'A', label: ' h ' })
+    if (!noop.ok) throw new Error(noop.error.message)
+    expect(noop.value.source).toBe(retained)
+    expect(noop.value.diagram.body).toEqual(diagram.body)
+    for (const op of [
+      { kind: 'set_label', target: 'A->B', label: 'Edge edit' },
+      { kind: 'set_label', target: 'Missing', label: 'Missing node' },
+      { kind: 'add_edge', from: 'A', to: 'C' },
+      { kind: 'define_class', name: 'other', style: 'fill:red' },
+      { kind: 'unknown_operation' },
+      { kind: 'set_label', target: 'A', label: 123 },
+      { kind: 'set_label', target: 'A', label: '`**literal**`' },
+    ]) {
+      expect(mutatePreservingSource(diagram, op).ok).toBe(false)
+      expect(diagram.body).toEqual(noop.value.diagram.body)
+      if (diagram.body.kind !== 'opaque') throw new Error('Expected retained opaque body')
+      expect((diagram.meta.wrapperSource ?? '') + diagram.body.source).toBe(retained)
+    }
+  })
+  test('writes directive-looking label payloads as text without changing universal metadata or connectivity', () => {
+    const diagram = parse(retained), label = '%%{init: {"theme":"dark"}}%%\nZ-->Q; A@{shape:circle}'
+    const result = mutatePreservingSource(diagram, { kind: 'set_label', target: 'A', label })
+    if (!result.ok) throw new Error(result.error.message)
+    expect(result.value.source.startsWith(retained)).toBe(true)
+    expect(result.value.diagram.meta).toEqual(diagram.meta)
+    for (const normalize of [normalizeMermaidSource, normalizeMermaidRenderSource]) {
+      const before = parseNativeFlowchart(normalize(retained).familyBody), after = parseNativeFlowchart(normalize(result.value.source).familyBody)
+      expect(after.nodes.get('A')).toEqual({ ...before.nodes.get('A')!, label })
+      after.nodes.set('A', before.nodes.get('A')!)
+      expect(after).toEqual(before)
+    }
+  })
+  test('does not treat equality in only the authored interpretation as a source no-op', () => {
+    const source = `flowchart LR\nA["A&amp; B"]-->B\n${style}`, diagram = parse(source)
+    const result = mutatePreservingSource(diagram, { kind: 'set_label', target: 'A', label: 'A&amp; B' })
+    expect(result.ok).toBe(false)
+    if (diagram.body.kind !== 'opaque') throw new Error('Expected retained opaque body')
+    expect(diagram.body.source).toBe(source)
+  })
+})
 describe('parseRegisteredMermaid', () => {
   test('flowchart', () => {
     expect(parse('flowchart TD\n  A --> B').body.kind).toBe('flowchart')

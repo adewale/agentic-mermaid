@@ -173,6 +173,7 @@ Rules:
 - Mutation ops use `kind`, not `type`.
 - Run `verifyMermaid` before every commit point.
 - Do not call `mutate` on opaque fallback bodies; the narrower returns `null` for unmodeled syntax.
+- For bounded source-level edits, the library's [`mutatePreservingSource`](./docs/agent-mutation-policy.md) returns exact source while retaining portability diagnostics.
 
 ## Supported diagram families
 
