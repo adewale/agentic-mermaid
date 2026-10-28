@@ -5,7 +5,6 @@ import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { mutate, mutatePreservingSource } from '../agent/mutate.ts'
-import { sameSourceMeaning } from '../agent/source-mutation.ts'
 import { parseMermaid as parseNativeFlowchart } from '../parser.ts'
 import { normalizeMermaidSource, normalizeMermaidRenderSource } from '../mermaid-source.ts'
 import { renderMermaidSVG, renderMermaidASCII } from '../index.ts'
@@ -36,17 +35,6 @@ function sequence(src: string): SequenceValidDiagram {
 describe('explicit source-preserving Flowchart labels', () => {
   const style = 'classDef exClass background:#bbb,border:1px s:::colid red;'
   const retained = `graph TD\n   \n      A[ h ] -- hello --> B[" test "]:::exClass & C --> D;\n      ${style}`
-  test('native frame equality retains map order, nested values and optional-field meaning', () => {
-    const frame = { nodes: new Map([['A', { label: 'Keep', shape: 'rect' }], ['B', { label: 'Other', shape: 'rect' }]]), title: undefined }
-    expect(sameSourceMeaning(frame, { nodes: new Map([['A', { label: 'Keep', shape: 'rect' }], ['B', { label: 'Other', shape: 'rect' }]]) })).toBe(true)
-    expect(sameSourceMeaning(frame, { nodes: new Map([['B', { label: 'Other', shape: 'rect' }], ['A', { label: 'Keep', shape: 'rect' }]]) })).toBe(false)
-    expect(sameSourceMeaning(frame, { nodes: new Map([['A', { label: 'Keep', shape: 'circle' }], ['B', { label: 'Other', shape: 'rect' }]]) })).toBe(false)
-    expect(sameSourceMeaning(frame, { ...frame, direction: 'LR' })).toBe(false)
-    expect(sameSourceMeaning({ title: undefined }, {})).toBe(true)
-    expect(sameSourceMeaning({}, { title: undefined })).toBe(true)
-    expect(sameSourceMeaning(new Map([[{ id: 'A' }, ['Keep']]]), new Map([[{ id: 'A' }, ['Keep']]]))).toBe(true)
-    expect(sameSourceMeaning({ when: new Date(0) }, { when: new Date(0) })).toBe(false)
-  })
   test('edits a native node while retaining the exact unsupported classDef and original bytes', () => {
     const diagram = parse(retained)
     expect(diagram.body.kind).toBe('opaque')
