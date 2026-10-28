@@ -419,6 +419,88 @@ function markerHasInk(marker: MarkerDescriptor | undefined, witnesses: readonly 
   return false
 }
 
+interface CircleStrokeProof { readonly bounds: AxisAlignedBox; readonly witnesses: readonly ScenePoint[] }
+
+// This first served-circle domain uses exact integer operands and cardinal
+// permutations. Half-widths are dyadic; no trig, tolerance or raw-resource
+// rounding is needed to establish the same actual stroke point and envelope.
+const circleProofInteger = (value: number): boolean => Number.isSafeInteger(value) && Math.abs(value) <= 2 ** 30
+const circleProofOpaque = (value: string | undefined): boolean => !!value && (value.length === 4 || value.length === 7) && /^#[\da-f]+$/i.test(value)
+function circleProofWidth(value: string | number | undefined, work: () => boolean): number | undefined {
+  if (typeof value === 'string') {
+    if (value.length > 7) return undefined
+    for (let i = 0; i < value.length; i++) if (!work()) return undefined
+    if (!/^[1-9]\d*$/.test(value)) return undefined
+  }
+  const width = value === undefined ? 1 : Number(value)
+  return Number.isSafeInteger(width) && width > 0 && width <= 2 ** 20 ? width : undefined
+}
+
+/** A complete, unclipped stroke-only circle plus one fixed point of its ring.
+ * It is useful only with the private closed emission context and the complete
+ * later-paint admission below. Declared marker bounds are never reduced. */
+function prepareCircleStroke(node: NativeConnectorPaintSource, marker: MarkerDescriptor | undefined, position: 'start' | 'mid' | 'end', work: () => boolean): CircleStrokeProof | undefined {
+  const g = marker?.geometry
+  if (g?.kind !== 'circle') return undefined
+  for (let i = 0; i < 64; i++) if (!work()) return undefined
+  if (marker!.id.length > 64) return undefined
+  for (let i = 0; i < marker!.id.length; i++) if (!work()) return undefined
+  if (!/^[A-Za-z_][A-Za-z0-9_.-]*$/.test(marker!.id)) return undefined
+  const paint = marker!.paint, line = node.route.geometry
+  if (position === 'mid' || line.kind !== 'line' || node.route.closed || node.transform || node.stroke.nonScaling || node.stroke.dash
+    || node.stroke.mixBlendMode && node.stroke.mixBlendMode !== 'normal'
+    || node.stroke.paintOrder !== undefined && node.stroke.paintOrder !== 'normal'
+    || node.stroke.opacity !== undefined && node.stroke.opacity !== 1 && node.stroke.opacity !== '1'
+    || !circleProofWidth(node.stroke.width, work)
+    || ![line.x1, line.y1, line.x2, line.y2, g.cx, g.cy, g.r].every(circleProofInteger) || !(g.r > 0)
+    || line.x1 === line.x2 && line.y1 === line.y2 || line.x1 !== line.x2 && line.y1 !== line.y2
+    || marker!.units !== 'userSpaceOnUse' || marker!.bounds || marker!.viewBox || (marker!.scale ?? 1) !== 1
+    || marker!.orient !== undefined && marker!.orient !== 'auto' && marker!.orient !== 'auto-start-reverse'
+    || !marker!.size || !marker!.ref || ![marker!.size.width, marker!.size.height, marker!.ref.x, marker!.ref.y].every(circleProofInteger)
+    || !paint || paint.fill !== 'none' || !circleProofOpaque(paint.stroke)
+    || paint.opacity !== undefined && paint.opacity !== '1' || paint.fillOpacity !== undefined || paint.strokeOpacity !== undefined
+    || paint.strokeDasharray !== undefined || paint.strokeDashoffset !== undefined
+    || paint.strokeLinecap !== undefined && paint.strokeLinecap !== 'butt'
+    || paint.strokeLinejoin !== undefined && paint.strokeLinejoin !== 'miter'
+    || paint.strokeMiterlimit !== undefined && paint.strokeMiterlimit !== '4'
+    || paint.paintOrder !== undefined && paint.paintOrder !== 'normal'
+    || paint.vectorEffect !== undefined && paint.vectorEffect !== 'none') return undefined
+  const width = circleProofWidth(paint.strokeWidth, work)
+  if (!width) return undefined
+  for (let i = 0; i < 20; i++) if (!work()) return undefined
+  const tx = Math.sign(line.x2 - line.x1), ty = Math.sign(line.y2 - line.y1), contour = node.route.contours[0]
+  if (node.route.contours.length !== 1 || !contour || contour.closed
+    || contour.start.x !== line.x1 || contour.start.y !== line.y1 || contour.end.x !== line.x2 || contour.end.y !== line.y2
+    || ![contour.startTangent, contour.endTangent, node.route.startTangent, node.route.endTangent].every(t => t && t.x === tx && t.y === ty)) return undefined
+  const radius = g.r + width / 2
+  // Strict containment proves that SVG's default hidden viewport clips none
+  // of the complete ring, including its outer stroke, whatever overflow says.
+  if (!(g.cx - radius > 0 && g.cy - radius > 0 && g.cx + radius < marker!.size.width && g.cy + radius < marker!.size.height)) return undefined
+  const anchor = position === 'start' ? { x: line.x1, y: line.y1 } : { x: line.x2, y: line.y2 }
+  const reverse = position === 'start' && marker!.orient === 'auto-start-reverse' ? -1 : 1
+  const dx = tx * reverse, dy = ty * reverse
+  const cx = anchor.x + dx * (g.cx - marker!.ref.x) - dy * (g.cy - marker!.ref.y)
+  const cy = anchor.y + dy * (g.cx - marker!.ref.x) + dx * (g.cy - marker!.ref.y)
+  return { bounds: { x0: cx - radius, y0: cy - radius, x1: cx + radius, y1: cy + radius },
+    witnesses: [{ x: cx - dx * g.r, y: cy - dy * g.r }] }
+}
+
+/** Every later possible occluder must have this exact served sharp-rectangle
+ * body and opaque continuous outline. Other paint keeps the old uncertainty. */
+function circleStrokeBody(primitive: ScenePaintPrimitive, work: () => boolean): boolean {
+  for (let i = 0; i < 32; i++) if (!work()) return false
+  const node = paintPrimitiveSource(primitive), m = scenePrimitiveMatrix(primitive)
+  if (node?.kind !== 'shape' || node.geometry.kind !== 'rect' || primitive.visibility === 'conditional' || primitive.groupOpacity !== undefined
+    || !m || m[0] !== 1 || m[1] !== 0 || m[2] !== 0 || m[3] !== 1 || m[4] !== 0 || m[5] !== 0) return false
+  const g = node.geometry, paint = node.paint
+  return [g.x, g.y, g.width, g.height].every(circleProofInteger) && g.width > 0 && g.height > 0 && !(g.rx ?? 0) && !(g.ry ?? 0)
+    && circleProofOpaque(paint.fill) && circleProofOpaque(paint.stroke) && !!circleProofWidth(paint.strokeWidth, work)
+    && (paint.opacity === undefined || paint.opacity === '1') && (paint.fillOpacity === undefined || paint.fillOpacity === '1') && (paint.strokeOpacity === undefined || paint.strokeOpacity === '1')
+    && paint.strokeDasharray === undefined && paint.strokeDashoffset === undefined
+    && (paint.strokeLinejoin === undefined || paint.strokeLinejoin === 'miter') && (paint.strokeMiterlimit === undefined || paint.strokeMiterlimit === '4')
+    && (paint.vectorEffect === undefined || paint.vectorEffect === 'none')
+}
+
 interface MarkerPieceSource {
   readonly marker: MarkerDescriptor
   readonly anchor: ScenePoint
@@ -988,7 +1070,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
       }
     }
   }
-  type MarkerTarget = { primitive: ScenePaintPrimitive; position: 'start' | 'mid' | 'end'; clipEligible: boolean; anchor: ScenePoint; repaint: string; bounds: AxisAlignedBox; hull?: readonly ScenePoint[]; padding?: number; witnesses?: readonly ScenePoint[]; actualInk: boolean; strokeProof?: MarkerPolygonProof; semantic: boolean; mayFill: boolean }
+  type MarkerTarget = { primitive: ScenePaintPrimitive; position: 'start' | 'mid' | 'end'; clipEligible: boolean; anchor: ScenePoint; repaint: string; bounds: AxisAlignedBox; hull?: readonly ScenePoint[]; padding?: number; witnesses?: readonly ScenePoint[]; actualInk: boolean; strokeProof?: MarkerPolygonProof; circleStroke?: CircleStrokeProof; semantic: boolean; mayFill: boolean }
   const lastMarkers = new Map<string, MarkerTarget>()
   let markerColor: ReturnType<typeof createInlineColorAttributeResolver> | undefined
   const resolveMarkerColor = (value: string): string | undefined => (markerColor ??= createInlineColorAttributeResolver())(value, scene.colors)
@@ -1015,7 +1097,20 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
         && !!matrix && matrix[0] === 1 && matrix[1] === 0 && matrix[2] === 0 && matrix[3] === 1 && matrix[4] === 0 && matrix[5] === 0
       const mayFill = markerMayHaveOpaqueFill(resolveMarkerColor, descriptor, work)
       const strokeProof = semantic && exactWorld ? prepareMarkerPolygonInk(scene, node, descriptor, marker.position, work, resolveMarkerColor) : undefined
-      lastMarkers.set(key, { primitive, position: marker.position, clipEligible: semantic && exactWorld && knownMapping, anchor: marker.anchor, repaint: marker.repaint, bounds: marker.bounds, hull: marker.hull, padding: marker.padding, witnesses, actualInk, strokeProof, semantic, mayFill })
+      let circleStroke = semantic && exactWorld && !repaired && emissionWork?.closedMarkerContext
+        ? prepareCircleStroke(node, descriptor, marker.position, work) : undefined
+      if (circleStroke) for (const later of inspection.primitives) {
+        if (!work()) { circleStroke = undefined; break }
+        if (later.order <= primitive.order || later.kind === 'document') continue
+        // Shafts, chrome, labels and unsupported shape geometry can erase the
+        // witness too. Do not infer their separation from the shape-only tree.
+        if (!circleStrokeBody(later, work)) { circleStroke = undefined; break }
+      }
+      if (circleStroke && !work()) circleStroke = undefined
+      // Keep the old conservative envelope and include the exact served pose;
+      // tolerated source tangent metadata cannot hide a later-body query.
+      const bounds = circleStroke ? unionSceneBounds(marker.bounds, circleStroke.bounds)! : marker.bounds
+      lastMarkers.set(key, { primitive, position: marker.position, clipEligible: semantic && exactWorld && knownMapping, anchor: marker.anchor, repaint: marker.repaint, bounds, hull: marker.hull, padding: marker.padding, witnesses, actualInk, strokeProof, circleStroke, semantic, mayFill })
     }
   }
   const markerCheck = (branch: Tree | undefined, target: MarkerTarget): void => {
@@ -1040,6 +1135,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
         const clipped = clippedEndpointMarkerBounds(connector, descriptor, target.position, target.bounds, target.anchor, work)
         if (clipped && outsideFilledBody(surface, clipped, attached, undefined, 0, work, target.witnesses, target.anchor, true)) continue
       }
+      if (target.circleStroke && outsideFilledBody(surface, target.circleStroke.bounds, attached, undefined, 0, work, target.circleStroke.witnesses, target.anchor, true)) continue
       issue({ code: 'POTENTIAL_OCCLUSION', id: target.primitive.id, by: surface.primitive.id, message: 'Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified' })
     }
   }

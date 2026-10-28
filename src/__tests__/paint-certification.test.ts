@@ -54,6 +54,59 @@ test.each(['default-hidden', 'explicit-hidden', 'user-space', 'start', 'reverse-
   else expect(proof.status).not.toBe('passed')
 })
 
+test.each(['clear', 'covered', 'wrong-ref', 'clipped', 'unknown-width', 'dashed', 'mutated', 'css', 'inner-child', 'resource-coordinate', 'resource-width', 'body-width', 'own-white-carrier', 'later-white-carrier'] as const)('a stroke-only circle retains actual emitted ink authority for %s', mode => {
+  const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
+  const marker: MarkerDescriptor = {
+    id: 'ring', shape: 'circle', units: 'userSpaceOnUse', orient: 'auto',
+    size: mode === 'clipped' ? { width: 1, height: 1 } : { width: 6, height: 6 },
+    ref: { x: mode === 'wrong-ref' ? 3 : 5, y: 3 },
+    geometry: { kind: 'circle', cx: mode === 'resource-coordinate' ? 3.00000000000001 : 3, cy: 3, r: 2 },
+    paint: { fill: 'none', stroke: '#111', strokeWidth: mode === 'unknown-width' ? 'var(--host)' : mode === 'resource-width' ? '1.00000000000001' : '1', ...(mode === 'dashed' ? { strokeDasharray: '1 1' } : {}) },
+  }
+  const producer: DrawingProducer = factory => {
+    const open = factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">')
+    const definitions = factory.definitions({ id: 'defs' }, `<defs>${serializeMarkerResource(marker)}${mode === 'css' ? '<style>marker circle { stroke: none }</style>' : ''}</defs>`)
+    if (mode === 'mutated') marker.paint!.stroke = 'none'
+    const edge = factory.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', endpoints: { from: 'outside', to: 'card' }, geometry: { kind: 'line', x1: 20, y1: 40, x2: 60, y2: 40 },
+      paint: { stroke: mode === 'own-white-carrier' ? '#fff' : '#111', strokeWidth: mode === 'own-white-carrier' ? '20' : '1', ...(mode === 'own-white-carrier' ? { paintOrder: 'markers stroke fill' } : {}) }, markers: { end: marker } })
+    const later = mode === 'later-white-carrier' ? [factory.connector({ id: 'later-eraser', role: 'chrome', lineStyle: 'solid', geometry: { kind: 'line', x1: 20, y1: 40, x2: 60, y2: 40 }, paint: { stroke: '#fff', strokeWidth: '20' } })] : []
+    const card = factory.shape({ id: 'card', role: 'node',
+      geometry: mode === 'covered' ? { kind: 'rect', x: 53, y: 34, width: 14, height: 12 }
+        : mode === 'inner-child' ? { kind: 'compound', children: [{ kind: 'rect', x: 60, y: 20, width: 30, height: 40 }, { kind: 'line', x1: 54, y1: 38, x2: 60, y2: 38 }] }
+          : { kind: 'rect', x: 60, y: 20, width: 30, height: 40 },
+      paint: { fill: '#fff', stroke: '#888', strokeWidth: mode === 'body-width' ? '1.00000000000001' : '1' },
+      ...(mode === 'inner-child' ? { childPaints: [{ fill: '#fff', stroke: '#888', strokeWidth: '1' }, { fill: 'none', stroke: '#111', strokeWidth: '2' }] } : {}),
+    })
+    return { ...scene([]), parts: [open, definitions, edge, ...later, card, factory.documentClose()] }
+  }
+  const drawing = drawNative(producer, context, 'flowchart')
+  expect(drawing.svg).toContain('<line x1="20" y1="40" x2="60" y2="40"')
+  expect(drawing.svg).toContain('marker-end="url(#ring)"')
+  expect(drawing.svg).toContain(mode === 'resource-coordinate' ? '<circle cx="3.00000000000001" cy="3" r="2" fill="none" stroke="#111"' : '<circle cx="3" cy="3" r="2" fill="none" stroke="#111"')
+  if (mode === 'resource-width') expect(drawing.svg).toContain('stroke-width="1.00000000000001"')
+  if (mode === 'own-white-carrier' || mode === 'later-white-carrier') expect(drawing.svg).toContain('<line x1="20" y1="40" x2="60" y2="40" stroke="#fff" stroke-width="20"')
+  if (mode === 'own-white-carrier') expect(drawing.svg).toContain('paint-order="markers stroke fill"')
+  if (['clear', 'covered', 'clipped', 'css', 'own-white-carrier', 'later-white-carrier'].includes(mode)) {
+    // The top ring point (58,38) is real stroke ink, away from the carrier
+    // shaft at y40 and the attached card's leftmost stroke at x59.5.
+    const render = new Resvg(drawing.svg).render(), pixels = render.pixels
+    let topInk = 0
+    for (let y = 37; y < 39; y++) for (let x = 57; x < 59; x++) {
+      const index = (y * render.width + x) * 4
+      if (pixels[index + 3]! > 0 && pixels[index]! < 96 && pixels[index + 1]! < 96 && pixels[index + 2]! < 96) topInk++
+    }
+    if (mode === 'clear') expect(topInk).toBeGreaterThan(0)
+    else expect(topInk).toBe(0)
+  }
+  const proof = certifyNativePaint(drawing.header, drawing.paint)
+  if (mode === 'clear') {
+    expect(drawing.svg).toContain('markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto" markerUnits="userSpaceOnUse"')
+    expect(drawing.svg).toContain('<rect x="60" y="20" width="30" height="40" fill="#fff" stroke="#888" stroke-width="1"')
+    expect(proof.status).toBe('passed')
+    expect(proof.issues).toEqual([])
+  } else expect(proof.status).not.toBe('passed')
+})
+
 test.each(['agentic', 'elk'] as const)('public %s thick-arrow and borderless-state markers retain clipping and actual meaning', backend => {
   for (const source of ['flowchart LR\nA ==> B', 'stateDiagram-v2\nstate fork_state <<fork>>\n[*] --> fork_state\nfork_state --> State2\nfork_state --> State3\nstate join_state <<join>>\nState2 --> join_state\nState3 --> join_state\njoin_state --> State4\nState4 --> [*]']) {
     const result = renderMermaidSVGWithReceipt(source, { graphLayout: { backend, fallback: 'none' } })

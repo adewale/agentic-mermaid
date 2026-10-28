@@ -13,7 +13,7 @@ import { connectorContourSemantics } from './connector-geometry.ts'
 export const MAX_OCCLUSION_OPERATIONS = 400_000
 
 type Leaf = Exclude<SceneNode, { kind: 'group' }>
-export interface NativeEmissionWork { readonly operations: number; readonly exhausted: boolean; readonly uncertain: boolean; readonly header: Omit<SceneDoc, 'parts'> }
+export interface NativeEmissionWork { readonly operations: number; readonly exhausted: boolean; readonly uncertain: boolean; readonly closedMarkerContext: boolean; readonly header: Omit<SceneDoc, 'parts'> }
 const emittedOccurrences = new WeakSet<ScenePaintGeometry>()
 export function hasNativeEmissionOccurrence(primitive: ScenePaintGeometry): boolean { return emittedOccurrences.has(primitive) }
 const emissionWork = new WeakMap<ScenePaintGeometryInspection, NativeEmissionWork>()
@@ -25,6 +25,9 @@ export function nativeEmissionWorkOf(inspection: ScenePaintGeometryInspection): 
  * Accessors/unsupported data or an exhausted capture keep paint conditional. */
 export function createNativePaintEmission(maxOperations: number) {
   let operations = 0, exhausted = false, uncertain = false
+  // A deliberately smaller admission domain for new served marker proofs.
+  // Existing proofs do not depend on this flat, stylesheet-free context.
+  let closedMarkerContext = true, rootOpens = 0, rootCloses = 0
   const resources = new Map<string, string | undefined>()
   const references: NonNullable<Extract<Leaf, { kind: 'connector' }>['markers']['start']>[] = []
   const pay = (count = 1): boolean => {
@@ -170,9 +173,27 @@ export function createNativePaintEmission(maxOperations: number) {
     uncertain(): void { uncertain = true },
     header(header: Omit<SceneDoc, 'parts'>, svg: string): Omit<SceneDoc, 'parts'> {
       if (!pay(svg.length * 8 + 128)) return header
-      const root = scanSvgStartTags(svg).find(tag => tag.name === 'svg')
+      const tags = scanSvgStartTags(svg)
+      const root = tags.find(tag => tag.name === 'svg')
       if (!root) { uncertain = true; return header }
+      if (tags.length !== 1 || root.selfClosing || decodedSvgAttributeValue(root, 'xmlns') !== 'http://www.w3.org/2000/svg'
+        || !/^[ \t\r\n]*$/.test(svg.slice(0, root.start)) || !/^[ \t\r\n]*$/.test(svg.slice(root.end))) closedMarkerContext = false
       const width = formatSvgNumber(header.width), height = formatSvgNumber(header.height)
+      if (decodedSvgAttributeValue(root, 'width') !== width || decodedSvgAttributeValue(root, 'height') !== height) closedMarkerContext = false
+      // The new proof admits only this small, complete XML root grammar. In
+      // particular, IDs, styles, ignored malformed attributes and duplicate
+      // attributes cannot create a second resource or cascade authority.
+      const rootNames = new Set<string>()
+      let rootCursor = root.start + 4
+      for (const attribute of root.attributes) {
+        if (!['xmlns', 'width', 'height', 'viewBox'].includes(attribute.name) || rootNames.has(attribute.name)
+          || !/^[ \t\r\n]+$/.test(svg.slice(rootCursor, attribute.nameStart))
+          || svg.slice(attribute.nameStart, attribute.valueStart) !== `${attribute.name}="`
+          || attribute.value.includes('&') || attribute.value.includes('<')) closedMarkerContext = false
+        rootNames.add(attribute.name)
+        rootCursor = attribute.valueEnd + 1
+      }
+      if (!/^[ \t\r\n]*>$/.test(svg.slice(rootCursor, root.end))) closedMarkerContext = false
       const viewBox = decodedSvgAttributeValue(root, 'viewBox')
       if (viewBox !== undefined ? viewBox !== `0 0 ${width} ${height}`
         : decodedSvgAttributeValue(root, 'width') !== width || decodedSvgAttributeValue(root, 'height') !== height) uncertain = true
@@ -203,6 +224,7 @@ export function createNativePaintEmission(maxOperations: number) {
       return captured
     },
     group(shell: Extract<SceneNode, { kind: 'group' }>) {
+      closedMarkerContext = false
       if (!pay(shell.open.length * 8)) return undefined
       const tag = scanSvgStartTags(shell.open)[0]
       if (!tag || tag.name !== 'g') { uncertain = true; return undefined }
@@ -219,24 +241,43 @@ export function createNativePaintEmission(maxOperations: number) {
       // Every inline label can add one primitive; noninline labels only make
       // this a conservative upper bound. Failed reservations are conditional.
       if (!pay(2 * (1 + (node.kind === 'connector' ? node.labels.length : 0)))) return false
+      const opens = node.kind === 'document' && node.element === 'open'
+      if (opens ? rootOpens !== 0 || rootCloses !== 0 : rootOpens !== 1 || rootCloses !== 0) closedMarkerContext = false
       if (node.kind === 'connector') {
         const reference = (marker: typeof node.markers.start): void => { if (marker && pay(2)) references.push(marker) }
         reference(node.markers.start)
         for (const marker of node.markers.mid) { if (!pay()) break; reference(marker) }
         reference(node.markers.end)
+      } else if (node.kind === 'document' && node.element === 'open') rootOpens++
+      else if (node.kind === 'document' && node.element === 'close') {
+        rootCloses++
+        if (svg !== '</svg>') closedMarkerContext = false
       } else if (node.kind === 'document' && node.element === 'definitions') {
         if (!pay(svg.length * 8)) return false
-        for (const tag of scanSvgStartTags(svg)) {
+        if (svg.includes('<?') || svg.includes('<!')) closedMarkerContext = false
+        const tags = scanSvgStartTags(svg), outer = tags[0]
+        if (!outer || outer.name !== 'defs' || outer.selfClosing || outer.attributes.length
+          || !/^[ \t\r\n]*$/.test(svg.slice(0, outer.start))) closedMarkerContext = false
+        let resourceCursor = outer?.end ?? 0
+        let markerEnd = -1
+        for (const tag of tags) {
           if (!pay(tag.attributes.length + 1)) break
+          if (tag.name === 'defs') {
+            if (tag.attributes.length || tag.start < markerEnd) closedMarkerContext = false
+          } else if (tag.name !== 'marker' && (tag.start >= markerEnd || !['circle', 'ellipse', 'line', 'rect', 'polygon', 'polyline', 'path'].includes(tag.name))) closedMarkerContext = false
           if (tag.name !== 'marker') continue
           const id = decodedSvgAttributeValue(tag, 'id')
           const end = svg.indexOf('</marker>', tag.end)
           if (!id || end < 0 || resources.has(id)) { uncertain = true; continue }
+          if (!/^[ \t\r\n]*$/.test(svg.slice(resourceCursor, tag.start))) closedMarkerContext = false
+          markerEnd = end + 9
+          resourceCursor = markerEnd
           const bytes = svg.slice(tag.start, end + 9).replace(/(^|\n)[ \t]+(?=<)/g, '$1')
           if (!pay(2)) break
           resources.set(id, bytes)
         }
-      }
+        if (!/^[ \t\r\n]*<\/defs>[ \t\r\n]*$/.test(svg.slice(resourceCursor))) closedMarkerContext = false
+      } else if (node.kind === 'document') closedMarkerContext = false
       return !exhausted
     },
     leaf(node: Leaf): { node: Leaf; paintNode: Leaf; conditional: boolean } {
@@ -291,10 +332,15 @@ export function createNativePaintEmission(maxOperations: number) {
           else if (pay(2)) checked.set(marker.id, marker)
         } catch { uncertain = true }
       }
+      // Unreferenced opaque resources have no descriptor/byte comparison and
+      // could contain a shadowing child ID or malformed XML. The new closed
+      // domain admits only resources checked against their actual references.
+      if (closedMarkerContext && (!pay() || resources.size !== checked.size)) closedMarkerContext = false
       // Paid in observe before these immutable occurrences were created.
       // Conditional fallback occurrences already prohibit P, even if rewrapped.
       for (const primitive of inspection.primitives) if (primitive.visibility !== 'conditional') emittedOccurrences.add(primitive)
-      emissionWork.set(inspection, Object.freeze({ operations, exhausted, uncertain, header }))
+      emissionWork.set(inspection, Object.freeze({ operations, exhausted, uncertain,
+        closedMarkerContext: closedMarkerContext && rootOpens === 1 && rootCloses === 1 && !uncertain && !exhausted, header }))
     },
   }
 }
