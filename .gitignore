@@ -99,3 +99,6 @@ bench-report/
 
 # Original upstream assertion-run evidence
 eval/mermaid-upstream-assertions/results/
+
+# Owned generated shared-library tool link (a symlink, not a directory).
+/eval/benchmark/node_modules
