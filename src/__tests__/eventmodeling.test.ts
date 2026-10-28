@@ -76,6 +76,34 @@ test('domain verification diagnoses each invalid explicit source while retaining
   }
 })
 
+test('label caps cover the text actually owned by frames, lanes and titles', () => {
+  const frame = 'eventmodeling\ntf 01 ui Main'
+  const cases = [
+    { source: `eventmodeling\ntf 01 ui ${'A'.repeat(21)}`, target: '01', charCount: 21 },
+    { source: `${frame} {${'p'.repeat(21)}}`, target: '01', charCount: 21 },
+    { source: `${frame} [[Payload]]\ndata Payload {\n${'d'.repeat(21)}\n}`, target: '01', charCount: 21 },
+    { source: `${frame}\nnote 01 {\n${'n'.repeat(21)}\n}`, target: '01', charCount: 27 },
+    { source: `${frame}\ngwt 01 given evt Value123 then evt Value123`, target: '01', charCount: 21 },
+    { source: `---\ntitle: "<b>${'T'.repeat(21)}</b>"\n---\n${frame}`, target: 'title', charCount: 21 },
+    { source: 'eventmodeling\ntf 01 ui LongNamespace.X', target: 'lane:0', charCount: 31 },
+    { source: `${frame} {<b>123456789012345</b>}`, target: '01', charCount: 22 },
+    { source: `${frame} {${'&amp;'.repeat(5)}}`, target: '01', charCount: 25 },
+  ]
+  for (const { source, target, charCount } of cases) {
+    expect(verifyMermaid(source, { labelCharCap: 20 }).warnings.filter(warning => warning.code === 'LABEL_OVERFLOW')).toEqual([
+      { code: 'LABEL_OVERFLOW', target, charCount, limit: 20 },
+    ])
+  }
+
+  const defaultCap = `eventmodeling\ntf 01 ui ${'A'.repeat(41)}`
+  expect(verifyMermaid(defaultCap).warnings.filter(warning => warning.code === 'LABEL_OVERFLOW')).toEqual([
+    { code: 'LABEL_OVERFLOW', target: '01', charCount: 41, limit: 40 },
+  ])
+  expect(verifyMermaid(defaultCap, { labelCharCap: 41 }).warnings.filter(warning => warning.code === 'LABEL_OVERFLOW')).toEqual([])
+  const multiline = `${frame}\nnote 01 {\n123456789012\n123456789012\n}\ndata Unused {\n${'u'.repeat(50)}\n}`
+  expect(verifyMermaid(multiline, { labelCharCap: 20 }).warnings.filter(warning => warning.code === 'LABEL_OVERFLOW')).toEqual([])
+})
+
 test('namespace re-entry owns one lane, non-overlapping chronological columns and exact endpoints', () => {
   const p = layoutEventModeling(parseEventModeling(complex))
   expect(p.nodes.filter(node => node.frame.type === 'ui').map(node => node.lane)).toEqual(['lane:0', 'lane:0'])
