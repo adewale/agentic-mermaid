@@ -184,14 +184,15 @@ describe('architecture structured parse', () => {
 
 describe('architecture structured-or-opaque fallback', () => {
   test.each([
-    ['a port token as a service id', 'service L(server)[Load balancer]\n  service db(database)[Database]\n  L:R --> L:db', 'architecture_id'],
-    ['a keyword as a group id', 'group group(cloud)[Application]\n  service api(server)[API] in group', 'architecture_id'],
-    ['a port token prefix as a junction id', 'junction Right', 'architecture_id'],
-    ['a title token prefix as an id', 'service titleWorker(server)[Worker]', 'architecture_id'],
-    ['a trailing dash in an id', 'service api-(server)[API]', 'architecture_id'],
-    ['a dotted service icon', 'service api(custom.server)[API]', 'architecture_icon'],
-    ['a dotted group icon', 'group app(custom.cloud)[Application]', 'architecture_icon'],
-  ])('%s stays renderable and source-preserved instead of generating rejected source', async (_name, statement, syntax) => {
+    ['a port token as a service id', 'service L(server)[Load balancer]\n  service db(database)[Database]\n  L:R --> L:db', 'architecture_id', 3],
+    ['a keyword as a group id', 'group group(cloud)[Application]\n  service api(server)[API] in group', 'architecture_id', 3],
+    ['the parent keyword as a service id', 'service a(server)[Aa]\n  service in(server)[aa]', 'architecture_id', 4],
+    ['a port token prefix as a junction id', 'junction Right', 'architecture_id', 3],
+    ['a title token prefix as an id', 'service titleWorker(server)[Worker]', 'architecture_id', 3],
+    ['a trailing dash in an id', 'service api-(server)[API]', 'architecture_id', 3],
+    ['a dotted service icon', 'service api(custom.server)[API]', 'architecture_icon', 3],
+    ['a dotted group icon', 'group app(custom.cloud)[Application]', 'architecture_icon', 3],
+  ])('%s stays renderable and source-preserved instead of generating rejected source', async (_name, statement, syntax, line) => {
     const source = `%% preserved comment\narchitecture-beta\n  ${statement}\n`
     expect(await upstream.accepts(source)).toBe(false)
     const parsed = parseMermaid(source)
@@ -202,7 +203,7 @@ describe('architecture structured-or-opaque fallback', () => {
     expect(renderMermaidSVG(parsed.value)).toBe(renderMermaidSVG(source))
     expect(renderMermaidASCII(parsed.value)).toBe(renderMermaidASCII(source))
     expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({
-      code: 'UNSUPPORTED_SYNTAX', syntax, line: 3,
+      code: 'UNSUPPORTED_SYNTAX', syntax, line,
     }))
     const edited = mutate(parsed.value, { kind: 'set_title', title: 'Changed' })
     expect(edited.ok).toBe(false)
@@ -210,9 +211,9 @@ describe('architecture structured-or-opaque fallback', () => {
   })
 
   test('portable neighbours keep typed editing, including keyword prefixes and normalized icons', async () => {
-    const diagram = architecture('architecture-beta\n  group group1( cloud )[Application]\n  service rowspan( server )[Rowspan] in group1\n  service columnar( )[Columnar]\n  junction l1\n  rowspan:R --> L:columnar')
+    const diagram = architecture('architecture-beta\n  group group1( cloud )[Application]\n  service rowspan( server )[Rowspan] in group1\n  service columnar( )[Columnar]\n  service inside(server)[Inside]\n  junction l1\n  rowspan:R --> L:columnar')
     expect(diagram.body.groups[0]?.icon).toBe('cloud')
-    expect(diagram.body.services.map(service => service.icon)).toEqual(['server', undefined])
+    expect(diagram.body.services.map(service => service.icon)).toEqual(['server', undefined, 'server'])
     expect(apply(diagram, { kind: 'set_title', title: 'Portable' }).body.title).toBe('Portable')
     expect(verifyMermaid(diagram).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
     expect(await upstream.accepts(serializeMermaid(diagram))).toBe(true)
@@ -556,7 +557,9 @@ describe('architecture align directives (upstream v11.16.0)', () => {
 })
 
 describe('architecture round-trip property', () => {
-  const idArb = fc.stringMatching(/^[a-z][a-z0-9]{0,7}$/)
+  // A stable non-keyword prefix constructs portable IDs even when the suffix
+  // is a grammar word such as `in` or starts with the title token.
+  const idArb = fc.stringMatching(/^[a-z][a-z0-9]{0,7}$/).map(suffix => `svc_${suffix}`)
   const labelArb = fc.stringMatching(/^[A-Za-z][A-Za-z ]{0,18}[A-Za-z]$/)
   const iconArb = fc.constantFrom('server', 'database', 'cloud', 'disk')
   const sideArb = fc.constantFrom('L', 'R', 'T', 'B')

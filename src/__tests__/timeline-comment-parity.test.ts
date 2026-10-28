@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { beforeAll, describe, expect, test } from 'bun:test'
 import mermaid from 'mermaid'
 import { asTimeline, mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
 import { describeMermaid } from '../agent/describe.ts'
@@ -18,8 +18,9 @@ function nativePeriods(input: string) {
 }
 
 describe('Timeline full-line comments match pinned Mermaid 11.16.0', () => {
+  beforeAll(() => { mermaid.initialize({ startOnLoad: false }) })
+
   test('both native and agent projections ignore %, %% and # lines without changing neighboring periods', async () => {
-    mermaid.initialize({ startOnLoad: false })
     for (const comment of ['% authored note', '%% authored note', '# legacy note']) {
       const input = source(comment)
       const expected = [
