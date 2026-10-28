@@ -61,7 +61,7 @@ test('grammar triage separates wrapper preservation and diagnosed source-only re
   for (const [family, source, disposition] of [
     ['timeline', '---\ng:\n:\n---\ntimeline\nC', 'reader-extension'],
     ['sequence', 'sequenceDiagram\ne->right of:', 'diagnosed-limitation'],
-    ['timeline', '---\nconfig:\n  themeVariables:\n    cScale2: "#0000#name;ff"\n---\ntimeline\n2002 : LinkedIn', 'diagnosed-limitation'],
+    ['timeline', '---\nconfig:\n  theme: default\n  themeVariables:\n    cScale2: "#0000#name;ff"\n---\ntimeline\n2002 : LinkedIn', 'diagnosed-limitation'],
   ] as const) {
     await grammar.prepare(family, getFamily(family)!.example)
     const result = await triageGrammarWitness({ family, source }, (selected, text) => grammar.parse(selected, text))
