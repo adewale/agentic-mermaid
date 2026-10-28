@@ -143,8 +143,57 @@ export interface FamilyBalancedSummary {
 }
 
 const LEGIBILITY_EPS = 0.01
+const LABEL_MEASUREMENT_COUNTS = ['measuredNodes', 'unmeasuredNodes', 'hiddenNodes', 'semanticNodes',
+  'measuredEdges', 'unmeasuredEdges', 'measuredLabels', 'unmeasuredLabels', 'hiddenLabels', 'semanticLabels'] as const
+
+function admitComparisonSample(sample: SampleResult): void {
+  const invalid = (field: string, expectation: string): never => {
+    throw new TypeError(`Invalid layout comparison sample ${JSON.stringify(sample?.id)}: ${field} must be ${expectation}`)
+  }
+  const record = (value: unknown, field: string): void => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) invalid(field, 'an object')
+  }
+  record(sample, 'sample')
+  for (const field of ['id', 'family'] as const) if (typeof sample[field] !== 'string' || !sample[field]) invalid(field, 'a nonempty string')
+  if (typeof sample.source !== 'string') invalid('source', 'a string')
+  if (typeof sample.ok !== 'boolean') invalid('ok', 'a boolean')
+  if (!sample.ok) return
+  if (typeof sample.svg !== 'string' || !sample.svg) invalid('svg', 'a nonempty string for a successful sample')
+  record(sample.metrics, 'metrics')
+  const metrics = sample.metrics!
+  const number = (value: unknown, field: string, count = false, maximum = Infinity): void => {
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > maximum || (count && !Number.isSafeInteger(value))) {
+      invalid(`metrics.${field}`, count ? 'a nonnegative safe integer' : maximum === 1 ? 'a finite number between 0 and 1' : 'a finite nonnegative number')
+    }
+  }
+  for (const field of ['nodeCount', 'edgeCount', 'edgeCrossings'] as const) number(metrics[field], field, true)
+  number(metrics.labelLegibility, 'labelLegibility', false, 1)
+  // Omitted dimensions mean unavailable evidence. Null and malformed present
+  // dimensions must not become zero through arithmetic coercion.
+  if (metrics.labelConflicts !== undefined) {
+    record(metrics.labelConflicts, 'metrics.labelConflicts')
+    number(metrics.labelConflicts.total, 'labelConflicts.total', true)
+  }
+  if (metrics.routeOverlaps !== undefined) {
+    record(metrics.routeOverlaps, 'metrics.routeOverlaps')
+    for (const field of ['parallel', 'opposing'] as const) number(metrics.routeOverlaps[field], `routeOverlaps.${field}`, true)
+  }
+  if (metrics.routeGeometry !== undefined) {
+    record(metrics.routeGeometry, 'metrics.routeGeometry')
+    number(metrics.routeGeometry.bends, 'routeGeometry.bends', true)
+    number(metrics.routeGeometry.length, 'routeGeometry.length')
+    number(metrics.routeGeometry.area, 'routeGeometry.area')
+  }
+  if (metrics.labelMeasurement !== undefined) {
+    record(metrics.labelMeasurement, 'metrics.labelMeasurement')
+    for (const field of LABEL_MEASUREMENT_COUNTS) number(metrics.labelMeasurement[field], `labelMeasurement.${field}`, true)
+  }
+}
 
 export function compareSample(before: SampleResult | undefined, after: SampleResult | undefined, mode: ComparisonMode = 'revision'): Comparison {
+  if (!before && !after) throw new TypeError('Invalid layout comparison: at least one sample is required')
+  if (before) admitComparisonSample(before)
+  if (after) admitComparisonSample(after)
   const id = (after ?? before)!.id
   const family = (after ?? before)!.family
   const notes: string[] = []
@@ -168,7 +217,7 @@ export function compareSample(before: SampleResult | undefined, after: SampleRes
   let regressed = false
   let improved = false
   let measurementChanged = false
-  for (const dimension of ['labelConflicts', 'routeOverlaps', 'routeGeometry'] as const) {
+  for (const dimension of ['labelConflicts', 'routeOverlaps', 'routeGeometry', 'labelMeasurement'] as const) {
     if (mb[dimension] && !ma[dimension]) {
       notes.push(`${dimension}: measurement lost`)
       regressed = true
@@ -176,6 +225,14 @@ export function compareSample(before: SampleResult | undefined, after: SampleRes
       notes.push(`${dimension}: measurement gained; geometry not compared`)
       measurementChanged = true
     }
+  }
+  if (mb.labelMeasurement && ma.labelMeasurement) for (const field of LABEL_MEASUREMENT_COUNTS) {
+    const b = mb.labelMeasurement[field], a = ma.labelMeasurement[field]
+    if (a === b) continue
+    const lost = field.startsWith('measured') ? a < b : a > b
+    notes.push(`labelMeasurement.${field}: ${b} → ${a}${lost ? ' ✗ (measurement or visibility lost)' : ' (coverage changed; geometry not compared)'}`)
+    if (lost) regressed = true
+    else measurementChanged = true
   }
   // QUAL-1: a family that previously had an EMPTY layout (nodeCount 0 — the
   // perceptual metrics were blind to it) gaining real geometry is an
@@ -233,6 +290,16 @@ function fmt(n: number): string {
 }
 
 export function compareSnapshots(before: Snapshot, after: Snapshot, mode: ComparisonMode = 'revision'): Comparison[] {
+  for (const snapshot of [before, after]) {
+    if (!snapshot || !Array.isArray(snapshot.samples)) throw new TypeError('Invalid layout comparison: samples must be an array')
+    for (const sample of snapshot.samples) admitComparisonSample(sample)
+    if (new Set(snapshot.samples.map(sample => sample.id)).size !== snapshot.samples.length) throw new TypeError('Invalid layout comparison: duplicate sample identities')
+    if (snapshot.renderOptions !== undefined) {
+      const problems = validateSerializableRenderOptions(snapshot.renderOptions)
+      if (problems.length) throw new TypeError(`Invalid layout comparison render options: ${problems.join('; ')}`)
+    }
+  }
+  if (!before.samples.length && !after.samples.length) throw new TypeError('Invalid layout comparison: a nonempty population is required')
   if (mode === 'backend') {
     if (before.rev !== after.rev || !/^[a-f0-9]{40}$/.test(before.rev) || before.dirty !== false || after.dirty !== false) {
       throw new Error('Backend comparisons require the same clean immutable revision')
@@ -244,9 +311,6 @@ export function compareSnapshots(before: Snapshot, after: Snapshot, mode: Compar
       return { ...options, fallback: graphLayout?.fallback ?? 'none' }
     }
     if (!isDeepStrictEqual(comparableOptions(before), comparableOptions(after))) throw new Error('Backend comparison render options differ')
-    for (const snapshot of [before, after]) if (new Set(snapshot.samples.map(sample => sample.id)).size !== snapshot.samples.length) {
-      throw new Error('Backend comparison contains duplicate sample identities')
-    }
     const sources = new Map(before.samples.map(sample => [sample.id, sample]))
     for (const sample of after.samples) {
       const original = sources.get(sample.id)
@@ -354,7 +418,7 @@ export function buildReportHtml(before: Snapshot, after: Snapshot, mode: Compari
 <body>
 <h1>Layout comparison</h1>
 <p>${mode === 'backend'
-  ? 'Backend comparison at one revision. Verdicts guard support, measurement coverage, node/edge counts, crossings, label legibility, label conflicts and shared-route overlaps. Bends, route length and canvas area remain visible tradeoffs; they do not change the verdict.'
+  ? 'Backend comparison at one revision. Verdicts guard support, label measurement/visibility coverage, node/edge counts, crossings, label legibility, label conflicts and shared-route overlaps. Bends, route length and canvas area remain visible tradeoffs; they do not change the verdict.'
   : 'Revision comparison. Every measured dimension contributes to the regression verdict, including bends, route length and canvas area.'}</p>
 <p><strong>${esc(before.label)}</strong> (${esc(before.rev)}, ${esc(before.createdAt)}) →
    <strong>${esc(after.label)}</strong> (${esc(after.rev)}, ${esc(after.createdAt)})</p>
