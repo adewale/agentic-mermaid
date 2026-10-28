@@ -1,11 +1,12 @@
 import { afterAll, describe, expect, test } from 'bun:test'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { basename, dirname, join, resolve } from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { build, transformSync } from 'esbuild'
 import ts from 'typescript'
 import { runtimeRenderContractPlugin } from '../../scripts/build/runtime-render-contract.ts'
+import { compactBrowserModulesPlugin } from '../../scripts/build/compact-browser-modules.ts'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
 const temporary = mkdtempSync(join(tmpdir(), 'mermaid-runtime-metadata-'))
@@ -199,4 +200,62 @@ test('coalesced SVG consumers retain text, source, ownership and one default bac
     diagnostics: [{ code: 'INEFFECTIVE_CONFIG', field: 'flowchart.unknown', message: 'flowchart config field "unknown" is unknown and has no effect; check the spelling or remove it.' }],
     defaults: 1, original: true,
   })
+})
+
+test('compacted ESM preserves live bindings, observable getters, arity and recipe-addressed chunks', async () => {
+  fixture('compact/shared.ts', `
+    export let count = 0;
+    export function step() { count++; }
+    export function arity(first, second) { return first; }
+    const events = [];
+    export function observe() {
+      const value = { get field() { events.push('read'); return 9; } };
+      value.field;
+      return events.slice();
+    }
+  `)
+  fixture('compact/bridge.ts', "export { count, step, arity, observe } from './shared.ts';")
+  const entry = fixture('compact/entry.ts', "export { count, step, arity, observe } from './bridge.ts'; export const peer = () => import('./peer.ts');")
+  const peer = fixture('compact/peer.ts', "import { count, step } from './bridge.ts'; export function advance() { step(); return count; }")
+  const chunkNames: string[][] = []
+  for (const generation of ['first', 'changed']) {
+    const before = new Map<string, string>()
+    const outdir = join(temporary, `compacted-${generation}`)
+    const result = await build({
+      absWorkingDir: temporary, entryPoints: [entry, peer], outdir,
+      bundle: true, splitting: true, format: 'esm', platform: 'browser', target: 'es2022',
+      minify: true, write: false, metafile: true, chunkNames: 'chunks/[name]-[hash]', outExtension: { '.js': '.mjs' },
+      // The incoming recipe models the optimizer changing between releases.
+      // Both banners reach esbuild before its chunk-content hashes are made.
+      banner: { js: `/* fixture optimizer recipe ${generation} */` },
+      plugins: [{ name: 'retain-pre-compaction-contributions', setup(build) {
+        build.onEnd(result => { for (const [path, output] of Object.entries(result.metafile!.outputs)) before.set(path, JSON.stringify(output.inputs)) })
+      } }, compactBrowserModulesPlugin()],
+    })
+    for (const file of result.outputFiles!) {
+      expect(file.text).toBe(Buffer.from(file.contents).toString('utf8'))
+      const metadata = Object.entries(result.metafile!.outputs).find(([path]) => resolve(temporary, path) === file.path)![1]
+      expect(metadata.bytes).toBe(file.contents.byteLength)
+      mkdirSync(dirname(file.path), { recursive: true })
+      writeFileSync(file.path, file.contents)
+    }
+    for (const [path, output] of Object.entries(result.metafile!.outputs)) expect(JSON.stringify(output.inputs)).toBe(before.get(path))
+    const compaction = (result.metafile as typeof result.metafile & { browserCompaction: { inputContributions: string; outputBytes: string } })!.browserCompaction
+    expect(compaction.inputContributions).toBe('esbuild-before-compaction')
+    expect(compaction.outputBytes).toBe('after-compaction')
+    const entryOutput = Object.entries(result.metafile!.outputs).find(([, value]) => value.entryPoint && resolve(temporary, value.entryPoint) === entry)![0]
+    const consumer = await import(pathToFileURL(resolve(temporary, entryOutput)).href) as { count: number; step(): void; arity: (first: number, second: number) => number; observe(): string[]; peer(): Promise<{ advance(): number }> }
+    expect(consumer.count).toBe(0)
+    expect(consumer.arity.length).toBe(2)
+    expect(consumer.arity(7, 8)).toBe(7)
+    expect(consumer.observe()).toEqual(['read'])
+    consumer.step()
+    expect(consumer.count).toBe(1)
+    expect((await consumer.peer()).advance()).toBe(2)
+    expect(consumer.count).toBe(2)
+    expect(consumer.observe()).toEqual(['read', 'read'])
+    chunkNames.push(result.outputFiles!.filter(file => dirname(file.path).endsWith('chunks')).map(file => basename(file.path)).sort())
+  }
+  expect(chunkNames[0]!.length).toBeGreaterThan(0)
+  expect(chunkNames[1]).not.toEqual(chunkNames[0])
 })

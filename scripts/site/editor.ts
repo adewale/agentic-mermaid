@@ -18,9 +18,10 @@
  */
 
 import { runtimeRenderContractPlugin } from '../build/runtime-render-contract.ts'
-import { minify } from '@swc/core'
+import { minifyBrowserRuntime } from '../build/runtime-minify.ts'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { gzipSync } from 'node:zlib'
 import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
 import { HOSTED_FONT_RESOURCES, hostedFontFaceCss } from '../../src/font-manifest.ts'
 import { knownStyleDescriptors } from '../../src/scene/style-registry.ts'
@@ -180,6 +181,7 @@ function sourceOnlyFamilyRegistry(): Bun.BunPlugin {
 async function generateEditorHtml(): Promise<string> {
   const fontPrefix = process.env.AM_EDITOR_FONT_PREFIX || 'assets/fonts/'
   const runtimeDirectory = process.env.AM_EDITOR_RUNTIME_DIR
+  const metafilePath = runtimeDirectory ? undefined : process.env.AM_EDITOR_BUILD_METAFILE
   let workerUrl: string | undefined
   if (runtimeDirectory) {
     const workerBuild = await Bun.build({
@@ -232,6 +234,7 @@ async function generateEditorHtml(): Promise<string> {
     target: 'browser',
     format: 'esm',
     minify: true,
+    metafile: Boolean(metafilePath),
     ...(runtimeDirectory ? {
       define: { AM_PREVIEW_WORKER_URL: JSON.stringify(workerUrl) },
       splitting: true,
@@ -243,7 +246,7 @@ async function generateEditorHtml(): Promise<string> {
     console.error('Bundle failed:', buildResult.logs)
     process.exit(1)
   }
-  let bundleJs: string
+  let bundleJs: string, sourceRuntimeBytes: number | undefined
   if (runtimeDirectory) {
     // Bun materializes outputs when outdir is set. Writing a file-backed
     // BuildArtifact onto its own path would truncate the emitted module.
@@ -255,20 +258,10 @@ async function generateEditorHtml(): Promise<string> {
     // conformance observations and unused schema prose. Retain validation,
     // both solvers and the terminal adapter; keep legal comments and escape
     // script delimiters.
-    const compressed = await minify(await buildResult.outputs[0]!.text(), {
-      ecma: 2022, module: true, mangle: true,
-      compress: {
-        defaults: false, join_vars: true, evaluate: true, unused: true, keep_fargs: true,
-        dead_code: true, conditionals: true, booleans: true, comparisons: true,
-        reduce_vars: true, sequences: true,
-        collapse_vars: true, if_return: true, properties: true,
-        side_effects: true, loops: true, switches: true, typeofs: true,
-        inline: 1, passes: 2,
-      },
-      format: { comments: 'some', inlineScript: true },
-    })
-    if (!compressed.code) throw new Error('Standalone runtime compression produced no module')
-    bundleJs = compressed.code
+    const source = await buildResult.outputs[0]!.text()
+    sourceRuntimeBytes = new TextEncoder().encode(source).byteLength
+    bundleJs = await minifyBrowserRuntime(source)
+    if (!bundleJs) throw new Error('Standalone runtime compression produced no module')
   }
   console.log(`Browser bundle: ${(bundleJs.length / 1024).toFixed(1)} KB`)
 
@@ -277,7 +270,7 @@ async function generateEditorHtml(): Promise<string> {
   const [css, appJs, html] = await Promise.all([readCssFiles(fontPrefix, Boolean(runtimeDirectory)), readJsFiles(), readHtmlPartials(themeItems, Boolean(runtimeDirectory))])
 
   // The standalone runtime is also the worker source; keep app DOM code separate.
-  return `<!DOCTYPE html>
+  const document = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -330,6 +323,20 @@ ${appJs}
 </script>
 </body>
 </html>`
+  if (metafilePath) {
+    const htmlBytes = new TextEncoder().encode(document)
+    await Bun.write(metafilePath, JSON.stringify({
+      schemaVersion: 1,
+      runtime: `Bun ${Bun.version}`,
+      scope: 'Standalone editor; module contributions describe the Bun build before SWC compression. No bundled source is included.',
+      sourceRuntimeBytes,
+      compressedRuntimeBytes: new TextEncoder().encode(bundleJs).byteLength,
+      htmlBytes: htmlBytes.byteLength,
+      htmlGzipBytes: gzipSync(htmlBytes, { level: 9 }).byteLength,
+      metafile: buildResult.metafile,
+    }))
+  }
+  return document
 }
 
 const result = await generateEditorHtml()

@@ -514,6 +514,8 @@ jobs:
       - name: Run canonical browser contract shard
         if: ${{ matrix.suite == 'browser' || matrix.suite == 'browser-site' }}
         # One Playwright/server suite per process, with disjoint file shards.
+        env:
+          AM_EDITOR_BUILD_METAFILE: ${{ matrix.suite == 'browser' && format('{0}/standalone-editor-metafile.json', runner.temp) || '' }}
         run: bun run test:browser --shard=${{ matrix.suite == 'browser' && '1/2' || '2/2' }}
 
       - name: Compare resolved scenes with Chromium
@@ -547,6 +549,15 @@ jobs:
         with:
           name: editor-community-review-${{ github.event.pull_request.head.sha || github.sha }}
           path: e2e/screenshots/current-*.png
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Retain standalone editor module graph and byte counts
+        if: ${{ always() && matrix.suite == 'browser' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: standalone-editor-diagnostics-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/standalone-editor-metafile.json
           retention-days: 7
           if-no-files-found: warn
 
