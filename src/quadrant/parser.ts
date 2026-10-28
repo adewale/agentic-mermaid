@@ -66,16 +66,16 @@ function quadrantStatements(raw: string): string[] {
   const statements: string[] = []
   let parts: string[] = []
   for (let index = 0; index < fragments.length; index++) {
-    const fragment = fragments[index]!.trim()
-    if (!fragment && parts.length === 0) continue
+    const fragment = fragments[index]!
+    if (!fragment.trim() && parts.length === 0) continue
     parts.push(fragment)
     const next = fragments[index + 1]?.trim() ?? ''
-    const point = POINT_RE.test(fragment)
-    const complete = point || CLASSDEF_RE.test(fragment) || /^quadrant(?:Chart)?$/i.test(fragment)
-    const text = AXIS_RE.test(parts[0]!) || QUADRANT_RE.test(parts[0]!)
+    const point = POINT_RE.test(fragment.trim())
+    const complete = point || CLASSDEF_RE.test(fragment.trim()) || /^quadrant(?:Chart)?$/i.test(fragment.trim())
+    const text = AXIS_RE.test(parts[0]!.trim()) || QUADRANT_RE.test(parts[0]!.trim())
     const nextStatement = POINT_RE.test(next) || CLASSDEF_RE.test(next) || TITLE_RE.test(next) || AXIS_RE.test(next) || QUADRANT_RE.test(next)
     if (complete || text && nextStatement || index === fragments.length - 1) {
-      const statement = parts.join(';')
+      const statement = parts.join(';').trim()
       if (statement) statements.push(statement)
       parts = []
     }

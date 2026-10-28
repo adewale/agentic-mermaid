@@ -13,7 +13,7 @@ import { err, ok } from './types.ts'
 
 export function parseKanbanBody(lines: readonly string[] | string, source?: NormalizedMermaidSource): KanbanBody | null {
   try {
-    const input = source ? preservedMermaidFamilyText(source, 'authored').replace(/^[^\r\n]*/, 'kanban') : lines
+    const input = source ? preservedMermaidFamilyText(source).replace(/^[^\r\n]*/, 'kanban') : lines
     return parseKanbanDiagram(input, source?.accessibility, source)
   } catch {
     return null
@@ -30,8 +30,8 @@ export function renderKanban(body: KanbanBody): string {
     // A quoted node label cannot contain a physical quote in Mermaid's Jison
     // lexer. Entity spelling also shields global directive openers; IDs keep
     // the original authored text after the shared entity decoder.
-    const label = encodeMermaidEntities(implicitId ? item.sourceId : item.label, '"%').replace(/\r\n/g, '\r\r\n')
-    const identifier = implicitId ? '' : encodeMermaidEntities(item.sourceId, '()[]{}@%')
+    const label = encodeMermaidEntities(implicitId ? item.sourceId : item.label, '"%&').replace(/\r\n/g, '\r\r\n')
+    const identifier = implicitId ? '' : encodeMermaidEntities(item.sourceId, '()[]{}@%&')
     lines.push(`${indent}${identifier}["${label}"]`)
     const metadata = { ...item.metadata }
     // An implicit identity comes from the declaration, independently of a
@@ -43,12 +43,13 @@ export function renderKanban(body: KanbanBody): string {
       // braces; scalar quotes use the same lexer-safe codec as flowcharts.
       const entries = Object.entries(metadata)
       if (entries.every(([, value]) => value === null || ['string', 'number', 'boolean'].includes(typeof value))) {
-        lines[lines.length - 1] += `@{ ${entries.map(([key, value]) => `${quoteMetadataString(key)}: ${typeof value === 'string' ? quoteMetadataString(value) : String(value)}`).join(', ')} }`
+        const quoted = (value: string) => quoteMetadataString(value).replaceAll('&', '\\x26')
+        lines[lines.length - 1] += `@{ ${entries.map(([key, value]) => `${quoted(key)}: ${typeof value === 'string' ? quoted(value) : String(value)}`).join(', ')} }`
       } else {
         lines[lines.length - 1] += '@{'
         let yaml = YAML.stringify(metadata)
-        if (yaml.includes('%%{')) {
-          yaml = YAML.stringify(metadata, { defaultKeyType: 'QUOTE_DOUBLE', defaultStringType: 'QUOTE_DOUBLE', lineWidth: 0 }).replaceAll('%', '\\x25')
+        if (yaml.includes('%%{') || yaml.includes('&')) {
+          yaml = YAML.stringify(metadata, { defaultKeyType: 'QUOTE_DOUBLE', defaultStringType: 'QUOTE_DOUBLE', lineWidth: 0 }).replaceAll('%', '\\x25').replaceAll('&', '\\x26')
         }
         for (const line of yaml.trimEnd().split('\n')) lines.push(`${indent}  ${line}`)
         lines.push(`${indent}}`)

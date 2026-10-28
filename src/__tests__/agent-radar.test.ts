@@ -25,6 +25,20 @@ function radar(src: string): RadarValidDiagram {
 }
 
 describe('radar agent surface', () => {
+  test('a repeated Radar header stays source-only and reports its raw rendering failure', () => {
+    for (const source of ['radar-beta radar-beta\naxis A["A"],B', 'radar-beta\nradar-beta\naxis A["A"],B']) {
+      const parsed = parseMermaid(source)
+      if (!parsed.ok) throw Error('Radar source must be preserved')
+      expect(parsed.value.body.kind).toBe('opaque')
+      expect(serializeMermaid(parsed.value).trimEnd()).toBe(source)
+      expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'RENDER_FAILED' }))
+      expect(() => renderMermaidSVG(source)).toThrow('radar-beta')
+      expect(mutate(parsed.value, { kind: 'set_title', title: 'Changed' }).ok).toBe(false)
+    }
+    const control = radar('radar-beta\naxis A["A"],B')
+    expect(control.body.axes.map(axis => axis.id)).toEqual(['A', 'B'])
+    expect(() => renderMermaidSVG(serializeMermaid(control))).not.toThrow()
+  })
   test('parses to a structured radar body and narrows via asRadar', () => {
     const d = radar(BASIC)
     expect(d.body.kind).toBe('radar')

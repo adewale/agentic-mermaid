@@ -16,6 +16,46 @@ import { fcParameters } from './helpers/fc-parameters.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 import { projectEntityMarkers } from '../shared/mermaid-entity-display.ts'
 
+test('Kanban XML transport references retain displayed identities, parents and metadata through saving and editing', async () => {
+  const upstream = startUpstreamMermaid()
+  try {
+    for (const [source, id, label] of [
+      ['kanban\nr&#35;oot\n  child[Child]', 'r#oot', 'r#oot'],
+      ['kanban\n&#35;    root@{ i }', '#    root', '#    root'],
+      ["kanban\n&#35;    root@{ icon: star, label: 'x things' }", '#    root', 'x things'],
+      ['kanban\nr&amp;amp;oot\n  child[Child]@{assigned: "A&amp;amp; B"}', 'r&amp;oot', 'r&amp;oot'],
+    ] as const) {
+      const parsed = parseRegisteredMermaid(source)
+      if (!parsed.ok) throw Error('Kanban must parse')
+      const diagram = asKanban(parsed.value)!
+      expect(diagram.body.columns[0]).toMatchObject({ id, sourceId: id, label })
+      const span = diagram.source.spans?.labels.get(`group:${id}`)
+      expect(span).toBeDefined()
+      expect(source.slice(span!.start.offset, span!.end.offset)).toBe(source.split('\n')[1]!.split('@{')[0]!)
+      const saved = serializeMermaid(diagram, { wrapper: 'canonical' })
+      expect(await upstream.publicAccepts(saved)).toBe(true)
+      const records = (text: string) => scanSvgStartTags(renderMermaidSVG(text)).filter(tag => tag.name === 'g' && decodedSvgAttributeValue(tag, 'data-id') !== undefined).map(tag => [decodedSvgAttributeValue(tag, 'data-id'), decodedSvgAttributeValue(tag, 'data-parent')])
+      expect(records(saved)).toEqual(records(source))
+      expect(renderMermaidSVG(saved)).toContain(label.replaceAll('&', '&amp;'))
+      if (diagram.body.columns[0]!.tasks.length) {
+        expect(diagram.body.columns[0]!.tasks[0]!.id).toBe('child')
+        if (source.includes('assigned:')) {
+          expect(diagram.body.columns[0]!.tasks[0]!.metadata.assigned).toBe('A&amp; B')
+          const reloaded = parseRegisteredMermaid(saved)
+          if (!reloaded.ok) throw Error('Saved Kanban must parse')
+          expect(asKanban(reloaded.value)!.body.columns[0]!.tasks[0]!.metadata.assigned).toBe('A&amp; B')
+        }
+        const edited = mutate(diagram, { kind: 'set_task_label', id: 'child', label: 'Edited' })
+        if (!edited.ok) throw Error(edited.error.message)
+        expect(records(serializeMermaid(edited.value))).toEqual([[id, undefined], ['child', id]])
+        const terminal = renderMermaidASCIIWithMeta(edited.value, { colorMode: 'none' })
+        expect(terminal.regions.filter(region => region.kind === 'band').map(region => region.id)).toEqual([id])
+        expect(terminal.ascii).toContain('Edited')
+      } else expect(diagram.body.columns[0]!.metadata).toEqual(source.includes('icon:') ? { icon: 'star', label: 'x things' } : { i: null })
+    }
+  } finally { upstream.close() }
+})
+
 test('Kanban group padding reserves real space around cards independently of node padding', () => {
   const source = 'kanban\n  todo[To do]\n    work[日本 delivery]@{assigned: "Alice"}\n  done[Done]',
     style = { roles: { group: { paddingX: 40, paddingY: 37 }, node: { paddingX: 12, paddingY: 11 } } },
@@ -285,8 +325,8 @@ test('Kanban payload parsing decodes transport XML once and preserves authored l
   const parsed = parseRegisteredMermaid(source)
   if (!parsed.ok) throw Error(JSON.stringify(parsed.error))
   const body = asKanban(parsed.value)!.body
-  expect(body.columns[0]?.sourceId).toBe('A&amp;amp;@{literal\rB')
-  const span = parsed.value.source.spans?.labels.get('group:A&amp;amp;@{literal\rB')
+  expect(body.columns[0]?.sourceId).toBe('A&amp;@{literal\rB')
+  const span = parsed.value.source.spans?.labels.get('group:A&amp;@{literal\rB')
   expect(span).toBeDefined()
   expect(source.slice(span!.start.offset, span!.end.offset)).toBe('A&amp;amp;@{literal\rB')
   const expected = ['A&amp;@{literal\rB', 'Task&amp;\rOne']
