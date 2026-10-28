@@ -431,7 +431,7 @@ interface BuiltinFamilyDescriptorSeed extends BuiltinFamilyMetadata {
   config: FamilyConfigContract
 }
 
-function builtinFamilyCapabilityEvidence(familyId: BuiltinFamilyId): readonly FamilyCapabilityEvidence[] {
+function builtinFamilyCapabilityEvidence(familyId: BuiltinFamilyId, mutation: boolean): readonly FamilyCapabilityEvidence[] {
   const executableWitness = ['src/__tests__/section-a-family-descriptor-conformance.test.ts'] as const
   const terminalWitness = familyId === 'flowchart' || familyId === 'state' ? [...executableWitness, 'src/__tests__/characterization-layout.test.ts'] : executableWitness
   return [
@@ -439,7 +439,7 @@ function builtinFamilyCapabilityEvidence(familyId: BuiltinFamilyId): readonly Fa
     { capability: 'source-preservation', state: 'native', evidence: executableWitness },
     { capability: 'parse', state: 'native', evidence: executableWitness },
     { capability: 'serialize', state: 'native', evidence: executableWitness },
-    { capability: 'mutation', state: 'native', evidence: executableWitness },
+    { capability: 'mutation', state: mutation ? 'native' : 'diagnosed', evidence: executableWitness },
     { capability: 'verify', state: 'native', evidence: executableWitness },
     { capability: 'layout', state: 'native', evidence: executableWitness },
     { capability: 'scene', state: 'native', evidence: executableWitness },
@@ -1377,7 +1377,9 @@ function completeBuiltinDescriptor(seed: BuiltinFamilyDescriptorSeed, hooks: Fam
     aliases: seed.aliases ?? [],
     semanticRoles,
     scenePrimitiveEvidence: declareFamilyScenePrimitiveEvidence(seed.id, sceneRoles, ['src/__tests__/section-a-family-descriptor-conformance.test.ts']),
-    capabilityEvidence: builtinFamilyCapabilityEvidence(seed.id),
+    // Closed source workers omit mutation while retaining the same validated
+    // rendering descriptor; discovery must report the operation as unavailable.
+    capabilityEvidence: builtinFamilyCapabilityEvidence(seed.id, hooks.mutate !== undefined),
   })
 }
 

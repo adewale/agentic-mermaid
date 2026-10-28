@@ -1,6 +1,6 @@
 import { projectZenUMLSequence } from '../zenuml/native-sequence.ts'
 import { eventRelations } from '../eventmodeling/parser.ts'
-import { stableFamilyFacts } from './stable-family-adapters.ts'
+import { stableFamilyFacts } from './stable-family-source-hooks.ts'
 
 // ============================================================================
 // Mermaid semantic facts/checks.

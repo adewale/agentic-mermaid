@@ -1,6 +1,6 @@
 import { projectZenUMLSequence } from '../zenuml/native-sequence.ts'
 import { eventRelations, eventLanes } from '../eventmodeling/parser.ts'
-import { stableFamilyCount } from './stable-family-adapters.ts'
+import { stableFamilyCount } from './stable-family-source-hooks.ts'
 // ============================================================================
 // countStructuralElements — a family-agnostic faithfulness oracle.
 //

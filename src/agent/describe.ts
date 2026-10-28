@@ -1,7 +1,7 @@
 import { projectZenUMLSequence, type ZenUMLMessageContext, type ZenUMLNoteContext } from '../zenuml/native-sequence.ts'
 import type { Actor } from '../sequence/types.ts'
 import { eventLanes, eventRelations } from '../eventmodeling/parser.ts'
-import { isStableFamilyBody, stableFamilyCount, stableFamilyTree } from './stable-family-adapters.ts'
+import { isStableFamilyBody, stableFamilyCount, stableFamilyTree } from './stable-family-source-hooks.ts'
 
 // ============================================================================
 // describeMermaid — natural-language summary of a diagram.
