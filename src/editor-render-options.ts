@@ -1,10 +1,17 @@
 import type { RenderOptions } from './types.ts'
+import { decodeXML } from 'entities'
+import { mermaidFirstLine } from './mermaid-source-wrapper.ts'
+import { detectsPieFamily, detectsRadarFamily } from './shared/builtin-family-detection.ts'
 
 export interface EditorRenderStateInput {
   readonly palette?: unknown
   readonly style?: unknown
   readonly seed?: unknown
   readonly config?: unknown
+  /** Local pane preference and geometry; neither is an authored render option. */
+  readonly fitLabelsToPane?: boolean
+  readonly source?: string
+  readonly paneWidth?: number
 }
 
 export interface EditorRenderOptionDependencies {
@@ -61,6 +68,14 @@ export function resolveEditorRenderOptions(
 
   if (input.style && input.style !== 'crisp' && options.seed === undefined) {
     options.seed = typeof input.seed === 'number' && Number.isFinite(input.seed) ? input.seed : 0
+  }
+  if (input.fitLabelsToPane === true && typeof input.paneWidth === 'number' && Number.isFinite(input.paneWidth) && input.paneWidth >= 1 && typeof input.source === 'string') {
+    const line = mermaidFirstLine(decodeXML(input.source))
+    const family = detectsPieFamily(line) ? 'pie' : detectsRadarFamily(line) ? 'radar' : undefined
+    if (family) {
+      const authored = options[family] as { maxWidth?: number } | undefined
+      if (authored?.maxWidth === undefined) options[family] = { ...authored, maxWidth: Math.floor(input.paneWidth) }
+    }
   }
   options.security = 'strict'
   return options as RenderOptions

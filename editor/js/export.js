@@ -242,9 +242,9 @@ export function canonicalBrowserPng(outputOptions) {
   var source = currentEditorSource();
   var requestVersion = renderRequestVersion;
   var previewDigest = previewInner.dataset.sharedRequestDigest;
-  var options = buildOptions();
+  var options = ui.lastRenderedSvgOptions || buildOptions();
   return renderMermaidPngInBrowserWithReceipt(source, options, outputOptions, rasterizeCanonicalSvg).then(function(artifact) {
-    if (renderRequestVersion !== requestVersion || currentEditorSource() !== source) {
+    if (renderRequestVersion !== requestVersion || currentEditorSource() !== source || !hasRenderedSvg()) {
       throw new Error('Diagram changed while PNG export was rendering; try again.');
     }
     if (artifact.receipt.output !== 'png') throw new Error('PNG export returned a non-PNG receipt');
@@ -291,7 +291,7 @@ export function exportSVG() {
   var requestVersion = renderRequestVersion;
   var previewDigest = previewInner.dataset.sharedRequestDigest;
   serializeCanonicalSvg(artifact.svg).then(function(projected) {
-    if (renderRequestVersion !== requestVersion || ui.lastRenderedSvgArtifact !== artifact
+    if (renderRequestVersion !== requestVersion || ui.lastRenderedSvgArtifact !== artifact || !hasRenderedSvg()
         || !previewDigest || previewInner.dataset.sharedRequestDigest !== previewDigest
         || artifact.receipt.sharedRequestDigest !== previewDigest) {
       throw new Error('SVG bytes and preview receipt no longer match');
