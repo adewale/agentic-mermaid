@@ -1087,6 +1087,108 @@ describe('route contracts — RL and BT directions (mutation-survivor harvest)',
 })
 
 describe('route contracts — feedback channel lanes', () => {
+  it.each(['TD', 'RL', 'BT', 'LR'].flatMap((direction, turns) =>
+    ['clear', 'node', 'crossing'].map(blocker => ({ direction, turns, blocker })),
+  ))('identifies the return channel before its farther target stub in $direction with $blocker clearance', ({ direction, turns, blocker }) => {
+    const graph = parseMermaid(`flowchart ${direction}\nA --> B\nB --> C\nC -->|return| A${blocker === 'node' ? '\nN' : blocker === 'crossing' ? '\nD --- E' : ''}`)
+    const rotate = (point: Point): Point => {
+      let { x, y } = point
+      for (let i = 0; i < turns; i++) [x, y] = [500 - y, x]
+      return { x, y }
+    }
+    const node = (id: string, x: number, y: number, width = 40, height = 40): PositionedNode => {
+      const a = rotate({ x, y }), b = rotate({ x: x + width, y: y + height })
+      return { ...graph.nodes.get(id)!, x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), width: Math.abs(a.x - b.x), height: Math.abs(a.y - b.y) }
+    }
+    const nodes = [node('A', 300, 0), node('B', 300, 100), node('C', 100, 200)]
+    if (blocker === 'node') nodes.push(node('N', 90, 210, 10, 20))
+    if (blocker === 'crossing') nodes.push(node('D', 88, 206, 4, 4), node('E', 88, 230, 4, 4))
+    const routes = [
+      [[320, 40], [320, 100]],
+      [[320, 140], [320, 180], [120, 180], [120, 200]],
+      [[120, 240], [120, 260], [80, 260], [80, -20], [320, -20], [320, 0]],
+      ...(blocker === 'crossing' ? [[[90, 210], [90, 230]]] : []),
+    ]
+    const edges: PositionedEdge[] = routes.map((points, edgeIndex) => ({ ...graph.edges[edgeIndex]!, edgeIndex,
+      points: points.map(([x, y]) => rotate({ x: x!, y: y! })),
+      ...(edgeIndex === 2 ? { labelPosition: rotate({ x: 80, y: 100 }) } : {}),
+    }))
+    const back = edges[2]!, before = structuredClone(back.points)
+    const positioned = { nodes, edges, groups: [], width: 600, height: 600 }, style = resolveRenderStyle()
+    expect(countEdgeCrossings(edges)).toBe(0)
+    applyRouteContracts(positioned, graph, new Set(), style)
+    if (blocker === 'clear') {
+      // The existing x=80 return lane is retained; only its needless endpoint
+      // excursions disappear. The x=320 terminal stub is not that lane.
+      expect(back.points).toEqual([[100, 220], [80, 220], [80, 20], [300, 20]].map(([x, y]) => rotate({ x: x!, y: y! })))
+    } else if (blocker === 'node') {
+      // The shortcut may shorten the clear tail, but cannot cut through N.
+      expect(back.points[0]).toEqual(before[0])
+      expect(back.points[1]).toEqual(before[1])
+    } else {
+      // A perpendicular shaft is not a node obstacle: the independent
+      // crossing check must reject the otherwise clear shortcut atomically.
+      expect(back.points).toEqual(before)
+    }
+    expect(back.labelPosition).toEqual(rotate({ x: 80, y: 100 }))
+    expect([back.source, back.target, back.label, back.hasArrowEnd]).toEqual(['C', 'A', 'return', true])
+    expect(countEdgeCrossings(edges)).toBe(0)
+    expect(assessLayout(graph, positioned).metrics.endpointApproaches).toBe(0)
+    expect(assessLayout(graph, positioned).metrics.edgeThroughNode).toBe(0)
+  })
+
+  it.each([
+    ...['TD', 'RL', 'BT', 'LR'].flatMap((direction, turns) => ['head', 'tail'].map(side => ({ direction, turns, side, gap: -20, nodeWidth: '0.75', edgeWidth: '1', changed: false, fromStyle: false }))),
+    ...[
+      { gap: 0, nodeWidth: '8', edgeWidth: '1', changed: false },
+      { gap: 0.1, nodeWidth: '0.75', edgeWidth: '1', changed: false },
+      { gap: 5, nodeWidth: '20', edgeWidth: '1', changed: false },
+      { gap: 5, nodeWidth: '20', edgeWidth: '1', changed: false, fromStyle: true },
+      { gap: 30, nodeWidth: 'var(--outline)', edgeWidth: '1', changed: false },
+      { gap: 30, nodeWidth: '0.75', edgeWidth: 'var(--shaft)', changed: false },
+      { gap: 50, nodeWidth: '20', edgeWidth: '1', changed: true },
+    ].map(row => ({ fromStyle: false, ...row, direction: 'TD', turns: 0, side: 'head' })),
+  ])('keeps noncontact $side segments clear of the other endpoint in $direction (gap=$gap, node=$nodeWidth, shaft=$edgeWidth, style=$fromStyle)', ({ direction, turns, side, gap, nodeWidth, edgeWidth, changed, fromStyle }) => {
+    const tail = side === 'tail'
+    const graph = parseMermaid(`flowchart ${direction}\nA --> B\nB --> C\nC -->|return| A${tail ? '\nN\nM' : ''}`)
+    const rotate = (point: Point): Point => {
+      let { x, y } = point
+      for (let i = 0; i < turns; i++) [x, y] = [500 - y, x]
+      return { x, y }
+    }
+    const node = (id: string, x: number, y: number, width = 40, height = 40): PositionedNode => {
+      const a = rotate({ x, y }), b = rotate({ x: x + width, y: y + height })
+      return { ...graph.nodes.get(id)!, x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), width: Math.abs(a.x - b.x), height: Math.abs(a.y - b.y) }
+    }
+    const nodes = tail
+      ? [node('A', 300, 220), node('B', 800, 100), node('C', 170, 200, 40, 200), node('N', 110, 295, 10, 10), node('M', 110, 395, 10, 10)]
+      : [node('A', 170, 200), node('B', 800, 100), node('C', 300, 180 - gap)]
+    if (!fromStyle) nodes[0]!.inlineStyle = { stroke: '#000', 'stroke-width': nodeWidth }
+    const points = (tail
+      ? [[190, 400], [190, 420], [700, 420], [700, 520], [80, 520], [80, 160], [320, 160], [320, 220]]
+      : [[320, 220 - gap], [320, 260], [80, 260], [80, -20], [700, -20], [700, 100], [190, 100], [190, 200]]
+    ).map(([x, y]) => rotate({ x: x!, y: y! }))
+    const edge: PositionedEdge = { ...graph.edges[2]!, edgeIndex: 2, points, labelPosition: rotate({ x: 80, y: tail ? 200 : 100 }), inlineStyle: { stroke: '#f00', 'stroke-width': edgeWidth } }
+    const before = structuredClone(edge)
+    // Both rectangles are genuine endpoint bodies. Their open interiors are
+    // independently clear before repair, including every nonterminal leg.
+    const enters = (route: readonly Point[], body: PositionedNode): boolean => route.slice(1).some((b, index) => {
+      const a = route[index]!
+      return Math.min(a.x, b.x) < body.x + body.width && Math.max(a.x, b.x) > body.x
+        && Math.min(a.y, b.y) < body.y + body.height && Math.max(a.y, b.y) > body.y
+    })
+    expect(enters(points, nodes[0]!)).toBe(false)
+    expect(enters(points, nodes[2]!)).toBe(false)
+    const style = resolveRenderStyle()
+    if (fromStyle) style.nodeLineWidth = Number(nodeWidth)
+    applyRouteContracts({ nodes, edges: [edge], groups: [] }, graph, new Set(), style)
+    if (changed) expect(edge.points).not.toEqual(before.points)
+    else expect(edge).toMatchObject({ points: before.points, labelPosition: before.labelPosition })
+    expect(enters(edge.points, nodes[0]!)).toBe(false)
+    expect(enters(edge.points, nodes[2]!)).toBe(false)
+    expect([edge.source, edge.target, edge.label, edge.hasArrowEnd]).toEqual(['C', 'A', 'return', true])
+  })
+
   it('TD cycle: C -> A loops through the outer channel and enters A from outside the column', () => {
     const positioned = layoutGraphSync(parseMermaid('flowchart TD\n  A --> B\n  B --> C\n  C --> A'))
     const e = findEdge(positioned.edges, 'C', 'A')

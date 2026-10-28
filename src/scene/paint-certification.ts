@@ -450,6 +450,8 @@ interface MarkerPieceSource {
 }
 
 export interface MarkerPolygonProof {
+  /** Exact resource and pose after native line/polyline numeric serialization. */
+  readonly repaint: { readonly resource: string; readonly anchor: ScenePoint; readonly geometry: 'polygon' | 'polyline' }
   readonly hull: readonly ScenePoint[]
   readonly strokeWitnesses: readonly ScenePoint[]
   readonly strokeColor?: readonly number[]
@@ -600,7 +602,11 @@ export function prepareMarkerPolygonInk(scene: Pick<NativePaintHeader, 'colors'>
     paintPieceSource = { marker: stencil, anchor: first, tangent, position, width }
   }
   if (paintPieceSource && !work()) return undefined
-  return { hull, fill, stroke, fillColor, strokeColor, innerStroke, strokeWitnesses, padding: region.padding, ...(paintPieceSource ? { paintPieceSource } : {}) }
+  // Reuse the normalized region's full resource/pose identity. The hull
+  // mapping closes polylines, so retain their original stroke topology too.
+  if (!pay(6)) return undefined
+  const repaint = { resource: region!.repaint, anchor: first, geometry: marker.geometry.kind }
+  return { repaint, hull, fill, stroke, fillColor, strokeColor, innerStroke, strokeWitnesses, padding: region.padding, ...(paintPieceSource ? { paintPieceSource } : {}) }
 }
 
 
@@ -825,6 +831,23 @@ function markerMayHaveOpaqueFill(resolveColor: (value: string) => string | undef
   return !color || color[3] === 1
 }
 
+
+/** Resource equality alone cannot prove contextual or inherited paints equal
+ * at distinct carriers. Only explicit resolved colors/none and known emitted
+ * paint establish this narrower duplicate-paint proof. */
+function markerPaintIdentity(marker: MarkerDescriptor | undefined, resolveColor: (value: string) => string | undefined, work: () => boolean): string | undefined {
+  const paint = marker?.paint
+  if (!work() || !paint || !Number.isFinite(sceneGroupOpacity(paint.opacity)) || paintedStrokeExtent(paint, true) === undefined
+    || paint.strokeDasharray !== undefined && paint.strokeDasharray !== 'none' || paint.strokeDashoffset !== undefined
+    || paint.paintOrder !== undefined && paint.paintOrder !== 'normal') return undefined
+  if (!paint.fill || !paint.stroke || !work()) return undefined
+  const fill = resolveColor(paint.fill)
+  if (!fill || fill !== 'none' && !tryParseCssColor(fill) || !work()) return undefined
+  const stroke = resolveColor(paint.stroke)
+  if (!stroke || stroke !== 'none' && !tryParseCssColor(stroke)) return undefined
+  return `${fill}\0${stroke}`
+}
+
 /** A positive-length open-rectangle intersection proves actual straight shaft
  * ink, unlike a route envelope or a flattened curve approximation. */
 function lineCrossesInterior(line: readonly [ScenePoint, ScenePoint], interior: AxisAlignedBox): boolean {
@@ -1013,7 +1036,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
       }
     }
   }
-  type MarkerTarget = { primitive: ScenePaintPrimitive; position: 'start' | 'mid' | 'end'; clipEligible: boolean; anchor: ScenePoint; repaint: string; bounds: AxisAlignedBox; hull?: readonly ScenePoint[]; padding?: number; witnesses?: readonly ScenePoint[]; actualInk: boolean; strokeProof?: MarkerPolygonProof; semantic: boolean; mayFill: boolean }
+  type MarkerTarget = { primitive: ScenePaintPrimitive; position: 'start' | 'mid' | 'end'; clipEligible: boolean; anchor: ScenePoint; repaint: string; bounds: AxisAlignedBox; hull?: readonly ScenePoint[]; padding?: number; witnesses?: readonly ScenePoint[]; actualInk: boolean; strokeProof?: MarkerPolygonProof; paintIdentity?: string; semantic: boolean; mayFill: boolean }
   const lastMarkers = new Map<string, MarkerTarget>()
   let markerColor: ReturnType<typeof createInlineColorAttributeResolver> | undefined
   const resolveMarkerColor = (value: string): string | undefined => (markerColor ??= createInlineColorAttributeResolver())(value, scene.colors)
@@ -1039,8 +1062,9 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
       const exactWorld = primitive.coverage === 'measured' && primitive.visibility !== 'conditional' && (primitive.groupOpacity ?? 1) === 1 && primitive.ancestors.length === 0
         && !!matrix && matrix[0] === 1 && matrix[1] === 0 && matrix[2] === 0 && matrix[3] === 1 && matrix[4] === 0 && matrix[5] === 0
       const mayFill = markerMayHaveOpaqueFill(resolveMarkerColor, descriptor, work)
+      const paintIdentity = semantic && (primitive.groupOpacity ?? 1) === 1 && primitive.ancestors.length === 0 && (!node.stroke.mixBlendMode || node.stroke.mixBlendMode === 'normal') ? markerPaintIdentity(descriptor, resolveMarkerColor, work) : undefined
       const strokeProof = semantic && exactWorld ? prepareMarkerPolygonInk(scene, node, descriptor, marker.position, work, resolveMarkerColor) : undefined
-      lastMarkers.set(key, { primitive, position: marker.position, clipEligible: semantic && exactWorld && knownMapping, anchor: marker.anchor, repaint: marker.repaint, bounds: marker.bounds, hull: marker.hull, padding: marker.padding, witnesses, actualInk, strokeProof, semantic, mayFill })
+      lastMarkers.set(key, { primitive, position: marker.position, clipEligible: semantic && exactWorld && knownMapping, anchor: marker.anchor, repaint: marker.repaint, bounds: marker.bounds, hull: marker.hull, padding: marker.padding, witnesses, actualInk, strokeProof, paintIdentity, semantic, mayFill })
     }
   }
   const markerCheck = (branch: Tree | undefined, target: MarkerTarget): void => {
@@ -1096,8 +1120,12 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
     for (let laterIndex = 0; laterIndex < markerTargets.length; laterIndex++) {
       const later = markerTargets[laterIndex]!
       if (!work()) break
+      const earlierRepaint = earlier.strokeProof?.repaint, laterRepaint = later.strokeProof?.repaint
+      const samePaint = earlier.paintIdentity !== undefined && earlier.paintIdentity === later.paintIdentity
       if (!later.semantic || later.primitive.visibility === 'conditional' || later.primitive.order <= earlier.primitive.order
-        || earlier.anchor.x === later.anchor.x && earlier.anchor.y === later.anchor.y && earlier.repaint === later.repaint || !overlaps(earlier.bounds, later.bounds)) continue
+        || samePaint && (earlier.anchor.x === later.anchor.x && earlier.anchor.y === later.anchor.y && earlier.repaint === later.repaint
+          || earlierRepaint && laterRepaint && earlierRepaint.resource === laterRepaint.resource && earlierRepaint.geometry === laterRepaint.geometry && earlierRepaint.anchor.x === laterRepaint.anchor.x && earlierRepaint.anchor.y === laterRepaint.anchor.y)
+        || !overlaps(earlier.bounds, later.bounds)) continue
       if (++pairs > MAX_OCCLUSION_PAIRS) { exhausted = true; break }
       let startWitness = 0, result: 'covered' | 'clear' | 'unknown' = 'unknown'
       while (!exhausted) {
