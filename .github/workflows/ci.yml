@@ -514,6 +514,8 @@ jobs:
       - name: Run canonical browser contract shard
         if: ${{ matrix.suite == 'browser' || matrix.suite == 'browser-site' }}
         # One Playwright/server suite per process, with disjoint file shards.
+        env:
+          AM_EDITOR_BUILD_METAFILE: ${{ matrix.suite == 'browser' && format('{0}/standalone-editor-metafile.json', runner.temp) || '' }}
         run: bun run test:browser --shard=${{ matrix.suite == 'browser' && '1/2' || '2/2' }}
 
       - name: Compare resolved scenes with Chromium
@@ -550,6 +552,15 @@ jobs:
           retention-days: 7
           if-no-files-found: warn
 
+      - name: Retain standalone editor module graph and byte counts
+        if: ${{ always() && matrix.suite == 'browser' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: standalone-editor-diagnostics-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/standalone-editor-metafile.json
+          retention-days: 7
+          if-no-files-found: warn
+
       - name: Verify website payload request graphs and budgets
         if: ${{ matrix.suite == 'payload' }}
         # This builds the site and its lazy bundle once, then captures requests.
@@ -560,13 +571,16 @@ jobs:
       # growth is approved with the payload-growth-approved label, which covers
       # only the head it was applied to (scripts/ci/label-approval.ts).
       - name: Compare payload with the base branch
-        if: ${{ matrix.suite == 'payload' && github.event_name == 'pull_request' }}
+        if: ${{ !cancelled() && matrix.suite == 'payload' && github.event_name == 'pull_request' }}
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           EVENT_ACTION: ${{ github.event.action }}
           BASE_SHA: ${{ steps.pr-revisions.outputs.base }}
         run: |
+          # The absolute check writes this report before checking its ceilings.
+          # Keep the relative diagnosis when those ceilings are already failing.
+          test -s head-site.json
           git fetch --no-tags --depth=1 origin "$BASE_SHA"
           git worktree add --detach ../payload-base "$BASE_SHA"
           # Build the base with the Bun the base pins, so a PR that upgrades Bun
@@ -576,12 +590,30 @@ jobs:
           head_bun=$(command -v bun)
           (cd ../payload-base && PATH="$base_path" bun install --frozen-lockfile)
           bun run scripts/build/browser-lazy-report.ts --measure-only --json > head-lazy.json
+          cp dist/metafile-esm.json head-lazy-metafile.json
           PATH="$base_path" "$head_bun" run scripts/site/website-payload-report.ts --root ../payload-base --report base-site.json
           bun run scripts/build/browser-lazy-report.ts --root ../payload-base --measure-only --json > base-lazy.json
+          cp ../payload-base/dist/metafile-esm.json base-lazy-metafile.json
           allow=()
           if bun run scripts/ci/label-approval.ts check --label payload-growth-approved; then allow=(--allow-growth); fi
           bun run scripts/ci/payload-delta.ts --base-lazy base-lazy.json --head-lazy head-lazy.json \
             --base-site base-site.json --head-site head-site.json "${allow[@]}"
+
+      - name: Retain payload reports and module graphs
+        if: ${{ always() && matrix.suite == 'payload' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: payload-diagnostics-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            head-site.json
+            head-lazy.json
+            head-lazy-metafile.json
+            base-site.json
+            base-lazy.json
+            base-lazy-metafile.json
+            dist/metafile-esm.json
+          retention-days: 7
+          if-no-files-found: warn
 
 
   # One protectable result that cannot turn green before the downstream E2E
