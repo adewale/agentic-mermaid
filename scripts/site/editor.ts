@@ -18,7 +18,6 @@
  */
 
 import { runtimeRenderContractPlugin } from '../build/runtime-render-contract.ts'
-import { privateBuiltinConformancePlugin, verifyPrivateBuiltinConformanceSource } from '../build/private-builtin-conformance.ts'
 import { minifyBrowserRuntime } from '../build/runtime-minify.ts'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -186,7 +185,6 @@ async function generateEditorHtml(): Promise<string> {
   const metafilePath = runtimeDirectory ? undefined : process.env.AM_EDITOR_BUILD_METAFILE
   let workerUrl: string | undefined
   if (runtimeDirectory) {
-    const workerContract = privateBuiltinConformancePlugin(runtimeRenderContractPlugin({ schemaDocumentation: false, conformanceObservations: false, sourceOnlySceneAdmission: true }))
     const workerBuild = await Bun.build({
       entrypoints: [fileURLToPath(new URL('../../src/browser-preview-worker.ts', import.meta.url))],
       target: 'browser',
@@ -198,7 +196,7 @@ async function generateEditorHtml(): Promise<string> {
       plugins: [
         // This worker accepts render/verify/terminal requests only. The
         // main-thread adapter owns option inspection and validation.
-        workerContract,
+        runtimeRenderContractPlugin({ schemaDocumentation: false, conformanceObservations: false, sourceOnlySceneAdmission: true }),
         sourceOnlyFamilyRegistry(),
         {
           name: 'hosted-worker-dependencies',
@@ -211,7 +209,6 @@ async function generateEditorHtml(): Promise<string> {
         },
       ],
     })
-    verifyPrivateBuiltinConformanceSource(workerContract)
     const workerEntry = workerBuild.outputs.find(output => output.kind === 'entry-point')
     if (!workerBuild.success || !workerEntry) throw new AggregateError(workerBuild.logs, 'Preview worker build failed')
     workerUrl = `/editor/runtime/${basename(workerEntry.path)}`
@@ -219,10 +216,8 @@ async function generateEditorHtml(): Promise<string> {
   // Both delivery modes use the same source-only family registry and admission
   // projections. The private worker still offers preview, terminal and PNG;
   // the public Node/Scene/IIFE entries keep their complete contracts.
-  const runtimeContract = runtimeRenderContractPlugin({ schemaDocumentation: false, conformanceObservations: false, familyEditorMetadata: Boolean(runtimeDirectory), sourceOnlySceneAdmission: true })
-  const standaloneContract = runtimeDirectory ? undefined : privateBuiltinConformancePlugin(runtimeContract)
   const runtimePlugins: Array<ReturnType<typeof runtimeRenderContractPlugin>> = [
-    standaloneContract ?? runtimeContract,
+    runtimeRenderContractPlugin({ schemaDocumentation: false, conformanceObservations: false, familyEditorMetadata: Boolean(runtimeDirectory), sourceOnlySceneAdmission: true }),
     sourceOnlyFamilyRegistry(),
     ...(!runtimeDirectory ? [{
       name: 'standalone-worker-families',
@@ -258,7 +253,6 @@ async function generateEditorHtml(): Promise<string> {
       target: 'browser', format: 'esm', minify: true,
       metafile: Boolean(metafilePath),
     })
-    verifyPrivateBuiltinConformanceSource(standaloneContract!)
     if (!buildResult.success) throw new AggregateError(buildResult.logs, 'Standalone editor runtime build failed')
     // Compress the complete inline module after omitting unpublished
     // conformance observations and unused schema prose. Retain validation,

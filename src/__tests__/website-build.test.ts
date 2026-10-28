@@ -769,7 +769,7 @@ describe('Workers Static Assets website contract', () => {
     const parent = mkdtempSync(join(tmpdir(), 'am editor builder '))
     try {
       const checkout = join(parent, 'agentic mermaid')
-      for (const rel of ['editor', 'shared', 'scripts/site', 'scripts/build', 'package.json', 'bun.lock']) cpSync(join(REPO, rel), join(checkout, rel), { recursive: true })
+      for (const rel of ['editor', 'shared', 'scripts/site', 'scripts/build', 'package.json']) cpSync(join(REPO, rel), join(checkout, rel), { recursive: true })
       cpSync(join(REPO, 'src'), join(checkout, 'src'), { recursive: true, filter: path => !path.includes(`${join('src', '__tests__')}`) })
       symlinkSync(join(REPO, 'node_modules'), join(checkout, 'node_modules'))
       const out = join(parent, 'editor.html')

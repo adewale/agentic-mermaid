@@ -30,7 +30,6 @@ import { chromium, firefox, webkit, type Browser, type Page, type Route } from '
 import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
 import { registerStyle, resolveStyleStack, renderMermaidSVG, renderMermaidSVGWithReceipt, sharedRenderOptionsJsonSchema } from '../src/index.ts'
 import { serveWithAvailablePort } from './test-port.ts'
-import { buildPrivateBackendProbe } from '../src/__tests__/helpers/private-backend-probe.ts'
 
 const REPO = join(import.meta.dir, '..')
 const BUNDLE = join(REPO, 'dist', 'browser.global.js')
@@ -356,11 +355,9 @@ describe('directly served optional ZenUML ESM', () => {
 describe('current cross-engine browser support', () => {
   let server: ReturnType<typeof serveWithAvailablePort>['server']
   let base = ''
-  let privateBackendProbe = ''
 
-  beforeAll(async () => {
+  beforeAll(() => {
     ensureBrowserBundle()
-    privateBackendProbe = await buildPrivateBackendProbe()
     const served = serveWithAvailablePort({
       preferredPort: 4741,
       async fetch(request) {
@@ -386,30 +383,6 @@ describe('current cross-engine browser support', () => {
   afterAll(() => {
     server?.stop(true)
   })
-
-  for (const [engineName, engine] of [
-    ['Chromium', chromium], ['Firefox', firefox], ['WebKit', webkit],
-  ] as const) {
-    test(`${engineName} private built-in certificates match every actual browser conformance result`, async () => {
-      const engineBrowser = await engine.launch()
-      try {
-        const enginePage = await engineBrowser.newPage()
-        await enginePage.goto(`${base}/classic.html`, { waitUntil: 'load' })
-        // The public IIFE keeps executable runtime conformance. Reading these
-        // getters executes every document check and claim witness in this engine.
-        const canonical = await enginePage.evaluate(name => {
-          const reports = (globalThis as Record<string, any>)[name].knownBackendDescriptors().map((descriptor: any) => descriptor.conformance)
-          if (reports.some((report: any) => !report.passed)) throw new Error('A browser backend failed executable conformance')
-          return reports.map((report: any) => ({ ...report, claims: report.claims.map((claim: any) => ({ ...claim, observation: '' })) }))
-        }, GLOBAL)
-        expect(canonical.map((report: any) => report.backendId)).toEqual(['backend:default', 'backend:rough', 'backend:hybrid'])
-        await enginePage.addScriptTag({ type: 'module', content: privateBackendProbe })
-        await enginePage.waitForFunction(() => Array.isArray((globalThis as Record<string, unknown>).__privateBuiltinReports))
-        const certified = await enginePage.evaluate(() => (globalThis as Record<string, unknown>).__privateBuiltinReports)
-        expect(certified).toEqual(canonical)
-      } finally { await engineBrowser.close() }
-    }, BUILD_TIMEOUT_MS)
-  }
 
   for (const [engineName, engine] of [
     ['Firefox', firefox],
