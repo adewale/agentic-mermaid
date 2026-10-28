@@ -265,24 +265,37 @@ export function summarizeComparisonsByFamily(comparisons: readonly Comparison[])
 
 const VERDICT_ORDER: Record<Verdict, number> = { 'status-changed': 0, regression: 1, improvement: 2, changed: 3, unchanged: 4 }
 
+function failureCounts(before: Snapshot, after: Snapshot, comparisons: readonly Comparison[]) {
+  return {
+    before: before.samples.filter(sample => !sample.ok).length,
+    after: after.samples.filter(sample => !sample.ok).length,
+    both: comparisons.filter(comparison => comparison.before?.ok === false && comparison.after?.ok === false).length,
+  }
+}
+
 export function buildReportHtml(before: Snapshot, after: Snapshot): string {
   const comparisons = compareSnapshots(before, after).sort((a, b) =>
     VERDICT_ORDER[a.verdict] - VERDICT_ORDER[b.verdict] || compareCodePointStrings(a.id, b.id))
   const balanced = summarizeComparisonsByFamily(comparisons)
+  const errors = failureCounts(before, after, comparisons)
   const counts = new Map<Verdict, number>()
   for (const c of comparisons) counts.set(c.verdict, (counts.get(c.verdict) ?? 0) + 1)
 
   const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   const cell = (r: SampleResult | undefined, prefix: string) => {
     if (!r) return '<em>missing</em>'
-    if (!r.ok) return `<pre class="err">${esc(r.error ?? 'error')}</pre>`
+    if (!r.ok) {
+      const details = r.errorCode || r.failures
+        ? `<details><summary>Retained failure details</summary><pre>${esc(JSON.stringify({ errorCode: r.errorCode, failures: r.failures }, null, 2))}</pre></details>` : ''
+      return `<pre class="err">${esc(r.error ?? 'error')}</pre>${details}`
+    }
     const ascii = r.ascii ? `<details><summary>ASCII</summary><pre class="ascii">${esc(r.ascii)}</pre></details>` : ''
     const evidence = { metrics: r.metrics, svgReceipt: r.svgReceipt, layoutReceipt: r.layoutReceipt }
     return `<div class="svgbox">${namespaceSvgIds(r.svg ?? '', prefix)}</div>${ascii}<details><summary>Measured quality and backend receipts</summary><pre>${esc(JSON.stringify(evidence, null, 2))}</pre></details>`
   }
 
   const rows = comparisons
-    .filter(c => c.verdict !== 'unchanged')
+    .filter(c => c.verdict !== 'unchanged' || c.before?.ok === false || c.after?.ok === false)
     .map((c, index) => `
 <section class="sample ${c.verdict}">
   <h3>${esc(c.id)} <span class="badge">${c.verdict}</span> <span class="family">${esc(c.family)}</span></h3>
@@ -296,7 +309,7 @@ export function buildReportHtml(before: Snapshot, after: Snapshot): string {
     .join('\n')
 
   const summary = (['status-changed', 'regression', 'improvement', 'changed', 'unchanged'] as Verdict[])
-    .map(v => `<li><strong>${counts.get(v) ?? 0}</strong> ${v}</li>`).join('')
+    .map(v => `<li><strong>${counts.get(v) ?? 0}</strong> ${v}${v === 'status-changed' ? ' (missing population)' : ''}</li>`).join('')
 
   const familyRows = balanced.families.map(family => `<tr>
     <td>${esc(family.family)}</td><td>${family.samples}</td>
@@ -336,17 +349,18 @@ export function buildReportHtml(before: Snapshot, after: Snapshot): string {
 after options: <code>${esc(JSON.stringify(after.renderOptions ?? {}))}</code>${after.dirty ? ' (working tree modified)' : ''}.</p>
 <p>Generated population: before <code>${esc(JSON.stringify(before.population ?? null))}</code>; after <code>${esc(JSON.stringify(after.population ?? null))}</code>. These snapshots measure quality, not execution cost.</p>
 <ul>${summary}</ul>
+<p>Errored samples: before <strong>${errors.before}</strong>; after <strong>${errors.after}</strong>; failed in both <strong>${errors.both}</strong>.</p>
 <p><strong>Family-balanced adverse rate:</strong> ${(balanced.macroAdverseRate * 100).toFixed(1)}%
    (sample-weighted: ${(balanced.microAdverseRate * 100).toFixed(1)}%).</p>
 <details open><summary>Per-family outcomes</summary>
-<table><thead><tr><th>family</th><th>samples</th><th>status</th><th>regressions</th><th>improvements</th><th>changed</th><th>unchanged</th><th>adverse</th></tr></thead>
+<table><thead><tr><th>family</th><th>samples</th><th>missing population</th><th>regressions</th><th>improvements</th><th>changed</th><th>unchanged</th><th>adverse</th></tr></thead>
 <tbody>${familyRows}</tbody></table></details>
-<p>Unchanged samples are hidden. Verdicts: metric deltas use measureQuality
+<p>Successful unchanged samples are hidden; errored samples remain visible. Verdicts: metric deltas use measureQuality
 (edge crossings, measured label conflicts and shared spans when available, label legibility,
 polyline bends, route length and canvas area) plus node/edge-count faithfulness;
 "changed" means bytes or backend decisions differ with no metric movement.</p>
-<p>Support gains are improvements; support losses are regressions. Missing population members
-remain adverse status changes. A regression in any measured dimension remains visible even
+<p>Support gains are improvements; support losses are regressions. "status-changed" counts missing population members only;
+those remain adverse. A regression in any measured dimension remains visible even
 when another improves. Smaller area or fewer bends alone does not establish human preference.</p>
 <p>Quality comes from a separate public-layout call, not the retained SVG artifact.
 Preview IDs are scoped per panel; original SVG bytes and digests remain in the JSON snapshots.
@@ -392,7 +406,8 @@ if (import.meta.main) {
     writeFileSync(out, buildReportHtml(before, after))
     const comparisons = compareSnapshots(before, after)
     const n = (v: Verdict) => comparisons.filter(c => c.verdict === v).length
-    console.log(`wrote ${out}: ${n('status-changed')} status-changed, ${n('regression')} regressions, ${n('improvement')} improvements, ${n('changed')} changed, ${n('unchanged')} unchanged`)
+    const errors = failureCounts(before, after, comparisons)
+    console.log(`wrote ${out}: ${n('status-changed')} status-changed (missing population), ${n('regression')} regressions, ${n('improvement')} improvements, ${n('changed')} changed, ${n('unchanged')} unchanged; errored before=${errors.before} after=${errors.after} both-failed=${errors.both}`)
     if (n('status-changed') + n('regression') > 0) process.exit(1)
   } else {
     console.error('usage: run.ts snapshot --out f.json [--label name] [--graph-layout elk|agentic] [--graph-layout-fallback none|elk] [--families flowchart,state] [--stress] [--generated-start 0 --generated-count 160] [--generated-kind lcg-v1|sha256-counter-v1] | report --before a.json --after b.json --out report.html')

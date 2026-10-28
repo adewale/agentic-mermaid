@@ -52,7 +52,7 @@ test('typed failure transport preserves complete causes and certification withou
   expect(compareSample(before, changed).verdict).toBe('changed')
 })
 
-test('newly supported diagrams improve coverage while lost or missing inputs remain adverse', () => {
+test('coverage changes retain adverse missing inputs and show unchanged failures in reports', () => {
   const rendered = snapshotSample({ id: 'support', family: 'flowchart', source: 'flowchart TD\nA --> B' }, 'support-')
   expect(rendered.ok).toBe(true)
   const declined = { id: rendered.id, family: rendered.family, source: rendered.source, ok: false, errorCode: 'GRAPH_LAYOUT_UNSUPPORTED', error: 'unsupported' }
@@ -63,6 +63,22 @@ test('newly supported diagrams improve coverage while lost or missing inputs rem
   expect(summarizeComparisonsByFamily([loss]).microAdverseRate).toBe(1)
   expect(summarizeComparisonsByFamily([compareSample(rendered, undefined)]).microAdverseRate).toBe(1)
   expect(compareSample(declined, { ...declined, errorCode: 'INTERNAL_ERROR', error: 'defect' }).verdict).toBe('changed')
+  const matchingFailure = { ...declined, id: 'matching-failure<&>', source: 'flowchart TD\nA["Retained & <failure>"] --> B',
+    errorCode: 'SCENE_VALIDATION_FAILED', error: 'same refusal <&>',
+    failures: { layout: { name: 'SceneValidationError', message: 'owned field <&>', code: 'SCENE_VALIDATION_FAILED', properties: { detail: 'retained context <&>' } } } }
+  expect(compareSample(matchingFailure, matchingFailure).verdict).toBe('unchanged')
+  const common = { label: 'review', rev: 'a'.repeat(40), createdAt: '2026-10-20T00:00:00Z' }
+  const html = buildReportHtml({ ...common, samples: [rendered, matchingFailure, { ...rendered, id: 'support-loss' }] },
+    { ...common, samples: [rendered, matchingFailure, { ...declined, id: 'support-loss' }] })
+  expect(html).toContain('<h3>matching-failure&lt;&amp;&gt; ')
+  expect(html).toContain('same refusal &lt;&amp;&gt;')
+  expect(html).toContain('owned field &lt;&amp;&gt;')
+  expect(html).toContain('retained context &lt;&amp;&gt;')
+  expect(html).toContain('SCENE_VALIDATION_FAILED')
+  expect(html).toContain('A["Retained &amp; &lt;failure&gt;"] --&gt; B')
+  expect(html).toContain('Errored samples: before <strong>1</strong>; after <strong>2</strong>; failed in both <strong>1</strong>.')
+  expect(html).toContain('<strong>0</strong> status-changed (missing population)')
+  expect(html).not.toContain('<h3>support ')
 })
 
 test('a crossing improvement cannot hide added bends, route length or area', () => {
