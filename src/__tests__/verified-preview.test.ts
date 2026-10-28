@@ -37,7 +37,9 @@ describe('one positioned artifact for preview and verification', () => {
       const full = getFamily(family)!
       const parsed = parseRegisteredMermaid(full.example)
       if (!parsed.ok) throw new Error(`Expected native ${family} example`)
-      const changed = full.mutate!(parsed.value.body, { kind: 'set_title', title: 'Edited title' })
+      const body = parsed.value.body
+      if (body.kind !== 'eventmodeling' && body.kind !== 'zenuml') throw new Error(`Expected native ${family} body`)
+      const changed = full.mutate!(body, { kind: 'set_title', title: 'Edited title' })
       expect(changed.ok).toBe(true)
       if (changed.ok) expect(changed.value).toMatchObject({ kind: family, title: 'Edited title' })
     }

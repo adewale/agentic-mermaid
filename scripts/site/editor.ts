@@ -18,8 +18,8 @@
  */
 
 import { runtimeRenderContractPlugin } from '../build/runtime-render-contract.ts'
+import { privateBuiltinConformancePlugin, verifyPrivateBuiltinConformanceSource } from '../build/private-builtin-conformance.ts'
 import { minifyBrowserRuntime } from '../build/runtime-minify.ts'
-import { browserCompressionDiagnostics, compressionBytes } from '../build/runtime-compression-diagnostics.ts'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gzipSync } from 'node:zlib'
@@ -186,6 +186,7 @@ async function generateEditorHtml(): Promise<string> {
   const metafilePath = runtimeDirectory ? undefined : process.env.AM_EDITOR_BUILD_METAFILE
   let workerUrl: string | undefined
   if (runtimeDirectory) {
+    const workerContract = privateBuiltinConformancePlugin(runtimeRenderContractPlugin({ schemaDocumentation: false, conformanceObservations: false, sourceOnlySceneAdmission: true }))
     const workerBuild = await Bun.build({
       entrypoints: [fileURLToPath(new URL('../../src/browser-preview-worker.ts', import.meta.url))],
       target: 'browser',
@@ -197,7 +198,7 @@ async function generateEditorHtml(): Promise<string> {
       plugins: [
         // This worker accepts render/verify/terminal requests only. The
         // main-thread adapter owns option inspection and validation.
-        runtimeRenderContractPlugin({ schemaDocumentation: false, conformanceObservations: false, sourceOnlySceneAdmission: true }),
+        workerContract,
         sourceOnlyFamilyRegistry(),
         {
           name: 'hosted-worker-dependencies',
@@ -210,6 +211,7 @@ async function generateEditorHtml(): Promise<string> {
         },
       ],
     })
+    verifyPrivateBuiltinConformanceSource(workerContract)
     const workerEntry = workerBuild.outputs.find(output => output.kind === 'entry-point')
     if (!workerBuild.success || !workerEntry) throw new AggregateError(workerBuild.logs, 'Preview worker build failed')
     workerUrl = `/editor/runtime/${basename(workerEntry.path)}`
@@ -217,8 +219,10 @@ async function generateEditorHtml(): Promise<string> {
   // Both delivery modes use the same source-only family registry and admission
   // projections. The private worker still offers preview, terminal and PNG;
   // the public Node/Scene/IIFE entries keep their complete contracts.
+  const runtimeContract = runtimeRenderContractPlugin({ schemaDocumentation: false, conformanceObservations: false, familyEditorMetadata: Boolean(runtimeDirectory), sourceOnlySceneAdmission: true })
+  const standaloneContract = runtimeDirectory ? undefined : privateBuiltinConformancePlugin(runtimeContract)
   const runtimePlugins: Array<ReturnType<typeof runtimeRenderContractPlugin>> = [
-    runtimeRenderContractPlugin({ schemaDocumentation: false, conformanceObservations: false, familyEditorMetadata: Boolean(runtimeDirectory), sourceOnlySceneAdmission: true }),
+    standaloneContract ?? runtimeContract,
     sourceOnlyFamilyRegistry(),
     ...(!runtimeDirectory ? [{
       name: 'standalone-worker-families',
@@ -232,7 +236,6 @@ async function generateEditorHtml(): Promise<string> {
   ]
   let bundleJs: string, sourceRuntimeBytes: number | undefined
   let runtimeMetafile: unknown
-  let compressionDiagnostics: unknown
   if (runtimeDirectory) {
     const buildResult = await Bun.build({
       entrypoints: [fileURLToPath(new URL('../../src/browser-hosted.ts', import.meta.url))],
@@ -255,6 +258,7 @@ async function generateEditorHtml(): Promise<string> {
       target: 'browser', format: 'esm', minify: true,
       metafile: Boolean(metafilePath),
     })
+    verifyPrivateBuiltinConformanceSource(standaloneContract!)
     if (!buildResult.success) throw new AggregateError(buildResult.logs, 'Standalone editor runtime build failed')
     // Compress the complete inline module after omitting unpublished
     // conformance observations and unused schema prose. Retain validation,
@@ -266,25 +270,6 @@ async function generateEditorHtml(): Promise<string> {
     sourceRuntimeBytes = new TextEncoder().encode(source).byteLength
     bundleJs = await minifyBrowserRuntime(source)
     if (!bundleJs) throw new Error('Standalone runtime compression produced no module')
-    if (metafilePath) {
-      const optimizerVariants = await browserCompressionDiagnostics(source, bundleJs)
-      const bundlerVariants = []
-      for (const [name, minify] of [
-        ['unminified', false],
-        ['whitespace-only', { identifiers: false, syntax: false, whitespace: true }],
-      ] as const) {
-        const candidate = await Bun.build({
-          entrypoints: [fileURLToPath(new URL('../../src/browser-standalone.ts', import.meta.url))],
-          plugins: runtimePlugins, target: 'browser', format: 'esm', minify,
-        })
-        if (!candidate.success) throw new AggregateError(candidate.logs, `Diagnostic build failed: ${name}`)
-        const input = await candidate.outputs[0]?.text()
-        if (!input) throw new Error(`Diagnostic build produced no module: ${name}`)
-        const code = await minifyBrowserRuntime(input)
-        bundlerVariants.push({ name, inputBytes: Buffer.byteLength(input), ...compressionBytes(code) })
-      }
-      compressionDiagnostics = { scope: 'Non-shipping candidates; size measurements only, not runtime qualification', optimizerVariants, bundlerVariants }
-    }
   }
   console.log(`Browser bundle: ${(bundleJs.length / 1024).toFixed(1)} KB`)
 
@@ -359,7 +344,6 @@ ${appJs}
       htmlGzipBytes: gzipSync(htmlBytes, { level: 9 }).byteLength,
       appScriptBytes: new TextEncoder().encode(appJs).byteLength,
       styleBytes: new TextEncoder().encode(css).byteLength,
-      compressionDiagnostics,
       metafile: runtimeMetafile,
     }))
   }
