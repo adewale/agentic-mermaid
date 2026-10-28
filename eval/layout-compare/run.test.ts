@@ -143,7 +143,8 @@ test('label measurement loss cannot hide behind unchanged perfect legibility', (
   const sample = snapshotSample({ id: 'label-coverage', family: 'flowchart', source: 'flowchart TD\nA --> B' }, 'label-coverage-', {}, { includeAscii: false })
   expect(sample.ok).toBe(true)
   const metrics = sample.metrics!, coverage = metrics.labelMeasurement
-  const missing = { ...sample, metrics: { ...metrics, labelMeasurement: undefined } }
+  // Older JSON records omit this observation rather than carrying an undefined field.
+  const missing = JSON.parse(JSON.stringify({ ...sample, metrics: { ...metrics, labelMeasurement: undefined } })) as SampleResult
   const loss = compareSample(sample, missing, 'backend'), gain = compareSample(missing, sample, 'backend')
   expect({ verdict: loss.verdict, notes: loss.notes }).toEqual({ verdict: 'regression', notes: ['labelMeasurement: measurement lost'] })
   expect({ verdict: gain.verdict, notes: gain.notes }).toEqual({ verdict: 'changed', notes: ['labelMeasurement: measurement gained; geometry not compared'] })
