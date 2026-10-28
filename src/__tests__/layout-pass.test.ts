@@ -1,13 +1,13 @@
 // Tests for the LayoutPass abstraction (docs/design/system/route-contracts.md §8):
 // production runPipeline enforcement and the geometry its passes produce.
 import { describe, expect, test } from 'bun:test'
+import { readFileSync } from 'node:fs'
 import { complicatedFixtures, simpleFixtures } from '../../eval/visual-rubric/fixtures.ts'
 import type { LayoutPass, MetricBudget, PassContextBase, RubricMetric } from '../layout/pass.ts'
 import * as passContract from '../layout/pass.ts'
 const { LayoutMetricBudgetError, LayoutPassContractError, runPipeline } = passContract
 import { LAYOUT_PIPELINE, convertToElkFormat, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
-import { applyParallelDuplicateLanes } from '../layout/passes/parallel-lanes.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { verifyMermaid } from '../agent/index.ts'
 import { withPerformanceExperiments } from '../experimental-performance.ts'
@@ -16,7 +16,7 @@ const { assessLayout, countOpposingRouteOverlaps, countParallelRouteOverlaps, ha
 import { resolveRenderStyle } from '../styles.ts'
 import { labelRect } from '../route-contracts.ts'
 import * as routeContracts from '../route-contracts.ts'
-import { applySymmetricParallelEdgeLanes } from '../layout/passes/index.ts'
+import { applySymmetricParallelEdgeLanes, applyParallelDuplicateLanes } from '../layout/passes/index.ts'
 import { graphEdgeTextBlock } from '../graph-text.ts'
 import { createTextMeasurementExecution, withTextMeasurementExecution } from '../text-measurement-profile.ts'
 import type { PositionedEdge, PositionedGraph, PositionedNode } from '../types.ts'
@@ -289,6 +289,177 @@ S1["same word ok"] --> D`],
     if (retained) for (const edge of edges) expect(edge.labelBlock).toBe(block)
   })
 
+  test.each([false, true])('mixed duplicate admission proves the label seat it publishes (Native clearance: %s)', native => {
+    const graph = parseMermaid('flowchart LR\nA-->B\nA-->|first<br/>second<br/>third|B\nO\nP\nQ')
+    const nodes: PositionedNode[] = [
+      { id: 'A', label: 'A', shape: 'rectangle', x: 0, y: 0, width: 120, height: 160 },
+      { id: 'B', label: 'B', shape: 'rectangle', x: 400, y: 100, width: 120, height: 160 },
+      { id: 'O', label: 'O', shape: 'rectangle', x: 250, y: 202, width: 10, height: 20 },
+      { id: 'P', label: 'P', shape: 'rectangle', x: 275, y: 202, width: 10, height: 20 },
+      { id: 'Q', label: 'Q', shape: 'rectangle', x: 380, y: 100, width: 10, height: 10 },
+    ]
+    // The longest-segment midpoint covers O and P. A later seat on the same
+    // shaft is clear; Q blocks the mirrored route, so rejecting a fictitious
+    // midpoint would leave both authored relationships collapsed together.
+    const edges: PositionedEdge[] = graph.edges.map((edge, edgeIndex) => ({
+      ...edge, edgeIndex,
+      points: [{ x: 120, y: 80 }, { x: 260, y: 80 }, { x: 260, y: 180 }, { x: 400, y: 180 }],
+      ...(edge.label ? { labelPosition: { x: 260, y: 80 } } : {}),
+    }))
+    const style = resolveRenderStyle()
+    applyParallelDuplicateLanes(nodes, edges, [], graph, new Set(), style, native ? style : undefined)
+    expect(countParallelRouteOverlaps(edges)).toBe(0)
+    const box = labelRect(edges[1]!, style)!
+    expect(box.x).toBeGreaterThan(285)
+    for (const node of nodes) expect(Math.min(box.x + box.w, node.x + node.width) > Math.max(box.x, node.x)
+      && Math.min(box.y + box.h, node.y + node.height) > Math.max(box.y, node.y)).toBe(false)
+    for (let i = 1; i < edges[0]!.points.length; i++) {
+      const a = edges[0]!.points[i - 1]!, b = edges[0]!.points[i]!
+      const enters = a.x === b.x
+        ? a.x > box.x && a.x < box.x + box.w && Math.max(a.y, b.y) > box.y && Math.min(a.y, b.y) < box.y + box.h
+        : a.y > box.y && a.y < box.y + box.h && Math.max(a.x, b.x) > box.x && Math.min(a.x, b.x) < box.x + box.w
+      expect(enters).toBe(false)
+    }
+  })
+
+  for (const direction of ['TB', 'BT', 'LR', 'RL'] as const) for (const mixed of [false, true]) {
+    test(`near-aligned duplicate ports keep exact orthogonal routes: ${direction}, mixed=${mixed}`, () => {
+      const horizontal = direction === 'LR' || direction === 'RL'
+      const reverse = direction === 'BT' || direction === 'RL'
+      const graph = parseMermaid(`flowchart ${direction}\nA-->B\nA${mixed ? '-->|label|' : '-->'}B`)
+      const point = (main: number, cross: number) => horizontal ? { x: main, y: cross } : { x: cross, y: main }
+      const box = (main: number, cross: number): PositionedNode => ({ id: '', label: '', shape: 'rectangle', ...point(main, cross), width: 80, height: 80 })
+      const source = { ...box(reverse ? 300 : 0, 0), id: 'A', label: 'A' }
+      const target = { ...box(reverse ? 0 : 300, 0.0566666666667), id: 'B', label: 'B' }
+      const startMain = reverse ? 300 : 80, endMain = reverse ? 80 : 300
+      const edges: PositionedEdge[] = graph.edges.map((edge, edgeIndex) => ({ ...edge, edgeIndex,
+        points: [point(startMain, 40), point(190, 40), point(190, 40.0566666666667), point(endMain, 40.0566666666667)],
+        ...(edge.label ? { labelPosition: point(190, 40) } : {}),
+      }))
+      applyParallelDuplicateLanes([source, target], edges, [], graph, new Set(), resolveRenderStyle())
+      expect(edges).toHaveLength(2)
+      expect(edges[0]!.points).not.toEqual(edges[1]!.points)
+      for (const edge of edges) {
+        expect(edge.points[0]![horizontal ? 'y' : 'x'] - edge.points.at(-1)![horizontal ? 'y' : 'x']).not.toBe(0)
+        for (let i = 1; i < edge.points.length; i++) {
+          const a = edge.points[i - 1]!, b = edge.points[i]!
+          expect(a.x === b.x || a.y === b.y).toBe(true)
+        }
+        expect(onShapeOutline(source, edge.points[0]!)).toBe(true)
+        expect(onShapeOutline(target, edge.points.at(-1)!)).toBe(true)
+      }
+    })
+  }
+
+  for (const direction of ['TB', 'BT', 'LR', 'RL'] as const) for (const occupied of [49, 74]) {
+    test(`duplicate lanes preserve a labelled peer's marker seat: ${direction}, peer=${occupied}`, () => {
+      const horizontal = direction === 'LR' || direction === 'RL', reverse = direction === 'BT' || direction === 'RL'
+      const graph = parseMermaid(`flowchart ${direction}\nA-->B\nA-->B\nP-->|label|B`)
+      const point = (main: number, cross: number) => horizontal ? { x: main, y: cross } : { x: cross, y: main }
+      const box = (main: number, cross: number): PositionedNode => ({ id: '', label: '', shape: 'rectangle', ...point(main, cross), width: horizontal ? 40 : 80, height: horizontal ? 80 : 40 })
+      const nodes = [{ ...box(reverse ? 200 : 0, 0), id: 'A' }, { ...box(reverse ? 0 : 200, 0), id: 'B' }, { ...box(reverse ? 200 : 0, 120), id: 'P' }]
+      const start = reverse ? 200 : 40, end = reverse ? 40 : 200, jog = reverse ? 50 : 190
+      const edges: PositionedEdge[] = graph.edges.map((edge, edgeIndex) => ({ ...edge, edgeIndex,
+        points: edgeIndex < 2 ? [point(start, edgeIndex ? 60 : 20), point(end, edgeIndex ? 60 : 20)]
+          : [point(start, 160), point(jog, 160), point(jog, occupied), point(end, occupied)],
+        ...(edge.label ? { labelPosition: point((start + jog) / 2, 160) } : {}),
+      }))
+      const before = edges.map(edge => edge.points)
+      applyParallelDuplicateLanes(nodes, edges, [], graph, new Set(), resolveRenderStyle())
+      const cross = horizontal ? 'y' : 'x'
+      const positions = edges.map(edge => edge.points.at(-1)![cross])
+      // These literal width1 hidden arrowheads have 5px full cross span.
+      // Identical target identity/colors cannot erase a distinct marker seat.
+      for (let i = 0; i < positions.length; i++) for (let j = i + 1; j < positions.length; j++) expect(Math.abs(positions[i]! - positions[j]!)).toBeGreaterThanOrEqual(5)
+      if (occupied === 49) expect(edges[2]!.points).toBe(before[2]!)
+      else {
+        expect(positions.slice(0, 2)).toEqual([33, 47])
+        expect(edges[2]!.points).toBe(before[2]!)
+      }
+    })
+  }
+
+  test('cyclic-19 labelled arrival keeps separated final marker ports', () => {
+    const source = readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-19.mmd', import.meta.url), 'utf8')
+    const graph = parseMermaid(source), positioned = layoutGraphSync(graph)
+    const arrivals = positioned.edges.filter(edge => edge.source === 'n0' && edge.target === 'n4')
+    expect(arrivals).toHaveLength(3)
+    expect(arrivals.map(edge => edge.label)).toEqual(graph.edges.filter(edge => edge.source === 'n0' && edge.target === 'n4').map(edge => edge.label))
+    for (let i = 0; i < arrivals.length; i++) for (let j = i + 1; j < arrivals.length; j++) expect(Math.abs(arrivals[i]!.points.at(-1)!.x - arrivals[j]!.points.at(-1)!.x)).toBeGreaterThanOrEqual(5)
+  })
+
+  test('seeded separation sample78 preserves the three live circle-marker seats', () => {
+    const source = "flowchart RL\n  N0[\\n0\\]\n  N1((n1))\n  N2{n2}\n  N3(n3)\n  N0 --> N1\n  N3 --> N0\n  N1 --> N2\n  N0 --> N1\n  N3 -- go --> N1\n  N0 -- go --> N2\n  N2 --> N1"
+    const graph = parseMermaid(source), positioned = layoutGraphSync(graph)
+    const pair = positioned.edges.filter(edge => edge.source === 'N0' && edge.target === 'N1')
+    expect(pair).toHaveLength(2)
+    const gap = (a: {x:number;y:number}, b: {x:number;y:number}) => Math.hypot(a.x-b.x,a.y-b.y)
+    expect(gap(pair[0]!.points[0]!,pair[1]!.points[0]!)).toBeGreaterThanOrEqual(11)
+    expect(gap(pair[0]!.points.at(-1)!,pair[1]!.points.at(-1)!)).toBeGreaterThanOrEqual(11)
+    expect(positioned.edges.map(edge=>[edge.source,edge.target,edge.label])).toEqual(graph.edges.map(edge=>[edge.source,edge.target,edge.label]))
+  })
+
+  for (const [flipX,flipY] of [[false,false],[true,false],[false,true],[true,true]] as const) test(`margin-endpoint slots clear the live labelled circle arrival (${flipX},${flipY})`, () => {
+    const source = "flowchart RL\n  N0[\\n0\\]\n  N1((n1))\n  N2{n2}\n  N3(n3)\n  N0 --> N1\n  N3 --> N0\n  N1 --> N2\n  N0 --> N1\n  N3 -- go --> N1\n  N0 -- go --> N2\n  N2 --> N1"
+    const graph = parseMermaid(source)
+    graph.direction = flipX ? 'LR' : 'RL'
+    const originals: PositionedNode[] = [
+      {"id": "N3", "label": "n3", "shape": "rounded", "x": 426.53999999999996, "y": 102.73749999999998, "width": 60, "height": 36.900000000000006},
+      {"id": "N0", "label": "n0", "shape": "lean-l", "x": 301.77, "y": 62.9375, "width": 76.77, "height": 36.900000000000006},
+      {"id": "N1", "label": "n1", "shape": "circle", "x": 180.76999999999998, "y": 91.60999999999999, "width": 73, "height": 73},
+      {"id": "N2", "label": "n2", "shape": "diamond", "x": 52.000000000000014, "y": 47.34, "width": 80.77, "height": 80.77},
+    ]
+    const originalsRoutes = [
+      {"points": [[307.52774999999997, 81.3875], [265.77, 81.3875], [265.77, 106.21], [246.47, 106.21]]},
+      {"points": [[426.53999999999996, 115.0375], [390.53999999999996, 115.0375], [390.53999999999996, 81.3875], [372.78225, 81.3875]]},
+      {"points": [[180.76999999999998, 128.10999999999999], [92.38500000000002, 128.10999999999999]]},
+      {"points": [[310.40662499999996, 90.61250000000001], [277.77, 90.61250000000001], [277.77, 120.80999999999999], [253.0325502446344, 120.80999999999999]]},
+      {"points": [[426.53999999999996, 127.33749999999999], [335.29999999999995, 127.33749999999999], [335.29999999999995, 138.8375], [265.77, 138.8375], [265.77, 135.40999999999997], [253.0325502446344, 135.40999999999997]], "labelPosition": [312.53499999999997, 137.9875]},
+      {"points": [[304.648875, 72.1625], [214.29999999999995, 72.1625], [214.29999999999995, 51], [144.76999999999998, 51], [144.76999999999998, 74.26333333333334], [119.30833333333335, 74.26333333333334]], "labelPosition": [191.53499999999997, 50.15]},
+      {"points": [[52.000000000000014, 87.725], [40.000000000000014, 87.725], [40.000000000000014, 172.3], [265.77, 172.3], [265.77, 150.01], [246.46999999999997, 150.01]]},
+    ]
+    const nodes = originals.map(node=>({...node, x:flipX?-node.x-node.width:node.x, y:flipY?-node.y-node.height:node.y,
+      shape:node.shape==='lean-l'&&flipX!==flipY?'lean-r' as const:node.shape}))
+    const reflect = (p: readonly number[]) => ({x:flipX?-p[0]!:p[0]!,y:flipY?-p[1]!:p[1]!})
+    const edges: PositionedEdge[] = graph.edges.map((edge,edgeIndex)=>({...edge,edgeIndex,points:originalsRoutes[edgeIndex]!.points.map(reflect),
+      ...('labelPosition' in originalsRoutes[edgeIndex]! ? {labelPosition:reflect(originalsRoutes[edgeIndex]!.labelPosition!)} : {})}))
+    const before = edges.map(edge=>edge.points)
+    const beforeLabels = edges.map(edge=>edge.labelPosition && {...edge.labelPosition})
+    const beforeCrossings = rubric.countEdgeCrossings(edges)
+    applyParallelDuplicateLanes(nodes,edges,[],graph,new Set(),resolveRenderStyle())
+    const first=edges[0]!,second=edges[3]!
+    expect(Math.hypot(first.points[0]!.x-second.points[0]!.x,first.points[0]!.y-second.points[0]!.y)).toBeGreaterThanOrEqual(11)
+    expect(Math.hypot(first.points.at(-1)!.x-second.points.at(-1)!.x,first.points.at(-1)!.y-second.points.at(-1)!.y)).toBeGreaterThanOrEqual(11)
+    for(let i=0;i<edges.length;i++) if(i!==0&&i!==3) expect(edges[i]!.points).toBe(before[i]!)
+    expect(edges.map(edge=>edge.labelPosition)).toEqual(beforeLabels)
+    expect(rubric.countEdgeCrossings(edges)).toBeLessThanOrEqual(beforeCrossings)
+    // Default literal width-one hidden arrow viewport: eight pixels behind
+    // its tip and five across. These all have horizontal terminal tangents.
+    const markers=edges.map(edge=>{
+      const tip=edge.points.at(-1)!,previous=edge.points.at(-2)!
+      expect(tip.y).toBe(previous.y)
+      const back=tip.x+(previous.x>tip.x?8:-8)
+      return {x0:Math.min(tip.x,back),x1:Math.max(tip.x,back),y0:tip.y-2.5,y1:tip.y+2.5}
+    })
+    for(const index of [0,3]) for(let peer=0;peer<markers.length;peer++) if(peer!==index){
+      const a=markers[index]!,b=markers[peer]!
+      expect(a.x0<b.x1&&b.x0<a.x1&&a.y0<b.y1&&b.y0<a.y1).toBe(false)
+    }
+    for(const edge of [first,second]) for(let i=1;i<edge.points.length;i++) expect(edge.points[i-1]!.x===edge.points[i]!.x||edge.points[i-1]!.y===edge.points[i]!.y).toBe(true)
+  })
+
+  test('three blocked marker domains retain every original route atomically', () => {
+    const graph=parseMermaid('flowchart TB\nA-->B\nA-->B\nP0-->|a|B\nP1-->|b|B\nP2-->|c|B')
+    const nodes:PositionedNode[]=[{id:'A',label:'A',shape:'rectangle',x:0,y:0,width:80,height:40},{id:'B',label:'B',shape:'rectangle',x:0,y:200,width:80,height:40},
+      ...[0,1,2].map(index=>({id:`P${index}`,label:'P',shape:'rectangle' as const,x:120+120*index,y:0,width:80,height:40}))]
+    const edges:PositionedEdge[]=graph.edges.map((edge,edgeIndex)=>({...edge,edgeIndex,points:edgeIndex<2?[{x:edgeIndex?60:20,y:40},{x:edgeIndex?60:20,y:200}]:
+      [{x:160+120*(edgeIndex-2),y:40},{x:160+120*(edgeIndex-2),y:190},{x:[49,7,73][edgeIndex-2]!,y:190},{x:[49,7,73][edgeIndex-2]!,y:200}]}))
+    const before=JSON.stringify(edges),refs=edges.map(edge=>edge.points)
+    applyParallelDuplicateLanes(nodes,edges,[],graph,new Set(),resolveRenderStyle())
+    expect(JSON.stringify(edges)).toBe(before)
+    for(let i=0;i<edges.length;i++)expect(edges[i]!.points).toBe(refs[i]!)
+  })
+
   test('one crossing may resolve one actual collapsed duplicate route, without losing either authored edge', () => {
     const graph = parseMermaid('flowchart LR\nN0-->N1\nN0-->N1\nN0-->N2')
     const positioned = layoutGraphSync(graph)
@@ -333,17 +504,25 @@ S1["same word ok"] --> D`],
     expect(countParallelRouteOverlaps(positioned.edges)).toBe(0)
   })
 
-  test('port-lane centering retains prior geometry when it would lose contacts without simpler routes', () => {
+  test('port-lane centering preserves contacts and route simplicity across placement proposals', () => {
     const pass = LAYOUT_PIPELINE.find(candidate => candidate.id === 'alignPortLanes')!, run = pass.run
-    const rates: number[] = []
+    const samples: Array<{ before: ReturnType<typeof measureRubricMetrics>; after: ReturnType<typeof measureRubricMetrics> }> = []
     pass.run = context => {
-      run(context)
-      rates.push(measureRubricMetrics(context.graph, { nodes: context.nodes, edges: context.edges, groups: context.groups, width: 0, height: 0 }, ['portRate'], context.style).portRate!)
+      const metrics = () => measureRubricMetrics(context.graph, { nodes: context.nodes, edges: context.edges, groups: context.groups, width: 0, height: 0 }, ['portRate', 'bends', 'straight'], context.style, context.bundled)
+      const before = metrics(), rollback = run(context)
+      samples.push({ before, after: metrics() })
+      return rollback
     }
     try {
       const positioned = layoutGraphSync(parseMermaid('flowchart LR\nN2-->N3\nN1-->N2\nN0-->N3\nN0-->N2'))
       expect(positioned.certification?.status).toBe('passed')
-      expect(rates).toEqual([0.25])
+      expect(samples.length).toBeGreaterThan(0)
+      for (const { before, after } of samples) {
+        expect(after.portRate!).toBeGreaterThanOrEqual(before.portRate!)
+        expect(after.portRate!).toBeGreaterThanOrEqual(0.25)
+        expect(after.bends!).toBeLessThanOrEqual(before.bends!)
+        expect(after.straight!).toBeGreaterThanOrEqual(before.straight!)
+      }
     } finally { pass.run = run }
   })
 

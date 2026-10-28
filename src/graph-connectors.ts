@@ -2,8 +2,7 @@ import type { EdgeMarker, Point, PositionedEdge } from './types.ts'
 import { ARROW_HEAD } from './styles.ts'
 import type { MarkerDescriptor } from './scene/ir.ts'
 import { tipAnchoredArrow } from './scene/marker-resources.ts'
-import { projectConnectorPath, projectRoundedConnectorPath, type ConnectorPathProjection, type ConnectorPathProjectionSegment } from './scene/connector-geometry.ts'
-import { connector } from './scene/marks.ts'
+import { connectorContourSemantics, projectConnectorPath, projectRoundedConnectorPath, type ConnectorPathProjection, type ConnectorPathProjectionSegment } from './scene/connector-geometry.ts'
 import { connectorMarkerPaintRegions, type ConnectorMarkerPaintRegion } from './scene/bounds.ts'
 import { canonicalTextDigest } from './render-contract.ts'
 
@@ -51,12 +50,15 @@ function crossMarkerResources(color?: string, fixed = false): readonly MarkerDes
   const suffix = `${color ? `-${markerSuffix(color)}` : ''}${fixed ? '-fixed' : ''}`
   const stroke = color ?? 'var(--_arrow)'
   const pad = 1.25
+  const strokeWidth = 1.25
   const a = pad
   const b = size - pad
-  const common = { shape: 'cross' as const, size: { width: size, height: size }, ...(fixed ? { units: 'userSpaceOnUse' as const } : {}), orient: 'auto' as const, geometry: { kind: 'compound' as const, children: [{ kind: 'line' as const, x1: a, y1: a, x2: b, y2: b }, { kind: 'line' as const, x1: a, y1: b, x2: b, y2: a }] }, paint: { stroke, strokeWidth: '1.25', strokeLinecap: 'round' as const } }
+  const common = { shape: 'cross' as const, size: { width: size, height: size }, ...(fixed ? { units: 'userSpaceOnUse' as const } : {}), orient: 'auto' as const, geometry: { kind: 'compound' as const, children: [{ kind: 'line' as const, x1: a, y1: a, x2: b, y2: b }, { kind: 'line' as const, x1: a, y1: b, x2: b, y2: a }] }, paint: { stroke, strokeWidth: String(strokeWidth), strokeLinecap: 'round' as const } }
+  // Attach the complete round-cap envelope, rather than its line centre.
+  // Marker units scale the cap and reference together for every edge width.
   return [
-    { ...common, id: `crosshead${suffix}`, ref: { x: b, y: size / 2 } },
-    { ...common, id: `crosshead-start${suffix}`, ref: { x: pad, y: size / 2 } },
+    { ...common, id: `crosshead${suffix}`, ref: { x: b + strokeWidth / 2, y: size / 2 } },
+    { ...common, id: `crosshead-start${suffix}`, ref: { x: a - strokeWidth / 2, y: size / 2 } },
   ]
 }
 
@@ -122,7 +124,7 @@ function pointsToCurveProjection(points: Point[]): ConnectorPathProjection {
 /** The same typed path drives marker tangents during placement and lowering. */
 export function graphEdgePathProjection(edge: PositionedEdge, style: { edgeBendRadius?: number }): ConnectorPathProjection | undefined {
   return edge.curve ? pointsToCurveProjection(edge.points)
-    : (style.edgeBendRadius ?? 0) > 0 ? projectRoundedConnectorPath(edge.points, style.edgeBendRadius!, { precision: 3 }) : undefined
+    : (style.edgeBendRadius ?? 0) > 0 ? projectRoundedConnectorPath(edge.points, style.edgeBendRadius!) : undefined
 }
 
 /** Reserve painted endpoint resources before opaque labels are moved. These
@@ -136,11 +138,13 @@ export function graphEdgeMarkerPaintRegions(edge: PositionedEdge, style: { lineW
   const start = edge.hasArrowStart ? resources.find(marker => marker.id === `${markerIdPrefix(edge.startMarker ?? 'arrow')}-start${suffix}`) : undefined
   const end = edge.hasArrowEnd ? resources.find(marker => marker.id === `${markerIdPrefix(edge.endMarker ?? 'arrow')}${suffix}`) : undefined
   const projection = graphEdgePathProjection(edge, style)
-  const node = connector({
-    id: edge.id ?? `${edge.source}->${edge.target}`, role: 'edge', lineStyle: edge.style,
-    geometry: projection?.geometry ?? { kind: 'polyline', points: edge.points },
-    paint: { stroke: color ?? 'var(--_line)', strokeWidth: edge.inlineStyle?.['stroke-width'] ?? String((style.lineWidth ?? 1) * (edge.style === 'thick' ? 2 : 1)) },
-    markers: { start, end }, ...(projection ? { route: { contours: projection.contours } } : {}),
+  const geometry = projection?.geometry ?? { kind: 'polyline' as const, points: edge.points }
+  // This query owns only marker paint. Use the same resources, path and
+  // contour authority as lowering, without admitting a discarded Scene mark
+  // (identity, hit geometry, terminal projection and immutable snapshots).
+  return connectorMarkerPaintRegions({
+    route: { geometry, closed: false, contours: projection?.contours ?? connectorContourSemantics(geometry, false) },
+    stroke: { width: edge.inlineStyle?.['stroke-width'] ?? String((style.lineWidth ?? 1) * (edge.style === 'thick' ? 2 : 1)) },
+    markers: { start, mid: [], end },
   })
-  return connectorMarkerPaintRegions(node)
 }

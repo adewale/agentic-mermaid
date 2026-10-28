@@ -17,8 +17,11 @@
  *   - editor/html/ – HTML partials (topbar, left-panel, right-panel)
  */
 
+import { runtimeRenderContractPlugin } from '../build/runtime-render-contract.ts'
+import { minifyBrowserRuntime } from '../build/runtime-minify.ts'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { gzipSync } from 'node:zlib'
 import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
 import { HOSTED_FONT_RESOURCES, hostedFontFaceCss } from '../../src/font-manifest.ts'
 import { knownStyleDescriptors } from '../../src/scene/style-registry.ts'
@@ -86,7 +89,8 @@ async function readJsFiles(): Promise<string> {
     minify: true,
   })
   if (!result.success) throw new AggregateError(result.logs, 'Editor application bundle failed')
-  return [editorExamplesDataJs(), editorFamilyDataJs(), editorFontDataJs(), await result.outputs[0]!.text()].join('\n')
+  const app = await minifyBrowserRuntime(await result.outputs[0]!.text())
+  return [editorExamplesDataJs(), editorFamilyDataJs(), editorFontDataJs(), app].join('\n')
 }
 
 function escapeHtmlAttr(value: string): string {
@@ -141,7 +145,17 @@ async function readHtmlPartials(
   leftPanel: string
   rightPanel: string
 }> {
-  const [topbar, leftPanel, rightPanel] = await Promise.all([readFile('html/topbar.html'), readFile('html/left-panel.html'), readFile('html/right-panel.html')])
+  // Compact static markup before inserting catalogs or runtime code. Preserve
+  // preformatted and raw-text elements, including any literal comment text.
+  const readPartial = async (path: string): Promise<string> => (await readFile(path)).replace(
+    /<(pre|textarea|script|style)\b[^>]*>[\s\S]*?<\/\1\s*>|<!--[\s\S]*?-->|^[\t ]+(?=<)/gim,
+    (markup, rawTag) => rawTag ? markup : '',
+  )
+  const [topbar, leftPanel, rightPanel] = await Promise.all([
+    readPartial('html/topbar.html'),
+    readPartial('html/left-panel.html'),
+    readPartial('html/right-panel.html'),
+  ])
   return {
     topbar: topbar.replace('{{THEME_ITEMS}}', themeItems).replace('{{STYLE_ITEMS}}', styleItemsHtml()).replace('{{PNG_DEFAULT_SCALE}}', String(PNG_DEFAULT_SCALE)).replace('{{PNG_SCALE_ITEMS}}', pngScaleItemsHtml()),
     leftPanel,
@@ -151,9 +165,24 @@ async function readHtmlPartials(
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
+function sourceOnlyFamilyRegistry(): ReturnType<typeof runtimeRenderContractPlugin> {
+  return {
+    name: 'source-only-editor-family-registry',
+    setup(build) {
+      // Closed editor workers accept source/options/output operations. Their
+      // loaders install source hooks through the ordinary validated registry.
+      build.onResolve({ filter: /(?:^|\/)families\.ts$/ }, args => {
+        const original = fileURLToPath(new URL('../../src/agent/families.ts', import.meta.url))
+        return join(args.resolveDir, args.path) === original ? { path: fileURLToPath(new URL('../../src/agent/family-registry.ts', import.meta.url)) } : undefined
+      })
+    },
+  }
+}
+
 async function generateEditorHtml(): Promise<string> {
   const fontPrefix = process.env.AM_EDITOR_FONT_PREFIX || 'assets/fonts/'
   const runtimeDirectory = process.env.AM_EDITOR_RUNTIME_DIR
+  const metafilePath = runtimeDirectory ? undefined : process.env.AM_EDITOR_BUILD_METAFILE
   let workerUrl: string | undefined
   if (runtimeDirectory) {
     const workerBuild = await Bun.build({
@@ -165,14 +194,17 @@ async function generateEditorHtml(): Promise<string> {
       outdir: runtimeDirectory,
       naming: { entry: '[name]-[hash].js', chunk: 'chunk-[hash].js' },
       plugins: [
+        // This worker accepts render/verify/terminal requests only. The
+        // main-thread adapter owns option inspection and validation.
+        runtimeRenderContractPlugin({ schemaDocumentation: false, conformanceObservations: false, sourceOnlySceneAdmission: true }),
+        sourceOnlyFamilyRegistry(),
         {
           name: 'hosted-worker-dependencies',
           setup(build) {
-            build.onResolve({ filter: /(?:^|\/)families\.ts$/ }, args => {
-              const original = fileURLToPath(new URL('../../src/agent/families.ts', import.meta.url))
-              return join(args.resolveDir, args.path) === original ? { path: fileURLToPath(new URL('../../src/agent/family-registry.ts', import.meta.url)) } : undefined
-            })
             build.onResolve({ filter: /(?:^|\/)elk-constructor\.ts$/ }, () => ({ path: fileURLToPath(new URL('../../src/elk-constructor.lazy.ts', import.meta.url)) }))
+          build.onResolve({ filter: /(?:^|\/)indexed-forest\.ts$/ }, () => ({ path: fileURLToPath(new URL('../../src/experimental/indexed-forest.lazy.ts', import.meta.url)) }))
+          build.onResolve({ filter: /(?:^|\/)agentic-layered\.ts$/ }, args => args.kind === 'dynamic-import' ? undefined
+            : { path: fileURLToPath(new URL('../../src/layout/agentic-layered.lazy.ts', import.meta.url)) })
           },
         },
       ],
@@ -181,45 +213,57 @@ async function generateEditorHtml(): Promise<string> {
     if (!workerBuild.success || !workerEntry) throw new AggregateError(workerBuild.logs, 'Preview worker build failed')
     workerUrl = `/editor/runtime/${basename(workerEntry.path)}`
   }
-  const buildResult = await Bun.build({
-    entrypoints: [fileURLToPath(new URL(runtimeDirectory ? '../../src/browser-hosted.ts' : '../../src/browser-standalone.ts', import.meta.url))],
-    target: 'browser',
-    format: 'esm',
-    minify: true,
-    ...(runtimeDirectory
-      ? {
-          define: { AM_PREVIEW_WORKER_URL: JSON.stringify(workerUrl) },
-          splitting: true,
-          outdir: runtimeDirectory,
-          naming: { entry: '[name]-[hash].js', chunk: 'chunk-[hash].js' },
-        }
-      : {
-          plugins: [
-            {
-              name: 'standalone-worker-families',
-              setup(build) {
-                build.onResolve({ filter: /(?:^|\/)verified-loaders\.ts$/ }, args => {
-                  const original = fileURLToPath(new URL('../../src/browser-lazy/generated/verified-loaders.ts', import.meta.url))
-                  return join(args.resolveDir, args.path) === original ? { path: fileURLToPath(new URL('../../src/browser-preview-eager-families.ts', import.meta.url)) } : undefined
-                })
-              },
-            },
-          ],
-        }),
-  })
-  if (!buildResult.success) {
-    console.error('Bundle failed:', buildResult.logs)
-    process.exit(1)
-  }
-  let bundleJs: string
+  // Both delivery modes use the same source-only family registry and admission
+  // projections. The private worker still offers preview, terminal and PNG;
+  // the public Node/Scene/IIFE entries keep their complete contracts.
+  const runtimePlugins: Array<ReturnType<typeof runtimeRenderContractPlugin>> = [
+    runtimeRenderContractPlugin({ schemaDocumentation: false, conformanceObservations: false, familyEditorMetadata: Boolean(runtimeDirectory), sourceOnlySceneAdmission: true }),
+    sourceOnlyFamilyRegistry(),
+    ...(!runtimeDirectory ? [{
+      name: 'standalone-worker-families',
+      setup(build: Parameters<ReturnType<typeof runtimeRenderContractPlugin>['setup']>[0]) {
+        build.onResolve({ filter: /(?:^|\/)verified-loaders\.ts$/ }, args => {
+          const original = fileURLToPath(new URL('../../src/browser-lazy/generated/verified-loaders.ts', import.meta.url))
+          return join(args.resolveDir, args.path) === original ? { path: fileURLToPath(new URL('../../src/browser-preview-eager-families.ts', import.meta.url)) } : undefined
+        })
+      },
+    }] : []),
+  ]
+  let bundleJs: string, sourceRuntimeBytes: number | undefined
+  let runtimeMetafile: unknown
   if (runtimeDirectory) {
+    const buildResult = await Bun.build({
+      entrypoints: [fileURLToPath(new URL('../../src/browser-hosted.ts', import.meta.url))],
+      plugins: runtimePlugins,
+      target: 'browser', format: 'esm', minify: true,
+      define: { AM_PREVIEW_WORKER_URL: JSON.stringify(workerUrl) },
+      splitting: true, outdir: runtimeDirectory,
+      naming: { entry: '[name]-[hash].js', chunk: 'chunk-[hash].js' },
+    })
+    if (!buildResult.success) throw new AggregateError(buildResult.logs, 'Hosted editor runtime build failed')
     // Bun materializes outputs when outdir is set. Writing a file-backed
     // BuildArtifact onto its own path would truncate the emitted module.
     const entry = buildResult.outputs.find(output => output.kind === 'entry-point')
     if (!entry) throw new Error('Hosted editor runtime entry not found')
     bundleJs = `import ${JSON.stringify(`/editor/runtime/${basename(entry.path)}`)};`
   } else {
-    bundleJs = await buildResult.outputs[0]!.text()
+    const buildResult = await Bun.build({
+      entrypoints: [fileURLToPath(new URL('../../src/browser-standalone.ts', import.meta.url))],
+      plugins: runtimePlugins,
+      target: 'browser', format: 'esm', minify: true,
+      metafile: Boolean(metafilePath),
+    })
+    if (!buildResult.success) throw new AggregateError(buildResult.logs, 'Standalone editor runtime build failed')
+    // Compress the complete inline module after omitting unpublished
+    // conformance observations and unused schema prose. Retain validation,
+    // both solvers and the terminal adapter; keep legal comments and escape
+    // script delimiters.
+    const source = await buildResult.outputs[0]?.text()
+    if (!source) throw new Error('Standalone editor runtime build produced no module')
+    runtimeMetafile = buildResult.metafile
+    sourceRuntimeBytes = new TextEncoder().encode(source).byteLength
+    bundleJs = await minifyBrowserRuntime(source)
+    if (!bundleJs) throw new Error('Standalone runtime compression produced no module')
   }
   console.log(`Browser bundle: ${(bundleJs.length / 1024).toFixed(1)} KB`)
 
@@ -228,7 +272,7 @@ async function generateEditorHtml(): Promise<string> {
   const [css, appJs, html] = await Promise.all([readCssFiles(fontPrefix, Boolean(runtimeDirectory)), readJsFiles(), readHtmlPartials(themeItems, Boolean(runtimeDirectory))])
 
   // The standalone runtime is also the worker source; keep app DOM code separate.
-  return `<!DOCTYPE html>
+  const document = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -281,6 +325,23 @@ ${appJs}
 </script>
 </body>
 </html>`
+  if (metafilePath) {
+    const htmlBytes = new TextEncoder().encode(document)
+    await Bun.write(metafilePath, JSON.stringify({
+      schemaVersion: 1,
+      runtime: `Bun ${Bun.version}`,
+      bundler: `Bun ${Bun.version}`,
+      scope: 'Standalone editor; module contributions describe the Bun bundle before SWC compression. No bundled source is included.',
+      sourceRuntimeBytes,
+      compressedRuntimeBytes: new TextEncoder().encode(bundleJs).byteLength,
+      htmlBytes: htmlBytes.byteLength,
+      htmlGzipBytes: gzipSync(htmlBytes, { level: 9 }).byteLength,
+      appScriptBytes: new TextEncoder().encode(appJs).byteLength,
+      styleBytes: new TextEncoder().encode(css).byteLength,
+      metafile: runtimeMetafile,
+    }))
+  }
+  return document
 }
 
 const result = await generateEditorHtml()

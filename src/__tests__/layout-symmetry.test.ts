@@ -8,6 +8,7 @@ import { measureMultilineText } from '../text-metrics.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
 import { equalizePeerNodeDimensions } from '../layout/passes/peers.ts'
+import { alignPortLaneCandidate } from '../layout/passes/port-lanes.ts'
 
 const C_FIVE_WAY_FAN_IN = `flowchart TD
   Web[Web App] --> Gateway
@@ -193,6 +194,44 @@ function equalSize(nodes: PositionedNode[]): void {
 }
 
 describe('layout symmetry floor', () => {
+  test.each(['TD', 'BT', 'LR', 'RL'] as const)('%s hub centering keeps a fixed straight feeder rather than creating a diagonal', direction => {
+    const project = ({x,y}:Point):Point => direction==='TD'?{x,y}:direction==='BT'?{x,y:300-y}:direction==='LR'?{x:y,y:x}:{x:300-y,y:x}
+    const box = (id:string,x:number,y:number,width:number,height:number,shape:PositionedNode['shape']='rectangle'):PositionedNode => {
+      const a=project({x,y}),b=project({x:x+width,y:y+height})
+      return {id,label:id,shape,x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),width:Math.abs(b.x-a.x),height:Math.abs(b.y-a.y)}
+    }
+    const originalNodes=[box('A',0,0,40,30),box('B',100,0,40,30),box('C',204,0,40,30),box('H',110,120,20,20,'circle'),box('D',100,200,40,30)]
+    const edge=(source:string,target:string,points:number[][]):PositionedEdge=>({source,target,style:'solid',hasArrowStart:false,hasArrowEnd:true,points:points.map(([x,y])=>project({x:x!,y:y!}))})
+    const originalEdges=[edge('A','H',[[20,30],[20,80],[113,80],[113,120]]),edge('B','H',[[120,30],[120,120]]),edge('C','H',[[224,30],[224,80],[127,80],[127,120]]),edge('H','D',[[120,140],[120,200]])]
+    for(const mode of ['valid','served-ulp','off-center','allocated','diagonal'] as const){
+      const nodes=structuredClone(originalNodes),edges=structuredClone(originalEdges)
+      if(mode==='diagonal')edges[1]!.points[1]=project({x:119,y:120})
+      if(mode==='served-ulp')edges[1]!.points[0]=project({x:120.00000000000001,y:30})
+      if(mode==='off-center'){
+        nodes.find(n=>n.id==='H')!.shape='rectangle'
+        edges[1]!.points=[project({x:119.5,y:30}),project({x:119.5,y:120})]
+      }
+      if(mode==='allocated'){
+        nodes[1]=box('B',102,0,40,30)
+        nodes.find(n=>n.id==='H')!.shape='rectangle'
+        // The fixed S/N/E/W face is valid at x120 but its midpoint is x122.
+        // This existing side allocation cannot be replaced by default ports.
+        edges[1]!.routeCertificate={edgeIndex:1,routeClass:'primary-forward',bendCount:0,invariant:'straight',sourcePortAssignment:{side:direction==='TD'?'S':direction==='BT'?'N':direction==='LR'?'E':'W',slotIndex:0,slotCount:1,role:'flow-source'}}
+        // A separate fixed backward lane prevents a different source slide
+        // from obscuring the hub-allocation obligation under test.
+        nodes.push(box('E',102,-70,40,30));edges.push(edge('B','E',[[122,0],[122,-40]]))
+        expect(onShapeOutline(nodes[1]!,edges[1]!.points[0]!)).toBe(true)
+      }
+      const beforeNodes=structuredClone(nodes),beforeEdges=structuredClone(edges)
+      alignPortLaneCandidate(nodes,edges,[],direction,resolveRenderStyle())
+      // Already-diagonal input retains the established repair path.
+      if(mode==='diagonal')expect(nodes.find(n=>n.id==='H')).not.toEqual(beforeNodes.find(n=>n.id==='H'))
+      else{
+        expect(nodes,mode).toEqual(beforeNodes);expect(edges,mode).toEqual(beforeEdges)
+        if(mode!=='served-ulp')for(const e of edges)for(let i=1;i<e.points.length;i++)expect(e.points[i-1]!.x===e.points[i]!.x||e.points[i-1]!.y===e.points[i]!.y).toBe(true)
+      }
+    }
+  })
   for (const count of PEER_COUNTS) {
     test(`${count}-way rectangle fan-out centers the hub over its peer barycenter`, () => {
       const g = layout(peerFanOut(count))

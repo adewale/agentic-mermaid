@@ -164,19 +164,28 @@ describe('class namespaces — compound layout invariants', () => {
     expect(positioned.relationships[0]!.points).not.toEqual(positioned.relationships[1]!.points)
   })
 
-  it('places freestanding notes when there are no classes or namespaces', () => {
+  it.each([undefined, 'elk', 'agentic'] as const)('places freestanding notes when there are no classes or namespaces (backend=%s)', backend => {
     const source = 'classDiagram\nnote "First freestanding note"\nnote "Second freestanding note"'
-    const positioned = layoutClassDiagram(parse(source))
+    const options = backend ? { graphLayout: { backend, fallback: 'none' as const } } : {}
+    const positioned = layoutClassDiagram(parse(source), options)
     expect(positioned.classes).toEqual([])
     expect(positioned.namespaces).toEqual([])
     expect(positioned.notes.map(note => note.text)).toEqual(['First freestanding note', 'Second freestanding note'])
     const [first, second] = positioned.notes
     expect(second!.y).toBeGreaterThanOrEqual(first!.y + first!.height)
-    expect(positioned.height).toBeGreaterThanOrEqual(second!.y + second!.height)
+    for (const note of positioned.notes) {
+      expect([note.x, note.y, note.width, note.height].every(Number.isFinite)).toBe(true)
+      expect(note.width).toBeGreaterThan(0)
+      expect(note.height).toBeGreaterThan(0)
+      expect(note.x).toBeGreaterThanOrEqual(0)
+      expect(note.y).toBeGreaterThanOrEqual(0)
+      expect(note.x + note.width).toBeLessThanOrEqual(positioned.width)
+      expect(note.y + note.height).toBeLessThanOrEqual(positioned.height)
+    }
     const parsed = parseMermaid(source)
     if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
-    const svg = renderParsedSVG(parsed.value)
-    expect(svg).toBe(renderMermaidSVG(source))
+    const svg = renderParsedSVG(parsed.value, options)
+    expect(svg).toBe(renderMermaidSVG(source, options))
     for (const note of positioned.notes) expect(svg).toContain(`>${note.text}</text>`)
   })
 

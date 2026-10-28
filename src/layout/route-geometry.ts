@@ -1,7 +1,28 @@
-import type { AnyPort, DiamondFacet, Direction, MermaidGraph, Point, PortSemanticRole, PortSide, PositionedEdge, PositionedNode, RouteClass, RoutePortAssignment } from '../types.ts'
+import { type NodeLaneIndex } from '../shared/node-lane-index.ts'
+import { customTextMeasurementActive } from '../text-measurement-profile.ts'
+import { type RouteChannelGeometry } from '../shared/route-channel-geometry.ts'
+import type { AnyPort, DiamondFacet, Direction, MermaidGraph, MermaidSubgraph, Point, PortSemanticRole, PortSide, PositionedEdge, PositionedGroup, PositionedNode, RouteClass, RoutePortAssignment } from '../types.ts'
 import { isOutwardShapeApproach } from '../shape-clipping.ts'
 import { pointOnShapeSide, shapeCardinalPorts, shapeRoutingProfile } from '../shape-outline.ts'
 import { renderedEndpointContact } from '../rendered-endpoint-diagnostics.ts'
+import { labelRect } from '../shared/edge-label-geometry.ts'
+
+// Quality exploration is deterministic and bounded independently of machine
+// speed. Larger graphs keep the existing first-certified fallback behavior.
+export const MAX_PREFERENCE_NODES = 64
+export const MAX_PREFERENCE_EDGES = 128
+
+export function withinLayoutPreferenceBudget(graph: MermaidGraph): boolean {
+  let nodes = graph.nodes.size
+  const count = (groups: readonly MermaidSubgraph[]): void => {
+    for (const group of groups) {
+      nodes++
+      count(group.children)
+    }
+  }
+  count(graph.subgraphs)
+  return nodes <= MAX_PREFERENCE_NODES && graph.edges.length <= MAX_PREFERENCE_EDGES
+}
 
 /** Two coordinates within this distance are the same point. */
 export const EPS = 0.01
@@ -94,9 +115,9 @@ export function diamondFacetPorts(node: PositionedNode): Record<DiamondFacet, Po
 export function portAt(node: PositionedNode, pt: Point): AnyPort | undefined {
   const profile = shapeRoutingProfile(node)
   if (profile.boundary.kind === 'envelope' || profile.boundary.kind === 'none') return undefined
-  const ports = shapePorts(node)
   for (const side of ['N', 'E', 'S', 'W'] as const) {
-    if (Math.abs(ports[side].x - pt.x) <= PORT_TOLERANCE && Math.abs(ports[side].y - pt.y) <= PORT_TOLERANCE) return side
+    const preferred = profile.sides[side].preferred
+    if (Math.abs(preferred.x - pt.x) <= PORT_TOLERANCE && Math.abs(preferred.y - pt.y) <= PORT_TOLERANCE) return side
   }
   if (hasFacetAttachments(node)) {
     const facets = diamondFacetPorts(node)
@@ -239,16 +260,8 @@ export interface Axis {
 }
 
 export function axisFor(direction: Direction): Axis {
-  switch (direction) {
-    case 'LR':
-      return { main: 'x', cross: 'y', sign: 1 }
-    case 'RL':
-      return { main: 'x', cross: 'y', sign: -1 }
-    case 'BT':
-      return { main: 'y', cross: 'x', sign: -1 }
-    default:
-      return { main: 'y', cross: 'x', sign: 1 } // TD / TB
-  }
+  const horizontal = direction === 'LR' || direction === 'RL'
+  return { main: horizontal ? 'x' : 'y', cross: horizontal ? 'y' : 'x', sign: direction === 'RL' || direction === 'BT' ? -1 : 1 }
 }
 
 function orthogonalTurn(a: Point, b: Point, c: Point): boolean {
@@ -393,6 +406,8 @@ export function anchorMain(node: PositionedNode, c: number, axis: Axis, facing: 
 // ============================================================================
 
 export interface LaneContext {
+  /** Caller-owned live frames; every lane proof reads current nested headers. */
+  groups?: readonly PositionedGroup[]
   nodes: PositionedNode[]
   edges: PositionedEdge[]
   axis: Axis
@@ -403,6 +418,12 @@ export interface LaneContext {
   sideUse?: Map<string, number>
   /** Final closure proves label slots against rendered 8px halos. */
   finalLabelClearance?: boolean
+  /** A direct producer already reserved label bodies during placement. */
+  fixedLabels?: boolean
+  /** Private frozen-geometry calls only. Exported placement contexts stay live. */
+  nodeLaneIndexes?: { x?: NodeLaneIndex | null; y?: NodeLaneIndex | null }
+  /** Owner invalidation follows every route write; labels remain live. */
+  routeChannelGeometry?: RouteChannelGeometry
 }
 
 /** The side of a node that faces along `axis` — facing=1 for the side an
@@ -442,57 +463,18 @@ export interface RoutePortAllocation {
   sideUse: Map<string, number>
 }
 
-export function facetSides(port: DiamondFacet): [PortSide, PortSide] {
-  switch (port) {
-    case 'NE':
-      return ['N', 'E']
-    case 'SE':
-      return ['S', 'E']
-    case 'SW':
-      return ['S', 'W']
-    case 'NW':
-      return ['N', 'W']
-  }
-}
+
 
 export function sideForPort(port: AnyPort | undefined, semanticSide: PortSide): PortSide {
   if (!port) return semanticSide
   if (port === 'N' || port === 'E' || port === 'S' || port === 'W') return port
-  const sides = facetSides(port)
-  return sides.includes(semanticSide) ? semanticSide : sides[0]
+  return port.includes(semanticSide) ? semanticSide : port[0] as PortSide
 }
 
 export function roleAndSide(routeClass: RouteClass, endpoint: 'source' | 'target', axis: Axis): { role: PortSemanticRole; side: PortSide } {
-  const source = endpoint === 'source'
-  switch (routeClass) {
-    case 'feedback': {
-      const flipped: Axis = { ...axis, sign: axis.sign === 1 ? -1 : 1 }
-      return {
-        role: source ? 'feedback-source' : 'feedback-target',
-        side: facingSide(flipped, source ? 1 : -1),
-      }
-    }
-    case 'self-loop':
-      return {
-        role: source ? 'self-loop-source' : 'self-loop-target',
-        side: facingSide(axis, source ? 1 : -1),
-      }
-    case 'container':
-      return {
-        role: source ? 'container-source' : 'container-target',
-        side: facingSide(axis, source ? 1 : -1),
-      }
-    case 'cross-hierarchy':
-      return {
-        role: source ? 'cross-hierarchy-source' : 'cross-hierarchy-target',
-        side: facingSide(axis, source ? 1 : -1),
-      }
-    default:
-      return {
-        role: source ? 'flow-source' : 'flow-target',
-        side: facingSide(axis, source ? 1 : -1),
-      }
-  }
+  const category = routeClass === 'feedback' || routeClass === 'self-loop' || routeClass === 'container' || routeClass === 'cross-hierarchy' ? routeClass : 'flow'
+  const facing = (endpoint === 'source') !== (routeClass === 'feedback') ? 1 : -1
+  return { role: `${category}-${endpoint}` as PortSemanticRole, side: facingSide(axis, facing) }
 }
 
 export function sideOrderCoordinate(side: PortSide, node: PositionedNode, point: Point | undefined): number {
@@ -507,9 +489,83 @@ export function sideOrderCoordinate(side: PortSide, node: PositionedNode, point:
  * the exact V1 port vocabulary; this side/slot/role layer is additive and can
  * be fed into pre-layout placement without reinterpreting those exact ports.
  */
-export function allocateRoutePorts(positioned: { nodes: PositionedNode[]; edges: PositionedEdge[] }, graph: MermaidGraph, classes: RouteClass[] = classifyRoutes(graph)): RoutePortAllocation {
+export function allocateRoutePorts(
+  positioned: { nodes: PositionedNode[]; edges: PositionedEdge[] },
+  graph: MermaidGraph,
+  classes: RouteClass[] = classifyRoutes(graph),
+): RoutePortAllocation {
+  return allocateRoutePortsImpl(positioned, graph, classes, true)
+}
+
+/** Build the proof context shared by route production and final hitch auditing.
+ * Bundle-owned routes do not compete for the independent flow-side slots used
+ * by the diamond vertex policy, so both callers must remove the same endpoints
+ * from the allocator's semantic-side occupancy. */
+export function buildRouteLaneContext(
+  positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups?: readonly PositionedGroup[] },
+  graph: MermaidGraph,
+  style: LabelMetricsStyle,
+  classes: RouteClass[],
+  isBundleOwned: (edge: PositionedEdge) => boolean,
+  finalLabelClearance = false,
+): { ctx: LaneContext; axis: Axis } {
   const axis = axisFor(graph.direction)
-  const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
+  const sideUse = allocateRoutePortsImpl(positioned, graph, classes, false).sideUse
+
+  for (const edge of positioned.edges) {
+    if (!isBundleOwned(edge) || edge.edgeIndex === undefined) continue
+    const routeClass = classes[edge.edgeIndex]
+    if (routeClass !== 'primary-forward' && !(routeClass === 'feedback' && !edge.label)) continue
+
+    for (const endpoint of ['source', 'target'] as const) {
+      const nodeId = endpoint === 'source' ? edge.source : edge.target
+      const { side } = roleAndSide(routeClass, endpoint, axis)
+      const key = `${nodeId}:${side}`
+      const remaining = (sideUse.get(key) ?? 0) - 1
+      if (remaining > 0) sideUse.set(key, remaining)
+      else sideUse.delete(key)
+    }
+  }
+
+  return {
+    axis,
+    ctx: { nodes: positioned.nodes, edges: positioned.edges, groups: positioned.groups, axis, style, classes, sideUse, finalLabelClearance,
+      nodeLaneIndexes: customTextMeasurementActive() ? undefined : {},
+      routeChannelGeometry: customTextMeasurementActive() ? undefined : new WeakMap() },
+  }
+}
+
+export function axisPoint(axis: Pick<Axis, 'main'>, main: number, cross: number): Point {
+  return axis.main === 'x' ? { x: main, y: cross } : { x: cross, y: main }
+}
+
+export function perpendicularAxis(axis: Axis, from: number, to: number): Axis {
+  return { main: axis.cross, cross: axis.main, sign: from < to ? 1 : -1 }
+}
+
+export function invalidateRouteGeometry(ctx: Pick<LaneContext, 'routeChannelGeometry'>, edge: PositionedEdge): void {
+  ctx.routeChannelGeometry?.delete(edge)
+}
+
+export function setRoutePoints(ctx: Pick<LaneContext, 'routeChannelGeometry'>, edge: PositionedEdge, points: Point[]): void {
+  invalidateRouteGeometry(ctx, edge)
+  edge.points = points
+}
+
+export function indexRouteNodes(nodes: readonly PositionedNode[]): Map<string, PositionedNode> {
+  const index = new Map<string, PositionedNode>()
+  nodes.forEach(node => index.set(node.id, node))
+  return index
+}
+
+function allocateRoutePortsImpl(
+  positioned: { nodes: PositionedNode[]; edges: PositionedEdge[] },
+  graph: MermaidGraph,
+  classes: RouteClass[],
+  fullPlan: boolean,
+): RoutePortAllocation {
+  const axis = axisFor(graph.direction)
+  const nodeMap = indexRouteNodes(positioned.nodes)
   const drafts: RoutePortEndpointDraft[] = []
   const sideUse = new Map<string, number>()
   const bumpSideUse = (nodeId: string, side: PortSide) => {
@@ -530,6 +586,10 @@ export function allocateRoutePorts(positioned: { nodes: PositionedNode[]; edges:
       const side = sideForPort(port, semanticSide)
       const competes = routeClass === 'primary-forward' || (routeClass === 'feedback' && !edge.label)
       if (competes) bumpSideUse(nodeId, semanticSide)
+      if (!fullPlan) {
+        sideOrderCoordinate(side, node, point)
+        continue
+      }
       drafts.push({
         edge,
         endpoint,
@@ -543,6 +603,8 @@ export function allocateRoutePorts(positioned: { nodes: PositionedNode[]; edges:
     }
   }
 
+  if (!fullPlan) return { byEdge: new Map(), sideUse }
+
   const groups = new Map<string, RoutePortEndpointDraft[]>()
   for (const draft of drafts) {
     const key = `${draft.nodeId}:${draft.side}`
@@ -551,9 +613,10 @@ export function allocateRoutePorts(positioned: { nodes: PositionedNode[]; edges:
   }
 
   const byEdge = new Map<PositionedEdge, { source?: RoutePortAssignment; target?: RoutePortAssignment }>()
-  const endpointRank = (endpoint: 'source' | 'target') => (endpoint === 'source' ? 0 : 1)
+  const endpointRank = (endpoint: 'source' | 'target') => endpoint === 'source' ? 0 : 1
   for (const group of groups.values()) {
-    group.sort((a, b) => a.coord - b.coord || a.edgeIndex - b.edgeIndex || endpointRank(a.endpoint) - endpointRank(b.endpoint))
+    group.sort((a, b) =>
+      a.coord - b.coord || a.edgeIndex - b.edgeIndex || endpointRank(a.endpoint) - endpointRank(b.endpoint))
     const slotCount = group.length
     group.forEach((draft, slotIndex) => {
       const assignment: RoutePortAssignment = {
@@ -572,31 +635,55 @@ export function allocateRoutePorts(positioned: { nodes: PositionedNode[]; edges:
   return { byEdge, sideUse }
 }
 
-/** Build the proof context shared by route production and final hitch auditing.
- * Bundle-owned routes do not compete for the independent flow-side slots used
- * by the diamond vertex policy, so both callers must remove the same endpoints
- * from the allocator's semantic-side occupancy. */
-export function buildRouteLaneContext(positioned: { nodes: PositionedNode[]; edges: PositionedEdge[] }, graph: MermaidGraph, style: LabelMetricsStyle, classes: RouteClass[], isBundleOwned: (edge: PositionedEdge) => boolean, finalLabelClearance = false): { ctx: LaneContext; axis: Axis } {
-  const axis = axisFor(graph.direction)
-  const sideUse = allocateRoutePorts(positioned, graph, classes).sideUse
-
-  for (const edge of positioned.edges) {
-    if (!isBundleOwned(edge) || edge.edgeIndex === undefined) continue
-    const routeClass = classes[edge.edgeIndex]
-    if (routeClass !== 'primary-forward' && !(routeClass === 'feedback' && !edge.label)) continue
-
-    for (const endpoint of ['source', 'target'] as const) {
-      const nodeId = endpoint === 'source' ? edge.source : edge.target
-      const { side } = roleAndSide(routeClass, endpoint, axis)
-      const key = `${nodeId}:${side}`
-      const remaining = (sideUse.get(key) ?? 0) - 1
-      if (remaining > 0) sideUse.set(key, remaining)
-      else sideUse.delete(key)
+/** Translate all positioned geometry together so the public canvas origin is non-negative. */
+export function translateGeometryToNonNegativeOrigin(nodes: PositionedNode[], edges: PositionedEdge[], groups: PositionedGroup[], padding: number, style?: LabelMetricsStyle): void {
+  let minX = 0
+  let minY = 0
+  const visitGroup = (group: PositionedGroup): void => {
+    minX = Math.min(minX, group.x)
+    minY = Math.min(minY, group.y)
+    for (const child of group.children) visitGroup(child)
+  }
+  for (const node of nodes) {
+    minX = Math.min(minX, node.x)
+    minY = Math.min(minY, node.y)
+  }
+  for (const group of groups) visitGroup(group)
+  for (const edge of edges) {
+    for (const point of edge.points) {
+      minX = Math.min(minX, point.x)
+      minY = Math.min(minY, point.y)
+    }
+    const pill = style && edge.labelBlock ? labelRect(edge, style) : null
+    if (pill) {
+      minX = Math.min(minX, pill.x)
+      minY = Math.min(minY, pill.y)
+    } else if (edge.labelPosition) {
+      minX = Math.min(minX, edge.labelPosition.x)
+      minY = Math.min(minY, edge.labelPosition.y)
     }
   }
-
-  return {
-    axis,
-    ctx: { nodes: positioned.nodes, edges: positioned.edges, axis, style, classes, sideUse, finalLabelClearance },
+  if (minX >= 0 && minY >= 0) return
+  const dx = minX < 0 ? -minX + padding : 0
+  const dy = minY < 0 ? -minY + padding : 0
+  const moveGroup = (group: PositionedGroup): void => {
+    group.x += dx
+    group.y += dy
+    for (const child of group.children) moveGroup(child)
+  }
+  for (const node of nodes) {
+    node.x += dx
+    node.y += dy
+  }
+  for (const group of groups) moveGroup(group)
+  for (const edge of edges) {
+    for (const point of edge.points) {
+      point.x += dx
+      point.y += dy
+    }
+    if (edge.labelPosition) {
+      edge.labelPosition.x += dx
+      edge.labelPosition.y += dy
+    }
   }
 }

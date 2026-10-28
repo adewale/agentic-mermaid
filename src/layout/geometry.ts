@@ -6,12 +6,13 @@
 // is what keeps the dependency one-directional (layout-engine -> passes -> geometry)
 // and free of import cycles.
 import type { Direction, MermaidSubgraph, Point, PositionedGroup, PositionedNode } from '../types.ts'
+import { DEFAULT_LAYER_SPACING } from './link-rank-gap.ts'
 
 export const DEFAULTS = {
   font: 'Inter',
   padding: 40,
   nodeSpacing: 28,
-  layerSpacing: 48,
+  layerSpacing: DEFAULT_LAYER_SPACING,
   mergeEdges: true,
   thoroughness: 3,
 } as const

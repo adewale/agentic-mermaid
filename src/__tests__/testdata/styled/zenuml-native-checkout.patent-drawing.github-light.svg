@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="612.08" height="593.85" viewBox="0 0 612.08 593.85" style="--bg:#ffffff;--fg:#1f2328;--line:#d1d9e0;--accent:#0969da;--muted:#59636e;--surface:#ffffff;--border:#111111;--font:EB Garamond;background:#ffffff" class="am-0x8e66e1o655yn">
+<svg xmlns="http://www.w3.org/2000/svg" width="612.08" height="593.85" viewBox="0 0 612.08 593.85" style="--bg:#ffffff;--fg:#1f2328;--line:#d1d9e0;--accent:#0969da;--muted:#59636e;--surface:#ffffff;--border:#111111;--font:EB Garamond;background:#ffffff" class="am-0s1b1ns1p1h0h8">
 <style>
-  svg.am-0x8e66e1o655yn { font-family: var(--font, 'EB Garamond'), system-ui, sans-serif; }
-  svg.am-0x8e66e1o655yn {
+  svg.am-0s1b1ns1p1h0h8 { font-family: var(--font, 'EB Garamond'), system-ui, sans-serif; }
+  svg.am-0s1b1ns1p1h0h8 {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #1f2328;
     --_text-sec:      #59636e;

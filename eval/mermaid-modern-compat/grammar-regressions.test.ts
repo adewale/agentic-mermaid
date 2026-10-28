@@ -61,16 +61,20 @@ test('grammar triage separates wrapper preservation and diagnosed source-only re
   for (const [family, source, disposition] of [
     ['timeline', '---\ng:\n:\n---\ntimeline\nC', 'reader-extension'],
     ['sequence', 'sequenceDiagram\ne->right of:', 'diagnosed-limitation'],
+    ['timeline', '---\nconfig:\n  theme: default\n  themeVariables:\n    cScale2: "#0000#name;ff"\n---\ntimeline\n2002 : LinkedIn', 'diagnosed-limitation'],
   ] as const) {
     await grammar.prepare(family, getFamily(family)!.example)
     const result = await triageGrammarWitness({ family, source }, (selected, text) => grammar.parse(selected, text))
     expect(result.defects).toEqual([])
     expect(result.disposition).toBe(disposition)
-    if (disposition === 'diagnosed-limitation') expect(result.warningCodes).toContain('UNSUPPORTED_SYNTAX')
+    if (result.exportRefusal) {
+      expect(result.exportRefusal).toContain('pinned configuration processing rejects')
+      expect(result.warningCodes).toContain('RENDER_FAILED')
+    } else if (disposition === 'diagnosed-limitation') expect(result.warningCodes).toContain('UNSUPPORTED_SYNTAX')
   }
 })
 
-test('native meaning comparison retains labels, effective Block shapes and actual public identities', () => {
+test('native meaning comparison retains authored values while resolving private representation and renderer context', () => {
   const observed = (family: string, source: string) => inspectAgenticGrammar(family, source).native.observation
   expect(nativeMeaningChanged('class', observed('class', 'classDiagram\nclass A["A"]'), observed('class', 'classDiagram\nclass A["B"]'))).toBe(true)
   const implicit = 'block\nblock%%:\nblock_generated_2\nend'
@@ -80,6 +84,23 @@ test('native meaning comparison retains labels, effective Block shapes and actua
   expect(nativeMeaningChanged('block', observed('block', implicit), observed('block', written))).toBe(false)
   expect(nativeMeaningChanged('block', observed('block', 'block\nA'), observed('block', 'block\nA(("A"))'))).toBe(true)
   expect(nativeMeaningChanged('block', observed('block', 'block\nblock_generated_2'), observed('block', 'block\nblock_generated_3'))).toBe(true)
+  for (const [family, source] of [
+    ['block', 'block\nspace:3 idb id'],
+    ['quadrant', 'quadrantChart\nM:[1,0]stroke-color:#fff,stroke-width:0'],
+    ['gantt', '---\nconfig:\n  gantt:\n    axisFormat: "%Y"\n---\ngantt\ndateFormat YYYY-MM-DD\nA :2026-01-01, 1d'],
+    ['sequence', 'sequenceDiagram\nparticipant A as Databa&#35;se\nA->>B: hello'],
+  ] as const) {
+    const parsed = am.parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error(`${family} control must parse`)
+    const written = am.serializeMermaid(parsed.value, { wrapper: 'canonical' })
+    expect(nativeMeaningChanged(family, observed(family, source), observed(family, written))).toBe(false)
+  }
+  expect(nativeMeaningChanged('block', observed('block', 'block\nspace:3 A'), observed('block', 'block\nspace:2 A'))).toBe(true)
+  expect(nativeMeaningChanged('quadrant', observed('quadrant', 'quadrantChart\nM:[1,0]stroke-width:1'), observed('quadrant', 'quadrantChart\nM:[1,0]stroke-width:2'))).toBe(true)
+  expect(nativeMeaningChanged('quadrant', observed('quadrant', 'quadrantChart\nx-axis "< Urgent"'), observed('quadrant', 'quadrantChart\nx-axis "<Urgent"'))).toBe(true)
+  expect(nativeMeaningChanged('kanban', observed('kanban', 'kanban\nroot[One]'), observed('kanban', 'kanban\nrenamed[One]'))).toBe(true)
+  expect(observed('sequence', 'sequenceDiagram\nparticipant A as Databa&#35;se').model).toMatchObject({ actors: [{ id: 'A', label: 'Databa#se' }] })
+  expect(observed('gantt', '---\nconfig:\n  gantt:\n    axisFormat: "%Y"\n---\ngantt\ndateFormat YYYY-MM-DD\nA :2026-01-01, 1d').model).toMatchObject({ axisFormat: '%Y' })
 })
 
 test('grammar triage agrees with public source rendering on typed/native admission', async () => {

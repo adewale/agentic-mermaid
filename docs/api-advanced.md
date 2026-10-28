@@ -97,7 +97,7 @@ rasterization.
 
 ### Trusted host-selected graphical backends
 
-Executable backends are bound by the host, never selected by `RenderOptions` or
+Executable Scene painting backends are bound by the host, never selected by `RenderOptions` or
 serialized Style data. These factories apply the same canonical request,
 Scene-admission, SVG-security, receipt, PNG-output-policy, and color-profile
 contracts as their default counterparts:

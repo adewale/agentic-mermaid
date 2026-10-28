@@ -1,36 +1,31 @@
-# Trident benchmarks
+# Shared Trident library
 
-Shared benchmark runners, community comparisons and retained-evidence tooling
-belong to [Trident](https://github.com/adewale/trident). Agentic keeps its product
-contracts and Mermaid compatibility policy.
+Agentic Mermaid owns its product benchmarks under `eval/benchmark`: family and
+operation witnesses, invocation/MCP/editor coverage, profiling, release and peer
+budgets, private corpus generation and the build/pack Davebench wrapper.
+See [questions, value and limitations](../benchmark/BENCHMARKS.md).
 
-The local launcher uses the Trident revision in `config.json`. Benchmark runs
-remain excluded from CI and the published library. The launcher supplies this
-checkout as the source target; Trident prepares its own source-adapter workspace
-from public tracked inputs. Benchmark records belong outside that disposable
-workspace so updating the harness cannot remove measurement evidence.
+Trident owns public-artifact comparisons, independent oracle and fidelity
+observers, portable workloads, statistics, resources and retained reports.
+Agentic receives the same catalog-release/candidate rules as every other project.
+
+`bun eval/trident/prepare.ts` fetches the exact Git revision in `config.json`,
+checks its identity and clean tracked files, installs locked dependencies, and
+links the library and its development tools into the benchmark package.
+Alternatively set `TRIDENT_ROOT` to an installed clean checkout of that exact pin.
+The links and cache are ignored. No product files are copied into Trident and no
+synthetic product workspace is assembled. Preparation/typechecking may run in CI;
+measurements remain local-only. Nothing here enters the published AM package.
 
 ```sh
 bun run bench --list --profile full
-bun run bench:families --profile smoke
-bun run bench:portable:build
+bun run bench:all --rounds 5 --out /evidence/agentic
+bun run bench:test
+bun run bench:typecheck
+bun run bench:community:update --projects adewale/agentic-mermaid --profile full --rounds 5 --out /evidence/public
 ```
 
-On first use the launcher fetches the exact public Git commit and installs its
-locked dependencies under ignored `bench-report/.trident/`. Alternatively,
-install that revision yourself and set `TRIDENT_ROOT=/path/to/trident`.
-A different revision is rejected before the tool runs. All other arguments and
-exit status pass through to Trident. Full source checks use `bench:test` and
-`bench:typecheck`; their test fixtures do not constitute benchmark measurements.
-
-The generated source workspace uses this checkout's tracked files and Trident's
-protocols. It records both original revisions and the combined driver revision.
-Do not put evidence inside that disposable workspace; default records live in
-this checkout's ignored `bench-report/` and explicit output paths remain external.
-Agentic keeps only its pinned launcher, product-specific fixtures and regression checks.
-Timing, peer discovery/catalogs, external editor comparison and evidence reporting
-belong to Trident. Inside its source workspace, `eval/benchmark` is Trident.
-Use `bun run bench --suites palette-performance`,
-`bun eval/trident/run.ts source bench:endpoint-marker BASE HEAD OUT`, and
-`bun eval/trident/run.ts source bench:modern-summary EVIDENCE_DIRECTORY`.
-Shared harness fixes belong in Trident.
+The source command bootstraps shared code before loading a runner. The canonical
+repository typecheck also prepares it so returned source runners remain checked.
+Public comparisons delegate through `eval/trident/run.ts`. Keep measured evidence
+in ignored `bench-report/` or an external directory; do not commit derived results.

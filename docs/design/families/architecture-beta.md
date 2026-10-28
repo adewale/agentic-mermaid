@@ -74,6 +74,21 @@ item 2, option (b)):
   no longer emits `architecture_align`; geometry tests pin shared centers and
   sibling non-overlap.
 
+Overlapping directives compose through complete fixed-axis components. Member
+order remains in the source model for round-tripping; alignment itself requests
+one shared center coordinate, not additional before/after constraints on the
+free axis. Whole-component gap repair keeps every member visible without
+breaking an intersecting row or column. Requests that force two distinct items
+to share both centers fail explicitly instead of silently losing an alignment.
+
+Backend selection includes the complete Architecture family geometry and its
+final alignment/header admission. Only an explicitly requested ELK fallback can
+replace a known Native candidate refusal; unexpected provider defects propagate.
+The terminal adapter preserves the same fixed-axis components within half a cell
+of integer-box parity. If text or marker clearance requires more room, bounded
+spacing reprojection happens before its single paint/certification pass. Existing
+width, allocation, certification and output limits still apply.
+
 ## Runtime config (wire-or-warn, plan §Architecture item 3 / X7)
 
 `src/architecture/config.ts` wires the documented `architecture.*` keys; the

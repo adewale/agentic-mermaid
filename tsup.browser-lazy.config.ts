@@ -1,4 +1,6 @@
 import { defineConfig } from 'tsup'
+import { runtimeRenderContractPlugin } from './scripts/build/runtime-render-contract.ts'
+import { compactBrowserModulesPlugin } from './scripts/build/compact-browser-modules.ts'
 import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
 import { readFile } from 'node:fs/promises'
@@ -27,13 +29,15 @@ export default defineConfig({
   external: [],
   // ELK, YAML and the HTML5 entity table load only when a diagram needs them.
   // Build-only facade twins preserve the synchronous source/Node APIs.
-  esbuildPlugins: [{
+  esbuildPlugins: [runtimeRenderContractPlugin({ schemaDocumentation: false, terminalAdapter: false, conformanceObservations: false, coalesceRuntimePrimitives: true, sourceOnlySceneAdmission: true }), {
     name: 'lazy-browser-dependencies',
     setup(build) {
       // The lazy SVG API exposes rendering and receipts, not the Node option
-      // and pass inspectors. Omit their literal documentation prose while
-      // retaining every validation field and executable pass contract.
-      build.onLoad({ filter: /\/(?:layout-engine|render-contract)\.ts$/ }, async args => ({
+      // and pass/shape inspectors. Omit their literal documentation prose while
+      // retaining validation, shape aliases/geometry and executable contracts.
+      // The SVG graph excludes agent verification, which uses shape prose in
+      // substitution warnings; Node/IIFE keep that public documentation.
+      build.onLoad({ filter: /\/(?:layout-engine|render-contract|flowchart-shapes)\.ts$/ }, async args => ({
         contents: (await readFile(args.path, 'utf8')).replace(/\b(doc|description): '(?:\\.|[^'\\])*'/g, "$1: ''"),
         loader: 'ts',
       }))
@@ -43,8 +47,14 @@ export default defineConfig({
         ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
       build.onResolve({ filter: /\/elk-constructor\.ts$/ }, args =>
         ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
+      build.onResolve({ filter: /\/edge-crossing-pair\.ts$/ }, args =>
+        ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
+      build.onResolve({ filter: /\/indexed-forest\.ts$/ }, args =>
+        ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
+      build.onResolve({ filter: /\/agentic-layered\.ts$/ }, args =>
+        args.kind === 'dynamic-import' ? undefined : { path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) })
     },
-  }],
+  }, compactBrowserModulesPlugin()],
   esbuildOptions(options) {
     options.chunkNames = 'browser-lazy/chunks/[name]-[hash]'
     options.assetNames = 'browser-lazy/assets/[name]-[hash]'

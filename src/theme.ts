@@ -640,6 +640,32 @@ export function inlineResolvedColors(svg: string, colors: DiagramColors): string
 export function resolveInlineColorAttribute(value: string, colors: DiagramColors): string | undefined {
   const escaped = escapeAttr(value)
   const resolution = colorResolution(colors)
+  return resolvedInlineColorAttribute(escaped, resolution)
+}
+
+/** One consumer can reuse immutable palette preparation without retaining it
+ * across calls. Mutable, inherited and accessor colors still resolve afresh. */
+export function createInlineColorAttributeResolver(): typeof resolveInlineColorAttribute {
+  let palette: DiagramColors | undefined
+  let resolution: ReturnType<typeof colorResolution>
+  return (value, colors) => {
+    const escaped = escapeAttr(value)
+    if (colors !== palette) {
+      const fields = Object.isFrozen(colors) ? Object.getOwnPropertyDescriptors(colors) as Record<PropertyKey, PropertyDescriptor> : undefined
+      const reusable = fields && Reflect.ownKeys(fields).every(name => 'value' in fields[name]!)
+        && ['bg', 'fg', 'line', 'accent', 'muted', 'surface', 'border', 'font'].every(name => {
+          const field = fields[name]
+          return Object.hasOwn(fields, name) && (field!.value === undefined || typeof field!.value === 'string')
+        })
+      if (!reusable) return resolvedInlineColorAttribute(escaped, colorResolution(colors))
+      resolution = colorResolution(colors)
+      palette = colors
+    }
+    return resolvedInlineColorAttribute(escaped, resolution)
+  }
+}
+
+function resolvedInlineColorAttribute(escaped: string, resolution: ReturnType<typeof colorResolution>): string | undefined {
   const resolved = resolution ? resolution.resolveCss(escaped, resolution.vars, 10) : escaped
   // Scene admission excludes context-breaking palette values. Preserve the
   // full SVG path even for a direct caller that supplies such a substitution.
@@ -655,25 +681,16 @@ function colorResolution(colors: DiagramColors, svg?: string) {
   if (!palette) return undefined
   const rc = resolveColors(colors)
 
-  // Build mapping of CSS variable names → resolved hex values
-  const vars = new Map<string, string>()
-  for (const name of ['bg', 'fg', 'line', 'accent', 'muted', 'surface', 'border']) {
-    const value = palette.get(name)
-    if (value !== undefined) vars.set(name, value)
-  }
-
   // Some family renderers define concrete custom properties on the SVG root
   // before using them in style-block fallbacks. Learn those up front so
   // var(--family-token, fallback) prefers the authored token over fallback.
   const projection = svg === undefined ? undefined : projectSvgCss(svg)
-  if (projection) for (const [name, value] of cssPaintDefinitions(projection)) vars.set(name, value)
+  const vars = projection ? cssPaintDefinitions(projection) : new Map<string, string>()
+  for (const [name, value] of palette) if (name.startsWith('_') || value !== undefined && !vars.has(name)) vars.set(name, value)
   // Literal RGB/named pages were normalized for concrete color-mix math;
   // their authored root tokens must not undo that internal normalization.
   vars.set('bg', rc.bg)
   vars.set('fg', rc.fg)
-
-  // Derived internal variables
-  for (const [name, value] of palette) if (name.startsWith('_')) vars.set(name, value)
 
   // `--font` is intentionally left as a live CSS variable so consumers can
   // swap the family post-render. Skip it from the color-resolution phase

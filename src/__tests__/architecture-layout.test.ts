@@ -8,7 +8,7 @@ import { architectureToMermaidGraph, parseArchitectureDiagram } from '../archite
 import { convertToElkFormat } from '../layout-engine.ts'
 import { preprocessMermaidSource } from '../mermaid-source.ts'
 import { measureMultilineText } from '../text-metrics.ts'
-import { renderMermaidSVG } from '../index.ts'
+import { renderMermaidSVG, renderMermaidSVGWithReceipt } from '../index.ts'
 import { layoutMermaidWithReceipt } from '../agent/index.ts'
 import raynerGroups from './testdata/rayner-528/architecture-groups.json'
 
@@ -504,4 +504,67 @@ describe('layoutArchitectureDiagram', () => {
     }
     expect(JSON.stringify(aligned)).not.toBe(JSON.stringify(plain))
   })
+})
+
+
+// The literal band/contacts below are independent of the route-obstacle helper.
+it.each(['agentic', 'elk'] as const)('keeps %s item-side shafts outside their own ancestor header in final SVG', backend => {
+  const source = 'architecture-beta\ngroup g(cloud)[Group]\nservice a(server)[A] in g\nservice b(server)[B]\na:T --> B:b'
+  const options = { graphLayout: { backend, fallback: 'none' as const } }
+  const positioned = layoutArchitectureDiagram(parse(source), options)
+  const group = positioned.groups[0]!, edge = positioned.edges[0]!
+  expect({ x: group.x, y: group.y, width: group.width, height: group.headerHeight }).toEqual({ x: 38, y: 124, width: 156, height: 28 })
+  expect(edge.source).toEqual({ id: 'a', boundary: 'item', side: 'T' })
+  expect(edge.target).toEqual({ id: 'b', boundary: 'item', side: 'B' })
+  expect(edge.points[0]).toEqual({ x: 116, y: 168 })
+  expect(edge.points.at(-1)).toEqual({ x: 116, y: 88 })
+  expect(edge.obstacleFree).toBe(true)
+  const rendered = renderMermaidSVGWithReceipt(source, { ...options, idPrefix: `owned-header-${backend}-` })
+  expect(rendered.svg).toContain('d="M38,124 H194 V152 H38 Z"')
+  const tag = [...rendered.svg.matchAll(/<polyline\b[^>]*>/g)].map(match => match[0]).find(value => value.includes('data-from="a"') && value.includes('data-to="b"'))!
+  expect(tag).toContain('data-from-side="T"')
+  expect(tag).toContain('data-to-side="B"')
+  expect(tag).toContain('data-from-boundary="item"')
+  expect(tag).toContain('data-to-boundary="item"')
+  expect(tag).toContain('marker-end="url(')
+  const points = /points="([^"]+)"/.exec(tag)![1]!.split(' ').map(value => { const [x, y] = value.split(',').map(Number); return { x: x!, y: y! } })
+  expect(points).toEqual(edge.points)
+  for (let index = 1; index < points.length; index++) {
+    const a = points[index - 1]!, b = points[index]!
+    const entersLiteralBand = Math.max(a.x, b.x) > 38 && Math.min(a.x, b.x) < 194
+      && Math.max(a.y, b.y) > 124 && Math.min(a.y, b.y) < 152
+    expect(entersLiteralBand).toBe(false)
+  }
+  expect(edge.points[1]).toEqual({ x: 116, y: 152 })
+  expect(edge.points.at(-2)).toEqual({ x: 116, y: 104 })
+})
+
+
+it('retains the measured header band when an empty Architecture group has no frame height', () => {
+  const source = 'architecture-beta\ngroup edge(cloud)[Edge]\ngroup app(server)[Application]\nservice api(server)[Public API] in app\njunction bus in app\nservice db(database)[Primary DB]\napi:R --> L:db\napi:B -["async fan-out"]-> T:bus'
+  const rendered = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'elk' } })
+  // This authored empty group keeps its actual zero-sized placement. The
+  // writer uses the retained 28px measurement independently of the frame.
+  expect(rendered.svg).toContain('class="architecture-group-frame" x="40" y="40" width="0" height="0"')
+  expect(rendered.svg).toContain('class="architecture-group-band" d="M40,40 H40 V68 H40 Z"')
+  const edgeTags = [...rendered.svg.matchAll(/<polyline\b[^>]*class="architecture-edge"[^>]*>/g)].map(match => match[0])
+  expect(edgeTags.length).toBe(2)
+  expect(edgeTags[0]).toContain('data-from="api" data-to="db"')
+  expect(edgeTags[0]).toContain('data-from-side="R" data-to-side="L"')
+  expect(edgeTags[1]).toContain('data-from="api" data-to="bus"')
+  expect(edgeTags[1]).toContain('data-from-side="B" data-to-side="T"')
+  for (const [edgeIndex, tag] of edgeTags.entries()) {
+    expect(tag).toContain('marker-end="url(')
+    const points = /points="([^"]+)"/.exec(tag)![1]!.split(' ').map(value => value.split(',').map(Number))
+    expect(points).toEqual(edgeIndex === 0
+      ? [[191.971, 146], [337.278, 146], [337.278, 158], [482.585, 158]]
+      : [[123.9855, 170], [123.9855, 190], [390.585, 190], [390.585, 206]])
+    // The actual nonempty Application band remains x38..420.585, y76..104;
+    // neither emitted route enters it. The empty band's open interior is empty.
+    for (let index = 1; index < points.length; index++) {
+      const a = points[index - 1]!, b = points[index]!
+      expect(Math.max(a[0]!, b[0]!) > 38 && Math.min(a[0]!, b[0]!) < 420.585
+        && Math.max(a[1]!, b[1]!) > 76 && Math.min(a[1]!, b[1]!) < 104).toBe(false)
+    }
+  }
 })

@@ -22,7 +22,7 @@ export const CLASS_SVG_HOOKS = {
       ctx.source.authoredFamilyLines ?? ctx.source.familyLines,
     ), ctx.source.accessibility), ctx.source.frontmatter)
     checkAllClassLikeAuthoredStyles(diagram.classDefs, diagram.classes)
-    return layoutResult(layoutClassDiagram(diagram, ctx.renderOptions, ctx.styleFace))
+    return layoutResult(layoutClassDiagram(diagram, ctx.renderOptions, ctx.styleFace, ctx.paintBackendId))
   },
   projectPositioned: positionedView(projectClassPositioned),
   lowerScene: scene(lowerClassScene),

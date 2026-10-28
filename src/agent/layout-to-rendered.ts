@@ -11,6 +11,7 @@ import type {
 import { toFinite } from './types.ts'
 import type { PixelTextBlock } from '../shared/prepared-text.ts'
 import { calculatePathMidpoint } from '../layout/geometry.ts'
+import { edgeEndpointSelectors, edgeSelectorIndices } from '../shared/edge-selectors.ts'
 
 export function retainedLabelBounds(block: PixelTextBlock | undefined, x: number, y: number, anchor: 'start' | 'middle' | 'end' = 'middle'): RenderedLabelBounds | undefined {
   if (!block) return undefined
@@ -32,10 +33,10 @@ function node(n: PositionedNode): RenderedLayoutNode {
     ...retainedLabelGeometry(n.labelBlock, n.x + n.width / 2, n.y + n.height / 2, n) }
 }
 
-function edge(e: PositionedEdge, debug: boolean): RenderedLayoutEdge {
+function edge(e: PositionedEdge, id: string, debug: boolean): RenderedLayoutEdge {
   const labelPosition = e.label ? e.labelPosition ?? calculatePathMidpoint(e.points) : undefined
   return {
-    id: `${e.source}->${e.target}`,
+    id,
     from: e.source, to: e.target,
     // Crossing quality uses physical tolerances; rounding can turn a proper
     // near-endpoint crossing into endpoint contact in the public projection.
@@ -67,10 +68,27 @@ export function positionedGraphToRenderedView(
   p: PositionedGraph,
   opts: { debug?: boolean } = {},
 ): Omit<RenderedLayout, 'kind' | 'regions' | 'actions'> {
+  // ELK extracts root edges before nested edges. Occurrence selectors belong
+  // to source order, even when the positioned collection has another order.
+  const sourceEdges = p.edges.map((value, index) => ({ value, index }))
+    .sort((a, b) => (a.value.edgeIndex ?? a.index) - (b.value.edgeIndex ?? b.index))
+    .map(entry => entry.value)
+  const selectors = edgeEndpointSelectors(sourceEdges)
+  const selectorIndices = edgeSelectorIndices(sourceEdges)
+  const reserved = new Set(p.nodes.map(value => value.id))
+  const groups = [...p.groups]
+  for (const group of groups) { reserved.add(group.id); groups.push(...group.children) }
+  const identities = new Map(sourceEdges.map((value, index) => {
+    const authored = value.id
+    const selector = selectors[index]!
+    const alias = selector.replace(/#0$/, '')
+    return [value, authored && !reserved.has(authored) && selectorIndices.get(authored) === index
+      ? authored : selectorIndices.get(alias) === index ? alias : selector]
+  }))
   return {
     version: 1,
     nodes: p.nodes.map(node),
-    edges: p.edges.map(e => edge(e, opts.debug === true)),
+    edges: p.edges.map(e => edge(e, identities.get(e)!, opts.debug === true)),
     groups: renderedGroups(p.groups, p.nodes),
     bounds: { w: toFinite(p.width), h: toFinite(p.height) },
   }

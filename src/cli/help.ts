@@ -72,6 +72,8 @@ ${cliRenderFormatHelpLines()}
                     projection. See: am styles
   --options <JSON|file> Shared advanced RenderOptions object; convenience
                     flags override its fields
+  --graph-layout <elk|agentic> Graph geometry producer (default: elk)
+  --graph-layout-fallback <none|elk> Explicit Agentic fallback (default: none)
   --seed <N>        Re-roll ink wobble of styled looks; never moves layout
   --font-dirs <DIRS> PNG only: extra font directories (comma-separated) for
                     scripts the bundled Inter/DejaVu fonts don't cover (CJK,

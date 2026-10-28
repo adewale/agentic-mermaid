@@ -2,6 +2,8 @@ import { mergeFrontmatterMaps, mermaidAuthoredFrontmatter, mermaidInitDirectiveL
 import { validateConfig, validateConfigSource } from '../shared/pinned-mermaid-config/runtime.js'
 import { mergeConfigSource, configDirective } from '../shared/pinned-mermaid-config/merge.js'
 import { pinnedMermaidDiagramType } from '../shared/pinned-mermaid-diagram-type.ts'
+import { isOwnedFamily } from '../experimental/owned-family.ts'
+import { getInstalledFamilyDescriptor } from './family-router.ts'
 import type { ValidDiagramMeta } from './types.ts'
 
 interface CanonicalWrapper {
@@ -35,6 +37,13 @@ export function canonicalWrapperConfig(meta: ValidDiagramMeta, family?: string):
     if (payloads.length > 1 || (top.displayMode && payloads.length) || directives.some(layer => layer.kind !== 'init' && layer.kind !== 'wrap')) {
       validateConfigSource(authored, code, type, top)
       return { metadata: top, config: authored, directives }
+    }
+    // For captured, owned families the empty pinned program only validates
+    // private defaults and merges to {}. Retain authored reads and directive
+    // array dispatch above; metadata and unowned scopes keep the pinned path.
+    if (captured && typeof type === 'string' && !Object.keys(top).length && !Object.keys(authored).length && code === '') {
+      const descriptor = getInstalledFamilyDescriptor(family ?? '')
+      if (descriptor && isOwnedFamily(descriptor)) return { metadata: top, config: authored, directives: [] }
     }
     // Keep the original payload through directive processing: scalars reject
     // wrap assignment, while the pinned merge ignores array own properties.
