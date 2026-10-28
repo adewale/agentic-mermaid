@@ -79,4 +79,39 @@ describe('bounded chart width fitting', () => {
       }
     }
   })
+
+  test('infeasible budgets do not wrap titles and legends narrower than the plot', () => {
+    const p = layoutPieChart(parsePieChart(lines(pie)), { pie: { maxWidth: 80 } })
+    const r = layoutRadarChart(parseRadarChart(lines(radar)), { radar: { maxWidth: 80 } })
+    for (const chart of [p, r]) {
+      expect(chart.widthFit?.status).toBe('exceeded')
+      expect(chart.legend.every(row => row.lines.length <= 4)).toBe(true)
+      expect(chart.height).toBeLessThan(1000)
+    }
+    for (const legendPosition of ['left', 'right'] as const) for (const maxWidth of [80, 300]) {
+      const chart = layoutPieChart(parsePieChart(lines(pie)), { pie: { maxWidth } }, resolvePieVisualConfig({ pie: { legendPosition } }))
+      expect(chart.legend.every(row => row.lines.length === 1)).toBe(true)
+      expect(chart.height).toBeLessThan(1000)
+    }
+    const swatch = layoutRadarChart(parseRadarChart(lines(radar)), { radar: { maxWidth: 80 } }, { legendBoxSize: 240 })
+    expect(swatch.legend.every(row => row.lines.length <= 4)).toBe(true)
+    expect(swatch.height).toBeLessThan(1500)
+  })
+
+  test('bottom Radar legends use the available width instead of the side-column cap', () => {
+    const source = 'radar-beta\naxis a["Speed"], b["Quality"], c["Cost"], d["Coverage"]\ncurve current["Reliability and operational readiness"]{3,4,2,4}\nmax 5'
+    const chart = layoutRadarChart(parseRadarChart(lines(source)), { radar: { maxWidth: 360 } })
+    expect(chart.width).toBeLessThanOrEqual(360.01)
+    expect(chart.legend[0]!.lines).toEqual(['Reliability and operational readiness'])
+    expect(chart.legend[0]!.block!.fontSize).toBe(13)
+  })
+
+  test('Radar fitting retains visible scale annotations even when the budget must be exceeded', () => {
+    const source = 'radar-beta\naxis a["Speed"], b["Quality"], c["Cost"], d["Coverage"]\ncurve current{3,4,2,4}\nmax 5\nticks 5'
+    const chart = layoutRadarChart(parseRadarChart(lines(source)), { radar: { maxWidth: 360 } }, { tickLabels: true })
+    expect(chart.tickLabels.map(tick => tick.text)).toEqual(['1', '2', '3', '4', '5'])
+    expect(chart.widthFit?.status).toBe('exceeded')
+    const result = verifyMermaid(source, { renderOptions: { radar: { maxWidth: 360 }, mermaidConfig: { radar: { tickLabels: true } } } })
+    expect(result.warnings).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'LAYOUT_LIMIT_EXCEEDED' })]))
+  })
 })

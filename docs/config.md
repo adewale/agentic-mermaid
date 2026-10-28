@@ -66,7 +66,12 @@ most three positioned layouts and draws the selected result once. A diagram
 that already fits keeps its natural layout. Pie may move its default legend
 below the plot; explicit legend placement retains precedence. Radar may move
 its legend below the plot and reduce an unconfigured plot to its readable
-minimum; authored `radar.width` and `radar.height` retain precedence.
+minimum, provided existing visible scale annotations survive; authored
+`radar.width` and `radar.height` retain precedence. Title and legend wrapping
+use at least the unavoidable plot width, so infeasible requests do not force
+text into narrower columns without reducing the diagram width. When an
+indivisible grapheme exceeds the available column, the family retains its
+natural wrapping instead of producing a tall column that still cannot fit.
 
 The result can be taller or remain wider than requested. `verifyMermaid` with
 the same `renderOptions` reports `LAYOUT_LIMIT_EXCEEDED` when the bounded

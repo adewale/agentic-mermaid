@@ -588,7 +588,7 @@ function chartWidthWarnings(family: 'pie' | 'radar', positioned: VerificationArt
   try {
     const chart = positioned()?.positioned as { widthFit?: import('../shared/chart-width.ts').ChartWidthFit } | undefined
     const fit = chart?.widthFit
-    return fit?.status === 'exceeded' ? [{ code: 'LAYOUT_LIMIT_EXCEEDED', constraint: `${family}.maxWidth`, message: `The requested ${family} width ${fit.maxWidth}px cannot contain the ${fit.width}px artifact within the bounded fitting policy; all content and selected typography are retained.` }] : []
+    return fit?.status === 'exceeded' ? [{ code: 'LAYOUT_LIMIT_EXCEEDED', constraint: `${family}.maxWidth`, message: `The requested ${family} width ${fit.maxWidth}px cannot contain the ${fit.width}px artifact within the bounded fitting policy; legend text, selected typography and existing scale annotations are retained.` }] : []
   } catch {
     return [] // The render-parity gate owns layout failures.
   }

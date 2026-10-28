@@ -150,10 +150,13 @@ export function layoutRadarChart(
   if (maxWidth === undefined) return natural
   return fitChartWidth(natural, maxWidth, (attempt, previous) => {
     if (attempt === 2 && (visual.width !== undefined || visual.height !== undefined)) return undefined
-    return placeRadarChart(chart, options, visual, styleFace, {
+    const next = placeRadarChart(chart, options, visual, styleFace, {
       maxWidth,
       ...(attempt === 2 ? { radius: Math.max(60, natural.radius - Math.max(0, previous.width - maxWidth) / 2) } : {}),
     })
+    // A smaller plot must not trade away scale annotations that were visible
+    // at the natural radius. Keep the prior arrangement and report overflow.
+    return natural.tickLabels.some((tick, i) => next.tickLabels[i]?.text !== tick.text) ? previous : next
   })
 }
 
@@ -259,24 +262,8 @@ function placeRadarChart(chart: RadarChart, options: RenderOptions, visual: Rada
     admitted.push(i)
   }
 
-  // --- Legend: wrap labels to a budget, reserve per-row height (gantt) ------
-  const legendFont = style.nodeLabelFontSize
-  const legendWeight = style.nodeLabelFontWeight
-  const legendLineH = legendFont * 1.25
-  const wantLegend = chart.showLegend && chart.curves.length > 0
-  const legendSwatch = visual.legendBoxSize ?? R.legendSwatch
-  // Wrap budget scales with the legend type size, so a larger accessible font
-  // still expands the canvas (it wraps wider, not just taller).
-  const legendWrapWidth = Math.min(legendFont * (R.legendLabelMaxWidth / R.legendFontSize), fit ? Math.max(1, fit.maxWidth - (visual.marginLeft ?? R.margin) - (visual.marginRight ?? R.margin) - legendSwatch - R.legendSwatchToText) : Infinity)
-  const legendBlocks = wantLegend ? chart.curves.map(c => preparePixelText(c.label, {
-    display: 'literal', transform: style.nodeTextTransform, fontSize: legendFont, fontWeight: legendWeight,
-    letterSpacing: style.nodeLetterSpacing, maxWidth: legendWrapWidth,
-  })) : []
-  const legendRows = layoutTextRows(legendBlocks.map(block => ({ block })), { gap: R.legendRowGap, minRowHeight: legendSwatch })
-  const legendWidth = wantLegend ? legendSwatch + R.legendSwatchToText + legendRows.width : 0
-  const legendHeight = legendRows.height
-
-  // --- Canvas: grow to contain every final label box -----------------------
+  // The plot and axis labels set an unavoidable width before title/legend
+  // wrapping. Smaller budgets cannot buy space by splitting text further.
   const marginL = visual.marginLeft ?? R.margin
   const marginR = visual.marginRight ?? R.margin
   const marginT = visual.marginTop ?? R.margin
@@ -290,13 +277,41 @@ function placeRadarChart(chart: RadarChart, options: RenderOptions, visual: Rada
     extT = Math.max(extT, -box.top)
     extB = Math.max(extB, box.bottom)
   }
-  if (wantLegend && !fit) { extT = Math.max(extT, legendHeight / 2); extB = Math.max(extB, legendHeight / 2) }
-  // Respect a configured frame: a Mermaid `width`/`height` is reserved as real
-  // canvas (centered on the plot) rather than collapsed to the label-tight box.
   if (visual.width) { const half = visual.width / 2; extL = Math.max(extL, half); extR = Math.max(extR, half) }
   if (visual.height) { const half = visual.height / 2; extT = Math.max(extT, half); extB = Math.max(extB, half) }
+  const wrapWidth = fit ? Math.max(fit.maxWidth, marginL + extL + extR + marginR) : undefined
 
-  const titleBlock = chart.title ? preparePixelText(chart.title, { display: 'literal', transform: style.groupTextTransform, fontSize: titleFont, fontWeight: titleWeight, letterSpacing: style.groupLetterSpacing, ...(fit ? { maxWidth: Math.max(1, fit.maxWidth - marginL - marginR) } : {}) }) : undefined
+  // --- Legend: wrap labels to a budget, reserve per-row height (gantt) ------
+  const legendFont = style.nodeLabelFontSize
+  const legendWeight = style.nodeLabelFontWeight
+  const legendLineH = legendFont * 1.25
+  const wantLegend = chart.showLegend && chart.curves.length > 0
+  const legendSwatch = visual.legendBoxSize ?? R.legendSwatch
+  // The natural side column scales with type size. A bottom legend can use
+  // the full plot width; oversized authored swatches retain the natural cap.
+  const naturalLegendWrapWidth = legendFont * (R.legendLabelMaxWidth / R.legendFontSize)
+  const availableLegendWidth = wrapWidth === undefined ? 0 : wrapWidth - marginL - marginR - legendSwatch - R.legendSwatchToText
+  const legendWrapWidth = availableLegendWidth > 0 ? availableLegendWidth : naturalLegendWrapWidth
+  const legendBlocks = wantLegend ? chart.curves.map(c => {
+    const block = preparePixelText(c.label, {
+      display: 'literal', transform: style.nodeTextTransform, fontSize: legendFont, fontWeight: legendWeight,
+      letterSpacing: style.nodeLetterSpacing, maxWidth: legendWrapWidth,
+    })
+    return fit && block.width > legendWrapWidth + 0.01
+      ? preparePixelText(block.prepared, { ...block, maxWidth: naturalLegendWrapWidth })
+      : block
+  }) : []
+  const legendRows = layoutTextRows(legendBlocks.map(block => ({ block })), { gap: R.legendRowGap, minRowHeight: legendSwatch })
+  const legendWidth = wantLegend ? legendSwatch + R.legendSwatchToText + legendRows.width : 0
+  const legendHeight = legendRows.height
+
+  // --- Canvas: grow to contain every final label box -----------------------
+  if (wantLegend && !fit) { extT = Math.max(extT, legendHeight / 2); extB = Math.max(extB, legendHeight / 2) }
+
+  let titleBlock = chart.title ? preparePixelText(chart.title, { display: 'literal', transform: style.groupTextTransform, fontSize: titleFont, fontWeight: titleWeight, letterSpacing: style.groupLetterSpacing, ...(wrapWidth === undefined ? {} : { maxWidth: Math.max(1, wrapWidth - marginL - marginR) }) }) : undefined
+  if (titleBlock && wrapWidth !== undefined && titleBlock.width > wrapWidth - marginL - marginR + 0.01) {
+    titleBlock = preparePixelText(titleBlock.prepared, titleBlock)
+  }
   const titleBandHeight = titleBlock ? titleBlock.height : 0
   const titleHeight = titleBlock ? titleBandHeight + R.titleGap : 0
   const legendColW = wantLegend && !fit ? R.legendGap + legendWidth : 0
