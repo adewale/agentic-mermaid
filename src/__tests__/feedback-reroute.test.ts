@@ -113,7 +113,12 @@ Audit --> Export`)
       const styleFace = { edge: { lineWidth, bendRadius: 0 }, node: { cornerRadius: 10, paddingY: 12 } }
       const original = convertToElkFormat(graph, { styleFace })
       const rounded = convertToElkFormat(graph, { styleFace: { ...styleFace, edge: { lineWidth, bendRadius: 16 } } })
-      expect(rounded).toEqual(original)
+      // Only the terminal hook grows, by exactly the corner it must also hold
+      // before the marker (#566); node capacity is the same normal resource.
+      const hooks = ['elk.layered.spacing.edgeNodeBetweenLayers', 'elk.spacing.edgeNode'] as const
+      for (const key of hooks) expect(Number(rounded.layoutOptions![key]) - Number(original.layoutOptions![key])).toBe(16)
+      const withoutHooks = (elk: typeof original) => ({ ...elk, layoutOptions: Object.fromEntries(Object.entries(elk.layoutOptions!).filter(([key]) => !(hooks as readonly string[]).includes(key))) })
+      expect(withoutHooks(rounded)).toEqual(withoutHooks(original))
       const curved = structuredClone(graph)
       curved.edges.forEach(edge => { edge.curve = 'basis' })
       expect(convertToElkFormat(curved, { styleFace })).toEqual(original)

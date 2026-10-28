@@ -548,11 +548,28 @@ S1["same word ok"] --> D`],
     try {
       const positioned = layoutGraphSync(graph)
       expect(positioned.certification?.status).toBe('passed')
-      expect(overlaps).toEqual([1, 0])
-      expect(countOpposingRouteOverlaps(positioned.edges)).toBe(0)
-      expect(assessLayout(graph, positioned).metrics.portEndpointRate).toBeGreaterThanOrEqual(0.6)
+      // The generic bundler no longer admits a junction that lays N4's
+      // fan-out elbow along N0->N2, so contracts receive no opposing ink here.
+      // N4->N0 then enters N0 on its own lane instead of N0's centre port.
+      expect(overlaps).toEqual([0, 0])
+      expect(assessLayout(graph, positioned).metrics.portEndpointRate).toBeGreaterThanOrEqual(0.5)
       expect(assessLayout(graph, positioned).metrics.edgeCrossings).toBe(0)
     } finally { pass.run = run }
+    // Contracts still own the repair when handed that shared lane: the straight
+    // reciprocal gives up its canonical contacts to leave the bundled elbow.
+    const box = (id: string, x: number, y: number): PositionedNode => ({ id, label: id, shape: 'rectangle', x, y, width: 60, height: 36.9 })
+    const nodes = [box('N2', 40, 95.675), box('N3', 124, 40), box('N4', 40, 163.65), box('N0', 148, 104.9), box('N1', 148, 163.65)]
+    const routes: Record<string, [number, number][]> = {
+      'N2>N3': [[100, 104.9], [112, 104.9], [112, 58.45], [124, 58.45]],
+      'N4>N0': [[100, 182.1], [124, 182.1], [124, 123.35], [148, 123.35]],
+      'N2>N0': [[100, 114.125], [148, 114.125]],
+      'N0>N2': [[148, 123.35], [100, 123.35]],
+      'N4>N1': [[100, 182.1], [124, 182.1], [148, 182.1]],
+    }
+    const edges: PositionedEdge[] = graph.edges.map((edge, edgeIndex) => ({ ...edge, edgeIndex, points: routes[`${edge.source}>${edge.target}`]!.map(([x, y]) => ({ x, y })) }))
+    expect(countOpposingRouteOverlaps(edges)).toBe(1)
+    routeContracts.applyRouteContracts({ nodes, edges, groups: [] }, graph, new Set([edges[1]!, edges[4]!]), resolveRenderStyle())
+    expect(countOpposingRouteOverlaps(edges)).toBe(0)
   })
 
   test.each([...simpleFixtures(), ...complicatedFixtures()])('$id', fixture => {

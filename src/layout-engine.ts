@@ -55,6 +55,7 @@ import { onShapeOutline, assessLayout, hardViolations, measureRubricMetrics, cou
 import { applyRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, labelRect, PORT_EXACT, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills, shapePorts, simplifyPolyline, trimBoundaryEndpointRuns } from './route-contracts.ts'
 import { bundleRouteBeforeRewrite, retainBundleRouteAfterRewrite } from './layout/bundle-routes.ts'
 import type { LabelMetricsStyle } from './route-contracts.ts'
+import { terminalHookLength } from './layout/route-geometry.ts'
 import { resolveClassInlineStyle, resolveEdgeInlineStyle, resolveNodeInlineStyle } from './color-resolver.ts'
 import { runPipeline } from './layout/pass.ts'
 import type { LayoutPass, PassContextBase } from './layout/pass.ts'
@@ -477,6 +478,14 @@ function elkMarkerPortExtents(graph: MermaidGraph, style: ResolvedRenderStyle): 
  * Uses SEPARATE hierarchy handling for proper subgraph direction override support.
  * Cross-hierarchy edges use hierarchical ports to connect external and internal sections.
  */
+/** ELK's in-layer edge/node gap sets the height of outer feedback channels,
+ * whose returns end in a hook of that length. Keep ELK's default unless the
+ * style's painted marker and corner need a longer hook. */
+function outerChannelSpacing(style: ResolvedRenderStyle): Record<string, string> {
+  const hook = terminalHookLength(style)
+  return hook > terminalHookLength({}) ? { 'elk.spacing.edgeNode': String(hook) } : {}
+}
+
 function mermaidToElk(
   graph: MermaidGraph,
   opts: ElkConversionOptions,
@@ -636,7 +645,9 @@ function mermaidToElk(
       'elk.layered.spacing.nodeNodeBetweenLayers': String(opts.layerSpacing),
       'elk.spacing.edgeEdge': '12',
       'elk.layered.spacing.edgeEdgeBetweenLayers': '12',
-      'elk.layered.spacing.edgeNodeBetweenLayers': '12',
+      // Channel segments keep a stroke-scaled marker and rounded corner clear.
+      'elk.layered.spacing.edgeNodeBetweenLayers': String(terminalHookLength(style)),
+      ...outerChannelSpacing(style),
       'elk.padding': `[top=${opts.padding},left=${opts.padding},bottom=${opts.padding},right=${opts.padding}]`,
       'elk.edgeRouting': 'ORTHOGONAL',
       'elk.layered.nodePlacement.bk.fixedAlignment': 'BALANCED',
@@ -1086,7 +1097,8 @@ function subgraphToElk(
     'elk.contentAlignment': 'H_CENTER V_CENTER',
     'elk.spacing.edgeEdge': '12',
     'elk.layered.spacing.edgeEdgeBetweenLayers': '12',
-    'elk.layered.spacing.edgeNodeBetweenLayers': '12',
+    'elk.layered.spacing.edgeNodeBetweenLayers': String(terminalHookLength(style)),
+    ...outerChannelSpacing(style),
     'elk.layered.nodePlacement.bk.fixedAlignment': 'BALANCED',
     'elk.layered.spacing.nodeNodeBetweenLayers': String(opts.layerSpacing),
     'elk.spacing.nodeNode': String(opts.nodeSpacing),
@@ -1540,7 +1552,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   {
     id: 'reanchorOffOutlineEndpoints', doc: 're-route an edge whose endpoint dangles off a moved node onto that node\'s flow port (edge-only, freeze-safe)',
     after: ['applyRouteContracts'], mutates: ['edges'], determinism: 'in-place',
-    run: c => { reanchorOffOutlineEndpoints(c.nodes, c.edges, c.graph) },
+    run: c => { reanchorOffOutlineEndpoints(c.nodes, c.edges, c.graph, c.style) },
   },
   {
     id: 'rerouteEdgesThroughNodes', doc: 're-route an edge left running through a node by a node-mover (honorLinkRankDistance/alignPortLanes) around the obstacle (edge-only, freeze-safe)',

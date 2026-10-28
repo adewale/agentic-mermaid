@@ -148,6 +148,16 @@ buys offsets the small bend cost — the idiom every reference layered drawer us
 and the one our own fan-out emitter (`applySymmetricFanoutEmissions`) already
 relies on. Only *unjustified / lone* bends cost.
 
+The fan-out policy is one rule whatever the caption lengths (#566). A source
+whose two or three forward edges reach same-rank leaf peers is drawn as a
+symmetric fork: `alignPortLanes` never slides that source over one child, and
+the emitter mirrors the emissions, shares one elbow and seats the captions
+level. Inside a group the targets keep ELK's placement, since moving a member
+would need its group refitted; the fork is still emitted symmetrically unless
+the straightener's own lanes already mirror about the source, which then stay
+straight. Any remaining asymmetry comes only from where ELK placed grouped
+targets.
+
 The rubric encodes this exactly: a bend on a `bundle`-certified edge is excluded
 from `totalBends`/`maxBendsPerEdge` — the **same** edges `findRouteHitches` skips
 — so the soft bend penalty and the HARD hitch-invariant agree on what is

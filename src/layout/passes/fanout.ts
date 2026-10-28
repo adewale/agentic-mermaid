@@ -1,9 +1,12 @@
 import type { Direction, MermaidGraph, Point, PositionedEdge, PositionedGroup, PositionedNode } from '../../types.ts'
 import type { LabelMetricsStyle } from '../../route-contracts.ts'
 import { graphReachability, layoutFlow, nodeCrossCenter, nodeMainStart, rectsOverlap } from '../geometry.ts'
-import { positionedEdgeForwardish, sameFlowLayer, nodeInsideGroups, flattenPositionedGroups, expandGroupsForMainShift, sourceEmissionPort, targetFlowPort, symmetricOffsets, doglegBetween, routeClearOfNodes } from './shared.ts'
+import { positionedEdgeForwardish, sameFlowLayer, nodeInsideGroups, flattenPositionedGroups, rectInsideGroup, expandGroupsForMainShift, sourceEmissionPort, targetFlowPort, symmetricOffsets, doglegBetween, routeClearOfNodes } from './shared.ts'
 import { terminalLabelRunLength, terminalLabelCorridorLength, assignBundledFanoutLabels } from './bundled-labels.ts'
 import { retainConstructedBundleRoutes } from '../bundle-routes.ts'
+import { countPointPairCrossings } from '../../shared/edge-crossing-pair.ts'
+import { terminalHookLength } from '../route-geometry.ts'
+import { laneContextFor, straightLaneFor } from '../route-lanes.ts'
 
 export function reassignBundledSiblingLabels(
   nodes: PositionedNode[],
@@ -32,6 +35,11 @@ export function reassignBundledSiblingLabels(
   }
 }
 
+/** The ids of every group enclosing `node`, outermost first. */
+function containingGroups(node: PositionedNode, groups: PositionedGroup[]): string {
+  return flattenPositionedGroups(groups).filter(group => rectInsideGroup(node, group)).map(group => group.id).join('\u0000')
+}
+
 export function applySymmetricFanoutEmissions(
   nodes: PositionedNode[],
   edges: PositionedEdge[],
@@ -53,12 +61,16 @@ export function applySymmetricFanoutEmissions(
     if (raw.length < 2 || raw.length > 3) continue
     const source = nodeMap.get(sourceId)
     if (!source || (source.shape !== 'rectangle' && source.shape !== 'diamond')) continue
-    const sourceInGroup = nodeInsideGroups(source, groups)
-    if (source.shape !== 'diamond' && sourceInGroup) continue
+    // A grouped rectangle keeps ELK's target placement: moving a member would
+    // need its group refitted. Its fork is still emitted symmetrically, with
+    // one shared elbow and level label seats; the terminal runs follow the
+    // targets where ELK centred them under the source.
+    const routeOnly = source.shape !== 'diamond' && nodeInsideGroups(source, groups)
     const sorted = [...raw].sort((a, b) => nodeCrossCenter(nodeMap.get(a.target)!, graph.direction) - nodeCrossCenter(nodeMap.get(b.target)!, graph.direction))
     const targets = sorted.map(e => nodeMap.get(e.target)!).filter(Boolean)
     if (targets.length !== sorted.length) continue
-    if (!targets.every(t => t.shape === 'rectangle' && (source.shape === 'diamond' || !nodeInsideGroups(t, groups)))) continue
+    const scope = routeOnly ? containingGroups(source, groups) : ''
+    if (!targets.every(t => t.shape === 'rectangle' && (routeOnly ? containingGroups(t, groups) === scope : source.shape === 'diamond' || !nodeInsideGroups(t, groups)))) continue
     // Same-rank gate. Fan-out targets drift apart on the main axis when their
     // label widths differ ("warnings" 97px vs "ok" 60px → ~32px apart), so the
     // tolerance must clear that width-driven drift to see them as peers — while
@@ -74,6 +86,14 @@ export function applySymmetricFanoutEmissions(
       if (i !== j && reaches(targets[i]!.id, targets[j]!.id)) peer = false
     }
     if (!peer) continue
+    if (routeOnly) {
+      // The straightener's own lanes stand when they already mirror about the
+      // source: a symmetric pair of straight lines needs no constructed fork.
+      const { ctx, axis: laneAxis } = laneContextFor(nodes, edges, graph.direction, style, groups)
+      const centre = nodeCrossCenter(source, graph.direction)
+      const lanes = sorted.map(edge => straightLaneFor(edge, source, nodeMap.get(edge.target)!, ctx, laneAxis))
+      if (lanes.every((lane, i) => lane !== null && Math.abs(lane - centre + (lanes[lanes.length - 1 - i]! - centre)) <= 1)) continue
+    }
 
     const oldTargets = targets.map(t => ({ t, x: t.x, y: t.y, width: t.width, height: t.height }))
     const oldGroups = flattenPositionedGroups(groups).map(group => ({ group, x: group.x, y: group.y, width: group.width, height: group.height }))
@@ -104,7 +124,7 @@ export function applySymmetricFanoutEmissions(
         }
       }
     }
-    placeTargets(sourceAlignedCross ?? offsets.map(offset => axis + offset))
+    if (!routeOnly) placeTargets(sourceAlignedCross ?? offsets.map(offset => axis + offset))
     const targetIds = new Set(targets.map(t => t.id))
     const placementClear = (): boolean => {
       for (let i = 0; i < targets.length; i++) {
@@ -122,7 +142,7 @@ export function applySymmetricFanoutEmissions(
       }
       return true
     }
-    let clear = placementClear()
+    let clear = routeOnly || placementClear()
     if (!clear && sourceAlignedCross) {
       placeTargets(offsets.map(offset => axis + offset))
       clear = placementClear()
@@ -140,7 +160,7 @@ export function applySymmetricFanoutEmissions(
       : (f.sign > 0 ? Math.min(...targets.map(t => t.y)) : Math.max(...targets.map(t => t.y + t.height)))
     const requiredCorridor = Math.max(0, ...sorted.map(edge => terminalLabelCorridorLength(edge, graph.direction, style)))
     const currentCorridor = (targetEdge - sourceEdge) * f.sign
-    if (requiredCorridor > currentCorridor + 0.001) {
+    if (!routeOnly && requiredCorridor > currentCorridor + 0.001) {
       const delta = requiredCorridor - currentCorridor
       const targetRectsBeforeShift = targets.map(t => ({ x: t.x, y: t.y, width: t.width, height: t.height }))
       for (const target of targets) {
@@ -161,6 +181,8 @@ export function applySymmetricFanoutEmissions(
     const midpointElbow = sourceEdge + (targetEdge - sourceEdge) * 0.5
     const capacityElbow = targetEdge - f.sign * requiredTerminalRun
     const elbow = ((capacityElbow - midpointElbow) * f.sign < 0) ? capacityElbow : midpointElbow
+    // Unmoved targets must still leave the source its own hook before the elbow.
+    if (routeOnly && (elbow - sourceEdge) * f.sign < Math.max(...sorted.map(edge => terminalHookLength(style, edge, 'start'))) - 0.001) continue
     const proposed: Array<{ edge: PositionedEdge; points: Point[] }> = []
     for (let i = 0; i < sorted.length; i++) {
       const edge = sorted[i]!
@@ -168,6 +190,12 @@ export function applySymmetricFanoutEmissions(
       const points = doglegBetween(sourceEmissionPort(source, graph.direction, i, sorted.length), targetFlowPort(target, graph.direction), graph.direction, elbow)
       if (!routeClearOfNodes(points, nodes, new Set([edge.source, edge.target]))) { clear = false; break }
       proposed.push({ edge, points })
+    }
+    // Unmoved neighbours keep their routes; the rebuilt fork may not cross more of them.
+    if (clear && routeOnly) {
+      const foreign = edges.filter(edge => !raw.includes(edge) && edge.style !== 'invisible')
+      const crossings = (route: Point[]) => foreign.reduce((sum, other) => sum + countPointPairCrossings(route, other.points), 0)
+      clear = proposed.reduce((sum, { points }) => sum + crossings(points), 0) <= proposed.reduce((sum, { edge }) => sum + crossings(edge.points), 0)
     }
     if (!clear) {
       restoreGeometry()

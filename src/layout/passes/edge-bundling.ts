@@ -7,6 +7,9 @@ import { shape } from '../../scene/marks.ts'
 import { formatSvgNumber } from '../../shared/svg-number.ts'
 import { routeCandidateMarkerBlocker, routeMarkerPaintRegions } from '../route-marker-clearance.ts'
 import { retainConstructedBundleRoutes } from '../bundle-routes.ts'
+import { countOpposingRoutePartners } from '../../shared/edge-overlaps.ts'
+import { terminalHookLength } from '../route-geometry.ts'
+import { hookedElbow } from './shared.ts'
 
 /**
  * Find all groups (outermost first) that geometrically contain the given point.
@@ -147,11 +150,19 @@ export function bundleEdgePaths(
       candidates.set(edge, clipEdgeToShape(clipEdgeToShape(points, source, true), target, false))
     }
     const staged = edges.map(edge => candidates.has(edge) ? { ...edge, points: candidates.get(edge)! } : edge)
+    // A shared trunk may not run back along another edge's shaft (e.g. the
+    // reverse route leaving the same port): opposing ink hides which owns it.
+    const opposingAdded = (member: PositionedEdge, candidate: PositionedEdge): boolean => {
+      const others = edges.filter(edge => edge !== member)
+      const after = countOpposingRoutePartners(candidate, others)
+      return after > 0 && after > countOpposingRoutePartners(member, others)
+    }
     return members.filter(member => {
       const points = candidates.get(member.edge)!
       const candidate = staged[edges.indexOf(member.edge)]!
       return bundlePathClear(candidate, nodes, groups, style)
         && !routeCandidateMarkerBlocker(member.edge, points, staged, style, candidate)
+        && !opposingAdded(member.edge, candidate)
     })
   }
 
@@ -159,6 +170,8 @@ export function bundleEdgePaths(
   const isRL = direction === 'RL'
   const isBT = direction === 'BT'
   const isHorizontal = isLR || isRL
+  const memberHook = (members: ReadonlyArray<{ edge: PositionedEdge }>, end: 'start' | 'end'): number =>
+    Math.max(...members.map(({ edge }) => terminalHookLength(style, edge, end)))
 
   // --- Fan-out: group edges by shared source ---
   const fanOutGroups = new Map<string, PositionedEdge[]>()
@@ -208,7 +221,7 @@ export function bundleEdgePaths(
         const nearestX = isLR
           ? Math.min(...members.map(t => t.node.x))
           : Math.max(...members.map(t => t.node.x + t.node.width))
-        let junctionX = exitX + (nearestX - exitX) / 2
+        let junctionX = hookedElbow(exitX, nearestX, memberHook(members, 'start'), memberHook(members, 'end'))
         junctionX = adjustJunctionForGroups(junctionX, srcCX, srcCY, groups, direction)
 
         for (const { edge, node: target } of members) {
@@ -228,7 +241,7 @@ export function bundleEdgePaths(
         const nearestY = isBT
           ? Math.max(...members.map(t => t.node.y + t.node.height))
           : Math.min(...members.map(t => t.node.y))
-        let junctionY = exitY + (nearestY - exitY) / 2
+        let junctionY = hookedElbow(exitY, nearestY, memberHook(members, 'start'), memberHook(members, 'end'))
         junctionY = adjustJunctionForGroups(junctionY, srcCX, srcCY, groups, direction)
 
         for (const { edge, node: target } of members) {
@@ -300,7 +313,7 @@ export function bundleEdgePaths(
         const farthestX = isLR
           ? Math.max(...members.map(s => s.node.x + s.node.width))
           : Math.min(...members.map(s => s.node.x))
-        let junctionX = farthestX + (entryX - farthestX) / 2
+        let junctionX = hookedElbow(farthestX, entryX, memberHook(members, 'start'), memberHook(members, 'end'))
         junctionX = adjustJunctionForGroups(junctionX, tgtCX, tgtCY, groups, direction)
 
         for (const { edge, node: src } of members) {
@@ -320,7 +333,7 @@ export function bundleEdgePaths(
         const farthestY = isBT
           ? Math.min(...members.map(s => s.node.y))
           : Math.max(...members.map(s => s.node.y + s.node.height))
-        let junctionY = farthestY + (entryY - farthestY) / 2
+        let junctionY = hookedElbow(farthestY, entryY, memberHook(members, 'start'), memberHook(members, 'end'))
         junctionY = adjustJunctionForGroups(junctionY, tgtCX, tgtCY, groups, direction)
 
         for (const { edge, node: src } of members) {

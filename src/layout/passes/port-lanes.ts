@@ -5,6 +5,7 @@ import type { LabelMetricsStyle } from '../../route-contracts.ts'
 import { DEFAULTS, layoutDebug, layoutEnvFlag } from '../geometry.ts'
 import { corankFanInSpokes } from './peers.ts'
 import { reanchorOffOutlineEndpoints } from './obstacle-routing.ts'
+import { sameFlowLayer } from './shared.ts'
 import { tryStraighten } from '../route-lanes.ts'
 import { shapeOutline } from '../../shape-outline.ts'
 import { geometryBounds, nodePaintBounds, paintedStrokeExtent, unionSceneBounds } from '../../scene/bounds.ts'
@@ -198,7 +199,7 @@ export function alignLabeledSourcePort(
         pay()
         const rect = labelRect(edge, style)
         if (!rect) return false
-        const pill = paint.clearPaintRect(rect, labelHaloExtension(edge, style.lineWidth ?? 1))
+        const pill = paint.clearPaintRect(rect, labelHaloExtension(edge, style.lineWidth ?? 1), edge)
         if (!pill) return false
         const box = { x0: pill.x, y0: pill.y, x1: pill.x + pill.w, y1: pill.y + pill.h }
         for (const peer of candidate.edges) {
@@ -440,7 +441,7 @@ export function alignPortLanes(
     // Peer sizing can leave incident endpoints stale before this pass. Repair
     // only changed private routes, then admit the geometry we actually publish.
     const changedEdges = candidateEdges.filter((edge, index) => routeChanged(edge, edges[index]!))
-    reanchorOffOutlineEndpoints(candidateNodes, changedEdges, { direction })
+    reanchorOffOutlineEndpoints(candidateNodes, changedEdges, { direction }, style)
     if (!portLaneInkClear(candidateNodes, candidateEdges, nodes, edges, groups, style, budget)) return
   }
   // Centering is preparatory, but may not silently break more canonical
@@ -1067,6 +1068,11 @@ export function alignPortLaneCandidate(
     }
   }
 
+  const peerFanoutSource = (src: PositionedNode): boolean => {
+    const targets = edges.filter(o => o.source === src.id && o.target !== src.id && isForwardMonotone(o)).map(o => nodeMap.get(o.target))
+    return targets.length >= 2 && targets.length <= 3 && targets.every(t => t !== undefined) && sameFlowLayer(targets as PositionedNode[], direction, 40)
+  }
+
   for (const e of edges) {
     if (facetAligned.has(e)) continue
     if (e.points.length < 2 || e.source === e.target) continue
@@ -1089,7 +1095,10 @@ export function alignPortLaneCandidate(
     // Primary-forward shape: a monotone staircase along the flow axis (a
     // feedback loop or container route must not be retargeted at a port).
     if (!isForwardMonotone(e) || simplifyPolyline(e.points).length > 4) continue
-    const moved = moveSafe(tgt, d, e) ? tgt : moveSafe(src, -d, e) ? src : null
+    // A source fanning out to same-rank peers belongs to the symmetric
+    // emitter: sliding it over one child leaves the other branch carrying the
+    // whole offset, so only the child may move onto the source's lane.
+    const moved = moveSafe(tgt, d, e) ? tgt : !peerFanoutSource(src) && moveSafe(src, -d, e) ? src : null
     if (moved) {
       layoutDebug('[apl] slide', moved.id, 'by', (moved === tgt ? d : -d).toFixed(1), 'for', e.source, '->', e.target)
       apply(moved, moved === tgt ? d : -d, e)

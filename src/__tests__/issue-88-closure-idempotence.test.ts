@@ -28,20 +28,20 @@ describe('final route-contract closer invariants (issue #88)', () => {
   })
 
   test('a context-only regression keeps its bend when settled label halos conflict', () => {
-    const graph = parseMermaid(diamondFan(269))
+    const graph = parseMermaid(diamondFan(79))
     const positioned = layoutGraphSync(graph)
-    const edge = positioned.edges.find(item => item.source === 'D' && item.target === 'T1')!
+    const edge = positioned.edges.find(item => item.source === 'D' && item.target === 'T3')!
 
-    // Under the legacy 2px label clearance this RL edge had a straight lane.
+    // Under the legacy 2px label clearance this BT edge has a straight lane.
     // The final closer's label-halo clearance refuses it because the settled
-    // D->T0 pill sits inside the halo, so the edge keeps its bend, and its
+    // D->T2 pill sits inside the halo, so the edge keeps its bend, and its
     // certificate names that label as the blocker.
     const certificate = edge.routeCertificate
     expect({
       points: edge.points.length,
       invariant: certificate?.invariant,
       directLaneClear: certificate?.directLaneClear,
-      blockedByNeighbourLabel: certificate?.directLaneBlockedBy?.some(b => b.kind === 'label' && b.id === 'D->T0'),
+      blockedByNeighbourLabel: certificate?.directLaneBlockedBy?.some(b => b.kind === 'label' && b.id === 'D->T2'),
     }).toEqual({ points: 4, invariant: 'explained-detour', directLaneClear: false, blockedByNeighbourLabel: true })
     expect(findRouteHitches(positioned, graph)).toEqual([])
   })

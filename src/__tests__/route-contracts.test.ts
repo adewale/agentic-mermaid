@@ -1696,13 +1696,48 @@ describe('findLabelSlot (unit)', () => {
   })
 
   it('a node covering the whole lane leaves no slot', () => {
-    const wall = { id: 'W', label: 'W', shape: 'rectangle' as const, x: 50, y: 20, width: 300, height: 60 }
+    const wall = { id: 'W', label: 'W', shape: 'rectangle' as const, x: -10, y: 20, width: 420, height: 60 }
     expect(findLabelSlot(mkEdge({ label: 'No' }), start, end, ctx({ nodes: [wall] }))).toBeNull()
   })
 
-  it("the edge's own endpoints never block its label", () => {
+  it("the edge's own endpoint is an obstacle: its label moves to the first slot leaving line beside it", () => {
+    // A covers the midpoint; the 1/3 and 2/3 pills would sit under 2px from it.
     const a = { id: 'A', label: 'A', shape: 'rectangle' as const, x: 150, y: 20, width: 100, height: 60 }
-    expect(findLabelSlot(mkEdge({ label: 'No' }), start, end, ctx({ nodes: [a] }))).toEqual({ x: 200, y: 50 })
+    expect(findLabelSlot(mkEdge({ label: 'No' }), start, end, ctx({ nodes: [a] }))).toEqual({ x: 100, y: 50 })
+  })
+
+  it('the arrowhead end keeps its marker and line clear of the label as well', () => {
+    // A 60px lane leaves the midpoint pill about 14px from each endpoint:
+    // room for the 4px halo and some line, but not for the 8px arrowhead too.
+    const a = { id: 'A', label: 'A', shape: 'rectangle' as const, x: -50, y: 20, width: 50, height: 60 }
+    const b = { id: 'B', label: 'B', shape: 'rectangle' as const, x: 60, y: 20, width: 50, height: 60 }
+    const lane = (edge: PositionedEdge) => findLabelSlot(edge, { x: 0, y: 50 }, { x: 60, y: 50 }, ctx({ nodes: [a, b] }))
+    expect((60 - pillW) / 2).toBeGreaterThan(4 + 4)
+    expect((60 - pillW) / 2).toBeLessThan(4 + 8 + 4)
+    expect(lane(mkEdge({ label: 'No', hasArrowEnd: false }))).toEqual({ x: 30, y: 50 })
+    // The marked end pushes the pill toward the source, leaving each side
+    // its halo and line, and the arrowhead its own length as well.
+    const seat = lane(mkEdge({ label: 'No' }))!
+    expect(seat.y).toBe(50)
+    expect(seat.x - pillW / 2).toBeGreaterThanOrEqual(4 + 4)
+    expect(60 - (seat.x + pillW / 2)).toBeGreaterThanOrEqual(4 + 8 + 4)
+    // A lane too short for both clearances has no seat at all.
+    expect(findLabelSlot(mkEdge({ label: 'No' }), { x: 0, y: 50 }, { x: 50, y: 50 },
+      ctx({ nodes: [a, { ...b, x: 50 }] }))).toBeNull()
+  })
+
+  it('keeps the whole pill on a lane that ends at a bend', () => {
+    // The lane leaves A and turns at its far end; C blocks its middle. The
+    // seat just past C would hang its pill over the bend of a 100px lane.
+    const a = { id: 'A', label: 'A', shape: 'rectangle' as const, x: -50, y: 20, width: 50, height: 60 }
+    const c = { id: 'C', label: 'C', shape: 'rectangle' as const, x: 30, y: 20, width: 40, height: 60 }
+    const lane = (bend: number) => findLabelSlot(mkEdge({ label: 'No' }), start, { x: bend, y: 50 }, ctx({ nodes: [a, c] }))
+    expect(70 + 2 + pillW).toBeGreaterThan(100)
+    expect(lane(100)).toBeNull()
+    const seat = lane(120)!
+    expect(seat.y).toBe(50)
+    expect(seat.x - pillW / 2).toBeGreaterThanOrEqual(70 + 2)
+    expect(seat.x + pillW / 2).toBeLessThanOrEqual(120)
   })
 })
 
@@ -2741,8 +2776,8 @@ describe('port-lane reserved-header admission', () => {
 
   for (const width of ['20', '16']) it(`${width === '20' ? 'refuses' : 'keeps'} the labelled-source slide beside a foreign painted shaft`, () => {
     const graph = parseMermaid('flowchart LR\nS -->|go| T\nU --> V')
-    const nodes = [n('S', 0, 0, 40, 100), n('T', 100, 80), n('U', -70, 144, 20, 20), n('V', 80, 144, 20, 20)]
-    const edges = [{ ...e('S', 'T', [{ x: 40, y: 95 }, { x: 100, y: 95 }]), label: 'go', labelPosition: { x: 70, y: 95 } },
+    const nodes = [n('S', 0, 0, 40, 100), n('T', 120, 80), n('U', -70, 144, 20, 20), n('V', 80, 144, 20, 20)]
+    const edges = [{ ...e('S', 'T', [{ x: 40, y: 95 }, { x: 120, y: 95 }]), label: 'go', labelPosition: { x: 80, y: 95 } },
       { ...e('U', 'V', [{ x: -50, y: 154 }, { x: 80, y: 154 }]), inlineStyle: { 'stroke-width': width } }]
     const before = structuredClone({ nodes, edges })
     // Recentring S on y95 puts its bottom at145. The y154 centreline
@@ -2751,7 +2786,7 @@ describe('port-lane reserved-header admission', () => {
     if (width === '20') expect({ nodes, edges }).toEqual(before)
     else {
       expect(nodes[0]!.y).toBe(45)
-      expect(edges[0]!.labelPosition).toEqual({ x: 70, y: 95 })
+      expect(edges[0]!.labelPosition).toEqual({ x: 80, y: 95 })
     }
   })
 

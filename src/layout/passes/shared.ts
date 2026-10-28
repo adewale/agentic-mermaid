@@ -126,6 +126,15 @@ export function symmetricOffsets(count: number, spacing: number): number[] {
   return Array.from({ length: count }, (_, i) => (i - (count - 1) / 2) * spacing)
 }
 
+/** A dogleg's elbow sits midway along the main-axis gap unless the hook at
+ * `to` needs more of it: then it leaves that hook, provided the `from` side
+ * keeps its own. A gap too short for both hooks stays midway. */
+export function hookedElbow(from: number, to: number, fromHook: number, toHook: number): number {
+  const gap = Math.abs(to - from)
+  if (gap / 2 >= toHook || gap < fromHook + toHook) return from + (to - from) / 2
+  return to - Math.sign(to - from) * toHook
+}
+
 export function doglegBetween(source: Point, target: Point, direction: Direction, elbow: number): Point[] {
   const f = layoutFlow(direction)
   return f.isHorizontal

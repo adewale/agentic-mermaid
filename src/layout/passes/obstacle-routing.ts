@@ -3,7 +3,8 @@ import { onShapeOutline, segmentThroughShape } from '../../layout-rubric.ts'
 import { recertifyReroutedEdge, shapePorts, simplifyPolyline } from '../../route-contracts.ts'
 import { bundleRouteBeforeRewrite, retainBundleRouteAfterRewrite } from '../bundle-routes.ts'
 import { calculatePathMidpoint, layoutFlow, nodeCrossSize, nodeCrossStart } from '../geometry.ts'
-import { doglegBetween, routeClearOfNodes } from './shared.ts'
+import { doglegBetween, hookedElbow, routeClearOfNodes } from './shared.ts'
+import { terminalHookLength, type LabelMetricsStyle } from '../route-geometry.ts'
 
 /**
  * Post-freeze safety net for STALE edge endpoints. A pass that MOVES a node is
@@ -23,7 +24,7 @@ import { doglegBetween, routeClearOfNodes } from './shared.ts'
  * endpoint is not worth trading for an edgeThroughNode); self-loops are skipped
  * (their stub is the renderer's). Deterministic; label re-centred on the new route.
  */
-export function reanchorOffOutlineEndpoints(nodes: PositionedNode[], edges: PositionedEdge[], graph: Pick<MermaidGraph, 'direction'>): void {
+export function reanchorOffOutlineEndpoints(nodes: PositionedNode[], edges: PositionedEdge[], graph: Pick<MermaidGraph, 'direction'>, style: Pick<LabelMetricsStyle, 'lineWidth' | 'edgeBendRadius'> = {}): void {
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
   const f = layoutFlow(graph.direction)
   for (const edge of edges) {
@@ -35,7 +36,8 @@ export function reanchorOffOutlineEndpoints(nodes: PositionedNode[], edges: Posi
     if (!srcOff && !tgtOff) continue
     const start = shapePorts(source)[f.sourceSide]
     const end = shapePorts(target)[f.targetSide]
-    const route = doglegBetween(start, end, graph.direction, (start[f.main] + end[f.main]) / 2)
+    const elbow = hookedElbow(start[f.main], end[f.main], terminalHookLength(style, edge, 'start'), terminalHookLength(style, edge, 'end'))
+    const route = doglegBetween(start, end, graph.direction, elbow)
     if (!routeClearOfNodes(route, nodes, new Set([edge.source, edge.target]))) continue
     const savedCert = edge.routeCertificate
     edge.points = route

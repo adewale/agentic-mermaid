@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
   "status": "approved",
-  "reviewedAt": "2026-10-27",
-  "reviewer": "Codex agents, PR #449 canonical Cupertino routing and marker review",
-  "scope": "Agent visual review of the canonical Cupertino catalog capture at 8d7479e9, with its catalog shadow option. The PNG remains 900×191. Compared with the reviewed 25b7 image, 1,000 pixels change within (145, 70)–(780, 139); the intermediate 888 f019 image is not adopted. All 127 XML elements, 6 nodes, 7 authored edges, Core membership, 9 prepared texts, styles and semantic attributes are retained. Exactly 48 nonzero served line/quadratic tangent vectors are cardinal. All 14 outward approaches have actual painted contact; 13 have exact served centerline/face equality. The Intake facet contact has an explicitly recorded 2.58e-10px centerline residual and exact round-tip stroke/body contact, without an equality tolerance. Complete marker supports, foreign shafts/cards, both opaque label halos and the full header are clear. The two Export arrowheads have a 5.008333333px complete stroke-envelope gap. The two other artifact approvals retain their prior hashes. The existing cookbook owner reproduced these exact Cupertino PNG bytes at runtimes 4461bc8b and 04c52334. Its separate transit-map screenshot mismatch remains unapproved and is not part of this artifact review. This is agent review, not human approval, exhaustive font-outline/filter certification or universal rendering parity.",
+  "reviewedAt": "2026-10-28",
+  "reviewer": "Claude agent, issue #566 terminal readability review",
+  "scope": "Agent visual review of the Cupertino catalog capture regenerated from the issue #566 working tree, with its catalog shadow option. The PNG is now 900×187 (previously 900×191). All 127 XML elements, 6 nodes, 7 authored edges, Core membership, prepared texts, styles and semantic attributes are retained; every relationship path moves because placement now reserves a straight terminal shaft after each rounded corner. Repair→Validate and the no return leave Repair on separate lanes and meet the decision on different facets; Intake enters from the upper left; both edge captions sit on their own routes clear of nodes and markers. The two Export arrowheads keep a 5.008px complete stroke-envelope gap; no two marker envelopes overlap and no route shares opposing ink. Layout certification passes; the one secondary hitch (Audit→Export, 6.8px) is also present at the prior approved capture. The Vercel and Cloudflare artifact hashes are unchanged. This is agent review, not human approval, exhaustive font-outline/filter certification or universal rendering parity.",
   "artifacts": [
     {
       "id": "cupertino-prototype",
       "path": "docs/assets/style-cookbook/cupertino-prototype.png",
-      "sha256": "0b8a5382ca5c4363514ed5ff8d92753484c91146ef7a8e2e26786fe1fda13ee2"
+      "sha256": "394143d21e27fe7aea850f0da2600bbdb68289a6d186a7650dd2a7140bf3bf6b"
     },
     {
       "id": "vercel-inspired-prototype",
