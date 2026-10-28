@@ -454,3 +454,48 @@ reference packets and independent artifact review),
 `/tmp/pr449-20261028-report-controls/`. The recovery continuation records exact
 final refs, CI and the external evidence archive. No new source benchmark,
 peer acquisition, holdout access or performance tuning occurred.
+
+
+### Exact-head CI for the linked-job repairs
+
+[CI40674518679](https://github.com/adewale/agentic-mermaid/actions/runs/40674518679)
+is complete on pushed `5e19e47ebc133b10d9db0a281405451a1cfedcef`, integrating
+Main `9aaffac653bcea0a0897cd7281ee48e3884751cf`. Units are **14,532P / 76 skips
+/ 0F** (4,985 / 5,275 / 4,272). Semantic conformance passes173 tests, retains
+63/64 qualified assertions plus one unavailable, and replays882 grammar inputs
+with zero untracked defects. Installed Node22/24 consumers, CLI/MCP, dist,
+quickstarts, browser-site and backend review pass. Manual PR-event red/green
+is skipped; the genuine local failures remain the discriminating evidence.
+
+The full diagnostic confirms corpus234 has **zero API errors under both
+engines**, restoring the lost Requirement100 admission. Its vector comparison
+is47regressions/52improvements/135changed/0unchanged. Generated256 retains one
+ELK-backed error and zero Native errors, with123regressions/133improvements.
+All six additional64-input cohorts have zero API errors under both engines.
+The new CLI explicitly states per-arm and both-failed counts; its missing-member
+category is no longer confused with renderer success. It still measures metrics
+through a separate layout call, and no API/certificate count proves global
+correctness or aesthetic superiority.
+
+**CI remains failed.** Absolute lazy delivery has62 unique violations; browser
+functional checks are21P/1F solely on editor raw size **4,496,499 > 4,429,400**.
+Demo requests remain38 >36. Gzip and relative assertions are not reached. All
+advisory metric losses and generated40's ELK refusal remain enrolled. No cap,
+verdict, exit condition or check is relaxed. Live Main and branch recheck after
+completion are9aaff and5e19. The following documentation-only handoff leaves
+production/tests/dependencies/workflows exact to tested5e19; no separate CI
+qualification for that documentation commit is inferred.
+
+A saved f74 single-row report excerpt now visibly shows errors1/1/both1 while
+preserving the unchanged verdict. It is report-only reuse of existing artifacts,
+not a new acquisition or full-corpus result. Both complete original ZIPs remain
+locally retained and their downloaded bytes match GitHub artifact digests.
+The supplemental review archive contains selected packets, controls, full final
+CI logs and provenance, not duplicated full ZIPs; original artifact references
+remain explicit. No failed source or enrollment is deleted.
+
+Next investigate actual final ink behind `generated-cyclic:40`'s ELK-backed
+caption refusal and continue served-geometry authority for the original seven.
+Holdout, peer, aesthetic and performance qualification remain open and ordered
+by the0.6contract. PR449 remains closed/merged historically; follow-up commits
+are on its retained branch only. No performance timing campaign occurred.
