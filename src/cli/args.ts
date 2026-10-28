@@ -23,6 +23,7 @@ const FLAG_SPEC_TABLE = {
   open: {},
   force: {},
   'canonical-wrapper': {},
+  'preserve-source': {},
   'system-fonts': {},
   // value flags (placeholder = what the usage shows after the flag)
   suppress: { arg: 'CODES' },
@@ -105,7 +106,7 @@ export const COMMAND_FLAGS = {
   verify: ['help', 'json', 'suppress', 'label-cap', 'style'],
   parse: ['help', 'json'],
   serialize: ['help'],
-  mutate: ['help', 'json', 'op', 'ops'],
+  mutate: ['help', 'json', 'op', 'ops', 'preserve-source'],
   preview: ['help', 'json', 'output', 'open', 'security'],
   format: ['help', 'canonical-wrapper'],
   describe: ['help', 'json', 'format'],

@@ -7,7 +7,7 @@ import { PURE_COMPUTE_ANNOTATIONS, type McpToolDefinition } from './tool-surface
 export const SDK_FAMILIES = BUILTIN_FAMILY_METADATA.map(family => family.id)
 const SDK_FAMILY_SET = new Set<string>(SDK_FAMILIES)
 const DIAGRAM_KIND = SDK_FAMILIES.map(family => `'${family}'`).join(' | ')
-const NARROWERS = BUILTIN_FAMILY_METADATA.map(family => `${family.narrower}:NarrowDiagram`).join('\n')
+const NARROWERS = BUILTIN_FAMILY_METADATA.map(family => `${family.narrower}:Narrow`).join('\n')
 
 /**
  * The declaration sent with tools/list. Family IR and mutation unions stay out
@@ -41,7 +41,7 @@ interface PreservedValidDiagram {
   }
 }
 type ParsedDiagram = ValidDiagram | ExtensionValidDiagram | PreservedValidDiagram
-type NarrowDiagram = (d: ParsedDiagram) => ValidDiagram | null
+type Narrow = (d: ParsedDiagram) => ValidDiagram | null
 ${CODE_MODE_LAYOUT_SUMMARY_DECLARATION}
 interface VerifyResult{ok:boolean;warnings:unknown[];layout:RenderedLayout;checks?:{renderability:'passed'|'failed'|'not-checked';sourceLoss:'detected'|'not-detected';taskCorrectness:'not-checked'}}
 type MermaidConfigScalar=string|number|boolean|null
@@ -51,26 +51,29 @@ type MermaidRuntimeConfig = { [key: string]: MermaidConfigValue | undefined }
 ${CODE_MODE_CORE_RENDER_OPTION_DECLARATIONS}
 
 declare const mermaid: {
-  parseRegisteredMermaid(source: string): Result<ParsedDiagram, ParseError[]>
-  createMermaid(kind: DiagramKind, opts?: CreateMermaidOptions): ValidDiagram
-  buildMermaid(kind: DiagramKind, ops: MutationOp[], opts?: CreateMermaidOptions): Result<ValidDiagram, { code: string; message: string; opIndex: number }>
+  parseRegisteredMermaid(s: string): Result<ParsedDiagram, ParseError[]>
+  createMermaid(k: DiagramKind, o?: CreateMermaidOptions): ValidDiagram
+  buildMermaid(k: DiagramKind, ops: MutationOp[], o?: CreateMermaidOptions): Result<ValidDiagram, { code: string; message: string; opIndex: number }>
 ${NARROWERS}
-  mutate(diagram: ValidDiagram, op: MutationOp): Result<ValidDiagram>
-  verifyMermaid(input: ParsedDiagram | string, opts?: { suppress?: string[]; labelCharCap?: number; renderOptions?: SharedRenderOptions }): VerifyResult
-  analyzeMermaid(diagram: ValidDiagram): Record<string, unknown>
-  analyzeMermaidSource(source: string): Result<Record<string, unknown>>
-  describeMermaidFacts(diagram: ValidDiagram): string[]
-  describeMermaidFactsSource(source: string): Result<string[]>
-  checkMermaid(diagram: ValidDiagram, spec: CheckMermaidSpec): CheckMermaidResult
-  checkMermaidSource(source: string, spec: CheckMermaidSpec): Result<CheckMermaidResult>
-  serializeMermaid(diagram: ParsedDiagram): string
-  renderMermaidSVG(input: ParsedDiagram | string, opts?: SvgRenderOptions): string
-  renderMermaidSVGWithReceipt(input: ParsedDiagram | string, opts?: SvgRenderOptions): RenderedSvg
-  renderMermaidASCII(input: ParsedDiagram | string, opts?: AsciiRenderOptions): string
-  renderMermaidASCIIWithReceipt(input: ParsedDiagram | string, opts?: AsciiRenderOptions): RenderedAscii
-  layoutMermaidWithReceipt(input: ParsedDiagram | string, opts?: LayoutRenderOptions): RenderedLayoutArtifact
-  describeOps(family: DiagramKind): Record<string, { name: string; required: boolean; type: string; note?: string }[]>
-  opSignatures(family: DiagramKind): string[]
+  mutate(d: ValidDiagram, op: MutationOp): Result<ValidDiagram>
+  // Opaque Class:add_member/remove_member;Flowchart:set_label/rename_node.
+  // Save exact source;verify diagram;ownership/dependencies refuse;warnings stay;no portability promise.
+  mutatePreservingSource(d: ParsedDiagram, op: MutationOp): Result<{source:string;diagram:ParsedDiagram}>
+  verifyMermaid(d: ParsedDiagram | string, o?: { suppress?: string[]; labelCharCap?: number; renderOptions?: SharedRenderOptions }): VerifyResult
+  analyzeMermaid(d: ValidDiagram): Record<string, unknown>
+  analyzeMermaidSource(s: string): Result<Record<string, unknown>>
+  describeMermaidFacts(d: ValidDiagram): string[]
+  describeMermaidFactsSource(s: string): Result<string[]>
+  checkMermaid(d: ValidDiagram, spec: CheckMermaidSpec): CheckMermaidResult
+  checkMermaidSource(s: string, spec: CheckMermaidSpec): Result<CheckMermaidResult>
+  serializeMermaid(d: ParsedDiagram): string
+  renderMermaidSVG(d: ParsedDiagram | string, o?: SvgRenderOptions): string
+  renderMermaidSVGWithReceipt(d: ParsedDiagram | string, o?: SvgRenderOptions): RenderedSvg
+  renderMermaidASCII(d: ParsedDiagram | string, o?: AsciiRenderOptions): string
+  renderMermaidASCIIWithReceipt(d: ParsedDiagram | string, o?: AsciiRenderOptions): RenderedAscii
+  layoutMermaidWithReceipt(d: ParsedDiagram | string, o?: LayoutRenderOptions): RenderedLayoutArtifact
+  describeOps(k: DiagramKind): Record<string, { name: string; required: boolean; type: string; note?: string }[]>
+  opSignatures(k: DiagramKind): string[]
 }`.replace(/^[ \t]+/gm, '').replace(/; +/g, ';').replace(/: +/g, ':'))
 
 export type DescribeSdkDetail = 'signatures' | 'fields'
