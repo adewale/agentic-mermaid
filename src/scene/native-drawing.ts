@@ -147,7 +147,7 @@ export function drawNative(
       const matrix = capturedShell ? emission.group(capturedShell) : undefined
       const own = capturedShell?.identity ?? { id: shell.id, role: shell.role }
       for (const child of children) {
-        if (child.kind === 'leaf' && child.node.kind === 'shape' && !child.node.identity) validator.enclosure(child.node.id, own)
+        if (child.kind === 'leaf' && child.node.kind === 'shape' && !child.node.identity) validator.enclosure(child.node.id, capturedShell?.identity ?? shell.identity ?? own)
       }
       const fragments = [shell.open]
       for (const child of childParts) fragments.push(indentLines(child.node.svg, child.indent))

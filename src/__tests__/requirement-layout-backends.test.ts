@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { layoutMermaidWithReceipt, parseRegisteredMermaid } from '../agent/core.ts'
 import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
@@ -8,12 +9,80 @@ import { layoutRequirementDiagram } from '../requirement/layout.ts'
 import { parseRequirementDiagram } from '../requirement/parser.ts'
 import { segmentEntersLabelRect } from '../shared/edge-label-geometry.ts'
 import { scanSvgStartTags } from '../svg-structure.ts'
+import { useTestChildren } from './helpers/test-child.ts'
 
 const native = { graphLayout: { backend: 'agentic' as const } }
 const fixture = readFileSync(new URL('../../eval/layout-compare/fixtures/requirement-backends.mmd', import.meta.url), 'utf8')
 const source = (direction: string) => fixture.replace('direction TB', `direction ${direction}`)
+const runChild = useTestChildren(20_000)
 
 describe('Requirement layout backends', () => {
+  test.each((['agentic', 'elk'] as const).flatMap(backend => (['scene', 'native'] as const).map(admission => ({ backend, admission }))))('retains all authored cards and traces in a 100-requirement chain with $backend through $admission admission', async ({ backend, admission }) => {
+    const requirements = Array.from({ length: 100 }, (_, index) => ({ name: `r${index}`, id: `R${index}`, text: `Requirement ${index}` }))
+    const relations = Array.from({ length: 99 }, (_, index) => [`r${index}`, `r${index + 1}`, 'traces'])
+    const input = ['requirementDiagram', ...requirements.flatMap((node, index) => [
+      `  requirement ${node.name} {`, `    id: ${node.id}`, `    text: "${node.text}"`, '    risk: medium', '    verifymethod: test', '  }',
+      ...(index ? [`  r${index - 1} - traces -> ${node.name}`] : []),
+    ])].join('\n')
+    const options = { graphLayout: { backend, fallback: 'none' as const } }
+    let rendered!: ReturnType<typeof renderMermaidSVGWithReceipt>
+    let layout!: ReturnType<typeof layoutMermaidWithReceipt>['layout']
+    let stages: string[] = []
+    if (admission === 'native') {
+      // The unit preload enables Scene assertions at module import. A fresh
+      // production realm must exercise the ordinary native drawing boundary.
+      const child = await runChild(process.execPath, ['-e', `
+        import { renderMermaidSVGWithReceipt } from './src/index.ts'
+        import { layoutMermaidWithReceipt } from './src/agent/core.ts'
+        import { withRenderStageObserver } from './src/render-stages.ts'
+        const input = await Bun.stdin.text(), options = ${JSON.stringify(options)}, stages = []
+        const rendered = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(input, options))
+        console.log(JSON.stringify({ rendered, layout: layoutMermaidWithReceipt(input, options).layout, stages }))
+      `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' }, input })
+      expect(child.status, child.stderr).toBe(0)
+      const packet = JSON.parse(child.stdout) as { rendered: typeof rendered; layout: typeof layout; stages: string[] }
+      rendered = packet.rendered
+      layout = packet.layout
+      stages = packet.stages
+      expect(stages).toContain('drawing')
+      expect(stages).not.toContain('scene')
+    } else {
+      expect(() => { rendered = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(input, options)) }).not.toThrow()
+      layout = layoutMermaidWithReceipt(input, options).layout
+      expect(stages).toContain('scene')
+    }
+    expect(rendered.receipt.layoutDecisions?.[0]?.selected).toBe(backend)
+    expect(layout.nodes.map(node => node.id)).toEqual(requirements.map(node => node.name))
+    expect(layout.edges.map(edge => [edge.from, edge.to, edge.label?.text])).toEqual(relations.map(([from, to]) => [from, to, '<<traces>>']))
+
+    const { JSDOM } = createRequire(import.meta.url)('jsdom')
+    const dom = new JSDOM(rendered.svg, { contentType: 'image/svg+xml' })
+    try {
+      const document = dom.window.document as Document
+      const groups = [...document.querySelectorAll('g.requirement-node')]
+      expect(groups.map(group => group.getAttribute('data-id'))).toEqual(requirements.map(node => node.name))
+      for (const [index, node] of requirements.entries()) {
+        const group = groups[index]!, frames = [...group.querySelectorAll('rect')]
+        expect(frames).toHaveLength(1)
+        expect(Number(frames[0]!.getAttribute('width'))).toBeGreaterThan(0)
+        expect(Number(frames[0]!.getAttribute('height'))).toBeGreaterThan(0)
+        expect([...group.querySelectorAll('text')].map(text => text.textContent)).toEqual([
+          `<<Requirement>>${node.name}`, `ID: ${node.id}`, `Text: ${node.text}`, 'Risk: Medium', 'Verification: Test',
+        ])
+      }
+      const carriers = [...document.querySelectorAll('[data-role="relationship"][data-from]')]
+      expect(carriers.map(carrier => [carrier.getAttribute('data-from'), carrier.getAttribute('data-to'), carrier.getAttribute('data-relationship')])).toEqual(relations)
+      expect(new Set(carriers.map(carrier => carrier.getAttribute('data-id'))).size).toBe(99)
+      for (const carrier of carriers) {
+        expect(carrier.getAttribute('stroke-dasharray')).toBe('6 4')
+        expect(carrier.getAttribute('marker-end')).toBe('url(#requirement-arrow)')
+        expect(carrier.hasAttribute('marker-start')).toBe(false)
+      }
+      expect(document.querySelectorAll('marker#requirement-arrow')).toHaveLength(1)
+      expect([...document.querySelectorAll('g.requirement-edge-label text')].map(text => text.textContent?.trim())).toEqual(Array(99).fill('<<traces>>'))
+    } finally { dom.window.close() }
+  })
+
   test.each(['TB', 'BT', 'LR', 'RL'])('retains measured cards, relationship labels and distinct routes natively in %s', direction => {
     const model = parseRequirementDiagram(source(direction)), original = structuredClone(model)
     const placed = layoutRequirementDiagram(model, native)
