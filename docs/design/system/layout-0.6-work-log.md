@@ -1345,3 +1345,64 @@ outside definitions and malformed root suffixes; neither is yet an executed
 counterexample. They must be checked before broadening row87's served stroke
 and fractional-body proof domain. No timing/compiler tuning, cap/default/version
 change, package publication, new PR/issue/comment, merge or force push.
+
+
+### Declared-resource repair: terminal CI and delivery cost
+
+[CI40756287244](https://github.com/adewale/agentic-mermaid/actions/runs/40756287244)
+completed **failed** on exact candidate
+**`c10a7a01d8eb085a88502e2a472e0649e2642451`**, containing runtime/test
+**`4ce6cf5b3ec2e3850ebae9c5a8663a3b4af838aa`**. Actual checkout logs contain
+c10; its parent is 4ce, not a hypothetical merge with live Main. All three unit
+shards pass 4,537 / 5,006 / 5,076: **14,619 P / 76 skips / zero F**. The ten
+additional controls are included, not added to that total again. Node22/24
+installed consumers, quickstarts, MCP, CLI, distribution, payload and browser-site
+checks pass. Manual PR-event red/green is skipped; the actual local RED0de
+controls remain available and unchanged.
+
+Semantic assertions pass **173 / zero F**, with **63/64 qualified and one
+unavailable**. The 882 grammar inputs have zero untracked defects and zero
+unreviewed disagreements. Broader diagnostics still retain 440/548
+upstream-valid inputs rendered, 431 structured / 10 opaque / 107 preserved
+model classifications, six reference-unqualified observations and thirteen
+seed7 silent reads. These remain diagnostic gaps, not final-ink qualification.
+No new public Mermaid/Pele geometry or full correctness parity is claimed.
+
+Quality's types, lint and rendered audit pass: 513 diagrams / 2,052 formats /
+zero hard, soft or render errors; structural 513/513 and SVG markup 275/513.
+Overall quality fails **24 unique lazy byte rows**, now 17 raw / seven gzip.
+The **new sequence gzip failure is 214,056 > 214,000**, 56 bytes over its original
+cap. Browser has 21 P / 1 F: editor raw **4,491,358 >4,429,400**, **489 bytes more**
+than the preceding abca candidate. Editor gzip is not reached. This additional
+delivery cost is explicitly a regression of the repair; it is not relabelled
+as noise or an old failure. No cap, check or work limit is relaxed and no
+performance/delivery tuning or timing campaign is performed.
+
+The existing aesthetic advisory remains failed with the same tradeoffs:
+234 corpus cases have 47 regressions / 52 improvements / 135 changed; initial
+256 generated cases have 123 regressions / 133 improvements. Both engines have
+zero API errors in those and all six historical 64-case cohorts. Zero status
+changes means missing population only. Existing historical inputs are not the
+sealed 0.6 holdout, and zero API errors do not establish correctness/aesthetic
+parity. No adverse case or unavailable observation is dropped.
+
+Decoded logs, exact jobs, delivery rows and artifact references are under
+`/tmp/pr449-native-all-resources-20261028/ci40756287244/`. Reference archives
+remain at their authenticated GitHub artifact URLs; large raw ZIPs are not
+newly downloaded. Actual source/test verification is the direct three-member
+before/after/committed-byte comparison, not an own-input hash.
+
+Post-CI live refs: retained head c10; Main has advanced to
+**`700da836a418277225e2f058a77c48dc010b050b`**. Only integrated 03641 is in the
+qualified candidate; new Main is **not jointly qualified**. The following
+work-log-only revision changes no source, tests, dependencies or workflows
+and has no separate full-CI or readiness claim. Overall CI remains red.
+
+All original seven diagrams and six acceptance goals remain open. Next
+concrete correctness step is to execute the separate title-ID/root-boundary
+falsifiers, retaining failures or unavailable observations, before admitting
+row87's exact served stroke/fractional-body case. Declared-resource custody is
+now implemented; global document identity/grammar is not thereby proved. The
+holdout remains sealed, shared Trident proposals unshipped, ELK default and
+version unchanged. No new issue/PR/comment, package publication, merge or force
+push is performed.
