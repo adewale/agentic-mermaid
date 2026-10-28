@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, spyOn, test } from 'bun:test'
 
 import { lowerArchitectureScene } from '../architecture/renderer.ts'
 import { DEFAULT_ARCHITECTURE_VISUAL } from '../architecture/config.ts'
@@ -13,7 +13,11 @@ import { parseJourneyDiagram } from '../journey/parser.ts'
 import { preprocessMermaidLines } from '../mermaid-source.ts'
 import { lowerGraphScene } from '../renderer.ts'
 import * as marks from '../scene/marks.ts'
-import { nodeWorldBounds } from '../scene/bounds.ts'
+import { connectorMarkerPaintRegions, nodeWorldBounds } from '../scene/bounds.ts'
+import * as serialization from '../scene/serialization.ts'
+import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
+import { resolveRenderStyle } from '../styles.ts'
+import type { PositionedEdge } from '../types.ts'
 import { projectConnectorPath } from '../scene/connector-geometry.ts'
 import { hitTestConnector } from '../scene/hit-test.ts'
 import type { ConnectorMark, SceneDoc, ScenePoint } from '../scene/ir.ts'
@@ -43,6 +47,35 @@ function onlyConnector(doc: SceneDoc): ConnectorMark {
   expect(found).toHaveLength(1)
   return found[0]!
 }
+
+test.each([
+  { name: 'straight arrows', radius: 0, marker: 'arrow', thick: false, fixed: false, curve: false },
+  { name: 'rounded circles', radius: 20, marker: 'circle', thick: true, fixed: false, curve: false },
+  { name: 'fixed rounded crosses', radius: 20, marker: 'cross', thick: false, fixed: true, curve: false },
+  { name: 'fixed cubic arrows', radius: 0, marker: 'arrow', thick: false, fixed: true, curve: true },
+  { name: 'cubic circles', radius: 0, marker: 'circle', thick: true, fixed: false, curve: true },
+] as const)('layout marker queries match lowered $name without admitting discarded Scene nodes', row => {
+  const edge: PositionedEdge = {
+    source: 'A', target: 'B', style: row.thick ? 'thick' : 'solid',
+    hasArrowStart: true, hasArrowEnd: true, startMarker: row.marker, endMarker: row.marker,
+    points: RIGHT_ANGLE_POINTS.map(point => ({ ...point })),
+    ...(row.fixed ? { inlineStyle: { stroke: 'rgb(20, 40, 60)', 'stroke-width': '4px' } } : {}),
+    ...(row.curve ? { curve: 'natural' as const } : {}),
+  }
+  const styleFace = { edge: { lineWidth: 3, bendRadius: row.radius } }
+  const mark = onlyConnector(lowerGraphScene({
+    positioned: { width: 120, height: 120, nodes: [], groups: [], edges: [edge] },
+    colors: COLORS, resolved: { renderOptions: {}, styleFace },
+  }))
+  const expected = connectorMarkerPaintRegions(mark)
+  expect(expected).toHaveLength(2)
+  const admission = spyOn(serialization, 'admitWritableSceneNode')
+  try {
+    const actual = graphEdgeMarkerPaintRegions(edge, resolveRenderStyle({}, undefined, styleFace))
+    expect(actual).toEqual(expected)
+    expect(admission).not.toHaveBeenCalled()
+  } finally { admission.mockRestore() }
+})
 
 function pointToSegmentDistance(point: ScenePoint, start: ScenePoint, end: ScenePoint): number {
   const dx = end.x - start.x
