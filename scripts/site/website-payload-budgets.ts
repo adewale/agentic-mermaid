@@ -47,7 +47,7 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     ]),
   }),
   demo: Object.freeze({
-    // Native layout delivery uses 38 requests; retain one request of headroom.
+    // Recorded native layout delivery used 38 requests; allow one more.
     maxRequests: 39,
     // Optional sketch code stays out of the default Timeline delivery graph.
     // Includes the shared native drawing writer, bounded admission and flat paint evidence.
