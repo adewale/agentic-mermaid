@@ -6,7 +6,6 @@ import { fileURLToPath } from 'node:url'
 import { build, transformSync } from 'esbuild'
 import ts from 'typescript'
 import { runtimeRenderContractPlugin } from '../../scripts/build/runtime-render-contract.ts'
-import { privateEditorFamiliesPlugin, privateEditorFamilySource } from '../../scripts/build/private-editor-families.ts'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
 const temporary = mkdtempSync(join(tmpdir(), 'mermaid-runtime-metadata-'))
@@ -155,58 +154,6 @@ describe('browser runtime metadata projection', () => {
     expect(inspector.field.terminalNote).toBe('required terminal note')
     const editor = Function(`${project(path, { conformanceObservations: false })}\nreturn run();`)()
     expect(editor).toEqual(inspector)
-  })
-})
-
-describe('private editor family projection', () => {
-  test('keeps source, diagnostics and sidecars while making typed mutation unavailable', () => {
-    const source = [
-      "function mutateDiagram() { throw new Error('typed mutation reached the private worker'); }",
-      'function hooks(kind, parse, serialize, mutate, verify) {',
-      '  return { parse, serialize, verify, mutate: (body, op) => mutate(body, op),',
-      '    buildSourceMap: body => ({ nodes: [["owned", { line: 2, col: 1 }]], labels: [body.source] }) };',
-      '}',
-      "const family = hooks('diagram', source => { if (!source.startsWith('diagram\\n')) throw new Error('invalid header'); return { kind: 'diagram', source }; },",
-      "  body => body.source, mutateDiagram, body => body.source.includes('unsafe') ? [{ code: 'UNSUPPORTED_SYNTAX', target: 'owned' }] : []);",
-      'function read(source) { const body = family.parse(source); return { source: family.serialize(body), warnings: family.verify(body), sidecar: family.buildSourceMap(body) }; }',
-      'function run() { return { read, mutationAvailable: typeof family.mutate === "function" }; }',
-    ].join('\n')
-    const before = Function(`${source}\nreturn run();`)() as { read(source: string): unknown; mutationAvailable: boolean }
-    const projected = privateEditorFamilySource(source, 'src/agent/stable-family-adapters.ts')
-    const minified = transformSync(`${projected}\ncapture(run());`, { loader: 'js', minify: true }).code
-    let after: typeof before | undefined
-    Function('capture', minified)((value: typeof before) => { after = value })
-    expect(before.mutationAvailable).toBe(true)
-    expect(after!.mutationAvailable).toBe(false)
-    for (const text of ['diagram\nowned', 'diagram\nunsafe']) {
-      expect(after!.read(text)).toEqual(before.read(text))
-    }
-    expect(after!.read('diagram\nunsafe')).toEqual({
-      source: 'diagram\nunsafe', warnings: [{ code: 'UNSUPPORTED_SYNTAX', target: 'owned' }],
-      sidecar: { nodes: [['owned', { line: 2, col: 1 }]], labels: ['diagram\nunsafe'] },
-    })
-    expect(() => after!.read('wrong header')).toThrow('invalid header')
-  })
-
-  test('composes the private capability claim with the existing registry loader', () => {
-    const path = join(root, 'src/agent/family-registry.ts')
-    const source = [
-      'function builtinFamilyCapabilityEvidence() { return [',
-      "  { capability: 'parse', state: 'native' }, { capability: 'mutation', state: 'native' }, { capability: 'verify', state: 'native' }]; }",
-      "const metadata = 'existing metadata projection';",
-    ].join('\n')
-    let load: ((args: { path: string }) => { contents: string } | undefined) | undefined
-    privateEditorFamiliesPlugin({ name: 'runtime', setup(build) {
-      build.onLoad({ filter: /family-registry\.ts$/ }, () => ({ contents: source, loader: 'ts', resolveDir: dirname(path) }))
-    } }).setup({
-      onResolve() { throw Error('No resolver should be installed') },
-      onLoad({ filter }, callback) { if (filter.test(path)) load = callback },
-    })
-    const result = load!({ path })!
-    expect(Function(`${result.contents}\nreturn { claims: builtinFamilyCapabilityEvidence(), metadata };`)()).toEqual({
-      claims: [{ capability: 'parse', state: 'native' }, { capability: 'mutation', state: 'diagnosed' }, { capability: 'verify', state: 'native' }],
-      metadata: 'existing metadata projection',
-    })
   })
 })
 

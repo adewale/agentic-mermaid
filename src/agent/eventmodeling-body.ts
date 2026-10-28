@@ -8,7 +8,7 @@ import { prepareDisplayText } from '../shared/display-text.ts'
 import { mutateEventModeling, serializeEventModeling } from '../eventmodeling/body.ts'
 import { labelOverflowCollector } from './body-utils.ts'
 import { err, ok, type LayoutWarning } from './types.ts'
-export const EVENTMODELING_AGENT_HOOKS: FamilyOperations = {
+export const EVENTMODELING_SOURCE_HOOKS: Omit<FamilyOperations, 'mutate'> = {
   parse: ctx => {
     try {
       const body = parseEventModeling(ctx.source.familyBody)
@@ -23,7 +23,6 @@ export const EVENTMODELING_AGENT_HOOKS: FamilyOperations = {
     if (body.kind !== 'eventmodeling') throw Error('Expected Event Modeling body')
     return serializeEventModeling(body, false)
   },
-  mutate: (body, op) => (body.kind === 'eventmodeling' ? mutateEventModeling(body, op as never) : err({ code: 'UNSUPPORTED_FAMILY', message: 'Unmodeled Event Modeling source remains preserved' })),
   renderSource: body => (body.kind === 'eventmodeling' && eventNonportableIdentifiers(body).length ? 'canonical' : 'serialized'),
   extractLabels: source => {
     try {
@@ -72,4 +71,9 @@ export function eventModelingUnsupportedSyntaxWarnings(source: string): import('
     })
   } catch { /* Opaque syntax has its own preservation diagnostic. */ }
   return warnings
+}
+
+export const EVENTMODELING_AGENT_HOOKS: FamilyOperations = {
+  ...EVENTMODELING_SOURCE_HOOKS,
+  mutate: (body, op) => (body.kind === 'eventmodeling' ? mutateEventModeling(body, op as never) : err({ code: 'UNSUPPORTED_FAMILY', message: 'Unmodeled Event Modeling source remains preserved' })),
 }

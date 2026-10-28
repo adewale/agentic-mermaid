@@ -13,6 +13,34 @@ import { createBrowserEditorAdapter } from '../browser-editor-adapter.ts'
 import { withRenderStageObserver } from '../layout/backend.ts'
 
 describe('one positioned artifact for preview and verification', () => {
+  test.each(['flowchart', 'state', 'packet', 'eventmodeling', 'zenuml'])('the source-only %s worker preserves typed round trips and diagnoses unavailable mutation', async family => {
+    // A fresh worker realm must not inherit the SDK's eagerly installed hooks.
+    const child = Bun.spawn([process.execPath, '-e', `
+      import install from ${JSON.stringify(new URL(`../browser-lazy/generated/verified/${family}.ts`, import.meta.url).pathname)};
+      import { getFamily } from ${JSON.stringify(new URL('../agent/family-registry.ts', import.meta.url).pathname)};
+      import { normalizeMermaidSource } from ${JSON.stringify(new URL('../mermaid-source.ts', import.meta.url).pathname)};
+      const descriptor = install();
+      const parse = text => {
+        const source = normalizeMermaidSource(text);
+        return descriptor.parse({ source, lines: source.familyLines, envelopeLines: source.familyLines,
+          opaqueSource: source.familyBody, canonicalSource: source.familyBody, meta: { accessibility: {} } });
+      };
+      const parsed = parse(descriptor.example);
+      if (!parsed.ok) throw new Error('Source worker parse failed');
+      const serialized = descriptor.serialize(parsed.value), reparsed = parse(serialized);
+      if (descriptor.id === 'state' && descriptor.renderSource(parsed.value) !== 'canonical') {
+        throw new Error('State must retain authored paint order');
+      }
+      console.log(JSON.stringify({ mutation: descriptor.capabilityEvidence.find(cell => cell.capability === 'mutation').state,
+        mutable: typeof descriptor.mutate === 'function', registered: getFamily(descriptor.id) === descriptor,
+        typed: parsed.value.kind === descriptor.id,
+        roundTrip: reparsed.ok && descriptor.serialize(reparsed.value) === serialized }));
+    `], { stdout: 'pipe', stderr: 'pipe' })
+    const [stdout, stderr, exitCode] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited])
+    expect(exitCode, stderr).toBe(0)
+    expect(JSON.parse(stdout)).toEqual({ mutation: 'diagnosed', mutable: false, registered: true, typed: true, roundTrip: true })
+  })
+
   test('verification preserves a suspended provider through a family layout wrapper', () => {
     const descriptor = getFamily('flowchart')!
     const deferred = new DeferredDependencyError('Layout provider', async () => {})

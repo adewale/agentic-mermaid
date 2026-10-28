@@ -18,7 +18,6 @@
  */
 
 import { runtimeRenderContractPlugin } from '../build/runtime-render-contract.ts'
-import { privateEditorFamiliesPlugin } from '../build/private-editor-families.ts'
 import { minify } from '@swc/core'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -164,6 +163,20 @@ async function readHtmlPartials(
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
+function sourceOnlyFamilyRegistry(): Bun.BunPlugin {
+  return {
+    name: 'source-only-editor-family-registry',
+    setup(build) {
+      // Closed editor workers accept source/options/output operations. Their
+      // loaders install source hooks through the ordinary validated registry.
+      build.onResolve({ filter: /(?:^|\/)families\.ts$/ }, args => {
+        const original = fileURLToPath(new URL('../../src/agent/families.ts', import.meta.url))
+        return join(args.resolveDir, args.path) === original ? { path: fileURLToPath(new URL('../../src/agent/family-registry.ts', import.meta.url)) } : undefined
+      })
+    },
+  }
+}
+
 async function generateEditorHtml(): Promise<string> {
   const fontPrefix = process.env.AM_EDITOR_FONT_PREFIX || 'assets/fonts/'
   const runtimeDirectory = process.env.AM_EDITOR_RUNTIME_DIR
@@ -181,13 +194,10 @@ async function generateEditorHtml(): Promise<string> {
         // This worker accepts render/verify/terminal requests only. The
         // main-thread adapter owns option inspection and validation.
         runtimeRenderContractPlugin({ schemaDocumentation: false, conformanceObservations: false, sourceOnlySceneAdmission: true }),
+        sourceOnlyFamilyRegistry(),
         {
           name: 'hosted-worker-dependencies',
           setup(build) {
-            build.onResolve({ filter: /(?:^|\/)families\.ts$/ }, args => {
-              const original = fileURLToPath(new URL('../../src/agent/families.ts', import.meta.url))
-              return join(args.resolveDir, args.path) === original ? { path: fileURLToPath(new URL('../../src/agent/family-registry.ts', import.meta.url)) } : undefined
-            })
             build.onResolve({ filter: /(?:^|\/)elk-constructor\.ts$/ }, () => ({ path: fileURLToPath(new URL('../../src/elk-constructor.lazy.ts', import.meta.url)) }))
           build.onResolve({ filter: /(?:^|\/)indexed-forest\.ts$/ }, () => ({ path: fileURLToPath(new URL('../../src/experimental/indexed-forest.lazy.ts', import.meta.url)) }))
           build.onResolve({ filter: /(?:^|\/)agentic-layered\.ts$/ }, args => args.kind === 'dynamic-import' ? undefined
@@ -207,9 +217,8 @@ async function generateEditorHtml(): Promise<string> {
     // Its workers accept only source/options/output operations, including
     // render/verify, terminal and PNG. Public Scene/Node/IIFE admission and
     // published inspectors retain their full contracts.
-    plugins: [runtimeDirectory
-      ? runtimeRenderContractPlugin({ schemaDocumentation: false, conformanceObservations: false, familyEditorMetadata: true, sourceOnlySceneAdmission: true })
-      : privateEditorFamiliesPlugin(runtimeRenderContractPlugin({ schemaDocumentation: false, conformanceObservations: false, familyEditorMetadata: false, sourceOnlySceneAdmission: true })),
+    plugins: [runtimeRenderContractPlugin({ schemaDocumentation: false, conformanceObservations: false, familyEditorMetadata: Boolean(runtimeDirectory), sourceOnlySceneAdmission: true }),
+      sourceOnlyFamilyRegistry(),
       ...(!runtimeDirectory ? [{
         name: 'standalone-worker-families',
         setup(build: Bun.PluginBuilder) {
