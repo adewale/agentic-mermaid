@@ -37,7 +37,8 @@ import { assertRenderableLinearGradient, LINEAR_GRADIENT_LIMITS, serializeLinear
 import { BUILTIN_SCENE_ROLE_TRAITS, sceneRoleTraits } from './roles.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
 import { inspectSvgOnce } from '../svg-inspection-cache.ts'
-import { canonicalizeSceneNodeSerialization, sceneNodeSerialization } from './serialization.ts'
+import type { SvgGeometryWriteSink } from './svg-writer.ts'
+import { canonicalizeSceneNodeSerialization, sceneNodeSerialization, sceneNodeSerializationObserved } from './serialization.ts'
 import { MARK_CLASS_TOKENS, MARK_DATA_KEY, WRITER_OWNED_DATA_KEYS } from './svg-writer.ts'
 
 export const SCENE_VALIDATION_VERSION = 2 as const
@@ -700,10 +701,10 @@ function validateRole(kind: string, value: unknown, path: string, state: Validat
   return true
 }
 
-function validateNodeSerialization(value: SceneNode, path: string, state: ValidationState): string | undefined {
+function validateNodeSerialization(value: SceneNode, path: string, state: ValidationState, sink?: SvgGeometryWriteSink): string | undefined {
   let serialized: string | undefined
   try {
-    serialized = sceneNodeSerialization(value)
+    serialized = sink ? sceneNodeSerializationObserved(value, sink) : sceneNodeSerialization(value)
     if (boundedUtf8ByteLength(serialized, MAX_SERIALIZATION_BYTES_PER_NODE) > MAX_SERIALIZATION_BYTES_PER_NODE) {
       add(state.diagnostics, 'SCENE_DOCUMENT', path, 'has an oversized SVG serialization')
     }
@@ -1404,7 +1405,7 @@ export function sceneValidationMode(value: unknown, options: SceneValidationOpti
  */
 export interface NativeSceneValidator {
   /** Rejects invalid source fields before writing; groups must have children: []. */
-  node(node: SceneNode, depth?: number): string
+  node(node: SceneNode, depth?: number, sink?: SvgGeometryWriteSink): string
   depth(depth: number): void
   enclosure(artworkId: string, owner: SceneOwner): void
   /** Checks the full composed group limit without recounting its child bytes. */
@@ -1435,7 +1436,7 @@ export function createNativeSceneValidator(
     }
   }
   return {
-    node(node, nesting = 0) {
+    node(node, nesting = 0, sink) {
       open()
       depth(nesting)
       if (node.kind === 'group' && (!Array.isArray(node.children) || node.children.length !== 0)) {
@@ -1446,7 +1447,7 @@ export function createNativeSceneValidator(
       validateNode(node, path, state, nesting)
       // Typed leaves must be structurally admissible before any writer runs.
       if (diagnostics.length > 0) throw new SceneValidationError(diagnostics)
-      const serialized = node.kind === 'document' ? sceneNodeSerialization(node) : validateNodeSerialization(node, path, state)
+      const serialized = node.kind === 'document' ? sceneNodeSerialization(node) : validateNodeSerialization(node, path, state, sink)
       if (diagnostics.length > 0) throw new SceneValidationError(diagnostics)
       return serialized!
     },

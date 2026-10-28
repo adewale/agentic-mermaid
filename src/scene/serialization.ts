@@ -1,6 +1,6 @@
 import type { SceneDoc, SceneNode } from './ir.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
-import { writeConnectorSvg, writeShapeSvg, writeTextSvg } from './svg-writer.ts'
+import { writeConnectorSvg, writeShapeSvg, writeTextSvg, type SvgGeometryWriteSink } from './svg-writer.ts'
 
 // SVG serialization is backend-private state, not part of the public Scene IR.
 // Shape, text and connector marks are written from their typed fields when
@@ -128,23 +128,32 @@ export function admitWritableSceneNode<T extends SceneNode>(node: T): T {
 }
 
 export function sceneNodeSerialization(node: SceneNode): string {
+  return serializeSceneNode(node)
+}
+
+/** Observe only this actual write. Cached markup supplies no new receipt. */
+export function sceneNodeSerializationObserved(node: SceneNode, sink: SvgGeometryWriteSink): string {
+  return serializeSceneNode(node, sink)
+}
+
+function serializeSceneNode(node: SceneNode, sink?: SvgGeometryWriteSink): string {
   const stored = SERIALIZED_SCENE_NODES.get(node)
   if (stored !== undefined) return stored
   if (!WRITABLE_SCENE_NODES.has(node)) throw new TypeError(`Scene node "${node.id}" has no admitted SVG serialization`)
   const written = WRITTEN_SCENE_NODES.get(node)
   if (written !== undefined) return written
-  const svg = writeSceneNode(node)
+  const svg = writeSceneNode(node, sink)
   // A group is written from its children each time: its children array is
   // not part of what freezing it protects.
   if (node.kind !== 'group' && Object.isFrozen(node)) WRITTEN_SCENE_NODES.set(node, svg)
   return svg
 }
 
-function writeSceneNode(node: SceneNode): string {
+function writeSceneNode(node: SceneNode, sink?: SvgGeometryWriteSink): string {
   switch (node.kind) {
-    case 'shape': return writeShapeSvg(node)
+    case 'shape': return writeShapeSvg(node, sink)
     case 'text': return writeTextSvg(node)
-    case 'connector': return writeConnectorSvg(node)
+    case 'connector': return writeConnectorSvg(node, sink)
     case 'group': return [
       node.open,
       ...node.children.map(child => indentLines(sceneNodeSerialization(child.node), child.indent)),

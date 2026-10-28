@@ -4,7 +4,7 @@ import type { AxisAlignedBox } from '../shared/transformed-bounds.ts'
 import { createInlineColorAttributeResolver, resolveInlineColorAttribute } from '../theme.ts'
 import { tryParseCssColor, type RgbaColor } from '../shared/color-math.ts'
 import { inspectScenePaintGeometry, paintPrimitiveSource, scenePrimitiveMatrix, sceneGroupOpacity, type ScenePaintGeometryInspection, type NativeConnectorPaintSource, type ScenePaintGeometry as ScenePaintPrimitive } from './inspection.ts'
-import type { Geometry, MarkPaint, SceneDoc, SceneOwner, ScenePoint, SceneTransform, MarkerDescriptor } from './ir.ts'
+import type { ConnectorContourSemantics, Geometry, MarkPaint, SceneDoc, SceneOwner, ScenePoint, SceneTransform, MarkerDescriptor } from './ir.ts'
 import { composeMatrices, inverseMatrix, transformMatrix, transformPoint } from './transforms.ts'
 import { formatSvgNumber, formatSvgNumericAttribute } from '../shared/svg-number.ts'
 import { markerPaintPieces, type MarkerPaintPiece } from './marker-paint-pieces.ts'
@@ -1019,32 +1019,45 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
   }
   for (const primitive of inspection.primitives) if (primitive.kind === 'text' && primitive.coverage === 'measured' && primitive.visibility !== 'conditional') check(surfaces, primitive)
   const strokeAlpha = new Map<string, number | undefined>()
+  // These belong to this paid occurrence walk, not to a mutable source node or
+  // its sampled hit route. Only an emitted path token can supply marker pose.
+  const pathContours = new Map<ScenePaintPrimitive, readonly ConnectorContourSemantics[]>()
   for (const primitive of inspection.primitives) {
     if (!work()) break
     const node = paintPrimitiveSource(primitive)
     // Semantic relationships must not cross unrelated cards even when their
     // shafts paint above those cards. Missing endpoint ownership leaves an
     // intersection unverified; chrome rails retain their separate semantics.
-    if (node?.kind !== 'connector' || !['edge', 'relationship'].includes(primitive.role) || node.lineStyle === 'invisible' || primitive.visibility === 'conditional' || primitive.coverage !== 'measured') continue
+    if (node?.kind !== 'connector' || node.lineStyle === 'invisible' || primitive.visibility === 'conditional' || primitive.coverage !== 'measured') continue
+    const terminalPath = node.route.geometry.kind === 'path' && !!(node.markers.start || node.markers.end)
+    let checkShaft = ['edge', 'relationship'].includes(primitive.role)
+    if (!checkShaft && !terminalPath) continue
     const width = Number.parseFloat(String(node.stroke.width)), opacity = Number(node.stroke.opacity ?? 1)
-    if (width === 0 || opacity === 0 || node.stroke.color === 'none' || node.stroke.color === 'transparent') continue
+    if (width === 0 || opacity === 0 || node.stroke.color === 'none' || node.stroke.color === 'transparent') checkShaft = false
+    if (!checkShaft && !terminalPath) continue
     if (!strokeAlpha.has(node.stroke.color)) {
       const value = resolveInlineColorAttribute(node.stroke.color, scene.colors)
       strokeAlpha.set(node.stroke.color, value ? tryParseCssColor(value)?.[3] : undefined)
     }
     const alpha = strokeAlpha.get(node.stroke.color)
-    if (alpha === 0) continue
+    if (alpha === 0) checkShaft = false
+    if (!checkShaft && !terminalPath) continue
     const exactInk = options.outputSupported !== false && !scene.family.startsWith('family:') && !!node.endpoints?.from && !!node.endpoints.to && alpha !== undefined && alpha > 0 && width > 0 && opacity > 0 && !node.stroke.dash
     const matrix = scenePrimitiveMatrix(primitive)!
     const [a, b, c, d, e, f] = matrix
     const transform: SceneTransform = { kind: 'matrix', a, b, c, d, e, f }
     const extent = paintedStrokeExtent({ stroke: node.stroke.color, strokeWidth: String(node.stroke.width), strokeLinecap: node.stroke.lineCap, strokeLinejoin: node.stroke.lineJoin, strokeMiterlimit: String(node.stroke.miterLimit) }, connectorStrokeHasJoins(node.route))
-    if (extent === undefined) { issue({ code: 'UNMEASURED_PAINT', id: primitive.id, message: 'Final connector stroke has no bounded cap/join extent' }); continue }
+    if (extent === undefined) {
+      issue({ code: 'UNMEASURED_PAINT', id: primitive.id, message: 'Final connector stroke has no bounded cap/join extent' })
+      if (!terminalPath) continue
+      checkShaft = false
+    }
     const visit = (part: TypedPathSegment): boolean => {
       if (!work()) return false
+      if (!checkShaft) return true
       const bounds = node.stroke.nonScaling
-        ? expandSceneBounds(transformedBounds(part.bounds, transform)!, extent)
-        : transformedBounds(expandSceneBounds(part.bounds, extent), transform)!
+        ? expandSceneBounds(transformedBounds(part.bounds, transform)!, extent!)
+        : transformedBounds(expandSceneBounds(part.bounds, extent!), transform)!
       const line = part.line?.map(point => transformPoint(point, matrix)) as [ScenePoint, ScenePoint] | undefined
       const walk = (branch: Tree | undefined): void => {
         if (exhausted || !work() || !branch || !overlaps(branch.bounds, bounds)) return
@@ -1058,7 +1071,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
           if ((!CARD_ROLES.has(surface.primitive.role) && !noteCore) || surface.primitive.owner.id === primitive.owner.id && surface.primitive.owner.role === primitive.owner.role || !overlaps(surface.bounds, bounds)) continue
           const relation = endpointRelation(node, surface.primitive.owner)
           if (relation === 'attached') continue
-          if (exactInk && line && separatedOrthogonalStroke(line, surface.bounds, node.stroke, width, extent, matrix, work)) continue
+          if (exactInk && line && separatedOrthogonalStroke(line, surface.bounds, node.stroke, width, extent!, matrix, work)) continue
           if (exactInk && relation === 'unrelated' && line && surface.interiors?.some(interior => work() && lineCrossesInterior(line, interior))) issue({ code: 'CONNECTOR_CARD_CROSSING', id: primitive.id, by: surface.primitive.id, message: `Final connector shaft crosses opaque artwork owned by unrelated ${noteCore ? 'note' : 'card'} ${surface.primitive.owner.id}` }, true)
           else issue({ code: 'POTENTIAL_OCCLUSION', id: primitive.id, by: surface.primitive.id, message: noteCore ? 'Final connector envelope intersects unrelated filled note artwork; actual route/note crossing is unverified' : 'Final connector envelope intersects unrelated filled card artwork; actual route/card crossing is unverified' })
         }
@@ -1068,7 +1081,10 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
     }
     const geometry = node.route.geometry
     if (geometry.kind === 'path') {
-      if (!visitTypedPathSegments(geometry.d, visit, work) && !exhausted) issue({ code: 'UNMEASURED_PAINT', id: primitive.id, message: 'Final connector segments could not be measured from typed path geometry' })
+      let retained: readonly ConnectorContourSemantics[] | undefined
+      const complete = visitTypedPathSegments(geometry.d, visit, work, terminalPath ? contours => { retained = contours } : undefined)
+      if (!complete && !exhausted) issue({ code: 'UNMEASURED_PAINT', id: primitive.id, message: 'Final connector segments could not be measured from typed path geometry' })
+      if (terminalPath && complete && retained && hasNativeEmissionOccurrence(primitive)) pathContours.set(primitive, retained)
     } else {
       const points = geometry.kind === 'line' ? [{ x: geometry.x1, y: geometry.y1 }, { x: geometry.x2, y: geometry.y2 }] : geometry.points
       for (let i = 1; i < points.length; i++) {
@@ -1081,14 +1097,104 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
   const lastMarkers = new Map<string, MarkerTarget>()
   let markerColor: ReturnType<typeof createInlineColorAttributeResolver> | undefined
   const resolveMarkerColor = (value: string): string | undefined => (markerColor ??= createInlineColorAttributeResolver())(value, scene.colors)
+  const reserveMarkerGeometry = (geometry: Geometry | undefined): boolean => {
+    for (let i = 0; i < 32; i++) if (!work()) return false
+    if (geometry?.kind === 'polygon' || geometry?.kind === 'polyline') {
+      for (let i = 0; i < geometry.points.length * 4; i++) if (!work()) return false
+    } else if (geometry?.kind === 'path') {
+      for (let i = 0; i < geometry.d.length * 4; i++) if (!work()) return false
+    } else if (geometry?.kind === 'compound') {
+      for (const child of geometry.children) if (!reserveMarkerGeometry(child)) return false
+    }
+    return true
+  }
   for (const primitive of inspection.primitives) {
     const node = paintPrimitiveSource(primitive)
     if (primitive.kind !== 'connector' || node?.kind !== 'connector' || node.lineStyle === 'invisible' || primitive.coverage === 'non-painting') continue
+    const contours = node.route.geometry.kind === 'path' ? pathContours.get(primitive) : undefined
+    if (node.route.geometry.kind === 'path' && node.markers.mid.length) {
+      issue({ code: 'UNMEASURED_PAINT', id: primitive.id, message: 'Path midpoint markers have no emitted vertex-direction authority' })
+      continue
+    }
+    if (node.route.geometry.kind === 'path' && (node.markers.start || node.markers.end) && !contours) {
+      issue({ code: 'UNMEASURED_PAINT', id: primitive.id, message: 'Endpoint marker direction has no complete emitted path-control authority' })
+      continue
+    }
+    let retainedContours: readonly ConnectorContourSemantics[] | undefined
+    let sampledPoints: readonly ScenePoint[] | undefined
+    let sampledSubpaths: readonly { readonly points: readonly ScenePoint[]; readonly closed: boolean }[] | undefined
+    const ownData = (value: object, key: string): unknown => {
+      const descriptor = Object.getOwnPropertyDescriptor(value, key)
+      return descriptor && 'value' in descriptor ? descriptor.value : undefined
+    }
+    if (contours) {
+      let paid = true
+      for (let i = 0; i < 24; i++) if (!work()) paid = false
+      if (!paid) continue
+      const retained = ownData(node.route, 'contours'), geometry = node.route.geometry
+      const points = ownData(geometry, 'points'), subpaths = ownData(geometry, 'subpaths')
+      if (Array.isArray(retained)) retainedContours = retained
+      if (Array.isArray(points)) sampledPoints = points
+      if (Array.isArray(subpaths)) sampledSubpaths = subpaths
+      if (!sampledPoints || !Object.hasOwn(geometry, 'subpaths') && 'subpaths' in geometry
+        || !Object.hasOwn(geometry, 'markerMidpoints') && 'markerMidpoints' in geometry
+        || subpaths !== undefined && !sampledSubpaths) retainedContours = undefined
+    }
+    if (contours && (!retainedContours || contours.length !== retainedContours.length
+      || contours.length !== (sampledSubpaths?.length ?? 1))) {
+      issue({ code: 'UNMEASURED_PAINT', id: primitive.id, message: 'Emitted path contours disagree with retained marker occurrence topology' })
+      continue
+    }
+    let knownTerminals = true
+    if (contours) for (let contourIndex = 0; contourIndex < contours.length; contourIndex++) {
+      // The original complete envelope is centred on these retained endpoints.
+      // A changed endpoint needs a separate full-envelope/ownership proof; do
+      // not borrow mutable/inherited sampled point fields to supply it.
+      let paid = true
+      for (let i = 0; i < 40; i++) if (!work()) paid = false
+      if (!paid) { knownTerminals = false; break }
+      const contour = contours[contourIndex]!
+      const original = Object.getOwnPropertyDescriptor(retainedContours!, String(contourIndex))?.value as ConnectorContourSemantics | undefined
+      if (!original || typeof original !== 'object') { knownTerminals = false; continue }
+      let points = sampledPoints
+      if (sampledSubpaths) {
+        const subpath = ownData(sampledSubpaths, String(contourIndex))
+        if (!subpath || typeof subpath !== 'object' || ownData(subpath, 'closed') !== false) { knownTerminals = false; continue }
+        const retained = ownData(subpath, 'points')
+        if (!Array.isArray(retained)) { knownTerminals = false; continue }
+        points = retained
+      }
+      if (!points?.length) { knownTerminals = false; continue }
+      for (const field of ['start', 'end'] as const) {
+        const retained = Object.getOwnPropertyDescriptor(original, field)?.value as ScenePoint | undefined
+        if (!retained || Object.getOwnPropertyDescriptor(retained, 'x')?.value !== contour[field].x
+          || Object.getOwnPropertyDescriptor(retained, 'y')?.value !== contour[field].y) knownTerminals = false
+        const sampled = ownData(points, String(field === 'start' ? 0 : points.length - 1))
+        if (!sampled || typeof sampled !== 'object' || ownData(sampled, 'x') !== contour[field].x
+          || ownData(sampled, 'y') !== contour[field].y) knownTerminals = false
+      }
+      if (contour.closed || node.markers.start && !contour.startTangent || node.markers.end && !contour.endTangent) knownTerminals = false
+    }
+    if (!knownTerminals) {
+      issue({ code: 'UNMEASURED_PAINT', id: primitive.id, message: 'Emitted path endpoints, closure or nonzero direction lack complete retained authority' })
+      continue
+    }
     const ownInverse = inverseMatrix(transformMatrix(node.transform))
     if (!ownInverse) continue
     const [a, b, c, d, e, f] = composeMatrices(scenePrimitiveMatrix(primitive)!, ownInverse)
     const parent: SceneTransform = { kind: 'matrix', a, b, c, d, e, f }
-    for (const marker of connectorMarkerPaintRegions(node, parent)) {
+    let reserved = true
+    if (contours) for (let i = 0; i < contours.length; i++) {
+      for (let j = 0; j < 8; j++) if (!work()) reserved = false
+      if (node.markers.start && !reserveMarkerGeometry(node.markers.start.geometry)) reserved = false
+      if (node.markers.end && !reserveMarkerGeometry(node.markers.end.geometry)) reserved = false
+      if (!reserved) break
+    }
+    if (!reserved) continue
+    const originalRegions = contours ? connectorMarkerPaintRegions(node, parent) : undefined
+    const regions = connectorMarkerPaintRegions(node, parent, contours)
+    for (let markerIndex = 0; markerIndex < regions.length; markerIndex++) {
+      const marker = regions[markerIndex]!
       if (!marker.bounds) { issue({ code: 'UNMEASURED_PAINT', id: primitive.id, message: 'Endpoint marker has no painted footprint' }); continue }
       const key = JSON.stringify([primitive.owner.id, primitive.owner.role, marker.position, marker.resource, marker.anchor, marker.repaint])
       const knownUnitScale = (typeof node.stroke.width === 'number' ? Number.isFinite(node.stroke.width) && node.stroke.width > 0 : /^\s*(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?(?:px)?\s*$/i.test(node.stroke.width) && Number.parseFloat(node.stroke.width) > 0)
@@ -1117,7 +1223,9 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
       if (circleStroke && !work()) circleStroke = undefined
       // Keep the old conservative envelope and include the exact served pose;
       // tolerated source tangent metadata cannot hide a later-body query.
-      const bounds = circleStroke ? unionSceneBounds(marker.bounds, circleStroke.bounds)! : marker.bounds
+      const retainedBounds = unionSceneBounds(marker.bounds, originalRegions?.[markerIndex]?.bounds)!
+      const bounds = circleStroke ? unionSceneBounds(retainedBounds, circleStroke.bounds)! : retainedBounds
+      if (contours && !contains(finalBounds, bounds)) issue({ code: 'UNMEASURED_PAINT', id: primitive.id, message: 'Final viewport does not contain the complete emitted path marker envelope' })
       lastMarkers.set(key, { primitive, position: marker.position, clipEligible: semantic && exactWorld && knownMapping, anchor: marker.anchor, repaint: marker.repaint, bounds, hull: marker.hull, padding: marker.padding, witnesses, actualInk, strokeProof, circleStroke, semantic, mayFill })
     }
   }

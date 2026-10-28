@@ -2,6 +2,7 @@ import { expect, test } from 'bun:test'
 import { Resvg } from '@resvg/resvg-js'
 import * as marks from '../scene/marks.ts'
 import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { connectorMarkerPaintRegions, nodePaintBounds } from '../scene/bounds.ts'
 import { certifyNativePaint, certifyScenePaint, prepareMarkerPolygonInk, compareMarkerStrokeInk } from '../scene/paint-certification.ts'
 import type { Geometry, MarkPaint, SceneDoc, SceneNode, SceneTransform, MarkerDescriptor } from '../scene/ir.ts'
@@ -24,6 +25,7 @@ import type { PositionedErDiagram } from '../er/types.ts'
 import type { PositionedIshikawa } from '../ishikawa/types.ts'
 import { classMarkerResources } from '../class/relationship-paint.ts'
 import { inlineResolvedColors } from '../theme.ts'
+import { projectConnectorPath } from '../scene/connector-geometry.ts'
 
 const scene = (parts: SceneNode[]): SceneDoc => ({ family: 'flowchart', width: 100, height: 80, transparent: false, colors: { bg: '#fff', fg: '#111' }, parts })
 const label = () => {
@@ -389,7 +391,7 @@ test('private emission custody cannot be discarded while fresh generic Native in
   expect(certifyNativePaint({ ...drawing.header }, drawing.paint).status).toBe('unverified')
 })
 
-test.each(['exact', 'rounded', 'fractional'] as const)('the %s emitted line must retain visible endpoint marker ink', mode => {
+test.each((['line', 'polyline'] as const).flatMap(kind => (['exact', 'rounded', 'fractional'] as const).map(mode => ({ kind, mode }))))('the $mode emitted $kind must retain visible endpoint marker ink', ({ kind, mode }) => {
   // The tiny northwest line writes as a zero-length line. Its SVG auto
   // orientation is then +x: the triangle (32,37.5),(40,40),(32,42.5)
   // lies wholly under the later white card. The raw northwest tangent instead
@@ -401,41 +403,157 @@ test.each(['exact', 'rounded', 'fractional'] as const)('the %s emitted line must
   const producer: DrawingProducer = factory => ({ ...scene([]), parts: [
     factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'),
     factory.definitions({ id: 'defs' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
-    factory.connector({ id: 'arrow-edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1, y1, x2: 40, y2: 40 }, paint: { stroke: '#111', strokeWidth: '1' }, endpoints: { from: 'other', to: 'cover' }, markers: { end: marker } }),
+    factory.connector({ id: 'arrow-edge', role: 'edge', lineStyle: 'solid', geometry: kind === 'line'
+      ? { kind: 'line', x1, y1, x2: 40, y2: 40 }
+      : { kind: 'polyline', points: [{ x: x1, y: y1 }, { x: 40, y: 40 }] }, paint: { stroke: '#111', strokeWidth: '1' }, endpoints: { from: 'other', to: 'cover' }, markers: { end: marker } }),
     factory.shape({ id: 'cover', role: 'node', geometry: { kind: 'rect', x: 30, y: 35, width: 10, height: 10 }, paint: { fill: '#fff' } }),
     factory.documentClose(),
   ] })
   const drawing = drawNative(producer, context, 'flowchart')
-  expect(drawing.svg).toContain(mode === 'rounded' ? '<line x1="40" y1="40" x2="40" y2="40"' : mode === 'fractional' ? '<line x1="41" y1="40" x2="40" y2="40"' : '<line x1="41" y1="41" x2="40" y2="40"')
+  expect(drawing.svg).toContain(kind === 'line'
+    ? mode === 'rounded' ? '<line x1="40" y1="40" x2="40" y2="40"' : mode === 'fractional' ? '<line x1="41" y1="40" x2="40" y2="40"' : '<line x1="41" y1="41" x2="40" y2="40"'
+    : mode === 'rounded' ? '<polyline points="40,40 40,40"' : mode === 'fractional' ? '<polyline points="41,40 40,40"' : '<polyline points="41,41 40,40"')
   expect(drawing.svg).toContain('marker-end="url(#arrow)"')
   expect(drawing.svg).toContain('points="0 0, 8 2.5, 0 5" fill="#111"')
   const cover = '<rect x="30" y="35" width="10" height="10" fill="#fff" data-id="cover" data-role="node" />'
   expect(drawing.svg).toContain(cover)
+  const markerEnd = ' marker-end="url(#arrow)"'
+  expect(drawing.svg.split(markerEnd)).toHaveLength(2)
+  const fontFiles = [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))]
+  const raster = (svg: string) => new Resvg(svg, { font: { fontFiles, loadSystemFonts: false, defaultFontFamily: 'Inter' } }).render().pixels
   const darkPixels = (svg: string): number => {
-    const pixels = new Resvg(svg).render().pixels
+    const pixels = raster(svg)
     let count = 0
     for (let index = 0; index < pixels.length; index += 4) if (pixels[index + 3]! > 0 && pixels[index]! < 128) count++
     return count
   }
-  expect(darkPixels(drawing.svg.replace(cover, ''))).toBeGreaterThan(0)
+  const withoutCover = drawing.svg.replace(cover, '')
+  expect(Buffer.compare(raster(withoutCover), raster(withoutCover.replace(markerEnd, '')))).not.toBe(0)
+  const markerChangesImage = Buffer.compare(raster(drawing.svg), raster(drawing.svg.replace(markerEnd, ''))) !== 0
   const proof = certifyNativePaint(drawing.header, drawing.paint)
   if (mode === 'rounded') {
     expect(darkPixels(drawing.svg)).toBe(0)
+    expect(markerChangesImage).toBe(false)
     expect(proof.status).not.toBe('passed')
   } else {
     expect(darkPixels(drawing.svg)).toBeGreaterThan(0)
+    expect(markerChangesImage).toBe(true)
     expect(proof.status).toBe('passed')
     expect(proof.issues).toEqual([])
     if (mode === 'fractional') {
       const source = paintPrimitiveSource(drawing.paint.primitives.find(primitive => primitive.id === 'arrow-edge')!)
       expect(source?.kind).toBe('connector')
       if (source?.kind !== 'connector') throw new Error('Expected retained connector paint')
-      expect(source.route.geometry).toEqual({ kind: 'line', x1: 41, y1: 40, x2: 40, y2: 40 })
+      expect(source.route.geometry).toEqual(kind === 'line'
+        ? { kind: 'line', x1: 41, y1: 40, x2: 40, y2: 40 }
+        : { kind: 'polyline', points: [{ x: 41, y: 40 }, { x: 40, y: 40 }] })
       expect(source.route.contours).toEqual([{ start: { x: 41, y: 40 }, end: { x: 40, y: 40 }, closed: false, startTangent: { x: -1, y: 0 }, endTangent: { x: -1, y: 0 } }])
       expect(source.route.startTangent).toEqual({ x: -1, y: 0 })
       expect(source.route.endTangent).toEqual({ x: -1, y: 0 })
     }
   }
+})
+
+test.each(['chord-only', 'rounded-derivative'] as const)('a %s cubic cannot certify a marker erased in the final SVG', mode => {
+  const marker = tipAnchoredArrow('terminal', { width: 8, height: 5 }, 'end', { fill: '#000', stroke: 'none' }, 'userSpaceOnUse')
+  const rawPath = mode === 'chord-only' ? 'M20 40 C20 40 60.1 40 60 40' : 'M20 40 C20 40 60.00000000000001 40 60 40'
+  const projection = mode === 'rounded-derivative' ? projectConnectorPath(rawPath, { x: 20, y: 40 }, [
+    { kind: 'cubic', control1: { x: 20, y: 40 }, control2: { x: 60.00000000000001, y: 40 }, end: { x: 60, y: 40 } },
+  ]) : undefined
+  const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#000' }, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => ({ ...scene([]), colors: context.colors, parts: [
+    factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'),
+    factory.definitions({ id: 'defs' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
+    factory.connector({ id: 'edge', role: 'edge', lineStyle: 'solid',
+      geometry: projection?.geometry ?? { kind: 'path', d: rawPath, points: [{ x: 20, y: 40 }, { x: 60, y: 40 }] },
+      ...(projection ? { route: { contours: projection.contours } } : {}),
+      paint: { stroke: '#000', strokeWidth: '1', strokeLinecap: 'butt', strokeLinejoin: 'round' },
+      endpoints: { from: 'outside', to: 'cover' }, markers: { end: marker } }),
+    factory.shape({ id: 'cover', role: 'node', geometry: { kind: 'rect', x: mode === 'chord-only' ? 60 : 30, y: 20, width: 30, height: 40 }, paint: { fill: '#fff', stroke: '#888', strokeWidth: '1' } }),
+    factory.documentClose(),
+  ] })
+  const drawing = drawNative(producer, context, 'flowchart')
+  expect(drawing.svg).toContain(mode === 'chord-only' ? 'd="M20 40 C20 40 60.1 40 60 40"' : 'd="M20 40 C20 40 60 40 60 40"')
+  expect(drawing.svg).toContain('points="0 0, 8 2.5, 0 5" fill="#000" stroke="none"')
+  const markerEnd = ' marker-end="url(#terminal)"'
+  const cover = mode === 'chord-only'
+    ? '<rect x="60" y="20" width="30" height="40" fill="#fff" stroke="#888" stroke-width="1" data-id="cover" data-role="node" />'
+    : '<rect x="30" y="20" width="30" height="40" fill="#fff" stroke="#888" stroke-width="1" data-id="cover" data-role="node" />'
+  expect(drawing.svg.split(markerEnd)).toHaveLength(2)
+  expect(drawing.svg).toContain(cover)
+  const fontFiles = [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))]
+  const raster = (svg: string) => new Resvg(svg, { font: { fontFiles, loadSystemFonts: false, defaultFontFamily: 'Inter' } }).render().pixels
+  const withoutCover = drawing.svg.replace(cover, '')
+  expect(Buffer.compare(raster(withoutCover), raster(withoutCover.replace(markerEnd, '')))).not.toBe(0)
+  // Both comparisons raster the complete served document with the same viewport.
+  // The later card removes every pixel contribution from the nonempty marker.
+  expect(Buffer.compare(raster(drawing.svg), raster(drawing.svg.replace(markerEnd, '')))).toBe(0)
+  expect(certifyNativePaint(drawing.header, drawing.paint).status).not.toBe('passed')
+})
+
+test.each([
+  { name: 'cubic', d: 'M20 40 C20 40 40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'collapsed-last-control', d: 'M20 40 C20 40 60 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'reversed-cubic', d: 'M80 40 C80 40 60 40 40 40', start: { x: 80, y: 40 }, end: { x: 40, y: 40 }, tangent: { x: -1, y: 0 }, cardX: 10, witnessX: 46 },
+  { name: 'quadratic', d: 'M20 40 Q40 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'smooth-cubic', d: 'M20 40 C20 40 30 40 40 40 S50 40 60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'smooth-quadratic', d: 'M20 40 Q30 40 40 40 T60 40', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+  { name: 'relative-cubic', d: 'M20 40 c0 0 20 0 40 0', start: { x: 20, y: 40 }, end: { x: 60, y: 40 }, tangent: { x: 1, y: 0 }, cardX: 60, witnessX: 54 },
+] as const)('a $name retains visible emitted endpoint ink without a blanket uncertainty', ({ d, start, end, tangent, cardX, witnessX }) => {
+  // These authored open paths all end due east, except the reversed cubic.
+  // The exact terminal triangle is (52,37.5),(60,40),(52,42.5), or
+  // (48,42.5),(40,40),(48,37.5) when reversed. It lies outside the card.
+  const marker = tipAnchoredArrow('visible-terminal', { width: 8, height: 5 }, 'end', { fill: '#000', stroke: 'none' }, 'userSpaceOnUse')
+  const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#000' }, resolved: { renderOptions: {} } }
+  const drawing = drawNative(factory => ({ ...scene([]), colors: context.colors, parts: [
+    factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'),
+    factory.definitions({ id: 'defs' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
+    factory.connector({ id: 'visible-edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'path', d, points: [start, end] },
+      paint: { stroke: '#000', strokeWidth: '1', strokeLinecap: 'butt', strokeLinejoin: 'round' }, endpoints: { from: 'outside', to: 'card' }, markers: { end: marker } }),
+    factory.shape({ id: 'card', role: 'node', geometry: { kind: 'rect', x: cardX, y: 20, width: 30, height: 40 }, paint: { fill: '#fff', stroke: '#888', strokeWidth: '1' } }),
+    factory.documentClose(),
+  ] }), context, 'flowchart')
+  expect(drawing.svg).toContain(`d="${d}"`)
+  const markerEnd = ' marker-end="url(#visible-terminal)"'
+  const markerPolygon = 'points="0 0, 8 2.5, 0 5" fill="#000" stroke="none"'
+  expect(drawing.svg.split(markerEnd)).toHaveLength(2)
+  expect(drawing.svg.split(markerPolygon)).toHaveLength(2)
+  expect(drawing.svg).toContain(`<rect x="${cardX}" y="20" width="30" height="40" fill="#fff" stroke="#888" stroke-width="1"`)
+  const font = { fontFiles: [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))], loadSystemFonts: false, defaultFontFamily: 'Inter' }
+  const actual = new Resvg(drawing.svg, { font }).render()
+  const markerRemoved = new Resvg(drawing.svg.replace(markerEnd, ''), { font }).render()
+  expect(Buffer.compare(actual.pixels, markerRemoved.pixels)).not.toBe(0)
+  const red = new Resvg(drawing.svg.replace(markerPolygon, 'points="0 0, 8 2.5, 0 5" fill="#f00" stroke="none"'), { font }).render()
+  const witness = (40 * red.width + witnessX) * 4
+  expect(red.pixels[witness]).toBeGreaterThan(128)
+  expect(red.pixels[witness + 1]).toBeLessThan(64)
+  expect(red.pixels[witness + 2]).toBeLessThan(64)
+  const source = paintPrimitiveSource(drawing.paint.primitives.find(primitive => primitive.id === 'visible-edge')!)
+  if (source?.kind !== 'connector') throw new Error('Expected retained visible connector')
+  // Retained metadata must preserve this authored route. Actual served pose
+  // is checked independently by full-image marker removal and red ink above.
+  expect(source.route.contours[0]?.end).toEqual(end)
+  expect(source.route.endTangent).toEqual(tangent)
+  const proof = certifyNativePaint(drawing.header, drawing.paint)
+  expect(proof.status).toBe('passed')
+  expect(proof.issues).toEqual([])
+})
+
+test('an unsupported arc keeps emitted terminal ink and refuses an unproved path tangent', () => {
+  const marker = tipAnchoredArrow('arc-terminal', { width: 8, height: 5 }, 'end', { fill: '#000', stroke: 'none' }, 'userSpaceOnUse')
+  const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#000' }, resolved: { renderOptions: {} } }
+  const drawing = drawNative(factory => ({ ...scene([]), colors: context.colors, parts: [
+    factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'),
+    factory.definitions({ id: 'defs' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
+    factory.connector({ id: 'arc-edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'path', d: 'M20 40 A20 20 0 0 1 60 40', points: [{ x: 20, y: 40 }, { x: 60, y: 40 }] }, paint: { stroke: '#000', strokeWidth: '1' }, markers: { end: marker } }),
+    factory.documentClose(),
+  ] }), context, 'flowchart')
+  expect(drawing.svg).toContain('d="M20 40 A20 20 0 0 1 60 40"')
+  const markerEnd = ' marker-end="url(#arc-terminal)"'
+  expect(drawing.svg.split(markerEnd)).toHaveLength(2)
+  const font = { fontFiles: [fileURLToPath(new URL('../../assets/fonts/Inter-Regular.ttf', import.meta.url))], loadSystemFonts: false, defaultFontFamily: 'Inter' }
+  expect(Buffer.compare(new Resvg(drawing.svg, { font }).render().pixels, new Resvg(drawing.svg.replace(markerEnd, ''), { font }).render().pixels)).not.toBe(0)
+  expect(certifyNativePaint(drawing.header, drawing.paint).status).toBe('unverified')
 })
 
 test.each(['full', 'compound', 'fill-opacity-zero', 'thin', 'partial', 'repaint', 'dashed', 'translucent', 'unknown-width', 'unknown-opacity', 'non-scaling', 'scaled', 'rotated', 'sheared', 'circle', 'ellipse', 'polygon', 'marker-none', 'marker-unknown'] as const)('%s endpoint stroke cannot hide a fully covered marker behind its contact exemption', mode => {

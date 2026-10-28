@@ -1,6 +1,6 @@
 import { tryParseCssColor } from '../shared/color-math.ts'
 import { rotateBoxBounds, type AxisAlignedBox } from '../shared/transformed-bounds.ts'
-import type { ConnectorLabelDescriptor, ConnectorMark, Geometry, MarkPaint, MarkerDescriptor, SceneNode, ScenePoint, SceneTransform } from './ir.ts'
+import type { ConnectorContourSemantics, ConnectorLabelDescriptor, ConnectorMark, Geometry, MarkPaint, MarkerDescriptor, SceneNode, ScenePoint, SceneTransform } from './ir.ts'
 import { connectorEndpointAnchors, connectorMidpoints } from './connector-geometry.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import { resolveLabelContent } from '../shared/display-text.ts'
@@ -44,7 +44,7 @@ export interface TypedPathSegment {
   readonly line?: readonly [ScenePoint, ScenePoint]
 }
 
-function pathBounds(d: string, visit?: (segment: TypedPathSegment) => boolean, work?: () => boolean): AxisAlignedBox | undefined {
+function pathBounds(d: string, visit?: (segment: TypedPathSegment) => boolean, work?: () => boolean, retainContours?: (contours: readonly ConnectorContourSemantics[] | undefined) => void): AxisAlignedBox | undefined {
   const number = /[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/y
   let index = 0, x = 0, y = 0, startX = 0, startY = 0
   let command = '', previous = ''
@@ -52,6 +52,8 @@ function pathBounds(d: string, visit?: (segment: TypedPathSegment) => boolean, w
   let result: AxisAlignedBox | undefined
   let segmentBounds: AxisAlignedBox | undefined
   let stopped = false
+  const contours: Array<{ start: ScenePoint; end: ScenePoint; closed: boolean; startTangent?: ScenePoint; endTangent?: ScenePoint }> = []
+  let contour: (typeof contours)[number] | undefined, knownTangents = true
   const consume = (count: number): boolean => {
     if (work) for (let i = 0; i < count; i++) if (!work()) { stopped = true; return false }
     return true
@@ -81,15 +83,42 @@ function pathBounds(d: string, visit?: (segment: TypedPathSegment) => boolean, w
     if (visit) segmentBounds = unionSceneBounds(segmentBounds, { x0: px, y0: py, x1: px, y1: py })
     return true
   }
+  const direction = (...points: readonly ScenePoint[]): ScenePoint | undefined => {
+    const origin = points[0]!
+    for (let i = 1; i < points.length; i++) {
+      const dx = points[i]!.x - origin.x, dy = points[i]!.y - origin.y, length = Math.hypot(dx, dy)
+      if (length > 0 && Number.isFinite(length)) return { x: dx / length, y: dy / length }
+    }
+    return undefined
+  }
   while (true) {
     skip()
     if (stopped) return undefined
-    if (index >= d.length) return result
+    if (index >= d.length) {
+      if (retainContours && knownTangents) {
+        for (const item of contours) {
+          if (!consume(12)) return undefined
+          Object.freeze(item.start); Object.freeze(item.end)
+          if (item.startTangent) Object.freeze(item.startTangent)
+          if (item.endTangent) Object.freeze(item.endTangent)
+          Object.freeze(item)
+        }
+        retainContours(Object.freeze(contours))
+      } else retainContours?.(undefined)
+      return result
+    }
     if (/[a-zA-Z]/.test(d[index]!)) {
       if (!consume(1)) return undefined
       command = d[index++]!
       if (!/[MmLlHhVvCcSsQqTtAaZz]/.test(command) || (!result && command.toUpperCase() !== 'M')) return undefined
       if (command.toUpperCase() === 'Z') {
+        if (retainContours) {
+          if (!consume(16) || !contour) return undefined
+          const tangent = direction({ x, y }, { x: startX, y: startY })
+          contour.startTangent ??= tangent
+          if (tangent) contour.endTangent = tangent
+          contour.end = { x: startX, y: startY }; contour.closed = true
+        }
         if (visit && !visit({ bounds: { x0: Math.min(x, startX), y0: Math.min(y, startY), x1: Math.max(x, startX), y1: Math.max(y, startY) }, line: [{ x, y }, { x: startX, y: startY }] })) return undefined
         x = startX; y = startY; previous = 'Z'; control = undefined; command = ''
         continue
@@ -108,6 +137,7 @@ function pathBounds(d: string, visit?: (segment: TypedPathSegment) => boolean, w
     const px = (i: number): number => args[i]! + (relative ? x : 0)
     const py = (i: number): number => args[i]! + (relative ? y : 0)
     let nextX: number, nextY: number, nextControl: ScenePoint | undefined
+    let firstControl: ScenePoint | undefined, lastControl: ScenePoint | undefined
     if (upper === 'H') { nextX = px(0); nextY = y }
     else if (upper === 'V') { nextX = x; nextY = py(0) }
     else if (upper === 'C' || upper === 'S' || upper === 'Q' || upper === 'T') {
@@ -117,6 +147,10 @@ function pathBounds(d: string, visit?: (segment: TypedPathSegment) => boolean, w
       for (let i = 0; i < count - 2; i += 2) if (!include(px(i), py(i + 1))) return undefined
       nextX = px(count - 2); nextY = py(count - 1)
       nextControl = upper === 'T' ? reflected : { x: px(count - 4), y: py(count - 3) }
+      if (retainContours) {
+        firstControl = upper === 'S' || upper === 'T' ? reflected : { x: px(0), y: py(1) }
+        lastControl = nextControl
+      }
     } else if (upper === 'A') {
       nextX = px(5); nextY = py(6)
       let rx = Math.abs(args[0]!), ry = Math.abs(args[1]!)
@@ -139,6 +173,20 @@ function pathBounds(d: string, visit?: (segment: TypedPathSegment) => boolean, w
       if (upper === 'M') { startX = nextX; startY = nextY; command = relative ? 'l' : 'L' }
     }
     if (!include(nextX, nextY)) return undefined
+    if (retainContours) {
+      if (!consume(24)) return undefined
+      const end = { x: nextX, y: nextY }, start = { x, y }
+      if (upper === 'M') {
+        contour = { start: end, end, closed: false }; contours.push(contour)
+      } else if (contour) {
+        if (upper === 'A' || contour.closed) knownTangents = false
+        const startTangent = firstControl ? direction(start, firstControl, lastControl!, end) : direction(start, end)
+        const backwards = lastControl ? direction(end, lastControl, firstControl!, start) : direction(end, start)
+        contour.startTangent ??= startTangent
+        if (backwards) contour.endTangent = { x: -backwards.x, y: -backwards.y }
+        contour.end = end
+      } else knownTangents = false
+    }
     if (visit && upper !== 'M' && !visit({ bounds: segmentBounds!, ...(['L', 'H', 'V'].includes(upper) ? { line: [{ x, y }, { x: nextX, y: nextY }] as const } : {}) })) return undefined
     x = nextX; y = nextY; control = nextControl; previous = upper
   }
@@ -146,8 +194,8 @@ function pathBounds(d: string, visit?: (segment: TypedPathSegment) => boolean, w
 
 /** Visit the same admitted typed-path segments used by geometry bounds.
  * Returning false stops bounded consumers without accepting a partial path. */
-export function visitTypedPathSegments(d: string, visit: (segment: TypedPathSegment) => boolean, work?: () => boolean): boolean {
-  return pathBounds(d, visit, work) !== undefined
+export function visitTypedPathSegments(d: string, visit: (segment: TypedPathSegment) => boolean, work?: () => boolean, retainContours?: (contours: readonly ConnectorContourSemantics[] | undefined) => void): boolean {
+  return pathBounds(d, visit, work, retainContours) !== undefined
 }
 
 export function geometryBounds(geometry: Geometry): AxisAlignedBox | undefined {
@@ -248,8 +296,8 @@ export interface ConnectorMarkerPaintRegion {
 }
 
 /** Individual marker occurrences from the native connector authority. */
-export function connectorMarkerPaintRegions(node: Pick<ConnectorMark, 'route' | 'stroke' | 'markers' | 'transform'>, parentTransform?: SceneTransform): ConnectorMarkerPaintRegion[] {
-  const geometry = node.route.geometry, endpoints = connectorEndpointAnchors(geometry, node.route.closed)
+export function connectorMarkerPaintRegions(node: Pick<ConnectorMark, 'route' | 'stroke' | 'markers' | 'transform'>, parentTransform?: SceneTransform, servedContours?: readonly ConnectorContourSemantics[]): ConnectorMarkerPaintRegion[] {
+  const geometry = node.route.geometry, endpoints = servedContours ? { starts: servedContours.map(contour => contour.start), ends: servedContours.map(contour => contour.end) } : connectorEndpointAnchors(geometry, node.route.closed)
   const mids = connectorMidpoints(geometry, node.route.closed)
   const transform = composedTransform(parentTransform, node.transform)
   const result: ConnectorMarkerPaintRegion[] = []
@@ -279,8 +327,8 @@ export function connectorMarkerPaintRegions(node: Pick<ConnectorMark, 'route' | 
     }
     result.push({ position, resource: marker.id, anchor: transformPoint(anchor, matrix), repaint, ...(hull ? { hull, padding } : {}), ...(local ? { bounds: transformedBounds(local, transform) } : {}) })
   }
-  endpoints.starts.forEach((anchor, index) => include('start', node.markers.start, anchor, node.route.contours[index]?.startTangent))
-  endpoints.ends.forEach((anchor, index) => include('end', node.markers.end, anchor, node.route.contours[index]?.endTangent))
+  endpoints.starts.forEach((anchor, index) => include('start', node.markers.start, anchor, (servedContours ?? node.route.contours)[index]?.startTangent))
+  endpoints.ends.forEach((anchor, index) => include('end', node.markers.end, anchor, (servedContours ?? node.route.contours)[index]?.endTangent))
   if (node.markers.mid.length === 1) for (const anchor of mids) include('mid', node.markers.mid[0], anchor)
   else node.markers.mid.forEach((marker, index) => include('mid', marker, mids[index]))
   return result

@@ -15,6 +15,10 @@ import { connectorInlineLabelText } from './bounds.ts'
 import { escapeAttr, escapeXml, renderMultilineText } from '../multiline-utils.ts'
 import { formatSvgNumber, formatSvgNumericAttribute } from '../shared/svg-number.ts'
 
+/** A receipt from this actual geometry write, never from cached markup.
+ * Undefined served geometry means numeric spelling exceeded bounded custody. */
+export type SvgGeometryWriteSink = (source: Geometry, served: Geometry | undefined) => void
+
 /** One append-only writer for a mark. Attribute emission does not allocate
  * arrays, one-element spread operands, or temporary `name="value"` strings.
  * Numeric fields use the shared SVG spelling at this write boundary. */
@@ -23,8 +27,10 @@ class SvgWriter {
 
   raw(text: string): void { this.value += text }
 
-  attribute(name: string, value: string | number): void {
-    this.value += ` ${name}="${typeof value === 'number' ? formatSvgNumber(value) : escapeAttr(formatSvgNumericAttribute(name, value))}"`
+  attribute(name: string, value: string | number, changedToken?: (offset: number, literal: string) => boolean | void): string {
+    const literal = typeof value === 'number' ? formatSvgNumber(value) : formatSvgNumericAttribute(name, value, changedToken)
+    this.value += ` ${name}="${typeof value === 'number' ? literal : escapeAttr(literal)}"`
+    return literal
   }
 }
 
@@ -83,7 +89,7 @@ function identityAttributes(out: SvgWriter, identity: SvgSemanticIdentity | unde
 
 type ElementGeometry = Exclude<Geometry, { kind: 'compound' }> | Exclude<ConnectorMark['route']['geometry'], { kind: 'line' }> | { kind: 'line'; x1: number; y1: number; x2: number; y2: number }
 
-function geometryAttributes(out: SvgWriter, geometry: ElementGeometry): void {
+function geometryAttributes(out: SvgWriter, geometry: ElementGeometry, sink?: SvgGeometryWriteSink): void {
   switch (geometry.kind) {
     case 'rect':
       out.attribute('x', geometry.x)
@@ -104,29 +110,55 @@ function geometryAttributes(out: SvgWriter, geometry: ElementGeometry): void {
       out.attribute('rx', geometry.rx)
       out.attribute('ry', geometry.ry)
       return
-    case 'line':
-      out.attribute('x1', geometry.x1)
-      out.attribute('y1', geometry.y1)
-      out.attribute('x2', geometry.x2)
-      out.attribute('y2', geometry.y2)
+    case 'line': {
+      const rawX1 = geometry.x1, x1 = out.attribute('x1', rawX1)
+      const rawY1 = geometry.y1, y1 = out.attribute('y1', rawY1)
+      const rawX2 = geometry.x2, x2 = out.attribute('x2', rawX2)
+      const rawY2 = geometry.y2, y2 = out.attribute('y2', rawY2)
+      if (sink) sink(geometry, Number(x1) === rawX1 && Number(y1) === rawY1 && Number(x2) === rawX2 && Number(y2) === rawY2
+        ? geometry : { kind: 'line', x1: Number(x1), y1: Number(y1), x2: Number(x2), y2: Number(y2) })
       return
+    }
     case 'polygon':
     case 'polyline': {
       let points = ''
+      // Only two-point carriers need a bounded served-coordinate projection.
+      // Larger unchanged carriers retain their existing immutable operands;
+      // a changed token explicitly declines their new authority.
+      const observed = geometry.kind === 'polyline' ? sink : undefined
+      const offsets = observed && geometry.points.length === 2 ? [] as number[] : undefined
+      const coordinates = offsets ? [] as number[] : undefined
       for (let i = 0; i < geometry.points.length; i++) {
         const point = geometry.points[i]!
-        points += `${i ? ' ' : ''}${point.x},${point.y}`
+        const x = `${point.x}`, y = `${point.y}`, prefix = i ? ' ' : ''
+        if (offsets && coordinates) {
+          offsets.push(points.length + prefix.length, points.length + prefix.length + x.length + 1)
+          coordinates.push(Number(x), Number(y))
+        }
+        points += `${prefix}${x},${y}`
       }
-      out.attribute('points', points)
+      let changed = false, understood = true
+      out.attribute('points', points, observed ? (offset, literal) => {
+        changed = true
+        if (!offsets || !coordinates) return false
+        const coordinate = offsets.indexOf(offset)
+        if (coordinate < 0 || !Number.isFinite(Number(literal))) { understood = false; return }
+        coordinates[coordinate] = Number(literal)
+      } : undefined)
+      if (observed) observed(geometry, !changed ? geometry : coordinates && understood
+        ? { kind: 'polyline', points: [{ x: coordinates[0]!, y: coordinates[1]! }, { x: coordinates[2]!, y: coordinates[3]! }] } : undefined)
       return
     }
-    case 'path': out.attribute('d', geometry.d)
+    case 'path': {
+      const raw = geometry.d, literal = out.attribute('d', raw)
+      sink?.(geometry, literal === raw ? geometry : { kind: 'path', d: literal })
+    }
   }
 }
 
 /** Compound geometry writes one element per child, each with its own paint;
  * hooks, identity and ARIA go on the first. */
-export function writeShapeSvg(node: ShapeMark): string {
+export function writeShapeSvg(node: ShapeMark, sink?: SvgGeometryWriteSink): string {
   const out = new SvgWriter()
   const compound = node.geometry.kind === 'compound'
   const pieces = node.geometry.kind === 'compound' ? node.geometry.children : [node.geometry]
@@ -136,7 +168,7 @@ export function writeShapeSvg(node: ShapeMark): string {
     if (index) out.raw('\n')
     out.raw(`<${piece.kind}`)
     if (index === 0) hooks(out, node.attributes)
-    geometryAttributes(out, piece)
+    geometryAttributes(out, piece, sink)
     paintAttributes(out, compound ? node.childPaints?.[index] ?? node.paint : node.paint)
     transformAttribute(out, node.transform)
     if (index === 0) identityAttributes(out, node.identity, node.accessibility)
@@ -209,7 +241,7 @@ function connectorInlineLabelSvg(node: ConnectorMark, label: ConnectorLabelDescr
 /** A connector is one marker carrier element plus any labels it owns; an
  * invisible connector draws its labels without the carrier. SVG defaults
  * (butt caps, miter joins, limit 4) are left implicit. */
-export function writeConnectorSvg(node: ConnectorMark): string {
+export function writeConnectorSvg(node: ConnectorMark, sink?: SvgGeometryWriteSink): string {
   const out = new SvgWriter()
   const { stroke, markers } = node
   const dash = stroke.dash
@@ -218,7 +250,7 @@ export function writeConnectorSvg(node: ConnectorMark): string {
     const geometry = node.route.geometry
     out.raw(`<${geometry.kind}`)
     hooks(out, node.attributes)
-    geometryAttributes(out, geometry)
+    geometryAttributes(out, geometry, sink)
     if (geometry.kind !== 'line') out.attribute('fill', 'none')
     out.attribute('stroke', stroke.color)
     if (stroke.opacity !== undefined) out.attribute('stroke-opacity', stroke.opacity)

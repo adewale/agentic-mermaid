@@ -26,12 +26,12 @@ export function formatSvgNumber(value: number): string {
 }
 
 /** Numeric SVG payloads share one spelling; semantic strings stay verbatim. */
-export function formatSvgNumericAttribute(name: string, value: string): string {
+export function formatSvgNumericAttribute(name: string, value: string, changedToken?: (offset: number, literal: string) => boolean | void): string {
   if (value.length < 13 || !SVG_LONG_DECIMAL.test(value)) return value
   // Retain only short numeric fields, never complete SVG or semantic payloads.
   const key = value.length <= 512 ? `${name}\0${value}` : undefined
   const cached = key === undefined ? undefined : attributeSpellings.get(key)
-  if (cached !== undefined) return cached
+  if (cached !== undefined && !changedToken) return cached
   const numeric = SVG_NUMERIC_ATTRIBUTES.has(name) && SCALAR_SVG_NUMBER.test(value)
     || (name === 'viewBox' || name === 'points' || name === 'stroke-dasharray') && /^[-+\d.eE,\s]+$/.test(value)
     || name === 'd' && /^[MmZzLlHhVvCcSsQqTtAa\d.eE,+\s-]+$/.test(value)
@@ -45,8 +45,12 @@ export function formatSvgNumericAttribute(name: string, value: string): string {
     const formatted = formatSvgNumber(number)
     // SVG paths allow adjacent decimal tokens without whitespace. Preserve
     // their boundary if rounding changes a leading dot into a digit.
-    return token.startsWith('.') && index > 0 && /[\d.]/.test(value[index - 1]!)
+    const literal = token.startsWith('.') && index > 0 && /[\d.]/.test(value[index - 1]!)
       ? ` ${formatted}` : formatted
+    // Offsets belong to the original attribute. An occurrence-owned writer
+    // may retain changed typed operands here, without parsing emitted SVG.
+    if (literal !== token && changedToken?.(index, literal) === false) changedToken = undefined
+    return literal
   })
   if (key !== undefined) {
     if (attributeSpellings.size >= 256) attributeSpellings.clear()
