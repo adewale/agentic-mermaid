@@ -162,6 +162,43 @@ jobs:
               if (child.exitCode !== 0) throw new Error("Layout advisory review failed: " + label);
             }
           '
+      - name: Render source-preserving edit review
+        env:
+          LAYOUT_REVIEW: ${{ runner.temp }}/layout-backends
+        run: |
+          bun -e '
+            const inputs = [
+              { name: "source-class-member", source: "classDiagram\nnamespace `~T~A::B` {\n  class A {\n    +old\n  }\n}\n", op: { kind: "add_member", class: "A", text: "+reviewed" } },
+              { name: "source-flow-label", source: "flowchart TD\n  A[Old] --> B\n  classDef retained border:1px s:::colid red\n", op: { kind: "set_label", target: "A", label: "Reviewed" } },
+            ];
+            const probe = `
+              const api = await import(process.cwd() + "/src/agent/index.ts");
+              const revision = new TextDecoder().decode(Bun.spawnSync(["git", "rev-parse", "HEAD"]).stdout).trim();
+              for (const input of JSON.parse(process.env.SOURCE_REVIEW_INPUTS)) {
+                const label = process.env.LAYOUT_REVIEW_LABEL;
+                const path = process.env.LAYOUT_REVIEW + "/" + input.name + "-" + label;
+                const parsed = api.parseRegisteredMermaid(input.source);
+                const edited = typeof api.mutatePreservingSource === "function" && parsed.ok
+                  ? api.mutatePreservingSource(parsed.value, input.op) : undefined;
+                const source = edited?.ok ? edited.value.source : input.source;
+                const options = { security: "strict" };
+                const vector = api.renderMermaidSVGWithReceipt(source, options);
+                const raster = api.renderMermaidPNGWithReceipt(source, options);
+                await Bun.write(path + ".svg", vector.svg);
+                await Bun.write(path + ".png", raster.png);
+                await Bun.write(path + ".json", JSON.stringify({ revision, label, input, source, options,
+                  edit: edited ?? { ok: false, error: "Source-preserving API unavailable at this revision; image shows original source." },
+                  receipt: vector.receipt, review: "Inspect the added reviewed member or Reviewed label; namespace, old member, endpoint and retained style must survive." }, null, 2));
+                if (label === "after" && !edited?.ok) throw new Error("Source edit review failed: " + input.name);
+              }
+            `;
+            for (const [label, root] of [["before", process.env.LAYOUT_BASE_ROOT], ["after", process.cwd()]]) {
+              if (!root) continue;
+              const child = Bun.spawnSync(["bun", "-e", probe], { cwd: root, stdout: "inherit", stderr: "inherit",
+                env: { ...process.env, SOURCE_REVIEW_INPUTS: JSON.stringify(inputs), LAYOUT_REVIEW_LABEL: label } });
+              if (child.exitCode !== 0) throw new Error("Source edit review failed: " + label);
+            }
+          '
       - uses: actions/upload-artifact@v7
         if: always()
         with:

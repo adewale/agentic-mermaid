@@ -725,7 +725,14 @@ table here, which would drift. In broad strokes:
 - **Manual / periodic:** `layout-compare` before/after, the benchmark vs competitors,
   `bun run bench:micro` (per-stage hotspot timings, allocation per call under
   `--runtime node`, and `--baseline <ref>` for interleaved revision ratios;
-  advisory, never a gate), `bun run bench:peers` (the built package against
+  advisory, never a gate). Filter `^source-edit:` for opaque Class/Flowchart
+  edits at 32, 256 and 2,048 nodes, including ten-edit chains and exact label
+  no-ops. These start from a warm parsed input and time complete result JSON
+  materialization; they exclude verification, layout and rendering. Reports
+  retain source/output byte counts and growth. Node allocation estimates cover
+  V8, not native memory or peak RSS. Compare with `--baseline <source-edit-ref>`
+  and calibrate timing noise with `--aa`; an unavailable baseline API is not a
+  fast successful edit. `bun run bench:peers` (the built package against
   the pinned browserless and terminal peers in `eval/fork-graph/`, with output checks outside timing/allocation and label
   checks before timing; includes the native Go Sketch worker, requiring Go >=1.25).
   `bench:peers --corpus` attempts every official fence occurrence, including
