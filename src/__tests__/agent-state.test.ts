@@ -11,6 +11,7 @@
 
 import { describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
+import { createRequire } from 'node:module'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
@@ -599,6 +600,179 @@ describe('state verify — geometric Tier 2 projection (parity with flowchart)',
 })
 
 // ---------------------------------------------------------------------------
+describe('nested State authored correspondence', () => {
+  // Development input: these literal facts precede every parser/renderer call.
+  // The named *_start states must coexist with three contextual start circles.
+  const source = `stateDiagram-v2
+state "外側 📦" as Outer {
+  state "外待機 東京" as Outer_start
+  state "内側 👩🏽‍💻" as Inner {
+    state "待機 東京" as Inner_start
+    state "稼働 🧭" as edge__0
+    [*] --> Inner_start : 起動
+    Inner_start --> edge__0 : 送信 一
+    Inner_start --> edge__0 : 送信 二
+    edge__0 --> Inner_start : 戻る
+    edge__0 --> edge__0 : 再試行
+    note right of Inner_start : 注記 🧪
+  }
+  [*] --> Outer_start : 外起動
+  Outer_start --> Inner : 入る
+}
+state "root literal 🌐" as _start
+[*] --> Outer : 全体起動
+Outer --> _start : 終了
+_start --> Outer : 再開`
+  const authoredStates = [
+    ['Outer', undefined, '外側 📦'], ['Outer_start', 'Outer', '外待機 東京'],
+    ['Inner', 'Outer', '内側 👩🏽‍💻'], ['Inner_start', 'Inner', '待機 東京'],
+    ['edge__0', 'Inner', '稼働 🧭'], ['_start', undefined, 'root literal 🌐'],
+  ] as const
+  const transitions = [
+    ['Inner', '[*]', 'Inner_start', '起動'],
+    ['Inner', 'Inner_start', 'edge__0', '送信 一'],
+    ['Inner', 'Inner_start', 'edge__0', '送信 二'],
+    ['Inner', 'edge__0', 'Inner_start', '戻る'],
+    ['Inner', 'edge__0', 'edge__0', '再試行'],
+    ['Outer', '[*]', 'Outer_start', '外起動'],
+    ['Outer', 'Outer_start', 'Inner', '入る'],
+    [undefined, '[*]', 'Outer', '全体起動'],
+    [undefined, 'Outer', '_start', '終了'],
+    [undefined, '_start', 'Outer', '再開'],
+  ] as const
+
+  test.each(['agentic', 'elk'] as const)('%s preserves nested authored identities, occurrences and SVG centreline contacts through reload', backend => {
+    const { JSDOM } = createRequire(import.meta.url)('jsdom')
+    const original = state(source)
+    const json = synthesizeFromGraph({ kind: 'state', body: JSON.parse(JSON.stringify(original.body)) })
+    if (!json.ok) throw new Error('Expected State JSON reload')
+    const inputs = [source, serializeMermaid(original), serializeMermaid(json.value)]
+    for (const input of inputs) {
+      const diagram = state(input)
+      const states: unknown[] = [], edges: unknown[] = []
+      const visit = (nodes: StateNode[], relations: StateTransition[], parent?: string): void => {
+        for (const node of nodes) {
+          states.push([node.id, parent, node.label])
+          if (node.states) visit(node.states, node.transitions ?? [], node.id)
+        }
+        edges.push(...relations.map(edge => [parent, edge.from, edge.to, edge.label]))
+      }
+      visit(diagram.body.states, diagram.body.transitions)
+      expect(states).toEqual([...authoredStates])
+      expect(edges).toEqual([...transitions])
+      expect(diagram.body.notes?.map(({ target, side, text }) => [target, side, text])).toEqual([['Inner_start', 'right', '注記 🧪']])
+
+      const options = { graphLayout: { backend, fallback: 'none' as const }, embedFontImport: false }
+      const { layout } = layoutMermaidWithReceipt(input, options)
+      const rendered = renderMermaidSVGWithReceipt(input, options)
+      expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: backend, attempts: [{ backend, outcome: 'selected' }] })])
+      expect(layout.groups.map(({ id, parentId }) => [id, parentId])).toEqual([['Outer', undefined], ['Inner', 'Outer']])
+      const starts = layout.nodes.filter(node => node.shape === 'state-start')
+      expect(starts).toHaveLength(3)
+      expect(new Set([...layout.nodes, ...layout.groups].map(node => node.id)).size).toBe(9)
+      for (const [parent, members] of [['Outer', ['Outer_start']], ['Inner', ['Inner_start', 'edge__0']]] as const) {
+        expect(layout.groups.find(group => group.id === parent)!.members.filter(id => !starts.some(start => start.id === id)).sort()).toEqual([...members].sort())
+      }
+
+      const dom = new JSDOM(rendered.svg, { contentType: 'image/svg+xml' })
+      try {
+        const document = dom.window.document as Document
+        const nodes = [...document.querySelectorAll('g.node')]
+        const groups = [...document.querySelectorAll('g.subgraph')]
+        const carriers = [...document.querySelectorAll('[data-role="edge"][data-from]')]
+        // This finite oracle uses untransformed crisp shapes in SVG coordinates.
+        expect(document.querySelectorAll('[transform]')).toHaveLength(0)
+        expect(nodes).toHaveLength(7)
+        expect(groups).toHaveLength(2)
+        expect(groups.map(group => [group.getAttribute('data-id'), group.getAttribute('data-parent-id')])).toEqual([['Outer', null], ['Inner', 'Outer']])
+        expect(carriers).toHaveLength(transitions.length)
+        expect(new Set(carriers.map(tag => tag.getAttribute('data-id'))).size).toBe(transitions.length)
+        for (const [id, , label] of authoredStates) {
+          const occurrences = [...nodes, ...groups].filter(tag => tag.getAttribute('data-id') === id)
+          expect(occurrences).toHaveLength(1)
+          expect(occurrences[0]!.getAttribute('data-label')).toBe(label)
+        }
+        const texts = [...document.querySelectorAll('text')].map(tag => tag.textContent)
+        expect(texts.sort()).toEqual([...authoredStates.map(([, , label]) => label), ...transitions.map(([, , , label]) => label), '注記 🧪'].sort())
+        expect([...document.querySelectorAll('g.state-note')].map(tag => [tag.getAttribute('data-target'), tag.getAttribute('data-side')])).toEqual([['Inner_start', 'right']])
+
+        // Bind direct XML children to owners, then measure the actual rounded
+        // outline centreline with a fixed .02px tolerance, including corner arcs.
+        const shapeOf = (owner: Element): Element => {
+          const shapes = [...owner.children].filter(child => ['rect', 'circle', 'polygon'].includes(child.localName))
+          expect(shapes).toHaveLength(1)
+          return shapes[0]!
+        }
+        const number = (shape: Element, name: string) => Number(shape.getAttribute(name) ?? 0)
+        const touches = (point: number[], shape: Element): boolean => {
+          const [x, y] = point as [number, number]
+          if (shape.localName === 'circle') return Math.abs(Math.hypot(x - number(shape, 'cx'), y - number(shape, 'cy')) - number(shape, 'r')) < 0.02
+          expect(shape.localName).toBe('rect')
+          const w = number(shape, 'width'), h = number(shape, 'height'), r = number(shape, 'rx')
+          expect(number(shape, 'ry')).toBe(r)
+          expect(r).toBeGreaterThanOrEqual(0)
+          expect(r).toBeLessThanOrEqual(Math.min(w, h) / 2)
+          const dx = Math.abs(x - number(shape, 'x') - w / 2) - (w / 2 - r)
+          const dy = Math.abs(y - number(shape, 'y') - h / 2) - (h / 2 - r)
+          return Math.abs(Math.hypot(Math.max(dx, 0), Math.max(dy, 0)) + Math.min(Math.max(dx, dy), 0) - r) < 0.02
+        }
+        const ownerOf = (id: string) => [...nodes, ...groups].find(tag => tag.getAttribute('data-id') === id)!
+        for (const [parent, from, to, label] of transitions) {
+          const occurrence = carriers.filter(tag => tag.getAttribute('data-label') === label)
+          expect(occurrence).toHaveLength(1)
+          const carrier = occurrence[0]!, sourceId = carrier.getAttribute('data-from')!
+          expect(carrier.getAttribute('data-to')).toBe(to)
+          if (from === '[*]') {
+            const start = ownerOf(sourceId), circle = shapeOf(start)
+            expect(start.getAttribute('data-shape')).toBe('state-start')
+            expect(circle.localName).toBe('circle')
+            expect(number(circle, 'r')).toBeGreaterThan(0)
+            expect(authoredStates.some(([id]) => id === sourceId)).toBe(false)
+            expect(layout.groups.filter(group => group.members.includes(sourceId)).map(group => group.id)).toEqual(parent === undefined ? [] : [parent])
+            const enclosing = groups.filter(group => {
+              const box = shapeOf(group), cx = number(circle, 'cx'), cy = number(circle, 'cy'), r = number(circle, 'r')
+              return cx - r > number(box, 'x') && cy - r > number(box, 'y')
+                && cx + r < number(box, 'x') + number(box, 'width') && cy + r < number(box, 'y') + number(box, 'height')
+            }).map(group => group.getAttribute('data-id'))
+            expect(enclosing).toEqual(parent === 'Inner' ? ['Outer', 'Inner'] : parent === 'Outer' ? ['Outer'] : [])
+            for (const group of groups.filter(group => enclosing.includes(group.getAttribute('data-id')))) {
+              const box = shapeOf(group), cx = number(circle, 'cx'), r = number(circle, 'r'), corner = number(box, 'rx')
+              // Whole circle occupies the frame's central straight-sided strip;
+              // bounding-box containment therefore cannot admit a missing corner.
+              expect(cx - r).toBeGreaterThan(number(box, 'x') + corner)
+              expect(cx + r).toBeLessThan(number(box, 'x') + number(box, 'width') - corner)
+            }
+          } else expect(sourceId).toBe(from)
+          expect(['polyline', 'path']).toContain(carrier.localName)
+          if (carrier.localName === 'path') expect(carrier.getAttribute('d')).toMatch(/^M[-\d.eE+,\s]+(?:[LQC][-\d.eE+,\s]+)+$/)
+          const coordinates = (carrier.getAttribute('points') ?? carrier.getAttribute('d') ?? '').match(/-?(?:\d*\.)?\d+(?:e[-+]?\d+)?/gi)!.map(Number)
+          expect(coordinates.length).toBeGreaterThanOrEqual(4)
+          expect(touches(coordinates.slice(0, 2), shapeOf(ownerOf(sourceId)))).toBe(true)
+          expect(touches(coordinates.slice(-2), shapeOf(ownerOf(to)))).toBe(true)
+          expect(carrier.getAttribute('marker-start')).toBeNull()
+          const markerId = carrier.getAttribute('marker-end')?.match(/^url\(#(.+)\)$/)?.[1]
+          const marker = document.getElementById(markerId!)!
+          expect(marker).toBeDefined()
+          const arrow = shapeOf(marker)
+          expect(arrow.localName).toBe('polygon')
+          expect(number(marker, 'markerWidth')).toBeGreaterThan(0)
+          expect(number(marker, 'markerHeight')).toBeGreaterThan(0)
+          expect(marker.getAttribute('orient')).toBe('auto')
+          expect(marker.getAttribute('viewBox')).toBeNull()
+          expect(arrow.getAttribute('fill')).not.toBe('none')
+          const triangle = arrow.getAttribute('points')!.match(/-?(?:\d*\.)?\d+/g)!.map(Number)
+          expect(triangle).toHaveLength(6)
+          expect(triangle[2]!).toBeGreaterThan(triangle[0]!)
+          expect(triangle[2]!).toBeGreaterThan(triangle[4]!)
+          expect(triangle[1]!).toBeLessThan(triangle[3]!)
+          expect(triangle[5]!).toBeGreaterThan(triangle[3]!)
+          expect(triangle.slice(2, 4)).toEqual([number(marker, 'refX'), number(marker, 'refY')])
+        }
+      } finally { dom.window.close() }
+    }
+  })
+})
+
 describe('state fast-check round-trip property', () => {
   // Generate small state machines (incl. nested composites depth ≤ 2 and [*]
   // usage) and assert serialize → parse → serialize is idempotent and the body
