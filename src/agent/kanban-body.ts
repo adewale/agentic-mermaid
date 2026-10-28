@@ -47,9 +47,9 @@ export function renderKanban(body: KanbanBody): string {
         lines[lines.length - 1] += `@{ ${entries.map(([key, value]) => `${quoted(key)}: ${typeof value === 'string' ? quoted(value) : String(value)}`).join(', ')} }`
       } else {
         lines[lines.length - 1] += '@{'
-        let yaml = YAML.stringify(metadata)
+        let yaml = YAML.stringify(metadata, { aliasDuplicateObjects: false })
         if (yaml.includes('%%{') || yaml.includes('&')) {
-          yaml = YAML.stringify(metadata, { defaultKeyType: 'QUOTE_DOUBLE', defaultStringType: 'QUOTE_DOUBLE', lineWidth: 0 }).replaceAll('%', '\\x25').replaceAll('&', '\\x26')
+          yaml = YAML.stringify(metadata, { aliasDuplicateObjects: false, defaultKeyType: 'QUOTE_DOUBLE', defaultStringType: 'QUOTE_DOUBLE', lineWidth: 0 }).replaceAll('%', '\\x25').replaceAll('&', '\\x26')
         }
         for (const line of yaml.trimEnd().split('\n')) lines.push(`${indent}  ${line}`)
         lines.push(`${indent}}`)

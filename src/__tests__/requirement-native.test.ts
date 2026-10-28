@@ -36,14 +36,14 @@ describe('native requirement', () => {
   test('horizontal whitespace preserves declaration line breaks while malformed headers remain diagnosed source', async () => {
     const upstream = startUpstreamMermaid()
     try {
-      for (const [header, declaration] of [['requirementDiagram ', 'requirement"_"{\n}'], ['requirementDiagram \t', 'requirement "__test_req__" {\nid:simulation 1\ntext: "First\nSecond"\n}']] as const) {
+      for (const [header, declaration] of [['requirementDiagram ', 'requirement"_"{\n}'], ['requirementDiagram \t', 'requirement "__test_req__" {\nid:simulation 1\ntext: "First\nSecond"\n}'], ['requirement \t', 'requirement"_"{\n}']] as const) {
         const source = `${header}\n${declaration}`
         expect(await upstream.publicAccepts(source)).toBe(false)
         const diagram = structured(source)
         expect(diagram.body.requirements[0]!.name).toBe(declaration.includes('__test_req__') ? '__test_req__' : '_')
         expect(() => renderSourceSVG(source)).not.toThrow()
         expect(renderSourceASCII(source)).toContain(diagram.body.requirements[0]!.name)
-        expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'requirement_whitespace' }))
+        expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'requirement_whitespace', line: 1 }))
         const saved = serializeMermaid(diagram, { wrapper: 'canonical' })
         expect(await upstream.publicAccepts(saved)).toBe(true)
         expect(semantic(structured(saved).body)).toEqual(semantic(diagram.body))

@@ -38,9 +38,11 @@ function isStylePart(t: number): boolean {
 export interface RequirementStyleDirective { prefix: string; styles: string[] }
 
 export function parseRequirementDiagram(input: string | string[], onStyle?: (directive: RequirementStyleDirective) => void, onRequiredLineBreak?: (offset: number) => void): RequirementBody {
-  const source = (Array.isArray(input) ? input.join('\n') : input).replace(/^[^\S\r\n]*requirement[^\S\r\n]*(?=\r\n?|\n|$)/i, 'requirementDiagram')
+  const authored = Array.isArray(input) ? input.join('\n') : input
+  const source = authored.replace(/^[^\S\r\n]*requirement[^\S\r\n]*(?=\r\n?|\n|$)/i, 'requirementDiagram')
+  const headerDelta = source.length - authored.length
   const db = new Database()
-  parseRequirement(source.endsWith('\n') ? source : source + '\n', db, onStyle, onRequiredLineBreak)
+  parseRequirement(source.endsWith('\n') ? source : source + '\n', db, onStyle, onRequiredLineBreak ? offset => onRequiredLineBreak(offset - headerDelta) : undefined)
   for (const definition of db.classes.values()) checkedAuthoredStyle(parseStyleProps(definition.styles.join(',')), `classDef ${definition.id}`)
   for (const [id, styles] of db.authoredStyles) {
     checkedAuthoredStyle(parseStyleProps(styles.join(',')), `style ${id}`)

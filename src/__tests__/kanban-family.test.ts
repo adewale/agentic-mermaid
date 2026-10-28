@@ -16,6 +16,26 @@ import { fcParameters } from './helpers/fc-parameters.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 import { projectEntityMarkers } from '../shared/mermaid-entity-display.ts'
 
+test('Kanban nested metadata aliases remain writable after an edit shares nested values', async () => {
+  const upstream = startUpstreamMermaid()
+  try {
+    const source = 'kanban\nTodo\n  card[Work]@{\n    first: &shared\n      value: A&amp;amp; B\n    second: *shared\n  }'
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw Error('Kanban alias metadata must parse')
+    const diagram = asKanban(parsed.value)!
+    expect(diagram.body.columns[0]!.tasks[0]!.metadata).toEqual({ first: { value: 'A&amp; B' }, second: { value: 'A&amp; B' } })
+    const shared = { value: 'A&amp; B' }
+    const edited = mutate(diagram, { kind: 'set_task_metadata', id: 'card', metadata: { first: shared, second: shared } })
+    expect(edited.ok).toBe(true)
+    if (!edited.ok) throw Error(edited.error.message)
+    const saved = serializeMermaid(edited.value, { wrapper: 'canonical' })
+    expect(await upstream.publicAccepts(saved)).toBe(true)
+    const reloaded = parseRegisteredMermaid(saved)
+    if (!reloaded.ok) throw Error('Saved Kanban metadata must parse')
+    expect(asKanban(reloaded.value)!.body.columns[0]!.tasks[0]!.metadata).toEqual({ first: { value: 'A&amp; B' }, second: { value: 'A&amp; B' } })
+  } finally { upstream.close() }
+})
+
 test('Kanban XML transport references retain displayed identities, parents and metadata through saving and editing', async () => {
   const upstream = startUpstreamMermaid()
   try {
