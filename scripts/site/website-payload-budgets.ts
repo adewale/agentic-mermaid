@@ -61,7 +61,7 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
-      '^/demo/browser-lazy/chunks/timeline-[A-Z0-9]{8}\\.js$',
+      '^/demo/browser-lazy/chunks/timeline-[A-Za-z0-9_-]{8}\\.js$',
       '^/generated/inline-[a-f0-9]{12}\\.js$',
     ]),
     forbidden: Object.freeze([

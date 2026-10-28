@@ -14,43 +14,15 @@
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import { join } from 'path'
 import { deflateRawSync, gzipSync } from 'node:zlib'
-import { deserialize } from 'node:v8'
 import { chromium, type Browser, type BrowserContext, type CDPSession, type Page } from 'playwright'
 import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
-import { renderMermaidSVG, renderMermaidASCIIWithReceipt, knownStyleDescriptors, inferBackend, type RenderOptions } from '../src/index.ts'
-import type { PreviewArtifact } from '../src/browser-editor-protocol.ts'
-import { useTestChildren } from '../src/__tests__/helpers/test-child.ts'
+import { renderMermaidSVG, renderMermaidASCIIWithReceipt, knownStyleDescriptors, inferBackend } from '../src/index.ts'
+import { sourcePreviews } from './source-artifacts.ts'
 import { serveWithAvailablePort } from './test-port.ts'
 import { PIE_ENTITY_FIXTURES } from '../src/__tests__/helpers/pie-entity-fixtures.ts'
 import { resolveSvgScene } from '../src/scene/resolve-svg.ts'
 
 const ROOT = join(import.meta.dir, '..')
-const runSourceChild = useTestChildren(30_000)
-
-/** Match the preview operation in a fresh production realm. The test preload
- * intentionally forces Scene assertions in this parent; changing its env now
- * cannot undo assertion modules that have already been imported. */
-async function sourcePreviews(examples: readonly { source: string; options: RenderOptions }[]): Promise<Pick<PreviewArtifact, 'svg' | 'receipt' | 'verification'>[]> {
-  const child = await runSourceChild(process.execPath, ['--eval', `
-    const { serialize } = await import('node:v8')
-    await import('./src/index.ts')
-    const { renderAndVerifyMermaid } = await import('./src/agent/verify.ts')
-    const examples = JSON.parse(await Bun.stdin.text())
-    const results = examples.map(({ source, options }) => {
-      const result = renderAndVerifyMermaid(source, { ...options, security: 'strict', embedFontImport: false })
-      return { svg: result.svg, receipt: result.receipt, verification: {
-        ok: result.verification.ok, warnings: result.verification.warnings, checks: result.verification.checks,
-      } }
-    })
-    process.stdout.write(serialize(results).toString('base64'))
-  `], { cwd: ROOT, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' }, input: JSON.stringify(examples) })
-  expect(child.status, child.stderr).toBe(0)
-  expect(child.signal).toBeNull()
-  // Preserve optional undefined fields as well as every receipt value. JSON
-  // transport would silently discard those fields before the equality check.
-  return deserialize(Buffer.from(child.stdout, 'base64'))
-}
-
 const PREFERRED_PORT = 4567
 let BASE = ''
 const SCREENSHOT_DIR = join(ROOT, 'e2e', 'screenshots')

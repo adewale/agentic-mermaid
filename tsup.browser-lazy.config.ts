@@ -1,4 +1,5 @@
 import { defineConfig } from 'tsup'
+import { compactBrowserLazy } from './scripts/build/compact-browser-lazy.ts'
 import { runtimeRenderContractPlugin } from './scripts/build/runtime-render-contract.ts'
 import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
@@ -20,7 +21,9 @@ export default defineConfig({
   // making this standalone build history-independent. tsup's `clean` option
   // always starts with `**/*` under outDir, so it cannot express that safely.
   clean: false,
-  minify: true,
+  // Optimize after sharing the consumed runtime closure.
+  minify: false,
+  onSuccess: compactBrowserLazy,
   target: 'es2022',
   outDir: 'dist',
   metafile: true,

@@ -95,7 +95,7 @@ describe('website payload budget authority', () => {
     expect(verifyWebsitePayloadBudgets(missingDemo, WEBSITE_PAYLOAD_BUDGETS)).toEqual(expect.arrayContaining([
       'demo: missing required ^/demo/$',
       'demo: missing required ^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
-      'demo: missing required ^/demo/browser-lazy/chunks/timeline-[A-Z0-9]{8}\\.js$',
+      'demo: missing required ^/demo/browser-lazy/chunks/timeline-[A-Za-z0-9_-]{8}\\.js$',
       'demo: missing required ^/generated/inline-[a-f0-9]{12}\\.js$',
     ]))
   })

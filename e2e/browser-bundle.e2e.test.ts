@@ -28,8 +28,9 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { chromium, firefox, webkit, type Browser, type Page, type Route } from 'playwright'
 import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
-import { registerStyle, resolveStyleStack, renderMermaidSVG, renderMermaidSVGWithReceipt, sharedRenderOptionsJsonSchema } from '../src/index.ts'
+import { registerStyle, resolveStyleStack, renderMermaidSVG, sharedRenderOptionsJsonSchema } from '../src/index.ts'
 import { serveWithAvailablePort } from './test-port.ts'
+import { sourceSvgArtifact, sourceSvgOutcome, sourceSvgWithDiagnostics } from './source-artifacts.ts'
 
 const REPO = join(import.meta.dir, '..')
 const BUNDLE = join(REPO, 'dist', 'browser.global.js')
@@ -181,10 +182,7 @@ describe('browser bundle', () => {
         })
         return { svg: rendered.svg, receipt: JSON.parse(JSON.stringify(rendered.receipt)), diagnostics }
       }, { name: GLOBAL, source: input.source, options })
-      const diagnostics: unknown[] = []
-      const expected = renderMermaidSVGWithReceipt(input.source, {
-        ...options, onConfigDiagnostic: value => diagnostics.push(value),
-      })
+      const { diagnostics, ...expected } = await sourceSvgWithDiagnostics(input.source, options)
       expect(diagnostics.length, `${input.name} must exercise config diagnostics`).toBeGreaterThan(0)
       expect(actual, input.name).toEqual({ svg: expected.svg, receipt: JSON.parse(JSON.stringify(expected.receipt)), diagnostics })
     }
@@ -490,7 +488,7 @@ describe('async family-loaded browser renderer', () => {
           }
         }, [`${base}/dist/browser-lazy/index.js`, family.example, style] as const)
         expect(result.error, `${family.id} threw in the async browser entry`).toBeNull()
-        const expected = renderMermaidSVGWithReceipt(family.example, { security: 'strict', ...(style ? { style } : {}) })
+        const expected = await sourceSvgArtifact(family.example, { security: 'strict', ...(style ? { style } : {}) })
         expect(result.svg).toBe(expected.svg)
         expect(result.receipt).toEqual(expected.receipt)
       }
@@ -512,7 +510,7 @@ describe('async family-loaded browser renderer', () => {
     try {
       await page.goto(`${base}/blank.html`)
       const authored = { style: { blurb: 'Authored runtime style metadata', colors: { accent: '#0055AA' } } }
-      const expected = renderMermaidSVGWithReceipt('flowchart TD\nA --> B', authored)
+      const expected = await sourceSvgArtifact('flowchart TD\nA --> B', authored)
       const rendered = await page.evaluate(async ({ entryUrl, options }) => {
         const api = await import(entryUrl)
         return api.renderMermaidSVGWithReceiptAsync('flowchart TD\nA --> B', options)
@@ -551,10 +549,7 @@ describe('async family-loaded browser renderer', () => {
           })
           return { svg: rendered.svg, receipt: JSON.parse(JSON.stringify(rendered.receipt)), diagnostics }
         }, { entryUrl: `${base}/dist/browser-lazy/index.js`, source: input.source, options })
-        const diagnostics: unknown[] = []
-        const expected = renderMermaidSVGWithReceipt(input.source, {
-          ...options, onConfigDiagnostic: value => diagnostics.push(value),
-        })
+        const { diagnostics, ...expected } = await sourceSvgWithDiagnostics(input.source, options)
         expect(diagnostics.length, `${input.name} must exercise config diagnostics`).toBeGreaterThan(0)
         expect(actual, input.name).toEqual({ svg: expected.svg, receipt: JSON.parse(JSON.stringify(expected.receipt)), diagnostics })
         if (input.name === 'authored descriptions') {
@@ -704,11 +699,7 @@ describe('async family-loaded browser renderer', () => {
             return { svg: result.svg, receipt: result.receipt }
           } catch (error) { return { error: String(error) } }
         }, [`${base}/dist/browser-lazy/index.js`, source] as const)
-        let expected
-        try {
-          const result = renderMermaidSVGWithReceipt(source, { security: 'strict' })
-          expected = { svg: result.svg, receipt: result.receipt }
-        } catch (error) { expected = { error: String(error) } }
+        const expected = await sourceSvgOutcome(source, { security: 'strict' })
         expect(actual).toEqual(expected)
         for (const chunk of lazyYamlChunks()) expect(requests.filter(path => path === chunk)).toHaveLength(1)
       } finally { await page.close() }
@@ -739,8 +730,7 @@ describe('async family-loaded browser renderer', () => {
         })
         return { svg: rendered.svg, receipt: JSON.parse(JSON.stringify(rendered.receipt)), diagnostics }
       }, { entry: `${base}/dist/browser-lazy/index.js`, source, options })
-      const diagnostics: unknown[] = []
-      const expected = renderMermaidSVGWithReceipt(source, { ...options, onConfigDiagnostic: value => diagnostics.push(value) })
+      const { diagnostics, ...expected } = await sourceSvgWithDiagnostics(source, options)
       expect(result).toEqual({ svg: expected.svg, receipt: JSON.parse(JSON.stringify(expected.receipt)), diagnostics })
       expect(requests.filter(path => path === lazyImplementationChunk())).toHaveLength(fallback ? 1 : 0)
       expect(requests.filter(path => path === lazyImplementationChunk('/layout/agentic-layered-core.ts'))).toHaveLength(1)
@@ -775,7 +765,7 @@ describe('async family-loaded browser renderer', () => {
         const result = await api.renderMermaidSVGWithReceiptAsync(source, options)
         return { svg: result.svg, receipt: result.receipt }
       }, { entry: `${base}/dist/browser-lazy/index.js`, source, options })
-      const expected = renderMermaidSVGWithReceipt(source, options)
+      const expected = await sourceSvgArtifact(source, options)
       expect(recovered).toEqual({ svg: expected.svg, receipt: expected.receipt })
       expect(attempts).toBe(2)
       expect(requests).not.toContain(lazyImplementationChunk())
@@ -859,16 +849,16 @@ describe('demo page', () => {
 
   test('fetches Timeline but neither ELK nor the classic all-family bundle', () => {
     expect(demoRequests).toContainEqual(expect.stringMatching(/^\/demo\/browser-lazy\/index-[a-f0-9]{12}\.js$/))
-    expect(demoRequests).toContainEqual(expect.stringMatching(/^\/demo\/browser-lazy\/chunks\/timeline-[A-Z0-9]{8}\.js$/))
+    expect(demoRequests).toContainEqual(expect.stringMatching(/^\/demo\/browser-lazy\/chunks\/timeline-[A-Za-z0-9_-]{8}\.js$/))
     expect(demoRequests).not.toContain(`/demo/${lazyImplementationChunk()}`)
     expect(demoRequests).not.toContainEqual(expect.stringMatching(/^\/demo\/browser-[a-f0-9]{12}\.js$/))
 
     const families = new Set(BUILTIN_FAMILY_METADATA.map(family => family.id))
     const requestedFamilyChunks = demoRequests.filter(path => {
-      const match = /^\/demo\/browser-lazy\/chunks\/([a-z0-9]+)-[A-Z0-9]{8}\.js$/.exec(path)
+      const match = /^\/demo\/browser-lazy\/chunks\/([a-z0-9]+)-[A-Za-z0-9_-]{8}\.js$/.exec(path)
       return match && families.has(match[1] as typeof BUILTIN_FAMILY_METADATA[number]['id'])
     })
-    expect(requestedFamilyChunks).toEqual([expect.stringMatching(/\/timeline-[A-Z0-9]{8}\.js$/)])
+    expect(requestedFamilyChunks).toEqual([expect.stringMatching(/\/timeline-[A-Za-z0-9_-]{8}\.js$/)])
   })
 
   test('the initializer renders page source strictly and inserts only one parsed SVG document', async () => {

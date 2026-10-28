@@ -27,7 +27,7 @@ const REQUIRED_PACKAGE_FILES = [
  * files ship and how many hashed chunks there are, not the hash text. */
 export function normalizePackagePath(path: string): string {
   return path.replace(/-([A-Za-z0-9_-]{8})(\.js|\.d\.ts)$/, (whole, hash: string, extension: string) =>
-    /[A-Z0-9]/.test(hash) ? `-[hash]${extension}` : whole)
+    (path.startsWith('dist/browser-lazy/chunks/') || /[A-Z0-9]/.test(hash)) ? `-[hash]${extension}` : whole)
 }
 
 /** Lazy chunk topology belongs to the emitted compiler graph. A source change

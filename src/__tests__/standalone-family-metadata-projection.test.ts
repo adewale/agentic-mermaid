@@ -116,3 +116,45 @@ test('rejects missing metadata and unsupported table/seed/spread shapes', () => 
   for (const source of cases) expect(() => project(writeFixture(source), { familyEditorMetadata: false })).toThrow()
   expect(() => project(writeFixture('const STABLE_FAMILY_DESCRIPTOR_SEEDS = [...STABLE_FAMILY_DESCRIPTOR_SEEDS];', true), { familyEditorMetadata: false })).toThrow()
 })
+
+
+test('omits catalog-only slots from the private derived metadata as well as its seeds', () => {
+  const source = fixture() + `
+    const BUILTIN_FAMILY_METADATA = Object.freeze(BUILTIN_FAMILY_DESCRIPTOR_SEEDS.map(
+      ({ id, headers, example, editorDiagramType, editorLabel, editorDescription, editorExampleId, editorGlyph, editorExample }) =>
+        Object.freeze({ id, headers, example, editorDiagramType, editorLabel, editorDescription, editorExampleId, editorGlyph, editorExample }),
+    ));
+  `
+  const path = writeFixture(source)
+  const after = Function(`${project(path, { familyEditorMetadata: false })}; return BUILTIN_FAMILY_METADATA;`)()
+  expect(after).toEqual([{ id: 'flowchart', headers: ['flowchart', 'graph'], example: 'flowchart LR' }])
+  expect(Object.keys(after[0])).toEqual(['id', 'headers', 'example'])
+})
+
+
+test('retains evaluation outside the owned metadata result and refuses an impure omitted result field', () => {
+  const source = fixture() + `
+    const unrelated = { editorLabel: (() => { throw new Error('authored data'); })() };
+    const BUILTIN_FAMILY_METADATA = BUILTIN_FAMILY_DESCRIPTOR_SEEDS.map(({ id, editorLabel }) => Object.freeze({ id, editorLabel: transformLabel(editorLabel) }));
+  `
+  const path = writeFixture(source)
+  expect(() => project(path, { familyEditorMetadata: false })).toThrow('cannot discard unknown evaluation')
+})
+
+
+test.each([
+  ['candidate', 'validateDescriptor', 'owned object literal'],
+  ['{ get config() { return candidate; } }', 'validateDescriptor', 'data fields'],
+  ['{ ...seed, ...hooks }', 'validateSomethingElse', 'Unsupported prevalidated'],
+])('prevalidated builds refuse unknown admission construction: %s / %s', (value, validate, message) => {
+  const source = fixture().replace("id: 'flowchart'", "id: 'flowchart', narrower: 'asFlowchart', upstreamId: 'flowchart', maturity: 'stable'") + `
+    function completeBuiltinDescriptor(seed, hooks) { return freezeDescriptor(${value}); }
+    function installBuiltinFamily(id, hooks) {
+      const descriptor = completeBuiltinDescriptor(seed, hooks);
+      ${validate}(descriptor);
+      CONFORMANCE.set(id, builtinFamilyConformanceReport(descriptor));
+      return descriptor;
+    }
+  `
+  expect(() => project(writeFixture(source), { prevalidatedBuiltinFamilies: true })).toThrow(message)
+})

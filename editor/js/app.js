@@ -3,7 +3,6 @@ import { initialize as initializeHelpers } from './helpers.js';
 import { initialize as initializeState } from './state.js';
 import { initialize as initializeElements } from './elements.js';
 import { initialize as initializeSharing } from './sharing.js';
-import { initialize as initializeRuntimeRecovery } from './runtime-recovery.js';
 import { initialize as initializeRendering } from './rendering.js';
 import { initialize as initializeMotion } from './motion.js';
 import { initialize as initializeZoom } from './zoom.js';
@@ -23,13 +22,13 @@ import { initialize as initializeToast } from './toast.js';
 import { initialize as initializeDarkMode } from './dark-mode.js';
 import { initialize as initializeInit } from './init.js';
 
-export function startEditor(catalogs) {
+export function startEditor(catalogs, initializeRuntimeRecovery) {
   Object.assign(ui, catalogs);
   initializeHelpers();
   initializeState();
   initializeElements();
   initializeSharing();
-  if (document.getElementById('runtime-recovery')) initializeRuntimeRecovery();
+  if (initializeRuntimeRecovery && document.getElementById('runtime-recovery')) initializeRuntimeRecovery();
   initializeRendering();
   initializeMotion();
   initializeZoom();

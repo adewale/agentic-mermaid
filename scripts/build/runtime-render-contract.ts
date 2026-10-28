@@ -169,20 +169,48 @@ function runtimeConformanceSource(source: string, path: string): string {
 
 /** The private standalone worker offers rendering/verification, not the SDK's
  * editor catalog. The page already embeds that catalog from canonical source.
- * Remove only pure literal editor fields from the two exact owned seed tables;
+ * Remove only pure literal catalog fields from the two exact owned seed tables;
  * reject new table shapes rather than discarding unknown evaluation/metadata. */
-function runtimeFamilyEditorSource(source: string, path: string): string {
+function runtimeFamilyCatalogSource(source: string, path: string, omitDiscoveryMetadata = false): string {
   const file = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
   const stable = path.endsWith('stable-family-metadata.ts')
   const tableName = stable ? 'STABLE_FAMILY_DESCRIPTOR_SEEDS' : 'BUILTIN_FAMILY_DESCRIPTOR_SEEDS'
   const editorFields = new Set(['editorDiagramType', 'editorLabel', 'editorDescription', 'editorExampleId', 'editorGlyph', 'editorExample'])
+  if (omitDiscoveryMetadata) for (const field of ['example', 'narrower', 'upstreamId', 'maturity']) editorFields.add(field)
   let projected = 0, tables = 0
   const unwrap = (node: ts.Expression): ts.Expression => {
     while (ts.isAsExpression(node) || ts.isSatisfiesExpression(node) || ts.isParenthesizedExpression(node)) node = node.expression
     return node
   }
+  const metadataMap = (node: ts.Node): boolean => ts.isArrowFunction(node) && ts.isCallExpression(node.parent)
+    && ts.isPropertyAccessExpression(node.parent.expression) && node.parent.expression.name.text === 'map'
+    && ts.isIdentifier(node.parent.expression.expression) && node.parent.expression.expression.text === 'BUILTIN_FAMILY_DESCRIPTOR_SEEDS'
+  const metadataResult = (node: ts.ObjectLiteralExpression): boolean => ts.isCallExpression(node.parent)
+    && ts.isPropertyAccessExpression(node.parent.expression) && ts.isIdentifier(node.parent.expression.expression)
+    && node.parent.expression.expression.text === 'Object' && node.parent.expression.name.text === 'freeze'
+    && metadataMap(node.parent.parent)
+  const omittedBinding = (element: ts.BindingElement): boolean => {
+    const name = element.propertyName ?? element.name
+    return ts.isIdentifier(name) && editorFields.has(name.text)
+  }
   const transformed = ts.transform(file, [context => root => {
     const visit: ts.Visitor = node => {
+      if (ts.isObjectBindingPattern(node) && (ts.isParameter(node.parent) && metadataMap(node.parent.parent)
+        || ts.isVariableDeclaration(node.parent) && node.parent.initializer && ts.isIdentifier(node.parent.initializer)
+          && node.parent.initializer.text === 'seed' && ts.isVariableDeclarationList(node.parent.parent)
+          && ts.isVariableStatement(node.parent.parent.parent) && ts.isBlock(node.parent.parent.parent.parent)
+          && ts.isFunctionDeclaration(node.parent.parent.parent.parent.parent)
+          && node.parent.parent.parent.parent.parent.name?.text === 'completeBuiltinDescriptor')) {
+        return ts.factory.updateObjectBindingPattern(node, node.elements.filter(element => !omittedBinding(element)))
+      }
+      if (ts.isObjectLiteralExpression(node) && metadataResult(node)) {
+        return ts.factory.updateObjectLiteralExpression(node, node.properties.filter(property => {
+          if (!property.name || !ts.isIdentifier(property.name) || !editorFields.has(property.name.text)) return true
+          if (!ts.isShorthandPropertyAssignment(property)
+            && !(ts.isPropertyAssignment(property) && ts.isIdentifier(property.initializer))) throw new Error('Private catalog projection cannot discard unknown evaluation')
+          return false
+        }))
+      }
       if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === tableName && node.initializer) {
         if (!ts.isVariableDeclarationList(node.parent) || !ts.isVariableStatement(node.parent.parent) || !ts.isSourceFile(node.parent.parent.parent) || ++tables !== 1) throw new Error('Private editor projection requires one exact module seed table')
         const table = unwrap(node.initializer)
@@ -216,8 +244,61 @@ function runtimeFamilyEditorSource(source: string, path: string): string {
   } finally { transformed.dispose() }
 }
 
+/** The standalone generator imports the complete canonical family catalog before
+ * bundling, so descriptor admission has already run against these exact hooks.
+ * Its closed worker exposes no descriptor installation or conformance reports.
+ * Keep snapshotting and all source/output validation; omit this repeated check
+ * and the unexposed report construction only in that prevalidated build. */
+function runtimePrevalidatedBuiltinSource(source: string, path: string): string {
+  const file = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+  let validation = 0, reports = 0, snapshots = 0
+  const transformed = ts.transform(file, [context => root => {
+    const visit: ts.Visitor = node => {
+      if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'freezeDescriptor'
+        && ts.isReturnStatement(node.parent) && ts.isBlock(node.parent.parent)
+        && ts.isFunctionDeclaration(node.parent.parent.parent) && node.parent.parent.parent.name?.text === 'completeBuiltinDescriptor') {
+        if (node.arguments.length !== 1 || !ts.isObjectLiteralExpression(node.arguments[0]!)) throw new Error('Prevalidated descriptors require an owned object literal')
+        if (node.arguments[0]!.properties.some(property => !(ts.isPropertyAssignment(property) || ts.isShorthandPropertyAssignment(property) || ts.isSpreadAssignment(property)))) throw new Error('Prevalidated descriptors require data fields')
+        snapshots++
+        return ts.factory.updateCallExpression(node, ts.factory.createIdentifier('freezePrevalidatedDescriptor'), node.typeArguments, node.arguments)
+      }
+      if (ts.isFunctionDeclaration(node) && node.name?.text === 'installBuiltinFamily' && node.body) {
+        const statements = node.body.statements.filter(statement => {
+          if (!ts.isExpressionStatement(statement) || !ts.isCallExpression(statement.expression)) return true
+          const call = statement.expression
+          if (ts.isIdentifier(call.expression) && call.expression.text === 'validateDescriptor'
+            && call.arguments.length === 1 && ts.isIdentifier(call.arguments[0]!) && call.arguments[0]!.text === 'descriptor') {
+            validation++
+            return false
+          }
+          if (ts.isPropertyAccessExpression(call.expression) && ts.isIdentifier(call.expression.expression)
+            && call.expression.expression.text === 'CONFORMANCE' && call.expression.name.text === 'set'
+            && call.arguments.length === 2 && ts.isCallExpression(call.arguments[1]!)
+            && ts.isIdentifier(call.arguments[1]!.expression) && call.arguments[1]!.expression.text === 'builtinFamilyConformanceReport') {
+            reports++
+            return false
+          }
+          return true
+        })
+        return ts.factory.updateFunctionDeclaration(node, node.modifiers, node.asteriskToken, node.name, node.typeParameters,
+          node.parameters, node.type, ts.factory.updateBlock(node.body, statements))
+      }
+      return ts.visitEachChild(node, visit, context)
+    }
+    return ts.visitNode(root, visit) as ts.SourceFile
+  }])
+  try {
+    if (validation !== 1 || reports !== 1 || snapshots !== 1) throw new Error('Unsupported prevalidated built-in installation')
+    return `import { deepFreeze } from '../shared/plain-data.ts';
+function freezePrevalidatedDescriptor(value: FamilyDescriptor): FamilyDescriptor {
+  return deepFreeze(Object.fromEntries(Object.entries(value).filter(([, field]) => field !== undefined))) as unknown as FamilyDescriptor;
+}
+${ts.createPrinter().printFile(transformed.transformed[0]!)}`
+  } finally { transformed.dispose() }
+}
+
 /** Structural plugin interface works in both esbuild and Bun builds. */
-export function runtimeRenderContractPlugin({ schemaDocumentation = true, terminalAdapter = true, conformanceObservations = true, familyEditorMetadata = true, coalesceRuntimePrimitives = false, sourceOnlySceneAdmission = false } = {}) {
+export function runtimeRenderContractPlugin({ schemaDocumentation = true, terminalAdapter = true, conformanceObservations = true, familyEditorMetadata = true, prevalidatedBuiltinFamilies = false, coalesceRuntimePrimitives = false, sourceOnlySceneAdmission = false } = {}) {
   return {
     name: 'runtime-render-contract',
     setup(build: BrowserBuild) {
@@ -253,7 +334,7 @@ export function runtimeRenderContractPlugin({ schemaDocumentation = true, termin
         loader: 'ts',
         resolveDir: dirname(path),
       }))
-      build.onLoad({ filter: /[\\/]src[\\/](?:render-contract|scene[\\/]style-spec)\.ts$/ }, ({ path }) => path.endsWith('style-spec.ts') && schemaDocumentation ? undefined : ({
+      build.onLoad({ filter: /[\\/]src[\\/](?:render-contract|scene[\\/](?:style-spec|role-style-contract))\.ts$/ }, ({ path }) => (path.endsWith('style-spec.ts') || path.endsWith('role-style-contract.ts')) && schemaDocumentation ? undefined : ({
         contents: runtimeSource(readFileSync(path, 'utf8'), path, schemaDocumentation, terminalAdapter),
         loader: 'ts',
         resolveDir: dirname(path),
@@ -263,8 +344,13 @@ export function runtimeRenderContractPlugin({ schemaDocumentation = true, termin
         loader: 'ts',
         resolveDir: dirname(path),
       }))
-      if (!familyEditorMetadata) build.onLoad({ filter: /[\\/]src[\\/]agent[\\/](?:family-registry|stable-family-metadata)\.ts$/ }, ({ path }) => ({
-        contents: runtimeFamilyEditorSource(readFileSync(path, 'utf8'), path),
+      if (!familyEditorMetadata || prevalidatedBuiltinFamilies) build.onLoad({ filter: /[\\/]src[\\/]agent[\\/](?:family-registry|stable-family-metadata)\.ts$/ }, ({ path }) => ({
+        contents: (() => {
+          let source = readFileSync(path, 'utf8')
+          if ((!familyEditorMetadata || prevalidatedBuiltinFamilies) && /[\\/](?:family-registry|stable-family-metadata)\.ts$/.test(path)) source = runtimeFamilyCatalogSource(source, path, prevalidatedBuiltinFamilies)
+          if (prevalidatedBuiltinFamilies && path.endsWith('family-registry.ts')) source = runtimePrevalidatedBuiltinSource(source, path)
+          return source
+        })(),
         loader: 'ts',
         resolveDir: dirname(path),
       }))

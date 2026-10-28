@@ -18,7 +18,7 @@
  */
 
 import { runtimeRenderContractPlugin } from '../build/runtime-render-contract.ts'
-import { minify } from '@swc/core'
+import { compressBrowserModule } from '../build/browser-compression.ts'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
@@ -35,12 +35,12 @@ async function readFile(relativePath: string): Promise<string> {
   const file = Bun.file(join(editorDir, relativePath))
   const contents = await file.text()
   // Keep authoring notes in source without shipping them in the controls.
-  return relativePath.startsWith('html/') ? contents.replace(/<!--[\s\S]*?-->/g, '') : contents
+  return relativePath.startsWith('html/') ? contents.replace(/<!--[\s\S]*?-->/g, '').replace(/^[ \t]+/gm, '').replace(/\n{2,}/g, '\n') : contents
 }
 
 async function readCssFiles(fontPrefix: string, hosted: boolean): Promise<string> {
   const order = ['css/variables.css', 'css/topbar.css', 'css/panels.css', 'css/code-editor.css', 'css/preview.css', ...(hosted ? ['css/runtime-recovery.css'] : []), 'css/config-panel.css', 'css/color-picker.css', 'css/font-picker.css', 'css/export.css', 'css/affordances.css', 'css/diagram-tools.css', 'css/misc.css']
-  const parts = await Promise.all(order.map(f => readFile(f)))
+  const parts = [hostedFontFaceCss(fontPrefix), ...await Promise.all(order.map(f => readFile(f)))]
   const result = await Bun.build({
     entrypoints: ['editor-css'],
     target: 'browser',
@@ -51,13 +51,14 @@ async function readCssFiles(fontPrefix: string, hosted: boolean): Promise<string
         setup(build) {
           build.onResolve({ filter: /^editor-css$/ }, () => ({ path: 'editor.css', namespace: 'editor-css' }))
           build.onLoad({ filter: /.*/, namespace: 'editor-css' }, () => ({ contents: parts.join('\n\n'), loader: 'css' }))
+          build.onResolve({ filter: /\.(?:ttf|woff2?)(?:[?#].*)?$/ }, args => ({ path: args.path, external: true }))
         },
       },
     ],
   })
   if (!result.success) throw new AggregateError(result.logs, 'Editor stylesheet bundle failed')
-  // Keep resource URLs under the existing host policy, outside CSS bundling.
-  return hostedFontFaceCss(fontPrefix) + '\n' + (await result.outputs[0]!.text())
+  // Font URLs stay external and retain the existing host policy.
+  return result.outputs[0]!.text()
 }
 
 function editorExamplesDataJs(): string {
@@ -70,25 +71,24 @@ function editorFamilyDataJs(): string {
 
 function editorFontDataJs(): string {
   const hostedFamilies = Array.from(new Set(HOSTED_FONT_RESOURCES.map(font => font.family)))
-  const hosted = hostedFamilies.map(family => ({ name: family, value: family, group: 'Self-hosted' }))
   const system = [
     { name: 'System UI', value: 'system-ui', group: 'System' },
     { name: 'Arial', value: 'Arial', group: 'System' },
     { name: 'Georgia', value: 'Georgia', group: 'System' },
     { name: 'Courier New', value: 'Courier New', group: 'System' },
   ]
-  return `var EDITOR_PRESET_FONTS = ${JSON.stringify([...hosted, ...system])};`
+  return `var EDITOR_PRESET_FONTS = ${JSON.stringify(hostedFamilies)}.map(family => ({ name: family, value: family, group: 'Self-hosted' })).concat(${JSON.stringify(system)});`
 }
 
-async function readJsFiles(): Promise<string> {
+async function readJsFiles(hosted: boolean): Promise<string> {
   const result = await Bun.build({
-    entrypoints: [join(editorDir, 'js/entry.js')],
+    entrypoints: [join(editorDir, hosted ? 'js/entry.js' : 'js/entry-standalone.js')],
     target: 'browser',
     format: 'iife',
     minify: true,
   })
   if (!result.success) throw new AggregateError(result.logs, 'Editor application bundle failed')
-  return [editorExamplesDataJs(), editorFamilyDataJs(), editorFontDataJs(), await result.outputs[0]!.text()].join('\n')
+  return compressBrowserModule([editorExamplesDataJs(), editorFamilyDataJs(), editorFontDataJs(), await result.outputs[0]!.text()].join('\n'))
 }
 
 function escapeHtmlAttr(value: string): string {
@@ -161,6 +161,13 @@ async function readHtmlPartials(
   }
 }
 
+/** Strip indentation from document markup while keeping interpolated CSS,
+ * JavaScript and authored example strings byte-for-byte. Newlines retain the
+ * HTML whitespace boundary between inline elements. */
+function documentMarkup(parts: TemplateStringsArray, ...values: string[]): string {
+  return parts.reduce((html, part, index) => html + part.replace(/^[ \t]+/gm, '').replace(/\n{2,}/g, '\n') + (values[index] ?? ''), '')
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 function sourceOnlyFamilyRegistry(): Bun.BunPlugin {
@@ -217,7 +224,7 @@ async function generateEditorHtml(): Promise<string> {
     // Its workers accept only source/options/output operations, including
     // render/verify, terminal and PNG. Public Scene/Node/IIFE admission and
     // published inspectors retain their full contracts.
-    plugins: [runtimeRenderContractPlugin({ schemaDocumentation: false, conformanceObservations: false, familyEditorMetadata: Boolean(runtimeDirectory), sourceOnlySceneAdmission: true }),
+    plugins: [runtimeRenderContractPlugin({ schemaDocumentation: false, conformanceObservations: false, familyEditorMetadata: Boolean(runtimeDirectory), prevalidatedBuiltinFamilies: !runtimeDirectory, sourceOnlySceneAdmission: true }),
       sourceOnlyFamilyRegistry(),
       ...(!runtimeDirectory ? [{
         name: 'standalone-worker-families',
@@ -255,29 +262,16 @@ async function generateEditorHtml(): Promise<string> {
     // conformance observations and unused schema prose. Retain validation,
     // both solvers and the terminal adapter; keep legal comments and escape
     // script delimiters.
-    const compressed = await minify(await buildResult.outputs[0]!.text(), {
-      ecma: 2022, module: true, mangle: true,
-      compress: {
-        defaults: false, join_vars: true, evaluate: true, unused: true, keep_fargs: true,
-        dead_code: true, conditionals: true, booleans: true, comparisons: true,
-        reduce_vars: true, sequences: true,
-        collapse_vars: true, if_return: true, properties: true,
-        side_effects: true, loops: true, switches: true, typeofs: true,
-        inline: 1, passes: 2,
-      },
-      format: { comments: 'some', inlineScript: true },
-    })
-    if (!compressed.code) throw new Error('Standalone runtime compression produced no module')
-    bundleJs = compressed.code
+    bundleJs = await compressBrowserModule(await buildResult.outputs[0]!.text())
   }
   console.log(`Browser bundle: ${(bundleJs.length / 1024).toFixed(1)} KB`)
 
   const themeItems = themeItemsHtml()
 
-  const [css, appJs, html] = await Promise.all([readCssFiles(fontPrefix, Boolean(runtimeDirectory)), readJsFiles(), readHtmlPartials(themeItems, Boolean(runtimeDirectory))])
+  const [css, appJs, html] = await Promise.all([readCssFiles(fontPrefix, Boolean(runtimeDirectory)), readJsFiles(Boolean(runtimeDirectory)), readHtmlPartials(themeItems, Boolean(runtimeDirectory))])
 
   // The standalone runtime is also the worker source; keep app DOM code separate.
-  return `<!DOCTYPE html>
+  return documentMarkup`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />

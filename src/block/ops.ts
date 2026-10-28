@@ -2,7 +2,7 @@ const str = (required = true) => ({ type: 'string' as const, required }),
   num = (required = true) => ({ type: 'number' as const, required }),
   obj = () => ({ type: 'object-or-null' as const, required: true }),
   nullable = () => ({ type: 'string-or-null' as const, required: true })
-export const BLOCK_OP_SCHEMAS = {
+export const BLOCK_OP_SCHEMAS = /* @__PURE__ */ (() => ({
   set_columns: { fields: { columns: num(), parentId: str(false) } },
   add_block: { fields: { block: obj(), parentId: str(false), index: num(false) } },
   update_block: { fields: { id: str(), changes: obj() } },
@@ -14,5 +14,5 @@ export const BLOCK_OP_SCHEMAS = {
   define_class: { fields: { name: str(), style: str() } },
   set_node_class: { fields: { id: str(), className: nullable() } },
   set_node_style: { fields: { id: str(), style: nullable() } },
-}
+}))()
 export const BLOCK_OP_KINDS = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.keys(BLOCK_OP_SCHEMAS))

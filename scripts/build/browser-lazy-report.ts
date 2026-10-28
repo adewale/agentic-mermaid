@@ -101,18 +101,18 @@ const entry = requireOne(
   outputNames.filter(path => metafile.outputs[path]!.entryPoint === 'src/browser-lazy.ts'),
   'async browser entry',
 )
-const dynamicImports = metafile.outputs[entry]!.imports
+const dynamicImports = staticClosure([entry]).flatMap(path => metafile.outputs[path]!.imports)
   .filter(imported => imported.kind === 'dynamic-import')
   .map(imported => imported.path)
 const renderCore = requireOne(
-  dynamicImports.filter(path => /\/render-core-[A-Z0-9]+\.js$/.test(path)),
+  dynamicImports.filter(path => metafile.outputs[path]?.entryPoint === 'src/browser-lazy/render-core.ts'),
   'shared render core',
 )
 const MEASURED_FAMILY_IDS = MEASURE_ONLY
-  ? BROWSER_BUILTIN_FAMILY_IDS.filter(id => dynamicImports.some(path => new RegExp(`/${id}-[A-Z0-9]+\\.js$`).test(path)))
+  ? BROWSER_BUILTIN_FAMILY_IDS.filter(id => dynamicImports.some(path => metafile.outputs[path]?.entryPoint === `src/browser-lazy/families/${id}.ts`))
   : BROWSER_BUILTIN_FAMILY_IDS
 const familyOutputs = Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [id, requireOne(
-  dynamicImports.filter(path => new RegExp(`/${id}-[A-Z0-9]+\\.js$`).test(path)),
+  dynamicImports.filter(path => metafile.outputs[path]?.entryPoint === `src/browser-lazy/families/${id}.ts`),
   `${id} loader`,
 )])) as Record<BrowserBuiltinFamilyId, string>
 

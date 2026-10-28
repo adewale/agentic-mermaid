@@ -8,6 +8,7 @@ import { resolve, join } from 'node:path'
 import { gzipSync, brotliCompressSync } from 'node:zlib'
 import { parse } from 'acorn'
 import ts from 'typescript'
+import { compressBrowserModule } from './browser-compression.ts'
 
 const root = resolve(import.meta.dir, '../..')
 const upstream = resolve(process.env.MERMAID_UPSTREAM_DIR ?? join(root, '../mermaid'))
@@ -37,7 +38,7 @@ function literal(value){
  return JSON.stringify(value);
 }
 const keyify=obj=>Object.keys(obj).flatMap(key=>Array.isArray(obj[key])?[]:typeof obj[key]==='object'&&obj[key]!==null?[key,...keyify(obj[key])]:[key]);
-process.stdout.write('const config='+literal(cfg)+';export default config;export const configKeys=new Set('+JSON.stringify([...new Set(keyify(cfg))])+');');
+process.stdout.write('const config='+literal(cfg)+';export default config;export const configKeys=new Set('+JSON.stringify([...new Set(keyify(cfg))].sort())+');');
 `
 const captured = Bun.spawn(['node', '--input-type=module', '-e', capture], { stdout: 'pipe', stderr: 'inherit' })
 const defaults = await new Response(captured.stdout).text()
@@ -107,15 +108,13 @@ export function mergeConfigSource(frontmatter,code,diagramType,preserveText=fals
  try{return merge({},structuredClone(frontmatter),processDirectives(code).directive);}
  finally{preserveStrings=false;}
 }
-export function mergeConfig(frontmatter,directives,diagramType,wrap=false,preserveText=false){
- activeDiagramType=diagramType;preserveStrings=preserveText;
- try{
-  const code=directives.map(initDirective).join('\\n')+(wrap?'\\n%%{wrap}%%':'');
-  return mergeConfigSource(frontmatter,code,diagramType,preserveText);
- }finally{preserveStrings=false;}
-}
+export {assignWithDepth,pinnedSanitize as sanitizeDirective};
+
 `
-const runtimeEntry = mergeEntry + `
+const runtimeEntry = `
+import { configMerge } from './config-merge';
+const {initDirective,mergeConfigSource}=configMerge;
+
 import * as config from ${JSON.stringify(join(src, 'config.ts'))};
 export function validateConfig(frontmatter,directives,diagramType,metadata={},wrap=false){
  return validateConfigSource(frontmatter,directives.map(initDirective).join('\\n')+(wrap?'\\n%%{wrap}%%':''),diagramType,metadata);
@@ -142,19 +141,31 @@ export function isMermaidConfigDirective(raw: string): boolean {
 `)
 const scratch = await mkdtemp(join(tmpdir(), 'mermaid-config-program-'))
 try {
+  const mergeBridge = join(scratch, 'config-merge.ts')
+  await writeFile(mergeBridge, `import {createMergeProgram} from 'agentic-mermaid-config-merge';export const configMerge=createMergeProgram(__amConfigStep);`)
   for (const [name, entry] of [['merge', mergeEntry], ['runtime', runtimeEntry]] as const) {
     const entryPath = join(scratch, `${name}.ts`)
     await writeFile(entryPath, entry)
     const result = await Bun.build({
-      entrypoints: [entryPath], target: 'browser', minify: true,
+      entrypoints: [entryPath], target: 'browser', minify: false, external: ['agentic-mermaid-config-merge'],
       plugins: [{ name: 'pinned-config-program', setup(build) {
+        if (name === 'runtime') {
+          build.onLoad({ filter: /\/assignWithDepth\.ts$/ }, () => ({ contents: `import {configMerge} from ${JSON.stringify(mergeBridge)};export default configMerge.assignWithDepth;`, loader: 'js' }))
+          build.onLoad({ filter: /\/sanitizeDirective\.ts$/ }, () => ({ contents: `import {configMerge} from ${JSON.stringify(mergeBridge)};export const sanitizeDirective=configMerge.sanitizeDirective;`, loader: 'js' }))
+        }
         build.onLoad({ filter: /\/defaultConfig\.ts$/ }, () => ({ contents: defaults, loader: 'js' }))
         build.onLoad({ filter: /\/logger\.ts$/ }, () => ({ contents: 'export const log={trace(){},debug(){},info(){},warn(){},error(){},fatal(){}};', loader: 'js' }))
         build.onResolve({ filter: /^khroma$/ }, () => ({ path: join(reference, 'node_modules/khroma/dist/index.js') }))
       } }],
     })
     if (!result.success) throw new Error(result.logs.map(log => log.message).join('\n'))
-    const program = isolateProgram(await result.outputs[0]!.text())
+    let program = isolateProgram((await compressBrowserModule(await result.outputs[0]!.text())).replaceAll('agentic-mermaid-config-merge', './merge.js'), name === 'merge')
+    if (name === 'merge') program += `export function mergeConfig(frontmatter,directives,diagramType,wrap=false,preserveText=false){
+ const program=__amConfigProgram();
+ const code=directives.map(program.initDirective).join('\\n')+(wrap?'\\n%%{wrap}%%':'');
+ return program.mergeConfigSource(frontmatter,code,diagramType,preserveText);
+}\n`
+    if (name === 'runtime') program += `export {configDirective,initDirective,mergeConfig,mergeConfigSource} from './merge.js';\n`
     const banner = `// Generated from Mermaid ${policy.pin.version} (${revision}), Khroma ${khromaVersion}, es-toolkit ${mergeVersion}.\n// Rebuild: scripts/build/generate-mermaid-config-runtime.ts. MIT notices: LICENSES/{Mermaid,Khroma,es-toolkit}-MIT.txt.\n`
     await writeFile(join(output, `${name}.js`), banner + program)
     console.log(JSON.stringify({ name, bytes: Buffer.byteLength(program), gzip: gzipSync(program).length, brotli: brotliCompressSync(program).length }))
@@ -164,10 +175,15 @@ try {
 /** Every call gets fresh defaults, module state and an execution budget. This
  * makes failures unable to poison any later read/write, including a failure in
  * the pinned cleanup phase. Bound executed loops, not guessed config keys. */
-function isolateProgram(bundled: string): string {
+function isolateProgram(bundled: string, mergeProgram: boolean): string {
   const ast = parse(bundled, { ecmaVersion: 'latest', sourceType: 'module' })
   const edits: { at: number; end?: number; text: string }[] = []
   const exports = new Map<string, string>()
+  const imports: string[] = []
+  for (const statement of ast.body) if (statement.type === 'ImportDeclaration') {
+    imports.push(bundled.slice(statement.start, statement.end))
+    edits.push({ at: statement.start, end: statement.end, text: '' })
+  }
   for (const statement of ast.body) if (statement.type === 'ExportNamedDeclaration') {
     for (const specifier of statement.specifiers) if (specifier.exported.type === 'Identifier' && specifier.local.type === 'Identifier') exports.set(specifier.exported.name, specifier.local.name)
     edits.push({ at: statement.start, end: statement.end, text: '' })
@@ -184,11 +200,12 @@ function isolateProgram(bundled: string): string {
     Object.values(value).forEach(visit)
   }
   visit(ast)
-  if (!exports.has('mergeConfig')) throw new Error('Missing config merge export')
+  if (!exports.has(mergeProgram ? 'mergeConfigSource' : 'validateConfig')) throw new Error('Missing config program export')
   let program = bundled
   for (const edit of edits.sort((a, b) => b.at - a.at)) program = program.slice(0, edit.at) + edit.text + program.slice(edit.end ?? edit.at)
   const budget = `let __amConfigSteps=100000;function __amConfigStep(){if(--__amConfigSteps<0){const error=new Error('Configuration validation exceeded 100000 loop steps');error.name='MermaidConfigWorkLimitError';throw error;}}`
   const returned = [...exports].map(([name, local]) => `${name}:${local}`).join(',')
   const facade = [...exports].map(([name]) => `export function ${name}(...args){return __amConfigProgram().${name}(...args);}`).join('\n')
-  return `function __amConfigProgram(){${budget}\n${program}\nreturn {${returned}};}\n${facade}\n`
+  if (mergeProgram) return `export function createMergeProgram(__amConfigStep){\n${program}\nreturn {${returned}};}\nfunction __amConfigProgram(){${budget}return createMergeProgram(__amConfigStep); }\n${facade}\n`
+  return `${imports.join('\n')}\nfunction __amConfigProgram(){${budget}\n${program}\nreturn {${returned}};}\n${facade}\n`
 }
