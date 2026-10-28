@@ -12,7 +12,7 @@ import { cancelPreviewMotion } from './pan.js';
 import { applyZoom, fitToView } from './zoom.js';
 import { updateHash } from './sharing.js';
 export var renderTimer, renderSpinnerTimer, renderRequestVersion, lastSuccessfulUiMs, autoFitPending, lastRenderedSvgSource, lastRenderedTextArtifacts, textOutputCacheKey, VERIFY_TIER_BY_CODE, VERIFY_SEVERITY_BY_CODE, lastVerifyTierCounts, TEXT_RENDER_MAX_LINES;
-var paneWidthObserver, lastPaneWidth, lastPaneFitKey;
+var paneWidthObserver, lastPaneWidth, lastPaneFitKey, paneFitPresentationPending;
 
 
 export function currentEditorSource() {
@@ -59,6 +59,7 @@ export function scheduleRender(delay) {
   var version = ++renderRequestVersion;
   if (typeof window.__mermaid.cancelPendingRender === 'function') window.__mermaid.cancelPendingRender();
   if (renderTimer) clearTimeout(renderTimer);
+  if (!state.fitLabelsToPane) paneFitPresentationPending = true;
   lastPaneFitKey = state.fitLabelsToPane ? paneFitKey() : null;
   // Keep the old picture visible until its replacement is ready, but revoke
   // its authority immediately. Source, Style, theme, or config changes must
@@ -490,6 +491,7 @@ export async function doRender(version) {
   clearRenderSpinner();
   var source = currentEditorSource();
   if (!source) {
+    paneFitPresentationPending = true;
     if (runtimeRecovery) runtimeRecovery.hidden = true;
     if (!isCurrentRender(version, source)) return;
     previewInner.innerHTML = emptyPreviewHtml();
@@ -525,6 +527,14 @@ export async function doRender(version) {
     var svgSafety = verifyNoExternalRefs(svg);
     if (!svgSafety.ok) throw new Error("Unsafe SVG output blocked: " + svgSafety.refs.join(", "));
     insertStrictRenderedSvg(svg);
+    var familyId = rendered.receipt.executionDecision && rendered.receipt.executionDecision.family.id;
+    var fittingPane = state.fitLabelsToPane && (familyId === 'family:pie' || familyId === 'family:radar');
+    if (!fittingPane) paneFitPresentationPending = true;
+    else if (paneFitPresentationPending) {
+      state.zoom = 1;
+      autoFitPending = false;
+      paneFitPresentationPending = false;
+    }
     applyZoom(state.zoom);
     if (autoFitPending && typeof fitToView === 'function') { fitToView(); autoFitPending = false; }
     setEditorErrorLine(0);
@@ -610,6 +620,7 @@ ui.lastRenderedSvgArtifact = null;
 ui.lastRenderedSvgOptions = null;
 lastPaneWidth = undefined;
 lastPaneFitKey = null;
+paneFitPresentationPending = true;
 if (paneWidthObserver) paneWidthObserver.disconnect();
 if (typeof previewBody !== 'undefined' && previewBody && typeof ResizeObserver !== 'undefined') {
   paneWidthObserver = new ResizeObserver(refreshPaneFitting);

@@ -229,6 +229,7 @@ describe('editor pane fitting lifecycle', () => {
     let width = 464, resized: () => void = () => {}, cancelled = 0
     previewBody.layout = () => ({ width })
     const state = { config, fitLabelsToPane: true, style: 'crisp', zoom: 1 }
+    const zooms: number[] = [], automaticFits: number[] = []
     const editor = { value: source }
     const requests: Array<{ options: unknown; resolve(value: unknown): void }> = []
     const api = evaluateBrowserScript<{
@@ -243,14 +244,14 @@ describe('editor pane fitting lifecycle', () => {
       ...timers,
       statusText: node('status-text'), statusDot: node('status-dot'), renderTime: node('render-time'), spinner: node('spinner'),
       EditorMotion: { adaptiveRenderDelay: () => 100 },
-      editorPaletteInput: () => '', cancelPreviewMotion() {}, applyZoom() {}, fitToView() {}, setEditorErrorLine() {},
+      editorPaletteInput: () => '', cancelPreviewMotion() {}, applyZoom: (zoom: number) => { zooms.push(zoom) }, fitToView: () => { automaticFits.push(1) }, setEditorErrorLine() {},
       updateExportAvailability() {}, refreshC4Navigation() {}, refreshDiagramTools() {}, updateHash() {},
       verifyNoExternalRefs: () => ({ ok: true, refs: [] }),
       renderMermaidWithReceipt: (_source: string, options: unknown) => new Promise(resolve => { requests.push({ options, resolve }) }),
       DOMParser: class { parseFromString() { return { documentElement: document.createElementNS('', 'svg'), querySelector: () => null } } },
     }, '({ scheduleRender, doRender, buildOptions, hasCurrentVerifiedSvgArtifact, get renderRequestVersion() { return renderRequestVersion } })')
-    const artifact = (digest: string) => ({ svg: '<svg/>', receipt: { sharedRequestDigest: digest, requestDigest: digest, appearanceDigest: digest }, verification: { ok: true, warnings: [] } })
-    return { api, state, editor, previewInner, requests, timers, artifact, cancelled: () => cancelled, resize: (next: number) => { width = next; resized() }, changeWidth: (next: number) => { width = next } }
+    const artifact = (digest: string, family = 'pie') => ({ svg: '<svg/>', receipt: { sharedRequestDigest: digest, requestDigest: digest, appearanceDigest: digest, executionDecision: { family: { id: `family:${family}` } } }, verification: { ok: true, warnings: [] } })
+    return { api, state, editor, previewInner, requests, timers, artifact, zooms, automaticFits, cancelled: () => cancelled, resize: (next: number) => { width = next; resized() }, changeWidth: (next: number) => { width = next } }
   }
 
   test('pane resizing revokes stale export authority immediately, coalesces work and rejects a pending preview', async () => {
@@ -293,6 +294,38 @@ describe('editor pane fitting lifecycle', () => {
       expect(pane.cancelled()).toBe(1)
       pane.requests[0]!.resolve(pane.artifact('done'))
     }
+  })
+
+  test('activating pane fitting starts applicable views at full size and retains later deliberate zoom', async () => {
+    const pane = panePreview()
+    pane.state.zoom = 0.4 // Restored preference must also defeat initial automatic shrinking.
+    async function render(family: string) {
+      const job = pane.api.doRender()
+      pane.requests.at(-1)!.resolve(pane.artifact(String(pane.requests.length), family))
+      await job
+    }
+    await render('pie')
+    expect(pane.zooms).toEqual([1])
+    expect(pane.automaticFits).toEqual([])
+    pane.state.zoom = 0.7
+    pane.resize(404)
+    await render('pie')
+    expect(pane.zooms.at(-1)).toBe(0.7)
+    // Leaving the applicable families then returning activates fitting anew.
+    pane.editor.value = 'flowchart TD\nA-->B'
+    await render('flowchart')
+    pane.state.zoom = 0.3
+    pane.editor.value = 'radar-beta\naxis a,b,c\ncurve x{1,2,3}'
+    await render('radar')
+    expect(pane.zooms.at(-1)).toBe(1)
+    // Turning the preference off and back on also resets a deliberate zoom.
+    pane.state.zoom = 0.6
+    pane.state.fitLabelsToPane = false
+    pane.api.scheduleRender()
+    pane.state.fitLabelsToPane = true
+    pane.api.scheduleRender()
+    await render('radar')
+    expect(pane.zooms.at(-1)).toBe(1)
   })
 })
 
