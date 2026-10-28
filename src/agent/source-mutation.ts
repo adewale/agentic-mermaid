@@ -36,14 +36,26 @@ export function sameSourceMeaning(left: unknown, right: unknown): boolean {
   if (Object.is(left, right)) return true
   if (left === null || right === null || typeof left !== 'object' || typeof right !== 'object') return false
   if (left instanceof Map || right instanceof Map) {
-    return left instanceof Map && right instanceof Map && sameSourceMeaning([...left], [...right])
+    if (!(left instanceof Map) || !(right instanceof Map) || left.size !== right.size) return false
+    const entries = right.entries()
+    for (const [key, value] of left) {
+      const other = entries.next().value!
+      if (!sameSourceMeaning(key, other[0]) || !sameSourceMeaning(value, other[1])) return false
+    }
+    return true
   }
   if (Array.isArray(left) || Array.isArray(right)) {
     return Array.isArray(left) && Array.isArray(right) && left.length === right.length && left.every((value, index) => sameSourceMeaning(value, right[index]))
   }
-  if ([left, right].some(value => ![null, Object.prototype].includes(Object.getPrototypeOf(value)))) return false
+  const leftPrototype = Object.getPrototypeOf(left), rightPrototype = Object.getPrototypeOf(right)
+  if (leftPrototype !== null && leftPrototype !== Object.prototype || rightPrototype !== null && rightPrototype !== Object.prototype) return false
   const a = left as Record<string, unknown>, b = right as Record<string, unknown>
-  const keys = Object.keys(a).filter(key => a[key] !== undefined)
-  return keys.length === Object.keys(b).filter(key => b[key] !== undefined).length
-    && keys.every(key => Object.hasOwn(b, key) && sameSourceMeaning(a[key], b[key]))
+  let fields = 0
+  for (const key of Object.keys(a)) {
+    if (a[key] === undefined) continue
+    if (!Object.hasOwn(b, key) || !sameSourceMeaning(a[key], b[key])) return false
+    fields++
+  }
+  for (const key of Object.keys(b)) if (b[key] !== undefined) fields--
+  return fields === 0
 }

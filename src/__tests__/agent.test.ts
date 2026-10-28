@@ -5,6 +5,7 @@ import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { mutate, mutatePreservingSource } from '../agent/mutate.ts'
+import { sameSourceMeaning } from '../agent/source-mutation.ts'
 import { parseMermaid as parseNativeFlowchart } from '../parser.ts'
 import { normalizeMermaidSource, normalizeMermaidRenderSource } from '../mermaid-source.ts'
 import { renderMermaidSVG, renderMermaidASCII } from '../index.ts'
@@ -35,6 +36,17 @@ function sequence(src: string): SequenceValidDiagram {
 describe('explicit source-preserving Flowchart labels', () => {
   const style = 'classDef exClass background:#bbb,border:1px s:::colid red;'
   const retained = `graph TD\n   \n      A[ h ] -- hello --> B[" test "]:::exClass & C --> D;\n      ${style}`
+  test('native frame equality retains map order, nested values and optional-field meaning', () => {
+    const frame = { nodes: new Map([['A', { label: 'Keep', shape: 'rect' }], ['B', { label: 'Other', shape: 'rect' }]]), title: undefined }
+    expect(sameSourceMeaning(frame, { nodes: new Map([['A', { label: 'Keep', shape: 'rect' }], ['B', { label: 'Other', shape: 'rect' }]]) })).toBe(true)
+    expect(sameSourceMeaning(frame, { nodes: new Map([['B', { label: 'Other', shape: 'rect' }], ['A', { label: 'Keep', shape: 'rect' }]]) })).toBe(false)
+    expect(sameSourceMeaning(frame, { nodes: new Map([['A', { label: 'Keep', shape: 'circle' }], ['B', { label: 'Other', shape: 'rect' }]]) })).toBe(false)
+    expect(sameSourceMeaning(frame, { ...frame, direction: 'LR' })).toBe(false)
+    expect(sameSourceMeaning({ title: undefined }, {})).toBe(true)
+    expect(sameSourceMeaning({}, { title: undefined })).toBe(true)
+    expect(sameSourceMeaning(new Map([[{ id: 'A' }, ['Keep']]]), new Map([[{ id: 'A' }, ['Keep']]]))).toBe(true)
+    expect(sameSourceMeaning({ when: new Date(0) }, { when: new Date(0) })).toBe(false)
+  })
   test('edits a native node while retaining the exact unsupported classDef and original bytes', () => {
     const diagram = parse(retained)
     expect(diagram.body.kind).toBe('opaque')
@@ -125,6 +137,28 @@ describe('explicit source-preserving Flowchart labels', () => {
     expect(result.ok).toBe(false)
     if (diagram.body.kind !== 'opaque') throw new Error('Expected retained opaque body')
     expect(diagram.body.source).toBe(source)
+  })
+  test.each(['R&amp;D', '&#65;', 'keep &quot;quote&quot;'])('checks newly divergent render text when editing previously identical source views: %s', label => {
+    const source = `flowchart TD\nA[Old] --> B\n${style}`, diagram = parse(source), unchanged = JSON.stringify(diagram)
+    expect(normalizeMermaidSource(source).familyBody).toBe(normalizeMermaidRenderSource(source).familyBody)
+    expect(mutatePreservingSource(diagram, { kind: 'set_label', target: 'A', label }).ok).toBe(false)
+    expect(JSON.stringify(diagram)).toBe(unchanged)
+  })
+  test('retains distinct authored and rendered text on another node through repeated source edits', () => {
+    const source = `flowchart TD\nA[Old] --> B["R&amp;D"]\n${style}`
+    let diagram = parse(source)
+    for (const label of ['Reviewed', 'Second']) {
+      const result = mutatePreservingSource(diagram, { kind: 'set_label', target: 'A', label })
+      if (!result.ok) throw new Error(result.error.message)
+      expect(result.value.source.startsWith(source)).toBe(true)
+      const authored = parseNativeFlowchart(normalizeMermaidSource(result.value.source).familyBody)
+      const rendered = parseNativeFlowchart(normalizeMermaidRenderSource(result.value.source).familyBody)
+      expect(authored.nodes.get('A')?.label).toBe(label)
+      expect(rendered.nodes.get('A')?.label).toBe(label)
+      expect(authored.nodes.get('B')?.label).toBe('R&amp;D')
+      expect(rendered.nodes.get('B')?.label).toBe('R&D')
+      diagram = result.value.diagram
+    }
   })
 
   test('renames owned node references while preserving source text, node order, labels and dependent edge/group identities', () => {
