@@ -82,7 +82,7 @@ describe('checked graph layout selection', () => {
     { seed: 156, nodes: 8, edges: 18, from: 'n0', to: 'n5', labels: ['edge 0 xxx', 'edge 12 xxxxxxxxxxxxxxx', 'edge 16 xxxxxxxxxxxxxxxxxxx'] },
   ].flatMap(sample => ['TD', 'BT', 'LR', 'RL'].map(direction => ({ ...sample, direction }))))('retains labelled duplicates without displacing safe captions in ELK cycle $seed in $direction', ({ seed, nodes, edges, from, to, labels, direction }) => {
     const source = generatedFlowchartSamples({ start: seed, count: 1 })[0]!.source.replace('flowchart TD', `flowchart ${direction}`)
-    const options = { graphLayout: { backend: 'elk' as const } }
+    const options = { graphLayout: { backend: 'elk' as const }, ...(seed === 40 ? { layoutSafety: 'strict' as const } : {}) }
     const svg = renderMermaidSVGWithReceipt(source, options)
     const result = layoutMermaidWithReceipt(source, { ...options, debug: true })
     expect(result.layout.nodes).toHaveLength(nodes)
@@ -91,6 +91,10 @@ describe('checked graph layout selection', () => {
     expect(parallel).toHaveLength(labels.length)
     expect(parallel[0]!.path).not.toEqual(parallel[1]!.path)
     expect(measureQuality(result.layout).labelConflicts?.labelLabel).toBe(0)
+    if (seed === 40) {
+      expect(measureQuality(result.layout).labelConflicts?.total).toBe(0)
+      expect(svg.receipt.layoutCertification?.status).toBe('passed')
+    }
     for (const label of labels) expect(svg.svg).toContain(label)
     expect(svg.receipt.layoutCertification?.status).not.toBe('failed')
     expect(svg.receipt.layoutDecisions?.[0]?.selected).toBe('elk')

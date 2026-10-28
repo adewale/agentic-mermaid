@@ -333,6 +333,12 @@ export function applyParallelDuplicateLanes(
     const entryMain = entrySide(target, back)
     const k = bucket.length
     if (sep < 4) return false
+    // Compact endpoint seats do not shrink a caption's painted footprint.
+    // Reserve that main-axis space between jogs before final label seating.
+    const jogPitch = bucket.every(edge => edge.label) ? Math.max(sep, ...bucket.map(edge => {
+      const box = haloBoxAt(edge, { x: 0, y: 0 })
+      return (f.isHorizontal ? box.width : box.height) + readableLabelGap(style)
+    })) : sep
     const fromTarget = placement === 'target'
     const sourceCenter = source[f.cross] + crossSize(source) / 2 + shift
     const targetCenter = target[f.cross] + crossSize(target) / 2 + shift
@@ -343,7 +349,7 @@ export function applyParallelDuplicateLanes(
       const sCross = sourceCenter + (i - (k - 1) / 2) * sep
       const tCross = targetCenter + (i - (k - 1) / 2) * sep
       const sign = (back ? -1 : 1) * f.sign
-      let jog = fromTarget ? entryMain - sign * (BASE_GAP + i * sep) : exitMain + sign * (BASE_GAP + i * sep)
+      let jog = fromTarget ? entryMain - sign * (BASE_GAP + i * jogPitch) : exitMain + sign * (BASE_GAP + i * jogPitch)
       const lo = Math.min(exitMain, entryMain), hi = Math.max(exitMain, entryMain)
       if (jog <= lo + 4 || jog >= hi - 4) jog = (exitMain + entryMain) / 2
       lanes.push({ edge: bucket[i]!, sCross, tCross })

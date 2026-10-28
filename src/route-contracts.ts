@@ -1389,10 +1389,10 @@ export function separateEdgeLabelPills(
     return false
   }
 
-  // Legacy search/order gets all three sweeps first. Only its unresolved
-  // marker conflicts enter the existing overhang/joint family at sweep three.
+  // Settle legacy seats first, then use the existing overhang/joint family
+  // for unresolved marker or foreign-shaft occlusion under full paint proof.
   // No new solver, sweep, candidate cap, fresh work counter or route write.
-  const rescueMarkerSeats = (): void => {
+  const rescuePaintSeats = (): void => {
     if (customTextMeasurementActive()) return
     const pay = (units: number): boolean => {
       if (units > routeWork) { routeWork = 0; return false }
@@ -1400,13 +1400,24 @@ export function separateEdgeLabelPills(
       return true
     }
     if (!pay(8)) return
+    const foreignRouteIntersects = (subject: PositionedEdge, rect: LabelPaintRect): boolean => {
+      for (const other of positioned.edges) {
+        if (!pay(1)) return false
+        if (other === subject || other.style === 'invisible') continue
+        for (let index = 1; index < other.points.length; index++) {
+          if (!pay(1)) return false
+          if (segmentEntersLabelRect(other.points[index - 1]!, other.points[index]!, rect)) return true
+        }
+      }
+      return false
+    }
     let paint: ReturnType<typeof labelSeatPaintContext>
     for (const edge of labeled) {
       // The legacy marker cache is already populated; this fresh rescue-only
       // query still visits up to two endpoint resources per live edge.
       if (!pay(64 + (edge.label?.length ?? 0) * 12 + 2 * positioned.edges.length)) return
       const rect = rectOf(edge)
-      if (!rect || !overlapsMarker(rect)) continue
+      if (!rect || !overlapsMarker(rect) && !foreignRouteIntersects(edge, rect)) continue
       if (!pay(edge.points.length + 2)) return
       if (edge.curve || (style.edgeBendRadius ?? 0) !== 0 || edge.points.some((p, i) => i > 0 && p.x !== edge.points[i - 1]!.x && p.y !== edge.points[i - 1]!.y)) continue
       paint ??= labelSeatPaintContext(positioned.nodes, positioned.edges, positioned.groups, style, pay)
@@ -1494,8 +1505,8 @@ export function separateEdgeLabelPills(
           tryPair(a, b)
       }
     }
-    if (conflicts === 0) break
-    if (sweep === 2) rescueMarkerSeats()
+    if (conflicts === 0) { rescuePaintSeats(); break }
+    if (sweep === 2) rescuePaintSeats()
   }
 }
 
