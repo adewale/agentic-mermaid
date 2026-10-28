@@ -85,16 +85,19 @@ export function metadataText(value: unknown): string | undefined {
  * Write `text` as a YAML double-quoted scalar that upstream's flowchart lexer
  * leaves intact: no raw `"` (the lexer has no escapes, so `"` is `\x22`), no
  * raw line break (the lexer would turn it into `<br/>`), and `\` doubled.
+ * Directive-looking text shields `%` through YAML hex escapes so the global
+ * Mermaid preprocessor cannot consume it before the scalar is decoded.
  * Mermaid's entity layer is the caller's: a label codec that spells `"` as
  * `#quot;` does so before calling this.
  */
 export function quoteMetadataString(text: string): string {
   let out = '"'
+  const shieldDirective = text.includes('%%{')
   for (const character of text) {
     const code = character.codePointAt(0)!
     if (character === '\\') out += '\\\\'
     else if (character === '"') out += '\\x22'
-    else if (code < 0x20 || (code >= 0x7f && code <= 0x9f)) out += `\\x${code.toString(16).padStart(2, '0')}`
+    else if (code < 0x20 || (code >= 0x7f && code <= 0x9f) || (shieldDirective && character === '%')) out += `\\x${code.toString(16).padStart(2, '0')}`
     else if (code === 0x2028 || code === 0x2029) out += `\\u${code.toString(16)}`
     else out += character
   }

@@ -6,7 +6,15 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Added
 
-- Export synchronous `renderResolvedScene` and `RESOLVED_SCENE_VERSION = 1`
+- Serve existing Markdown directly from the canonical API, warning and error
+  page URLs when GET/HEAD requests prefer `text/markdown`, with page-specific
+  discovery, `Content-Location` and cache-safe `Vary: Accept` headers.
+
+- Generate the website's library reference and Markdown download from the
+  canonical API documentation, with task-first examples, runtime-derived option
+  defaults, source/release version information and a separate advanced reference.
+
+- Export synchronous `renderResolvedScene` and `RESOLVED_SCENE_VERSION = 2`
   from the main entry. Resolved parts retain their Scene nodes and expose
   backend-painted paths, text runs, concrete paint, transforms and expanded
   markers without a browser. The returned SVG matches `renderMermaidSVG`;
@@ -34,6 +42,25 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   guarantee.
 
 ### Fixed
+
+- Preserve Class direction-like label text in portable exports, refuse lossy
+  empty Class and unrepresentable Quadrant labels, and share Ishikawa/Sankey
+  header handling between direct rendering and typed reads (#548–#552).
+
+- Canonical writes preserve empty accessibility descriptions using native
+  metadata comments, protect directive-looking Kanban labels and metadata,
+  and move C4 global metadata out of nested boundaries. Sequence message IDs
+  that collide with keyword prefixes stay diagnosed and source-only rather
+  than entering a typed body with no portable spelling.
+
+- Resolved scenes report the input diagram's registered family. Both State
+  headers return `state` instead of their shared `flowchart` rendering family.
+  Resolved Scene version 2 records this metadata change; SVG artwork and part
+  ownership are unchanged.
+
+- Use one vocabulary for diagram families, source objects, Scene parts,
+  resolved primitives and typed-family narrowing across reference docs,
+  website guidance, CLI help and agent discovery, retaining existing API names.
 
 - Sequence terminal output retains fragment headers and dividers inside wide
   participant boxes, including combined `box`/`alt`/note cases, in both ASCII
@@ -63,6 +90,9 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   avoids declaration-ledger reconciliation and full text inspection evidence;
   strict, verify, extension admission and final paint/security checks remain.
 - An inexpensive Scene admission cannot bypass a later strict cross-check.
+- Class layouts preserve authored `ns:` IDs, actual namespace ancestry, empty
+  namespace frames and freestanding notes. Notes-only terminal output retains
+  its content too.
 
 ### Maintenance
 

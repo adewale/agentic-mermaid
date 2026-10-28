@@ -2,6 +2,12 @@
 
 Cloudflare Workers Static Assets site for `agentic-mermaid.dev`, generated from website-owned source files and aligned to the website spec in PR #27, plus the hosted MCP endpoint at `/mcp` (as-built record: `docs/project/archive/hosted-mcp-cloudflare-plan.md`).
 
+The library reference is authored in [`docs/api.md`](../docs/api.md), with
+advanced topics in [`docs/api-advanced.md`](../docs/api-advanced.md). The build
+renders those files as HTML and publishes Markdown siblings; do not add a
+second API explanation in the site templates. Run `bun run doc-blocks` after
+changing runtime option descriptors, source version or changelog release entries.
+
 ## Shape
 
 - `source/` — website-owned source pages, assets, and diagram seeds.
@@ -20,9 +26,10 @@ The MCP server core lives in `src/mcp/hosted-server.ts` (repo root `src/`), shar
 ## Routes
 
 - `/`, `/editor/`, `/examples/`, `/comparisons/`, `/about/`, `/about/design/`, `/docs/`
-- `/docs/getting-started/`, `/docs/api/`, `/docs/cli/`, `/docs/mcp/`, `/docs/ascii/`, `/docs/theming/`, `/docs/custom-styles/`, `/docs/quality/`, `/docs/fork-differences/`
+- `/docs/getting-started/`, `/docs/api/`, `/docs/api/advanced/`, `/docs/cli/`, `/docs/mcp/`, `/docs/ascii/`, `/docs/theming/`, `/docs/custom-styles/`, `/docs/quality/`, `/docs/fork-differences/`
 - `/skills/agentic-mermaid-diagram-workflow/`
 - `/warnings/`, `/warnings/<CODE>/`, `/errors/`, `/errors/<kind>/`
+- `/docs/api/index.md`, `/docs/api/advanced/index.md` — the canonical library references
 - `/index.md`, `/llms.txt`, `/llms.md`, `/.well-known/llms.txt`, `/agent-instructions.md`, `/capabilities.json`, `/examples/index.json`, `/warning-codes.md`
 - `/.well-known/mcp`, `/.well-known/mcp.json`, `/.well-known/mcp/server-card.json`, `/.well-known/ai-catalog.json`
 - `/schemas/style-spec.schema.json`, `/schemas/render-options.schema.json`
@@ -30,7 +37,30 @@ The MCP server core lives in `src/mcp/hosted-server.ts` (repo root `src/`), shar
 - `/mcp` — hosted MCP (stateless Streamable HTTP; `claude mcp add --transport http agentic-mermaid https://agentic-mermaid.dev/mcp`)
 - `/.well-known/mcp` — standard discovery alias for the same hosted MCP transport.
 
-`GET /` and `HEAD /` select `/index.md` when `Accept` gives `text/markdown` a higher quality than `text/html`; ties and generic browser requests keep HTML. Both representations send `Vary: Accept` and `Link` headers for the Markdown homepage, `llms.txt`, sitemap, MCP server card, and published workflow skill.
+`GET` and `HEAD` select the existing Markdown counterpart when `Accept` gives
+`text/markdown` a higher quality than `text/html`. This applies to `/`,
+`/docs/api/`, `/docs/api/advanced/`, and individual `/warnings/<code>/` and
+`/errors/<kind>/` pages. Ties, absent preferences and generic browser requests
+keep HTML. Both representations send `Vary: Accept` and a page-specific
+Markdown `Link`; the homepage also advertises `llms.txt`, sitemap, the MCP
+server card and workflow skill. Negotiated Markdown identifies its asset with
+`Content-Location`, permits cross-origin reads, and uses the existing five-minute
+Markdown cache policy. Explicit `.md` URLs work independently of `Accept`.
+
+Negotiation matches the documents' UTF-8 media parameters and honors more
+specific ranges before their quality values; quoted separators stay inside
+their parameter values. HTML discovery uses `alternate` only for the page's
+equivalent Markdown asset. Agent instructions and capability files are related
+discovery resources, rather than alternate versions of every page.
+
+```bash
+curl -H 'Accept: text/markdown' https://agentic-mermaid.dev/docs/api/
+curl -I -H 'Accept: text/markdown' https://agentic-mermaid.dev/docs/api/advanced/
+```
+
+Clean-route and production-host redirects still run first. Pages without an
+equivalent published Markdown asset retain their normal HTML response; the
+Worker does not convert arbitrary pages at request time.
 
 ## Commands
 

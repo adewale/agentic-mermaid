@@ -27,6 +27,8 @@ const REPO = join(import.meta.dir, '..', '..')
 
 /** One declared, representative edit per built-in family; each introduces "zebra". */
 const TYPED_EDIT_BY_FAMILY: Record<DiagramKind, { kind: string } & Record<string, unknown>> = {
+  zenuml: { kind: 'upsert_participant', participant: { id: 'Zebra', label: 'Zebra', annotations: [] } },
+  eventmodeling: { kind: 'insert_frame', frame: { id: '99', reset: true, type: 'event', entity: 'Zebra', sources: [] } },
   c4: { kind: 'add_element', element: { id: 'Zebra', label: 'Zebra', kind: 'system' } },
   flowchart: { kind: 'add_node', id: 'Zebra', label: 'Zebra' },
   state: { kind: 'add_state', id: 'Zebra' },
@@ -186,7 +188,7 @@ describe('agent-facing runnable docs', () => {
     const AGENT = JSON.stringify(join(REPO, 'src/agent/index.ts'))
     const CORE = JSON.stringify(join(REPO, 'src/index.ts'))
     const BROWSER = JSON.stringify(join(REPO, 'src/browser-lazy.ts'))
-    const docs = ['README.md', 'docs/getting-started.md', 'docs/api.md', 'docs/ascii.md', 'docs/config.md', 'docs/theming.md', 'docs/diagram-families.md']
+    const docs = ['README.md', 'docs/getting-started.md', 'docs/api.md', 'docs/api-advanced.md', 'docs/ascii.md', 'docs/config.md', 'docs/theming.md', 'docs/diagram-families.md']
     // Reader-supplied placeholders the docs reference but expect you to provide.
     const placeholders = (block: string): string => {
       const declared = (id: string) => new RegExp(`(?:const|let|var)\\s+${id}\\b`).test(block) || new RegExp(`(?:const|let|var)\\s*\\{[^}]*\\b${id}\\b[^}]*\\}`).test(block)
@@ -208,7 +210,7 @@ describe('agent-facing runnable docs', () => {
           if (!runnable) continue
           // Point published specifiers at in-repo source; a temp cwd keeps any
           // written artifacts (diagram.svg/png) out of the repo.
-          const wired = block.replaceAll("'agentic-mermaid/agent'", AGENT).replaceAll("'agentic-mermaid/browser/lazy'", BROWSER).replaceAll("'agentic-mermaid'", CORE)
+          const wired = block.replaceAll("'agentic-mermaid/agent/core'", JSON.stringify(join(REPO, 'src/agent/core.ts'))).replaceAll("'agentic-mermaid/agent'", AGENT).replaceAll("'agentic-mermaid/browser/lazy'", BROWSER).replaceAll("'agentic-mermaid'", CORE)
           const file = join(dir, `${doc.replace(/[/.]/g, '_')}__${i}.ts`)
           writeFileSync(file, placeholders(block) + '\n' + wired)
           const r = await runChild('bun', ['run', file], { cwd: dir })
@@ -319,6 +321,8 @@ const badWidth: SharedRenderOptions = { mermaidConfig: { sankey: { nodeWidth: '1
       asKanban: 'kanban\\nTodo\\n  task[Write documentation]',
       asRequirement: 'requirementDiagram\\nrequirement evidence {\\nid: R1\\ntext: "Retain evidence"\\nrisk: high\\nverifymethod: test\\n}',
       asTreemap: 'treemap\\n"Build"\\n  "Engineering": 60',
+      asZenUML: 'zenuml\\nA->B: hello',
+      asEventModeling: 'eventmodeling\\ntf 01 ui CartUI',
       asIshikawa: 'ishikawa\\nEffect\\nCause',
       asBlock: 'block\\ncolumns 2\\nA B\\nA --> B',
     }

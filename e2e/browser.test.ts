@@ -14,14 +14,43 @@
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import { join } from 'path'
 import { deflateRawSync, gzipSync } from 'node:zlib'
+import { deserialize } from 'node:v8'
 import { chromium, type Browser, type BrowserContext, type CDPSession, type Page } from 'playwright'
 import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
-import { renderMermaidSVG, renderMermaidSVGWithReceipt, renderMermaidASCIIWithReceipt, knownStyleDescriptors, inferBackend } from '../src/index.ts'
+import { renderMermaidSVG, renderMermaidASCIIWithReceipt, knownStyleDescriptors, inferBackend, type RenderOptions } from '../src/index.ts'
+import type { PreviewArtifact } from '../src/browser-editor-protocol.ts'
+import { useTestChildren } from '../src/__tests__/helpers/test-child.ts'
 import { serveWithAvailablePort } from './test-port.ts'
 import { PIE_ENTITY_FIXTURES } from '../src/__tests__/helpers/pie-entity-fixtures.ts'
 import { resolveSvgScene } from '../src/scene/resolve-svg.ts'
 
 const ROOT = join(import.meta.dir, '..')
+const runSourceChild = useTestChildren(30_000)
+
+/** Match the preview operation in a fresh production realm. The test preload
+ * intentionally forces Scene assertions in this parent; changing its env now
+ * cannot undo assertion modules that have already been imported. */
+async function sourcePreviews(examples: readonly { source: string; options: RenderOptions }[]): Promise<Pick<PreviewArtifact, 'svg' | 'receipt' | 'verification'>[]> {
+  const child = await runSourceChild(process.execPath, ['--eval', `
+    const { serialize } = await import('node:v8')
+    await import('./src/index.ts')
+    const { renderAndVerifyMermaid } = await import('./src/agent/verify.ts')
+    const examples = JSON.parse(await Bun.stdin.text())
+    const results = examples.map(({ source, options }) => {
+      const result = renderAndVerifyMermaid(source, { ...options, security: 'strict', embedFontImport: false })
+      return { svg: result.svg, receipt: result.receipt, verification: {
+        ok: result.verification.ok, warnings: result.verification.warnings, checks: result.verification.checks,
+      } }
+    })
+    process.stdout.write(serialize(results).toString('base64'))
+  `], { cwd: ROOT, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' }, input: JSON.stringify(examples) })
+  expect(child.status, child.stderr).toBe(0)
+  expect(child.signal).toBeNull()
+  // Preserve optional undefined fields as well as every receipt value. JSON
+  // transport would silently discard those fields before the equality check.
+  return deserialize(Buffer.from(child.stdout, 'base64'))
+}
+
 const PREFERRED_PORT = 4567
 let BASE = ''
 const SCREENSHOT_DIR = join(ROOT, 'e2e', 'screenshots')
@@ -368,31 +397,88 @@ it('resolved circle and ellipse paths preserve the native stroke traversal for d
 
 it('standalone editor stays within its single-renderer payload budget', async () => {
   const html = new Uint8Array(await Bun.file(join(ROOT, 'editor.html')).arrayBuffer())
-  // Paired Bun 1.4.2 builds against main 9855502f, gzip level 9:
-  // raw 4,429,131 → 4,429,290; gzip 1,334,493 → 1,334,650.
-  // Producer refresh and tiny-turn preservation add 159 raw / 157 gzip bytes.
-  // Retain 110 raw / 50 gzip bytes of headroom for these correctness fixes.
-  // One renderer still serves the main/worker realms; the single-engine and
-  // relative payload gates also apply.
+  // Retain this branch's existing ceilings while integrating Main's meaning
+  // preservation fixes. Any excess remains a failed delivery check.
+  // One renderer serves the main/worker realms; the relative payload gate applies.
   expect(html.byteLength).toBeLessThanOrEqual(4_429_400)
-  expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_334_700)
+  expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_334_500)
+  const runtime = new TextDecoder().decode(html).match(/<script type="module" id="editor-runtime">([\s\S]*?)<\/script>/)?.[1]
+  expect(runtime).toBeDefined()
+  // These literals belong to the page catalog, not its private renderer worker.
+  expect(runtime).not.toMatch(/(?:\beditor(?:DiagramType|Label|Description|ExampleId|Glyph|Example)|["']editor(?:DiagramType|Label|Description|ExampleId|Glyph|Example)["'])\s*:\s*["'`]/)
 })
 
 it('standalone editor renders and verifies with one persistent Blob worker', async () => {
   const standalone = await browser.newPage()
   try {
     await standalone.goto(`${BASE}/editor?empty=1`, { waitUntil: 'networkidle' })
+    // The page still offers the complete public catalog while its worker omits
+    // the duplicated editor prose. Rendering and receipts below cover every hook.
+    expect(BUILTIN_FAMILY_METADATA.length).toBeGreaterThan(0)
+    const catalog = await standalone.locator('#examples-sidebar .example-dropdown-item').evaluateAll(items => items.map(item => ({
+      id: (item as HTMLElement).dataset.example,
+      diagramType: (item as HTMLElement).dataset.diagram,
+      description: item.querySelector('.example-item-description')?.textContent,
+      title: item.getAttribute('title'),
+    })))
+    for (const family of BUILTIN_FAMILY_METADATA) expect(catalog.find(item => item.id === family.editorExampleId)).toEqual({
+      id: family.editorExampleId, diagramType: family.editorDiagramType,
+      description: family.editorDescription, title: family.editorDescription,
+    })
     const started = standalone.waitForEvent('worker')
     await standalone.locator('#code-editor').fill('flowchart LR\nStandalone --> Verified')
     const worker = await started
     await standalone.waitForFunction(() => document.getElementById('status-text')?.textContent === 'OK')
     expect(await standalone.locator('#preview-inner svg').textContent()).toContain('Standalone')
     expect(worker.url()).toStartWith('blob:')
-    const checks = await standalone.evaluate(async () => {
-      const artifact = await (globalThis as any).__mermaid.renderMermaidSVGWithReceipt('flowchart LR\nStandalone --> Verified')
-      return artifact.verification.checks
+    const preview = await standalone.evaluate(async () => {
+      const api = (globalThis as any).__mermaid
+      const source = 'flowchart LR\nStandalone --> Verified'
+      const artifact = await api.renderMermaidSVGWithReceipt(source)
+      const selections = []
+      for (const backend of ['elk', 'agentic']) {
+        const result = await api.renderMermaidSVGWithReceipt(source, { graphLayout: { backend } })
+        selections.push({ selected: result.receipt.layoutDecisions?.[0]?.selected, verified: result.verification.ok })
+      }
+      const compound = 'flowchart TB\nsubgraph One\n A --> B\nend\nsubgraph Two\n C --> D\nend\nOne --> C'
+      const promoted = await api.renderMermaidSVGWithReceipt(compound, { graphLayout: { backend: 'agentic' } })
+      // Use the unchanged private-rank limit as the fallback witness.
+      const fallbackSource = ['flowchart LR', 'subgraph One', ' A[Leaf]', ' B[Tail]', ' A ' + '-'.repeat(2049) + '> B', 'end'].join('\n')
+      const fallback = await api.renderMermaidSVGWithReceipt(fallbackSource, {
+        graphLayout: { backend: 'agentic', fallback: 'elk' },
+      })
+      return { checks: artifact.verification.checks, selections, promoted: promoted.receipt.layoutDecisions?.[0], fallback: fallback.receipt.layoutDecisions?.[0] }
     })
-    expect(checks).toEqual({ renderability: 'passed', sourceLoss: 'not-detected', taskCorrectness: 'not-checked' })
+    expect(preview.checks).toEqual({ renderability: 'passed', sourceLoss: 'not-detected', taskCorrectness: 'not-checked' })
+    expect(preview.selections).toEqual([{ selected: 'elk', verified: true }, { selected: 'agentic', verified: true }])
+    expect(preview.promoted).toMatchObject({ requested: 'agentic', selected: 'agentic' })
+    expect(preview.fallback).toMatchObject({ requested: 'agentic', selected: 'elk', fallback: 'elk' })
+    // The self-contained module has its own compression path. Exercise every
+    // registered family through that emitted worker against the source renderer.
+    const styles = [undefined, 'hand-drawn', 'watercolor'] as const
+    const examples = BUILTIN_FAMILY_METADATA.flatMap(family => styles.map(style => ({
+      id: family.id, source: family.example, options: { security: 'strict' as const, embedFontImport: false, ...(style ? { style } : {}) },
+    })))
+    const parity = await standalone.evaluate(async examples => {
+      const results = []
+      for (const example of examples) {
+        const artifact = await (globalThis as any).__mermaid.renderMermaidSVGWithReceipt(example.source, example.options)
+        results.push({ id: example.id, style: example.options.style, svg: artifact.svg, receipt: artifact.receipt, verification: artifact.verification })
+      }
+      return results
+    }, examples)
+    // One family's styles fit the existing child's bounded output buffer.
+    // Every family remains enrolled; only process boundaries differ.
+    const expected: Awaited<ReturnType<typeof sourcePreviews>> = []
+    for (let offset = 0; offset < examples.length; offset += styles.length) expected.push(...await sourcePreviews(examples.slice(offset, offset + styles.length)))
+    expect(parity.map(result => [result.id, result.style])).toEqual(examples.map(example => [example.id, example.options.style]))
+    expect(parity).toHaveLength(expected.length)
+    for (let index = 0; index < expected.length; index++) {
+      const label = `${examples[index]!.id}, ${examples[index]!.options.style ?? 'default'}`
+      expect(parity[index]!.svg, label).toBe(expected[index]!.svg)
+      expect(parity[index]!.receipt, label).toEqual(expected[index]!.receipt)
+      expect(parity[index]!.verification, label).toEqual(expected[index]!.verification)
+    }
     await standalone.locator('#code-editor').fill('flowchart LR\nSecond --> Verified')
     await standalone.waitForFunction(() => document.getElementById('preview-inner')?.textContent?.includes('Second') && document.getElementById('status-text')?.textContent === 'OK')
     expect(standalone.workers()).toEqual([worker])
@@ -422,16 +508,21 @@ it('standalone editor renders and verifies with one persistent Blob worker', asy
       const api = (window as any).__mermaid
       const source = 'flowchart LR\nRecovered --> Verified'
       const [ascii, unicode] = await Promise.all([
-        api.renderMermaidASCIIWithReceipt(source, { colorMode: 'none' }),
-        api.renderMermaidUnicodeWithReceipt(source, { colorMode: 'none' }),
+        api.renderMermaidASCIIWithReceipt(source, { colorMode: 'none', graphLayout: { backend: 'agentic' } }),
+        api.renderMermaidUnicodeWithReceipt(source, { colorMode: 'none', graphLayout: { backend: 'agentic' } }),
       ])
       return {
         ascii: ascii.text,
         unicode: unicode.text,
+        asciiDecisions: ascii.receipt.layoutDecisions,
+        unicodeDecisions: unicode.receipt.layoutDecisions,
       }
     })
     expect(text.ascii).toContain('Recovered')
     expect(text.unicode).toContain('Verified')
+    for (const decisions of [text.asciiDecisions, text.unicodeDecisions]) expect(decisions).toEqual([
+      expect.objectContaining({ selected: 'agentic', role: 'companion' }),
+    ])
     // Exercise the real Canvas/font/export path, which remains on the main thread.
     await standalone.locator('#export-chevron-btn').click()
     const downloaded = standalone.waitForEvent('download')
@@ -449,9 +540,10 @@ it('standalone editor renders and verifies with one persistent Blob worker', asy
           ascii: await api.renderMermaidASCIIWithReceipt(source, { colorMode: 'none' }),
         }
       }, family.example)
-      const expected = renderMermaidSVGWithReceipt(family.example, { security: 'strict', embedFontImport: false })
-      expect(artifacts.svg.svg, family.id).toBe(expected.svg)
-      expect(artifacts.svg.receipt, family.id).toEqual(expected.receipt)
+      const [expected] = await sourcePreviews([{ source: family.example, options: { security: 'strict', embedFontImport: false } }])
+      expect(artifacts.svg.svg, family.id).toBe(expected!.svg)
+      expect(artifacts.svg.receipt, family.id).toEqual(expected!.receipt)
+      expect(artifacts.svg.verification, family.id).toEqual(expected!.verification)
       const ascii = renderMermaidASCIIWithReceipt(family.example, { colorMode: 'none', useAscii: true })
       expect(artifacts.ascii.text, family.id).toBe(ascii.text)
       expect(artifacts.ascii.receipt, family.id).toEqual(ascii.receipt)

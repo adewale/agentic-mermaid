@@ -30,7 +30,7 @@ export interface ErDiagram {
   classDefs: Map<string, Record<string, string>>
   /** Relationships between entities or subgraph boundaries. */
   relationships: ErRelationship[]
-  /** Nested ER subgraphs (upstream 11.17; pinned 11.16 has none). */
+  /** Nested ER frames and their authored membership. */
   groups: ErGroup[]
 }
 
@@ -105,6 +105,8 @@ export interface PositionedErDiagram extends PositionedDiagram {
   entities: PositionedErEntity[]
   relationships: PositionedErRelationship[]
   groups: PositionedErGroup[]
+  /** @internal Selected native producer's label policy; absent for ELK and fallback results. */
+  labelPlacement?: 'shaft-aware'
 }
 
 export interface PositionedErGroup {
@@ -143,6 +145,10 @@ export interface PositionedErEntity {
 
 export interface PositionedErRelationship {
   labelBlock?: PixelTextBlock
+  /** Producer's preferred label center; final label layout checks the current route and obstacles. */
+  labelPosition?: { x: number; y: number }
+  /** Final native label center, owned by the complete positioned artifact and its resolved request. */
+  finalLabelPosition?: { x: number; y: number }
   entity1: string
   entity2: string
   cardinality1: Cardinality

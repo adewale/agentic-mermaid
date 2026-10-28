@@ -4,7 +4,7 @@ import type { PositionedEdge } from '../types.ts'
  * which route owns that span. Same-direction fan trunks and mere endpoint
  * contacts are excluded. Row buckets and an interval sweep avoid unrelated
  * segment pairs; a pair of edges counts once even when several runs overlap. */
-export function countOpposingRouteOverlaps(edges: readonly PositionedEdge[]): number {
+export function countOpposingRouteOverlaps(edges: readonly Pick<PositionedEdge, 'style' | 'points'>[]): number {
   const segments = edges.flatMap((edge, edgeIndex) => edge.style === 'invisible' ? [] : edge.points.slice(1).flatMap((b, index) => {
     const a = edge.points[index]!
     const horizontal = Math.abs(a.y - b.y) <= 0.01

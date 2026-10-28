@@ -20,6 +20,7 @@ import { prepareRenderInput, type PreparedRenderInput } from '../agent/render-in
 import { isBuiltinFamilyId, type AsciiContext } from '../agent/families.ts'
 import { requireRegisteredMermaidFamily } from '../family-detection.ts'
 import type { RenderOptions } from '../types.ts'
+import { withGraphLayoutDecisionObserver } from '../layout/backend.ts'
 import {
   renderContractDigest,
   receiptOf,
@@ -36,7 +37,7 @@ import { visualWidth } from './width.ts'
 import { graphemes } from '../shared/graphemes.ts'
 import { wrapText } from './wrap.ts'
 import { displayText } from '../multiline-utils.ts'
-import { positionResolvedFamily } from '../positioning.ts'
+import { positionResolvedFamily, retainRequestGraphLayoutDecision } from '../positioning.ts'
 import type { SceneDoc } from '../scene/ir.ts'
 import { admitFamilyScene } from '../scene/admission.ts'
 import type { DiagramColors } from '../theme.ts'
@@ -279,9 +280,11 @@ export function executeTerminalRender(
       ganttToday: familyContext.renderOptions.ganttToday,
     },
   }
-  const artifact = nativeTerminalArtifact(family.renderAscii!, context, model)
+  const { artifact, legacyOutput } = withGraphLayoutDecisionObserver(decision => retainRequestGraphLayoutDecision(request, decision, 'primary'), () => {
+    const artifact = nativeTerminalArtifact(family.renderAscii!, context, model)
+    return { artifact, legacyOutput: artifact ? undefined : family.renderAscii!(context) }
+  })
   let drawing = artifact?.document
-  const legacyOutput = artifact ? undefined : family.renderAscii!(context)
   const title = frontmatterTitle(normalizedSource.frontmatter)
   if (drawing && title && !drawing.titleHandled && !drawing.hasOwner('title', 'label')) {
     const titled = new TerminalDocument()

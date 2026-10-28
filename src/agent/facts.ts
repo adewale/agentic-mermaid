@@ -1,4 +1,6 @@
-import { stableFamilyFacts } from './stable-family-adapters.ts'
+import { projectZenUMLSequence } from '../zenuml/native-sequence.ts'
+import { eventRelations } from '../eventmodeling/parser.ts'
+import { stableFamilyFacts } from './stable-family-source-hooks.ts'
 
 // ============================================================================
 // Mermaid semantic facts/checks.
@@ -169,6 +171,51 @@ export function describeMermaidFacts(d: ParsedDiagram): string[] {
       d.body.links.forEach((link, i) => add(out, `link#${i} ${clean(link.source)} -> ${clean(link.target)} : ${link.value}`))
       break
     }
+    case 'zenuml': {
+      if (d.body.title !== undefined) add(out, `title ${JSON.stringify(d.body.title)}`)
+      const model = projectZenUMLSequence(d.body, {
+        message: ({ message, kind, callAncestors, scopes }) => {
+          add(out, `message#${clean(message.id!)} kind ${kind}`)
+          if (callAncestors.length) add(out, `message#${clean(message.id!)} call-parent ${clean(callAncestors.at(-1)!)}`)
+          for (const scope of scopes) add(out, `message#${clean(message.id!)} fragment#${clean(scope.fragmentId)} branch#${scope.branchIndex}`)
+        },
+        note: ({ note, callAncestors, scopes }) => {
+          add(out, `note#${clean(note.id!)} ${note.position} ${note.actorIds.map(id => JSON.stringify(id)).join(',')} after-index ${note.afterIndex} : ${clean(displayText(resolveLabelContent(note.text, note.textContent)))}`)
+          if (callAncestors.length) add(out, `note#${clean(note.id!)} call-parent ${clean(callAncestors.at(-1)!)}`)
+          for (const scope of scopes) add(out, `note#${clean(note.id!)} fragment#${clean(scope.fragmentId)} branch#${scope.branchIndex}`)
+        },
+        fragment: ({ fragment, branches, callAncestors, scopes }) => {
+          add(out, `fragment#${clean(fragment.id)} kind ${fragment.type}`)
+          if (callAncestors.length) add(out, `fragment#${clean(fragment.id)} call-parent ${clean(callAncestors.at(-1)!)}`)
+          const parent = scopes.at(-1)
+          if (parent) add(out, `fragment#${clean(fragment.id)} parent ${clean(parent.fragmentId)} branch#${parent.branchIndex}`)
+          branches.forEach((branch, index) => {
+            const condition = index === 0 ? fragment.condition : branch.condition
+            add(out, `fragment#${clean(fragment.id)} branch#${index} ${branch.kind}${condition === undefined ? '' : ` : ${clean(condition)}`}`)
+          })
+        },
+      })
+      for (const actor of model.actors) if (!actor.external) {
+        add(out, `participant ${clean(actor.id)} : ${clean(actor.label)}`)
+        add(out, `participant ${clean(actor.id)} type ${actor.type}`)
+      }
+      for (const actor of model.actors) if (actor.external) add(out, `external-endpoint ${clean(actor.id)}`)
+      for (const message of model.messages) {
+        add(out, `message ${clean(message.from)} -> ${clean(message.to)} : ${clean(message.label)}`)
+        add(out, `message#${clean(message.id!)} ${clean(message.from)} -> ${clean(message.to)} : ${clean(message.label)}${message.lineStyle === 'dashed' ? ' reply' : ''}`)
+        if (message.parentId) add(out, `message#${clean(message.id!)} parent ${clean(message.parentId)}`)
+      }
+      for (const block of model.blocks) add(out, `fragment ${clean(block.id!)} ${block.type} : ${clean(block.label)}`)
+      break
+    }
+    case 'eventmodeling':
+      if (d.body.title !== undefined) add(out, `title ${JSON.stringify(d.body.title)}`)
+      d.body.frames.forEach((frame, index) => add(out, `frame#${index} ${JSON.stringify(frame)}`))
+      eventRelations(d.body).forEach(edge => add(out, `relation ${edge.from} -> ${edge.to} ${edge.explicit ? 'explicit' : 'inferred'}`))
+      Object.entries(d.body.data).forEach(([id, data]) => add(out, `data ${id} ${JSON.stringify(data)}`))
+      d.body.notes.forEach(note => add(out, `note ${JSON.stringify(note)}`))
+      d.body.specifications.forEach(spec => add(out, `specification ${JSON.stringify(spec)}`))
+      break
     case 'packet':
     case 'kanban':
     case 'requirement':

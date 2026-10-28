@@ -168,9 +168,9 @@ describe('#930 watch re-render step (renderFileOnce)', () => {
         authoredHeader: 'futureDiagram&#45;v99',
       },
       {
-        source: 'zen&#117;ml\n  A->B: hello',
+        source: 'swimlane&#45;beta\n  preserved future payload',
         code: 'UNSUPPORTED_FAMILY',
-        authoredHeader: 'zen&#117;ml',
+        authoredHeader: 'swimlane&#45;beta',
       },
     ]) {
       const payload = JSON.parse(renderFileOnce(tmp(fixture.source), 'svg'))

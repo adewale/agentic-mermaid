@@ -40,7 +40,7 @@ import { PACKAGE_VERSION } from '../version.ts'
 import { EXIT_ARG_ERROR, EXIT_INTERNAL, EXIT_OK, EXIT_VERIFY_FAILED } from './exit-codes.ts'
 import { initAgentFiles } from './init-agent.ts'
 import { HOSTED_MCP_TOOL_NAMES, inlineToolList, LOCAL_MCP_TOOL_NAMES } from '../mcp/tool-names.ts'
-import { EXISTING_DIAGRAM_WORKFLOW, NEW_DIAGRAM_POLICY } from '../shared/agent-workflow.ts'
+import { EXISTING_DIAGRAM_WORKFLOW, FAMILY_NARROWING_NOTE, NEW_DIAGRAM_POLICY } from '../shared/agent-workflow.ts'
 
 /**
  * Loop 12 M1: build a structured CLI error envelope. Keeps `message` a short
@@ -203,6 +203,21 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
       process.stderr.write(`am render --options: ${error instanceof Error ? error.message : String(error)}\n`)
       return EXIT_ARG_ERROR
     }
+  }
+  const graphLayout = flagValue(args, 'graph-layout')
+  const graphLayoutFallback = flagValue(args, 'graph-layout-fallback')
+  if (graphLayout !== undefined || graphLayoutFallback !== undefined) {
+    const candidate = {
+      backend: graphLayout ?? advancedOptions.graphLayout?.backend ?? 'elk',
+      ...(graphLayoutFallback !== undefined || advancedOptions.graphLayout?.fallback !== undefined
+        ? { fallback: graphLayoutFallback ?? advancedOptions.graphLayout?.fallback } : {}),
+    }
+    const problems = validateSerializableRenderOptions({ graphLayout: candidate })
+    if (problems.length) {
+      process.stderr.write(`am render: ${problems.join('; ')}\n`)
+      return EXIT_ARG_ERROR
+    }
+    advancedOptions = { ...advancedOptions, graphLayout: candidate as NonNullable<RenderOptions['graphLayout']> }
   }
   if (targetWidth !== undefined && (!Number.isInteger(targetWidth) || targetWidth <= 0)) {
     process.stderr.write('am render --target-width expects a positive integer number of terminal cells\n')
@@ -1117,6 +1132,7 @@ references — safe for untrusted/agent-generated diagrams. See SECURITY.md.
 All families parse, verify, render, round-trip: ${families}.
 Structured mutation (${cap.families.find(f => f.hasMutate)?.editPolicy}): ${structured.join(', ')}.
 Narrowers: ${narrowers}.
+${FAMILY_NARROWING_NOTE}
 State diagrams own a dedicated body (BUILD-19): narrow with asState; state-shaped ops apply (asFlowchart returns null on them).
 Source-level-only: ${
     cap.families

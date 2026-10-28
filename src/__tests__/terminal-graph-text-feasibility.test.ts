@@ -4,6 +4,7 @@ import { parseMermaid } from '../parser.ts'
 import { convertToAsciiGraph } from '../ascii/converter.ts'
 import { createMapping } from '../ascii/grid.ts'
 import { drawGraph } from '../ascii/draw.ts'
+import { allocatedGraphPort } from '../ascii/graph-capacity.ts'
 import { certifyTerminalLayout } from '../ascii/terminal-certification.ts'
 import { measuredText, terminalDocumentOf, type TerminalDocument, type TerminalRegion } from '../ascii/terminal-document.ts'
 
@@ -418,3 +419,18 @@ for (const useAscii of [false, true]) for (const connected of [false, true]) for
     }
   })
 }
+
+
+test('a blocked allocated group lead retains exterior marker meaning in its failed summary', () => {
+  const graph = convertToAsciiGraph(parseMermaid('flowchart LR\nsubgraph G[Target]\nB[Inside]\nend\nA[Outside]\nA --> G\nA --> G'), {
+    graphDirection: 'LR', paddingX: 3, paddingY: 3, boxBorderPadding: 1, useAscii: false,
+  })
+  createMapping(graph)
+  const edge = graph.edges[0]!, group = edge.attachToSubgraph ?? edge.toSubgraph!
+  const port = allocatedGraphPort(edge, false, group)!, direction = edge.endDir
+  graph.canvas.fill(port.x + direction.x - 1, port.y + direction.y - 1, 1, 1, { owner: { id: 'blocked-group-lead', kind: 'label' } })
+  const document = drawGraph(graph), region = document.regions().find(region => region.id === 'edge#0:A->G')!
+  expect(region.ports!.find(port => port.end === 'end')).toMatchObject({ nodeId: 'G', markerOffset: 1, markerProjection: `graph.${region.id}.route` })
+  expect(document.diagnostics).toContainEqual(expect.objectContaining({ code: 'TERMINAL_GEOMETRY_COLLISION', feature: `edge-lane:${region.id}` }))
+  expect(certifyTerminalLayout(document, document.serialize(), 'none').status).toBe('failed')
+})

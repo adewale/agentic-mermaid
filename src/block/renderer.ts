@@ -112,14 +112,14 @@ export function lowerBlockDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContex
   for (const edge of p.edges) {
     const start = markerSet[`${edge.arrowTypeStart}:start`],
       end = markerSet[`${edge.arrowTypeEnd}:end`],
-      projection = p.style.edgeBendRadius > 0 && edge.points.length > 2 ? projectRoundedConnectorPath(edge.points, p.style.edgeBendRadius, { precision: 3 }) : undefined
+      projection = p.style.edgeBendRadius > 0 && edge.points.length > 2 ? projectRoundedConnectorPath(edge.points, p.style.edgeBendRadius) : undefined
     parts.push(
       marks.connector({
         id: edge.id,
         role: 'edge',
         geometry: projection?.geometry ?? { kind: 'polyline', points: edge.points },
         lineStyle: edge.pattern === 'dotted' ? 'dotted' : 'solid',
-        paint: { fill: 'none', stroke: p.style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: edge.thickness === 'thick' ? '3' : String(p.style.lineWidth) },
+        paint: { fill: 'none', stroke: p.style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: edge.thickness === 'thick' ? '3' : String(p.style.lineWidth), ...(edge.pattern === 'dotted' ? { strokeDasharray: '2 4' } : {}) },
         endpoints: { from: edge.start, to: edge.end },
         relationship: { kind: 'block-link' },
         markers: { ...(start ? { start } : {}), ...(end ? { end } : {}) },

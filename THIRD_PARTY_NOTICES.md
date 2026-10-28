@@ -70,3 +70,20 @@ It has no diagram parser, renderer or DOM implementation. Regenerate it with
 - Mermaid: MIT, copyright 2014–2022 Knut Sveidqvist; `LICENSES/Mermaid-MIT.txt`.
 - Khroma: MIT, copyright 2019-present Fabio Spampinato, Andrew Maney; `LICENSES/Khroma-MIT.txt`.
 - lodash-es: MIT, copyright JS Foundation and other contributors; `LICENSES/lodash-MIT.txt`.
+
+## Optional ZenUML browser backend
+
+`dist/zenuml-frame.global.js` bundles **@zenuml/core 3.47.9** and its
+transitive browser dependencies. It is loaded only by the explicit asynchronous
+`agentic-mermaid/zenuml` API in a disposable iframe. The default SVG, agent,
+terminal and browser entries do not import it.
+
+- Source: <https://github.com/mermaid-js/zenuml-core>
+- License: **MIT**, reproduced in `LICENSES/zenuml-core-MIT.txt`.
+- Dependency notices are retained in the separately built browser script.
+
+The development-only Mermaid ZenUML addon 1.0.1 is the configured positive
+control; the product backend calls the same core native SVG API directly.
+Event Modeling tests and syntax investigation use the pinned Mermaid reference
+identified above. Its layout, text measurement and drawing implementation are
+Agentic Mermaid's.

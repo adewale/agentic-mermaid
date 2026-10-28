@@ -1,5 +1,7 @@
 import { createSiteMetadata } from './build/metadata.ts'
 import { createPageShell } from './build/page-shell.ts'
+import { documentationPage } from './build/documentation.ts'
+import { renderDocBlocks } from '../scripts/docs/doc-blocks.ts'
 import { escapeHtml, escapeAttr, makePreFocusable } from './build/html.ts'
 import { buildWorkerArtifacts } from './build/worker-artifacts.ts'
 import { createHash } from 'node:crypto'
@@ -24,7 +26,7 @@ import { HOSTED_MCP_SERVER_NAME, HOSTED_TOOLS, SUPPORTED_PROTOCOL_VERSIONS } fro
 import { MCP_SERVER_VERSION } from '../src/mcp/tool-surface.ts'
 import { resolveBuildGitSha } from './build-provenance.ts'
 import { AI_CATALOG_RESOURCES } from './agent-resource-inventory.ts'
-import { CLEAN_PAGE_ROUTES, DYNAMIC_CLEAN_REDIRECT_LINES, staticRedirectLines } from './src/site-routes.ts'
+import { CLEAN_PAGE_ROUTES, DYNAMIC_CLEAN_REDIRECT_LINES, markdownAlternative, staticRedirectLines } from './src/site-routes.ts'
 import { HOMEPAGE_AGENT_POINTER } from '../eval/agent-usage/homepage-prompt.ts'
 import { EDITOR_EXAMPLES } from '../editor/examples.ts'
 import { samples as RICH_EXAMPLES } from '../scripts/site/samples-data.ts'
@@ -99,15 +101,19 @@ function rewriteUrl(value: string): string {
   return value
 }
 
-const agentDiscoveryLinks = [
-  '<link rel="alternate" type="text/markdown" href="/index.md">',
-  '<link rel="alternate" type="text/plain" href="/llms.txt">',
-  '<link rel="alternate" type="application/json" href="/capabilities.json">',
-  '<link rel="alternate" type="text/markdown" href="/agent-instructions.md">',
-  '<link rel="alternate" type="application/json" href="/.well-known/mcp.json">',
+const relatedAgentLinks = [
+  '<link rel="describedby" type="text/plain" href="/llms.txt">',
+  '<link rel="describedby" type="application/json" href="/capabilities.json">',
+  '<link rel="describedby" type="text/markdown" href="/agent-instructions.md">',
+  '<link rel="service-desc" type="application/json" href="/.well-known/mcp.json">',
   '<link rel="mcp-server" type="application/mcp-server-card+json" href="/.well-known/mcp/server-card.json">',
   '<link rel="ai-catalog" type="application/json" href="/.well-known/ai-catalog.json">',
 ].join('\n')
+
+function agentDiscoveryLinks(route: string): string {
+  const markdownPath = markdownAlternative(route)
+  return (markdownPath ? `<link rel="alternate" type="text/markdown" href="${markdownPath}">\n` : '') + relatedAgentLinks
+}
 
 function addHeadDescription(html: string) {
   if (html.includes('name="description"')) return html
@@ -116,12 +122,13 @@ function addHeadDescription(html: string) {
   return html.replace(/<meta name="viewport"[^>]*>/, '$&\n<meta name="description" content="Agentic Mermaid renders, verifies, and edits Mermaid diagrams locally, with compact agent instructions for CLI, library, and MCP use.">')
 }
 
-function addAgentDiscoveryLinks(html: string) {
-  if (html.includes('rel="alternate" type="application/json" href="/capabilities.json"')) return html
+function addAgentDiscoveryLinks(html: string, route: string) {
+  if (html.includes('rel="describedby" type="application/json" href="/capabilities.json"')) return html
+  const links = agentDiscoveryLinks(route)
   if (/<link rel="stylesheet" href="([^\"]+)"\s*>/.test(html)) {
-    return html.replace(/<link rel="stylesheet" href="([^\"]+)"\s*>/, '<link rel="stylesheet" href="$1">\n' + agentDiscoveryLinks)
+    return html.replace(/<link rel="stylesheet" href="([^\"]+)"\s*>/, '<link rel="stylesheet" href="$1">\n' + links)
   }
-  return html.replace('</head>', agentDiscoveryLinks + '\n</head>')
+  return html.replace('</head>', links + '\n</head>')
 }
 
 function addSkipLink(html: string, target = 'main') {
@@ -161,7 +168,7 @@ function setNavCurrent(html: string, currentHref = '') {
 }
 
 function transformHtml(html: string, currentHref = '', route = ''): string {
-  const transformed = setNavCurrent(ensureMainId(addSkipLink(addFooter(addAgentDiscoveryLinks(addStructuredData(addSocialMeta(addHeadDescription(rewriteAttrs(html)), route), route))))), currentHref)
+  const transformed = setNavCurrent(ensureMainId(addSkipLink(addFooter(addAgentDiscoveryLinks(addStructuredData(addSocialMeta(addHeadDescription(rewriteAttrs(html)), route), route), route)))), currentHref)
   return makePreFocusable(transformed)
 }
 
@@ -175,7 +182,7 @@ function transformEditorHtml(html: string): string {
   out = out.replace(/href="\/beautiful-mermaid\/"/g, 'href="/"')
   out = addHeadDescription(out)
   out = addSocialMeta(out, '/editor/')
-  out = addAgentDiscoveryLinks(out)
+  out = addAgentDiscoveryLinks(out, EDITOR_ROUTE)
   out = addSkipLink(out, 'editor-main')
   return out
 }
@@ -442,6 +449,8 @@ function renderRichExampleSvg(sample: any, id: string, request = richExampleRend
 // link — rather than a bare source dump. Keyed by family id.
 const FAMILY_AGENT_TASK: Record<BuiltinFamilyId, { prompt: string; trace: string }> = {
   flowchart: { prompt: 'Add a labeled failure branch and verify that every decision exit is named.', trace: 'asFlowchart · mutate(add_edge/set_label) · verify' },
+  zenuml: { prompt: 'Model nested checkout calls with a stock decision and explicit replies.', trace: 'asZenUML · mutate(rename_participant/insert_statement) · verify' },
+  eventmodeling: { prompt: 'Insert an event frame and keep explicit source references attached to their authored IDs.', trace: 'asEventModeling · mutate(insert_frame/set_frame) · verify' },
   state: { prompt: 'Add a retry transition from Failed back to Idle, then verify before returning source.', trace: 'asState · mutate(add_transition) · verify' },
   sequence: { prompt: 'Insert the verification call before export and keep participant order stable.', trace: 'asSequence · mutate(add_message) · verify' },
   timeline: { prompt: 'Add a Review period with one approval event without rewriting other periods.', trace: 'asTimeline · mutate(add_period) · verify' },
@@ -484,6 +493,8 @@ function exampleFamilyDescription(familyId: string, fallback: string) {
 
 const STYLE_THEME_PAIR_BY_FAMILY: Record<BuiltinFamilyId, { look: string; theme: string; seed: number }> = {
   flowchart: { look: 'watercolor', theme: 'paper', seed: 4 },
+  zenuml: { look: 'hand-drawn', theme: 'dracula', seed: 17 },
+  eventmodeling: { look: 'publication-figure', theme: 'github-light', seed: 0 },
   state: { look: 'chalkboard', theme: 'dusk', seed: 2 },
   architecture: { look: 'blueprint', theme: 'nord', seed: 1 },
   sequence: { look: 'publication-figure', theme: 'github-light', seed: 0 },
@@ -1440,7 +1451,7 @@ await emit(mermaidRuntimeRel, mermaidRuntimeBytes)
 // the manual keeps the lower-level typed-edit sequence in sync from here.
 const LOOP_STEPS = [
   { label: 'Parse', short: 'Read the source into a typed model; unmodeled syntax round-trips as preserved source.' },
-  { label: 'Narrow', short: 'Resolve the one node or edge the edit touches via the matching family surface (<code>asFlowchart</code>, <code>asSequence</code>, …).' },
+  { label: 'Narrow', short: 'Select the diagram family with its typed surface (<code>asFlowchart</code>, <code>asSequence</code>, …).' },
   { label: 'Mutate', short: 'Change the requested node, edge, task, relation, or event while preserving unmodeled syntax.' },
   { label: 'Verify', short: 'Read structural, geometric, and lint warnings before serializing or rendering artifacts.' },
   { label: 'Serialize', short: 'Write the typed model back to Mermaid source, then render only when an artifact is needed.' },
@@ -2503,18 +2514,24 @@ await emit(EXAMPLES_STYLE_REL, EXAMPLES_STYLE_SOURCE)
 await emit(EXAMPLES_DELIVERY.styleFragment.rel, EXAMPLES_DELIVERY.styleFragment.html)
 await emit(EXAMPLES_DELIVERY.corpusFragment.rel, EXAMPLES_DELIVERY.corpusFragment.html)
 
+const referencePages = await Promise.all(['docs/api.md', 'docs/api-advanced.md'].map(async file => {
+  const source = await Bun.file(join(ROOT, file)).text()
+  const rendered = renderDocBlocks(file, source)
+  if (rendered.problems.some(problem => problem.problem === 'unknown')) throw new Error(`Unknown documentation block in ${file}`)
+  const page = documentationPage(rendered.text, file)
+  await emit(`${page.destination.slice(1)}index.md`, page.markdown)
+  return page
+}))
+
 type DocPage = readonly [rel: string, title: string, lead: string, body: string, currentHref?: string]
 const docPages: DocPage[] = [
   ['about/index.html', 'About Agentic Mermaid', aboutLead, aboutBody, '/about/'],
   ['about/design/index.html', 'Design language', designLead, designBody, '/about/'],
   ['docs/getting-started/index.html', 'Getting started', 'From a prompt and style choice to a verified local render, then to an agent-safe edit loop.', gettingStartedBody, '/docs/'],
-  [
-    'docs/api/index.html',
-    'Library API',
-    'Use agentic-mermaid and agentic-mermaid/agent from local JS or TS.',
-    "<p>Import rendering helpers from <code>agentic-mermaid</code> and typed parse/mutate/verify helpers from <code>agentic-mermaid/agent</code>. Everything runs locally with no network.</p>\n<pre><code>import { renderMermaidSVG, renderMermaidASCII } from 'agentic-mermaid'\nimport { parseRegisteredMermaid, verifyMermaid } from 'agentic-mermaid/agent'\n\nconst src = 'flowchart LR\\n  A[Idea] --&gt; B[Ship]'\nconst svg = renderMermaidSVG(src)           // also renderMermaidASCII / unicode\nconst parsed = parseRegisteredMermaid(src)\nif (!parsed.ok) throw new Error(parsed.error.message)\nconst { ok, warnings } = verifyMermaid(parsed.value) // structured, tiered warnings</code></pre>\n<p>Render helpers return strings (SVG, ASCII, Unicode); the agent surface returns typed diagrams plus structured verify warnings. <strong>In React</strong>, call the same helpers in your component and inject the SVG — private diagrams never leave the browser or your own infrastructure. <strong>Config:</strong> supported Mermaid frontmatter and <code>init</code> directives are normalized before rendering; unsupported syntax is preserved or reported, never silently dropped.</p>" +
-      docsIndex,
-  ],
+  ...referencePages.map(page => [
+    `${page.destination.slice(1)}index.html`, page.title, page.lead,
+    `<p><a href="${page.destination}index.md">Read as Markdown</a></p>${page.html}${docsIndex}`,
+  ] as const),
   [
     'docs/cli/index.html',
     'CLI',

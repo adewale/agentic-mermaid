@@ -1,4 +1,6 @@
-import { stableFamilyCount } from './stable-family-adapters.ts'
+import { projectZenUMLSequence } from '../zenuml/native-sequence.ts'
+import { eventRelations, eventLanes } from '../eventmodeling/parser.ts'
+import { stableFamilyCount } from './stable-family-source-hooks.ts'
 // ============================================================================
 // countStructuralElements — a family-agnostic faithfulness oracle.
 //
@@ -146,6 +148,11 @@ export function countStructuralElements(d: ParsedDiagram): StructuralCount | nul
       }
       return { nodes: labels.size, edges: body.links.length, groups: 0 }
     }
+    case 'zenuml': {
+      const model = projectZenUMLSequence(body)
+      return { nodes: model.actors.filter(actor => !actor.external).length, edges: model.messages.length, groups: model.blocks.length }
+    }
+    case 'eventmodeling': return { nodes: body.frames.length, edges: eventRelations(body).length, groups: eventLanes(body).length }
     case 'packet':
     case 'kanban':
     case 'requirement':

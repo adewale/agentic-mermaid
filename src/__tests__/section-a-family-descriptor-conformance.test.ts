@@ -19,6 +19,25 @@ import type { PositionedDiagram, RenderContext, RenderOptions } from '../types.t
 /** Extra syntax broadens role coverage beyond each descriptor's minimal
  * discovery example. This is test stimulus, not a family/capability roster. */
 const RICH_SCENE_FIXTURES: Partial<Record<BuiltinFamilyId, string>> = {
+  zenuml: `zenuml
+title Request lifecycle
+@Actor User as Customer
+API
+@Database Store
+Audit
+@Starter(User)
+API.request() {
+  Store.persist() {
+    // Keep the complete request note
+    User->Audit: forward across active API and Store
+    if(accepted) {
+      return saved
+    } else {
+      return retry
+    }
+  }
+}`,
+  eventmodeling: 'eventmodeling\ntitle Cart\ntf 01 ui CartUI\ntf 02 cmd AddItem\ntf 03 evt ItemAdded',
   packet: '---\ntitle: Protocol fields\n---\npacket\n+8: "Source"\n+8: "Destination"\n+48: "Payload"',
   kanban: '---\ntitle: Delivery board\n---\nkanban\nTodo[To do]\n  task[Build parser]@{assigned: Alice, ticket: ID-42, priority: High}\nDone[Completed]\n  other[Research]',
   requirement: '---\ntitle: Acceptance evidence\n---\nrequirementDiagram\nrequirement speed {\nid: R1\ntext: "Responses retain authored meaning"\nrisk: high\nverifymethod: test\n}\nelement suite {\ntype: conformance suite\ndocref: "Acceptance specification"\n}\nsuite - verifies -> speed',
@@ -187,6 +206,8 @@ sankey-beta
 }
 
 const CAPABILITY_MUTATIONS: Readonly<Record<BuiltinFamilyId, AnyMutationOp>> = {
+  zenuml: { kind: 'insert_statement', statement: { kind: 'message', id: 'added', from: 'B', to: 'A', label: 'acknowledged', reply: false } },
+  eventmodeling: { kind: 'insert_frame', frame: { id: '99', reset: true, type: 'event', entity: 'Created', sources: [] } },
   packet: { kind: 'add_field', label: 'Capability witness', bits: 8 },
   kanban: { kind: 'add_column', id: 'CapabilityWitness', label: 'Capability witness' },
   requirement: { kind: 'add_requirement', requirement: { name: 'CapabilityWitness', text: 'Capability witness' } },
@@ -219,7 +240,7 @@ function lowerFixture(id: BuiltinFamilyId, sourceText: string): SceneDoc {
     shadow: true,
     ganttToday: '2026-01-08',
     gantt: { dependencyArrows: true, criticalPath: true },
-    ...(id === 'treemap' ? { style: { roles: { group: { headerFillColor: '#f0f5ff' } } } } : {}),
+    ...((id === 'treemap' || id === 'eventmodeling') ? { style: { roles: { group: { headerFillColor: '#f0f5ff' } } } } : {}),
   }
   const request = resolveRenderRequest(sourceText, options, 'svg')
   const result = positionResolvedFamily(id, request)

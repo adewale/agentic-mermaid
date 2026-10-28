@@ -21,9 +21,14 @@
 import { readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { execSync } from 'node:child_process'
-import { parseRegisteredMermaid as parseMermaid, layoutMermaid, measureQuality, renderMermaidSVG, renderMermaidASCII } from '../../src/agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, layoutMermaidWithReceipt, measureQuality, renderMermaidSVGWithReceipt, renderMermaidASCII } from '../../src/agent/index.ts'
 import type { QualityMetrics } from '../../src/agent/index.ts'
+import type { RenderOptions } from '../../src/types.ts'
+import { validateSerializableRenderOptions, type RenderRequestReceipt } from '../../src/render-contract.ts'
 import { compareCodePointStrings } from '../../src/shared/deterministic-order.ts'
+import { namespaceSvgIds } from '../../src/renderer.ts'
+import { attemptApi, failureCode, type ApiFailure } from './outcomes.ts'
+import { generatedFlowchartSamples, graphStressSamples, type GeneratedFlowchartRange, type GeneratedFlowchartKind } from './generated.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const CORPUS_PATH = join(ROOT, 'eval', 'mermaid-docs-corpus', 'corpus.json')
@@ -35,21 +40,30 @@ export interface SampleResult {
   source: string
   ok: boolean
   error?: string
+  errorCode?: string
+  failures?: { layout?: ApiFailure; svg?: ApiFailure; ascii?: ApiFailure; metrics?: ApiFailure }
+  /** JSON report projection; object aliases, Maps and descriptors are not preserved. */
+  layout?: ReturnType<typeof layoutMermaidWithReceipt>['layout']
   metrics?: QualityMetrics
   svg?: string
   ascii?: string
+  svgReceipt?: RenderRequestReceipt
+  layoutReceipt?: RenderRequestReceipt
 }
 
 export interface Snapshot {
   label: string
   rev: string
+  dirty?: boolean
+  renderOptions?: RenderOptions
+  population?: GeneratedFlowchartRange & { kind: 'generated-flowchart'; generator?: GeneratedFlowchartKind; terminal: 'not-requested' }
   createdAt: string
   samples: SampleResult[]
 }
 
 interface SampleInput { id: string; family: string; source: string }
 
-export function collectSamples(): SampleInput[] {
+export function collectSamples(options: { includeStress?: boolean } = {}): SampleInput[] {
   const corpus = JSON.parse(readFileSync(CORPUS_PATH, 'utf8')) as Array<{ family: string; source: string; origin: string; index: number }>
   const samples: SampleInput[] = corpus.map(e => ({ id: `corpus/${e.family}/${e.index}`, family: e.family, source: e.source }))
   if (existsSync(FIXTURES_DIR)) {
@@ -59,34 +73,42 @@ export function collectSamples(): SampleInput[] {
       samples.push({ id: `fixture/${name}`, family: parsed.ok ? parsed.value.kind : 'unknown', source })
     }
   }
+  if (options.includeStress) samples.push(...graphStressSamples())
   return samples
 }
 
-export function snapshotSample(input: SampleInput, idPrefix: string): SampleResult {
-  try {
-    const parsed = parseMermaid(input.source)
-    if (!parsed.ok) {
-      return { id: input.id, family: input.family, source: input.source, ok: false, error: `parse: ${JSON.stringify(parsed.error).slice(0, 200)}` }
-    }
-    const metrics = measureQuality(layoutMermaid(parsed.value))
-    const svg = renderMermaidSVG(input.source, { idPrefix })
-    let ascii: string | undefined
-    try {
-      ascii = renderMermaidASCII(input.source)
-    } catch {
-      ascii = undefined // some families render SVG-only; that is not a failure
-    }
-    return { id: input.id, family: input.family, source: input.source, ok: true, metrics, svg, ascii }
-  } catch (e) {
-    return { id: input.id, family: input.family, source: input.source, ok: false, error: String(e).slice(0, 300) }
-  }
+export function snapshotSample(input: SampleInput, idPrefix: string, options: RenderOptions = {}, projection: { includeAscii?: boolean } = {}): SampleResult {
+  const layout = attemptApi(() => layoutMermaidWithReceipt(input.source, { ...options, debug: true }))
+  const rendered = attemptApi(() => renderMermaidSVGWithReceipt(input.source, { ...options, idPrefix }))
+  const ascii = projection.includeAscii === false ? undefined : attemptApi(() => renderMermaidASCII(input.source, options))
+  const metrics = layout.ok ? attemptApi(() => measureQuality(layout.value.layout)) : undefined
+  const failures = { ...(!layout.ok ? { layout: layout.error } : {}), ...(!rendered.ok ? { svg: rendered.error } : {}),
+    ...(ascii && !ascii.ok ? { ascii: ascii.error } : {}), ...(metrics && !metrics.ok ? { metrics: metrics.error } : {}) }
+  const failure = !layout.ok ? layout.error : !rendered.ok ? rendered.error : metrics && !metrics.ok ? metrics.error : undefined
+  return { id: input.id, family: input.family, source: input.source, ok: layout.ok && rendered.ok && metrics?.ok === true,
+    ...(failure ? { error: `${failure.name}: ${failure.message}`, errorCode: failureCode(failure) } : {}),
+    ...(Object.keys(failures).length ? { failures } : {}),
+    ...(layout.ok ? { layout: layout.value.layout, layoutReceipt: JSON.parse(JSON.stringify(layout.value.receipt)) } : {}),
+    ...(metrics?.ok ? { metrics: metrics.value } : {}),
+    ...(rendered.ok ? { svg: rendered.value.svg, svgReceipt: JSON.parse(JSON.stringify(rendered.value.receipt)) } : {}),
+    ...(ascii?.ok ? { ascii: ascii.value } : {}) }
 }
 
-export function buildSnapshot(label: string): Snapshot {
+export function buildSnapshot(label: string, options: { renderOptions?: RenderOptions; families?: readonly string[]; generated?: GeneratedFlowchartRange; generatedKind?: GeneratedFlowchartKind; includeStress?: boolean } = {}): Snapshot {
   let rev = 'unknown'
-  try { rev = execSync('git rev-parse --short HEAD', { cwd: ROOT, encoding: 'utf8' }).trim() } catch { /* not a repo */ }
-  const samples = collectSamples().map((s, i) => snapshotSample(s, `lc${i}-`))
-  return { label, rev, createdAt: new Date().toISOString(), samples }
+  let dirty = true
+  try {
+    rev = execSync('git rev-parse HEAD', { cwd: ROOT, encoding: 'utf8' }).trim()
+    dirty = execSync('git status --porcelain', { cwd: ROOT, encoding: 'utf8' }).length > 0
+  } catch { /* not a repo */ }
+  if (options.generated && !options.renderOptions?.graphLayout) throw new RangeError('Generated comparisons require an explicit graphLayout.backend')
+  const all = options.generated ? generatedFlowchartSamples(options.generated, options.generatedKind) : collectSamples({ includeStress: options.includeStress })
+  if (options.families?.some(family => !all.some(sample => sample.family === family))) throw new RangeError('Unknown snapshot family')
+  const samples = all.filter(sample => !options.families || options.families.includes(sample.family))
+    .map((s, i) => snapshotSample(s, `lc${i}-`, options.renderOptions, { includeAscii: !options.generated }))
+  return { label, rev, dirty, ...(options.renderOptions ? { renderOptions: options.renderOptions } : {}),
+    ...(options.generated ? { population: { ...options.generated, kind: 'generated-flowchart' as const, ...(options.generatedKind ? { generator: options.generatedKind } : {}), terminal: 'not-requested' as const } } : {}),
+    createdAt: new Date().toISOString(), samples }
 }
 
 // ---- Report ----------------------------------------------------------------
@@ -124,16 +146,35 @@ export function compareSample(before: SampleResult | undefined, after: SampleRes
   const id = (after ?? before)!.id
   const family = (after ?? before)!.family
   const notes: string[] = []
-  if (!before || !after || before.ok !== after.ok) {
+  if (!before || !after) {
     notes.push(`status: before=${before ? (before.ok ? 'ok' : 'error') : 'missing'} after=${after ? (after.ok ? 'ok' : 'error') : 'missing'}`)
     return { id, family, verdict: 'status-changed', notes, before, after }
   }
-  if (!before.ok) return { id, family, verdict: 'unchanged', notes: ['both error'], before, after }
+  if (before.ok !== after.ok) {
+    notes.push(after.ok ? 'support gained: error → render' : 'support lost: render → error')
+    return { id, family, verdict: after.ok ? 'improvement' : 'regression', notes, before, after }
+  }
+  if (!before.ok) {
+    const sameFailure = before.errorCode === after.errorCode && before.error === after.error
+      && JSON.stringify(before.failures) === JSON.stringify(after.failures)
+      && before.svg === after.svg && JSON.stringify(before.layout) === JSON.stringify(after.layout)
+    return { id, family, verdict: sameFailure ? 'unchanged' : 'changed', notes: [sameFailure ? 'both error' : 'failure changed; inspect retained outcomes'], before, after }
+  }
 
   const mb = before.metrics!
   const ma = after.metrics!
   let regressed = false
   let improved = false
+  let measurementChanged = false
+  for (const dimension of ['labelConflicts', 'routeOverlaps', 'routeGeometry'] as const) {
+    if (mb[dimension] && !ma[dimension]) {
+      notes.push(`${dimension}: measurement lost`)
+      regressed = true
+    } else if (!mb[dimension] && ma[dimension]) {
+      notes.push(`${dimension}: measurement gained; geometry not compared`)
+      measurementChanged = true
+    }
+  }
   // QUAL-1: a family that previously had an EMPTY layout (nodeCount 0 — the
   // perceptual metrics were blind to it) gaining real geometry is an
   // IMPROVEMENT, never a faithfulness regression. While transitioning out of an
@@ -153,7 +194,17 @@ export function compareSample(before: SampleResult | undefined, after: SampleRes
     else regressed = true
   }
   track('edgeCrossings', mb.edgeCrossings, ma.edgeCrossings, false)
+  if (mb.labelConflicts && ma.labelConflicts) track('padded label conflicts', mb.labelConflicts.total, ma.labelConflicts.total, false)
+  if (mb.routeOverlaps && ma.routeOverlaps) {
+    track('opposing shared spans', mb.routeOverlaps.opposing, ma.routeOverlaps.opposing, false)
+    track('same-endpoint shared spans', mb.routeOverlaps.parallel, ma.routeOverlaps.parallel, false)
+  }
   track('labelLegibility', mb.labelLegibility, ma.labelLegibility, true, LEGIBILITY_EPS)
+  if (mb.routeGeometry && ma.routeGeometry) {
+    track('polyline bends', mb.routeGeometry.bends, ma.routeGeometry.bends, false)
+    track('route length', mb.routeGeometry.length, ma.routeGeometry.length, false, 0.01)
+    track('canvas area', mb.routeGeometry.area, ma.routeGeometry.area, false, 0.01)
+  }
   if (mb.nodeCount !== ma.nodeCount) {
     if (transitionedToMeasured) { notes.push(`nodeCount: ${mb.nodeCount} → ${ma.nodeCount} ✓ (empty→measured)`); improved = true }
     else { notes.push(`nodeCount: ${mb.nodeCount} → ${ma.nodeCount} ✗`); regressed = true }
@@ -165,10 +216,12 @@ export function compareSample(before: SampleResult | undefined, after: SampleRes
 
   const svgChanged = before.svg !== after.svg
   const asciiChanged = before.ascii !== after.ascii
+  const backendChanged = JSON.stringify(before.svgReceipt?.layoutDecisions ?? []) !== JSON.stringify(after.svgReceipt?.layoutDecisions ?? [])
   if (svgChanged) notes.push('svg bytes changed')
   if (asciiChanged) notes.push('ascii bytes changed')
+  if (backendChanged) notes.push('backend execution changed')
 
-  const verdict: Verdict = regressed ? 'regression' : improved ? 'improvement' : (svgChanged || asciiChanged) ? 'changed' : 'unchanged'
+  const verdict: Verdict = regressed ? 'regression' : improved ? 'improvement' : (svgChanged || asciiChanged || backendChanged || measurementChanged) ? 'changed' : 'unchanged'
   return { id, family, verdict, notes, before, after }
 }
 
@@ -220,23 +273,24 @@ export function buildReportHtml(before: Snapshot, after: Snapshot): string {
   for (const c of comparisons) counts.set(c.verdict, (counts.get(c.verdict) ?? 0) + 1)
 
   const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  const cell = (r: SampleResult | undefined) => {
+  const cell = (r: SampleResult | undefined, prefix: string) => {
     if (!r) return '<em>missing</em>'
     if (!r.ok) return `<pre class="err">${esc(r.error ?? 'error')}</pre>`
     const ascii = r.ascii ? `<details><summary>ASCII</summary><pre class="ascii">${esc(r.ascii)}</pre></details>` : ''
-    return `<div class="svgbox">${r.svg ?? ''}</div>${ascii}`
+    const evidence = { metrics: r.metrics, svgReceipt: r.svgReceipt, layoutReceipt: r.layoutReceipt }
+    return `<div class="svgbox">${namespaceSvgIds(r.svg ?? '', prefix)}</div>${ascii}<details><summary>Measured quality and backend receipts</summary><pre>${esc(JSON.stringify(evidence, null, 2))}</pre></details>`
   }
 
   const rows = comparisons
     .filter(c => c.verdict !== 'unchanged')
-    .map(c => `
+    .map((c, index) => `
 <section class="sample ${c.verdict}">
   <h3>${esc(c.id)} <span class="badge">${c.verdict}</span> <span class="family">${esc(c.family)}</span></h3>
   <p class="notes">${c.notes.map(esc).join(' · ') || 'no metric delta'}</p>
   <details><summary>source</summary><pre>${esc((c.after ?? c.before)!.source)}</pre></details>
   <div class="pair">
-    <div><h4>before (${esc(before.rev)})</h4>${cell(c.before)}</div>
-    <div><h4>after (${esc(after.rev)})</h4>${cell(c.after)}</div>
+    <div><h4>before (${esc(before.rev)})</h4>${cell(c.before, `lc-before-${index}-`)}</div>
+    <div><h4>after (${esc(after.rev)})</h4>${cell(c.after, `lc-after-${index}-`)}</div>
   </div>
 </section>`)
     .join('\n')
@@ -278,6 +332,9 @@ export function buildReportHtml(before: Snapshot, after: Snapshot): string {
 <h1>Layout comparison</h1>
 <p><strong>${esc(before.label)}</strong> (${esc(before.rev)}, ${esc(before.createdAt)}) →
    <strong>${esc(after.label)}</strong> (${esc(after.rev)}, ${esc(after.createdAt)})</p>
+<p>Before options: <code>${esc(JSON.stringify(before.renderOptions ?? {}))}</code>${before.dirty ? ' (working tree modified)' : ''};
+after options: <code>${esc(JSON.stringify(after.renderOptions ?? {}))}</code>${after.dirty ? ' (working tree modified)' : ''}.</p>
+<p>Generated population: before <code>${esc(JSON.stringify(before.population ?? null))}</code>; after <code>${esc(JSON.stringify(after.population ?? null))}</code>. These snapshots measure quality, not execution cost.</p>
 <ul>${summary}</ul>
 <p><strong>Family-balanced adverse rate:</strong> ${(balanced.macroAdverseRate * 100).toFixed(1)}%
    (sample-weighted: ${(balanced.microAdverseRate * 100).toFixed(1)}%).</p>
@@ -285,8 +342,17 @@ export function buildReportHtml(before: Snapshot, after: Snapshot): string {
 <table><thead><tr><th>family</th><th>samples</th><th>status</th><th>regressions</th><th>improvements</th><th>changed</th><th>unchanged</th><th>adverse</th></tr></thead>
 <tbody>${familyRows}</tbody></table></details>
 <p>Unchanged samples are hidden. Verdicts: metric deltas use measureQuality
-(edge crossings, label legibility) plus node/edge-count faithfulness;
-"changed" means bytes differ with no metric movement.</p>
+(edge crossings, measured label conflicts and shared spans when available, label legibility,
+polyline bends, route length and canvas area) plus node/edge-count faithfulness;
+"changed" means bytes or backend decisions differ with no metric movement.</p>
+<p>Support gains are improvements; support losses are regressions. Missing population members
+remain adverse status changes. A regression in any measured dimension remains visible even
+when another improves. Smaller area or fewer bends alone does not establish human preference.</p>
+<p>Quality comes from a separate public-layout call, not the retained SVG artifact.
+Preview IDs are scoped per panel; original SVG bytes and digests remain in the JSON snapshots.
+Full measurements and actual backend choices are expandable for each rendered
+sample. Spacing, area, proportions and subjective appearance still need review;
+No timing is measured here; this report does not establish complete aesthetic parity or performance.</p>
 ${rows}
 </body></html>`
 }
@@ -303,7 +369,16 @@ if (import.meta.main) {
   if (cmd === 'snapshot') {
     const out = arg('--out')
     if (!out) { console.error('snapshot requires --out <file.json>'); process.exit(2) }
-    const snap = buildSnapshot(arg('--label') ?? out)
+    const backend = arg('--graph-layout'), fallback = arg('--graph-layout-fallback')
+    if (fallback && !backend) throw new RangeError('--graph-layout-fallback requires --graph-layout')
+    const renderOptions = backend ? { graphLayout: { backend, ...(fallback ? { fallback } : {}) } } as RenderOptions : undefined
+    const problems = renderOptions ? validateSerializableRenderOptions(renderOptions) : []
+    if (problems.length) throw new RangeError(JSON.stringify(problems))
+    const count = arg('--generated-count'), start = arg('--generated-start'), generatedKind = arg('--generated-kind') as GeneratedFlowchartKind | undefined
+    if (generatedKind && count === undefined) throw new RangeError('--generated-kind requires --generated-count')
+    if (start !== undefined && count === undefined) throw new RangeError('--generated-start requires --generated-count')
+    const generated = count === undefined ? undefined : { start: start === undefined ? 0 : Number(start), count: Number(count) }
+    const snap = buildSnapshot(arg('--label') ?? out, { renderOptions, families: arg('--families')?.split(','), generated, generatedKind, includeStress: process.argv.includes('--stress') })
     writeFileSync(out, JSON.stringify(snap))
     const failed = snap.samples.filter(s => !s.ok).length
     console.log(`wrote ${out}: ${snap.samples.length} samples (${failed} errored) at ${snap.rev}`)
@@ -320,7 +395,7 @@ if (import.meta.main) {
     console.log(`wrote ${out}: ${n('status-changed')} status-changed, ${n('regression')} regressions, ${n('improvement')} improvements, ${n('changed')} changed, ${n('unchanged')} unchanged`)
     if (n('status-changed') + n('regression') > 0) process.exit(1)
   } else {
-    console.error('usage: run.ts snapshot --out f.json [--label name] | report --before a.json --after b.json --out report.html')
+    console.error('usage: run.ts snapshot --out f.json [--label name] [--graph-layout elk|agentic] [--graph-layout-fallback none|elk] [--families flowchart,state] [--stress] [--generated-start 0 --generated-count 160] [--generated-kind lcg-v1|sha256-counter-v1] | report --before a.json --after b.json --out report.html')
     process.exit(2)
   }
 }

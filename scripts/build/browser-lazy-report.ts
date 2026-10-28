@@ -130,10 +130,41 @@ if (forbiddenInputs.length > 0) {
 const elkOutputs = outputNames.filter(path =>
   Object.keys(metafile.outputs[path]!.inputs).some(input => input.includes('node_modules/elkjs/')))
 const elkOutput = requireOne(elkOutputs, 'ELK implementation chunk')
+const elkLoaders = outputNames.filter(path =>
+  Object.keys(metafile.outputs[path]!.inputs).some(input => input.endsWith('/elk-constructor.lazy.ts')))
+if (!MEASURE_ONLY && elkLoaders.length !== 1) throw new Error('ELK must have one on-demand constructor')
 const initialFiles = staticClosure([entry])
-const familyFiles = Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [
+const staticFamilyFiles = Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [
   id,
   staticClosure([entry, renderCore, familyOutputs[id]]),
+])) as Record<BrowserBuiltinFamilyId, string[]>
+const agenticOutputs = outputNames.filter(path =>
+  Object.keys(metafile.outputs[path]!.inputs).some(input => input.endsWith('/layout/agentic-layered-core.ts')))
+const agenticLoaders = outputNames.filter(path =>
+  Object.keys(metafile.outputs[path]!.inputs).some(input => input.endsWith('/layout/agentic-layered.lazy.ts')))
+if (!MEASURE_ONLY && (agenticOutputs.length !== 1 || agenticLoaders.length !== 1)) throw new Error('Agentic must have one on-demand implementation and loader')
+if (!MEASURE_ONLY && agenticOutputs.some(output => initialFiles.includes(output) || BROWSER_BUILTIN_FAMILY_IDS.some(id => staticFamilyFiles[id].includes(output)))) {
+  throw new Error('Agentic implementation must load only when selected')
+}
+const forestOutputs = outputNames.filter(path => metafile.outputs[path]!.entryPoint === 'src/layout/forest-implementation.ts')
+if (!MEASURE_ONLY && forestOutputs.length !== 1) throw new Error('Forest must have one shared on-demand implementation')
+if (!MEASURE_ONLY && forestOutputs.some(output => initialFiles.includes(output) || MEASURED_FAMILY_IDS.some(id => staticFamilyFiles[id].includes(output)))) {
+  throw new Error('Forest implementation must stay out of the initial and family static closures')
+}
+const agenticFamilyFiles = Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [id,
+  agenticLoaders.some(loader => staticFamilyFiles[id].includes(loader))
+    ? staticClosure([entry, renderCore, familyOutputs[id], ...agenticOutputs, ...forestOutputs]) : undefined,
+]))
+const implicitForestFiles = MEASURED_FAMILY_IDS.includes('flowchart') ? staticClosure([entry, renderCore, familyOutputs.flowchart, ...forestOutputs]) : undefined
+const implicitForestFallbackFiles = implicitForestFiles ? staticClosure([...implicitForestFiles, elkOutput]) : undefined
+const elkFiles = staticClosure([elkOutput])
+const observedElkFamilies = MEASURED_FAMILY_IDS.filter(id => staticFamilyFiles[id].includes(elkOutput)
+  || elkLoaders.some(loader => staticFamilyFiles[id].includes(loader)))
+// Preserve the existing default-render payload contract: ELK consumers still
+// pay for ELK when it is selected. Also report the static/native closure so
+// demand loading cannot masquerade as a smaller default ELK render.
+const familyFiles = Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [id,
+  staticClosure([entry, renderCore, familyOutputs[id], ...(observedElkFamilies.includes(id) ? [elkOutput] : [])]),
 ])) as Record<BrowserBuiltinFamilyId, string[]>
 const yamlOutputs = outputNames.filter(path =>
   Object.keys(metafile.outputs[path]!.inputs).some(input => input.includes('node_modules/yaml/')))
@@ -154,19 +185,19 @@ const elkConstructorOutputs = outputNames.filter(path =>
   Object.keys(metafile.outputs[path]!.inputs).some(input => /^src\/elk-constructor(?:\.lazy)?\.ts$/.test(input)))
 if (elkConstructorOutputs.length === 0) throw new Error('ELK implementation has no emitted constructor seam')
 const elkFamilies = MEASURED_FAMILY_IDS.filter(id =>
-  elkConstructorOutputs.some(path => familyFiles[id].includes(path)))
-const elkFiles = staticClosure([elkOutput])
+  elkConstructorOutputs.some(path => staticFamilyFiles[id].includes(path)))
 const budgetedFamilyFiles = Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [
   id,
-  staticClosure([...familyFiles[id], ...yamlFiles, ...(elkFamilies.includes(id) ? elkFiles : [])]),
+  staticClosure([...staticFamilyFiles[id], ...yamlFiles, ...(elkFamilies.includes(id) ? elkFiles : [])]),
 ])) as Record<BrowserBuiltinFamilyId, string[]>
-
-const observedElkFamilies = MEASURED_FAMILY_IDS.filter(id => familyFiles[id].includes(elkOutput))
 if (!MEASURE_ONLY) {
   if (yamlRuntimeOutputs.length !== 1) throw new Error('YAML must have one demand-loaded provider')
   if ([...yamlRuntimeOutputs, ...yamlOutputs].some(path => initialFiles.includes(path)
     || BROWSER_BUILTIN_FAMILY_IDS.some(id => familyFiles[id].includes(path)))) {
     throw new Error('YAML must load only on demand, never with the initial download or a family')
+  }
+  if (initialFiles.includes(elkOutput) || BROWSER_BUILTIN_FAMILY_IDS.some(id => staticFamilyFiles[id].includes(elkOutput))) {
+    throw new Error('ELK must load only when selected, never in the initial or family static closure')
   }
   // The complete HTML5 named-reference table (~23 KB gzip) is fetched on
   // demand (shared/html-entity-table.lazy.ts), only for a diagram that uses a
@@ -204,7 +235,7 @@ if (!MEASURE_ONLY) {
     }
   }
 
-  if (initialFiles.includes(elkOutput) || observedElkFamilies.length > 0) {
+  if (initialFiles.includes(elkOutput) || MEASURED_FAMILY_IDS.some(id => staticFamilyFiles[id].includes(elkOutput))) {
     throw new Error(`ELK must load only when placement demands it, never in a family static closure: ${observedElkFamilies.join(', ')}`)
   }
 }
@@ -212,23 +243,25 @@ if (!MEASURE_ONLY) {
 const report = {
   schemaVersion: 1 as const,
   compression: 'sum of each fetched file; gzip level 9; Brotli quality 11',
-  familyClosure: 'static imports only; on-demand YAML, ELK and HTML entity downloads are additional when a diagram requires them',
+  familyClosure: 'selected ELK transfer; static excludes on-demand providers; YAML and HTML entity downloads remain explicit',
   budgetedFamilyClosure: 'static imports plus complete YAML transfer for frontmatter/directives and ELK transfer for families that can demand its constructor',
   yamlChunks: yamlProviderOutputs,
   yamlTransfer: transferSize(yamlFiles),
+  familyCost: 'selected ELK includes its solver; nativeSolver includes the shared forest implementation; omitted-layout Flowchart indexed forest and its ELK fallback union are reported and budgeted separately; static excludes on-demand dependencies; HTML5 tables remain additional',
+  ...(implicitForestFiles && implicitForestFallbackFiles ? { omittedLayoutFlowchart: { indexedForest: { requests: implicitForestFiles.length, ...transferSize(implicitForestFiles) }, indexedForestThenElk: { requests: implicitForestFallbackFiles.length, ...transferSize(implicitForestFallbackFiles) } } } : {}),
   elkChunk: elkOutput,
   elkTransfer: transferSize(elkFiles),
   initial: { requests: initialFiles.length, ...transferSize(initialFiles) },
+  budgetedFamilies: Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [id, {
+    requests: budgetedFamilyFiles[id].length, elk: budgetedFamilyFiles[id].includes(elkOutput), ...transferSize(budgetedFamilyFiles[id]),
+  }])) as Record<BrowserBuiltinFamilyId, TransferSize & { requests: number; elk: boolean }>,
   families: Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [id, {
     requests: familyFiles[id].length,
     elk: familyFiles[id].includes(elkOutput),
     ...transferSize(familyFiles[id]),
-  }])) as Record<BrowserBuiltinFamilyId, TransferSize & { requests: number; elk: boolean }>,
-  budgetedFamilies: Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [id, {
-    requests: budgetedFamilyFiles[id].length,
-    elk: elkFamilies.includes(id),
-    ...transferSize(budgetedFamilyFiles[id]),
-  }])) as Record<BrowserBuiltinFamilyId, TransferSize & { requests: number; elk: boolean }>,
+    static: { requests: staticFamilyFiles[id].length, ...transferSize(staticFamilyFiles[id]) },
+    ...(agenticFamilyFiles[id] ? { nativeSolver: { requests: agenticFamilyFiles[id]!.length, ...transferSize(agenticFamilyFiles[id]!) } } : {}),
+  }])) as Record<BrowserBuiltinFamilyId, TransferSize & { requests: number; elk: boolean; static: TransferSize & { requests: number }; nativeSolver?: TransferSize & { requests: number } }>,
 }
 
 const problems: string[] = []
@@ -245,12 +278,18 @@ function checkBudget(label: string, actual: TransferSize & { requests: number },
 if (!MEASURE_ONLY) {
   checkBudget('initial', report.initial, budgets.initial)
   for (const id of BROWSER_BUILTIN_FAMILY_IDS) checkBudget(id, report.budgetedFamilies[id], budgets.families[id])
+  if (report.omittedLayoutFlowchart) {
+    const forestBudget = staticClosure([...implicitForestFiles!, ...yamlFiles])
+    checkBudget('flowchart omitted-layout forest plus YAML', { requests: forestBudget.length, ...transferSize(forestBudget) }, budgets.families.flowchart)
+    const fallbackBudget = staticClosure([...implicitForestFallbackFiles!, ...yamlFiles])
+    checkBudget('flowchart omitted-layout forest then ELK plus YAML', { requests: fallbackBudget.length, ...transferSize(fallbackBudget) }, budgets.families.flowchart)
+  }
 }
 if (problems.length > 0) throw new Error(`Async browser size budgets exceeded:\n${problems.join('\n')}`)
 
 if (process.argv.includes('--json')) process.stdout.write(`${JSON.stringify(report, null, 2)}\n`)
 else {
   process.stdout.write(`browser lazy build verified: ${report.initial.gzip} B initial gzip; `
-    + `${elkFamilies.length} families budget the shared on-demand ELK transfer; `
-    + `${MEASURED_FAMILY_IDS.length - elkFamilies.length} family graphs exclude it\n`)
+    + `${observedElkFamilies.length} families budget the shared on-demand ELK transfer; `
+    + `${MEASURED_FAMILY_IDS.length - observedElkFamilies.length} family graphs exclude it\n`)
 }

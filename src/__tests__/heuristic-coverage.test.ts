@@ -26,6 +26,8 @@ import {
 import { elkLayoutSync } from '../elk-instance.ts'
 import { parseMermaid } from '../parser.ts'
 import { assessLayout } from '../layout-rubric.ts'
+import { clipEdgeToShape } from '../shape-clipping.ts'
+import { trimBoundaryEndpointRuns } from '../route-contracts.ts'
 import type { PositionedNode, PositionedEdge, Point } from '../types.ts'
 
 // --- tiny builders for synthetic positioned geometry --------------------------
@@ -122,13 +124,13 @@ describe('occlusion-safe alignLayerNodes — the snapOccludes guard', () => {
     return { ...node, x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), width: Math.abs(b.x - a.x), height: Math.abs(b.y - a.y) }
   }
   for (const [turns, direction] of [[0, 'BT'], [1, 'LR'], [2, 'TD'], [3, 'RL']] as const) {
-    for (const reversed of [false, true]) for (const stub of [6, 12]) {
-      it(`${direction}: declines the whole layer when a ${reversed ? 'target' : 'source'} normal stub would ${stub === 12 ? 'collapse' : 'reverse'}`, () => {
+    for (const reversed of [false, true]) for (const stub of [6, 12]) for (const offset of [0, -12]) {
+      it(`${direction}: declines the whole layer when a ${reversed ? 'target' : 'source'} ${offset ? 'unclipped box' : 'exact outline'} normal stub would ${stub === 12 ? 'collapse' : 'reverse'}`, () => {
         const nodes = [
           { ...mkNode('S', 100, 100, 40, 40), shape: 'circle' as const },
           mkNode('peer', 300, 76, 40, 40), mkNode('T', 200, 0, 40, 40),
         ].map(node => rotatedNode(node, turns))
-        const points = [{ x: 120, y: 100 }, { x: 120, y: 100 - stub }, { x: 220, y: 100 - stub }, { x: 220, y: 40 }].map(point => rotate(point, turns))
+        const points = [{ x: 120 + offset, y: 100 }, { x: 120 + offset, y: 100 - stub }, { x: 220, y: 100 - stub }, { x: 220, y: 40 }].map(point => rotate(point, turns))
         const edge: PositionedEdge = { ...mkEdge('S', 'T', points), id: 'authored', edgeIndex: 7,
           label: 'keep this label', labelPosition: rotate({ x: 170, y: 100 - stub }, turns),
           hasArrowStart: true, startMarker: 'cross', endMarker: 'circle' }
@@ -139,23 +141,25 @@ describe('occlusion-safe alignLayerNodes — the snapOccludes guard', () => {
         expect(edge).toEqual(beforeEdge)
         // Independent circle normal, including the first nonzero point after
         // a collapsed prefix: the visible shaft must still leave its paint.
-        const route = reversed ? [...edge.points].reverse() : edge.points
+        const clipped = clipEdgeToShape(edge.points, nodes[0]!, !reversed)
+        const route = reversed ? [...clipped].reverse() : clipped
         const p = route[0]!, q = route.find(point => point.x !== p.x || point.y !== p.y)!
         const owner = nodes[0]!, cx = owner.x + 20, cy = owner.y + 20
+        expect((p.x - cx) ** 2 + (p.y - cy) ** 2).toBeCloseTo(400, 6)
         expect((p.x - cx) * (q.x - p.x) + (p.y - cy) * (q.y - p.y)).toBeGreaterThan(0)
       })
     }
   }
 
-  it('CONTROL: admits a layer snap when the complete projected shaft retains exterior clearance', () => {
+  it.each([0, -12])('CONTROL: admits a layer snap when the complete projected shaft retains exterior clearance (offset=%s)', offset => {
     const source = { ...mkNode('S', 100, 100, 40, 40), shape: 'circle' as const }
     const peer = mkNode('peer', 300, 76, 40, 40), target = mkNode('T', 200, 0, 40, 40)
-    const edge = { ...mkEdge('S', 'T', [{ x: 120, y: 100 }, { x: 120, y: 76 }, { x: 220, y: 76 }, { x: 220, y: 40 }]),
+    const edge = { ...mkEdge('S', 'T', [{ x: 120 + offset, y: 100 }, { x: 120 + offset, y: 76 }, { x: 220, y: 76 }, { x: 220, y: 40 }]),
       label: 'unchanged', labelPosition: { x: 170, y: 76 } }
     alignLayerNodes([source, peer, target], [edge], 'BT')
     expect(source.y).toBe(88)
     expect(peer.y).toBe(88)
-    expect(edge.points).toEqual([{ x: 120, y: 88 }, { x: 120, y: 76 }, { x: 220, y: 76 }, { x: 220, y: 40 }])
+    expect(edge.points).toEqual([{ x: 120 + offset, y: 88 }, { x: 120 + offset, y: 76 }, { x: 220, y: 76 }, { x: 220, y: 40 }])
     expect(edge.labelPosition).toEqual({ x: 170, y: 76 })
   })
 
@@ -180,6 +184,21 @@ describe('occlusion-safe alignLayerNodes — the snapOccludes guard', () => {
     expect(peer.y).toBe(76)
     expect(target.y).toBe(100)
     expect(edge.points).toEqual(before)
+  })
+
+  it('preserves an outward exit exposed by trimming an existing boundary run', () => {
+    const source = mkNode('S', 100, 0, 40, 40), peer = mkNode('peer', 200, 24, 40, 40), target = mkNode('T', 70, 100, 40, 40)
+    const nodes = [source, peer, target]
+    const edge = { ...mkEdge('S', 'T', [{ x: 100, y: 20 }, { x: 100, y: 10 }, { x: 90, y: 10 }, { x: 90, y: 100 }]),
+      label: 'unchanged', labelPosition: { x: 90, y: 55 }, startMarker: 'cross' as const }
+    const beforeNodes = structuredClone(nodes), beforeEdge = structuredClone(edge), canonical = structuredClone(edge)
+    trimBoundaryEndpointRuns(canonical, source, target)
+    expect(canonical.points).toEqual([{ x: 100, y: 10 }, { x: 90, y: 10 }, { x: 90, y: 100 }])
+    expect(canonical.points[0]!.x).toBe(source.x)
+    expect(canonical.points[1]!.x).toBeLessThan(source.x)
+    alignLayerNodes(nodes, [edge], 'TD')
+    expect(nodes).toEqual(beforeNodes)
+    expect(edge).toEqual(beforeEdge)
   })
 
   it('end-to-end: chained hubs keep a circular spoke normal when its layer snap would consume the route channel', () => {

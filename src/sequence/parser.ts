@@ -108,13 +108,14 @@ export function sequenceActorIdCanSerialize(id: string, context: 'declaration' |
   if (context === 'declaration') return clearSequenceParticipantId(id) && !/:/.test(token) && !token.includes('%%{')
   if (token.startsWith('%') || token.includes('%%')) return false
   const keyword = token.toLowerCase()
-  const leadingWord = /^(\w+)\s/.exec(keyword)?.[1]
-  if (leadingWord && SEQUENCE_SPACED_CENTRAL_RESERVED_SENDERS.has(leadingWord)) return false
+  const leadingWord = /^(\w+)\b/.exec(keyword)?.[1]
+  if (leadingWord && SEQUENCE_SPACED_CENTRAL_RESERVED_SENDERS.has(leadingWord)
+    && (!['title', 'link', 'links', 'properties', 'details'].includes(leadingWord) || /\s/.test(keyword.slice(leadingWord.length, leadingWord.length + 1)))) return false
   if (/^(?:\d+(?:\.\d{1,2})?|\.\d{1,2})(?=\s)/.test(token)) return false
   if (SEQUENCE_SPACED_CENTRAL_RESERVED_SENDERS.has(keyword)
     && !['title', 'link', 'links', 'properties', 'details'].includes(keyword)) return false
   if (context === 'receiver' && ['acctitle', 'accdescr'].includes(keyword)) return false
-  if (/^(?:left|right) of(?:\s|$)/.test(keyword)) return false
+  if (/^(?:left|right) of\b/.test(keyword)) return false
   return mermaidSequenceActorAt(`${token}${context === 'sender' ? '->>Z:' : ':'}`, 0) === token
 }
 
@@ -163,6 +164,16 @@ export function getSequenceBlockBoundaries(diagram: SequenceDiagram): readonly S
 /** Return the lexical scope (owned notes and direct child blocks) recorded for `block` during parsing. */
 export function getSequenceBlockScope(block: Block): SequenceBlockScope | undefined {
   return blockScopes.get(block)
+}
+
+/** Native language projections retain lexical events that message intervals
+ * alone cannot distinguish, including empty branches and adjacent notes. */
+export function setSequenceBlockScope(block: Block, scope: SequenceBlockScope): void {
+  blockScopes.set(block, scope)
+}
+
+export function setSequenceBlockBoundaries(diagram: SequenceDiagram, boundaries: SequenceBlockBoundary[]): void {
+  blockBoundaries.set(diagram, boundaries)
 }
 
 /** One message-line grammar shared by renderer and agent parsers. */

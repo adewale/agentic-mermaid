@@ -33,7 +33,7 @@ import { scopeSvgStyles } from './svg-style-scope.ts'
 import { emitResolvedConfigDiagnostics } from './render-config-diagnostics.ts'
 import { retainedPositionedScene, retainedNativeDrawing, positionedPaintCertification } from './scene/positioned.ts'
 import { PaintLayoutCertificationError, type PaintLayoutCertification, type PaintViewport } from './scene/paint-certification.ts'
-import { assertFinalSvgByteBudget } from './scene/scene-validation.ts'
+import { assertFinalSvgByteBudget } from './scene/scene-validation-core.ts'
 import type { SceneDoc } from './scene/ir.ts'
 import { sceneHasOnlyPreparedText } from './scene/serialization.ts'
 import { withTextMeasurementExecution } from './text-measurement-profile.ts'
@@ -195,7 +195,9 @@ function renderPositionedWithTextMeasurement(
     assertFinalSvgByteBudget(svg, 'accessibility-projected SVG output')
   }
   if (capture) svg = capture.finish(svg)
-  svg = formatSvgNumbers(scopeSvgStyles(svg))
+  // Scope identity belongs to the canonical written numbers, including late
+  // viewport repairs, so equivalent drawing/Scene paths share identical CSS.
+  svg = scopeSvgStyles(formatSvgNumbers(svg))
   assertFinalSvgByteBudget(svg, 'style-scoped SVG output')
   // Every byte-changing projection must run before the final output-security
   // gate. In particular, compaction must never be able to join an inert split

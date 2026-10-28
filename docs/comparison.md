@@ -7,6 +7,11 @@ inventory as an application, outside the browserless renderer peer ranking.
 The [community discovery and categories](../eval/fork-graph/README.md#community-discovery-and-categories)
 include editors and integrations independently of renderer benchmark eligibility.
 
+The [22 October owned-layout community comparison](design/system/layout-community-comparison.md)
+compares the six-family native backend with ELK and the community approaches,
+using a separately versioned, fully consumed public-SVG experiment. The older
+measurements below retain their original renderer revisions and protocols.
+
 ## Pele comparison — checked 18 October 2026
 
 [Pele](https://github.com/obsidianmd/pele) is an independently maintained,

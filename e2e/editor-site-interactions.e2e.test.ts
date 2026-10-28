@@ -13,6 +13,7 @@ import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
 import { extname, join, normalize } from 'node:path'
 import { deflateRawSync, inflateRawSync } from 'node:zlib'
 import { chromium, type Browser, type Page } from 'playwright'
+import '../src/scene/builtin-backends.ts'
 import { PNG_DEFAULT_SCALE } from '../src/png-contract.ts'
 import { getFamily, knownBuiltinFamilies } from '../src/agent/families.ts'
 import { renderAndVerifyMermaid } from '../src/agent/verify.ts'
@@ -106,14 +107,14 @@ describe('editor and site interactions in a real browser', () => {
     await browser?.close()
   })
 
-  test('every built-in can be the first deferred family, retaining verified SVG and native terminal output', async () => {
+  test.each([undefined, 'hand-drawn', 'watercolor'] as const)('every built-in can be the first deferred family, retaining verified SVG and native terminal output (%s)', async style => {
     for (const id of knownBuiltinFamilies()) {
       const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
       try {
         await page.goto(`${base}/editor/?empty=1`)
         await page.waitForFunction(() => !!(window as any).__mermaid)
         const source = getFamily(id)!.example
-        const options = { security: 'strict' as const, embedFontImport: false, style: ['crisp', 'paper'], seed: 4 }
+        const options = { security: 'strict' as const, embedFontImport: false, style: [style ?? 'crisp', 'paper'], seed: 4 }
         const expected = renderAndVerifyMermaid(source, options)
         const actual = await page.evaluate(async ({ source, options }) => (window as any).__mermaid.renderMermaidSVGWithReceipt(source, options), { source, options })
         expect(actual.svg, id).toBe(expected.svg)

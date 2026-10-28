@@ -9,7 +9,7 @@ test('ordinary native crisp rendering constructs no populated Scene groups and r
   const child = await runChild(process.execPath, ['-e', `
     import { spyOn } from 'bun:test'
     import { renderMermaidSVGWithReceipt } from './src/index.ts'
-    import { knownBuiltinFamilies, getFamily } from './src/agent/families.ts'
+    import { knownBuiltinFamilies, getFamily, BUILTIN_FAMILY_METADATA } from './src/agent/families.ts'
     import { getBackendDescriptor } from './src/scene/backend.ts'
     import * as marks from './src/scene/marks.ts'
     import { withRenderStageObserver } from './src/render-stages.ts'
@@ -32,6 +32,18 @@ test('ordinary native crisp rendering constructs no populated Scene groups and r
     }
     if (!groups) throw new Error('no groups exercised')
     spy.mockRestore()
+    const journey = BUILTIN_FAMILY_METADATA.find(family => family.id === 'journey').editorExample
+    const treatment = { style: ['status-dashboard', 'github-dark'], seed: 0, compact: true, embedFontImport: false }
+    const nativeStages = [], sceneStages = []
+    const nativeJourney = withRenderStageObserver(sample => nativeStages.push(sample.stage),
+      () => renderMermaidSVGWithReceipt(journey, treatment))
+    const sceneJourney = withRenderStageObserver(sample => sceneStages.push(sample.stage),
+      () => renderMermaidSVGWithReceipt(journey, { ...treatment, layoutSafety: 'strict' }))
+    if (!nativeStages.includes('drawing') || nativeStages.includes('scene') || !sceneStages.includes('scene'))
+      throw new Error('styled Journey did not exercise both drawing paths')
+    for (const result of [nativeJourney, sceneJourney]) if (!result.receipt.layoutCertification.repairs.includes('expand-viewport'))
+      throw new Error('styled Journey did not exercise viewport repair')
+    if (nativeJourney.svg !== sceneJourney.svg) throw new Error('viewport repair changed canonical SVG across native and Scene paths')
     const er = getFamily('er')
     const expected = renderMermaidSVGWithReceipt(er.example).svg
     for (const [id, field] of [['er', 'entities'], ['class', 'classes']]) {

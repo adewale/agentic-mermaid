@@ -21,6 +21,15 @@ function loadCorpus(): CorpusEntry[] {
 
 const corpus = loadCorpus().filter(e => e.family === 'flowchart')
 
+test('raw route geometry counts actual turns, ignores zero segments and hidden routes across families', () => {
+  const f = toFinite
+  const layout: RenderedLayout = { version: 1, kind: 'class', nodes: [], groups: [], bounds: { w: f(100), h: f(50) }, edges: [
+    { id: 'visible', from: 'a', to: 'b', path: [[f(0), f(0)], [f(10), f(0)], [f(10), f(0)], [f(20), f(0)], [f(20), f(10)], [f(30), f(10)]] },
+    { id: 'hidden', from: 'a', to: 'b', visibility: 'hidden', path: [[f(0), f(0)], [f(50), f(0)], [f(50), f(50)]] },
+  ] }
+  expect(measureQuality(layout).routeGeometry).toEqual({ bends: 2, length: 40, area: 5000 })
+})
+
 const GENERATED_FLOWCHART_CORPUS = [
   { nodeCount: 20, layers: 5, rows: 4 },
   { nodeCount: 50, layers: 10, rows: 5 },
@@ -95,6 +104,16 @@ describe('quality metrics — deterministic', () => {
     const a = measureQuality(layoutMermaid(p.value))
     const b = measureQuality(layoutMermaid(p.value))
     expect(a).toEqual(b)
+  })
+
+  test('reports shared parallel and opposing ink separately from proper crossings', () => {
+    const forward: RenderedLayout['edges'][number] = { id: 'ab', from: 'a', to: 'b', path: [[f(0), f(0)], [f(100), f(0)]] }
+    const reverse: RenderedLayout['edges'][number] = { id: 'cd', from: 'c', to: 'd', path: [[f(90), f(0)], [f(10), f(0)]] }
+    const layout: RenderedLayout = { version: 1, kind: 'flowchart', nodes: [], groups: [], edges: [forward, reverse], bounds: { w: f(200), h: f(100) } }
+    expect(measureQuality(layout)).toMatchObject({ edgeCrossings: 0, routeOverlaps: { parallel: 0, opposing: 1 } })
+    expect(measureQuality({ ...layout, edges: [forward, { ...forward, id: 'ab2' }] }).routeOverlaps).toEqual({ parallel: 1, opposing: 0 })
+    expect(measureQuality({ ...layout, edges: [forward, { ...reverse, visibility: 'hidden' }] }).routeOverlaps).toEqual({ parallel: 0, opposing: 0 })
+    expect(measureQuality({ ...layout, edges: [forward, { ...reverse, path: [[f(200), f(0)], [f(100), f(0)]] }] }).routeOverlaps).toEqual({ parallel: 0, opposing: 0 })
   })
 
   test('crossings = 0 on a trivial linear graph', () => {

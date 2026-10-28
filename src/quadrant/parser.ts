@@ -128,8 +128,9 @@ function quadrantTextError(text: string, authored = false): string | undefined {
 }
 
 /** Quadrant text as source: bare where Mermaid reads it so, else one "…" string. */
-export function quadrantTextSource(text: string): string {
-  return quadrantTextError(text) === undefined ? text : `"${text}"`
+export function quadrantTextSource(text: string, completeLabel = false): string {
+  const keyword = /(?:^|[^A-Za-z])(?:x-axis|y-axis|quadrant-[1-4]|quadrantChart|classDef|accTitle|accDescr|title)/i
+  return quadrantTextError(text) !== undefined || completeLabel && (text !== text.trim() || keyword.test(text)) ? `"${text}"` : text
 }
 
 /** Whether quadrantTextSource writes `text` as source Mermaid reads back:
@@ -137,7 +138,10 @@ export function quadrantTextSource(text: string): string {
 export function quadrantTextWritable(text: string): boolean {
   // At the start of a quoted value, %% consumes the opening quote in the
   // pinned lexer. Entity substitution would change our stored label.
-  return !text.startsWith('%%') && !text.includes('%%{') && (quadrantTextError(text) === undefined || !text.includes('"'))
+  const quoted = quadrantTextSource(text, true).startsWith('"')
+  // A quoted leading backtick enters the exclusive Markdown lexer state,
+  // whose token cannot contain a literal backtick. Bare backticks remain text.
+  return !text.startsWith('%%') && !text.includes('%%{') && !(quoted && text.startsWith('`')) && (!quoted || !text.includes('"'))
 }
 
 /** Where Mermaid's quadrant lexer rejects unquoted text: what it rejects. */

@@ -4,7 +4,7 @@ import type { FamilyPositionedProjectionContext, FamilyPositionedView } from '..
 import type { Finite, RenderedLayoutEdge, RenderedLayoutGroup, RenderedLayoutNode } from '../agent/types.ts'
 import { f, fSpan, boxRouteCertificate, retainedLabelBounds, retainedLabelGeometry } from './geometry.ts'
 import { ER_STYLE_DEFAULTS } from '../er/layout.ts'
-import { separateRelationshipLabels } from '../er/renderer.ts'
+import { separateRelationshipLabels, retainedErRelationshipLabels } from '../er/label-layout.ts'
 import { resolveRenderStyle } from '../styles.ts'
 
 export function projectErPositioned({ positioned, options }: FamilyPositionedProjectionContext<PositionedErDiagram>): FamilyPositionedView {
@@ -19,7 +19,9 @@ export function projectErPositioned({ positioned, options }: FamilyPositionedPro
     ...retainedLabelGeometry(e.labelBlock, e.x + e.width / 2, e.y + e.headerHeight / 2, { ...e, height: e.headerHeight }),
   }))
   const boxById = new Map(positioned.entities.map(e => [e.id, { x: e.x, y: e.y, width: e.width, height: e.height }]))
-  const labelPositions = separateRelationshipLabels(positioned, resolveRenderStyle({}, ER_STYLE_DEFAULTS))
+  const retained = retainedErRelationshipLabels(positioned)
+  if (positioned.labelPlacement === 'shaft-aware' && !retained) throw new Error('ER_LABEL_LAYOUT_MISSING: project the complete native family layout artifact')
+  const labelPositions = retained ?? separateRelationshipLabels(positioned, resolveRenderStyle({}, ER_STYLE_DEFAULTS))
   const edges: RenderedLayoutEdge[] = positioned.relationships.map((r, i) => {
     const at = labelPositions.get(r)
     return {

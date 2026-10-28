@@ -1,3 +1,7 @@
+import type { ZenUMLBody, ZenUMLMutationOp } from '../zenuml/native-types.ts'
+export type { ZenUMLBody, ZenUMLMutationOp, ZenUMLParticipant, ZenUMLStatement, ZenUMLBranch } from '../zenuml/native-types.ts'
+import type { EventModelingBody, EventModelingMutationOp } from '../eventmodeling/types.ts'
+export type { EventModelingBody, EventModelingMutationOp, EventFrame, EventFrameType, EventData, EventSpecification } from '../eventmodeling/types.ts'
 import type { C4Body, C4MutationOp } from '../c4/types.ts'
 import type { LabelContent } from '../shared/display-text.ts'
 
@@ -45,7 +49,7 @@ export function err<E, T = never>(error: E): Result<T, E> {
 
 // ---- Families -------------------------------------------------------------
 
-export type DiagramKind = 'flowchart' | 'state' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart' | 'architecture' | 'pie' | 'quadrant' | 'gantt' | 'mindmap' | 'gitgraph' | 'radar' | 'sankey' | 'c4' | 'packet' | 'kanban' | 'requirement' | 'treemap' | 'ishikawa' | 'block'
+export type DiagramKind = 'flowchart' | 'state' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart' | 'architecture' | 'pie' | 'quadrant' | 'gantt' | 'mindmap' | 'gitgraph' | 'radar' | 'sankey' | 'c4' | 'packet' | 'kanban' | 'requirement' | 'treemap' | 'ishikawa' | 'block' | 'eventmodeling' | 'zenuml'
 
 /** Runtime extensions are open but must pass the registry's namespace validator. */
 export type ExternalFamilyId = `family:${string}`
@@ -946,6 +950,8 @@ export type DiagramBody =
   | TreemapBody
   | IshikawaBody
   | BlockBody
+  | EventModelingBody
+  | ZenUMLBody
   /**
    * Opaque body — the parser understood the family header but encountered
    * unmodeled syntax. `source` is the ORIGINAL body with indentation, blank
@@ -1082,6 +1088,8 @@ export type PacketValidDiagram = ValidDiagram & { body: PacketBody }
 export type KanbanValidDiagram = ValidDiagram & { body: KanbanBody }
 export type RequirementValidDiagram = ValidDiagram & { body: RequirementBody }
 export type TreemapValidDiagram = ValidDiagram & { body: TreemapBody }
+export type ZenUMLValidDiagram = ValidDiagram & { body: ZenUMLBody }
+export type EventModelingValidDiagram = ValidDiagram & { body: EventModelingBody }
 export type IshikawaValidDiagram = ValidDiagram & { body: IshikawaBody }
 export type BlockValidDiagram = ValidDiagram & { body: BlockBody }
 export type MutableValidDiagram =
@@ -1107,6 +1115,8 @@ export type MutableValidDiagram =
   | RequirementValidDiagram
   | TreemapValidDiagram
   | IshikawaValidDiagram
+  | EventModelingValidDiagram
+  | ZenUMLValidDiagram
   | BlockValidDiagram
 
 export function asPacket(d: ParsedDiagram): PacketValidDiagram | null {
@@ -1582,6 +1592,8 @@ export type AnyMutationOp =
   | TreemapMutationOp
   | IshikawaMutationOp
   | BlockMutationOp
+  | EventModelingMutationOp
+  | ZenUMLMutationOp
 
 // ---- Branded Finite -------------------------------------------------------
 
@@ -1615,6 +1627,7 @@ export type Tier3WarningCode =
   | 'COMMENT_DROPPED'
   | 'UNSUPPORTED_SYNTAX'
   | 'CONTENT_DROPPED_ON_ROUNDTRIP'
+  | 'EVENT_SOURCE_TYPE'
   | 'INEFFECTIVE_CONFIG'
   | 'LOW_CONTRAST'
   | 'LABELS_HIDDEN'
@@ -1699,6 +1712,7 @@ export type LayoutWarning =
    * sequence-era fields. Accepting-and-ignoring silently misleads migrating
    * users; this lint says so. Never flips verify.ok.
    */
+  | { code: 'EVENT_SOURCE_TYPE'; node: NodeId; source: NodeId; message: string }
   | { code: 'INEFFECTIVE_CONFIG'; field: string; message: string }
   /** Authored paint remains authoritative but fails a measurable contrast
    * threshold against the final resolved background. Advisory: never repaints. */
@@ -1768,6 +1782,7 @@ export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   COMMENT_DROPPED: 'warning',
   UNSUPPORTED_SYNTAX: 'warning',
   CONTENT_DROPPED_ON_ROUNDTRIP: 'warning',
+  EVENT_SOURCE_TYPE: 'warning',
   INEFFECTIVE_CONFIG: 'warning',
   LOW_CONTRAST: 'warning',
   LABELS_HIDDEN: 'warning',
@@ -1806,6 +1821,7 @@ export const WARNING_TIER: Record<WarningCode, WarningTier> = {
   COMMENT_DROPPED: 'lint',
   UNSUPPORTED_SYNTAX: 'lint',
   CONTENT_DROPPED_ON_ROUNDTRIP: 'lint',
+  EVENT_SOURCE_TYPE: 'lint',
   INEFFECTIVE_CONFIG: 'lint',
   LOW_CONTRAST: 'lint',
   LABELS_HIDDEN: 'lint',
@@ -1884,6 +1900,8 @@ export interface RenderedLayoutNode {
   role?: 'box' | 'mark' | 'labelled-mark'
 }
 export interface RenderedLayoutEdge {
+  /** Lexical fragment that owns this relation, when the family retains scopes. */
+  parentId?: GroupId
   id: EdgeId
   from: NodeId
   to: NodeId
@@ -1989,6 +2007,16 @@ export interface ValidDiagramPayload {
     | TreemapBody
     | IshikawaBody
     | BlockBody
+    | EventModelingBody
+    | ZenUMLBody
     | ExtensionDiagramBody
     | { kind: 'opaque'; family: DiagramKind; source: string; diagnostic?: { code: 'GITGRAPH_DUPLICATE_COMMIT_ID'; id: string } }
+}
+
+export function asEventModeling(d: ParsedDiagram): EventModelingValidDiagram | null {
+  return d.body.kind === 'eventmodeling' ? d as EventModelingValidDiagram : null
+}
+
+export function asZenUML(d: ParsedDiagram): ZenUMLValidDiagram | null {
+  return d.body.kind === 'zenuml' ? d as ZenUMLValidDiagram : null
 }

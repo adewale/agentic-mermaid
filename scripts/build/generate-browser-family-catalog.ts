@@ -95,16 +95,16 @@ export default descriptorData
 `
   writeGenerated(join(GENERATED, 'descriptors', `${descriptor.id}.ts`), source)
   const symbol = descriptor.id.toUpperCase()
-  const agentModule = ['packet', 'kanban', 'requirement', 'block', 'treemap', 'ishikawa'].includes(descriptor.id) ? 'stable-family-adapters' : 'families-builtin'
+  const agentModule = ['packet', 'kanban', 'requirement', 'block', 'treemap', 'ishikawa'].includes(descriptor.id) ? 'stable-family-source-hooks' : 'families-source-hooks'
   writeGenerated(join(GENERATED, 'verified', `${descriptor.id}.ts`), `${generatedHeader()}
-import { ${symbol}_AGENT_HOOKS } from '../../../agent/${agentModule}.ts'
+import { ${symbol}_SOURCE_HOOKS } from '../../../agent/${agentModule}.ts'
 import { ${symbol}_SVG_HOOKS } from '../../../svg-family-hooks/${descriptor.id}.ts'
 import { installBuiltinFamily } from '../../../agent/family-registry.ts'
 import { deferredTerminalRenderer } from '../../verified-family.ts'
 
 export default function install() {
   return installBuiltinFamily('${descriptor.id}', {
-    ...${symbol}_AGENT_HOOKS,
+    ...${symbol}_SOURCE_HOOKS,
     ...${symbol}_SVG_HOOKS,
     renderAscii: deferredTerminalRenderer(() => import('../terminal/${descriptor.id}.ts')),
   })

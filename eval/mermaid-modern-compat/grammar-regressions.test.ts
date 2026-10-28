@@ -9,6 +9,7 @@ import { inspectAgenticGrammar } from './grammar-agentic.ts'
 import { projectReferenceSemantic } from './grammar-native-semantics.ts'
 import { startGrammarReference } from './grammar-reference.ts'
 import { admitCurrentReference, startModernReference } from './reference.ts'
+import { nativeMeaningChanged, triageGrammarWitness, type ReviewedGrammarWitness } from './grammar-triage.ts'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const root = join(here, '../..')
@@ -20,6 +21,77 @@ const am = (await import(pathToFileURL(join(target, 'src/agent/core.ts')).href))
 const modern = startModernReference(referenceDir)
 const grammar = startGrammarReference(referenceDir, upstream)
 const results: unknown[] = []
+
+test('ZenUML uses the exact real core parser for valid, invalid and header-mutated selected payloads', async () => {
+  const preparation = await grammar.prepare('zenuml', 'zenuml\nA->B: valid')
+  expect(preparation).toMatchObject({ engine: 'zenuml-core', parserIdentity: { parser: '@zenuml/core@3.47.9', addon: '@mermaid-js/mermaid-zenuml@1.0.1' } })
+  for (const [source, accepted] of [['zenuml', true], ['zenuml\nA->B: valid', true], ['zenuml\nA.call() {', false], ['zenuml\nif(ok) {\nA->B: missing close', false]] as const) {
+    const regular = await modern.parse(source), selected = await grammar.parse('zenuml', source), control = await grammar.control('zenuml', source)
+    results.push({ name: 'Real pinned ZenUML parser control', source, expectedAccepted: accepted, regular, selected, control })
+    expect(regular.ok).toBe(accepted)
+    expect(selected.accepted).toBe(accepted)
+    expect(control.accepted).toBe(accepted)
+    expect(selected.parserIdentity?.parser).toBe('@zenuml/core@3.47.9')
+    for (const observation of [selected.tokens, selected.actions, selected.ast]) expect(observation.status).toBe('unavailable')
+    if (!regular.ok) expect(regular.error).toContain('@zenuml/core@3.47.9 rejected source')
+  }
+  for (const [source, accepted] of [['brokenHeader\nA->B: valid payload', true], ['brokenHeader\nA.call() {', false]] as const) {
+    const selected = await grammar.parse('zenuml', source)
+    results.push({ name: 'Selected ZenUML payload with changed envelope header', source, expectedAccepted: accepted, selected })
+    expect(selected.accepted).toBe(accepted)
+    expect(selected.preparedSource).toContain('A')
+    expect(selected.engine).toBe('zenuml-core')
+  }
+})
+
+test('grammar triage checks canonical output even for a reviewed generous read', async () => {
+  await grammar.prepare('flowchart', 'flowchart LR\nA --> B')
+  const witness: ReviewedGrammarWitness = { family: 'flowchart', source: 'graph TD;A[Hello]', disposition: 'reader-extension', reason: 'Reviewed compact statements', origins: [] }
+  const result = await triageGrammarWitness(witness, async (family, source) => {
+    const reply = await grammar.parse(family, source)
+    // A reference rejection is a contract failure even if these source bytes
+    // have already been reviewed. Keep this control independent of a live bug.
+    return source === witness.source ? reply : { ...reply, accepted: false, error: 'Rejected canonical control' }
+  }, witness)
+  expect(result.defects.map(item => item.kind)).toEqual(['portable-export'])
+  expect(result.defects[0]!.trackedBy).toBeUndefined()
+})
+
+test('grammar triage separates wrapper preservation and diagnosed source-only reads', async () => {
+  for (const [family, source, disposition] of [
+    ['timeline', '---\ng:\n:\n---\ntimeline\nC', 'reader-extension'],
+    ['sequence', 'sequenceDiagram\ne->right of:', 'diagnosed-limitation'],
+  ] as const) {
+    await grammar.prepare(family, getFamily(family)!.example)
+    const result = await triageGrammarWitness({ family, source }, (selected, text) => grammar.parse(selected, text))
+    expect(result.defects).toEqual([])
+    expect(result.disposition).toBe(disposition)
+    if (disposition === 'diagnosed-limitation') expect(result.warningCodes).toContain('UNSUPPORTED_SYNTAX')
+  }
+})
+
+test('native meaning comparison retains labels, effective Block shapes and actual public identities', () => {
+  const observed = (family: string, source: string) => inspectAgenticGrammar(family, source).native.observation
+  expect(nativeMeaningChanged('class', observed('class', 'classDiagram\nclass A["A"]'), observed('class', 'classDiagram\nclass A["B"]'))).toBe(true)
+  const implicit = 'block\nblock%%:\nblock_generated_2\nend'
+  const parsed = am.parseRegisteredMermaid(implicit)
+  if (!parsed.ok) throw new Error('Block control must parse')
+  const written = am.serializeMermaid(parsed.value, { wrapper: 'canonical' })
+  expect(nativeMeaningChanged('block', observed('block', implicit), observed('block', written))).toBe(false)
+  expect(nativeMeaningChanged('block', observed('block', 'block\nA'), observed('block', 'block\nA(("A"))'))).toBe(true)
+  expect(nativeMeaningChanged('block', observed('block', 'block\nblock_generated_2'), observed('block', 'block\nblock_generated_3'))).toBe(true)
+})
+
+test('grammar triage agrees with public source rendering on typed/native admission', async () => {
+  const native = await import(pathToFileURL(join(target, 'src/index.ts')).href) as typeof import('../../src/index.ts')
+  for (const [family, source] of [['ishikawa', 'ishikawa%%{\nm'], ['sankey', 'sankey\nsankey\nd,n,2']] as const) {
+    await grammar.prepare(family, getFamily(family)!.example)
+    let renders = false
+    try { renders = native.renderMermaidSVG(source).includes('<svg') } catch { /* Public admission is the independent expectation. */ }
+    const result = await triageGrammarWitness({ family, source }, (selected, text) => grammar.parse(selected, text))
+    expect(result.defects.some(item => item.kind === 'native-admission')).toBe(!renders)
+  }
+})
 
 test('Class preserves authored method strings that Mermaid HTML sanitization consumes', async () => {
   const native = await import(pathToFileURL(join(target, 'src/index.ts')).href) as typeof import('../../src/index.ts')

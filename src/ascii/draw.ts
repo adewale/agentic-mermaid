@@ -27,7 +27,7 @@ import { measuredText, terminalCellConnections, type MeasuredTerminalText, type 
 import type { PathOccupancy } from './occupancy.ts'
 import { getPath, mergePath } from './pathfinder.ts'
 import { allocateFacePort } from './terminal-geometry.ts'
-import { GRAPH_EDGE_APPROACH, allocatedGraphPort, graphEndpointOf, type GraphEndpoint } from './graph-capacity.ts'
+import { graphEdgeEscape, allocatedGraphPort, graphEndpointOf, type GraphEndpoint } from './graph-capacity.ts'
 
 /** Protect admitted headers and cards before routing in terminal cells. The
  * grid router cannot see text measured inside a container's header band. */
@@ -1421,6 +1421,7 @@ function planAllocatedGraphRoutes(graph: AsciiGraph, protectedCells: PathOccupan
   const markerCells = new Map<string, Set<AsciiEdge>>()
   const approaches = new Map<string, { edge: AsciiEdge; start: boolean }>()
   const overlapping = new Map<AsciiEdge, DrawingCoord>()
+  const obstructed = new Map<AsciiEdge, DrawingCoord>()
   let regions: ReturnType<Canvas['regions']> | undefined
   const step = (point: DrawingCoord, direction: Direction, count: number) => ({ x: point.x + (direction.x - 1) * count, y: point.y + (direction.y - 1) * count })
   const inside = (box: Rectangle, x: number, y: number) => x >= box.x - (box.height > 1 ? 1 : 0) && x < box.x + box.width && y >= box.y && y < box.y + box.height
@@ -1439,8 +1440,9 @@ function planAllocatedGraphRoutes(graph: AsciiGraph, protectedCells: PathOccupan
       continue
     }
     ends.set(edge, [start, end])
-    for (const [isStart, point, direction] of [[true, start, edge.startDir], [false, end, edge.endDir]] as const) for (let distance = 0; distance <= GRAPH_EDGE_APPROACH; distance++) {
+    for (const [isStart, point, direction] of [[true, start, edge.startDir], [false, end, edge.endDir]] as const) for (let distance = 0; distance <= graphEdgeEscape(edge, isStart); distance++) {
       const marker = step(point, direction, distance), key = `${marker.x},${marker.y}`
+      if (distance > 0 && protectedCells.has(key) && !obstructed.has(edge)) obstructed.set(edge, marker)
       // Fixed approach paint is outside A*: a marker one cell off the face
       // must not replace a retained shaft, marker or complete label rectangle.
       const retainedCell = retained.cell(marker.x, marker.y)
@@ -1459,14 +1461,21 @@ function planAllocatedGraphRoutes(graph: AsciiGraph, protectedCells: PathOccupan
     }
   }
   if (conflicts.size) return conflicts
+  for (const [edge, point] of obstructed) {
+    const [start, end] = ends.get(edge)!
+    edge.cellRoute = { points: [] }
+    recordGraphPorts(graph, edge, start, end)
+    ends.delete(edge)
+    graph.canvas.report({ code: 'TERMINAL_GEOMETRY_COLLISION', feature: `edge-lane:${terminalEdgeOwner(graph, edge).id}`, cell: { column: point.x, row: point.y }, message: 'Allocated physical ports have an approach blocked by protected terminal content before routing.' })
+  }
   // Separate valid faces can still have intersecting exterior approaches,
   // especially across concentric frames. Admit the complete set together.
-  for (const [edge, point] of overlapping) {
+  for (const [edge, point] of overlapping) if (ends.has(edge)) {
     edge.cellRoute = { points: [] }; ends.delete(edge)
     graph.canvas.report({ code: 'TERMINAL_GEOMETRY_COLLISION', feature: `edge-approach:${terminalEdgeOwner(graph, edge).id}`, cell: { column: point.x, row: point.y }, message: 'Allocated physical endpoint approach corridors overlap before routing.' })
   }
-  if (overlapping.size) for (const [key, owners] of markerCells) {
-    for (const edge of owners) if (overlapping.has(edge)) owners.delete(edge)
+  if (overlapping.size || obstructed.size) for (const [key, owners] of markerCells) {
+    for (const edge of owners) if (overlapping.has(edge) || obstructed.has(edge)) owners.delete(edge)
     if (!owners.size) markerCells.delete(key)
   }
   for (const edge of edges) {
@@ -1511,7 +1520,7 @@ function planAllocatedGraphRoutes(graph: AsciiGraph, protectedCells: PathOccupan
   for (const edge of edges) {
     if (!ends.has(edge)) continue
     const [start, end] = ends.get(edge)!, rectangle = rectangles.get(edge)
-    const exit = step(start, edge.startDir, GRAPH_EDGE_APPROACH), entry = step(end, edge.endDir, GRAPH_EDGE_APPROACH)
+    const exit = step(start, edge.startDir, graphEdgeEscape(edge, true)), entry = step(end, edge.endDir, graphEdgeEscape(edge, false))
     const ownMarkers = new Set([start, end, step(start, edge.startDir, 1), step(end, edge.endDir, 1)].map(point => `${point.x},${point.y}`))
     const obstacles: PathOccupancy = {
       extent,

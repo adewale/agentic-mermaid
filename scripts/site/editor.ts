@@ -17,6 +17,8 @@
  *   - editor/html/ – HTML partials (topbar, left-panel, right-panel)
  */
 
+import { runtimeRenderContractPlugin } from '../build/runtime-render-contract.ts'
+import { minify } from '@swc/core'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
@@ -141,7 +143,17 @@ async function readHtmlPartials(
   leftPanel: string
   rightPanel: string
 }> {
-  const [topbar, leftPanel, rightPanel] = await Promise.all([readFile('html/topbar.html'), readFile('html/left-panel.html'), readFile('html/right-panel.html')])
+  // Compact static markup before inserting catalogs or runtime code. Preserve
+  // preformatted and raw-text elements, including any literal comment text.
+  const readPartial = async (path: string): Promise<string> => (await readFile(path)).replace(
+    /<(pre|textarea|script|style)\b[^>]*>[\s\S]*?<\/\1\s*>|<!--[\s\S]*?-->|^[\t ]+(?=<)/gim,
+    (markup, rawTag) => rawTag ? markup : '',
+  )
+  const [topbar, leftPanel, rightPanel] = await Promise.all([
+    readPartial('html/topbar.html'),
+    readPartial('html/left-panel.html'),
+    readPartial('html/right-panel.html'),
+  ])
   return {
     topbar: topbar.replace('{{THEME_ITEMS}}', themeItems).replace('{{STYLE_ITEMS}}', styleItemsHtml()).replace('{{PNG_DEFAULT_SCALE}}', String(PNG_DEFAULT_SCALE)).replace('{{PNG_SCALE_ITEMS}}', pngScaleItemsHtml()),
     leftPanel,
@@ -150,6 +162,20 @@ async function readHtmlPartials(
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
+
+function sourceOnlyFamilyRegistry(): Bun.BunPlugin {
+  return {
+    name: 'source-only-editor-family-registry',
+    setup(build) {
+      // Closed editor workers accept source/options/output operations. Their
+      // loaders install source hooks through the ordinary validated registry.
+      build.onResolve({ filter: /(?:^|\/)families\.ts$/ }, args => {
+        const original = fileURLToPath(new URL('../../src/agent/families.ts', import.meta.url))
+        return join(args.resolveDir, args.path) === original ? { path: fileURLToPath(new URL('../../src/agent/family-registry.ts', import.meta.url)) } : undefined
+      })
+    },
+  }
+}
 
 async function generateEditorHtml(): Promise<string> {
   const fontPrefix = process.env.AM_EDITOR_FONT_PREFIX || 'assets/fonts/'
@@ -165,14 +191,17 @@ async function generateEditorHtml(): Promise<string> {
       outdir: runtimeDirectory,
       naming: { entry: '[name]-[hash].js', chunk: 'chunk-[hash].js' },
       plugins: [
+        // This worker accepts render/verify/terminal requests only. The
+        // main-thread adapter owns option inspection and validation.
+        runtimeRenderContractPlugin({ schemaDocumentation: false, conformanceObservations: false, sourceOnlySceneAdmission: true }),
+        sourceOnlyFamilyRegistry(),
         {
           name: 'hosted-worker-dependencies',
           setup(build) {
-            build.onResolve({ filter: /(?:^|\/)families\.ts$/ }, args => {
-              const original = fileURLToPath(new URL('../../src/agent/families.ts', import.meta.url))
-              return join(args.resolveDir, args.path) === original ? { path: fileURLToPath(new URL('../../src/agent/family-registry.ts', import.meta.url)) } : undefined
-            })
             build.onResolve({ filter: /(?:^|\/)elk-constructor\.ts$/ }, () => ({ path: fileURLToPath(new URL('../../src/elk-constructor.lazy.ts', import.meta.url)) }))
+          build.onResolve({ filter: /(?:^|\/)indexed-forest\.ts$/ }, () => ({ path: fileURLToPath(new URL('../../src/experimental/indexed-forest.lazy.ts', import.meta.url)) }))
+          build.onResolve({ filter: /(?:^|\/)agentic-layered\.ts$/ }, args => args.kind === 'dynamic-import' ? undefined
+            : { path: fileURLToPath(new URL('../../src/layout/agentic-layered.lazy.ts', import.meta.url)) })
           },
         },
       ],
@@ -183,29 +212,32 @@ async function generateEditorHtml(): Promise<string> {
   }
   const buildResult = await Bun.build({
     entrypoints: [fileURLToPath(new URL(runtimeDirectory ? '../../src/browser-hosted.ts' : '../../src/browser-standalone.ts', import.meta.url))],
+    // The private facade uses schema properties for its field list and the
+    // canonical validator for admission; it never presents schema prose.
+    // Its workers accept only source/options/output operations, including
+    // render/verify, terminal and PNG. Public Scene/Node/IIFE admission and
+    // published inspectors retain their full contracts.
+    plugins: [runtimeRenderContractPlugin({ schemaDocumentation: false, conformanceObservations: false, familyEditorMetadata: Boolean(runtimeDirectory), sourceOnlySceneAdmission: true }),
+      sourceOnlyFamilyRegistry(),
+      ...(!runtimeDirectory ? [{
+        name: 'standalone-worker-families',
+        setup(build: Bun.PluginBuilder) {
+          build.onResolve({ filter: /(?:^|\/)verified-loaders\.ts$/ }, args => {
+            const original = fileURLToPath(new URL('../../src/browser-lazy/generated/verified-loaders.ts', import.meta.url))
+            return join(args.resolveDir, args.path) === original ? { path: fileURLToPath(new URL('../../src/browser-preview-eager-families.ts', import.meta.url)) } : undefined
+          })
+        },
+      }] : []),
+    ],
     target: 'browser',
     format: 'esm',
     minify: true,
-    ...(runtimeDirectory
-      ? {
-          define: { AM_PREVIEW_WORKER_URL: JSON.stringify(workerUrl) },
-          splitting: true,
-          outdir: runtimeDirectory,
-          naming: { entry: '[name]-[hash].js', chunk: 'chunk-[hash].js' },
-        }
-      : {
-          plugins: [
-            {
-              name: 'standalone-worker-families',
-              setup(build) {
-                build.onResolve({ filter: /(?:^|\/)verified-loaders\.ts$/ }, args => {
-                  const original = fileURLToPath(new URL('../../src/browser-lazy/generated/verified-loaders.ts', import.meta.url))
-                  return join(args.resolveDir, args.path) === original ? { path: fileURLToPath(new URL('../../src/browser-preview-eager-families.ts', import.meta.url)) } : undefined
-                })
-              },
-            },
-          ],
-        }),
+    ...(runtimeDirectory ? {
+      define: { AM_PREVIEW_WORKER_URL: JSON.stringify(workerUrl) },
+      splitting: true,
+      outdir: runtimeDirectory,
+      naming: { entry: '[name]-[hash].js', chunk: 'chunk-[hash].js' },
+    } : {}),
   })
   if (!buildResult.success) {
     console.error('Bundle failed:', buildResult.logs)
@@ -219,7 +251,24 @@ async function generateEditorHtml(): Promise<string> {
     if (!entry) throw new Error('Hosted editor runtime entry not found')
     bundleJs = `import ${JSON.stringify(`/editor/runtime/${basename(entry.path)}`)};`
   } else {
-    bundleJs = await buildResult.outputs[0]!.text()
+    // Compress the complete inline module after omitting unpublished
+    // conformance observations and unused schema prose. Retain validation,
+    // both solvers and the terminal adapter; keep legal comments and escape
+    // script delimiters.
+    const compressed = await minify(await buildResult.outputs[0]!.text(), {
+      ecma: 2022, module: true, mangle: true,
+      compress: {
+        defaults: false, join_vars: true, evaluate: true, unused: true, keep_fargs: true,
+        dead_code: true, conditionals: true, booleans: true, comparisons: true,
+        reduce_vars: true, sequences: true,
+        collapse_vars: true, if_return: true, properties: true,
+        side_effects: true, loops: true, switches: true, typeofs: true,
+        inline: 1, passes: 2,
+      },
+      format: { comments: 'some', inlineScript: true },
+    })
+    if (!compressed.code) throw new Error('Standalone runtime compression produced no module')
+    bundleJs = compressed.code
   }
   console.log(`Browser bundle: ${(bundleJs.length / 1024).toFixed(1)} KB`)
 

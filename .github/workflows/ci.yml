@@ -56,6 +56,151 @@ jobs:
       - name: Run test shard
         run: bun run test -- --shard=${{ matrix.shard }} --parallel=2
 
+  layout-evidence:
+    name: Layout backend review evidence
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - name: Render graph backend comparison
+        env:
+          LAYOUT_REVIEW: ${{ runner.temp }}/layout-backends
+        run: |
+          mkdir -p "$LAYOUT_REVIEW"
+          bun -e '
+            import { renderMermaidPNGWithReceipt, renderMermaidSVGWithReceipt } from "./src/agent/index.ts";
+            import { flowchartTree } from "./eval/shared/graph-fixtures.ts";
+            const fixtures = [
+              ["fan-in-fan-out", await Bun.file("eval/layout-compare/fixtures/fan-in-fan-out.mmd").text()],
+              ["nested-wide-titles", await Bun.file("eval/layout-compare/fixtures/nested-wide-titles.mmd").text()],
+              ["cyclic-labelled-11", await Bun.file("eval/layout-compare/fixtures/cyclic-labelled-11.mmd").text()],
+              ["cyclic-labelled-10", await Bun.file("eval/layout-compare/fixtures/cyclic-labelled-10.mmd").text()],
+              ["cyclic-labelled-15", await Bun.file("eval/layout-compare/fixtures/cyclic-labelled-15.mmd").text()],
+              ["cyclic-labelled-19", await Bun.file("eval/layout-compare/fixtures/cyclic-labelled-19.mmd").text()],
+              ["cyclic-labelled-9", await Bun.file("eval/layout-compare/fixtures/cyclic-labelled-9.mmd").text()],
+              ["cyclic-labelled-13", await Bun.file("eval/layout-compare/fixtures/cyclic-labelled-13.mmd").text()],
+              ["cyclic-labelled-9-chains", await Bun.file("eval/layout-compare/fixtures/cyclic-labelled-9-chains.mmd").text()],
+              ["cyclic-labelled-15-chains", await Bun.file("eval/layout-compare/fixtures/cyclic-labelled-15-chains.mmd").text()],
+              ["cyclic-labelled-18-cuts", await Bun.file("eval/layout-compare/fixtures/cyclic-labelled-18-cuts.mmd").text()],
+              ["architecture-backends", await Bun.file("eval/layout-compare/fixtures/architecture-backends.mmd").text()],
+              ["class-backends", await Bun.file("eval/layout-compare/fixtures/class-backends.mmd").text()],
+              ["class-compound-backends", await Bun.file("eval/layout-compare/fixtures/class-compound-backends.mmd").text()],
+              ["er-backends", await Bun.file("eval/layout-compare/fixtures/er-backends.mmd").text()],
+              ["er-compound-backends", await Bun.file("eval/layout-compare/fixtures/er-compound-backends.mmd").text()],
+              ["requirement-backends", await Bun.file("eval/layout-compare/fixtures/requirement-backends.mmd").text()],
+              ["tree-300", flowchartTree(300)],
+              ["parallel-label-corridor", "flowchart BT\nn0 --> n6\nn0 -->|edge 4 xxxxxxx| n2\nn0 --> n6"],
+            ];
+            const directory = process.env.LAYOUT_REVIEW;
+            for (const [name, source] of fixtures) for (const backend of ["elk", "agentic"]) {
+              const options = { graphLayout: { backend }, security: "strict" };
+              const pngOptions = { ...options, ...(name === "tree-300" ? { fitTo: { width: 1600 } } : {}) };
+              const rendered = renderMermaidPNGWithReceipt(source, pngOptions);
+              const vector = renderMermaidSVGWithReceipt(source, options);
+              await Bun.write(`${directory}/${name}-${backend}.svg`, vector.svg);
+              await Bun.write(`${directory}/${name}-${backend}.png`, rendered.png);
+              await Bun.write(`${directory}/${name}-${backend}.json`, JSON.stringify({ source, options: pngOptions, receipt: rendered.receipt, svgOptions: options, svgReceipt: vector.receipt, review: name === "tree-300" ? "PNG is an overview; zoom the full SVG for leaf labels and route crossings." : "Inspect labels, arrows and route clearance." }, null, 2));
+            }
+          '
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: layout-backends-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/layout-backends/
+          retention-days: 14
+
+  layout-quality-evidence:
+    name: Generated layout diagnostic (advisory)
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+          no-cache: true
+      - run: bun install --frozen-lockfile
+      - name: Record every generated input and backend outcome
+        env:
+          EVIDENCE_DIR: ${{ runner.temp }}/generated-layouts
+        run: |
+          mkdir -p "$EVIDENCE_DIR"
+          mkdir -p "$EVIDENCE_DIR/corpus"
+          for backend in elk agentic; do
+            bun run eval/layout-compare/run.ts snapshot --graph-layout "$backend" \
+              --families flowchart,state,class,er,requirement,architecture --stress --label "$backend" \
+              --out "$EVIDENCE_DIR/corpus/$backend.json"
+          done
+          for start in 0 256 320; do
+            count=256
+            directory="$EVIDENCE_DIR"
+            if [ "$start" = 256 ]; then
+              count=64
+              directory="$EVIDENCE_DIR/development-256-319"
+            elif [ "$start" = 320 ]; then
+              count=64
+              directory="$EVIDENCE_DIR/development-320-383"
+            fi
+            mkdir -p "$directory"
+            for backend in elk agentic; do
+              bun run eval/layout-compare/run.ts snapshot --graph-layout "$backend" \
+                --generated-start "$start" --generated-count "$count" --label "$backend" \
+                --out "$directory/$backend.json"
+            done
+          done
+          for start in 0 64 128 192; do
+            end=$((start + 63))
+            directory="$EVIDENCE_DIR/independent-sha256-counter-v1-$start-$end"
+            mkdir -p "$directory"
+            for backend in elk agentic; do
+              bun run eval/layout-compare/run.ts snapshot --graph-layout "$backend" \
+                --generated-kind sha256-counter-v1 --generated-start "$start" --generated-count 64 --label "$backend" \
+                --out "$directory/$backend.json"
+            done
+          done
+          for cache in off normal; do
+            cache_flag=0
+            features=text-spans
+            if [ "$cache" = normal ]; then
+              cache_flag=1
+              features=text-spans,position-cache
+            fi
+            AGENTIC_MERMAID_ELK_CACHE="$cache_flag" AGENTIC_MERMAID_EXPERIMENTS="$features" \
+              bun run eval/layout-compare/edit-run.ts --out "$EVIDENCE_DIR/edits-$cache.json"
+          done
+      - name: Compare final quality without declaring a performance winner
+        env:
+          EVIDENCE_DIR: ${{ runner.temp }}/generated-layouts
+        run: |
+          failed=0
+          for directory in "$EVIDENCE_DIR/corpus" "$EVIDENCE_DIR" "$EVIDENCE_DIR/development-256-319" "$EVIDENCE_DIR/development-320-383" "$EVIDENCE_DIR/independent-sha256-counter-v1-0-63" "$EVIDENCE_DIR/independent-sha256-counter-v1-64-127" "$EVIDENCE_DIR/independent-sha256-counter-v1-128-191" "$EVIDENCE_DIR/independent-sha256-counter-v1-192-255"; do
+            if ! bun run eval/layout-compare/run.ts report --before "$directory/elk.json" \
+              --after "$directory/agentic.json" --out "$directory/report.html"; then
+              failed=1
+            fi
+          done
+          exit "$failed"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: generated-layouts-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/generated-layouts/
+          retention-days: 14
+
   quality:
     name: Quality gates
     runs-on: ubuntu-latest
@@ -257,6 +402,10 @@ jobs:
           npm install --global bun@1.4.2
           test "$(bun --version)" = "1.4.2"
 
+      - name: Install GitHub CLI for payload label checks
+        if: ${{ matrix.suite == 'payload' && github.event_name == 'pull_request' }}
+        run: apt-get install -y --no-install-recommends gh
+
       - name: Setup Bun
         if: ${{ matrix.suite != 'browser' && matrix.suite != 'browser-site' && matrix.suite != 'payload' }}
         uses: oven-sh/setup-bun@v2
@@ -274,6 +423,10 @@ jobs:
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      - name: Install GitHub CLI for head-bound payload approvals
+        if: ${{ matrix.suite == 'payload' && github.event_name == 'pull_request' }}
+        run: apt-get update && apt-get install -y gh
 
       - name: Check the Playwright environment matches the installed package
         if: ${{ matrix.suite == 'browser' || matrix.suite == 'browser-site' || matrix.suite == 'payload' }}
@@ -295,10 +448,16 @@ jobs:
           HEAD_SHA: ${{ steps.pr-revisions.outputs.head }}
         run: |
           git fetch --no-tags origin "$BASE_SHA" "$HEAD_SHA"
-          if git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- src/layout-engine.ts src/layout src/layout-rubric.ts src/route-contracts.ts src/shape-clipping.ts src/shape-outline.ts src/class src/pie src/journey src/gitgraph src/radar src/xychart src/sequence src/architecture src/agent/families-builtin.ts src/svg-family-hooks/flowchart.ts src/parser.ts src/state src/er src/ascii src/block; then
+          if git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- scripts/pr-assets/meaning-preservation-evidence.ts src/layout-engine.ts src/layout src/layout-rubric.ts src/route-contracts.ts src/shape-clipping.ts src/shape-outline.ts src/class src/pie src/journey src/gitgraph src/radar src/xychart src/sequence src/architecture src/ishikawa src/sankey src/agent/families-builtin.ts src/svg-family-hooks/flowchart.ts src/parser.ts src/state src/er src/ascii src/block; then
             exit 0
           fi
-          bun run scripts/pr-assets/meaning-preservation-evidence.ts "$BASE_SHA" "$HEAD_SHA" bench-report/meaning-preservation compat-er-attribute-quotes compat-corpus-flowchart-94 compat-corpus-flowchart-95 compat-corpus-flowchart-96 compat-corpus-state-0 compat-corpus-state-1 compat-corpus-state-8 compat-corpus-state-14 compat-corpus-state-16 compat-corpus-state-17 compat-corpus-state-18 compat-corpus-state-19 compat-flowchart-membership compat-c4-named-label compat-state-floating-note compat-er-parent compat-sequence-wrap agent-flat-namespace agent-category-role agent-journey-visibility journey-literal-formatted-identity agent-gitgraph-rails agent-small-values compat-flowchart-block-label compat-sequence-spaced-metadata compat-class-identifiers compat-architecture-compact-edge compat-gitgraph-repeated-pick compat-ellipse compat-parallel-overlay compat-architecture-text-icon nightly-architecture-card-clearance terminal-block-protected-approaches terminal-state-distinct-contacts terminal-local-bundle terminal-local-labeled-trunk terminal-state-declaration-timing terminal-approach-envelopes flowchart-feedback-outward-contact compat-corpus-flowchart-98 native-priority-aj native-priority-an flowchart-cosmetic-circle-approach flowchart-peer-label-capacity flowchart-mixed-parallel-feedback rayner-xy-title-income-30000 rayner-xy-title-income-65673.88 rayner-xy-title-income-150000 rayner-architecture-local-pods-1-1-1 rayner-architecture-local-pods-2-2-0 architecture-alignment-components
+          bun run scripts/pr-assets/meaning-preservation-evidence.ts "$BASE_SHA" "$HEAD_SHA" bench-report/meaning-preservation compat-er-attribute-quotes compat-corpus-flowchart-94 compat-corpus-flowchart-95 compat-corpus-flowchart-96 compat-corpus-state-0 compat-corpus-state-1 compat-corpus-state-8 compat-corpus-state-14 compat-corpus-state-16 compat-corpus-state-17 compat-corpus-state-18 compat-corpus-state-19 compat-flowchart-membership compat-c4-named-label compat-state-floating-note compat-er-parent compat-sequence-wrap agent-flat-namespace agent-category-role agent-journey-visibility journey-literal-formatted-identity agent-gitgraph-rails agent-small-values compat-flowchart-block-label compat-sequence-spaced-metadata compat-class-identifiers compat-architecture-compact-edge compat-gitgraph-repeated-pick compat-ellipse compat-parallel-overlay compat-architecture-text-icon nightly-architecture-card-clearance terminal-block-protected-approaches terminal-state-distinct-contacts terminal-local-bundle terminal-local-labeled-trunk terminal-state-declaration-timing terminal-approach-envelopes flowchart-feedback-outward-contact compat-corpus-flowchart-98 native-priority-aj native-priority-an flowchart-cosmetic-circle-approach flowchart-peer-label-capacity flowchart-mixed-parallel-feedback rayner-xy-title-income-30000 rayner-xy-title-income-65673.88 rayner-xy-title-income-150000 rayner-architecture-local-pods-1-1-1 rayner-architecture-local-pods-2-2-0 architecture-alignment-components grammar-ishikawa-header grammar-sankey-repeated-header class-elk-authored-prefix class-elk-compound-collision class-elk-quoted-ancestry class-elk-empty-content class-elk-notes-only terminal-class-notes-only native-eventmodeling flowchart-curved-port-diagonal
+
+      - name: Capture native ZenUML Looks and configured browser controls
+        if: ${{ matrix.suite == 'payload' && github.event_name == 'pull_request' }}
+        run: |
+          bun run build
+          bun run scripts/pr-assets/zenuml-evidence.ts bench-report/meaning-preservation/zenuml
 
       - name: Retain diagram review images
         if: ${{ matrix.suite == 'payload' && github.event_name == 'pull_request' }}

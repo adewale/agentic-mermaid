@@ -1,7 +1,9 @@
 # System architecture — start here
 
 How the Agentic Mermaid engine fits together: a single top-down view of the
-whole system, distinct from the per-diagram-type design notes.
+whole system, distinct from the per-family design notes. The
+[shared vocabulary](../../api.md#vocabulary) distinguishes source objects,
+Scene parts and painted resolved primitives.
 
 ![Agentic Mermaid architecture: normalized source and an immutable resolved render request route through the FamilyDescriptor registry, a positioned-artifact waist, graphical and terminal projections, and one strict output-security boundary](./architecture.svg)
 
@@ -29,7 +31,7 @@ the same resolved appearance and report losses rather than silently ignoring
 graphical style. Typed parse, serialize, mutate, and verify hooks remain on the
 same family descriptor identity.
 
-Built-in native drawing writes SVG directly from typed mark fields without
+Built-in native drawing writes SVG directly from typed Scene part fields without
 retaining a Scene group tree. Public Scene adapters remain mutable; backend
 admission snapshots their own data before validation. The superseded private
 recipe interpreter from PR #433 has been removed after compatibility, runtime
@@ -50,6 +52,15 @@ produced *by* the system.
 
 ## Read next
 
+- [`layout-backends.md`](./layout-backends.md) — explicit ELK and Agentic graph producers, fallback evidence, and comparable measurements.
+- [`pr449-frontier-2026-10-23.md`](./pr449-frontier-2026-10-23.md) — current integration checks, historical ELK wins and losses, rejected experiments, and remaining qualification.
+- [`pr449-frontier-2026-10-23-evidence.md`](./pr449-frontier-2026-10-23-evidence.md) — how to inspect and verify the selected primary evidence packet.
+- [`pr449-current-measurements-2026-10-23.md`](./pr449-current-measurements-2026-10-23.md) — both hosted canaries, the qualified standalone repair, profiling results and subsequent rejected trials.
+- [`pr449-exact-subtraction-2026-10-23.md`](./pr449-exact-subtraction-2026-10-23.md) — completed C2 cost rejection, Class parity and CPU headroom, failed timing calibration, RSS attribution and current route-quality comparison.
+- [`pr449-forest-boundary-2026-10-23.md`](./pr449-forest-boundary-2026-10-23.md) — qualified forest delivery boundary, actual browser and callback proof, new failed timing/RSS controls, and current ELK wins and losses.
+- [`pr449-controls-2026-10-23.md`](./pr449-controls-2026-10-23.md) — complete selected RSS and hosted timing workers, original failed controls and portable verification.
+- [`pr449-gc-diagnostic-2026-10-23.md`](./pr449-gc-diagnostic-2026-10-23.md) — complete input-level memory/GC histories and bounded profiling questions, with observer limitations.
+- [`pr449-exact-subtraction-2026-10-23-evidence.md`](./pr449-exact-subtraction-2026-10-23-evidence.md) — coverage and verification of the distinct milestone and reliability packets.
 - [`route-contracts.md`](./route-contracts.md) — the flowchart routing engine (edge classification, direct-lane proofs, certifying straightener).
 - [`layout-rubric.md`](./layout-rubric.md) — the deterministic layout-quality rubric.
 - [`chart-honesty.md`](./chart-honesty.md) — what every family owes its reader (legible, contained, drawn-or-reported, style-invariant text; distinguishable peers; proportional quantities), measured on the rasterized output and bound to the registry.

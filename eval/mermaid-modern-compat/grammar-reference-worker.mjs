@@ -6,13 +6,14 @@ import { readFileSync, readdirSync, writeSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { createInterface } from 'node:readline';
 import { build } from 'esbuild';
+import { createZenUMLReference } from './zenuml-reference.mjs';
 
 const referenceDir = resolve(process.argv[2]);
 const upstreamDir = resolve(process.argv[3]);
 const requireReference = createRequire(join(referenceDir, 'package.json'));
 const { JSDOM } = requireReference('jsdom');
-const dom = new JSDOM('<!doctype html><html><body></body></html>');
-for (const key of ['window', 'document', 'navigator', 'HTMLElement', 'SVGElement', 'Element', 'Node', 'Option']) {
+const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'http://localhost/' });
+for (const key of ['window', 'document', 'navigator', 'HTMLElement', 'SVGElement', 'Element', 'Node', 'Option', 'location', 'localStorage']) {
   Object.defineProperty(globalThis, key, { configurable: true, value: dom.window[key] });
 }
 console.log = console.info = console.debug = console.warn = console.error = () => {};
@@ -55,6 +56,7 @@ export { getDiagram };
 const runtime = await import(`data:text/javascript;base64,${Buffer.from(releaseSource).toString('base64')}`);
 const mermaid = runtime.default;
 mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', logLevel: 'fatal' });
+const zen = createZenUMLReference(mermaid, JSON.parse(readFileSync(requireReference.resolve('mermaid/package.json'), 'utf8')).version);
 const langium = await import(import.meta.resolve('@mermaid-js/parser', coreUrl));
 
 function plain(value, seen = new Set(), depth = 0) {
@@ -164,6 +166,11 @@ function jisonParser(parser) {
 
 async function definition(type, exposedParser) {
   if (definitions.has(type)) return definitions.get(type);
+  if (type === 'zenuml') {
+    const value = { type, engine: 'zenuml-core', grammarSources: [] };
+    definitions.set(type, value);
+    return value;
+  }
   const parser = jisonParser(exposedParser);
   const factoryName = Object.keys(langium).find(name => name.startsWith('create') && name.endsWith('Services') && normalized(name.slice(6, -8)) === normalized(type));
   let services;
@@ -188,16 +195,17 @@ async function definition(type, exposedParser) {
 async function prepare(family, source) {
   // Preparation alone may parse a seed twice; assessed inputs execute the real
   // model builder once. Apply config so configured GitGraph seeds can load.
-  await mermaid.parse(source);
-  const diagram = await mermaid.mermaidAPI.getDiagramFromText(source);
+  if (family === 'zenuml') await zen.load();
+  const diagram = await zen.diagram(source);
   const value = await definition(diagram.type, diagram.parser);
   const { engine, grammarSources } = value;
   prepared.set(family, value);
   return {
     family, type: value.type, engine, grammarSources,
+    ...(engine === 'zenuml-core' ? { parserIdentity: zen.identity } : {}),
     tokenInstrumentation: engine === 'jison' ? 'actual parse lexer.lex stream' : engine === 'langium' ? 'same upstream Langium Lexer.tokenize on prepared input (separate syntax pass)' : engine === 'chevrotain' ? 'pinned upstream Chevrotain lexer on prepared input (separate syntax pass)' : 'unavailable: no exposed reference lexer',
-    actionInstrumentation: engine === 'jison' ? 'actual grammar yy method calls with original return values' : 'actual Mermaid model-population DB method calls; includes internal builder calls',
-    astInstrumentation: engine === 'langium' ? 'same upstream LangiumParser AST on prepared input (separate syntax pass)' : engine === 'chevrotain' ? 'actual Mermaid DB getAST plus pinned upstream CST parser' : 'unavailable: Jison grammars expose model actions, not a common AST',
+    actionInstrumentation: engine === 'zenuml-core' ? 'unavailable: public ZenUml.parse exposes acceptance/errorDetails only; the Mermaid addon parser is a no-op and is not an action oracle' : engine === 'jison' ? 'actual grammar yy method calls with original return values' : 'actual Mermaid model-population DB method calls; includes internal builder calls',
+    astInstrumentation: engine === 'zenuml-core' ? 'unavailable: public ZenUml.parse returns pass/errorDetails, not an AST' : engine === 'langium' ? 'same upstream LangiumParser AST on prepared input (separate syntax pass)' : engine === 'chevrotain' ? 'actual Mermaid DB getAST plus pinned upstream CST parser' : 'unavailable: Jison grammars expose model actions, not a common AST',
   };
 }
 
@@ -337,12 +345,19 @@ async function parse({ family, source, unobserved = false }) {
     actions: unavailable('The selected parser was not reached'),
     ast: unavailable(reference.engine === 'jison' ? 'Jison parser has a yy action interface, not a common AST' : 'No accepted AST observed'),
   };
+  if (reference.engine === 'zenuml-core') {
+    reply.parserIdentity = zen.identity;
+    reply.tokens = unavailable('The public ZenUml.parse API exposes no lexer stream');
+    reply.actions = unavailable('The public ZenUml.parse API exposes no builder actions; the Mermaid addon parser is a no-op');
+    reply.ast = unavailable('The public ZenUml.parse API returns pass/errorDetails, not an AST');
+  }
   try {
     const diagram = await runtime.parseSelectedGrammar(reference.type, source, unobserved ? undefined : async (type, parser, db, input, run) => {
       const selected = await definition(type, parser);
       reply.type = type;
       reply.engine = selected.engine;
       reply.grammarSources = selected.grammarSources;
+      if (selected.engine === 'zenuml-core') { reply.preparedSource = input; return run(); }
       return observe(selected, parser, db, input, run, reply);
     }, detected => {
       reply.detectedType = detected;
@@ -352,6 +367,13 @@ async function parse({ family, source, unobserved = false }) {
       return detected && familyOfType(detected) === familyOfType(reference.type) ? detected : undefined;
     });
     reply.type = diagram.type;
+    if (diagram.type === 'zenuml') {
+      // Recognized Zen headers are envelope syntax. A mutated header that
+      // remains in the selected input is given to the real core as payload;
+      // it cannot bypass validation through the addon's no-op parser.
+      reply.preparedSource = zen.payload(reply.preparedSource ?? diagram.text);
+      await zen.parsePayload(reply.preparedSource);
+    }
     reply.accepted = true;
     reply.snapshot = snapshot(diagram.db);
   } catch (error) { reply.error = String(error?.message ?? error).slice(0, 3000); }

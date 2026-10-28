@@ -1,0 +1,14 @@
+zenuml
+title Checkout
+Buyer as Customer
+API
+Store
+Buyer->API.placeOrder() {
+  Store.reserve()
+  if (inStock) {
+    return confirmation
+  } else {
+    return unavailable
+  }
+}
+API->Buyer: accepted

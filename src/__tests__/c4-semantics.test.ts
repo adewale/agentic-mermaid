@@ -20,23 +20,40 @@ function edit(body: C4Body, op: C4MutationOp): C4Body {
 
 describe('C4 authored semantics', () => {
   test('unchanged reader extensions use portable argument and title tokens', async () => {
-    const upstream = startUpstreamMermaid()
-    try {
-      for (const source of [
+    for (const source of [
         'C4Context\ntitle #\nPerson(A, "")',
         'C4Dynamic\ntitle ;\nContainer(A, "")',
         'C4Context\nPerson(A",", $tags="a")',
         'C4Context\nPerson_Ext(s"", ""\u2028)',
         'C4Context\nPerson(A, $tags=\u00a0"1")',
-      ]) {
+        'C4Context\naccDescr{}\nSystem(a, "A")',
+        'C4Deployment\nDeployment_Node(n, "Node") {\ntitle Nested\nContainer(a, "App")\n}',
+        'C4Deployment\nDeployment_Node(n, "Node") {\naccTitle: Accessible\nContainer(a, "App")\n}',
+        'C4Deployment\nDeployment_Node(n, "Node") {\naccDescr: Description\n}',
+        'C4Deployment\nDeployment_Node(n, "Node") {\naccDescr{}\n}',
+    ]) {
+      // C4's reference DB retains accessibility values between parses.
+      const upstream = startUpstreamMermaid()
+      try {
         const body = readC4Source(source)
         const written = renderC4(body)
+        if (body.accessibilityDescription === '') expect(body.diagnostics.some(item => item.syntax === 'c4_empty_accessibility_description')).toBe(true)
         expect(await upstream.publicAccepts(written), written).toBe(true)
+        const metadata = await upstream.project(written, diagram => ({ title: diagram.db.getTitle(), accTitle: diagram.db.getAccTitle(), accDescr: diagram.db.getAccDescription() }))
+        expect(metadata.ok).toBe(true)
+        if (!metadata.ok) throw new Error(metadata.error)
+        // Pinned C4 routes accTitle to setTitle. Our native fields stay distinct.
+        expect({ title: projectEntityMarkers(metadata.value.title), accTitle: projectEntityMarkers(metadata.value.accTitle), accDescr: projectEntityMarkers(metadata.value.accDescr) }).toEqual({ title: body.accessibilityTitle ?? body.title ?? '', accTitle: '', accDescr: body.accessibilityDescription ?? '' })
         const reloaded = readC4Source(written)
+        expect(reloaded.diagnostics.some(item => item.syntax === 'c4_empty_accessibility_description')).toBe(false)
         expect(reloaded.title).toBe(body.title)
+        expect(reloaded.accessibilityTitle).toBe(body.accessibilityTitle)
+        expect(reloaded.accessibilityDescription).toBe(body.accessibilityDescription)
+        expect(reloaded.boundaries.map(({ id, parentId }) => ({ id, parentId }))).toEqual(body.boundaries.map(({ id, parentId }) => ({ id, parentId })))
+        expect(reloaded.elements.map(({ parentId }) => parentId)).toEqual(body.elements.map(({ parentId }) => parentId))
         expect(reloaded.elements.map(({ id, label, tags }) => ({ id, label, tags }))).toEqual(body.elements.map(({ id, label, tags }) => ({ id, label, tags })))
-      }
-    } finally { upstream.close() }
+      } finally { upstream.close() }
+    }
   })
 
   test('complete C4 productions protect style prepasses across aliases, values and titles', async () => {

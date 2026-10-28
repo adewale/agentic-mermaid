@@ -28,9 +28,10 @@ export function renderKanban(body: KanbanBody): string {
     // those identities without exposing them to the keyword lexer.
     const implicitId = item.implicitId || /^kanban\b/i.test(item.sourceId)
     // A quoted node label cannot contain a physical quote in Mermaid's Jison
-    // lexer. Use its entity spelling; IDs retain the original authored text.
-    const label = encodeMermaidEntities(implicitId ? item.sourceId : item.label, '"').replace(/\r\n/g, '\r\r\n')
-    const identifier = implicitId ? '' : encodeMermaidEntities(item.sourceId, '()[]{}@')
+    // lexer. Entity spelling also shields global directive openers; IDs keep
+    // the original authored text after the shared entity decoder.
+    const label = encodeMermaidEntities(implicitId ? item.sourceId : item.label, '"%').replace(/\r\n/g, '\r\r\n')
+    const identifier = implicitId ? '' : encodeMermaidEntities(item.sourceId, '()[]{}@%')
     lines.push(`${indent}${identifier}["${label}"]`)
     const metadata = { ...item.metadata }
     // An implicit identity comes from the declaration, independently of a
@@ -45,7 +46,11 @@ export function renderKanban(body: KanbanBody): string {
         lines[lines.length - 1] += `@{ ${entries.map(([key, value]) => `${quoteMetadataString(key)}: ${typeof value === 'string' ? quoteMetadataString(value) : String(value)}`).join(', ')} }`
       } else {
         lines[lines.length - 1] += '@{'
-        for (const line of YAML.stringify(metadata).trimEnd().split('\n')) lines.push(`${indent}  ${line}`)
+        let yaml = YAML.stringify(metadata)
+        if (yaml.includes('%%{')) {
+          yaml = YAML.stringify(metadata, { defaultKeyType: 'QUOTE_DOUBLE', defaultStringType: 'QUOTE_DOUBLE', lineWidth: 0 }).replaceAll('%', '\\x25')
+        }
+        for (const line of yaml.trimEnd().split('\n')) lines.push(`${indent}  ${line}`)
         lines.push(`${indent}}`)
       }
     }

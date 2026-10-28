@@ -10,7 +10,37 @@ import { asFlowchart } from '../agent/types.ts'
 import { DeferredDependencyError } from '../layout/certification-error.ts'
 import { createBrowserEditorAdapter } from '../browser-editor-adapter.ts'
 
+import { withRenderStageObserver } from '../layout/backend.ts'
+
 describe('one positioned artifact for preview and verification', () => {
+  test.each(['flowchart', 'state', 'packet', 'eventmodeling', 'zenuml'])('the source-only %s worker preserves typed round trips and diagnoses unavailable mutation', async family => {
+    // A fresh worker realm must not inherit the SDK's eagerly installed hooks.
+    const child = Bun.spawn([process.execPath, '-e', `
+      import install from ${JSON.stringify(new URL(`../browser-lazy/generated/verified/${family}.ts`, import.meta.url).pathname)};
+      import { getFamily } from ${JSON.stringify(new URL('../agent/family-registry.ts', import.meta.url).pathname)};
+      import { normalizeMermaidSource } from ${JSON.stringify(new URL('../mermaid-source.ts', import.meta.url).pathname)};
+      const descriptor = install();
+      const parse = text => {
+        const source = normalizeMermaidSource(text);
+        return descriptor.parse({ source, lines: source.familyLines, envelopeLines: source.familyLines,
+          opaqueSource: source.familyBody, canonicalSource: source.familyBody, meta: { accessibility: {} } });
+      };
+      const parsed = parse(descriptor.example);
+      if (!parsed.ok) throw new Error('Source worker parse failed');
+      const serialized = descriptor.serialize(parsed.value), reparsed = parse(serialized);
+      if (descriptor.id === 'state' && descriptor.renderSource(parsed.value) !== 'canonical') {
+        throw new Error('State must retain authored paint order');
+      }
+      console.log(JSON.stringify({ mutation: descriptor.capabilityEvidence.find(cell => cell.capability === 'mutation').state,
+        mutable: typeof descriptor.mutate === 'function', registered: getFamily(descriptor.id) === descriptor,
+        typed: parsed.value.kind === descriptor.id,
+        roundTrip: reparsed.ok && descriptor.serialize(reparsed.value) === serialized }));
+    `], { stdout: 'pipe', stderr: 'pipe' })
+    const [stdout, stderr, exitCode] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited])
+    expect(exitCode, stderr).toBe(0)
+    expect(JSON.parse(stdout)).toEqual({ mutation: 'diagnosed', mutable: false, registered: true, typed: true, roundTrip: true })
+  })
+
   test('verification preserves a suspended provider through a family layout wrapper', () => {
     const descriptor = getFamily('flowchart')!
     const deferred = new DeferredDependencyError('Layout provider', async () => {})
@@ -22,6 +52,35 @@ describe('one positioned artifact for preview and verification', () => {
     }
     finally { restore() }
   })
+  test.each([
+    { name: 'ELK', backend: 'elk', frame: false, fallback: false },
+    { name: 'native', backend: 'agentic', frame: false, fallback: false },
+    { name: 'native frame terminal', backend: 'agentic', frame: true, fallback: false },
+    { name: 'explicit fallback', backend: 'agentic', frame: true, fallback: true },
+  ] as const)('retains $name selection while positioning and verifying a preview once', ({ backend, frame, fallback }) => {
+    // Only the fallback row exceeds the unchanged private-rank limit.
+    const source = fallback
+      ? `flowchart LR\nsubgraph One\n A[Leaf]\n B[Tail]\n A ${'-'.repeat(2049)}> B\nend`
+      : `flowchart TB\nsubgraph One\n A --> B\nend\nsubgraph Two\n C --> D\nend\n${frame ? 'One' : 'B'} -->|handoff| C`
+    const options = { security: 'strict' as const, embedFontImport: false,
+      graphLayout: { backend, ...(fallback ? { fallback: 'elk' as const } : {}) } }
+    const expected = renderMermaidSVGWithReceipt(source, options)
+    const expectedVerification = verifyMermaid(source, { renderOptions: options })
+    const descriptor = getFamily('flowchart')!, stages: string[] = []
+    let calls = 0
+    const restore = replaceFamilyForTest('flowchart', { ...descriptor, layout: context => { calls++; return descriptor.layout!(context) } })
+    try {
+      const result = withRenderStageObserver(sample => stages.push(sample.stage), () => renderAndVerifyMermaid(source, options))
+      expect(calls).toBe(1)
+      expect(result.svg).toBe(expected.svg)
+      expect(result.receipt).toEqual(expected.receipt)
+      expect(result.verification).toEqual(expectedVerification)
+      expect(result.receipt.layoutDecisions?.[0]?.selected).toBe(fallback ? 'elk' : backend)
+      if (backend === 'agentic' && !fallback) expect(stages).not.toContain('elk')
+      else expect(stages).toContain('elk')
+    } finally { restore() }
+  })
+
   test('positions once while keeping canonical SVG, receipt and verification for every built-in example', () => {
     for (const id of knownBuiltinFamilies()) {
       const descriptor = getFamily(id)!, source = descriptor.example
@@ -257,7 +316,7 @@ describe('persistent preview worker queue', () => {
       const first = h.client.render('first', {})
       const replaced = h.client.render('replaced', {})
       const rejected = replaced.catch(error => error)
-      const options = { style: ['crisp', 'paper'] }
+      const options = { style: ['crisp', 'paper'], graphLayout: { backend: 'agentic' as const } }
       const newest = h.client.render('newest', options)
       options.style[1] = 'dusk'
       expect(await rejected).toBeInstanceOf(PreviewSupersededError)
@@ -267,7 +326,7 @@ describe('persistent preview worker queue', () => {
       h.reply(1, '<svg>first</svg>')
       expect((await first).svg).toContain('first')
       expect(h.sent.map(r => r.source)).toEqual(['first', 'newest'])
-      expect(h.sent[1]?.options).toEqual({ style: ['crisp', 'paper'] })
+      expect(h.sent[1]?.options).toEqual({ style: ['crisp', 'paper'], graphLayout: { backend: 'agentic' } })
       h.reply(3, '<svg>newest</svg>')
       expect((await newest).svg).toContain('newest')
       expect(h.workers).toHaveLength(1)
