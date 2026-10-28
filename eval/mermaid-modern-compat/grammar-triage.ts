@@ -98,7 +98,7 @@ export async function triageGrammarWitness(
   try {
     const verification = verifyMermaid(witness.source)
     result.warningCodes = [...new Set(verification.warnings.map(w => w.code))]
-    result.renderability = verification.checks.renderability
+    result.renderability = verification.checks?.renderability
   }
   catch (error) { defect('verification-error', String(error)) }
   const parsed = parseRegisteredMermaid(witness.source)
