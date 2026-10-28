@@ -941,8 +941,8 @@ test.each(['right-end', 'left-end', 'right-start', 'left-start', 'entering', 'ti
     ...(mode === 'extra-line' ? [{ stroke: '#111', strokeWidth: '4' }] : []),
   ]
   if (mode === 'reordered') {
-    [children[0], children[1]] = [children[1]!, children[0]!]
-    [childPaints[0], childPaints[1]] = [childPaints[1]!, childPaints[0]!]
+    children.splice(0, 2, ...children.slice(0, 2).reverse())
+    childPaints.splice(0, 2, ...childPaints.slice(0, 2).reverse())
   }
   const card = marks.shape({ id: 'cylinder', role: 'node', geometry: { kind: 'compound', children }, paint: { fill: '#fff', stroke: '#111', strokeWidth: '0.75' }, childPaints,
     ...(mode === 'transformed' ? { transform: { kind: 'matrix' as const, a: 1, b: 0, c: 0, d: 1, e: 0.25, f: 0 } } : {}) })
