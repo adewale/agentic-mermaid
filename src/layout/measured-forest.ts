@@ -31,6 +31,8 @@ export function layoutMeasuredForest(input: MeasuredGraph): AgenticLayout | unde
   const reverse = input.direction === 'RL' || input.direction === 'BT'
   const mainSize = (index: number): number => horizontal ? nodes[index]!.width : nodes[index]!.height
   const crossSize = (index: number): number => horizontal ? nodes[index]!.height : nodes[index]!.width
+  if (nodes.some((node, index) => node.minimumPortSpacing !== undefined
+    && (outgoing[index]!.length - 1) * node.minimumPortSpacing > crossSize(index) - 2 * (node.paintCornerRadius ?? 0))) return undefined
   const span = new Float64Array(nodes.length), bands: number[] = []
   for (let cursor = traversal.length - 1; cursor >= 0; cursor--) {
     const id = traversal[cursor]!, peers = outgoing[id]!
@@ -63,6 +65,7 @@ export function layoutMeasuredForest(input: MeasuredGraph): AgenticLayout | unde
     let start = starts[id]! + (span[id]! - peerWidth) / 2
     for (const child of peers) { starts[child] = start; start += span[child]! + nodeSpacing }
   }
+  const sourceSlots = new Uint32Array(nodes.length)
   return {
     topology: 'forest',
     width: 2 * padding + (horizontal ? mainExtent : crossExtent),
@@ -78,6 +81,15 @@ export function layoutMeasuredForest(input: MeasuredGraph): AgenticLayout | unde
       const end = horizontal
         ? { x: target.x + (reverse ? to.width : 0), y: target.y + to.height / 2 }
         : { x: target.x + to.width / 2, y: target.y + (reverse ? to.height : 0) }
+      // Reserve the producer's marker pitch in sibling order before final
+      // seating. Moving coincident arrowheads greedily can invert that order.
+      const slot = sourceSlots[edge.source]!, peers = outgoing[edge.source]!.length
+      sourceSlots[edge.source] = slot + 1
+      if (from.minimumPortSpacing && peers > 1) {
+        const offset = (slot - (peers - 1) / 2) * from.minimumPortSpacing
+        if (horizontal) start.y += offset
+        else start.x += offset
+      }
       let mid = horizontal ? (start.x + end.x) / 2 : (start.y + end.y) / 2
       // Unequal main-axis sizes center faces inside their depth bands. An
       // individual face midpoint can therefore enter a taller sibling box.

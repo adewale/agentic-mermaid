@@ -13,12 +13,38 @@ import { renderMermaidSVGWithReceipt } from '../index.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
 import { withRenderStageObserver } from '../render-stages.ts'
 import { missingSvgLabels } from './helpers/svg-labels.ts'
+import { measureQuality } from '../agent/quality.ts'
 
 const native = { graphLayout: { backend: 'agentic' as const } }
 const fixture = readFileSync(new URL('../../eval/layout-compare/fixtures/class-backends.mmd', import.meta.url), 'utf8')
 const compoundFixture = readFileSync(new URL('../../eval/layout-compare/fixtures/class-compound-backends.mmd', import.meta.url), 'utf8')
 
 describe('Class layout backends', () => {
+  test.each(['TB', 'BT', 'LR', 'RL'])('keeps inherited sibling routes ordered after seating arrowheads in %s', direction => {
+    const source = `classDiagram
+direction ${direction}
+Animal <|-- Duck
+Animal <|-- Fish
+Animal <|-- Zebra
+Animal : +int age
+Animal : +String gender
+Animal : +isMammal()
+Animal : +mate()
+Duck : +String beakColor
+Duck : +swim()
+Duck : +quack()
+Fish : -int sizeInFeet
+Fish : -canEat()
+Zebra : +bool is_wild
+Zebra : +run()
+note for Duck "can fly<br>can swim<br>can dive<br>can help in debugging"`
+    const result = layoutMermaidWithReceipt(source, native), quality = measureQuality(result.layout)
+    expect(result.layout.edges.map(edge => [edge.from, edge.to])).toEqual([['Animal', 'Duck'], ['Animal', 'Fish'], ['Animal', 'Zebra']])
+    expect(quality.edgeCrossings).toBe(0)
+    expect(quality.routeOverlaps).toEqual({ parallel: 0, opposing: 0 })
+    expect(renderMermaidSVGWithReceipt(source, native).receipt.layoutCertification?.status).toBe('passed')
+  })
+
   test.each(['TB', 'BT', 'LR', 'RL'])('retains member compartments, notes, cardinalities and relationship meaning in %s', direction => {
     const source = fixture.replace('direction LR', `direction ${direction}`)
     const model = parseClassDiagram(toMermaidLines(source)),

@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test'
-import { snapshotSample, compareSample, buildReportHtml, buildSnapshot, summarizeComparisonsByFamily } from './run.ts'
+import { snapshotSample, compareSample, compareSnapshots, buildReportHtml, buildSnapshot, summarizeComparisonsByFamily } from './run.ts'
 import { generatedFlowchartSamples } from './generated.ts'
 import { parseRegisteredMermaid } from '../../src/agent/index.ts'
 import { withRenderStageObserver } from '../../src/render-stages.ts'
@@ -74,6 +74,29 @@ test('a crossing improvement cannot hide added bends, route length or area', () 
   expect(comparison.verdict).toBe('regression')
   expect(comparison.notes.some(note => note.startsWith('polyline bends:'))).toBe(true)
   expect(comparison.notes.some(note => note.startsWith('canvas area:'))).toBe(true)
+  const backend = compareSample({ ...before, metrics }, after, 'backend')
+  expect(backend.verdict).toBe('improvement')
+  expect(backend.notes).toEqual(comparison.notes)
+  const conflicting = { ...after, metrics: { ...after.metrics, labelConflicts: { total: 1, labelLabel: 1, labelNode: 0, labelEdge: 0 } } }
+  expect(compareSample({ ...before, metrics }, conflicting, 'backend').verdict).toBe('regression')
+  expect(compareSample(after, { ...after, metrics: { ...after.metrics, edgeCount: 0 } }, 'backend').verdict).toBe('regression')
+  expect(compareSample(after, { ...after, metrics: { ...after.metrics, routeGeometry: undefined } }, 'backend').verdict).toBe('regression')
+})
+
+test('backend reports require the same clean revision and authored inputs without hiding missing samples', () => {
+  const sample = snapshotSample({ id: 'identity', family: 'flowchart', source: 'flowchart TD\nA --> B' }, 'identity-')
+  const common = { label: 'review', rev: 'a'.repeat(40), dirty: false, createdAt: '2026-10-28T00:00:00Z', samples: [sample] }
+  const before = { ...common, renderOptions: { graphLayout: { backend: 'elk' as const } } }
+  const after = { ...common, renderOptions: { graphLayout: { backend: 'agentic' as const } } }
+  expect(compareSnapshots(before, after, 'backend')[0]!.verdict).toBe('unchanged')
+  expect(compareSnapshots(before, { ...after, samples: [] }, 'backend')[0]!.verdict).toBe('status-changed')
+  expect(() => compareSnapshots(before, { ...after, rev: 'b'.repeat(40) }, 'backend')).toThrow('immutable revision')
+  expect(() => compareSnapshots(before, { ...after, dirty: true }, 'backend')).toThrow('immutable revision')
+  expect(() => compareSnapshots(before, before, 'backend')).toThrow('different backends')
+  expect(() => compareSnapshots(before, { ...after, renderOptions: { ...after.renderOptions, nodeSpacing: 1 } }, 'backend')).toThrow('render options differ')
+  expect(() => compareSnapshots(before, { ...after, samples: [sample, sample] }, 'backend')).toThrow('duplicate sample')
+  expect(() => compareSnapshots(before, { ...after, samples: [{ ...sample, source: 'flowchart TD\nA --> C' }] }, 'backend')).toThrow('inputs differ')
+  expect(buildReportHtml(before, after, 'backend')).toContain('Bends, route length and canvas area remain visible tradeoffs')
 })
 
 test.each(['labelConflicts', 'routeOverlaps', 'routeGeometry'] as const)('losing %s measurement stays adverse and gaining it does not claim a geometry win', dimension => {

@@ -21,6 +21,7 @@
 import { readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { execSync } from 'node:child_process'
+import { isDeepStrictEqual } from 'node:util'
 import { parseRegisteredMermaid as parseMermaid, layoutMermaidWithReceipt, measureQuality, renderMermaidSVGWithReceipt, renderMermaidASCII } from '../../src/agent/index.ts'
 import type { QualityMetrics } from '../../src/agent/index.ts'
 import type { RenderOptions } from '../../src/types.ts'
@@ -114,6 +115,7 @@ export function buildSnapshot(label: string, options: { renderOptions?: RenderOp
 // ---- Report ----------------------------------------------------------------
 
 type Verdict = 'regression' | 'improvement' | 'changed' | 'unchanged' | 'status-changed'
+export type ComparisonMode = 'revision' | 'backend'
 
 export interface Comparison {
   id: string
@@ -142,7 +144,7 @@ export interface FamilyBalancedSummary {
 
 const LEGIBILITY_EPS = 0.01
 
-export function compareSample(before: SampleResult | undefined, after: SampleResult | undefined): Comparison {
+export function compareSample(before: SampleResult | undefined, after: SampleResult | undefined, mode: ComparisonMode = 'revision'): Comparison {
   const id = (after ?? before)!.id
   const family = (after ?? before)!.family
   const notes: string[] = []
@@ -185,10 +187,11 @@ export function compareSample(before: SampleResult | undefined, after: SampleRes
   // that was ALREADY measured (before had geometry) are real regressions.
   const fromEmpty = mb.nodeCount === 0 && mb.edgeCount === 0
   const transitionedToMeasured = fromEmpty && ma.nodeCount > 0
-  const track = (name: string, b: number, a: number, higherIsBetter: boolean, eps = 0) => {
+  const track = (name: string, b: number, a: number, higherIsBetter: boolean, eps = 0, tradeoff = false) => {
     if (Math.abs(a - b) <= eps) return
     const better = higherIsBetter ? a > b : a < b
     notes.push(`${name}: ${fmt(b)} → ${fmt(a)}${better ? ' ✓' : ' ✗'}`)
+    if (mode === 'backend' && tradeoff) return
     if (transitionedToMeasured) return  // derived-metric move is part of the empty→measured improvement
     if (better) improved = true
     else regressed = true
@@ -201,9 +204,9 @@ export function compareSample(before: SampleResult | undefined, after: SampleRes
   }
   track('labelLegibility', mb.labelLegibility, ma.labelLegibility, true, LEGIBILITY_EPS)
   if (mb.routeGeometry && ma.routeGeometry) {
-    track('polyline bends', mb.routeGeometry.bends, ma.routeGeometry.bends, false)
-    track('route length', mb.routeGeometry.length, ma.routeGeometry.length, false, 0.01)
-    track('canvas area', mb.routeGeometry.area, ma.routeGeometry.area, false, 0.01)
+    track('polyline bends', mb.routeGeometry.bends, ma.routeGeometry.bends, false, 0, true)
+    track('route length', mb.routeGeometry.length, ma.routeGeometry.length, false, 0.01, true)
+    track('canvas area', mb.routeGeometry.area, ma.routeGeometry.area, false, 0.01, true)
   }
   if (mb.nodeCount !== ma.nodeCount) {
     if (transitionedToMeasured) { notes.push(`nodeCount: ${mb.nodeCount} → ${ma.nodeCount} ✓ (empty→measured)`); improved = true }
@@ -229,11 +232,31 @@ function fmt(n: number): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(3)
 }
 
-export function compareSnapshots(before: Snapshot, after: Snapshot): Comparison[] {
+export function compareSnapshots(before: Snapshot, after: Snapshot, mode: ComparisonMode = 'revision'): Comparison[] {
+  if (mode === 'backend') {
+    if (before.rev !== after.rev || !/^[a-f0-9]{40}$/.test(before.rev) || before.dirty !== false || after.dirty !== false) {
+      throw new Error('Backend comparisons require the same clean immutable revision')
+    }
+    const left = before.renderOptions?.graphLayout?.backend, right = after.renderOptions?.graphLayout?.backend
+    if (!left || !right || left === right) throw new Error('Backend comparisons require two explicit different backends')
+    const comparableOptions = (snapshot: Snapshot) => {
+      const { graphLayout, ...options } = snapshot.renderOptions ?? {}
+      return { ...options, fallback: graphLayout?.fallback ?? 'none' }
+    }
+    if (!isDeepStrictEqual(comparableOptions(before), comparableOptions(after))) throw new Error('Backend comparison render options differ')
+    for (const snapshot of [before, after]) if (new Set(snapshot.samples.map(sample => sample.id)).size !== snapshot.samples.length) {
+      throw new Error('Backend comparison contains duplicate sample identities')
+    }
+    const sources = new Map(before.samples.map(sample => [sample.id, sample]))
+    for (const sample of after.samples) {
+      const original = sources.get(sample.id)
+      if (original && (original.source !== sample.source || original.family !== sample.family)) throw new Error('Backend comparison inputs differ')
+    }
+  }
   const byId = new Map(before.samples.map(s => [s.id, s]))
   const ids = new Set([...before.samples.map(s => s.id), ...after.samples.map(s => s.id)])
   const afterById = new Map(after.samples.map(s => [s.id, s]))
-  return [...ids].map(id => compareSample(byId.get(id), afterById.get(id)))
+  return [...ids].map(id => compareSample(byId.get(id), afterById.get(id), mode))
 }
 
 /** Report both sample-weighted and family-weighted outcomes. The docs corpus is
@@ -265,8 +288,8 @@ export function summarizeComparisonsByFamily(comparisons: readonly Comparison[])
 
 const VERDICT_ORDER: Record<Verdict, number> = { 'status-changed': 0, regression: 1, improvement: 2, changed: 3, unchanged: 4 }
 
-export function buildReportHtml(before: Snapshot, after: Snapshot): string {
-  const comparisons = compareSnapshots(before, after).sort((a, b) =>
+export function buildReportHtml(before: Snapshot, after: Snapshot, mode: ComparisonMode = 'revision'): string {
+  const comparisons = compareSnapshots(before, after, mode).sort((a, b) =>
     VERDICT_ORDER[a.verdict] - VERDICT_ORDER[b.verdict] || compareCodePointStrings(a.id, b.id))
   const balanced = summarizeComparisonsByFamily(comparisons)
   const counts = new Map<Verdict, number>()
@@ -330,6 +353,9 @@ export function buildReportHtml(before: Snapshot, after: Snapshot): string {
 </style></head>
 <body>
 <h1>Layout comparison</h1>
+<p>${mode === 'backend'
+  ? 'Backend comparison at one revision. Verdicts guard support, measurement coverage, node/edge counts, crossings, label legibility, label conflicts and shared-route overlaps. Bends, route length and canvas area remain visible tradeoffs; they do not change the verdict.'
+  : 'Revision comparison. Every measured dimension contributes to the regression verdict, including bends, route length and canvas area.'}</p>
 <p><strong>${esc(before.label)}</strong> (${esc(before.rev)}, ${esc(before.createdAt)}) →
    <strong>${esc(after.label)}</strong> (${esc(after.rev)}, ${esc(after.createdAt)})</p>
 <p>Before options: <code>${esc(JSON.stringify(before.renderOptions ?? {}))}</code>${before.dirty ? ' (working tree modified)' : ''};
@@ -346,8 +372,8 @@ after options: <code>${esc(JSON.stringify(after.renderOptions ?? {}))}</code>${a
 polyline bends, route length and canvas area) plus node/edge-count faithfulness;
 "changed" means bytes or backend decisions differ with no metric movement.</p>
 <p>Support gains are improvements; support losses are regressions. Missing population members
-remain adverse status changes. A regression in any measured dimension remains visible even
-when another improves. Smaller area or fewer bends alone does not establish human preference.</p>
+remain adverse status changes. Every measured decline remains visible in the notes even
+when another dimension improves. Smaller area or fewer bends alone does not establish human preference.</p>
 <p>Quality comes from a separate public-layout call, not the retained SVG artifact.
 Preview IDs are scoped per panel; original SVG bytes and digests remain in the JSON snapshots.
 Full measurements and actual backend choices are expandable for each rendered
@@ -389,13 +415,15 @@ if (import.meta.main) {
     if (!beforePath || !afterPath || !out) { console.error('report requires --before, --after, --out'); process.exit(2) }
     const before = JSON.parse(readFileSync(beforePath, 'utf8')) as Snapshot
     const after = JSON.parse(readFileSync(afterPath, 'utf8')) as Snapshot
-    writeFileSync(out, buildReportHtml(before, after))
-    const comparisons = compareSnapshots(before, after)
+    const mode = arg('--comparison') ?? 'revision'
+    if (mode !== 'revision' && mode !== 'backend') throw new RangeError('Unknown comparison mode')
+    const comparisons = compareSnapshots(before, after, mode)
+    writeFileSync(out, buildReportHtml(before, after, mode))
     const n = (v: Verdict) => comparisons.filter(c => c.verdict === v).length
-    console.log(`wrote ${out}: ${n('status-changed')} status-changed, ${n('regression')} regressions, ${n('improvement')} improvements, ${n('changed')} changed, ${n('unchanged')} unchanged`)
+    console.log(`wrote ${out} (${mode} comparison): ${n('status-changed')} status-changed, ${n('regression')} regressions, ${n('improvement')} improvements, ${n('changed')} changed, ${n('unchanged')} unchanged`)
     if (n('status-changed') + n('regression') > 0) process.exit(1)
   } else {
-    console.error('usage: run.ts snapshot --out f.json [--label name] [--graph-layout elk|agentic] [--graph-layout-fallback none|elk] [--families flowchart,state] [--stress] [--generated-start 0 --generated-count 160] [--generated-kind lcg-v1|sha256-counter-v1] | report --before a.json --after b.json --out report.html')
+    console.error('usage: run.ts snapshot --out f.json [--label name] [--graph-layout elk|agentic] [--graph-layout-fallback none|elk] [--families flowchart,state] [--stress] [--generated-start 0 --generated-count 160] [--generated-kind lcg-v1|sha256-counter-v1] | report --before a.json --after b.json --out report.html [--comparison revision|backend]')
     process.exit(2)
   }
 }
