@@ -280,6 +280,23 @@ describe('wrapper fidelity (1C): canonical synthesis on demand', () => {
     expect(() => canonicalWrapperConfig(meta, badFamily)).toThrow('family read too early')
   })
 
+  test('verification retains caller directive-array callback failures for empty wrappers', () => {
+    const parsed = parseMermaid('flowchart LR\n  A --> B')
+    if (!parsed.ok) throw new Error('Expected captured wrapper')
+    let speciesReads = 0
+    class Directives extends Array<ValidDiagramMeta['initDirectives'][number]> {}
+    Object.defineProperty(Directives, Symbol.species, {
+      get() {
+        if (++speciesReads === 5) throw new Error('caller species callback')
+        return Directives
+      },
+    })
+    parsed.value.meta.initDirectives = new Directives()
+    expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'mermaid_wrapper_config', message: expect.stringContaining('caller species callback'),
+    }))
+  })
+
   test.each([
     ['', {}, {}],
     ['---\ntitle: ""\ndisplayMode: false\n---\n', { title: '', displayMode: false }, {}],

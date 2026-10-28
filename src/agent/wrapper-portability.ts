@@ -33,17 +33,17 @@ export function canonicalWrapperConfig(meta: ValidDiagramMeta, family?: string):
   const payloads = directives.filter(layer => layer.kind === 'init').map(layer => layer.payload)
   const type = pinnedMermaidDiagramType(family ?? '')
   try {
-    // For captured, owned families the empty pinned program only validates
-    // private defaults and merges to {}. Keep all authored reads above, and
-    // leave metadata, directives and unowned scopes on the pinned path.
-    if (captured && typeof type === 'string' && !Object.keys(top).length && !Object.keys(authored).length && !directives.length) {
-      const descriptor = getInstalledFamilyDescriptor(family ?? '')
-      if (descriptor && isOwnedFamily(descriptor)) return { metadata: top, config: authored, directives }
-    }
     const code = directives.map(layer => configDirective(layer.kind, layer.payload, layer.hasArgs)).join('\n')
     if (payloads.length > 1 || (top.displayMode && payloads.length) || directives.some(layer => layer.kind !== 'init' && layer.kind !== 'wrap')) {
       validateConfigSource(authored, code, type, top)
       return { metadata: top, config: authored, directives }
+    }
+    // For captured, owned families the empty pinned program only validates
+    // private defaults and merges to {}. Retain authored reads and directive
+    // array dispatch above; metadata and unowned scopes keep the pinned path.
+    if (captured && typeof type === 'string' && !Object.keys(top).length && !Object.keys(authored).length && code === '') {
+      const descriptor = getInstalledFamilyDescriptor(family ?? '')
+      if (descriptor && isOwnedFamily(descriptor)) return { metadata: top, config: authored, directives: [] }
     }
     // Keep the original payload through directive processing: scalars reject
     // wrap assignment, while the pinned merge ignores array own properties.
