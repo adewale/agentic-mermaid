@@ -1,9 +1,9 @@
 import type { RenderedLayout } from '../agent/types.ts'
-import { connectorMarkerPaintRegions, connectorStrokeHasJoins, expandSceneBounds, nodePaintBounds, paintedStrokeExtent, unionSceneBounds, transformedBounds, visitTypedPathSegments, type TypedPathSegment } from './bounds.ts'
+import { connectorMarkerPaintRegions, connectorStrokeHasJoins, expandSceneBounds, nodePaintBounds, paintedStrokeExtent, unionSceneBounds, transformedBounds, visitTypedPathSegments, type ConnectorMarkerPaintRegion, type TypedPathSegment } from './bounds.ts'
 import type { AxisAlignedBox } from '../shared/transformed-bounds.ts'
 import { createInlineColorAttributeResolver, resolveInlineColorAttribute } from '../theme.ts'
 import { tryParseCssColor, type RgbaColor } from '../shared/color-math.ts'
-import { inspectScenePaintGeometry, paintPrimitiveSource, scenePrimitiveMatrix, sceneGroupOpacity, type ScenePaintGeometryInspection, type NativeConnectorPaintSource, type ScenePaintGeometry as ScenePaintPrimitive } from './inspection.ts'
+import { inspectScenePaintGeometry, paintPrimitiveSource, scenePrimitiveMatrix, scenePrimitiveUntransformed, sceneGroupOpacity, type ScenePaintGeometryInspection, type NativeConnectorPaintSource, type ScenePaintGeometry as ScenePaintPrimitive } from './inspection.ts'
 import type { Geometry, MarkPaint, SceneDoc, SceneOwner, ScenePoint, SceneTransform, MarkerDescriptor } from './ir.ts'
 import { composeMatrices, inverseMatrix, transformMatrix, transformPoint } from './transforms.ts'
 import { formatSvgNumber, formatSvgNumericAttribute } from '../shared/svg-number.ts'
@@ -289,6 +289,20 @@ function outsideFilledBody(surface: Surface, bounds: AxisAlignedBox, attached: b
       // treating empty rounded corners as filled artwork.
       const rx = Math.min(g.width / 2, g.rx ?? g.ry ?? 0), ry = Math.min(g.height / 2, g.ry ?? g.rx ?? 0)
       if (rx > 0 && ry > 0) {
+        // A clipped cardinal endpoint can be separated by the exact axial
+        // support although none of the corner-derived normals finds it. This
+        // added proof requires unchanged emitted shape/stroke coordinates;
+        // composed or rounded transforms retain the existing conservative test.
+        const exactAxes = !shape.transform && scenePrimitiveUntransformed(surface.primitive)
+          && inverse.every((value, index) => value === [1, 0, 0, 1, 0, 0][index])
+          && Number(formatSvgNumber(borderWidth)) === borderWidth
+          && Number.parseFloat(formatSvgNumericAttribute('stroke-width', paint.strokeWidth ?? '1')) === Number.parseFloat(paint.strokeWidth ?? '1')
+        const exactX = exactAxes && Number(formatSvgNumber(g.x)) === g.x && Number(formatSvgNumber(g.width)) === g.width
+        const exactY = exactAxes && Number(formatSvgNumber(g.y)) === g.y && Number(formatSvgNumber(g.height)) === g.height
+        if (exactX && (samples.every(p => work() && p.x + sampleMargin <= g.x + inset + tolerance)
+          || samples.every(p => work() && p.x - sampleMargin >= g.x + g.width - inset - tolerance))
+          || exactY && (samples.every(p => work() && p.y + sampleMargin <= g.y + inset + tolerance)
+          || samples.every(p => work() && p.y - sampleMargin >= g.y + g.height - inset - tolerance))) return true
         const cx = g.x + g.width / 2, cy = g.y + g.height / 2
         const halfWidth = g.width / 2 - rx, halfHeight = g.height / 2 - ry
         for (const point of samples) {
@@ -364,8 +378,12 @@ function outsideFilledBody(surface: Surface, bounds: AxisAlignedBox, attached: b
 /** A hidden, unscaled SVG marker viewport clips ALL resource ink, including
  * round joins outside a polygon hull. A reference on its vertical boundary
  * therefore supplies one exact half-plane at a cardinal route endpoint.
- * Keep this separate from global bounds and from any marker-ink witness. */
-function clippedEndpointMarkerBounds(node: NativeConnectorPaintSource, marker: MarkerDescriptor | undefined, position: 'start' | 'mid' | 'end', bounds: AxisAlignedBox, anchor: ScenePoint, work: () => boolean): AxisAlignedBox | undefined {
+ * Admit decimal normalization only as a tangential translation: the raw and
+ * written routes must share the same nonzero cardinal direction and axial
+ * anchor. The emitted region supplies witnesses AND broadphase bounds, not
+ * just a clipping exemption downstream of a raw-coordinate spatial lookup. */
+function emittedEndpointMarker(node: NativeConnectorPaintSource, marker: MarkerDescriptor | undefined, raw: ConnectorMarkerPaintRegion, work: () => boolean): { region: ConnectorMarkerPaintRegion; clipped: AxisAlignedBox } | undefined {
+  const { position, anchor } = raw
   for (let i = 0; i < 18; i++) if (!work()) return undefined
   if (!marker || position === 'mid' || node.transform || node.route.closed || node.stroke.nonScaling
     || marker.overflow === 'visible' || (marker.scale ?? 1) !== 1 || marker.paint?.vectorEffect === 'non-scaling-stroke'
@@ -378,7 +396,7 @@ function clippedEndpointMarkerBounds(node: NativeConnectorPaintSource, marker: M
   const geometry = node.route.geometry
   let first: ScenePoint | undefined, next: ScenePoint | undefined
   const take = (x: number, y: number): boolean => {
-    if (!work() || !Number.isFinite(x) || !Number.isFinite(y) || Number(formatSvgNumber(x)) !== x || Number(formatSvgNumber(y)) !== y) return false
+    if (!work() || !Number.isFinite(x) || !Number.isFinite(y)) return false
     if (!first) first = { x, y }
     else if (x !== first.x || y !== first.y) { next = { x, y }; return false }
     return true
@@ -393,6 +411,27 @@ function clippedEndpointMarkerBounds(node: NativeConnectorPaintSource, marker: M
     }
   } else return undefined
   if (!first || !next || first.x !== anchor.x || first.y !== anchor.y || first.x !== next.x && first.y !== next.y) return undefined
+  const written = (point: ScenePoint): ScenePoint => ({ x: Number(formatSvgNumber(point.x)), y: Number(formatSvgNumber(point.y)) })
+  const startPoint = written(first), nextPoint = written(next)
+  const horizontal = first.y === next.y
+  if (![startPoint.x, startPoint.y, nextPoint.x, nextPoint.y].every(Number.isFinite)
+    || horizontal && (startPoint.x !== first.x || startPoint.y !== nextPoint.y || Math.sign(nextPoint.x - startPoint.x) !== Math.sign(next.x - first.x))
+    || !horizontal && (startPoint.y !== first.y || startPoint.x !== nextPoint.x || Math.sign(nextPoint.y - startPoint.y) !== Math.sign(next.y - first.y))) return undefined
+  // Omitted markerUnits means strokeWidth. A changed emitted width scales
+  // both the viewport and resource ink, so translation alone proves nothing.
+  let width = 1
+  if (marker.units !== 'userSpaceOnUse') {
+    const rawWidth = String(node.stroke.width)
+    if (!/^\s*(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?(?:px)?\s*$/i.test(rawWidth)) return undefined
+    width = Number.parseFloat(typeof node.stroke.width === 'number' ? formatSvgNumber(node.stroke.width) : formatSvgNumericAttribute('stroke-width', node.stroke.width))
+    if (!(width > 0) || !Number.isFinite(width) || width !== Number.parseFloat(rawWidth)) return undefined
+  }
+  const start = position === 'start' ? startPoint : nextPoint, end = position === 'start' ? nextPoint : startPoint
+  const tangent = { x: end.x - start.x, y: end.y - start.y }
+  const emitted = connectorMarkerPaintRegions({ route: { geometry: { kind: 'line', x1: start.x, y1: start.y, x2: end.x, y2: end.y }, closed: false,
+    contours: [{ start, end, closed: false, startTangent: tangent, endTangent: tangent }] }, stroke: { width }, markers: { mid: [], ...(position === 'start' ? { start: marker } : { end: marker }) } })[0]
+  if (!work() || !emitted?.bounds || !raw.bounds) return undefined
+  const bounds = unionSceneBounds(raw.bounds, emitted.bounds)!
   // The SVG orient="auto" start marker follows the forward path tangent.
   const reverse = position === 'end' ? -1 : marker.orient === 'auto-start-reverse' ? -1 : 1
   const side = marker.ref.x === 0 ? 1 : -1
@@ -400,12 +439,12 @@ function clippedEndpointMarkerBounds(node: NativeConnectorPaintSource, marker: M
   const dy = Math.sign(next.y - first.y) * reverse * side
   if (!work()) return undefined
   const clipped = {
-    x0: dx > 0 ? Math.max(bounds.x0, anchor.x) : bounds.x0,
-    y0: dy > 0 ? Math.max(bounds.y0, anchor.y) : bounds.y0,
-    x1: dx < 0 ? Math.min(bounds.x1, anchor.x) : bounds.x1,
-    y1: dy < 0 ? Math.min(bounds.y1, anchor.y) : bounds.y1,
+    x0: dx > 0 ? Math.max(bounds.x0, emitted.anchor.x) : bounds.x0,
+    y0: dy > 0 ? Math.max(bounds.y0, emitted.anchor.y) : bounds.y0,
+    x1: dx < 0 ? Math.min(bounds.x1, emitted.anchor.x) : bounds.x1,
+    y1: dy < 0 ? Math.min(bounds.y1, emitted.anchor.y) : bounds.y1,
   }
-  return clipped.x0 <= clipped.x1 && clipped.y0 <= clipped.y1 ? clipped : undefined
+  return clipped.x0 <= clipped.x1 && clipped.y0 <= clipped.y1 ? { region: { ...emitted, bounds }, clipped } : undefined
 }
 
 /** Strict interior points of an emitted convex polygon fill, rather than
@@ -1058,7 +1097,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
       }
     }
   }
-  type MarkerTarget = { primitive: ScenePaintPrimitive; position: 'start' | 'mid' | 'end'; clipEligible: boolean; anchor: ScenePoint; repaint: string; bounds: AxisAlignedBox; hull?: readonly ScenePoint[]; padding?: number; witnesses?: readonly ScenePoint[]; actualInk: boolean; strokeProof?: MarkerPolygonProof; paintIdentity?: string; semantic: boolean; mayFill: boolean }
+  type MarkerTarget = { primitive: ScenePaintPrimitive; position: 'start' | 'mid' | 'end'; clipped?: AxisAlignedBox; anchor: ScenePoint; repaint: string; bounds: AxisAlignedBox; hull?: readonly ScenePoint[]; padding?: number; witnesses?: readonly ScenePoint[]; actualInk: boolean; strokeProof?: MarkerPolygonProof; paintIdentity?: string; semantic: boolean; mayFill: boolean }
   const lastMarkers = new Map<string, MarkerTarget>()
   let markerColor: ReturnType<typeof createInlineColorAttributeResolver> | undefined
   const resolveMarkerColor = (value: string): string | undefined => (markerColor ??= createInlineColorAttributeResolver())(value, scene.colors)
@@ -1076,17 +1115,19 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
       const descriptor = marker.position === 'start' ? node.markers.start : marker.position === 'end' ? node.markers.end : node.markers.mid.length === 1 ? node.markers.mid[0] : undefined
       const measuredWorld = primitive.coverage === 'measured' && !!inverseMatrix(scenePrimitiveMatrix(primitive)!)
       const knownMapping = descriptor?.units === 'userSpaceOnUse' || knownUnitScale
-      const witnesses = measuredWorld && knownMapping ? markerInkWitnesses(descriptor, marker.hull, resolveMarkerColor, work) : undefined
-      const actualInk = measuredWorld && knownMapping && descriptor?.paint?.vectorEffect !== 'non-scaling-stroke' && markerHasInk(descriptor, witnesses, resolveMarkerColor, work)
       const previous = lastMarkers.get(key)
       const semantic = options.outputSupported !== false && !scene.family.startsWith('family:') && (['edge', 'relationship'].includes(primitive.role) && !!node.endpoints?.from && !!node.endpoints.to || previous?.semantic === true)
       const matrix = scenePrimitiveMatrix(primitive)
       const exactWorld = primitive.coverage === 'measured' && primitive.visibility !== 'conditional' && (primitive.groupOpacity ?? 1) === 1 && primitive.ancestors.length === 0
         && !!matrix && matrix[0] === 1 && matrix[1] === 0 && matrix[2] === 0 && matrix[3] === 1 && matrix[4] === 0 && matrix[5] === 0
+      const emitted = semantic && exactWorld && knownMapping ? emittedEndpointMarker(node, descriptor, marker, work) : undefined
+      const region = emitted?.region ?? marker
+      const witnesses = measuredWorld && knownMapping ? markerInkWitnesses(descriptor, region.hull, resolveMarkerColor, work) : undefined
+      const actualInk = measuredWorld && knownMapping && descriptor?.paint?.vectorEffect !== 'non-scaling-stroke' && markerHasInk(descriptor, witnesses, resolveMarkerColor, work)
       const mayFill = markerMayHaveOpaqueFill(resolveMarkerColor, descriptor, work)
       const paintIdentity = semantic && (primitive.groupOpacity ?? 1) === 1 && primitive.ancestors.length === 0 && (!node.stroke.mixBlendMode || node.stroke.mixBlendMode === 'normal') ? markerPaintIdentity(descriptor, resolveMarkerColor, work) : undefined
       const strokeProof = semantic && exactWorld ? prepareMarkerPolygonInk(scene, node, descriptor, marker.position, work, resolveMarkerColor) : undefined
-      lastMarkers.set(key, { primitive, position: marker.position, clipEligible: semantic && exactWorld && knownMapping, anchor: marker.anchor, repaint: marker.repaint, bounds: marker.bounds, hull: marker.hull, padding: marker.padding, witnesses, actualInk, strokeProof, paintIdentity, semantic, mayFill })
+      lastMarkers.set(key, { primitive, position: marker.position, clipped: emitted?.clipped, anchor: region.anchor, repaint: region.repaint, bounds: region.bounds!, hull: region.hull, padding: region.padding, witnesses, actualInk, strokeProof, paintIdentity, semantic, mayFill })
     }
   }
   const markerCheck = (branch: Tree | undefined, target: MarkerTarget): void => {
@@ -1106,11 +1147,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
       const connector = paintPrimitiveSource(target.primitive)
       const attached = connector?.kind === 'connector' && endpointRelation(connector, surface.primitive.owner) === 'attached'
       if (outsideFilledBody(surface, target.bounds, attached, target.hull, target.padding, work, target.witnesses, target.anchor)) continue
-      if (target.clipEligible && connector?.kind === 'connector') {
-        const descriptor = target.position === 'start' ? connector.markers.start : target.position === 'end' ? connector.markers.end : undefined
-        const clipped = clippedEndpointMarkerBounds(connector, descriptor, target.position, target.bounds, target.anchor, work)
-        if (clipped && outsideFilledBody(surface, clipped, attached, undefined, 0, work, target.witnesses, target.anchor, true)) continue
-      }
+      if (target.clipped && outsideFilledBody(surface, target.clipped, attached, undefined, 0, work, target.witnesses, target.anchor, true)) continue
       potentialOcclusion(target.primitive.id, surface.primitive.id, 'Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified')
     }
   }
@@ -1197,6 +1234,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
   if (exhausted) issue({ code: 'CHECK_BUDGET', message: `Occlusion checking reached its ${MAX_OCCLUSION_PAIRS}-pair or ${MAX_OCCLUSION_OPERATIONS}-operation limit` })
   // Mandatory final certification of the chosen viewport, including markers.
   for (const primitive of inspection.primitives) if (primitive.bounds && primitive.visibility !== 'conditional' && !contains(finalBounds, primitive.bounds, ARITHMETIC_NOISE)) unmeasuredPaint(primitive.id, 'Final viewport does not contain retained paint', true)
+  for (const target of markerTargets) if (target.primitive.visibility !== 'conditional' && !contains(finalBounds, target.bounds, ARITHMETIC_NOISE)) unmeasuredPaint(target.primitive.id, 'Final viewport does not contain serialized marker paint', true)
   return Object.freeze({ version: 1, unit: 'px', scope: 'native-scene', status: failed ? 'failed' : unverified ? 'unverified' : 'passed', viewport, attempts: repaired ? 2 : 1, repairs: Object.freeze(repaired ? ['expand-viewport' as const] : []), coverage: Object.freeze({ measured: inspection.coverage.measured, unmeasured: inspection.coverage.unmeasured, preparedText: inspection.coverage.preparedText, fallbackText: inspection.coverage.fallbackText, conditional }), checks: Object.freeze({ primitives: inspection.primitives.length, labels, occlusionPairs: Math.min(pairs, MAX_OCCLUSION_PAIRS), maxOcclusionPairs: MAX_OCCLUSION_PAIRS, operations, maxOperations: MAX_OCCLUSION_OPERATIONS, markers: lastMarkers.size }), issues: Object.freeze(issues), limitations: Object.freeze(['Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.', 'Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof.']) })
 }
 

@@ -30,7 +30,7 @@ const label = () => {
 }
 const surface = (fill = '#fff') => marks.shape({ id: 'cover', role: 'node', geometry: { kind: 'rect', x: 10, y: 10, width: 80, height: 60 }, paint: { fill } })
 
-test.each(['LR', 'RL'] as const)('rounded endpoint contacts retain strict paint proof in %s', direction => {
+test.each(['LR', 'RL', 'TB', 'BT'] as const)('rounded endpoint contacts retain strict paint proof in %s', direction => {
   const source = `flowchart ${direction}\nN0[n0]\nN1[n1]\nN2([n2])\nN3((n3))\nN2 --> N1\nN1 <==> N2\nN0 --> N2\nN2 --> N3\nN0 --> N2`
   const rendered = renderMermaidSVGWithReceipt(source, { layoutSafety: 'strict', embedFontImport: false })
   expect(rendered.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [] })
@@ -48,8 +48,8 @@ test.each(['contact', 'rx-only', 'ry-only', 'entering', 'unrelated', 'borderless
   else expect(proof.status).not.toBe('passed')
 })
 
-test.each(['default-hidden', 'explicit-hidden', 'user-space', 'start', 'reverse-start', 'vertical', 'borderless', 'matched-viewbox', 'visible', 'interior-ref', 'entering', 'tiny-entering', 'scale-hint', 'viewbox', 'rotated', 'diagonal', 'written-mismatch', 'unknown-width', 'unsupported-output'] as const)('a clipped endpoint viewport proves complete marker containment only for %s', mode => {
-  const start = mode === 'start' || mode === 'reverse-start', vertical = mode === 'vertical'
+test.each(['default-hidden', 'explicit-hidden', 'user-space', 'start', 'reverse-start', 'vertical', 'written-tangent', 'vertical-written-tangent', 'borderless', 'matched-viewbox', 'visible', 'interior-ref', 'entering', 'tiny-entering', 'scale-hint', 'viewbox', 'rotated', 'diagonal', 'written-mismatch', 'written-axial', 'written-collapsed', 'written-width', 'unknown-width', 'unsupported-output'] as const)('a clipped endpoint viewport proves complete marker containment only for %s', mode => {
+  const start = mode === 'start' || mode === 'reverse-start', vertical = mode === 'vertical' || mode === 'vertical-written-tangent'
   const marker: MarkerDescriptor = tipAnchoredArrow('viewport-arrow', { width: 8, height: 5 }, start && mode !== 'reverse-start' ? 'start' : 'end', { fill: '#111', stroke: '#111', strokeWidth: '0.75', strokeLinejoin: 'round' }, mode === 'user-space' ? 'userSpaceOnUse' : undefined)
   if (mode === 'reverse-start') marker.orient = 'auto-start-reverse'
   if (mode === 'explicit-hidden') marker.overflow = 'hidden'
@@ -64,17 +64,77 @@ test.each(['default-hidden', 'explicit-hidden', 'user-space', 'start', 'reverse-
   const points = vertical ? [{ x: 40, y: 20 }, { x: 40, y: anchor }] : start ? [{ x: anchor, y: 40 }, { x: 20, y: 40 }] : [{ x: 20, y: 40 }, { x: anchor, y: 40 }]
   if (mode === 'diagonal') points[0]!.y = 30
   if (mode === 'written-mismatch') points[1]!.y = 40.00000000000001
-  const edge = marks.connector({ id: 'viewport-edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'polyline', points }, paint: { stroke: '#111', strokeWidth: mode === 'unknown-width' ? 'var(--host)' : mode === 'viewbox' ? '4' : '2' }, endpoints: start ? { from: 'viewport-node', to: 'outside' } : { from: 'outside', to: 'viewport-node' }, markers: start ? { start: marker } : { end: marker } })
+  if (mode === 'written-axial') points[1]!.x = 60.00000000000001
+  if (mode === 'written-collapsed') points[0]!.x = 60.00000000000001
+  if (mode === 'written-tangent') for (const point of points) point.y = 40.00000000000001
+  if (mode === 'vertical-written-tangent') for (const point of points) point.x = 40.00000000000001
+  const edge = marks.connector({ id: 'viewport-edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'polyline', points }, paint: { stroke: '#111', strokeWidth: mode === 'unknown-width' ? 'var(--host)' : mode === 'viewbox' ? '4' : mode === 'written-width' ? '2.000000000000001' : '2' }, endpoints: start ? { from: 'viewport-node', to: 'outside' } : { from: 'outside', to: 'viewport-node' }, markers: start ? { start: marker } : { end: marker } })
   const card = marks.shape({ id: 'viewport-node', role: 'node', geometry: vertical ? { kind: 'rect', x: 20, y: 60, width: 40, height: 30 } : { kind: 'rect', x: 60, y: 20, width: 30, height: 40, ...(borderless ? { rx: 5, ry: 5 } : {}) }, paint: { fill: '#fff', stroke: borderless ? 'none' : '#888', strokeWidth: '0.75' } })
   const proof = certifyScenePaint(scene([edge, card]), undefined, { outputSupported: mode !== 'unsupported-output' })
-  if (['default-hidden', 'explicit-hidden', 'user-space', 'start', 'reverse-start', 'vertical', 'borderless', 'matched-viewbox'].includes(mode)) expect(proof.status).toBe('passed')
+  if (['default-hidden', 'explicit-hidden', 'user-space', 'start', 'reverse-start', 'vertical', 'written-tangent', 'vertical-written-tangent', 'borderless', 'matched-viewbox'].includes(mode)) expect(proof.status).toBe('passed')
   else expect(proof.status).not.toBe('passed')
+})
+
+test.each(['horizontal-negative', 'horizontal-positive', 'vertical-negative', 'vertical-positive'] as const)('serialized marker ink, rather than its raw witness, retains %s translation uncertainty', mode => {
+  const vertical = mode.startsWith('vertical'), negative = mode.endsWith('negative')
+  // These two authored coordinates round in opposite directions by about
+  // 5e-8, farther than the witness slack and the complete tiny marker height.
+  const raw = negative ? 10000.123456749994 : 10000.123456750007
+  const written = negative ? 10000.1234567 : 10000.1234568
+  const marker = tipAnchoredArrow('translated-arrow', { width: 8e-9, height: 5e-9 }, 'end', { fill: '#111', stroke: 'none' }, 'userSpaceOnUse')
+  const edge = marks.connector({ id: 'translated-edge', role: 'edge', lineStyle: 'solid',
+    geometry: vertical ? { kind: 'line', x1: raw, y1: 20, x2: raw, y2: 60 } : { kind: 'line', x1: 20, y1: raw, x2: 60, y2: raw },
+    paint: { stroke: '#111', strokeWidth: '1' }, endpoints: { from: 'outside', to: 'translated-node' }, markers: { end: marker } })
+  const card = marks.shape({ id: 'translated-node', role: 'node',
+    geometry: vertical ? { kind: 'rect', x: written - (negative ? 20 : 0), y: 40, width: 20, height: 50 }
+      : { kind: 'rect', x: 40, y: written - (negative ? 20 : 0), width: 50, height: 20 },
+    paint: { fill: '#fff', stroke: '#111', strokeWidth: '0.00000002' } })
+  expect(sceneNodeSerialization(edge)).toContain(vertical ? `x1="${written}"` : `y1="${written}"`)
+  // Before serialization this entire marker clears the thin border. The
+  // emitted marker lies inside that border, so no exterior raw point may
+  // enable the attached-border contact allowance or skip the spatial pair.
+  const rawBounds = connectorMarkerPaintRegions(edge)[0]!.bounds!
+  const border = nodePaintBounds(card)!
+  expect(vertical ? negative ? rawBounds.x0 > border.x1 : rawBounds.x1 < border.x0 : negative ? rawBounds.y0 > border.y1 : rawBounds.y1 < border.y0).toBe(true)
+  const proof = certifyScenePaint(scene([edge, card]))
+  expect(proof.status).not.toBe('passed')
+  expect(proof.issues).toContainEqual(expect.objectContaining({ id: 'translated-edge', by: 'translated-node' }))
+})
+
+test.each(['plain', 'transformed', 'cancelled'] as const)('the added axial marker support requires unchanged emitted shape coordinates (%s)', mode => {
+  const marker = tipAnchoredArrow('axis-arrow', { width: 8, height: 5 }, 'end', { fill: '#111', stroke: '#111', strokeWidth: '0.75', strokeLinejoin: 'round' })
+  const translation = mode === 'cancelled' ? 10000.123456750007 : 1e-13
+  const context = { positioned: { width: 120, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => ({ ...scene([]), width: 120, parts: [
+    factory.documentOpen({ id: 'root', width: 120, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="80">'),
+    factory.definitions({ id: 'resources' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
+    factory.connector({ id: 'axis-edge', role: 'edge', lineStyle: 'thick', geometry: { kind: 'line', x1: 110, y1: 38, x2: 90, y2: 38 }, paint: { stroke: '#111', strokeWidth: '2' }, endpoints: { from: 'outside', to: 'axis-node' }, markers: { end: marker } }),
+    factory.group({ id: 'axis-node', role: 'node', open: mode === 'cancelled' ? `<g transform="translate(${-translation} 0)">` : '<g>', close: '</g>',
+      ...(mode === 'cancelled' ? { transform: { kind: 'matrix' as const, a: 1, b: 0, c: 0, d: 1, e: -translation, f: 0 } } : {}),
+      children: [{ node: factory.shape({ id: 'axis-shape', role: 'node', owner: { id: 'axis-node', role: 'node' }, geometry: { kind: 'rect', x: 40, y: 20, width: 50, height: 36, rx: 18, ry: 18 }, paint: { fill: '#fff', stroke: '#111', strokeWidth: '0.75' },
+        ...(mode !== 'plain' ? { transform: { kind: 'matrix' as const, a: 1, b: 0, c: 0, d: 1, e: translation, f: 0 } } : {}) }), indent: 0 }] }),
+    factory.documentClose(),
+  ] })
+  const drawing = drawNative(producer, context, 'flowchart')
+  for (const proof of [certifyScenePaint(producer(marks, context)), certifyNativePaint(drawing.header, drawing.paint)]) {
+    if (mode === 'plain') expect(proof.status).toBe('passed')
+    else {
+      expect(proof.status).not.toBe('passed')
+      expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', id: 'axis-edge', by: 'axis-shape' }))
+    }
+  }
+  if (mode === 'cancelled') {
+    // The authored leaf and group matrices cancel, but the leaf attribute
+    // normalizes while the verbatim group transform retains its raw value.
+    expect(drawing.svg).toContain('transform="matrix(1 0 0 1 10000.1234568 0)"')
+    expect(drawing.svg).toContain('transform="translate(-10000.123456750007 0)"')
+  }
 })
 
 test.each(['agentic', 'elk'] as const)('public %s thick-arrow and borderless-state markers retain clipping and actual meaning', backend => {
   for (const source of ['flowchart LR\nA ==> B', 'stateDiagram-v2\nstate fork_state <<fork>>\n[*] --> fork_state\nfork_state --> State2\nfork_state --> State3\nstate join_state <<join>>\nState2 --> join_state\nState3 --> join_state\njoin_state --> State4\nState4 --> [*]']) {
     const result = renderMermaidSVGWithReceipt(source, { graphLayout: { backend, fallback: 'none' } })
-    expect(result.receipt.layoutCertification?.status).toBe(backend === 'elk' && source.startsWith('stateDiagram') ? 'unverified' : 'passed')
+    expect(result.receipt.layoutCertification?.status).toBe('passed')
     expect(result.svg).toContain('marker-end="url(#arrowhead)"')
     expect(result.svg).toContain('refX="8"')
     expect(result.svg).not.toContain('overflow="visible"')
@@ -84,6 +144,18 @@ test.each(['agentic', 'elk'] as const)('public %s thick-arrow and borderless-sta
     } else {
       expect(result.svg).toContain('data-id="edge:_start-&gt;fork_state#0"')
       expect(result.svg).toContain('data-id="edge:State3-&gt;join_state#0"')
+      if (backend === 'elk') {
+        const join = result.svg.match(/<rect\b[^>]*data-id="node-shape:join_state"[^>]*>/)![0]
+        const top = Number(join.match(/\by="([^"]+)"/)![1])
+        expect(join).toContain('stroke="none"')
+        for (const from of ['State2', 'State3']) {
+          const edge = result.svg.match(new RegExp(`<polyline\\b[^>]*data-id="edge:${from}-&gt;join_state#0"[^>]*>`))![0]
+          const points = edge.match(/\bpoints="([^"]+)"/)![1]!.split(' ').map(point => point.split(',').map(Number))
+          expect(points.at(-1)![1]).toBe(top)
+          expect(points.at(-2)![0]).toBe(points.at(-1)![0]!)
+          expect(points.at(-2)![1]!).toBeLessThan(top)
+        }
+      }
     }
   }
 })
