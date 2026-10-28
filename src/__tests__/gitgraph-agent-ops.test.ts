@@ -40,39 +40,57 @@ function commit(input: GitGraphBody, id: string) {
 }
 
 describe('GitGraph typed operations — discriminating replay contract', () => {
-  test('multiline comment-looking quoted payloads stay source-preserved instead of exporting altered identities', async () => {
+  test('quoted payloads use the pinned STRING codec through save, public parsing and independent edits', async () => {
     const upstream = startUpstreamMermaid()
     try {
-      for (const source of [
-        'gitGraph\ncommit id:"x\n%%y"',
-        'gitGraph\ncommit id:"base" tag:"x\n  %%y"',
-        'gitGraph\ncommit msg:"x\n%%y"',
-        'gitGraph\ncommit id:"x\u2028%%y"',
-        'gitGraph\ncommit id:"x\u2029%%y"',
-        'gitGraph\ncommit id:"x\u2028%%\u2028q"',
-        'gitGraph\ncommit id:"x\u2029%%\u2029q"',
-        'gitGraph\ncommit id:"x\r%%y"',
-        'gitGraph\ncommit id:"x\r\n%%y"',
-        '---\nconfig:\n  gitGraph:\n    mainBranchName: trunk\n---\ngitGraph\ncommit id:"base"\nbranch dev\ncommit id:"x\n%%y"\ncheckout trunk',
-      ]) {
-        const parsed = parseRegisteredMermaid(source)
-        if (!parsed.ok) throw new Error('Expected readable native GitGraph')
-        expect(parsed.value.body.kind).toBe('opaque')
-        expect(serializeMermaid(parsed.value)).toBe(`${source}\n`)
-        expect(renderMermaidSVG(parsed.value)).toBe(renderMermaidSVG(source))
-        expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'gitgraph_multiline_comment_text' }))
-        expect(mutate(parsed.value, { kind: 'append_commit', id: 'next' }).ok).toBe(false)
-        expect(await upstream.publicAccepts(source)).toBe(false)
+      for (const [raw, expected] of [
+        ['x\n%%y', 'x\n%%y'],
+        ['x\u2028%%y', 'x\u2028%%y'],
+        ['x\u2029%%y', 'x\u2029%%y'],
+        [String.raw`x\n%%y`, 'x\n%%y'],
+        [String.raw`x\\n%%y`, String.raw`x\n%%y`],
+        [String.raw`x\b\f\n\r\t\v\0y`, 'x\b\f\n\r\t\v\0y'],
+        [String.raw`x\q\u0041\x41y`, 'xqu0041x41y'],
+        [String.raw`x\%\%{literal}\%\%`, 'x%%{literal}%%'],
+        [String.raw`x\"\'y`, 'x"\'y'],
+        [String.raw`#0\; #b\; #n\; #t\; #amp\; #35\; #quot\;`, '#0; #b; #n; #t; #amp; #35; #quot;'],
+        [String.raw`sty\le a:#abc; class\Def a:#123;`, 'style a:#abc; classDef a:#123;'],
+      ] satisfies Array<[string, string]>) {
+        for (const delimiter of ['"', "'"]) {
+          const source = `gitGraph\ncommit id:${delimiter}${raw}${delimiter} msg:${delimiter}${raw}${delimiter} tag:${delimiter}${raw}${delimiter}\ncommit id:"next"`
+          const parsed = parseRegisteredMermaid(source)
+          if (!parsed.ok || parsed.value.body.kind !== 'gitgraph') throw new Error('Expected structured GitGraph')
+          const expectedCommit = { id: expected, message: expected, tags: [expected], parents: [] }
+          expect(parsed.value.body.commits[0]).toMatchObject(expectedCommit)
+          expect(parsed.value.body.commits[1]?.parents).toEqual([expected])
+          const saved = serializeMermaid(parsed.value)
+          const reloaded = parseRegisteredMermaid(saved)
+          if (!reloaded.ok) throw new Error('Expected reload')
+          expect(reloaded.value.body).toEqual(parsed.value.body)
+          if (!/[\0\b\f\r\v]/.test(expected)) expect(renderMermaidSVG(saved)).toBe(renderMermaidSVG(parsed.value))
+          expect(verifyMermaid(parsed.value).warnings.filter(w => w.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+          expect(await upstream.project(saved, d => [...d.db.getCommits().values()].map(c => ({ id: c.id, message: c.message, tags: c.tags, parents: c.parents })))).toEqual({ ok: true, value: [expectedCommit, { id: 'next', message: '', tags: [], parents: [expected] }] })
+          const edited = mutate(parsed.value, { kind: 'append_commit', id: 'tail\n%%comment', message: expected, tags: [expected] })
+          if (!edited.ok || edited.value.body.kind !== 'gitgraph') throw new Error('Expected independent append')
+          expect(edited.value.body.commits[0]).toEqual(parsed.value.body.commits[0])
+          expect(edited.value.body.commits.at(-1)).toMatchObject({ id: 'tail\n%%comment', message: expected, tags: [expected], parents: ['next'] })
+          expect(await upstream.project(serializeMermaid(edited.value), d => [...d.db.getCommits().values()].at(-1).id)).toEqual({ ok: true, value: 'tail\n%%comment' })
+        }
       }
-      for (const source of ['gitGraph\ncommit id:"x\nq"', 'gitGraph\ncommit id:"x %%y"', 'gitGraph\ncommit id:"x\n%%\nq"', 'gitGraph\ncommit id:"x\u2028q"', 'gitGraph\ncommit id:"x\u2029q"']) {
-        const parsed = parseRegisteredMermaid(source)
-        if (!parsed.ok) throw new Error('Expected portable multiline control')
-        expect(parsed.value.body.kind).toBe('gitgraph')
-        expect(await upstream.publicAccepts(serializeMermaid(parsed.value))).toBe(true)
+      // Generous bare tokens are not STRINGs: incomplete delimiters and
+      // escape endings retain their literal authored bytes until quoted.
+      for (const raw of ['"', "'", '"unfinished', "'unfinished", '"tail\\', "'tail\\", '"escaped\\"', "'escaped\\'", 'tail\\']) {
+        const parsed = parseRegisteredMermaid(`gitGraph commit id:${raw}`)
+        if (!parsed.ok || parsed.value.body.kind !== 'gitgraph') throw new Error('Expected readable bare-token extension')
+        expect(parsed.value.body.commits[0]?.id).toBe(raw)
+        const edited = mutate(parsed.value, { kind: 'append_commit', id: 'next' })
+        if (!edited.ok) throw new Error(edited.error.message)
+        const saved = serializeMermaid(edited.value)
+        const reloaded = parseRegisteredMermaid(saved)
+        expect(reloaded.ok && reloaded.value.body).toEqual(edited.value.body)
+        expect(renderMermaidSVG(parsed.value)).toContain('<svg')
+        expect(await upstream.project(saved, d => [...d.db.getCommits().values()].map(c => ({ id: c.id, parents: c.parents })))).toEqual({ ok: true, value: [{ id: raw, parents: [] }, { id: 'next', parents: [raw] }] })
       }
-      const base = parseRegisteredMermaid('gitGraph\ncommit id:"base"')
-      if (!base.ok) throw new Error('Expected base')
-      for (const id of ['x\n%%y', 'x\u2028%%y', 'x\u2029%%y']) expect(mutate(base.value, { kind: 'append_commit', id }).ok).toBe(false)
     } finally { upstream.close() }
   })
 

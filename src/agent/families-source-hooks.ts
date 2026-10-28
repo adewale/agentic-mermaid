@@ -51,7 +51,7 @@ import { extractLabelsGeneric } from './family-labels.ts'
 import { buildFlowchartSourceMap, type FlowchartBody, parseFlowchartBody, renderFlowchart } from './flowchart-body.ts'
 import { containsFlowchartOpaqueSyntax } from './flowchart-unsupported.ts'
 import { parseGanttBody, renderGantt, verifyGantt } from './gantt-body.ts'
-import { gitGraphCommentTextProblem, gitGraphSerializationProblem, parseGitGraphBody, renderGitGraphBody, verifyGitGraph } from './gitgraph-body.ts'
+import { parseGitGraphBody, renderGitGraphBody, verifyGitGraph } from './gitgraph-body.ts'
 import { parseJourneyBody, renderJourney, verifyJourney } from './journey-body.ts'
 import { mindmapSerializationProblem, parseMindmapBody, renderMindmapBody, verifyMindmap } from './mindmap-body.ts'
 import { parsePieBody, renderPie, verifyPie } from './pie-body.ts'
@@ -1288,7 +1288,7 @@ export const MINDMAP_SOURCE_HOOKS = {
 export const GITGRAPH_SOURCE_HOOKS = {
   renderSource: () => 'serialized',
   extractLabels: extractLabelsGeneric,
-  parse: ({ source, meta, opaqueSource }) => {
+  parse: ({ source, meta }) => {
     try {
       const merged: Record<string, unknown> = {
         ...(meta.frontmatter?.gitGraph && typeof meta.frontmatter.gitGraph === 'object' ? meta.frontmatter.gitGraph : {}),
@@ -1298,7 +1298,7 @@ export const GITGRAPH_SOURCE_HOOKS = {
         mainBranchOrder: typeof merged.mainBranchOrder === 'number' ? merged.mainBranchOrder : undefined,
         title: typeof meta.frontmatter?.title === 'string' ? meta.frontmatter.title : undefined,
       })
-      return ok(gitGraphSerializationProblem(body) ? { kind: 'opaque', family: 'gitgraph', source: opaqueSource } : body)
+      return ok(body)
     } catch (error) {
       return err([{ code: 'PARSE_FAILED', message: error instanceof Error ? error.message : String(error) }])
     }
@@ -1307,12 +1307,7 @@ export const GITGRAPH_SOURCE_HOOKS = {
     if (body.kind !== 'gitgraph') throw new Error(`gitgraph serializer received body kind ${body.kind}`)
     return renderGitGraphBody(body)
   },
-  verify: (body, opts): LayoutWarning[] => {
-    if (body.kind === 'gitgraph') return verifyGitGraph(body, opts)
-    if (body.kind !== 'opaque') return []
-    const problem = gitGraphCommentTextProblem(body.source)
-    return problem ? [{ code: 'UNSUPPORTED_SYNTAX', syntax: 'gitgraph_multiline_comment_text', message: problem }] : []
-  },
+  verify: (body, opts): LayoutWarning[] => (body.kind === 'gitgraph' ? verifyGitGraph(body, opts) : []),
 } satisfies Omit<FamilyOperations, 'mutate'>
 
 // ---- Radar -----------------------------------------------------------------
