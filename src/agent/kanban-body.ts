@@ -1,7 +1,7 @@
 import { unknownOpMessage } from './mutation-ops.ts'
 import YAML from 'yaml'
 import { preservedMermaidFamilyText, type NormalizedMermaidSource } from '../mermaid-source.ts'
-import { parseKanbanDiagram } from '../kanban/parser.ts'
+import { kanbanMetadataLabel, parseKanbanDiagram } from '../kanban/parser.ts'
 import type { KanbanBody, KanbanItem, KanbanMutationOp } from '../kanban/types.ts'
 import { encodeMermaidEntities } from '../shared/mermaid-entities.ts'
 import { quoteMetadataString } from '../shared/metadata-yaml.ts'
@@ -36,21 +36,29 @@ export function renderKanban(body: KanbanBody): string {
     const metadata = { ...item.metadata }
     // An implicit identity comes from the declaration, independently of a
     // later display-label edit. Keep both through the public writer.
-    if (implicitId && item.sourceId !== item.label) metadata.label = item.label
+    if (implicitId && item.sourceId !== item.label && !metadata.label) metadata.label = encodeMermaidEntities(item.label)
     if (item.icon !== undefined) metadata.icon = item.icon
     if (Object.keys(metadata).length) {
       // Block YAML also represents metadata whose values contain commas or
       // braces; scalar quotes use the same lexer-safe codec as flowcharts.
       const entries = Object.entries(metadata)
+      const quoted = (value: string, authoredLabel = false) => {
+        const scalar = quoteMetadataString(value).replaceAll('&', '\\x26')
+        return authoredLabel ? scalar : scalar.replaceAll('#', '\\x23')
+      }
       if (entries.every(([, value]) => value === null || ['string', 'number', 'boolean'].includes(typeof value))) {
-        const quoted = (value: string) => quoteMetadataString(value).replaceAll('&', '\\x26')
-        lines[lines.length - 1] += `@{ ${entries.map(([key, value]) => `${quoted(key)}: ${typeof value === 'string' ? quoted(value) : String(value)}`).join(', ')} }`
+        lines[lines.length - 1] += `@{ ${entries.map(([key, value]) => `${quoted(key)}: ${typeof value === 'string' ? quoted(value, key === 'label') : String(value)}`).join(', ')} }`
       } else {
         lines[lines.length - 1] += '@{'
-        let yaml = YAML.stringify(metadata, { aliasDuplicateObjects: false })
-        if (yaml.includes('%%{') || yaml.includes('&')) {
-          yaml = YAML.stringify(metadata, { aliasDuplicateObjects: false, defaultKeyType: 'QUOTE_DOUBLE', defaultStringType: 'QUOTE_DOUBLE', lineWidth: 0 }).replaceAll('%', '\\x25').replaceAll('&', '\\x26')
-        }
+        let labelScalar: unknown
+        const document = new YAML.Document(metadata, {
+          aliasDuplicateObjects: false,
+          customTags: tags => tags.map(tag => typeof tag !== 'string' && tag.collection === undefined && tag.tag === 'tag:yaml.org,2002:str'
+            ? { ...tag, stringify: item => quoted(String(item.value), item === labelScalar) }
+            : tag),
+        })
+        labelScalar = document.get('label', true)
+        const yaml = document.toString()
         for (const line of yaml.trimEnd().split('\n')) lines.push(`${indent}  ${line}`)
         lines.push(`${indent}}`)
       }
@@ -117,7 +125,9 @@ export function mutateKanban(body: KanbanBody, op: KanbanMutationOp): Result<Kan
       if (!target) return fail(`Kanban column ${op.column} not found`)
       const index = at(op.index, target.tasks.length)
       if (!idValid(op.id) || !text(op.label) || index < 0 || (op.metadata !== undefined && !isPlainRecord(op.metadata))) return fail('add_task requires a new identifier, non-empty label, metadata object and insertion index in range')
-      target.tasks.splice(index, 0, { id: op.id, sourceId: op.id, label: op.label, metadata: structuredClone(op.metadata ?? {}) })
+      const metadata = structuredClone(op.metadata ?? {})
+      const label = kanbanMetadataLabel(metadata.label) ?? op.label
+      target.tasks.splice(index, 0, { id: op.id, sourceId: op.id, label, metadata, ...(metadata.icon ? { icon: String(metadata.icon) } : {}) })
       break
     }
     case 'remove_task': {
@@ -141,7 +151,9 @@ export function mutateKanban(body: KanbanBody, op: KanbanMutationOp): Result<Kan
       if (!target || (op.metadata !== null && !isPlainRecord(op.metadata))) return fail('set_task_metadata requires an existing task and metadata object or null')
       target.metadata = structuredClone(op.metadata ?? {})
       target.icon = target.metadata.icon ? String(target.metadata.icon) : undefined
-      if (target.metadata.label) target.label = String(target.metadata.label)
+      // Metadata labels carry authored Mermaid codes; set_task_label accepts
+      // literal display text and removes that metadata override instead.
+      if (target.metadata.label) target.label = kanbanMetadataLabel(target.metadata.label)!
       break
     }
     case 'move_task': {
