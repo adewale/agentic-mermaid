@@ -55,14 +55,28 @@ source-preserving mutation supports four bounded operations on opaque inputs:
   physical line, without comments or directives. The index follows authored
   member order, including annotations; selecting an annotation is refused.
 - Flowchart `set_label`: append a label override for an existing native node.
-- Flowchart `rename_node`: replace owned lexical node identities. Class, style,
-  click/href dependencies and colliding group identities are refused.
+- Flowchart `rename_node`: replace owned lexical node identities in declarations,
+  endpoints and group membership. Class assignments, styles, click/href
+  dependencies and colliding group identities are refused.
 
 These edits retain bytes outside the owned edit ranges and compare the complete
 native read-back with the requested change before committing. Unsupported or
 ambiguous ownership, dependency changes and semantic mismatches reject the edit
 atomically. A repeated label with no semantic change retains the exact source,
 including its final newline spelling.
+
+Rename does not rewrite dependent directives. A changing rename refuses sources
+with any `class`, `style`, `click` or `href` statement, even when it names another
+node. An explicit ID-equal label such as `A[A]` also refuses the change because
+the lexical edit would retain a label that ordinary rename changes. These
+refusals keep the edit within the scanner's proven ownership.
+
+Appending preserves the complete previous source as a prefix: each changing
+Flowchart label adds an override, and each Class member addition adds a reopened
+class block. Repeated edits therefore grow the document; this mode does not
+compact earlier declarations. Member removal and node rename instead replace
+only their owned ranges. Each changing edit still reparses the complete public
+diagram and rebuilds its source spans.
 
 ```ts
 const edited = mutatePreservingSource(diagram, {
