@@ -11,7 +11,11 @@ export function parseGitGraphBody(source: string, options: import('../gitgraph/p
 }
 
 export function gitGraphCommentTextProblem(source: string): string | undefined {
-  const lines = source.split(/\r?\n/)
+  // The public prepass normalizes CR first, then uses JavaScript multiline
+  // anchors (which also see LS/PS) while its comment payload stops only at LF.
+  const normalized = source.replace(/\r\n?/g, '\n')
+  const lines = normalized.split(/[\n\u2028\u2029]/)
+  const endings = normalized.match(/[\n\u2028\u2029]/g) ?? []
   const header = lines.findIndex(line => /^\s*gitGraph\b/i.test(line))
   if (header < 0) return
   const bodyLines = lines.slice(header + 1)
@@ -21,7 +25,7 @@ export function gitGraphCommentTextProblem(source: string): string | undefined {
     for (let line = start + 1; line <= end; line++) {
       // Public Mermaid removes physical comments before its string lexer.
       // Entity shielding would change GitGraph's literal identities.
-      if (/^[^\S\r\n]*%%(?!\{)[^\n]+/.test(bodyLines[line]!)) return 'A multiline GitGraph string contains a comment-looking line removed by Mermaid preprocessing; source and native rendering are preserved without typed editing.'
+      if (/^[^\S\r\n]*%%(?!\{)[^\n]+/.test(bodyLines[line]! + (endings[header + 1 + line] ?? ''))) return 'A multiline GitGraph string contains a comment-looking line removed by Mermaid preprocessing; source and native rendering are preserved without typed editing.'
     }
     start = end
   }
