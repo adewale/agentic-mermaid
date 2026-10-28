@@ -231,3 +231,86 @@ Evidence directories: `/tmp/pr449-20261028-stroke-controls/`,
 `/tmp/pr449-20261028-stroke-final-checks/`,
 `/tmp/pr449-endpoint-coverage-20261028/` and
 `/tmp/pr449-original87-current-34e1df39-20261028/`.
+
+## 28 October 2026, continued: marker absorption falsifiers
+
+Normal merge `141bbeb868c5318a7579b6d6020b305a7a58b120` integrates Main
+`cc28bd508fc6cfdf7eea586bfc0c7b509154f849` (#557). Independent source review
+and affected owners preserve the public SDK's mutation hooks while the private
+worker truthfully omits them. Post-integration owners pass 436 tests / 5,781
+assertions, including five fresh-worker controls. These observations precede
+the proof correction below and are not relabelled as its qualification.
+
+Adversarial final-ink review disproved the new circle proof's witness assumption.
+A normal-order literal-black circle on its own literal-black 20px shaft received
+P, yet removing only its marker-end attribute changed zero of 32,000 actual
+RGBA bytes. Both PNGs are also directly byte-identical. The earlier #111 probe
+changed 14 pixels and remains a nonfinding; it was not discarded or relabelled.
+Two bounded source-driven refinements expose the same false-P class: an earlier
+20px black chrome shaft behind a thin carrier, and the actual black page
+backdrop inserted outside the retained primitive roster. Both also have zero
+marker-removal RGBA differences. Backdrop evidence retains raw Native SVG and
+served SVG after the existing production color finalizer, with literal black
+page paint asserted. No substitute helper result establishes this finding.
+
+The finite repair uses one exact transverse ring point strictly outside the
+own cardinal shaft's full infinite strip, including butt/round/square caps.
+That same point must clear every later body. The new proof additionally requires
+the first graphical primitive, one endpoint marker with no siblings/mids, and
+no actual inserted backdrop. These are sufficient admission restrictions for
+the new proof only; generic proofs, output geometry and work limits remain.
+Unsupported earlier paint is refused rather than reconstructed. No extra SVG
+scan, geometry writer, perceptual threshold or epsilon is introduced.
+
+Implementation is `b7dd86b366e5aa0643540141e9f39b9478c3f9b5`. Direct
+byte comparison binds the saved acquisition production/test patches to this
+commit; observations retain their actual `141bbeb86` plus frozen-patch identity.
+The regressions genuinely fail before each repair: own shaft 14P/1F; earlier
+shaft 15P/1F; background cohort 15P/2F. Final focused controls are 17P/0F;
+full paint certification/Native validation owners are **283P/0F, 1,429
+assertions**. The cohorts overlap and are not summed. Existing mutable/getter,
+CSS/resource/ownership and 4,000/50,000-point controls remain in those owners.
+Canonical core/repository types and 1,800-file lint pass, with one retained
+oversized-JSON warning; whitespace and hygiene checks pass. The hygiene tool's
+942-line/373-commit signal includes retained history, not just this repair.
+
+All four complete served SVGs are byte-identical before/after (708, 835, 773
+and 707 bytes); the raw pre-finalizer backdrop SVG is also exact. The three
+confirmed absorption cases move P to U while their complete PNGs stay exact.
+The clear control remains P, and removing only its marker changes 18 pixels.
+Independent straight-RGBA readback agrees on those pixels; its 66 changed color
+channels and Resvg's 72 premultiplied channels are different encodings, not
+conflicting pixel counts. Three counterexamples have zero changed channels
+under both decoders. Independent source review covers cardinal/ref/start
+mapping, full caps, unique occurrence order, sole markers and the complete
+finite paint roster. There are no further in-scope review blockers.
+
+The preceding exact-head CI [40664557732](https://github.com/adewale/agentic-mermaid/actions/runs/40664557732)
+on `55fce6f2c9e07bc68371a63753098c42ccfd4e73` is complete: **14,519 unit
+passes / 76 skips / zero failures**, 173 semantic passes, 63/64 qualified
+assertions plus one unavailable. Functional package/CLI/MCP/site lanes pass.
+CI remains failed: 62 unique absolute lazy-delivery violations; editor raw
+4,664,499 exceeds 4,429,400 bytes; demo requests 38 exceeds 36. Gzip/relative
+assertions are not reached. Eight advisory reports retain zero status changes;
+corpus234 has 47 regressions, 51 improvements, 135 changed and one unchanged.
+Those compare engines, not head versus Main. The manual PR red/green job was
+skipped; the local genuine failures above remain the discriminating evidence.
+This earlier CI does not qualify the newer Main557 integration or repair.
+Fresh exact-head CI will be dispatched after the normal retained-branch push.
+All seven originals and all six 0.6 acceptance goals remain open. No holdout,
+peer acquisition or performance campaign has been opened by this correction.
+
+
+Next concrete step, after final-head verification: extend exact same-emission
+resource/root/group/stylesheet authority at its existing owner before asking
+for a public original87 promotion. Its carrier/resource numeric and geometry
+obligations still need proof. Then qualify all seven under both engines/cache
+policies. Keep peer-observer admission and independent authored coverage as
+separate prerequisites for candidate/domain freeze and the still-sealed holdout.
+Aesthetics precede controlled performance; no performance work resumes here.
+
+Evidence: `/tmp/pr449-20261028-stroke-controls/` (including
+`absorption-regression-HANDOFF.md`, `COMMITTED-SOURCE-APPLICABILITY.json` and
+`FINAL-INDEPENDENT-FIDELITY-READBACK.json`),
+`/tmp/pr449-20261028-stroke-final-checks/` and
+`/tmp/pr449-original87-current-141bbeb8-20261028/HANDOFF.json`.
