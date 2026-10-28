@@ -1766,3 +1766,70 @@ sealed, shared Trident proposals stay unshipped and pinned public Mermaid/Pele
 correctness comparisons are incomplete. No ELK correctness/aesthetic/performance
 parity, merge, new issue/PR/comment, default/version change, package publication
 or force push is claimed or performed.
+
+
+### Raw XML authority: terminal exact-candidate CI and retained delivery cost
+
+[CI40784447337](https://github.com/adewale/agentic-mermaid/actions/runs/40784447337)
+completes **failed overall** on exact candidate
+**`bd74cb5c4953c568b43293b78de9f9a0dea836a6`**, containing runtime/test
+**`d138827f4c383165b637d7dd30f8d79089853285`**. Checkout logs bind that revision.
+The single first attempt has **14,662P/76skips/0F**: shard counts
+4,545/5,006/5,111 with45/13/18skips. The prior SourceMap growth guard passes
+without retry or any parser/threshold change. No CI reruns are requested.
+
+Independent semantic assertions pass **173/0F**, with **63/64 qualified and one
+unavailable**. All882grammar inputs have zero untracked defects and unreviewed
+disagreements. Broader diagnostics still render **440/548** upstream-valid
+inputs, with431structured/10opaque/107preserved models. Across103upstream source
+files, the3,474registered assertions classify1,879passed/121native-refusal/
+720assertion-mismatch/735adapter-unavailable/6reference-unqualified/13skipped;
+three files are uncollected. These aggregate counts match the prior CI, not a
+proof that every case or actual ink agrees. They are diagnostic categories, not
+720adjudicated candidate defects or broad support completion. Thirteen seed7
+silent reads remain enrolled. Passing173 must not conceal these broader gaps.
+
+Quality types, lint and the513diagram/2,052format audit pass with zero hard,
+soft or rendering errors,513/513structural layouts and275/513SVG markup
+adapters. Node22/24 installed consumers, quickstarts, MCP, CLI, distribution,
+payload and browser-site checks pass. Manual PR-event red/green is skipped;
+local genuine REDs and mutation controls remain available.
+
+The repair has a measured delivery cost: **27unique lazy byte violations**
+(17raw/10gzip), up from24. New gzip failures are Journey204,653>204,250,
+Quadrant201,245>201,000 and Gantt207,326>207,000. Sequence gzip is
+**214,800>214,000**,585bytes more than the prior candidate. Browser is21P/1F:
+editor raw **4,493,756>4,429,400**, **1,468bytes more** than prior4,492,288;
+editor gzip is not reached. All caps stay unchanged. This is a real cost of the
+combined correctness repair, not an unchanged delivery result or a performance
+improvement. No delivery/compiler/performance tuning or timing campaign occurs.
+
+The layout advisory remains failed with unchanged aggregate vectors:234corpus
+cases yield47regressions/52improvements/135other changes; initial256generated
+have123regressions/133improvements. Both engines have zero API errors across
+all eight historical cohorts; the six other64case vectors remain. Zero status
+changes denotes missing population only. These reused inputs are not the sealed
+0.6holdout, and zero API errors is not correctness or aesthetic parity.
+
+The final evidence also explicitly enrolls two superseded early finder
+observations: unprepared trailing text was already U/UNPREPARED_TEXT, and generic
+opaque title/description metadata was U for an unrecovered reason. Their original
+raw-byte freezes are unavailable in the final captures. Prepared text and typed
+metadata are different authored inputs, not promotions of those earlier U cases;
+no missing observation is reconstructed or labelled implementation success.
+`EARLY-FINDER-LIMITATIONS.json` records that boundary separately from final13.
+
+All decoded CI logs, terminal job list, complete summary, delivery rows and remote
+artifact references are under
+`/tmp/pr449-xml-authority-20261028/ci40784447337/`. No large remote ZIP is newly
+downloaded. Final v3 source/test members match committed d138 directly and all
+prior failed/incomplete observations remain. The final documentation-only update
+changes no source, tests, dependency or workflow; it has no separate full-CI or
+readiness claim. Retained branch bd74 and live Main
+**`ceca964f1a4aa4b3e748edbbce8728abd65ce632`** are rechecked; only integrated03641
+is jointly qualified. PR449 stays closed. Next remains exact final-output
+geometry-draft/admission sealing with deliberate standalone/layout/cache handling,
+then row87served-stroke/fractional-body witnesses. Original seven and all six
+acceptance goals remain open, holdout sealed, peer comparisons incomplete and
+shared Trident proposals unshipped. No merge, new issue/PR/comment, force push,
+default/version change or package publication.
