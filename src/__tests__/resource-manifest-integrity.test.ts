@@ -205,7 +205,7 @@ describe('content-addressed installed resource manifest', () => {
       const identity: Record<string, unknown> = {
         kind: 'resource',
         version: '1.0.0',
-        compatibility: { core: '^0.4.0' },
+        compatibility: { core: '^0.5.0' },
         provenance: { owner: 'test', source: 'getter-sabotage' },
       }
       Object.defineProperty(identity, 'id', {

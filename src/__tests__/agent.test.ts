@@ -126,6 +126,28 @@ describe('explicit source-preserving Flowchart labels', () => {
     if (diagram.body.kind !== 'opaque') throw new Error('Expected retained opaque body')
     expect(diagram.body.source).toBe(source)
   })
+  test.each(['R&amp;D', '&#65;', 'keep &quot;quote&quot;'])('checks newly divergent render text when editing previously identical source views: %s', label => {
+    const source = `flowchart TD\nA[Old] --> B\n${style}`, diagram = parse(source), unchanged = JSON.stringify(diagram)
+    expect(normalizeMermaidSource(source).familyBody).toBe(normalizeMermaidRenderSource(source).familyBody)
+    expect(mutatePreservingSource(diagram, { kind: 'set_label', target: 'A', label }).ok).toBe(false)
+    expect(JSON.stringify(diagram)).toBe(unchanged)
+  })
+  test('retains distinct authored and rendered text on another node through repeated source edits', () => {
+    const source = `flowchart TD\nA[Old] --> B["R&amp;D"]\n${style}`
+    let diagram = parse(source)
+    for (const label of ['Reviewed', 'Second']) {
+      const result = mutatePreservingSource(diagram, { kind: 'set_label', target: 'A', label })
+      if (!result.ok) throw new Error(result.error.message)
+      expect(result.value.source.startsWith(source)).toBe(true)
+      const authored = parseNativeFlowchart(normalizeMermaidSource(result.value.source).familyBody)
+      const rendered = parseNativeFlowchart(normalizeMermaidRenderSource(result.value.source).familyBody)
+      expect(authored.nodes.get('A')?.label).toBe(label)
+      expect(rendered.nodes.get('A')?.label).toBe(label)
+      expect(authored.nodes.get('B')?.label).toBe('R&amp;D')
+      expect(rendered.nodes.get('B')?.label).toBe('R&D')
+      diagram = result.value.diagram
+    }
+  })
 
   test('renames owned node references while preserving source text, node order, labels and dependent edge/group identities', () => {
     const source = `---\ntitle: Keep A\n---\nflowchart LR\naccTitle: A stays text\n%% A stays a comment\nsubgraph S[Group A]\nA[Label A] -->|Edge A| B:::exClass\nC --> A\nA --> A\nend\n${style}`

@@ -40,9 +40,10 @@ route-contract extraction preserves the existing pipeline manifest and order.
 
 - [ ] **REL-1 — Qualify, publish and verify 0.5.0** (`todo`,
   [#378](https://github.com/adewale/agentic-mermaid/issues/378)). The release
-  target is 0.5.0; source still declares 0.4.2 and npm served 0.4.1 when checked
-  on 25 October. No intermediate 0.4.2 publication is required. Settle scope,
-  update version/changelog and the release issue's automation marker, and run
+  target and prepared source version are 0.5.0; npm served 0.4.1 when checked
+  on 25 October. No intermediate 0.4.2 publication is required. Retain the
+  documented source-edit/export limits, update the release issue's automation
+  marker when the version change lands, and run
   canonical CI, including its independent semantic and packed-consumer checks,
   on the actual immutable release candidate. The publication workflow also
   requires platform smoke tests and the verified package artifact. Following

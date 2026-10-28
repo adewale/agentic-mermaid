@@ -909,10 +909,12 @@ the exact raw value `border:1px s:::colid red` likewise remains source-preserved
 Mermaid tokenizes `:::` as a style separator, while accepted backslash or
 whitespace alternatives change the stored value. Portable structural writes
 refuse these cases instead of changing identities or discarding authored style
-text. The explicit library `mutatePreservingSource` path can add an ordinary
-Class member or change an existing Flowchart node label while retaining the
-original source and its portability diagnostic; it does not promise a portable
-canonical export. See [source-level editing](../agent-mutation-policy.md).
+text. Version 0.5 retains these three original export restrictions: source-level
+editing keeps the authored identities and style fields, together with their
+portability diagnostics. It does not invent portable IDs or discard unsupported
+fields. The bounded edits, dependency refusals and appended-declaration growth
+are described in [source-level editing](../agent-mutation-policy.md); successful
+editing does not establish portable canonical export.
 
 GitGraph STRING fields use the pinned Langium escape codec, including escaped
 line breaks. Writers shield comment/directive percent signs, entity delimiters

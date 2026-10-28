@@ -340,7 +340,7 @@ test('family ownership follows constructed identities and backend ownership foll
       assert.equal(isOriginalEnrolledDefaultBackend(proxy), false)
       if (mode === 'changed-before-enrollment') DefaultBackend.drawNode = () => { throw new Error('unexpected rendering') }
       if (mode === 'failed-enrollment') {
-        registerBackend({ ...DefaultBackend, id: 'backend:default' }, { compatibility: { core: '^0.4.0', scene: '^2.0.0' } })
+        registerBackend({ ...DefaultBackend, id: 'backend:default' }, { compatibility: { core: '^0.5.0', scene: '^2.0.0' } })
         assert.throws(() => registerBuiltInBackend(DefaultBackend), { name: 'ExtensionCollisionError' })
         assert.equal(Object.isFrozen(DefaultBackend), true)
         assert.equal(isOriginalEnrolledDefaultBackend(DefaultBackend), false)
