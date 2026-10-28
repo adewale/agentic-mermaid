@@ -426,7 +426,7 @@ retained candidates per contract/family and eight reduction checks. These are
 bounded discovery settings, not a claim of exhaustive grammar coverage. It keeps
 portable-write, native reload/meaning and source-diagnostic candidates separately
 from raw reference token/action/model differences. A reduction must retain the
-same confirmed contract defect; otherwise the original witness remains. Partial
+same candidate contract violation; otherwise the original witness remains. Partial
 summaries and the last source survive an interrupted search. Expensive native/
 reference instrumentation is a diagnostic; parser disagreement alone is not a bug.
 
@@ -446,6 +446,8 @@ property and fix the failure class. Review existing finite grammar issues before
 opening additional work. Useful yield is reproducible confirmed failure classes
 per runner/review hour, with replay completeness and triage time alongside it;
 mutation, disagreement and ticket counts do not measure correctness.
+Pause recurring discovery while confirmed findings await repair or its oracle
+needs correction; replay those finite inputs before spending another search budget.
 
 The former nightly workflow and #362 collector are retired. Historical runs and
 counterexamples remain evidence. Their open-ended notification infrastructure is
