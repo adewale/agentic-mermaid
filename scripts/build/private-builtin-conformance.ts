@@ -26,10 +26,10 @@ function sourceSnapshot(): Map<string, string> {
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
       const path = join(directory, entry.name)
       if (entry.isDirectory() && entry.name !== '__tests__') visit(path)
-      else if (/\.(?:ts|js|json)$/.test(entry.name)) values.set(path, readFileSync(path, 'utf8'))
+      else if (/\.(?:[mc]?ts|[mc]?js|json)$/.test(entry.name)) values.set(path, readFileSync(path, 'utf8'))
     }
   }
-  for (const directory of ['src', 'scripts/build']) visit(join(root, directory))
+  for (const directory of ['src', 'shared', 'scripts/build']) visit(join(root, directory))
   for (const name of ['package.json', 'bun.lock']) values.set(join(root, name), readFileSync(join(root, name), 'utf8'))
   return values
 }

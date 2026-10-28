@@ -20,7 +20,6 @@
 import { runtimeRenderContractPlugin } from '../build/runtime-render-contract.ts'
 import { privateBuiltinConformancePlugin, verifyPrivateBuiltinConformanceSource } from '../build/private-builtin-conformance.ts'
 import { minifyBrowserRuntime } from '../build/runtime-minify.ts'
-import { poolStandaloneRuntimeStrings } from '../build/standalone-string-pool.ts'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gzipSync } from 'node:zlib'
@@ -334,9 +333,6 @@ ${appJs}
 </html>`
   if (metafilePath) {
     const htmlBytes = new TextEncoder().encode(document)
-    // Measure this experiment without changing the document written below.
-    const { code: pooledCode, ...pooling } = poolStandaloneRuntimeStrings(bundleJs)
-    const pooledDocument = document.replace(bundleJs, () => pooledCode)
     await Bun.write(metafilePath, JSON.stringify({
       schemaVersion: 1,
       runtime: `Bun ${Bun.version}`,
@@ -348,10 +344,6 @@ ${appJs}
       htmlGzipBytes: gzipSync(htmlBytes, { level: 9 }).byteLength,
       appScriptBytes: new TextEncoder().encode(appJs).byteLength,
       styleBytes: new TextEncoder().encode(css).byteLength,
-      stringPoolCandidate: { scope: 'Non-shipping size experiment; runtime performance unmeasured', ...pooling,
-        runtimeGzipBytes: gzipSync(pooledCode, { level: 9 }).byteLength,
-        htmlBytes: new TextEncoder().encode(pooledDocument).byteLength,
-        htmlGzipBytes: gzipSync(pooledDocument, { level: 9 }).byteLength },
       metafile: runtimeMetafile,
     }))
   }
