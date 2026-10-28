@@ -1546,7 +1546,7 @@ export function separateEdgeLabelPills(
       if (!paint || !pay(8)) return
       const blockers = new Set<PositionedEdge>(), single = new Map<PositionedEdge, Point>()
       const seat = paint
-      const candidates = (subject: PositionedEdge, overhang: boolean, ignored: PositionedEdge | undefined, blocked?: Set<PositionedEdge>): Point[] | undefined => {
+      const candidates = (subject: PositionedEdge, overhang: boolean, ignored: PositionedEdge | ReadonlySet<PositionedEdge> | undefined, blocked?: Set<PositionedEdge>): Point[] | undefined => {
         if (!pay(8)) return undefined
         const result: Point[] = [], staged = new Map<PositionedEdge, Point>()
         // The other member is excluded ONLY while proposing; final transaction
@@ -1575,11 +1575,11 @@ export function separateEdgeLabelPills(
         if (paint.clear(edge, point, single)) { edge.labelPosition = point; accepted = true; break }
       }
       if (accepted) continue
+      const movable = labeled.filter(peer => blockers.has(peer) && !peer.curve && !peer.points.some((p, i) => i > 0 && p.x !== peer.points[i - 1]!.x && p.y !== peer.points[i - 1]!.y))
       for (const peer of labeled) {
         if (!pay(1)) return
-        if (!blockers.has(peer)) continue
+        if (!movable.includes(peer)) continue
         if (!pay(peer.points.length + 6)) return
-        if (peer.curve || peer.points.some((p, i) => i > 0 && p.x !== peer.points[i - 1]!.x && p.y !== peer.points[i - 1]!.y)) continue
         for (const overhang of [false, true]) {
           const first = candidates(edge, overhang, peer), second = candidates(peer, overhang, edge)
           if (!first || !second) return
@@ -1590,6 +1590,32 @@ export function separateEdgeLabelPills(
             edge.labelPosition = a; peer.labelPosition = b; accepted = true; break transaction
           }
           if (accepted) break
+        }
+        if (accepted) break
+      }
+      if (accepted || movable.length < 2) continue
+      // Several captions can block every seat together, so that moving any
+      // one of them frees nothing. Propose this seat ignoring all of them,
+      // re-seat each in turn against the staged moves, then validate the
+      // whole transaction against all live paint before writing any seat.
+      const group = new Set(movable)
+      for (const overhang of [false, true]) {
+        const first = candidates(edge, overhang, group)
+        if (!first) return
+        transaction: for (const a of first) {
+          if (!pay(8 + 4 * movable.length)) return
+          const positions = new Map<PositionedEdge, Point>([[edge, a]])
+          for (const peer of movable) {
+            const options = candidates(peer, overhang, edge)
+            if (!options) return
+            const spot = options.find(b => seat.clear(peer, b, new Map(positions).set(peer, b)))
+            if (!spot) continue transaction
+            positions.set(peer, spot)
+          }
+          if (![...positions].every(([member, point]) => seat.clear(member, point, positions))) continue
+          for (const [member, point] of positions) member.labelPosition = point
+          accepted = true
+          break transaction
         }
         if (accepted) break
       }

@@ -165,20 +165,35 @@ describe('Flowchart relationship ends stay readable (#566)', () => {
     }
   }
 
-  test("a caption kept clear of a neighbour's arrowhead does not cover its parallel sibling instead", () => {
-    // "3" sits beside the arrowhead 9 paints into Alpha, between the lanes of
-    // 9 and its parallel sibling 4: no seat off 9's marker avoids 4's line.
-    const source = 'flowchart TD\n  Z[Start] -->|long 1| A[Alpha]\n  Z -->|long 2| A\n  A -->|3| B[Beta]\n  A -->|4| B\n'
-      + '  B -->|5| C[Gamma]\n  B -->|6| D[Delta]\n  C -->|7| D\n  D -->|8| E[End]\n  B -->|9| A\n  C -->|10| A\n  D -->|11| A\n  C -->|13| B\n  D -->|14| B'
+  test.each([
+    {
+      // "3" sits beside the arrowhead 9 paints into Alpha, between the lanes
+      // of 9 and its parallel sibling 4: no seat off 9's marker avoids 4's line.
+      name: "a caption kept clear of a neighbour's arrowhead",
+      caption: '3',
+      source: 'flowchart TD\n  Z[Start] -->|long 1| A[Alpha]\n  Z -->|long 2| A\n  A -->|3| B[Beta]\n  A -->|4| B\n'
+        + '  B -->|5| C[Gamma]\n  B -->|6| D[Delta]\n  C -->|7| D\n  D -->|8| E[End]\n  B -->|9| A\n  C -->|10| A\n  D -->|11| A\n  C -->|13| B\n  D -->|14| B',
+    },
+    {
+      // Keeping 9/11 and 13/14 on separate arrowheads seats captions 11 and 14
+      // on either side of the free seat above 12's loop: only moving both
+      // together uncovers 11's line.
+      name: 'a self-loop caption blocked by two captions at once',
+      caption: '12',
+      source: 'flowchart TD\n  B -->|9| A\n  D -->|11| A\n  B -->|12| B\n  C -->|13| B\n  D -->|14| B\n  C -->|18| C',
+    },
+  ])('$name covers no other relationship\'s line', ({ caption, source }) => {
     const { positioned, style } = laidOut(source, {})
-    const caption = (text: string) => positioned.edges.find(edge => edge.label === text)!
-    const pill = labelRect(caption('3'), style)!
+    const subject = positioned.edges.find(edge => edge.label === caption)!
+    const pill = labelRect(subject, style)!
     const box = { x0: pill.x, y0: pill.y, x1: pill.x + pill.w, y1: pill.y + pill.h }
-    const sibling = caption('4').points
-    for (let i = 1; i < sibling.length; i++) {
-      const a = sibling[i - 1]!, b = sibling[i]!
-      const run = { x0: Math.min(a.x, b.x), y0: Math.min(a.y, b.y), x1: Math.max(a.x, b.x), y1: Math.max(a.y, b.y) }
-      expect(run.x1 > box.x0 && run.x0 < box.x1 && run.y1 > box.y0 && run.y0 < box.y1, '"3" covers the line of 4').toBe(false)
+    for (const other of positioned.edges) {
+      if (other === subject) continue
+      for (let i = 1; i < other.points.length; i++) {
+        const a = other.points[i - 1]!, b = other.points[i]!
+        const run = { x0: Math.min(a.x, b.x), y0: Math.min(a.y, b.y), x1: Math.max(a.x, b.x), y1: Math.max(a.y, b.y) }
+        expect(run.x1 > box.x0 && run.x0 < box.x1 && run.y1 > box.y0 && run.y0 < box.y1, `"${caption}" covers the line of ${other.label ?? `${other.source}->${other.target}`}`).toBe(false)
+      }
     }
   })
 })
