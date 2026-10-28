@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { fileURLToPath } from 'node:url'
 import { getFamily, knownBuiltinFamilies, replaceFamilyForTest } from '../agent/families.ts'
 import { renderAndVerifyMermaid, verifyMermaid } from '../agent/verify.ts'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
@@ -13,6 +14,35 @@ import { createBrowserEditorAdapter } from '../browser-editor-adapter.ts'
 import { withRenderStageObserver } from '../layout/backend.ts'
 
 describe('one positioned artifact for preview and verification', () => {
+  test('source hook delivery omits mutation dispatch data while the SDK keeps native edits', async () => {
+    const built = await Bun.build({
+      entrypoints: [fileURLToPath(new URL('../agent/families-source-hooks.ts', import.meta.url))],
+      target: 'browser', format: 'esm', minify: true, metafile: true,
+    })
+    expect(built.success, built.logs.map(log => log.message).join('\n')).toBe(true)
+    const retainedMutationBytes = Object.values(built.metafile!.outputs).reduce((sum, output) => sum
+      + Object.entries(output.inputs).reduce((bytes, [path, contribution]) => bytes
+        + (path.endsWith('/agent/generated/mutation-op-kinds.ts') ? contribution.bytesInOutput : 0), 0), 0)
+    expect(retainedMutationBytes).toBe(0)
+    const text = await built.outputs[0]!.text()
+    const sourceModule = await import(`data:text/javascript;base64,${Buffer.from(text).toString('base64')}`) as {
+      BUILTIN_SOURCE_HOOKS: Record<string, { parse?: unknown; serialize?: unknown; buildSourceMap?: unknown; mutate?: unknown }>
+    }
+    for (const family of ['eventmodeling', 'zenuml']) {
+      const hook = sourceModule.BUILTIN_SOURCE_HOOKS[family]!
+      expect(typeof hook.parse).toBe('function')
+      expect(typeof hook.serialize).toBe('function')
+      expect(typeof hook.buildSourceMap).toBe('function')
+      expect(hook.mutate).toBeUndefined()
+      const full = getFamily(family)!
+      const parsed = parseRegisteredMermaid(full.example)
+      if (!parsed.ok) throw new Error(`Expected native ${family} example`)
+      const changed = full.mutate!(parsed.value.body, { kind: 'set_title', title: 'Edited title' })
+      expect(changed.ok).toBe(true)
+      if (changed.ok) expect(changed.value).toMatchObject({ kind: family, title: 'Edited title' })
+    }
+  })
+
   test.each(['flowchart', 'state', 'packet', 'eventmodeling', 'zenuml'])('the source-only %s worker preserves typed round trips and diagnoses unavailable mutation', async family => {
     // A fresh worker realm must not inherit the SDK's eagerly installed hooks.
     const child = Bun.spawn([process.execPath, '-e', `

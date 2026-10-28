@@ -1,10 +1,16 @@
-import { minify } from '@swc/core'
+import { minify, type JsMinifyOptions } from '@swc/core'
 
 /** Private browser delivery uses ordinary semantics-preserving compression.
  * Getters remain observable, function arity stays intact, and unsafe rewrites
  * are disabled. This changes emitted JavaScript, never rendering contracts. */
 export async function minifyBrowserRuntime(source: string): Promise<string> {
-  const result = await minify(source, {
+  const result = await minify(source, browserRuntimeMinifyOptions())
+  if (!result.code) throw new Error('Browser runtime compression produced no module')
+  return result.code
+}
+
+export function browserRuntimeMinifyOptions(): JsMinifyOptions {
+  return {
     ecma: 2022, module: true, mangle: true,
     compress: {
       defaults: true, ecma: 2022, toplevel: true,
@@ -12,7 +18,5 @@ export async function minifyBrowserRuntime(source: string): Promise<string> {
       inline: 3, passes: 3,
     },
     format: { comments: 'some', inlineScript: true },
-  })
-  if (!result.code) throw new Error('Browser runtime compression produced no module')
-  return result.code
+  }
 }

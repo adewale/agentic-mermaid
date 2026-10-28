@@ -137,7 +137,11 @@ describe('browser runtime metadata projection', () => {
       "function paintSchema(description) { return { type: 'string', description }; }",
       "const PAINT_SCHEMA = paintSchema('helper schema prose');",
       "const ARCHITECTURE_VISUAL_SCHEMA_PROPERTIES = { width: { type: 'number', minimum: 1, description: 'property-map prose' }, description: { type: 'string', description: (() => 'evaluated metadata')() } };",
-      'function run() { return { field: SHARED_RENDER_OPTION_FIELD_DESCRIPTORS.style, paint: PAINT_SCHEMA, properties: ARCHITECTURE_VISUAL_SCHEMA_PROPERTIES }; }',
+      "const STYLE_SPEC_FIELD_DESCRIPTORS = Object.freeze({ width: { kind: 'number', group: 'layout', minimum: 1, description: 'width metadata' } });",
+      "const ROLE_STYLE_PROPERTY_DESCRIPTORS = Object.freeze({ fontSize: { kind: 'number', minimum: 1, maximum: 256, expected: 'between 1 and 256', description: 'role typography metadata' } });",
+      "function rolePropertyJsonSchemas() { return Object.fromEntries(Object.entries(ROLE_STYLE_PROPERTY_DESCRIPTORS).map(([name, property]) => [name, { type: property.kind, minimum: property.minimum, maximum: property.maximum, description: property.description }])); }",
+      "function fieldsJsonSchema() { return { $schema: 'https://json-schema.org/draft/2020-12/schema', $id: 'https://example.test/schema', title: 'Schema metadata', type: 'object', properties: { $schema: { type: 'string' }, $id: { type: 'string' }, title: { type: 'string' } }, required: ['title'], additionalProperties: false }; }",
+      'function run() { return { field: SHARED_RENDER_OPTION_FIELD_DESCRIPTORS.style, paint: PAINT_SCHEMA, properties: ARCHITECTURE_VISUAL_SCHEMA_PROPERTIES, styleFields: STYLE_SPEC_FIELD_DESCRIPTORS, roleFields: ROLE_STYLE_PROPERTY_DESCRIPTORS, roleSchemas: rolePropertyJsonSchemas(), schema: fieldsJsonSchema() }; }',
     ].join('\n')
     const path = fixture('src/render-contract.ts', source)
     const terminalRenderer = Function(`${project(path, { schemaDocumentation: false, terminalAdapter: true })}\nreturn run();`)()
@@ -147,6 +151,10 @@ describe('browser runtime metadata projection', () => {
     expect(terminalRenderer.field.schema).toEqual({ type: 'object', properties: { description: { type: 'string' } } })
     expect(terminalRenderer.paint).toEqual({ type: 'string' })
     expect(terminalRenderer.properties).toEqual({ width: { type: 'number', minimum: 1 }, description: { type: 'string', description: 'evaluated metadata' } })
+    expect(terminalRenderer.styleFields.width).toEqual({ kind: 'number', minimum: 1 })
+    expect(terminalRenderer.roleFields.fontSize).toEqual({ kind: 'number', minimum: 1, maximum: 256, expected: 'between 1 and 256' })
+    expect(terminalRenderer.roleSchemas.fontSize).toEqual({ type: 'number', minimum: 1, maximum: 256 })
+    expect(terminalRenderer.schema).toEqual({ type: 'object', properties: { $schema: { type: 'string' }, $id: { type: 'string' }, title: { type: 'string' } }, required: ['title'], additionalProperties: false })
     const lazy = Function(`${project(path, { schemaDocumentation: false, terminalAdapter: false })}\nreturn run();`)()
     expect(lazy.field.terminal).toBeUndefined()
     expect(lazy.field.terminalNote).toBeUndefined()
@@ -156,8 +164,15 @@ describe('browser runtime metadata projection', () => {
     expect(inspector.field.schema.description).toBe('schema prose')
     expect(inspector.paint.description).toBe('helper schema prose')
     expect(inspector.properties.width.description).toBe('property-map prose')
+    expect(inspector.styleFields.width.group).toBe('layout')
+    expect(inspector.roleFields.fontSize.description).toBe('role typography metadata')
+    expect(inspector.schema.$id).toBe('https://example.test/schema')
     for (const value of [0, 1, 2, 'invalid']) expect(validateJsonSchema(value, terminalRenderer.properties.width))
       .toEqual(validateJsonSchema(value, inspector.properties.width))
+    for (const value of [0, 1, 256, 257, 'invalid']) expect(validateJsonSchema(value, terminalRenderer.roleSchemas.fontSize))
+      .toEqual(validateJsonSchema(value, inspector.roleSchemas.fontSize))
+    for (const value of [{}, { title: 'kept', $schema: 'input dialect', $id: 'input id' }, { title: 1 }, { title: 'kept', unknown: true }]) expect(validateJsonSchema(value, terminalRenderer.schema))
+      .toEqual(validateJsonSchema(value, inspector.schema))
     expect(inspector.field.terminalNote).toBe('required terminal note')
     const editor = Function(`${project(path, { conformanceObservations: false })}\nreturn run();`)()
     expect(editor).toEqual(inspector)

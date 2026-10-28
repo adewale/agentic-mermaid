@@ -10,6 +10,7 @@ import ts from 'typescript'
 function runtimeSource(source: string, path: string, schemaDocumentation: boolean, terminalAdapter: boolean): string {
   const file = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
   const fieldObjects = new Set<ts.ObjectLiteralExpression>()
+  const styleFieldObjects = new Set<ts.ObjectLiteralExpression>()
   const schemaPropertyObjects = new Set<ts.ObjectLiteralExpression>()
   const descriptionArguments = new Map<string, Set<number>>()
   const unwrap = (node: ts.Expression): ts.Expression => {
@@ -34,7 +35,10 @@ function runtimeSource(source: string, path: string, schemaDocumentation: boolea
       const call = unwrap(declaration.initializer)
       const value = ts.isCallExpression(call) && call.arguments[0] ? unwrap(call.arguments[0]) : undefined
       if (!value || !ts.isObjectLiteralExpression(value)) continue
-      for (const property of value.properties) if (ts.isPropertyAssignment(property) && ts.isObjectLiteralExpression(property.initializer)) fieldObjects.add(property.initializer)
+      for (const property of value.properties) if (ts.isPropertyAssignment(property) && ts.isObjectLiteralExpression(property.initializer)) {
+        fieldObjects.add(property.initializer)
+        if (declaration.name.text === 'STYLE_SPEC_FIELD_DESCRIPTORS') styleFieldObjects.add(property.initializer)
+      }
     }
   }
   if (!fieldObjects.size) throw new Error('Browser render-option projection could not find the canonical manifest')
@@ -43,7 +47,7 @@ function runtimeSource(source: string, path: string, schemaDocumentation: boolea
     for (let parent: ts.Node | undefined = node.parent; parent; parent = parent.parent) {
       if (ts.isPropertyAssignment(parent) && ts.isIdentifier(parent.name) && parent.name.text === 'schema') return true
       if (ts.isVariableDeclaration(parent) && ts.isIdentifier(parent.name) && parent.name.text.endsWith('_SCHEMA')) return true
-      if (ts.isFunctionDeclaration(parent) && parent.name?.text.endsWith('Schema')) return true
+      if (ts.isFunctionDeclaration(parent) && (parent.name?.text.endsWith('Schema') || parent.name?.text === 'rolePropertyJsonSchemas')) return true
       if (ts.isArrowFunction(parent) && ts.isVariableDeclaration(parent.parent) && ts.isIdentifier(parent.parent.name) && parent.parent.name.text.endsWith('Schema')) return true
     }
     return false
@@ -52,6 +56,9 @@ function runtimeSource(source: string, path: string, schemaDocumentation: boolea
     const visit: ts.Visitor = node => {
       if (ts.isObjectLiteralExpression(node)) {
         const fields = fieldObjects.has(node)
+        const schemaRoot = inSchema(node) && node.properties.some(property => ts.isPropertyAssignment(property)
+          && propertyName(property) === '$schema' && ts.isStringLiteral(property.initializer)
+          && property.initializer.text.startsWith('https://json-schema.org/'))
         const properties = node.properties.filter(property => {
           const name = propertyName(property)
           return !(fields && (name === 'typeScript' || name === 'defaultLabel' || name === 'description'
@@ -59,6 +66,9 @@ function runtimeSource(source: string, path: string, schemaDocumentation: boolea
             && !(ts.isPropertyAssignment(property) && ts.isObjectLiteralExpression(property.initializer)))
             && !(!schemaDocumentation && schemaPropertyObjects.has(node) && name === 'description' && ts.isPropertyAssignment(property)
               && (ts.isStringLiteral(property.initializer) || ts.isNoSubstitutionTemplateLiteral(property.initializer)))
+            && !(!schemaDocumentation && styleFieldObjects.has(node) && name === 'group' && ts.isPropertyAssignment(property) && ts.isStringLiteral(property.initializer))
+            && !(!schemaDocumentation && schemaRoot && (name === '$schema' || name === '$id' || name === 'title')
+              && ts.isPropertyAssignment(property) && ts.isStringLiteral(property.initializer))
         })
         return ts.visitEachChild(ts.factory.updateObjectLiteralExpression(node, properties), visit, context)
       }
@@ -368,7 +378,7 @@ export function runtimeRenderContractPlugin({ schemaDocumentation = true, termin
         loader: 'ts',
         resolveDir: dirname(path),
       }))
-      build.onLoad({ filter: /[\\/]src[\\/](?:render-contract|scene[\\/]style-spec)\.ts$/ }, ({ path }) => path.endsWith('style-spec.ts') && schemaDocumentation ? undefined : ({
+      build.onLoad({ filter: /[\\/]src[\\/](?:render-contract|scene[\\/](?:style-spec|role-style-contract))\.ts$/ }, ({ path }) => !path.endsWith('render-contract.ts') && schemaDocumentation ? undefined : ({
         contents: runtimeSource(coalesceRuntimePrimitives && path.endsWith('render-contract.ts')
           ? runtimeFamilyDiagnosticsSource(readFileSync(path, 'utf8'), path) : readFileSync(path, 'utf8'), path, schemaDocumentation, terminalAdapter),
         loader: 'ts',
