@@ -174,16 +174,27 @@ function renderedPeerMapping(category: string, article: string): Array<[string, 
 }
 
 function readEmittedGlobal<T>(script: string, name: string): T {
-  // Inspect the emitted declaration, independent of minifier whitespace, quotes
-  // and object-key spelling, then evaluate only its data initializer.
+  // Catalog keys survive minification; their private variable names need not.
+  // Resolve the catalog argument to its data initializer without running the UI.
   const program = parse(script, { ecmaVersion: 'latest', sourceType: 'module' })
+  const bindings = new Map<string, { start: number; end: number }>()
   for (const statement of program.body) {
     if (statement.type !== 'VariableDeclaration') continue
     for (const declaration of statement.declarations) {
-      if (declaration.id.type !== 'Identifier' || declaration.id.name !== name || !declaration.init) continue
-      return runInNewContext(`(${script.slice(declaration.init.start, declaration.init.end)})`, {}, { timeout: 1000 }) as T
+      if (declaration.id.type === 'Identifier' && declaration.init) bindings.set(declaration.id.name, declaration.init)
     }
   }
+  function catalogBinding(node: unknown): string | undefined {
+    if (!node || typeof node !== 'object') return
+    const record = node as Record<string, any>
+    if (record.type === 'Property' && !record.computed && (record.key.name ?? record.key.value) === name && record.value.type === 'Identifier') return record.value.name
+    for (const child of Object.values(record)) {
+      const match = Array.isArray(child) ? child.map(catalogBinding).find(Boolean) : catalogBinding(child)
+      if (match) return match
+    }
+  }
+  const initializer = bindings.get(catalogBinding(program) ?? name)
+  if (initializer) return runInNewContext(`(${script.slice(initializer.start, initializer.end)})`, {}, { timeout: 1000 }) as T
   throw new Error(`missing emitted ${name} data declaration`)
 }
 
@@ -730,6 +741,13 @@ describe('Workers Static Assets website contract', () => {
   test('public site and editor ship the diagram fonts used by built-in looks', () => {
     const styles = read('styles.css')
     const editor = read('editor/index.html')
+    const editorFaces = Array.from(editor.matchAll(/@font-face\s*\{([^}]+)\}/g), ([, body]) =>
+      Object.fromEntries(body!.split(';').filter(declaration => declaration.trim()).map(declaration => {
+        const separator = declaration.indexOf(':')
+        return [declaration.slice(0, separator).trim(), declaration.slice(separator + 1).trim().replace(/["']/g, '').replace(/\)\s+format\(/g, ')format(')]
+      })),
+    )
+    expect(editorFaces).toHaveLength(HOSTED_FONT_RESOURCES.length)
     expect(readRepo('website/source/assets/styles.css')).not.toContain('@font-face')
     // Site CSS serves latin-subset woff2 first for the display faces (full TTF
     // fallback second); DejaVu (PNG parity face) stays TTF-only. The editor
@@ -742,7 +760,13 @@ describe('Workers Static Assets website contract', () => {
         `src: url('/fonts/${font.file.replace(/\.ttf$/, '.subset.woff2')}') format('woff2'), url('/fonts/${font.file}') format('truetype');`,
       )
       expect(styles).toContain(SUBSET.has(font.file) ? subsetFace : publicFace)
-      expect(editor).toContain(publicFace)
+      expect(editorFaces).toContainEqual({
+        'font-family': font.family,
+        src: `url(/fonts/${font.file})format(truetype)`,
+        'font-weight': String(font.weight),
+        'font-style': font.style,
+        'font-display': 'swap',
+      })
     }
     for (const file of SUBSET) {
       const rel = `fonts/${file.replace(/\.ttf$/, '.subset.woff2')}`
@@ -778,7 +802,8 @@ describe('Workers Static Assets website contract', () => {
       const html = readFileSync(out, 'utf8')
       expect(html).toContain('window.__mermaid')
       // Without an explicit prefix the standalone editor serves fonts relative to itself.
-      expect(html).toContain(`url('assets/fonts/${HOSTED_FONT_RESOURCES[0]!.file}')`)
+      const urls = Array.from(html.matchAll(/url\((['"]?)([^)'"\s]+)\1\)/g), match => match[2])
+      expect(urls).toContain(`assets/fonts/${HOSTED_FONT_RESOURCES[0]!.file}`)
     } finally {
       rmSync(parent, { recursive: true, force: true })
     }
