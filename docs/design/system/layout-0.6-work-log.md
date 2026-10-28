@@ -1615,3 +1615,154 @@ new Main is not jointly qualified. The subsequent work-log-only revision
 changes no source, tests, dependency or workflow and has no separate full-CI
 or readiness claim. No new PR/issue/comment, default/version change, package
 publication, merge or force push is performed.
+
+
+### Fresh bounded Native XML admission and namespace identity
+
+This bounded continuation starts at **`25b5f5ed0d5c1a88164e0c594c55b31b60a9f514`**.
+Runtime/test repair is **`d138827f4c383165b637d7dd30f8d79089853285`**
+(`fix: bind Native marker proofs to fresh bounded XML admission`). PR449 remains
+merged/closed; these retained-branch follow-ups are not Main. Current instructions,
+qualification contract, work log, clean branch and PR discussion are reread.
+The thirteen discussion entries have no newer guidance than comment6434515091
+(updated 27October09:20UTC); historical performance work is not resumed. Five
+requested GPT-6.1 Sol High agents own disjoint source/tests and falsifiable
+soundness, isolation and actual-artifact reviews. The raw-admission contract and
+its namespace-premise extension are published in the existing PR description
+before their respective implementation edits.
+
+**Demonstrated defect and repair.** Nine authored malformed direct Native
+artifacts receive P on the starting runtime: an ordinary shape, prepared text
+or group after the root; unknown/raw/zero/surrogate references and raw forbidden
+characters in an otherwise allowed root attribute. Saxes and independent
+ElementTree reject all nine complete saved SVGs. Resvg rejects eight but accepts
+the surrogate-reference constructor input; no invalid-case raster is claimed.
+Four valid controls retain actual saved PNGs, including an opaque off-shaft
+arrow sample and its exact no-marker intervention. These are synthetic direct
+Native drawings, not demonstrated public Mermaid-source rendering defects.
+
+The exact joined raw SVG now reaches Native emission finish. Marker-bearing
+proofs consume a fresh parse through the existing XML parser before their
+private inspection-bound work record is sealed. The budget callback bypasses
+the caller-seedable inspection cache: a cached boolean is not authority.
+Already-issued inspection records cannot be overwritten, and wrapping already
+issued occurrences cannot acquire fresh custody. Existing header identity,
+mutable/getter, ownership, CSS and definition checks remain. No caller-provided
+certificate flag, producer-name exception, global geometry cache or new parser
+is introduced.
+
+This new parse pays character/name/reference searches and materialized spans
+before executing them, namespace-map entry copies before allocation and repeated
+expanded URI/name keys before construction. Namespace identity separately
+normalizes literal XML attribute whitespace, then expands each original XML
+reference once; referenced whitespace is preserved. The security-obfuscation
+decoder is byte-identical to the starting implementation. The unchanged
+**400,000** allowance includes this new proof work. These units bound the
+specified character/materialization/custody work; they are not machine timings
+or a claim that later mandatory security work is charged to that allowance.
+No-marker drawings retain their earlier proof domain, including the 4k/50k
+polyline controls; complete no-marker raw-document admission is still open.
+
+The reused parser also had five independent premises to repair: non-XML outer
+whitespace, trailing FEFF, uppercase hexadecimal-reference prefix and illegal
+QName local/prefix starts. A draft refused a valid leading BOM; an independently
+accepted positive control exposed that introduced regression, which is repaired.
+The leading BOM is accepted only at index0; inside-root FEFF remains text and
+trailing FEFF remains invalid. Ordinary groups, metadata, Unicode and references
+retain their authored admission behavior.
+
+**Independent review prevented premature closure.** First-draft v1 owners pass
+579 tests/8,619 assertions and canonical types, but a purposeful metadata
+interaction exposes two further Native P invalid XML artifacts: duplicate
+expanded names hidden by recursive reference decoding or absent literal XML
+whitespace normalization. Both exact complete SVGs fail Saxes, ElementTree and
+Resvg. The v2 namespace-only fix withdraws both certificates. A distinct-name
+control remains P, including deep escaping and numeric-reference whitespace.
+A separately enrolled encoded non-SVG-root case is XML-well-formed, already
+Native U, and now rejected by envelope/security admission; it is not labelled
+malformed XML or a new Native success.
+
+Genuine controls and adverse observations are retained separately:
+
+- Starting Native owner RED: **42P/9F/264 assertions**. The later positive RGBA
+  refinement is recorded; the final whole test is not falsely labelled the
+  identical initial RED byte epoch. Malformed-case assertions are unchanged.
+- First parser-premise RED: **0P/5F/10**; introduced leading-BOM draft RED:
+  **0P/1F/1**. Namespace-v1 Native RED: **52P/2F/293**, with exact source/test
+  snapshots; public namespace RED: **0P/2F/8**.
+- Isolation cases first pass2/7 assertions. Removing both overlapping seal
+  guards fails only the reissue case; disabling the fresh-parse cache bypass
+  fails only cache priming. Each mutation is **1P/1F/7** and directly restored
+  byte-for-byte. The initial isolation RED is explicitly a pre-Native-admission
+  epoch whose concurrent output-security bytes were not fully frozen.
+- A focused draft run **6P/2F** reveals an overbroad test assumption: Saxes
+  accepts digit-start QName cases that ElementTree rejects. Production's QName
+  rejection is correct; that generalized consumer assertion is removed. Its
+  queued duplicate rerun is canceled before execution. All consumer disagreement
+  and failed-test evidence stays available.
+- A broad local batch is incomplete at the unchanged117second limit:
+  **525 passing lines, no assertion failures, exit124**. It is not a completed
+  qualification or a source-attributed performance result.
+- The first disjoint eight-owner batch is **167P/5F**: all five failure traces
+  report **ENOSPC** while materializing bundled font snapshots. Under the product
+  lock with no active products, only closed regenerable font copies (directly
+  compared to all owning assets) and three old closed Bun transpiler-cache files
+  are removed. No source, installed dependency, raw report, input, output or
+  adverse evidence is deleted. The identical eight owners subsequently pass
+  **172P/0F/5,918 assertions** with unchanged source, caps and thresholds.
+
+**Final local verification.** Three changed owners pass **412/2,733 assertions**;
+eight disjoint admission/cache/endpoint/Block/Requirement/inline-label owners
+pass **172/5,918**; disjoint Class/font/theme/postpass owners pass **523/5,641**.
+Total latest disjoint owners: **1,107P/0F/14,292 assertions**. Canonical core and
+repository types pass using the prepared pinned Trident f080 source; full final
+lint passes1,905files with its existing oversized-JSON warning. The committed
+345-line source/test hygiene heuristic passes; the earlier pre-commit invocation
+saw no committed diff and is retained as such. These are not readiness gates.
+
+Final13 artifacts preserve every original SVG byte and all four valid PNG byte
+and decoded-pixel observations: nine incorrect P become U/OUTPUT_SCOPE, four
+valid P remain. Finalnamespace4 preserve exact falsifier bytes: two invalid U,
+one distinct valid P and one separately enrolled non-SVG-root U. Invalid ink
+remains unavailable. No certificate/helper output substitutes for final ink.
+
+Twelve cold public calls are captured: six with Scene assertions ON and six with
+assertions OFF using the production Native drawing path. Actual source/options,
+actual and full-return SVGs match each other and the retained earlier captures
+exactly. All twelve certificates pass. Scene proof counts remain
+38,404/74,401/30,456/30,398/33,353/33,351; the production drawing-path counts are
+103,423/234,193/70,228/71,511/75,950/75,933, all under400,000. These are proof-work
+counts, not timing or layout-engine/cache comparisons. Graph backend options
+remain as enrolled (including explicit ELK and Agentic arms); assertions OFF
+is a drawing-path distinction, not six strict Native solver observations.
+No historical Native P is inferred from an earlier Scene capture.
+
+An independent reviewer binds all twelve final SVGs to the existing scoped
+physical observations and independently decodes23 earlier saved PNGs. State
+shared poses, Block shared ingress and Architecture overlapping heads remain
+nonadditive; Requirement bend0 still lacks its own PNG; raw State operands and
+full Architecture coverage remain limited. No fresh public raster, peer artifact
+or broad actual-ink completion is claimed. Six final source/test members are
+copied before final checks, compared after checks and compared directly to their
+committed Git members. First-draft freezes and the one-assertion test correction
+remain separate; no own-input hash is used for authority.
+
+Evidence is under `/tmp/pr449-xml-authority-20261028/`: owners, review, isolation,
+ink-review, final-artifacts, final-namespaces, both public capture lanes, negative
+and incomplete logs, closed-cache maintenance records and v1/v2/v3 source epochs.
+Exact-candidate CI is the next check; no new CI result is claimed in this entry.
+Live Main remains **`ceca964f1a4aa4b3e748edbbce8728abd65ce632`**, beyond integrated
+03641 and not jointly qualified. Existing CI delivery/aesthetic failures and all
+caps remain enrolled; no delivery/performance/compiler tuning is attempted.
+
+**Remaining boundary and next concrete step.** This is marker-bearing raw XML
+admission, not a generic XML theorem or proof over later finalized SVG bytes.
+Separate the private geometry draft from final certificate sealing, bind the
+already mandatory final security admission to the exact output and request,
+and cover standalone/layout/cache consumers deliberately. Then resume row87's
+served stroke/fractional-body witness. Original rows77,87,88,89,103,206,209 remain
+unverified; all six acceptance goals remain open. The independent holdout stays
+sealed, shared Trident proposals stay unshipped and pinned public Mermaid/Pele
+correctness comparisons are incomplete. No ELK correctness/aesthetic/performance
+parity, merge, new issue/PR/comment, default/version change, package publication
+or force push is claimed or performed.
