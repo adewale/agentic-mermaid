@@ -1,9 +1,9 @@
-import { harnessFile } from 'trident/unified/harness-paths.ts'
 // A runnable copy of another revision's production source, for tools that
 // compare two revisions with the current harness (`micro-bench.ts`,
 // `output-identity.ts`). Production source, tsconfig and optional bundled fonts
-// come from the revision; the current `eval/benchmark/` and node_modules are
-// reused, so a comparison isolates production source and verified resources.
+// come from the revision; the current evaluation drivers, frozen inputs,
+// protocol policy and node_modules are reused, so a comparison isolates
+// production source and verified resources.
 
 import { execFileSync, spawnSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
@@ -41,7 +41,12 @@ export function extractRevisionTree(ref: string, scratch: string, label: string,
   if (archive.status !== 0) throw new Error(`git archive ${revision} failed`)
   const untar = spawnSync('tar', ['-x', '-C', root], { input: archive.stdout })
   if (untar.status !== 0) throw new Error('tar extraction failed')
-  cpSync(harnessFile(ROOT, 'eval/benchmark'), harnessFile(root, 'eval/benchmark'), { recursive: true })
+  // A read resolver can fall back to the shared library when a destination
+  // does not exist. Construct write destinations directly inside scratch.
+  // Drivers also import sibling evaluation inputs, not just benchmark files.
+  cpSync(join(ROOT, 'eval'), join(root, 'eval'), { recursive: true })
+  const policy = join(ROOT, 'docs/project')
+  if (existsSync(policy)) cpSync(policy, join(root, 'docs/project'), { recursive: true })
   symlinkSync(join(ROOT, 'node_modules'), join(root, 'node_modules'), 'dir')
   if (stubImportsOf) {
     const importer = readFileSync(join(root, stubImportsOf), 'utf8')

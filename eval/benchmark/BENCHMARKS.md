@@ -161,6 +161,13 @@ Source ID `palette-performance` requires a clean committed source checkout and w
 
 `endpoint-marker` compares two immutable built checkouts (`--baseline DIR --package-root DIR`) and writes geometry metrics. `layout-compare`, `route-enumeration`, `visual-rubric`, `heuristic-tracker` and `ugly-audit` test their own structural or heuristic criteria. `output-identity` instead checks bytes across `--baseline-ref`; unchanged bytes do not establish correctness.
 
+Revision-based source tools extract production source and bundled fonts from the
+selected Git revision, then copy the current product evaluation drivers, frozen
+inputs and protocol policy into an explicit scratch tree. Dependencies are
+reused from the current checkout. This isolates production source and verified
+resources under one protocol; shipped-artifact and dependency comparisons stay
+at their release boundaries. Extraction never writes product files into Trident.
+
 Inspect representative actual drawings, including interacting failures. A heuristic score is not an independent human preference or complete aesthetic judgment. Style/sketch tests and distribution/browser contracts are owning product checks; they protect behavior but do not add independent comparison votes.
 
 ## Agent evaluations, preparation and reports
