@@ -18,6 +18,7 @@
  */
 
 import { runtimeRenderContractPlugin } from '../build/runtime-render-contract.ts'
+import { privateEditorFamiliesPlugin } from '../build/private-editor-families.ts'
 import { minify } from '@swc/core'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -206,7 +207,9 @@ async function generateEditorHtml(): Promise<string> {
     // Its workers accept only source/options/output operations, including
     // render/verify, terminal and PNG. Public Scene/Node/IIFE admission and
     // published inspectors retain their full contracts.
-    plugins: [runtimeRenderContractPlugin({ schemaDocumentation: false, conformanceObservations: false, familyEditorMetadata: Boolean(runtimeDirectory), sourceOnlySceneAdmission: true }),
+    plugins: [runtimeDirectory
+      ? runtimeRenderContractPlugin({ schemaDocumentation: false, conformanceObservations: false, familyEditorMetadata: true, sourceOnlySceneAdmission: true })
+      : privateEditorFamiliesPlugin(runtimeRenderContractPlugin({ schemaDocumentation: false, conformanceObservations: false, familyEditorMetadata: false, sourceOnlySceneAdmission: true })),
       ...(!runtimeDirectory ? [{
         name: 'standalone-worker-families',
         setup(build: Bun.PluginBuilder) {

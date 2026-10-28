@@ -3,9 +3,10 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { transformSync } from 'esbuild'
+import { build, transformSync } from 'esbuild'
 import ts from 'typescript'
 import { runtimeRenderContractPlugin } from '../../scripts/build/runtime-render-contract.ts'
+import { privateEditorFamiliesPlugin, privateEditorFamilySource } from '../../scripts/build/private-editor-families.ts'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
 const temporary = mkdtempSync(join(tmpdir(), 'mermaid-runtime-metadata-'))
@@ -154,5 +155,101 @@ describe('browser runtime metadata projection', () => {
     expect(inspector.field.terminalNote).toBe('required terminal note')
     const editor = Function(`${project(path, { conformanceObservations: false })}\nreturn run();`)()
     expect(editor).toEqual(inspector)
+  })
+})
+
+describe('private editor family projection', () => {
+  test('keeps source, diagnostics and sidecars while making typed mutation unavailable', () => {
+    const source = [
+      "function mutateDiagram() { throw new Error('typed mutation reached the private worker'); }",
+      'function hooks(kind, parse, serialize, mutate, verify) {',
+      '  return { parse, serialize, verify, mutate: (body, op) => mutate(body, op),',
+      '    buildSourceMap: body => ({ nodes: [["owned", { line: 2, col: 1 }]], labels: [body.source] }) };',
+      '}',
+      "const family = hooks('diagram', source => { if (!source.startsWith('diagram\\n')) throw new Error('invalid header'); return { kind: 'diagram', source }; },",
+      "  body => body.source, mutateDiagram, body => body.source.includes('unsafe') ? [{ code: 'UNSUPPORTED_SYNTAX', target: 'owned' }] : []);",
+      'function read(source) { const body = family.parse(source); return { source: family.serialize(body), warnings: family.verify(body), sidecar: family.buildSourceMap(body) }; }',
+      'function run() { return { read, mutationAvailable: typeof family.mutate === "function" }; }',
+    ].join('\n')
+    const before = Function(`${source}\nreturn run();`)() as { read(source: string): unknown; mutationAvailable: boolean }
+    const projected = privateEditorFamilySource(source, 'src/agent/stable-family-adapters.ts')
+    const minified = transformSync(`${projected}\ncapture(run());`, { loader: 'js', minify: true }).code
+    let after: typeof before | undefined
+    Function('capture', minified)((value: typeof before) => { after = value })
+    expect(before.mutationAvailable).toBe(true)
+    expect(after!.mutationAvailable).toBe(false)
+    for (const text of ['diagram\nowned', 'diagram\nunsafe']) {
+      expect(after!.read(text)).toEqual(before.read(text))
+    }
+    expect(after!.read('diagram\nunsafe')).toEqual({
+      source: 'diagram\nunsafe', warnings: [{ code: 'UNSUPPORTED_SYNTAX', target: 'owned' }],
+      sidecar: { nodes: [['owned', { line: 2, col: 1 }]], labels: ['diagram\nunsafe'] },
+    })
+    expect(() => after!.read('wrong header')).toThrow('invalid header')
+  })
+
+  test('composes the private capability claim with the existing registry loader', () => {
+    const path = join(root, 'src/agent/family-registry.ts')
+    const source = [
+      'function builtinFamilyCapabilityEvidence() { return [',
+      "  { capability: 'parse', state: 'native' }, { capability: 'mutation', state: 'native' }, { capability: 'verify', state: 'native' }]; }",
+      "const metadata = 'existing metadata projection';",
+    ].join('\n')
+    let load: ((args: { path: string }) => { contents: string } | undefined) | undefined
+    privateEditorFamiliesPlugin({ name: 'runtime', setup(build) {
+      build.onLoad({ filter: /family-registry\.ts$/ }, () => ({ contents: source, loader: 'ts', resolveDir: dirname(path) }))
+    } }).setup({
+      onResolve() { throw Error('No resolver should be installed') },
+      onLoad({ filter }, callback) { if (filter.test(path)) load = callback },
+    })
+    const result = load!({ path })!
+    expect(Function(`${result.contents}\nreturn { claims: builtinFamilyCapabilityEvidence(), metadata };`)()).toEqual({
+      claims: [{ capability: 'parse', state: 'native' }, { capability: 'mutation', state: 'diagnosed' }, { capability: 'verify', state: 'native' }],
+      metadata: 'existing metadata projection',
+    })
+  })
+})
+
+test('coalesced SVG consumers retain text, source, ownership and one default backend', async () => {
+  const result = await build({
+    stdin: { resolveDir: root, loader: 'ts', contents: `
+      import { sourceLineStarts, sourceSpan } from './src/shared/source-spans.ts';
+      import { createSubgraphMembership } from './src/shared/subgraph-membership.ts';
+      import { formatSvgNumber, formatSvgNumericAttribute } from './src/shared/svg-number.ts';
+      import { seedFrom } from './src/scene/seed.ts';
+      import { buildAccessibilityAttrs } from './src/shared/svg-a11y.ts';
+      import { layoutTextRows } from './src/shared/text-rows.ts';
+      import { preparePixelText } from './src/shared/prepared-text.ts';
+      import { diagnoseFamilyConfig } from './src/shared/family-config-diagnostics.ts';
+      import { getBackend, isOriginalEnrolledDefaultBackend, knownBackendDescriptors } from './src/scene/backend.ts';
+      import './src/scene/default-backend.ts';
+      import './src/scene/default-backend.ts';
+      export function run() {
+        const starts = sourceLineStarts('A\\r\\n日本\\nB');
+        const membership = createSubgraphMembership();
+        const inner = membership.close('inner', ['A', 'A']);
+        const outer = membership.close('outer', ['A', 'B']);
+        const rows = layoutTextRows(['a', 'b'].map(text => ({ block: preparePixelText(text, { fontSize: 10, fontWeight: 400 }) })), { gap: 3 });
+        return {
+          starts, span: sourceSpan(starts, 3, 5), inner, outer,
+          numeric: formatSvgNumber(1.234567890123456), literal: formatSvgNumericAttribute('data-label', '1.234567890123456'),
+          seed: seedFrom('a'), accessibility: buildAccessibilityAttrs('Title', 'Description', 'title-id', 'description-id'),
+          rows: rows.rows.map(row => row.item.block.text), positiveBounds: rows.width > 0 && rows.height > 0,
+          diagnostics: diagnoseFamilyConfig('flowchart', { root: { flowchart: { unknown: 1 } }, config: { section: 'flowchart', keys: [] } }),
+          defaults: knownBackendDescriptors().filter(value => value.inputName === 'default').length,
+          original: isOriginalEnrolledDefaultBackend(getBackend('default')),
+        };
+      }
+    ` },
+    bundle: true, format: 'esm', platform: 'node', write: false,
+    plugins: [runtimeRenderContractPlugin({ coalesceRuntimePrimitives: true, sourceOnlySceneAdmission: true, conformanceObservations: false })],
+  })
+  const consumer = await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles![0]!.text).toString('base64')}`) as { run(): unknown }
+  expect(consumer.run()).toEqual({
+    starts: [0, 3, 6], span: { start: { offset: 3, line: 2, col: 1 }, end: { offset: 5, line: 2, col: 3 } }, inner: ['A'], outer: ['B'],
+    numeric: '1.23456789012', literal: '1.234567890123456', seed: 3826002220,
+    accessibility: { role: 'img', 'aria-labelledby': 'title-id', 'aria-describedby': 'description-id' }, rows: ['a', 'b'], positiveBounds: true,
+    diagnostics: [{ code: 'INEFFECTIVE_CONFIG', field: 'flowchart.unknown', message: 'flowchart config field "unknown" is unknown and has no effect; check the spelling or remove it.' }],
+    defaults: 1, original: true,
   })
 })
