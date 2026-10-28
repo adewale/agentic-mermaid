@@ -1,4 +1,4 @@
-import { GitGraphParseError, parseGitGraph, serializeGitGraph } from '../gitgraph/parser.ts'
+import { GitGraphParseError, gitGraphStatementEnds, parseGitGraph, serializeGitGraph } from '../gitgraph/parser.ts'
 import type { GitGraphCommit } from '../gitgraph/types.ts'
 import { gitGraphCommitLabel } from '../gitgraph/types.ts'
 import { labelOverflowCollector, setOptionalField } from './body-utils.ts'
@@ -10,7 +10,30 @@ export function parseGitGraphBody(source: string, options: import('../gitgraph/p
   return { kind: 'gitgraph', ...parseGitGraph(source, options) }
 }
 
+export function gitGraphCommentTextProblem(source: string): string | undefined {
+  const lines = source.split(/\r?\n/)
+  const header = lines.findIndex(line => /^\s*gitGraph\b/i.test(line))
+  if (header < 0) return
+  const bodyLines = lines.slice(header + 1)
+  const ends = gitGraphStatementEnds(bodyLines)
+  for (let start = 0; start < bodyLines.length; start++) {
+    const end = ends[start] ?? start
+    for (let line = start + 1; line <= end; line++) {
+      // Public Mermaid removes physical comments before its string lexer.
+      // Entity shielding would change GitGraph's literal identities.
+      if (/^[^\S\r\n]*%%(?!\{)[^\n]+/.test(bodyLines[line]!)) return 'A multiline GitGraph string contains a comment-looking line removed by Mermaid preprocessing; source and native rendering are preserved without typed editing.'
+    }
+    start = end
+  }
+}
+
+export function gitGraphSerializationProblem(body: GitGraphBody): string | undefined {
+  return gitGraphCommentTextProblem(serializeGitGraph(body))
+}
+
 export function renderGitGraphBody(body: GitGraphBody): string {
+  const problem = gitGraphSerializationProblem(body)
+  if (problem) throw new Error(problem)
   return serializeGitGraph(body)
 }
 
@@ -30,7 +53,9 @@ function quote(value: string): string {
 function appendStatement(body: GitGraphBody, statement: string): Result<GitGraphBody, MutationError> {
   try {
     const parsed = parseGitGraph(renderGitGraphBody(body).trimEnd() + `\n  ${statement}\n`, { mainBranchName: body.mainBranchName, mainBranchOrder: body.branches.find(branch => branch.name === body.mainBranchName)?.order, title: body.title })
-    return ok({ kind: 'gitgraph', ...parsed })
+    const next: GitGraphBody = { kind: 'gitgraph', ...parsed }
+    const problem = gitGraphSerializationProblem(next)
+    return problem ? err({ code: 'INVALID_OP', message: problem }) : ok(next)
   } catch (error) {
     return err({ code: 'INVALID_OP', message: error instanceof Error ? error.message : String(error) })
   }

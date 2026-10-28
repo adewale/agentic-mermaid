@@ -609,12 +609,17 @@ function renderShape(node: MermaidNode): string {
   }
 }
 
+/** The pinned lexer recognizes direction on the whole line before strings. */
+function protectLabelDirection(text: string): string {
+  return text.replace(/direction(?=\s+(?:TB|BT|RL|LR|TD))/g, '#100;irection')
+}
+
 /** The ONE quoted-label form for bracket, pipe and subgraph labels: the
  *  label codec's text (flowchart-labels.ts), which spells `"` as `#quot;`
  *  because upstream's quoted strings have no escapes. A leading backtick is
  *  written `#96;`: `"` and a backtick open a markdown string. */
 function quoteLabel(label: string, content?: LabelContent): string {
-  const text = writeFlowchartLabelText(label, content)
+  const text = protectLabelDirection(writeFlowchartLabelText(label, content))
   const authoredMarkdown = content?.value === label && content.authored?.startsWith('`') && content.authored.endsWith('`')
   return `"${text.startsWith('`') && !authoredMarkdown ? `#96;${text.slice(1)}` : text}"`
 }
@@ -641,7 +646,7 @@ function escapeLabel(label: string, content?: LabelContent): string {
   // Upstream rejects a bracket, `|`, `"` or `@` in a bare label, and a leading
   // `~~~` (its invisible-link token).
   if (/[\[\]{}()|"@]|^~~~/.test(label) || (content?.value === label && content.authored?.startsWith('`'))) return quoteLabel(label, content)
-  return writeFlowchartLabelText(label, content)
+  return protectLabelDirection(writeFlowchartLabelText(label, content))
 }
 
 /** `;` separates statements and no bracket shields it in an asymmetric
