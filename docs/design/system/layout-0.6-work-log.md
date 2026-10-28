@@ -499,3 +499,60 @@ caption refusal and continue served-geometry authority for the original seven.
 Holdout, peer, aesthetic and performance qualification remain open and ordered
 by the0.6contract. PR449 remains closed/merged historically; follow-up commits
 are on its retained branch only. No performance timing campaign occurred.
+
+
+### Required-CI repair: caption loss and delivery graph (28 October)
+
+Active follow-up to `e6f1f8cc7831918220fa5016b9f88c10dc028099`, integrating
+Main `9aaffac653bcea0a0897cd7281ee48e3884751cf`. Five Sol6.1High agents have
+disjoint implementation and independent review assignments. Required CI is
+not green yet; no timing campaign or holdout acquisition is authorized here.
+
+Generated-cyclic40's ELK-backed refusal came from our diamond facet pass: two
+captioned forward occurrences share a target, so moving that target twice
+collapsed both caption seats. The scoped guard retains their original private
+routes. Mixed caption/plain duplicates retain the existing bundle allocation;
+a broader distinct-target guard introduced eight existing-owner failures and
+was rejected. General alias allocation remains open. Four independently
+authored literal geometry cases produce genuine2P/2F RED, then4P; full owning
+route contracts are379P/0F,2535assertions. Fresh production Native and Scene
+SVGs directly match22455bytes, with9nodes,23edge occurrences and6captions.
+Physical bundled-Inter/resvg controls show the formerly hidden caption has
+0target-colored pixels,103when later occlusion is removed. Final captions have
+93and160pixels with identical full/later-paint-removed masks. Target removal
+has0pixels. Failed cropped/WASM observers remain retained. Certificates stay U
+with both marker-envelope uncertainties; actual caption visibility does not
+prove marker correctness. Evidence: `/tmp/pr449-20261028-generated40-controls/`.
+The first core typecheck found test-only shape literal widening, corrected with
+literal types; retain that failed log and recheck before committing.
+
+The private lazy facades now explicitly re-export the same core that every
+public render already awaits. Exact canonical in-memory closures reduce62to32
+violations and clear request/Brotli failures, without omitting code or loading
+providers initially. Initial gzip changes by2bytes because import hashes differ;
+no byte-identical initial claim. Final materialized artifacts remain necessary.
+A separately reviewed capability-table subtraction reuses the canonical48
+cells while preserving all claim values, order, optional diagnostic absence,
+property order, evidence, and fresh frozen arrays/rows in every mode. Existing
+conformance/negotiation owners and complete before/after object controls pass
+in the preview; the actual source recheck is pending. No new capability is
+qualified by sharing its description. Preview raw reduction is3933bytes per
+lazy family, with tiny compressed tradeoffs. Evidence:
+`/tmp/pr449-capabilities-preview-20261028/`.
+
+Rejected/unshipped delivery experiments remain explicit. A private validator
+specialization saves4317rawbytes but is insufficient and adds compiler
+complexity. Safe secondary SWC without final content names is an unshippable
+lower bound, despite clearing compressed gates; a complete per-file profile
+banner restores identity but costs enough bytes to leave18violations. A final
+esbuild graph/name pass is under review, with honest canonical-origin lineage
+and no fabricated final source byte attribution. Neither pipeline ships yet.
+Standalone safe compressor defaults save only2720raw/788gzip; esbuild primary
+is17244raw/4656gzip worse. Aliasing Mermaid's merge and full runtime factories
+changes the fixed100000 configuration loop budget (256extra init iterations),
+so that shortcut is rejected. Generic primitive-literal interning is unshipped:
+best of eight threshold profiles is4403035raw/1348596gzip, still14096gzip over.
+Raw-only improvement is not CI success. Saved inputs, actual transformed bytes
+and failed measurements remain under `/tmp/pr449-editor-literal-*20261028*`.
+No existing cap, work limit, API, default, provider, security, receipt or check
+has been removed or relaxed. All six0.6goals and seven original U remain open.
