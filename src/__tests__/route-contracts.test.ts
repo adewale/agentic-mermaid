@@ -1126,6 +1126,58 @@ describe('route contracts — feedback channel lanes', () => {
     expect(assessLayout(graph, positioned).metrics.edgeThroughNode).toBe(0)
   })
 
+  it.each([
+    ...['TD', 'RL', 'BT', 'LR'].flatMap((direction, turns) => ['head', 'tail'].map(side => ({ direction, turns, side, gap: -20, nodeWidth: '0.75', edgeWidth: '1', changed: false, fromStyle: false }))),
+    ...[
+      { gap: 0, nodeWidth: '8', edgeWidth: '1', changed: false },
+      { gap: 0.1, nodeWidth: '0.75', edgeWidth: '1', changed: false },
+      { gap: 5, nodeWidth: '20', edgeWidth: '1', changed: false },
+      { gap: 5, nodeWidth: '20', edgeWidth: '1', changed: false, fromStyle: true },
+      { gap: 30, nodeWidth: 'var(--outline)', edgeWidth: '1', changed: false },
+      { gap: 30, nodeWidth: '0.75', edgeWidth: 'var(--shaft)', changed: false },
+      { gap: 50, nodeWidth: '20', edgeWidth: '1', changed: true },
+    ].map(row => ({ fromStyle: false, ...row, direction: 'TD', turns: 0, side: 'head' })),
+  ])('keeps noncontact $side segments clear of the other endpoint in $direction (gap=$gap, node=$nodeWidth, shaft=$edgeWidth, style=$fromStyle)', ({ direction, turns, side, gap, nodeWidth, edgeWidth, changed, fromStyle }) => {
+    const tail = side === 'tail'
+    const graph = parseMermaid(`flowchart ${direction}\nA --> B\nB --> C\nC -->|return| A${tail ? '\nN\nM' : ''}`)
+    const rotate = (point: Point): Point => {
+      let { x, y } = point
+      for (let i = 0; i < turns; i++) [x, y] = [500 - y, x]
+      return { x, y }
+    }
+    const node = (id: string, x: number, y: number, width = 40, height = 40): PositionedNode => {
+      const a = rotate({ x, y }), b = rotate({ x: x + width, y: y + height })
+      return { ...graph.nodes.get(id)!, x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), width: Math.abs(a.x - b.x), height: Math.abs(a.y - b.y) }
+    }
+    const nodes = tail
+      ? [node('A', 300, 220), node('B', 800, 100), node('C', 170, 200, 40, 200), node('N', 110, 295, 10, 10), node('M', 110, 395, 10, 10)]
+      : [node('A', 170, 200), node('B', 800, 100), node('C', 300, 180 - gap)]
+    if (!fromStyle) nodes[0]!.inlineStyle = { stroke: '#000', 'stroke-width': nodeWidth }
+    const points = (tail
+      ? [[190, 400], [190, 420], [700, 420], [700, 520], [80, 520], [80, 160], [320, 160], [320, 220]]
+      : [[320, 220 - gap], [320, 260], [80, 260], [80, -20], [700, -20], [700, 100], [190, 100], [190, 200]]
+    ).map(([x, y]) => rotate({ x: x!, y: y! }))
+    const edge: PositionedEdge = { ...graph.edges[2]!, edgeIndex: 2, points, labelPosition: rotate({ x: 80, y: tail ? 200 : 100 }), inlineStyle: { stroke: '#f00', 'stroke-width': edgeWidth } }
+    const before = structuredClone(edge)
+    // Both rectangles are genuine endpoint bodies. Their open interiors are
+    // independently clear before repair, including every nonterminal leg.
+    const enters = (route: readonly Point[], body: PositionedNode): boolean => route.slice(1).some((b, index) => {
+      const a = route[index]!
+      return Math.min(a.x, b.x) < body.x + body.width && Math.max(a.x, b.x) > body.x
+        && Math.min(a.y, b.y) < body.y + body.height && Math.max(a.y, b.y) > body.y
+    })
+    expect(enters(points, nodes[0]!)).toBe(false)
+    expect(enters(points, nodes[2]!)).toBe(false)
+    const style = resolveRenderStyle()
+    if (fromStyle) style.nodeLineWidth = Number(nodeWidth)
+    applyRouteContracts({ nodes, edges: [edge], groups: [] }, graph, new Set(), style)
+    if (changed) expect(edge.points).not.toEqual(before.points)
+    else expect(edge).toMatchObject({ points: before.points, labelPosition: before.labelPosition })
+    expect(enters(edge.points, nodes[0]!)).toBe(false)
+    expect(enters(edge.points, nodes[2]!)).toBe(false)
+    expect([edge.source, edge.target, edge.label, edge.hasArrowEnd]).toEqual(['C', 'A', 'return', true])
+  })
+
   it('TD cycle: C -> A loops through the outer channel and enters A from outside the column', () => {
     const positioned = layoutGraphSync(parseMermaid('flowchart TD\n  A --> B\n  B --> C\n  C --> A'))
     const e = findEdge(positioned.edges, 'C', 'A')
