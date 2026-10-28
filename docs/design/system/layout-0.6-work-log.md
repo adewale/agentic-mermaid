@@ -314,3 +314,48 @@ Evidence: `/tmp/pr449-20261028-stroke-controls/` (including
 `FINAL-INDEPENDENT-FIDELITY-READBACK.json`),
 `/tmp/pr449-20261028-stroke-final-checks/` and
 `/tmp/pr449-original87-current-141bbeb8-20261028/HANDOFF.json`.
+
+
+### Final integrated CI and handoff
+
+[CI 40668459900](https://github.com/adewale/agentic-mermaid/actions/runs/40668459900)
+is complete on exact pushed head `f74c9b2d3399b99f8fe7c053666e599a4fa9500c`,
+integrating Main `cc28bd508fc6cfdf7eea586bfc0c7b509154f849`. All three unit
+shards pass: **14,527P / 76 skips / 0F** (4,984 / 5,275 / 4,268 passes).
+Independent semantic conformance passes 173 tests, retains 63/64 qualified
+assertions plus one unavailable, and replays 882 grammar inputs with zero
+untracked defects. Node22/24 installed consumers, CLI/MCP, dist, quickstarts,
+browser-site and backend review lanes pass.
+
+**CI is failed.** Quality retains 62 unique absolute lazy-delivery violations.
+Browser functional checks are 21P/1F, solely the editor raw limit:
+**4,496,462 > 4,429,400 bytes**. Demo requests remain 38 > 36. Gzip and relative
+assertions are not reached. Eight advisory reports retain zero status changes;
+corpus234 remains 47 regressions / 51 improvements / 135 changed / one unchanged.
+No ceiling or check is relaxed. The editor reduction follows incoming Main557
+plus this repair; it is not an isolated performance result or parity evidence.
+Manual PR-event red/green is skipped, with the genuine local controls preserved.
+
+Live Main and retained branch were rechecked after completion: cc28 and f74.
+The following documentation-only handoff corrects this contract's stale draft
+status and records CI; production, tests, dependencies and workflows remain
+byte-identical to tested f74. No separate exact-head CI qualification is inferred
+for that documentation commit. PR449 remains closed/merged historically; these
+follow-up commits are only on its retained branch, not Main.
+
+Read-only preparation from the retained original87 SVG identifies independent
+remaining blockers: two-point polyline, fractional resource/card operands,
+default marker units, scoped CSS/root attributes, harmless unused resources,
+identity groups and later text. A context-only bridge cannot certify it. The
+next bounded implementation must bind those served operands at their owning
+emission boundary and prove separation; do not substitute helper P, repeat the
+rejected large-path parsing experiment, or relax limits. The prior row87
+acquisition retains its original identity and remains U. All seven originals,
+all six qualification goals and the State allocation warnings remain open.
+
+Decoded full final CI logs and structured outcome summary are retained under
+`/tmp/pr449-20261028-stroke-final-checks/ci-f74/`; direct final-ink evidence and
+failed-before controls remain in the stroke-controls directory above. The
+recovery continuation records the final documentation head and evidence archive.
+No new holdout access, peer acquisition, performance tuning, publication or
+release/default change occurred.

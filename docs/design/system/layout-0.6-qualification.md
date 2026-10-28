@@ -3,7 +3,9 @@
 Status: owner-directed **0.6.0** work, 27 October 2026. This is an acceptance
 contract, not completed qualification or a second backlog. The sole backlog
 owner remains [Owned graph backend qualification in TODO.md](../../../TODO.md#owned-graph-backend-qualification-owner-request-pr-449).
-PR [#449](https://github.com/adewale/agentic-mermaid/pull/449) stays draft;
+PR [#449](https://github.com/adewale/agentic-mermaid/pull/449) was merged and
+closed on 28 October 2026. The 0.6 qualification campaign continues on its
+retained branch; follow-up commits are not on Main until integrated separately.
 ELK remains the default. This programme is not a 0.5 publication condition.
 It changes neither the package version nor the default backend and performs no
 publication. Feature qualification and the release publication procedure remain
