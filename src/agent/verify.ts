@@ -584,6 +584,16 @@ function c4LayoutWarnings(positioned: VerificationArtifact): LayoutWarning[] {
   } // The render-parity gate owns layout failures.
 }
 
+function chartWidthWarnings(family: 'pie' | 'radar', positioned: VerificationArtifact): LayoutWarning[] {
+  try {
+    const chart = positioned()?.positioned as { widthFit?: import('../shared/chart-width.ts').ChartWidthFit } | undefined
+    const fit = chart?.widthFit
+    return fit?.status === 'exceeded' ? [{ code: 'LAYOUT_LIMIT_EXCEEDED', constraint: `${family}.maxWidth`, message: `The requested ${family} width ${fit.maxWidth}px cannot contain the ${fit.width}px artifact within the bounded fitting policy; all content and selected typography are retained.` }] : []
+  } catch {
+    return [] // The render-parity gate owns layout failures.
+  }
+}
+
 function treemapHiddenLabelWarnings(positioned: VerificationArtifact): LayoutWarning[] {
   try {
     const chart = positioned()?.positioned as PositionedTreemap | undefined
@@ -808,7 +818,8 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
               : d.body.kind === 'treemap'
                 ? treemapHiddenLabelWarnings(positioned)
                 : []
-    return finalize(dedupedConcat(dedupedConcat(dedupedConcat(pluginWarnings, familyGeometry), layoutOutcome.warnings), appearanceWarnings), layout, opts)
+    const fittingWarnings = d.body.kind === 'pie' || d.body.kind === 'radar' ? chartWidthWarnings(d.body.kind, positioned) : []
+    return finalize(dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(pluginWarnings, familyGeometry), layoutOutcome.warnings), appearanceWarnings), fittingWarnings), layout, opts)
   }
 
   // State diagrams (BUILD-19): the StateBody projects to a MermaidGraph via the

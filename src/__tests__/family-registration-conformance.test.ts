@@ -45,6 +45,8 @@ const FAMILY_SCOPED_OPTION_VALUES = {
   shadow: true,
   class: { hierarchicalNamespaces: false },
   kanban: { maxWidth: 600 },
+  pie: { maxWidth: 360 },
+  radar: { maxWidth: 360 },
   architecture: { visual: { groupCornerRadius: 12 } },
   timeline: { maxWidth: 300 },
   journey: { experienceCurve: false },

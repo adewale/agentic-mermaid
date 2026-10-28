@@ -108,6 +108,7 @@ export interface PositionedPieLegendItem {
 }
 
 export interface PositionedPieChart extends PositionedDiagram {
+  widthFit?: import('../shared/chart-width.ts').ChartWidthFit
   width: number
   height: number
   title?: { text: string; x: number; y: number; literalText?: true; block?: import('../shared/prepared-text.ts').PixelTextBlock }

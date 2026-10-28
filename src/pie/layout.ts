@@ -17,6 +17,7 @@ import type { RenderStyleDefaults } from '../styles.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import { layoutTextRows } from '../shared/text-rows.ts'
+import { fitChartWidth } from '../shared/chart-width.ts'
 
 // ============================================================================
 // Pie chart layout engine
@@ -187,6 +188,17 @@ export function layoutPieChart(
   visual: PieVisualConfig = DEFAULT_PIE_VISUAL_CONFIG,
   styleFace?: Readonly<InternalStyleFace>,
 ): PositionedPieChart {
+  const natural = placePieChart(chart, options, visual, styleFace)
+  const maxWidth = options.pie?.maxWidth
+  if (maxWidth === undefined) return natural
+  return fitChartWidth(natural, maxWidth, attempt => {
+    if (attempt !== 1) return undefined
+    const legendPosition = visual.legendPositionExplicit || visual.legendPosition !== 'right' ? visual.legendPosition : 'bottom'
+    return placePieChart(chart, options, { ...visual, legendPosition }, styleFace, maxWidth)
+  })
+}
+
+function placePieChart(chart: PieChart, options: RenderOptions, visual: PieVisualConfig, styleFace?: Readonly<InternalStyleFace>, maxWidth?: number): PositionedPieChart {
   const style = resolveRenderStyle(options, PIE_STYLE_DEFAULTS, styleFace)
   const total = pieTotal(chart.entries)
 
@@ -202,6 +214,7 @@ export function layoutPieChart(
   const titleBlock = chart.title ? preparePixelText(chart.displayTitle ?? chart.title, {
     display: chart.displayTitle === undefined ? 'formatted' : 'literal', transform: style.groupTextTransform,
     fontSize: titleFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing, safeFont: true,
+    ...(maxWidth === undefined ? {} : { maxWidth: Math.max(1, maxWidth - PIE.paddingX * 2) }),
   }) : undefined
   const renderedTitle = titleBlock?.text
   const titleBlockHeight = titleBlock ? titleBlock.height : 0
@@ -224,6 +237,7 @@ export function layoutPieChart(
     const block = preparePixelText(source, {
       display: e.displayLabel === undefined ? 'formatted' : 'literal', transform: style.nodeTextTransform,
       fontSize: legendFontSize, fontWeight, letterSpacing: style.nodeLetterSpacing, safeFont: true,
+      ...(maxWidth === undefined || visual.legendPosition === 'center' ? {} : { maxWidth: Math.max(1, (maxWidth - PIE.paddingX * 2 - PIE.legendSwatch - PIE.legendSwatchToText - (visual.legendPosition === 'left' || visual.legendPosition === 'right' ? diameter + PIE.circleToLegendGap : 0)) / (fontWeight === PIE_LEGEND_HIGHLIGHT_FONT_WEIGHT ? PIE.legendHighlightWidthScale : 1)) }),
     })
     const lines = block.lines
     const measuredTextWidth = block.width
