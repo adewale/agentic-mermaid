@@ -114,6 +114,10 @@ describe('xychart structured-or-opaque fallback', () => {
     ['unmodeled token (curve)', 'xychart-beta\n  bar [1, 2]\n  curve basis'],
     ['non-numeric series value', 'xychart-beta\n  bar [1, two, 3]'],
     ['header EXTRA suffix', 'xychart-beta EXTRA\n  bar [1, 2]'],
+    ['empty category', 'xychart \nx-axis    [   ]'],
+    ['missing category between commas', 'xychart \nx-axis    [  "cat."  ,   ,   cat2a  ]'],
+    ['text after a quoted category', 'xychart \nx-axis xAxisName    [  "cat1 "cat ]'],
+    ['malformed quotes among categories', 'xychart \nx-axis xAxisName    [  "cat1 "cat , 1"   with space"note ,   cat2 asdf , cat3]'],
   ]
   for (const [name, src] of opaqueCases) {
     test(`${name} falls back to opaque and round-trips verbatim`, () => {
@@ -123,6 +127,12 @@ describe('xychart structured-or-opaque fallback', () => {
       expect(r.value.body.kind).toBe('opaque')
       expect(asXyChart(r.value)).toBeNull()
       expect(serializeMermaid(r.value).trimEnd()).toBe(src)
+      for (const input of [src, r.value]) {
+        const verification = verifyMermaid(input)
+        expect(verification.ok).toBe(false)
+        expect(verification.checks?.renderability).toBe('failed')
+        expect(verification.warnings).toContainEqual(expect.objectContaining({ code: 'RENDER_FAILED', origin: 'source' }))
+      }
     })
   }
 

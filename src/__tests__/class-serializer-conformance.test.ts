@@ -446,6 +446,8 @@ describe('class labeled declaration conformance', () => {
       ['class `direction RL`', 'class_direction_identity'],
       ['namespace `direction RL` {\nclass A\n}', 'class_direction_identity'],
       ['class A\nA : direction RL{x', 'class_member_direction'],
+      ['namespace `~`{class `P`}', 'class_namespace_generic'],
+      ['namespace `~T~A::B` {\n\tclass `IPC::Sender`\n}', 'class_namespace_generic'],
     ]) {
       const source = `classDiagram\n${statement}\n`
       const parsed = parseMermaid(source)

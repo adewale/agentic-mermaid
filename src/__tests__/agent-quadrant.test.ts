@@ -34,6 +34,37 @@ const SRC = `quadrantChart
   Campaign B: [0.45, 0.23]
 `
 
+test('Quadrant transport references preserve authored label spacing through saving and editing', async () => {
+  const upstream = startUpstreamMermaid()
+  try {
+    for (const [source, axis, near] of [
+      ['quadrantChart\nx-axis Café --&amp; Größe', 'xAxis', 'Café --& Größe'],
+      ['quadrantChart\ny-axis &lt; U\\nrgent --> Not Urgent', 'yAxis', '< U\nrgent'],
+      ['quadrantChart\nx-axis A&amp;amp; B', 'xAxis', 'A&amp; B'],
+    ] as const) {
+      const diagram = quadrant(source)
+      expect(diagram.body[axis]?.near).toBe(near)
+      const saved = serializeMermaid(diagram, { wrapper: 'canonical' })
+      expect(await upstream.publicAccepts(saved)).toBe(true)
+      expect(parseQuadrantChart(normalizeMermaidSource(saved, {}, 'render').familyLines)[axis]?.near).toBe(near)
+      expect(renderMermaidSVG(saved)).toBe(renderMermaidSVG(source))
+      expect(renderMermaidASCII(saved)).toBe(renderMermaidASCII(source))
+      const edited = mutate(diagram, { kind: 'set_title', title: 'Edited' })
+      if (!edited.ok) throw Error(edited.error.message)
+      expect(quadrant(serializeMermaid(edited.value)).body[axis]?.near).toBe(near)
+    }
+    const source = 'quadrantChart\n"A&amp;amp; B": [0.2,0.3]'
+    const diagram = quadrant(source)
+    expect(diagram.body.points[0]!.label).toBe('A&amp; B')
+    const span = diagram.source.spans?.labels.get('quadrant:point#0')
+    expect(span).toBeDefined()
+    expect(source.slice(span!.start.offset, span!.end.offset)).toBe('"A&amp;amp; B"')
+    const saved = serializeMermaid(diagram, { wrapper: 'canonical' })
+    expect(await upstream.publicAccepts(saved)).toBe(true)
+    expect(renderMermaidSVG(saved)).toBe(renderMermaidSVG(source))
+  } finally { upstream.close() }
+})
+
 test('backtick Quadrant labels that require quotes stay source-only without changed text', async () => {
   const upstream = startUpstreamMermaid()
   try {

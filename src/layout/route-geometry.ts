@@ -213,6 +213,7 @@ export interface LabelMetricsStyle {
   edgeTextTransform?: 'uppercase' | 'lowercase' | 'capitalize'
   edgeLetterSpacing?: number
   lineWidth?: number
+  nodeLineWidth?: number
   edgeStrokeColor?: string
   edgeBendRadius?: number
 }

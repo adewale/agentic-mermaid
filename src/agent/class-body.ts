@@ -116,6 +116,7 @@ function classBodyWriteProblem(body: ClassBody): string | undefined {
     }
   }
   if (body.namespaces?.some(namespace => namespace.label === '')) return 'An explicitly empty Class namespace label has no lossless Mermaid spelling; retain the source without typed editing'
+  if (body.namespaces?.some(namespace => namespace.name.includes('~'))) return 'A Class namespace identity containing a tilde is read as a generic token even inside backticks and has no lossless Mermaid spelling'
   if (body.namespaces?.some(namespace => hasClassDirectionToken(namespace.name))) return 'A Class namespace identity containing a greedy direction token has no lossless Mermaid spelling'
   if (Object.keys(body.classDefDeclarations ?? {}).some(name => !Object.hasOwn(body.classDefs ?? {}, name))) return 'Ordered Class declarations require a matching property record'
   for (const node of body.classes) if (node.styleDeclarations && !node.style) return 'Ordered Class declarations require a matching property record'
@@ -969,6 +970,10 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
       if (value.kind === 'class' && value.declaration.label === '' || value.kind === 'namespace' && value.label === '') warnings.push({
         code: 'UNSUPPORTED_SYNTAX', syntax: 'class_empty_label', line: header + 1 + node.source.line,
         message: 'An explicitly empty Class label is retained for native rendering. Pinned Mermaid requires nonempty label text, so typed editing is unavailable rather than replacing the label with its identity.',
+      })
+      if (value.kind === 'namespace' && value.path.some(segment => segment.includes('~'))) warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'class_namespace_generic', line: header + 1 + node.source.line,
+        message: 'A tilde in a Class namespace identity opens Mermaid generic syntax even inside backticks. Entity codes change the identity; source and native rendering are preserved without typed editing.',
       })
       if (value.kind === 'style') for (const reference of value.references) if (!writableInlineStyleTarget(reference.id)) warnings.push({
         code: 'UNSUPPORTED_SYNTAX', syntax: 'class_style_target', line: header + 1 + node.source.line,

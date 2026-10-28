@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { layoutGitGraph } from '../gitgraph/layout.ts'
 import { mutateGitGraph, parseGitGraphBody, renderGitGraphBody, verifyGitGraph } from '../agent/gitgraph-body.ts'
-import { mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
+import { mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import type { GitGraphBody, GitGraphMutationOp, MutationError, Result } from '../agent/types.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
@@ -40,6 +40,42 @@ function commit(input: GitGraphBody, id: string) {
 }
 
 describe('GitGraph typed operations — discriminating replay contract', () => {
+  test('multiline comment-looking quoted payloads stay source-preserved instead of exporting altered identities', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const source of [
+        'gitGraph\ncommit id:"x\n%%y"',
+        'gitGraph\ncommit id:"base" tag:"x\n  %%y"',
+        'gitGraph\ncommit msg:"x\n%%y"',
+        'gitGraph\ncommit id:"x\u2028%%y"',
+        'gitGraph\ncommit id:"x\u2029%%y"',
+        'gitGraph\ncommit id:"x\u2028%%\u2028q"',
+        'gitGraph\ncommit id:"x\u2029%%\u2029q"',
+        'gitGraph\ncommit id:"x\r%%y"',
+        'gitGraph\ncommit id:"x\r\n%%y"',
+        '---\nconfig:\n  gitGraph:\n    mainBranchName: trunk\n---\ngitGraph\ncommit id:"base"\nbranch dev\ncommit id:"x\n%%y"\ncheckout trunk',
+      ]) {
+        const parsed = parseRegisteredMermaid(source)
+        if (!parsed.ok) throw new Error('Expected readable native GitGraph')
+        expect(parsed.value.body.kind).toBe('opaque')
+        expect(serializeMermaid(parsed.value)).toBe(`${source}\n`)
+        expect(renderMermaidSVG(parsed.value)).toBe(renderMermaidSVG(source))
+        expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'gitgraph_multiline_comment_text' }))
+        expect(mutate(parsed.value, { kind: 'append_commit', id: 'next' }).ok).toBe(false)
+        expect(await upstream.publicAccepts(source)).toBe(false)
+      }
+      for (const source of ['gitGraph\ncommit id:"x\nq"', 'gitGraph\ncommit id:"x %%y"', 'gitGraph\ncommit id:"x\n%%\nq"', 'gitGraph\ncommit id:"x\u2028q"', 'gitGraph\ncommit id:"x\u2029q"']) {
+        const parsed = parseRegisteredMermaid(source)
+        if (!parsed.ok) throw new Error('Expected portable multiline control')
+        expect(parsed.value.body.kind).toBe('gitgraph')
+        expect(await upstream.publicAccepts(serializeMermaid(parsed.value))).toBe(true)
+      }
+      const base = parseRegisteredMermaid('gitGraph\ncommit id:"base"')
+      if (!base.ok) throw new Error('Expected base')
+      for (const id of ['x\n%%y', 'x\u2028%%y', 'x\u2029%%y']) expect(mutate(base.value, { kind: 'append_commit', id }).ok).toBe(false)
+    } finally { upstream.close() }
+  })
+
   test('branch spelling preserves identities and references through native drawing and portable export', async () => {
     const upstream = startUpstreamMermaid()
     try {

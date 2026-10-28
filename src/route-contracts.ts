@@ -1373,6 +1373,16 @@ export function repairLabelsOffOwnRoute(positioned: { nodes: PositionedNode[]; e
   }
 }
 
+function segmentHitsLoopLabel(a: Point, b: Point, rect: LabelPaintRect): boolean {
+  if (Math.abs(a.x - b.x) <= EPS) {
+    return a.x > rect.x + EPS && a.x < rect.x + rect.w - EPS && Math.min(Math.max(a.y, b.y), rect.y + rect.h) - Math.max(Math.min(a.y, b.y), rect.y) > EPS
+  }
+  if (Math.abs(a.y - b.y) <= EPS) {
+    return a.y > rect.y + EPS && a.y < rect.y + rect.h - EPS && Math.min(Math.max(a.x, b.x), rect.x + rect.w) - Math.max(Math.min(a.x, b.x), rect.x) > EPS
+  }
+  return false
+}
+
 /**
  * Post-freeze label repair for pill-vs-pill collisions ACROSS edges. The
  * shared-trunk repair separates labels whose ROUTES share a trunk; parallel
@@ -1501,10 +1511,10 @@ export function separateEdgeLabelPills(
     return false
   }
 
-  // Legacy search/order gets all three sweeps first. Only its unresolved
-  // marker conflicts enter the existing overhang/joint family at sweep three.
+  // Settle legacy seats first, then use the existing overhang/joint family
+  // for unresolved marker or foreign-shaft occlusion under full paint proof.
   // No new solver, sweep, candidate cap, fresh work counter or route write.
-  const rescueMarkerSeats = (): void => {
+  const rescuePaintSeats = (): void => {
     if (customTextMeasurementActive()) return
     const pay = (units: number): boolean => {
       if (units > routeWork) { routeWork = 0; return false }
@@ -1512,13 +1522,24 @@ export function separateEdgeLabelPills(
       return true
     }
     if (!pay(8)) return
+    const foreignRouteIntersects = (subject: PositionedEdge, rect: LabelPaintRect): boolean => {
+      for (const other of positioned.edges) {
+        if (!pay(1)) return false
+        if (other === subject || other.style === 'invisible') continue
+        for (let index = 1; index < other.points.length; index++) {
+          if (!pay(1)) return false
+          if (segmentEntersLabelRect(other.points[index - 1]!, other.points[index]!, rect)) return true
+        }
+      }
+      return false
+    }
     let paint: ReturnType<typeof labelSeatPaintContext>
     for (const edge of labeled) {
       // The legacy marker cache is already populated; this fresh rescue-only
       // query still visits up to two endpoint resources per live edge.
       if (!pay(64 + (edge.label?.length ?? 0) * 12 + 2 * positioned.edges.length)) return
       const rect = rectOf(edge)
-      if (!rect || !overlapsMarker(rect)) continue
+      if (!rect || !overlapsMarker(rect) && !foreignRouteIntersects(edge, rect)) continue
       if (!pay(edge.points.length + 2)) return
       if (edge.curve || (style.edgeBendRadius ?? 0) !== 0 || edge.points.some((p, i) => i > 0 && p.x !== edge.points[i - 1]!.x && p.y !== edge.points[i - 1]!.y)) continue
       paint ??= labelSeatPaintContext(positioned.nodes, positioned.edges, positioned.groups, style, pay)
@@ -1530,7 +1551,14 @@ export function separateEdgeLabelPills(
         const result: Point[] = [], staged = new Map<PositionedEdge, Point>()
         // The other member is excluded ONLY while proposing; final transaction
         // validation below sees BOTH staged seats against ALL live paint.
-        const clear = (point: Point): boolean => seat.clear(subject, point, staged, blocked, ignored)
+        const clear = (point: Point): boolean => {
+          if (subject.source === subject.target) {
+            if (!pay(subject.points.length + 8)) return false
+            const rect = labelRect({ ...subject, labelPosition: point }, style)
+            if (!rect || subject.points.some((p, index) => index > 0 && segmentHitsLoopLabel(subject.points[index - 1]!, p, rect))) return false
+          }
+          return seat.clear(subject, point, staged, blocked, ignored)
+        }
         for (const point of slots(subject, [], overhang, { clear, pay })) {
           if (!pay(1)) return undefined
           result.push(point)
@@ -1608,8 +1636,8 @@ export function separateEdgeLabelPills(
           tryPair(a, b)
       }
     }
-    if (conflicts === 0) break
-    if (sweep === 2) rescueMarkerSeats()
+    if (conflicts === 0) { rescuePaintSeats(); break }
+    if (sweep === 2) rescuePaintSeats()
   }
 }
 
@@ -1752,15 +1780,6 @@ export function auditRouteContracts(positioned: { nodes: PositionedNode[]; edges
     const y = horizontal.a.y
     return x > Math.min(horizontal.a.x, horizontal.b.x) + EPS && x < Math.max(horizontal.a.x, horizontal.b.x) - EPS && y > Math.min(vertical.a.y, vertical.b.y) + EPS && y < Math.max(vertical.a.y, vertical.b.y) - EPS
   }
-  const segmentHitsRect = (a: Point, b: Point, rect: { x: number; y: number; w: number; h: number }): boolean => {
-    if (Math.abs(a.x - b.x) <= EPS) {
-      return a.x > rect.x + EPS && a.x < rect.x + rect.w - EPS && Math.min(Math.max(a.y, b.y), rect.y + rect.h) - Math.max(Math.min(a.y, b.y), rect.y) > EPS
-    }
-    if (Math.abs(a.y - b.y) <= EPS) {
-      return a.y > rect.y + EPS && a.y < rect.y + rect.h - EPS && Math.min(Math.max(a.x, b.x), rect.x + rect.w) - Math.max(Math.min(a.x, b.x), rect.x) > EPS
-    }
-    return false
-  }
   for (let i = 0; i < loops.length; i++) {
     const edge = loops[i]!
     const cert = edge.routeCertificate
@@ -1808,7 +1827,7 @@ export function auditRouteContracts(positioned: { nodes: PositionedNode[]; edges
     }
     const ownLabel = labelRect(edge, style)
     if (ownLabel) {
-      const labelHitsRoute = loops.some(route => route.points.some((point, index) => index > 0 && segmentHitsRect(route.points[index - 1]!, point, ownLabel)))
+      const labelHitsRoute = loops.some(route => route.points.some((point, index) => index > 0 && segmentHitsLoopLabel(route.points[index - 1]!, point, ownLabel)))
       if (labelHitsRoute) findings.push({ code: 'ROUTE_SELF_LOOP_OCCUPANCY', edge: id, kind: 'label-route' })
     }
   }

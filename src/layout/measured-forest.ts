@@ -31,6 +31,8 @@ export function layoutMeasuredForest(input: MeasuredGraph): AgenticLayout | unde
   const reverse = input.direction === 'RL' || input.direction === 'BT'
   const mainSize = (index: number): number => horizontal ? nodes[index]!.width : nodes[index]!.height
   const crossSize = (index: number): number => horizontal ? nodes[index]!.height : nodes[index]!.width
+  if (nodes.some((node, index) => node.minimumPortSpacing !== undefined
+    && (outgoing[index]!.length - 1) * node.minimumPortSpacing > crossSize(index) - 2 * (node.paintCornerRadius ?? 0))) return undefined
   const span = new Float64Array(nodes.length), bands: number[] = []
   for (let cursor = traversal.length - 1; cursor >= 0; cursor--) {
     const id = traversal[cursor]!, peers = outgoing[id]!
@@ -63,6 +65,29 @@ export function layoutMeasuredForest(input: MeasuredGraph): AgenticLayout | unde
     let start = starts[id]! + (span[id]! - peerWidth) / 2
     for (const child of peers) { starts[child] = start; start += span[child]! + nodeSpacing }
   }
+  // Spread ports also need ordered bend channels. Reusing one channel leaves
+  // overlapping runs between siblings whose source contacts are now distinct.
+  // Routes toward the low cross side use increasing channels; routes toward
+  // the high side use decreasing channels. Opposite-side runs are disjoint.
+  const fanTracks = new Float64Array(nodes.length)
+  const trackSpacing = input.edgeSpacing ?? 6
+  for (let id = 0; id < nodes.length; id++) {
+    const pitch = nodes[id]!.minimumPortSpacing, peers = outgoing[id]!
+    if (!pitch || peers.length < 2) continue
+    const low: number[] = [], high: number[] = []
+    const center = (horizontal ? positioned[id]!.y : positioned[id]!.x) + crossSize(id) / 2
+    for (const [slot, child] of peers.entries()) {
+      const sourceCross = center + (slot - (peers.length - 1) / 2) * pitch
+      const targetCross = (horizontal ? positioned[child]!.y : positioned[child]!.x) + crossSize(child) / 2
+      if (targetCross < sourceCross) low.push(child)
+      else if (targetCross > sourceCross) high.push(child)
+    }
+    const tracks = Math.max(low.length, high.length)
+    if ((tracks - 1) * trackSpacing > layerSpacing - 2 * Math.max(12, input.minimumTerminalLead ?? 0)) return undefined
+    low.forEach((child, slot) => { fanTracks[child] = (slot - (low.length - 1) / 2) * trackSpacing })
+    high.forEach((child, slot) => { fanTracks[child] = ((high.length - 1) / 2 - slot) * trackSpacing })
+  }
+  const sourceSlots = new Uint32Array(nodes.length)
   return {
     topology: 'forest',
     width: 2 * padding + (horizontal ? mainExtent : crossExtent),
@@ -78,6 +103,15 @@ export function layoutMeasuredForest(input: MeasuredGraph): AgenticLayout | unde
       const end = horizontal
         ? { x: target.x + (reverse ? to.width : 0), y: target.y + to.height / 2 }
         : { x: target.x + to.width / 2, y: target.y + (reverse ? to.height : 0) }
+      // Reserve the producer's marker pitch in sibling order before final
+      // seating. Moving coincident arrowheads greedily can invert that order.
+      const slot = sourceSlots[edge.source]!, peers = outgoing[edge.source]!.length
+      sourceSlots[edge.source] = slot + 1
+      if (from.minimumPortSpacing && peers > 1) {
+        const offset = (slot - (peers - 1) / 2) * from.minimumPortSpacing
+        if (horizontal) start.y += offset
+        else start.x += offset
+      }
       let mid = horizontal ? (start.x + end.x) / 2 : (start.y + end.y) / 2
       // Unequal main-axis sizes center faces inside their depth bands. An
       // individual face midpoint can therefore enter a taller sibling box.
@@ -86,6 +120,7 @@ export function layoutMeasuredForest(input: MeasuredGraph): AgenticLayout | unde
       const exit = padding + (reverse ? mainExtent - (bandStart[band]! + bands[band]!) : bandStart[band]! + bands[band]!)
       const entry = padding + (reverse ? mainExtent - bandStart[band + 1]! : bandStart[band + 1]!)
       if (mid <= Math.min(exit, entry) || mid >= Math.max(exit, entry)) mid = exit + (entry - exit) / 2
+      if (from.minimumPortSpacing && peers > 1) mid = (exit + entry) / 2 + (reverse ? -1 : 1) * fanTracks[edge.target]!
       return { points: horizontal
         ? [start, { x: mid, y: start.y }, { x: mid, y: end.y }, end]
         : [start, { x: start.x, y: mid }, { x: end.x, y: mid }, end] }
