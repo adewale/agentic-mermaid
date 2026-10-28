@@ -72,6 +72,20 @@ jobs:
         with:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile
+      - name: Prepare the immutable base for layout review
+        if: github.event_name == 'pull_request'
+        env:
+          LAYOUT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          layout_base="$RUNNER_TEMP/layout-review-base"
+          git fetch --no-tags --depth=1 origin "$LAYOUT_BASE_SHA"
+          git worktree add --detach "$layout_base" "$LAYOUT_BASE_SHA"
+          if cmp -s bun.lock "$layout_base/bun.lock"; then
+            ln -s "$GITHUB_WORKSPACE/node_modules" "$layout_base/node_modules"
+          else
+            (cd "$layout_base" && bun install --frozen-lockfile)
+          fi
+          echo "LAYOUT_BASE_ROOT=$layout_base" >> "$GITHUB_ENV"
       - name: Render graph backend comparison
         env:
           LAYOUT_REVIEW: ${{ runner.temp }}/layout-backends
@@ -80,6 +94,8 @@ jobs:
           bun -e '
             import { renderMermaidPNGWithReceipt, renderMermaidSVGWithReceipt } from "./src/agent/index.ts";
             import { flowchartTree } from "./eval/shared/graph-fixtures.ts";
+            import { collectSamples } from "./eval/layout-compare/run.ts";
+            import { generatedFlowchartSamples } from "./eval/layout-compare/generated.ts";
             const fixtures = [
               ["fan-in-fan-out", await Bun.file("eval/layout-compare/fixtures/fan-in-fan-out.mmd").text()],
               ["nested-wide-titles", await Bun.file("eval/layout-compare/fixtures/nested-wide-titles.mmd").text()],
@@ -110,6 +126,40 @@ jobs:
               await Bun.write(`${directory}/${name}-${backend}.svg`, vector.svg);
               await Bun.write(`${directory}/${name}-${backend}.png`, rendered.png);
               await Bun.write(`${directory}/${name}-${backend}.json`, JSON.stringify({ source, options: pngOptions, receipt: rendered.receipt, svgOptions: options, svgReceipt: vector.receipt, review: name === "tree-300" ? "PNG is an overview; zoom the full SVG for leaf labels and route crossings." : "Inspect labels, arrows and route clearance." }, null, 2));
+            }
+            const samples = collectSamples({ includeStress: true });
+            const advisory = [
+              { name: "class-inheritance", source: samples.find(s => s.id === "corpus/class/0")?.source },
+              { name: "er-tree", source: samples.find(s => s.id === "fixture/stress/er-40-entities.mmd")?.source },
+              { name: "parallel-labels", source: generatedFlowchartSamples({ start: 40, count: 1 })[0].source },
+            ];
+            if (advisory.some(s => !s.source)) throw new Error("Missing layout advisory review input");
+            // Each revision gets its own process and module/registry identities.
+            // Inputs are fixed by the candidate, then replayed unchanged at base.
+            const probe = `
+              const { renderMermaidPNGWithReceipt, renderMermaidSVGWithReceipt, layoutMermaidWithReceipt, measureQuality } = await import(process.cwd() + "/src/agent/index.ts");
+              const revision = new TextDecoder().decode(Bun.spawnSync(["git", "rev-parse", "HEAD"]).stdout).trim();
+              for (const { name, source } of JSON.parse(process.env.LAYOUT_REVIEW_INPUTS)) for (const backend of ["elk", "agentic"]) {
+                const label = process.env.LAYOUT_REVIEW_LABEL;
+                const path = process.env.LAYOUT_REVIEW + "/advisory-" + name + "-" + label + "-" + backend;
+                const options = { graphLayout: { backend }, security: "strict" };
+                try {
+                  const svg = renderMermaidSVGWithReceipt(source, options);
+                  const png = renderMermaidPNGWithReceipt(source, { ...options, fitTo: { width: 1000 } });
+                  const layout = layoutMermaidWithReceipt(source, options);
+                  await Bun.write(path + ".svg", svg.svg);
+                  await Bun.write(path + ".png", png.png);
+                  await Bun.write(path + ".json", JSON.stringify({ revision, label, source, options, metrics: measureQuality(layout.layout), receipt: svg.receipt, review: "Compare labels, endpoint markers and crossings. PNG is an overview; zoom the full SVG for the ER tree." }, null, 2));
+                } catch (error) {
+                  await Bun.write(path + ".json", JSON.stringify({ revision, label, source, options, error: String(error), review: "This revision could not render the input; no baseline image was fabricated." }, null, 2));
+                  if (label === "after") throw error;
+                }
+              }
+            `;
+            for (const [label, root] of [["before", process.env.LAYOUT_BASE_ROOT], ["after", process.cwd()]]) {
+              if (!root) continue;
+              const child = Bun.spawnSync(["bun", "-e", probe], { cwd: root, stdout: "inherit", stderr: "inherit", env: { ...process.env, LAYOUT_REVIEW_INPUTS: JSON.stringify(advisory), LAYOUT_REVIEW_LABEL: label } });
+              if (child.exitCode !== 0) throw new Error("Layout advisory review failed: " + label);
             }
           '
       - uses: actions/upload-artifact@v7
@@ -182,14 +232,20 @@ jobs:
             AGENTIC_MERMAID_ELK_CACHE="$cache_flag" AGENTIC_MERMAID_EXPERIMENTS="$features" \
               bun run eval/layout-compare/edit-run.ts --out "$EVIDENCE_DIR/edits-$cache.json"
           done
-      - name: Compare final quality without declaring a performance winner
+      - name: Compare backend readability and retain geometric tradeoffs
         env:
           EVIDENCE_DIR: ${{ runner.temp }}/generated-layouts
         run: |
           failed=0
           for directory in "$EVIDENCE_DIR/corpus" "$EVIDENCE_DIR" "$EVIDENCE_DIR/development-256-319" "$EVIDENCE_DIR/development-320-383" "$EVIDENCE_DIR/independent-sha256-counter-v1-0-63" "$EVIDENCE_DIR/independent-sha256-counter-v1-64-127" "$EVIDENCE_DIR/independent-sha256-counter-v1-128-191" "$EVIDENCE_DIR/independent-sha256-counter-v1-192-255"; do
+            # Both are supported first-party producers. A baseline failure must
+            # remain a finding even when the other backend improves support.
+            if ! bun -e 'let failed = false; for (const path of process.argv.slice(1)) { const snapshot = await Bun.file(path).json(); for (const sample of snapshot.samples) if (!sample.ok) { console.error(path + ": " + sample.id + ": " + sample.error); failed = true; } } if (failed) process.exit(1);' \
+              "$directory/elk.json" "$directory/agentic.json"; then
+              failed=1
+            fi
             if ! bun run eval/layout-compare/run.ts report --before "$directory/elk.json" \
-              --after "$directory/agentic.json" --out "$directory/report.html"; then
+              --after "$directory/agentic.json" --comparison backend --out "$directory/report.html"; then
               failed=1
             fi
           done

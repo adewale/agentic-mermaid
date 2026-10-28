@@ -497,7 +497,13 @@ describe('label candidate endpoint clearance', () => {
       for (const edge of labeled) {
         const pill = labelRect(edge, style)!, halo = Math.max(4, style.lineWidth * 2)
         expect(pill.x - halo < protectedInk.x1 && pill.x + pill.w + halo > protectedInk.x0 && pill.y - halo < protectedInk.y1 && pill.y + pill.h + halo > protectedInk.y0).toBe(false)
-        expect(edge.labelPosition!.y).toBe(edge.points[0]!.y)
+        // Close parallel carriers have no clear centred seat. Retain contact
+        // with the owned shaft while proving the foreign shaft stays visible.
+        expect(Math.abs(edge.labelPosition!.y - edge.points[0]!.y)).toBeLessThanOrEqual(pill.h / 2 + halo)
+        for (const other of labeled) if (other !== edge) {
+          const y = other.points[0]!.y, radius = style.lineWidth / 2
+          expect(pill.y + pill.h + halo < y - radius || pill.y - halo > y + radius).toBe(true)
+        }
       }
       const offRoute: PositionedEdge = { ...labeled[1]!, labelPosition: { x: 75, y: -100 },
         points: [{ x: -25, y: 110 }, { x: 175, y: 110 }] }
@@ -3037,6 +3043,26 @@ describe('unresolved marker-label seats', () => {
       return !(pill.x - halo < b.x1 && pill.x + pill.w + halo > b.x0 && pill.y - halo < b.y1 && pill.y + pill.h + halo > b.y0)
     }))
   }
+  for (const transpose of [false, true]) it.each(['2', '20', 'var(--unknown-width)'])('protects a foreign %s shaft during caption rescue (transpose=' + transpose + ')', width => {
+    const point = (x: number, y: number): Point => transpose ? { x: y, y: x } : { x, y }
+    const edge: PositionedEdge = { source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: false,
+      label: 'handoff', labelPosition: point(150, 100), points: [point(0, 100), point(300, 100)] }
+    const rail: PositionedEdge = { source: 'C', target: 'D', style: 'solid', hasArrowStart: false, hasArrowEnd: false,
+      inlineStyle: { 'stroke-width': width }, points: [point(150, 0), point(150, 200)] }
+    const positioned = { nodes: [], groups: [], edges: [edge, rail] }, before = structuredClone(positioned)
+    separateEdgeLabelPills(positioned, graph(), style)
+    if (width.startsWith('var(')) {
+      expect(positioned).toEqual(before)
+      return
+    }
+    expect(edge.labelPosition).not.toEqual(before.edges[0]!.labelPosition)
+    const pill = labelRect(edge, style)!, halfStroke = Number(width) / 2
+    const low = transpose ? pill.y - 4 : pill.x - 4
+    const high = transpose ? pill.y + pill.h + 4 : pill.x + pill.w + 4
+    expect(high < 150 - halfStroke || low > 150 + halfStroke).toBe(true)
+    expect(positioned.edges.map(value => value.points)).toEqual(before.edges.map(value => value.points))
+    expect(positioned.edges.map(value => [value.source, value.target, value.label])).toEqual(before.edges.map(value => [value.source, value.target, value.label]))
+  })
   it.each([0, 1, 2, 3])('seats a short-loop caption without changing its route (quarter turns=%s)', turns => {
     const rotate = (p: Point): Point => { let {x,y}=p; for(let i=0;i<turns;i++)[x,y]=[-y,x]; return {x,y} }
     const edge: PositionedEdge = { source:'A',target:'A',style:'solid',hasArrowStart:false,hasArrowEnd:true,label:'repeat seal',
