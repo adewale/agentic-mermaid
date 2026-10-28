@@ -359,3 +359,98 @@ failed-before controls remain in the stroke-controls directory above. The
 recovery continuation records the final documentation head and evidence archive.
 No new holdout access, peer acquisition, performance tuning, publication or
 release/default change occurred.
+
+
+## 28 October 2026: linked advisory job exposed a shared admission regression
+
+The owner linked [job122730721119](https://github.com/adewale/agentic-mermaid/actions/runs/40663011207/job/122730721119),
+run40663011207, on the separate benchmark-ownership branch at
+`ba506d1d5ea6605b18371e511835d8af86ae2b3f`. Its comparison runs Native and
+our ELK pipeline at that same revision; it does not compare PR head with Main.
+Corpus234 has 47 regression / 52 improvement / 135 changed results. Generated256
+has 123 regression / 133 improvement results. A regression wins the verdict
+whenever any measured dimension worsens, even if another improves. Area, bends
+and length dominate the generated losses; this is not a human aesthetic verdict.
+
+The complete saved ZIPs reveal why the log's zero `status-changed` must not be
+read as zero failures: that category means missing population members only.
+Support error-to-render is an improvement; identical errors are unchanged.
+Generated `generated-cyclic:40` fails our ELK SVG API with a paint-certification
+error in both linked and f74 reports; Native renders it. The failed ELK SVG is
+absent, so the recorded hidden-caption diagnostics are not an independent
+physical-ink review. Native's entire256 cohort is 120P/136U, versus ELK75P/180U
+plus that error. Successful API completion does not establish full correctness.
+
+The linked corpus has no API errors. The later f74 corpus instead has one error
+under each engine: the same100-requirement/99-trace stress source. Its prior
+Native/ELK certificates were U at400,000 operations, but f74 rejects late frames
+r98/r99 with SCENE_VALIDATION_FAILED. The peer comparator hides those matching
+errors as one unchanged result, explaining52→51 improvements and zero→one
+unchanged. This was an admission regression; the prior handoff's literal zero
+status-change counts did not establish absence of errors.
+
+### Implemented, independently reviewed and locally verified
+
+Normal merge `3acc2b709690557c754a1c9fe7f3a7eb20812d26` integrates Main
+`9aaffac653bcea0a0897cd7281ee48e3884751cf`, including #562 authored Flowchart
+source reuse and #541 product-owned benchmark commands/pinned Trident library.
+No measurements are run. The new static preparation uses a clean exact
+Trident `f080278e31e4202ca89d524e4ee9e4cf3cbff038` checkout and genuine frozen
+installation. An isolated package-link overlay preserves the existing shared
+dependency pool; its before/after targets are recorded in evidence.
+
+- `7e1137d76204e1300a0ded50869ed30d8cca3286` fixes the shared drawing
+  producer's structural enclosure fallback. On paint-capture exhaustion, use
+  the already validated constructor-owned semantic identity before falling
+  back to an internal group ID. It changes one production line. Internal IDs,
+  paint ancestry, conditional status, validators and quotas remain unchanged.
+- Its existing Requirement owner now checks independently authored100cards,
+  all fields and99ordered traces under both engines, separately through Scene
+  and ordinary Native drawing. The first Scene-only2P result is retained as
+  a positive control. Fresh Native realms set assertion mode before imports:
+  the genuine old result is2P/2F, followed by4P/0F. No global preload is changed.
+- Exactly two final matched-option public SVG calls produce276,810-byte Native
+  and276,501-byte ELK artifacts. Each complete SVG and entire receipt directly
+  equal the linked historical counterpart. Both remain U at400,000/400,000 with
+  CONDITIONAL_PAINT, OUTPUT_SCOPE and CHECK_BUDGET. No certificate is promoted.
+  Independent XML/Decimal review checks100cards,400fields,100two-line headers,
+  99carriers/labels,599unique semantic IDs and all198shaft ends within their
+  own0.75px outline bands, including late frames. This is not a font-outline or
+  whole-marker paint certification. Acquisition patches directly match the
+  committed fix, retaining the original3acc-plus-patch execution identity.
+- `2d780a21f54cb5f6031da1f6abcd6f01b348a19e` fixes the existing AM quality
+  report consumer. Matching failed rows remain visible with escaped typed
+  details and explicit before/after/both-failed counts. Missing-population
+  labels are precise. Comparison verdicts, metrics, adverse rates and the
+  existing CLI failure gate are unchanged. A genuine missing-row RED precedes
+  the fix; final owner is14P/0F,1,837assertions. The initial typecheck caught a
+  missing required field in the new test fixture; corrected owning tests and
+  canonical repository typecheck pass. The failure log remains preserved.
+
+Final runtime/shared-boundary owners: **310P/0F,5,169assertions** across
+Requirement layout, Native validation, crisp drawing and paint certification.
+Incoming cleanup/Trident-launcher/CI-policy owners: **19P/0F,207assertions**.
+The cohorts remain separate. Canonical core types pass; after the test-only
+correction the canonical repo types and1,898-file lint pass, with one retained
+oversized-JSON warning. Diff and hygiene checks pass; the1104-line/377-commit
+heuristic includes retained history. All five requested Sol6.1High agents
+contributed implementation or independent falsifiable review.
+
+Fresh exact-head CI is required after pushing this combined candidate; the
+prior f74 CI does not qualify it. All seven original U diagrams, the six0.6
+acceptance goals, generated40's ELK refusal and the State allocation warnings
+remain open. Keep the failed snapshots enrolled; no threshold, cap, default,
+release version or package publication changes.
+
+Next first follow combined-head CI and retain every failure. Then investigate
+actual final ink behind the generated40 ELK label refusal at its owning boundary,
+while continuing served-geometry authority for the seven originals. A context-only
+row87 bridge remains insufficient. The independent holdout stays sealed; peer
+admission and aesthetic qualification still precede controlled performance.
+
+Evidence: `/tmp/pr449-linked-run-40663011207/` (both original ZIPs, selected
+reference packets and independent artifact review),
+`/tmp/pr449-20261028-requirement100-controls/` and
+`/tmp/pr449-20261028-report-controls/`. The recovery continuation records exact
+final refs, CI and the external evidence archive. No new source benchmark,
+peer acquisition, holdout access or performance tuning occurred.
