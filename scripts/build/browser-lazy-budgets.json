@@ -8,31 +8,31 @@
   },
   "families": {
     "flowchart": {
-      "requests": 36,
+      "requests": 43,
       "raw": 2430000,
       "gzip": 761500,
       "brotli": 618000
     },
     "state": {
-      "requests": 35,
+      "requests": 41,
       "raw": 2430000,
       "gzip": 761000,
       "brotli": 617500
     },
     "sequence": {
       "requests": 34,
-      "raw": 667000,
-      "gzip": 214000,
-      "brotli": 190750
+      "raw": 704000,
+      "gzip": 233500,
+      "brotli": 207750
     },
     "timeline": {
       "requests": 32,
       "raw": 617000,
-      "gzip": 198000,
-      "brotli": 174500
+      "gzip": 214500,
+      "brotli": 190500
     },
     "class": {
-      "requests": 37,
+      "requests": 39,
       "raw": 2316000,
       "gzip": 713000,
       "brotli": 577000
@@ -46,116 +46,116 @@
     "journey": {
       "requests": 33,
       "raw": 637000,
-      "gzip": 204250,
-      "brotli": 181500
+      "gzip": 222750,
+      "brotli": 198000
     },
     "architecture": {
-      "requests": 35,
-      "raw": 2318000,
+      "requests": 39,
+      "raw": 2462000,
       "gzip": 751000,
       "brotli": 608500
     },
     "xychart": {
       "requests": 33,
-      "raw": 654000,
-      "gzip": 211000,
-      "brotli": 187250
+      "raw": 688000,
+      "gzip": 229750,
+      "brotli": 204250
     },
     "pie": {
       "requests": 35,
       "raw": 634000,
-      "gzip": 208500,
-      "brotli": 185500
+      "gzip": 221500,
+      "brotli": 196750
     },
     "quadrant": {
       "requests": 34,
       "raw": 622000,
-      "gzip": 201000,
-      "brotli": 177500
+      "gzip": 218250,
+      "brotli": 194000
     },
     "gantt": {
       "requests": 32,
       "raw": 642000,
-      "gzip": 207000,
-      "brotli": 183500
+      "gzip": 225000,
+      "brotli": 200250
     },
     "mindmap": {
       "requests": 32,
-      "raw": 621000,
-      "gzip": 203750,
-      "brotli": 186000
+      "raw": 657000,
+      "gzip": 222000,
+      "brotli": 197500
     },
     "gitgraph": {
       "requests": 33,
       "raw": 629000,
-      "gzip": 204000,
-      "brotli": 180000
+      "gzip": 220750,
+      "brotli": 196250
     },
     "radar": {
       "requests": 35,
       "raw": 632000,
-      "gzip": 205000,
-      "brotli": 181750
+      "gzip": 223000,
+      "brotli": 198500
     },
     "sankey": {
       "requests": 33,
       "raw": 624000,
-      "gzip": 203000,
-      "brotli": 179250
+      "gzip": 220000,
+      "brotli": 195500
     },
     "c4": {
-      "requests": 33,
+      "requests": 36,
       "raw": 836000,
       "gzip": 276500,
       "brotli": 243500
     },
     "packet": {
       "requests": 32,
-      "raw": 586500,
-      "gzip": 192500,
-      "brotli": 171000
+      "raw": 629000,
+      "gzip": 210250,
+      "brotli": 187000
     },
     "kanban": {
       "requests": 34,
-      "raw": 595000,
-      "gzip": 196000,
-      "brotli": 174000
+      "raw": 638000,
+      "gzip": 214250,
+      "brotli": 190250
     },
     "requirement": {
-      "requests": 30,
+      "requests": 33,
       "raw": 2150000,
       "gzip": 664000,
       "brotli": 532000
     },
     "treemap": {
       "requests": 33,
-      "raw": 606000,
-      "gzip": 200750,
-      "brotli": 178250
+      "raw": 649000,
+      "gzip": 219000,
+      "brotli": 194750
     },
     "ishikawa": {
       "requests": 31,
-      "raw": 586500,
-      "gzip": 192250,
-      "brotli": 170500
+      "raw": 629000,
+      "gzip": 210000,
+      "brotli": 186750
     },
     "block": {
-      "requests": 30,
+      "requests": 34,
       "raw": 775500,
       "gzip": 256500,
       "brotli": 226500
     },
     "eventmodeling": {
-      "requests": 28,
-      "raw": 600000,
-      "gzip": 198000,
-      "brotli": 176000
+      "requests": 30,
+      "raw": 638000,
+      "gzip": 212500,
+      "brotli": 189000
     },
     "zenuml": {
-      "requests": 32,
-      "raw": 669750,
-      "gzip": 220000,
-      "brotli": 195750
+      "requests": 34,
+      "raw": 719000,
+      "gzip": 239250,
+      "brotli": 213000
     }
   }
 }
