@@ -53,7 +53,7 @@ const overlaps = (a: AxisAlignedBox, b: AxisAlignedBox): boolean => a.x0 < b.x1 
 const box = (r: { x: number; y: number; w: number; h: number }): AxisAlignedBox => ({ x0: r.x, y0: r.y, x1: r.x + r.w, y1: r.y + r.h })
 const viewportBox = (v: PaintViewport): AxisAlignedBox => ({ x0: v.x, y0: v.y, x1: v.x + v.width, y1: v.y + v.height })
 
-interface Surface { primitive: ScenePaintPrimitive; bounds: AxisAlignedBox; interiors?: readonly AxisAlignedBox[]; strokeInteriors?: readonly AxisAlignedBox[]; borderWidth?: number; partBorderWidths?: readonly number[]; partFilled?: readonly boolean[]; partBounds?: readonly (AxisAlignedBox | undefined)[] }
+interface Surface { primitive: ScenePaintPrimitive; bounds: AxisAlignedBox; interiors?: readonly AxisAlignedBox[]; strokeInteriors?: readonly AxisAlignedBox[]; borderWidth?: number; partBorderWidths?: readonly number[]; partOwnBorderWidths?: readonly number[]; partFilled?: readonly boolean[]; partBounds?: readonly (AxisAlignedBox | undefined)[] }
 interface Tree { bounds: AxisAlignedBox; leaves?: readonly Surface[]; left?: Tree; right?: Tree }
 function tree(items: Surface[]): Tree | undefined {
   if (!items.length) return undefined
@@ -123,6 +123,11 @@ function solidInteriors(scene: NativePaintHeader, primitives: readonly ScenePain
     resolved.set(fill, result)
     return result
   }
+  const opaqueOutlineWidth = (paint: MarkPaint): number => {
+    if (paint.vectorEffect === 'non-scaling-stroke' || !paint.stroke || !opaque(paint.stroke) || Number(paint.opacity ?? 1) !== 1 || Number(paint.strokeOpacity ?? 1) !== 1 || paint.strokeDasharray) return 0
+    const width = Number(paint.strokeWidth?.replace(/px$/, '') ?? 1)
+    return Number.isFinite(width) && width > 0 ? width : 0
+  }
   const outlines = new Map<string, number>()
   const outlineKey = (primitive: ScenePaintPrimitive, geometry: Geometry) => JSON.stringify([primitive.owner, geometry, scenePrimitiveMatrix(primitive)])
   for (const primitive of primitives) {
@@ -133,9 +138,8 @@ function solidInteriors(scene: NativePaintHeader, primitives: readonly ScenePain
     const pieces = node.geometry.kind === 'compound' ? node.geometry.children : [node.geometry]
     for (let index = 0; index < pieces.length; index++) {
       const paint = node.geometry.kind === 'compound' ? node.childPaints?.[index] ?? node.paint : node.paint
-      if (paint.vectorEffect === 'non-scaling-stroke' || !paint.stroke || !opaque(paint.stroke) || Number(paint.opacity ?? 1) !== 1 || Number(paint.strokeOpacity ?? 1) !== 1 || paint.strokeDasharray) continue
-      const width = Number(paint.strokeWidth?.replace(/px$/, '') ?? 1)
-      if (Number.isFinite(width) && width > 0) outlines.set(outlineKey(primitive, pieces[index]!), width)
+      const width = opaqueOutlineWidth(paint)
+      if (width > 0) outlines.set(outlineKey(primitive, pieces[index]!), width)
     }
   }
   const surfaces: Surface[] = []
@@ -175,6 +179,7 @@ function solidInteriors(scene: NativePaintHeader, primitives: readonly ScenePain
     if (!bounds) continue
     const candidate = { primitive, bounds, borderWidth: outlines.get(outlineKey(primitive, node.geometry)), ...(node.geometry.kind === 'compound' ? {
       partBorderWidths: pieces ? pieces.map(child => outlines.get(outlineKey(primitive, child)) ?? 0) : [outlines.get(outlineKey(primitive, singleGeometry!)) ?? 0],
+      partOwnBorderWidths: paints?.map(opaqueOutlineWidth),
       partFilled: filled ?? [singleFilled], partBounds: partBounds ?? [singleBounds],
     } : {}) }
     // A rotated/sheared AABB is not a solid rectangle. Keep it out of this
@@ -226,6 +231,25 @@ function outsideFilledBody(surface: Surface, bounds: AxisAlignedBox, attached: b
   // that declared border band; a marker entering the filled body stays checked.
   let contactAllowed = false
   let contactWitness: ScenePoint | undefined
+  // Cylinders emit their filled body and its straight outlines separately.
+  // A side line may supply the existing attached-border band only when it
+  // actually traces that filled rectangle's complete side at this anchor.
+  const sideOutlineWidth = (rect: Extract<Geometry, { kind: 'rect' }>, a: ScenePoint, b: ScenePoint, onlyLine?: Geometry): number => {
+    if (!attached || !contactAllowed || !localAnchor || shape.geometry.kind !== 'compound'
+      || rect.rx || rect.ry || inverse[0] !== 1 || inverse[1] !== 0 || inverse[2] !== 0 || inverse[3] !== 1 || inverse[4] !== 0 || inverse[5] !== 0
+      || !surface.partFilled?.[shape.geometry.children.indexOf(rect)]) return 0
+    const onSide = a.x === b.x && localAnchor.x === a.x && localAnchor.y > Math.min(a.y, b.y) && localAnchor.y < Math.max(a.y, b.y)
+      || a.y === b.y && localAnchor.y === a.y && localAnchor.x > Math.min(a.x, b.x) && localAnchor.x < Math.max(a.x, b.x)
+    if (!onSide) return 0
+    for (let index = 0; index < shape.geometry.children.length; index++) {
+      if (!work()) return 0
+      const line = shape.geometry.children[index]!, width = surface.partOwnBorderWidths?.[index] ?? 0
+      if (line.kind !== 'line' || onlyLine && line !== onlyLine || !(width > 0)) continue
+      if (line.x1 === a.x && line.y1 === a.y && line.x2 === b.x && line.y2 === b.y
+        || line.x2 === a.x && line.y2 === a.y && line.x1 === b.x && line.y1 === b.y) return width
+    }
+    return 0
+  }
   const outside = (g: Geometry, borderWidth = surface.borderWidth ?? 0, paint = shape.paint, filled = true, painted = surface.bounds, witness?: ScenePoint): boolean => {
     if (!work()) return false
     if (witness && (witness.x < painted.x0 || witness.x > painted.x1 || witness.y < painted.y0 || witness.y > painted.y1)) return true
@@ -242,6 +266,15 @@ function outsideFilledBody(surface: Surface, bounds: AxisAlignedBox, attached: b
       if (sceneGroupOpacity(paint.opacity) === 0 || sceneGroupOpacity(paint.strokeOpacity) === 0 || paintedStrokeExtent(paint, g.kind !== 'line') === 0) return true
     }
     if (g.kind === 'line') {
+      if (!witness && contactWitness && shape.geometry.kind === 'compound' && shape.geometry.children.some(rect => {
+        if (rect.kind !== 'rect') return false
+        const boundary = [{ x: rect.x, y: rect.y }, { x: rect.x + rect.width, y: rect.y }, { x: rect.x + rect.width, y: rect.y + rect.height }, { x: rect.x, y: rect.y + rect.height }]
+        return boundary.some((a, index) => {
+          const b = boundary[(index + 1) % boundary.length]!, width = sideOutlineWidth(rect, a, b, g)
+          const dx = b.x - a.x, dy = b.y - a.y, length = Math.hypot(dx, dy)
+          return width > 0 && length > 0 && samples.every(p => work() && dx * (p.y - a.y) - dy * (p.x - a.x) <= (width / 2 - sampleMargin) * length)
+        })
+      })) return outside(g, borderWidth, paint, filled, painted, contactWitness)
       // Only a real endpoint cap contact may reuse the same point already
       // clear of EVERY endpoint piece. A line through the marker body retains
       // its complete hull check even if some filled witnesses survive.
@@ -306,7 +339,8 @@ function outsideFilledBody(surface: Surface, bounds: AxisAlignedBox, attached: b
     if (!direction || !points.every((a, i) => points.every(point => work() && direction * cross(a, points[(i + 1) % points.length]!, point) >= -(witness || strict ? 0 : 1e-8)))) return false
     return points.some((a, i) => {
       const b = points[(i + 1) % points.length]!, length = Math.hypot(b.x - a.x, b.y - a.y)
-      return length > 0 && samples.every(p => work() && direction * cross(a, b, p) <= (inset - sampleMargin + tolerance) * length)
+      const sideInset = !witness && g.kind === 'rect' ? Math.max(inset, sideOutlineWidth(g, a, b) / 2) : inset
+      return length > 0 && samples.every(p => work() && direction * cross(a, b, p) <= (sideInset - sampleMargin + tolerance) * length)
     })
   }
   // A contact allowance cannot establish visibility by itself. At least one

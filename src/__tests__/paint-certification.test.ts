@@ -920,6 +920,34 @@ test('a cap-entering marker stays unverified', () => {
   expect(cylinderWitness(2).proof.status).toBe('unverified')
 })
 
+test.each(['right-end', 'left-end', 'right-start', 'left-start', 'entering', 'tiny-entering', 'extra-line', 'translucent', 'dashed', 'unknown-width', 'non-scaling', 'transformed', 'covered', 'borrowed-outline', 'borrowed-body-outline'] as const)('a side-attached cylinder marker requires its actual opaque boundary (%s)', mode => {
+  const left = mode.startsWith('left'), start = mode.endsWith('start')
+  const x = left ? 20 : 80 - (mode === 'entering' ? 1 : mode === 'tiny-entering' ? 1e-9 : 0)
+  const sidePaint: MarkPaint = { stroke: '#111', strokeWidth: mode === 'covered' ? '40' : mode === 'unknown-width' ? '1em' : '0.75',
+    ...(mode === 'translucent' || mode === 'borrowed-outline' ? { strokeOpacity: '0.5' } : {}), ...(mode === 'dashed' ? { strokeDasharray: '1 100' } : {}), ...(mode === 'non-scaling' ? { vectorEffect: 'non-scaling-stroke' } : {}) }
+  const marker = tipAnchoredArrow('side-arrow', { width: 8, height: 5 }, start ? 'start' : 'end', { fill: '#111', stroke: '#111', strokeWidth: '0.75', strokeLinejoin: 'round' }, 'userSpaceOnUse')
+  if (mode === 'borrowed-outline' || mode === 'borrowed-body-outline') marker.ref = { x: 7, y: 2.5 }
+  const card = marks.shape({ id: 'cylinder', role: 'node', geometry: { kind: 'compound', children: [
+    { kind: 'rect', x: 20, y: 27, width: 60, height: 26 },
+    { kind: 'line', x1: 20, y1: 27, x2: 20, y2: 53 },
+    { kind: 'line', x1: 80, y1: 27, x2: 80, y2: 53 },
+    { kind: 'ellipse', cx: 50, cy: 53, rx: 30, ry: 7 },
+    { kind: 'ellipse', cx: 50, cy: 27, rx: 30, ry: 7 },
+    ...(mode === 'extra-line' ? [{ kind: 'line' as const, x1: 82, y1: 40, x2: 90, y2: 40 }] : []),
+  ] }, paint: { fill: '#fff', stroke: '#111', strokeWidth: '0.75' }, childPaints: [
+    { fill: '#fff', stroke: 'none' }, sidePaint, sidePaint,
+    { fill: '#fff', stroke: '#111', strokeWidth: '0.75' }, { fill: '#fff', stroke: '#111', strokeWidth: '0.75' },
+    ...(mode === 'extra-line' ? [{ stroke: '#111', strokeWidth: '4' }] : []),
+  ], ...(mode === 'transformed' ? { transform: { kind: 'translate' as const, x: 0.25, y: 0 } } : {}) })
+  const outside = left ? 2 : 98
+  const edge = marks.connector({ id: 'side-edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: start ? x : outside, y1: 40, x2: start ? outside : x, y2: 40 }, paint: { stroke: '#111', strokeWidth: '1' },
+    endpoints: start ? { from: 'cylinder', to: 'outside' } : { from: 'outside', to: 'cylinder' }, markers: start ? { start: marker } : { end: marker } })
+  const oldOutline = marks.shape({ id: 'old-outline', role: 'node', owner: { id: 'cylinder', role: 'node' }, geometry: mode === 'borrowed-body-outline' ? { kind: 'rect', x: 20, y: 27, width: 60, height: 26 } : { kind: 'line', x1: 80, y1: 27, x2: 80, y2: 53 }, paint: { fill: 'none', stroke: '#111', strokeWidth: '40' } })
+  const proof = certifyScenePaint(scene([...(mode === 'borrowed-outline' || mode === 'borrowed-body-outline' ? [oldOutline] : []), edge, card]))
+  if (mode.endsWith('end') || mode.endsWith('start')) expect(proof.status).toBe('passed')
+  else expect(proof.status).not.toBe('passed')
+})
+
 test.each(['butt', 'round', 'square'] as const)('%s line-child stroke through marker cannot be excluded with its zero-area fill', strokeLinecap => {
   const { proof } = cylinderWitness(0, { geometry: { kind: 'line', x1: 40, y1: 15, x2: 60, y2: 15 }, paint: { fill: 'none', stroke: '#111', strokeWidth: '4', strokeLinecap } })
   expect(proof.status).toBe('unverified')
