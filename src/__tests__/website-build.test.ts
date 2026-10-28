@@ -637,7 +637,7 @@ describe('Workers Static Assets website contract', () => {
       'docs/mcp/index.html', 'docs/ascii/index.html', 'docs/theming/index.html',
       'docs/custom-styles/index.html', 'docs/quality/index.html', 'docs/fork-differences/index.html',
       'warnings/index.html', 'errors/index.html', 'examples/index.html', 'comparisons/index.html',
-      'index.md', 'llms.txt', 'llms.md', '.well-known/llms.txt', 'agent-instructions.md', 'capabilities.json', 'examples/index.json', 'schemas/style-spec.schema.json', 'schemas/render-options.schema.json',
+      'index.md', 'llms.txt', 'llms.md', '.well-known/llms.txt', 'agent-instructions.md', 'capabilities.json', 'capabilities/index.json', 'capabilities/flowchart.json', 'examples/index.json', 'schemas/style-spec.schema.json', 'schemas/render-options.schema.json',
       '.well-known/mcp.json', '.well-known/mcp/server-card.json', '.well-known/ai-catalog.json',
       'sitemap.xml',
       'skills/agentic-mermaid-diagram-workflow/SKILL.md', '_headers', '_redirects',
@@ -1581,13 +1581,35 @@ describe('Workers Static Assets website contract', () => {
     expect(graph.find((node: any) => node['@type'] === 'WebPage').speakable.cssSelector).toContain('h1')
   })
 
+  test('capability slice index and per-family slices agree with the full contract', () => {
+    const fullText = read('capabilities.json')
+    const capabilities = JSON.parse(fullText)
+    const index = JSON.parse(read('capabilities/index.json'))
+    expect(index.sdkVersion).toBe(capabilities.sdkVersion)
+    expect(index.fullContract).toEqual({ path: '/capabilities.json', bytes: Buffer.byteLength(fullText) })
+    expect(index.families.map((entry: any) => entry.id)).toEqual(capabilities.families.map((family: any) => family.id))
+    for (const family of capabilities.families as Array<{ id: string }>) {
+      const entry = index.families.find((candidate: any) => candidate.id === family.id)
+      expect(entry.path).toBe(`/capabilities/${family.id}.json`)
+      const sliceText = read(`capabilities/${family.id}.json`)
+      expect(entry.bytes).toBe(Buffer.byteLength(sliceText))
+      const slice = JSON.parse(sliceText)
+      expect(slice.sdkVersion).toBe(capabilities.sdkVersion)
+      expect(slice.family).toEqual(family)
+      // start.md sends MCP agents here for authoring syntax: describe_sdk carries op fields only.
+      expect(slice.family.headers?.length).toBeGreaterThan(0)
+      expect(slice.family.example).toBeTruthy()
+    }
+  })
+
   test('public llms.txt omits repo-only backlog and eval surfaces', () => {
     const text = read('llms.txt')
     expect(text).toStartWith('# Agentic Mermaid\n\n> Agent-native Mermaid runtime:')
     expect(text).toContain('[Agent bootstrap](https://agentic-mermaid.dev/start.md)')
     expect(text).toContain('[Capabilities](https://agentic-mermaid.dev/capabilities.json)')
     expect(text).toContain('Use Agentic Mermaid when an agent needs to create, edit, verify, describe, or render Mermaid diagrams')
-    expect(text).toContain('## Start Here')
+    expect(text).toContain('## Do a task (start here)')
+    expect(text).toContain('## Reference contracts (fetch the smallest one that answers you)')
     expect(text).toContain('## Optional')
     expect(text).not.toContain('TODO.md')
     expect(text).not.toContain('skill-evals/')

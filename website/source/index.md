@@ -15,7 +15,7 @@ Use Agentic Mermaid when an agent needs to work with Mermaid source and return a
 
 - [Agent instructions](https://agentic-mermaid.dev/agent-instructions.md)
 - [llms.txt](https://agentic-mermaid.dev/llms.txt)
-- [Capabilities](https://agentic-mermaid.dev/capabilities.json)
+- [Capability slices](https://agentic-mermaid.dev/capabilities/index.json): one family's headers, example, and op fields; the full [capabilities.json](https://agentic-mermaid.dev/capabilities.json) holds every family plus warning codes.
 - [Workflow skill](https://agentic-mermaid.dev/skills/agentic-mermaid-diagram-workflow/SKILL.md)
 - [Hosted MCP server card](https://agentic-mermaid.dev/.well-known/mcp/server-card.json)
 - [Hosted MCP endpoint](https://agentic-mermaid.dev/mcp)
