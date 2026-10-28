@@ -480,10 +480,32 @@ function elkMarkerPortExtents(graph: MermaidGraph, style: ResolvedRenderStyle): 
  */
 /** ELK's in-layer edge/node gap sets the height of outer feedback channels,
  * whose returns end in a hook of that length. Keep ELK's default unless the
- * style's painted marker and corner need a longer hook. */
-function outerChannelSpacing(style: ResolvedRenderStyle): Record<string, string> {
+ * style's painted marker and corner need a longer hook and a cycle (a
+ * self-loop included) gives the graph such a channel at all. */
+function outerChannelSpacing(style: ResolvedRenderStyle, graph: MermaidGraph): Record<string, string> {
   const hook = terminalHookLength(style)
-  return hook > terminalHookLength({}) ? { 'elk.spacing.edgeNode': String(hook) } : {}
+  return hook > terminalHookLength({}) && hasDirectedCycle(graph.edges) ? { 'elk.spacing.edgeNode': String(hook) } : {}
+}
+
+function hasDirectedCycle(edges: readonly Pick<MermaidEdge, 'source' | 'target'>[]): boolean {
+  const indegree = new Map<string, number>(), outgoing = new Map<string, string[]>()
+  for (const { source, target } of edges) {
+    if (source === target) return true
+    indegree.set(source, indegree.get(source) ?? 0)
+    indegree.set(target, (indegree.get(target) ?? 0) + 1)
+    outgoing.set(source, [...outgoing.get(source) ?? [], target])
+  }
+  const ready = [...indegree].filter(([, count]) => count === 0).map(([id]) => id)
+  let removed = 0
+  for (let id = ready.pop(); id !== undefined; id = ready.pop()) {
+    removed++
+    for (const next of outgoing.get(id) ?? []) {
+      const count = indegree.get(next)! - 1
+      indegree.set(next, count)
+      if (count === 0) ready.push(next)
+    }
+  }
+  return removed < indegree.size
 }
 
 function mermaidToElk(
@@ -647,7 +669,7 @@ function mermaidToElk(
       'elk.layered.spacing.edgeEdgeBetweenLayers': '12',
       // Channel segments keep a stroke-scaled marker and rounded corner clear.
       'elk.layered.spacing.edgeNodeBetweenLayers': String(terminalHookLength(style)),
-      ...outerChannelSpacing(style),
+      ...outerChannelSpacing(style, graph),
       'elk.padding': `[top=${opts.padding},left=${opts.padding},bottom=${opts.padding},right=${opts.padding}]`,
       'elk.edgeRouting': 'ORTHOGONAL',
       'elk.layered.nodePlacement.bk.fixedAlignment': 'BALANCED',
@@ -1098,7 +1120,7 @@ function subgraphToElk(
     'elk.spacing.edgeEdge': '12',
     'elk.layered.spacing.edgeEdgeBetweenLayers': '12',
     'elk.layered.spacing.edgeNodeBetweenLayers': String(terminalHookLength(style)),
-    ...outerChannelSpacing(style),
+    ...outerChannelSpacing(style, graph),
     'elk.layered.nodePlacement.bk.fixedAlignment': 'BALANCED',
     'elk.layered.spacing.nodeNodeBetweenLayers': String(opts.layerSpacing),
     'elk.spacing.nodeNode': String(opts.nodeSpacing),

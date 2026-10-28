@@ -729,9 +729,11 @@ scaled by the stroke, or the fixed head of an authored width), the rounded
 corner radius and 4px of visible line, never less than the established 12px.
 The default 1px square-cornered style therefore keeps 12px exactly. The Z and
 escape-detour jogs, bundled junctions, re-anchored doglegs and ELK's
-edge/node and outer-channel spacing all use it, so a styled arrowhead never
+between-layer edge/node spacing all use it, so a styled arrowhead never
 hangs off its corner (ER already sizes its ELK spacing from marker ink the
-same way).
+same way). ELK's in-layer edge/node gap, which sets the height of outer
+feedback channels, takes the hook only when the graph has a cycle (a
+self-loop included): an acyclic graph has no such channel to widen.
 
 ### 6.3 Hardening found by the property oracles (layout-rubric harness)
 
