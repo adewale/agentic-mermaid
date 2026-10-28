@@ -450,6 +450,8 @@ interface MarkerPieceSource {
 }
 
 export interface MarkerPolygonProof {
+  /** Exact resource and pose after native line/polyline numeric serialization. */
+  readonly repaint: { readonly resource: string; readonly anchor: ScenePoint; readonly geometry: 'polygon' | 'polyline' }
   readonly hull: readonly ScenePoint[]
   readonly strokeWitnesses: readonly ScenePoint[]
   readonly strokeColor?: readonly number[]
@@ -600,7 +602,11 @@ export function prepareMarkerPolygonInk(scene: Pick<NativePaintHeader, 'colors'>
     paintPieceSource = { marker: stencil, anchor: first, tangent, position, width }
   }
   if (paintPieceSource && !work()) return undefined
-  return { hull, fill, stroke, fillColor, strokeColor, innerStroke, strokeWitnesses, padding: region.padding, ...(paintPieceSource ? { paintPieceSource } : {}) }
+  // Reuse the normalized region's full resource/pose identity. The hull
+  // mapping closes polylines, so retain their original stroke topology too.
+  if (!pay(6)) return undefined
+  const repaint = { resource: region!.repaint, anchor: first, geometry: marker.geometry.kind }
+  return { repaint, hull, fill, stroke, fillColor, strokeColor, innerStroke, strokeWitnesses, padding: region.padding, ...(paintPieceSource ? { paintPieceSource } : {}) }
 }
 
 
@@ -1096,8 +1102,11 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
     for (let laterIndex = 0; laterIndex < markerTargets.length; laterIndex++) {
       const later = markerTargets[laterIndex]!
       if (!work()) break
+      const earlierRepaint = earlier.strokeProof?.repaint, laterRepaint = later.strokeProof?.repaint
       if (!later.semantic || later.primitive.visibility === 'conditional' || later.primitive.order <= earlier.primitive.order
-        || earlier.anchor.x === later.anchor.x && earlier.anchor.y === later.anchor.y && earlier.repaint === later.repaint || !overlaps(earlier.bounds, later.bounds)) continue
+        || earlier.anchor.x === later.anchor.x && earlier.anchor.y === later.anchor.y && earlier.repaint === later.repaint
+        || earlierRepaint && laterRepaint && earlierRepaint.resource === laterRepaint.resource && earlierRepaint.geometry === laterRepaint.geometry && earlierRepaint.anchor.x === laterRepaint.anchor.x && earlierRepaint.anchor.y === laterRepaint.anchor.y
+        || !overlaps(earlier.bounds, later.bounds)) continue
       if (++pairs > MAX_OCCLUSION_PAIRS) { exhausted = true; break }
       let startWitness = 0, result: 'covered' | 'clear' | 'unknown' = 'unknown'
       while (!exhausted) {
