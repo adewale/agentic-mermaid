@@ -187,7 +187,7 @@ test('coalesced SVG consumers retain text, source, ownership and one default bac
       import { formatSvgNumber, formatSvgNumericAttribute } from './src/shared/svg-number.ts';
       import { seedFrom } from './src/scene/seed.ts';
       import { buildAccessibilityAttrs } from './src/shared/svg-a11y.ts';
-      import { layoutTextRows } from './src/shared/text-rows.ts';
+      import { layoutTextRows, layoutTextColumns } from './src/shared/text-rows.ts';
       import { preparePixelText } from './src/shared/prepared-text.ts';
       import { diagnoseFamilyConfig } from './src/shared/family-config-diagnostics.ts';
       import { getBackend, isOriginalEnrolledDefaultBackend, knownBackendDescriptors } from './src/scene/backend.ts';
@@ -199,11 +199,13 @@ test('coalesced SVG consumers retain text, source, ownership and one default bac
         const inner = membership.close('inner', ['A', 'A']);
         const outer = membership.close('outer', ['A', 'B']);
         const rows = layoutTextRows(['a', 'b'].map(text => ({ block: preparePixelText(text, { fontSize: 10, fontWeight: 400 }) })), { gap: 3 });
+        const columns = layoutTextColumns(['a', 'b', 'c', 'd'].map(text => ({ block: preparePixelText(text, { fontSize: 10, fontWeight: 400 }) })), { gap: 3, columnGap: 8, leadingWidth: 12, maxWidth: 100 });
         return {
           starts, span: sourceSpan(starts, 3, 5), inner, outer,
           numeric: formatSvgNumber(1.234567890123456), literal: formatSvgNumericAttribute('data-label', '1.234567890123456'),
           seed: seedFrom('a'), accessibility: buildAccessibilityAttrs('Title', 'Description', 'title-id', 'description-id'),
           rows: rows.rows.map(row => row.item.block.text), positiveBounds: rows.width > 0 && rows.height > 0,
+          columns: columns.columns, readingOrder: columns.rows.map(row => row.item.block.text),
           diagnostics: diagnoseFamilyConfig('flowchart', { root: { flowchart: { unknown: 1 } }, config: { section: 'flowchart', keys: [] } }),
           defaults: knownBackendDescriptors().filter(value => value.inputName === 'default').length,
           original: isOriginalEnrolledDefaultBackend(getBackend('default')),
@@ -217,7 +219,7 @@ test('coalesced SVG consumers retain text, source, ownership and one default bac
   expect(consumer.run()).toEqual({
     starts: [0, 3, 6], span: { start: { offset: 3, line: 2, col: 1 }, end: { offset: 5, line: 2, col: 3 } }, inner: ['A'], outer: ['B'],
     numeric: '1.23456789012', literal: '1.234567890123456', seed: 3826002220,
-    accessibility: { role: 'img', 'aria-labelledby': 'title-id', 'aria-describedby': 'description-id' }, rows: ['a', 'b'], positiveBounds: true,
+    accessibility: { role: 'img', 'aria-labelledby': 'title-id', 'aria-describedby': 'description-id' }, rows: ['a', 'b'], positiveBounds: true, columns: 2, readingOrder: ['a', 'b', 'c', 'd'],
     diagnostics: [{ code: 'INEFFECTIVE_CONFIG', field: 'flowchart.unknown', message: 'flowchart config field "unknown" is unknown and has no effect; check the spelling or remove it.' }],
     defaults: 1, original: true,
   })
