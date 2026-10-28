@@ -28,7 +28,8 @@ import { inlineResolvedColors } from '../theme.ts'
 import { projectConnectorPath } from '../scene/connector-geometry.ts'
 import { admitSceneDocument } from '../scene/external-data-snapshot.ts'
 import { DefaultBackend } from '../scene/backend.ts'
-import { MAX_OCCLUSION_OPERATIONS } from '../scene/native-paint-emission.ts'
+import { createNativePaintEmission, MAX_OCCLUSION_OPERATIONS } from '../scene/native-paint-emission.ts'
+import { inspectSvgOnce, withSvgInspectionCache } from '../svg-inspection-cache.ts'
 
 const scene = (parts: SceneNode[]): SceneDoc => ({ family: 'flowchart', width: 100, height: 80, transparent: false, colors: { bg: '#fff', fg: '#111' }, parts })
 const label = () => {
@@ -423,6 +424,37 @@ test('private emission custody cannot be discarded while fresh generic Native in
   expect(certifyNativePaint(drawing.header, { ...drawing.paint }).status).toBe('unverified')
   expect(certifyNativePaint(drawing.header, { ...drawing.paint, primitives: [...drawing.paint.primitives] }).status).toBe('unverified')
   expect(certifyNativePaint({ ...drawing.header }, drawing.paint).status).toBe('unverified')
+})
+
+test.each(['cache-prime', 'finish-reissue'] as const)('malformed Native XML cannot borrow admission through %s', mode => {
+  const marker = tipAnchoredArrow('xml-admission-arrow', { width: 8, height: 5 }, 'end', { fill: '#111' }, 'userSpaceOnUse')
+  const header = scene([])
+  const context = { positioned: { width: 100, height: 80 }, colors: header.colors, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => ({ ...header, parts: [
+    factory.documentOpen({ id: 'root', width: 100, height: 80, colors: header.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80" data-note="&unbound;">'),
+    factory.definitions({ id: 'markers' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
+    factory.connector({ id: 'xml-edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 20, y1: 40, x2: 50, y2: 40 }, paint: { stroke: '#111' }, markers: { end: marker } }),
+    factory.documentClose(),
+  ] })
+  const drawing = drawNative(producer, context, 'flowchart')
+  expect(() => new Resvg(drawing.svg, { font: { loadSystemFonts: false } })).toThrow()
+  const validSvg = drawing.svg.replace(' data-note="&unbound;"', '')
+  expect(() => new Resvg(validSvg, { font: { loadSystemFonts: false } })).not.toThrow()
+  if (mode === 'cache-prime') {
+    withSvgInspectionCache(() => {
+      // A caller can populate the generic cache, but its boolean cannot
+      // become XML authority for a fresh drawing with the same malformed bytes.
+      inspectSvgOnce('xml-envelope', drawing.svg, () => true)
+      const repeated = drawNative(producer, context, 'flowchart')
+      expect(repeated.svg).toBe(drawing.svg)
+      expect(certifyNativePaint(repeated.header, repeated.paint).status).not.toBe('passed')
+    })
+  } else {
+    // An unrelated valid serialization cannot replace the admission belonging
+    // to this already emitted inspection, even with the exact retained header.
+    createNativePaintEmission(MAX_OCCLUSION_OPERATIONS).finish(drawing.paint, drawing.header, validSvg)
+    expect(certifyNativePaint(drawing.header, drawing.paint).status).not.toBe('passed')
+  }
 })
 
 test.each([

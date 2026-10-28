@@ -13,6 +13,7 @@ import { connectorContourSemantics } from './connector-geometry.ts'
 import { writtenPolylineProjectionOf } from './written-geometry.ts'
 import { MAX_OCCLUSION_OPERATIONS } from './paint-work.ts'
 import { createEmissionContext, type EmissionColorResolver } from './emission-context.ts'
+import { verifySvgDocumentEnvelope } from '../output-security.ts'
 
 export { MAX_OCCLUSION_OPERATIONS } from './paint-work.ts'
 
@@ -29,7 +30,7 @@ export function nativeEmissionWorkOf(inspection: ScenePaintGeometryInspection): 
  * Accessors/unsupported data or an exhausted capture keep paint conditional. */
 export function createNativePaintEmission(maxOperations: number) {
   if (!Number.isSafeInteger(maxOperations) || maxOperations < 0 || maxOperations > MAX_OCCLUSION_OPERATIONS) throw new RangeError('Invalid Native emission work allowance')
-  let operations = 0, exhausted = false, uncertain = false, pendingCustomRootStyle = false
+  let operations = 0, exhausted = false, uncertain = false, pendingCustomRootStyle = false, hasMarkedConnector = false
   // A deliberately smaller admission domain for new served marker proofs.
   // Existing proofs do not depend on this flat, stylesheet-free context.
   let closedMarkerContext = true, definitionsClosed = true, rootOpens = 0, rootCloses = 0
@@ -273,6 +274,7 @@ export function createNativePaintEmission(maxOperations: number) {
       const opens = node.kind === 'document' && node.element === 'open'
       if (opens ? rootOpens !== 0 || rootCloses !== 0 : rootOpens !== 1 || rootCloses !== 0) closedMarkerContext = false
       if (node.kind === 'connector') {
+        if (node.lineStyle !== 'invisible' && (node.markers.start || node.markers.end || node.markers.mid.length)) hasMarkedConnector = true
         const reference = (marker: typeof node.markers.start): void => { if (marker && pay(2)) references.push(marker) }
         reference(node.markers.start)
         for (const marker of node.markers.mid) { if (!pay()) break; reference(marker) }
@@ -381,7 +383,11 @@ export function createNativePaintEmission(maxOperations: number) {
       const paintNode = replaceField(captured, 'route', route)
       return paintNode ? { ...retained, paintNode, conditional: !path && collapsed } : { ...retained, conditional: true }
     },
-    finish(inspection: ScenePaintGeometryInspection, header: Omit<SceneDoc, 'parts'>, unrecordedPaint = false): void {
+    finish(inspection: ScenePaintGeometryInspection, header: Omit<SceneDoc, 'parts'>, svg: string, unrecordedPaint = false): void {
+      // An issued inspection cannot be resealed with another document. Nor can
+      // a wrapper around its already-issued occurrences borrow fresh custody.
+      if (emissionWork.has(inspection)) return
+      if (pay(inspection.primitives.length) && inspection.primitives.some(primitive => emittedOccurrences.has(primitive))) uncertain = true
       const checked = new Map<string, (typeof references)[number]>()
       for (const marker of references) {
         if (!pay()) break
@@ -406,6 +412,10 @@ export function createNativePaintEmission(maxOperations: number) {
       // Every declared resource in that context needs actual-byte custody;
       // unrelated unmarked definitions retain their existing proof scope.
       if (checkedContext.resolveColor && (!definitionsClosed || !pay() || resources.size !== checked.size)) uncertain = true
+      // This raw-document obligation belongs to marker-bearing emission proofs.
+      // The callback forces a fresh parse and pays its scans and namespace work
+      // from the same unchanged allowance as capture and geometric proof.
+      if (hasMarkedConnector && !verifySvgDocumentEnvelope(svg, pay)) uncertain = true
       // Paid in observe before these immutable occurrences were created.
       // Conditional fallback occurrences already prohibit P, even if rewrapped.
       for (const primitive of inspection.primitives) if (primitive.visibility !== 'conditional') emittedOccurrences.add(primitive)

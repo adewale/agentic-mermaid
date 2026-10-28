@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test'
 import { Resvg } from '@resvg/resvg-js'
+import { SaxesParser } from 'saxes'
 import * as marks from '../scene/marks.ts'
 import { createNativeSceneValidator, SCENE_VALIDATION_LIMITS, SceneValidationError } from '../scene/scene-validation.ts'
 import { deferredTerminalProjectionInput, withDeferredTerminalProjections } from '../scene/deferred-terminal-projection.ts'
@@ -10,6 +11,7 @@ import { certifyNativePaint } from '../scene/paint-certification.ts'
 import { serializeMarkerResource, tipAnchoredArrow } from '../scene/marker-resources.ts'
 import type { DrawingProducer } from '../scene/drawing.ts'
 import { scanSvgStartTags } from '../svg-structure.ts'
+import { preparePixelText } from '../shared/prepared-text.ts'
 
 const header: Omit<SceneDoc, 'parts'> = { family: 'flowchart', width: 200, height: 100, colors: { bg: '#fff', fg: '#111' }, transparent: false }
 const shape = (id = 'A') => marks.shape({ id, role: 'node', geometry: { kind: 'rect', x: 10, y: 10, width: 20, height: 20 }, paint: { fill: '#111' } })
@@ -192,7 +194,37 @@ test.each([4_000, 50_000])('a clear admitted immutable native polyline retains f
   expect(proof.status, JSON.stringify(proof.issues)).toBe('passed')
 })
 
-test.each(['ordinary', 'whitespace', 'plain-text', 'grouped-marker', 'spaced-title', 'selfclosing-desc', 'prefix-text', 'prefix-angle', 'suffix-angle', 'early-close-text', 'different-viewport', 'transparent-root'] as const)('native paint preserves actual emitted root context for %s', mode => {
+test.each([
+  // mode, XML validity, Resvg admission, paint certification
+  ['ordinary', true, true, true],
+  ['whitespace', true, true, true],
+  ['plain-text', true, true, true],
+  ['grouped-marker', true, true, true],
+  ['spaced-title', true, true, true],
+  ['selfclosing-desc', true, true, true],
+  ['valid-references-unicode', true, true, true],
+  ['unique-metadata', true, true, true],
+  ['namespace-distinct-control', true, true, true],
+  ['no-marker', true, true, true],
+  ['prefix-text', false, false, false],
+  ['prefix-angle', false, false, false],
+  ['suffix-angle', false, false, false],
+  ['early-close-text', false, false, false],
+  ['trailing-shape', false, false, false],
+  ['trailing-text', false, false, false],
+  ['trailing-group', false, false, false],
+  ['unknown-reference', false, false, false],
+  ['raw-ampersand', false, false, false],
+  ['raw-angle', false, false, false],
+  ['zero-reference', false, false, false],
+  // Resvg accepts this forbidden XML scalar; XML admission remains separate.
+  ['surrogate-reference', false, true, false],
+  ['control-character', false, false, false],
+  ['namespace-three-decode-alias', false, false, false],
+  ['namespace-literal-whitespace-alias', false, false, false],
+  ['different-viewport', true, true, false],
+  ['transparent-root', true, true, false],
+] as const)('native paint preserves actual emitted root context for %s', (mode, validXml, validResvg, positive) => {
   const marker = tipAnchoredArrow('viewport-custody-arrow', { width: 8, height: 5 }, 'end', { fill: '#000' }, 'userSpaceOnUse')
   const context = { positioned: { width: 200, height: 100 }, colors: header.colors, resolved: { renderOptions: {} } }
   const root = '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">'
@@ -205,6 +237,13 @@ test.each(['ordinary', 'whitespace', 'plain-text', 'grouped-marker', 'spaced-tit
     'prefix-angle': `<${root}`,
     'suffix-angle': `${root}<`,
     'early-close-text': `${root}</svg>stray`,
+    'valid-references-unicode': root.replace('>', ' data-note="&amp;&#x3A9;&#128578; café">'),
+    'unknown-reference': root.replace('>', ' data-note="&unknown;">'),
+    'raw-ampersand': root.replace('>', ' data-note="A&B">'),
+    'raw-angle': root.replace('>', ' data-note="A<B">'),
+    'zero-reference': root.replace('>', ' data-note="&#0;">'),
+    'surrogate-reference': root.replace('>', ' data-note="&#xD800;">'),
+    'control-character': root.replace('>', ' data-note="\u0001">'),
     'different-viewport': '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="100">',
     'transparent-root': '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100" opacity="0">',
   }
@@ -212,22 +251,37 @@ test.each(['ordinary', 'whitespace', 'plain-text', 'grouped-marker', 'spaced-tit
   const producer: DrawingProducer = factory => {
     const open = factory.documentOpen({ id: 'root', width: 200, height: 100, colors: header.colors, transparent: false, font: 'Inter', hasMonoFont: false }, opening)
     const definitions = factory.definitions({ id: 'markers' }, `<defs>${serializeMarkerResource(marker)}</defs>`)
-    const edge = factory.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 20, y1: 40, x2: 50, y2: 40 }, paint: { stroke: '#000' }, endpoints: { from: 'outside', to: 'cover' }, markers: { end: marker } })
+    const edge = factory.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 20, y1: 40, x2: 50, y2: 40 }, paint: { stroke: '#000' }, endpoints: { from: 'outside', to: 'cover' }, ...(mode === 'no-marker' ? {} : { markers: { end: marker } }) })
     const artwork = mode === 'grouped-marker' ? factory.group({ id: 'edge-group', role: 'chrome', open: '<g>', close: '</g>', children: [{ node: edge, indent: 2 }] }) : edge
-    return { ...header, parts: [open, definitions, artwork,
+    const parts = [open, definitions, artwork,
       factory.shape({ id: 'cover', role: 'node', geometry: { kind: 'rect', x: 90, y: 10, width: 35, height: 70 }, paint: { fill: '#fff' } }),
-      factory.documentClose(),
-    ] }
+    ]
+    if (mode === 'unique-metadata') parts.push(
+      factory.documentText({ id: 'title', element: 'title', domId: 'title-unique', text: 'Ω & 🙂' }),
+      factory.documentText({ id: 'desc', element: 'description', domId: 'desc-unique', text: 'clear marker' }),
+    )
+    const namespaceMetadata: Record<string, string> = {
+      'namespace-distinct-control': '<title xmlns:p="urn:first" xmlns:q="urn:second" p:a="1" q:a="2">namespace metadata</title>',
+      'namespace-three-decode-alias': '<title xmlns:p="urn:&#38;amp;amp;#x61;" xmlns:q="urn:&amp;amp;amp;#x61;" p:a="1" q:a="2">namespace metadata</title>',
+      'namespace-literal-whitespace-alias': '<title xmlns:p="urn:\tu" xmlns:q="urn: u" p:a="1" q:a="2">namespace metadata</title>',
+    }
+    if (namespaceMetadata[mode]) parts.push(factory.documentContent({ id: 'metadata', role: 'chrome', nonPaint: 'accessibility' }, namespaceMetadata[mode]!))
+    parts.push(factory.documentClose())
+    if (mode === 'trailing-shape') parts.push(factory.shape({ id: 'trailing', role: 'chrome', geometry: { kind: 'rect', x: 150, y: 10, width: 20, height: 20 }, paint: { fill: '#111' } }))
+    if (mode === 'trailing-text') parts.push(factory.text({ id: 'trailing', role: 'label', text: 'Outside', block: preparePixelText('Outside', { fontSize: 10, fontWeight: 400 }), x: 150, y: 20, fontSize: 10, anchor: 'start', paint: { fill: '#111' } }))
+    if (mode === 'trailing-group') parts.push(factory.group({ id: 'trailing', role: 'chrome', open: '<g>', close: '</g>', children: [{ node: factory.shape({ id: 'group-artwork', role: 'chrome', geometry: { kind: 'rect', x: 150, y: 10, width: 20, height: 20 }, paint: { fill: '#111' } }), indent: 2 }] }))
+    return { ...header, parts }
   }
   const drawing = drawNative(producer, context, 'flowchart')
   expect(drawing.svg.startsWith(opening)).toBe(true)
-  const malformed = ['prefix-text', 'prefix-angle', 'suffix-angle', 'early-close-text'].includes(mode)
+  const xml = () => new SaxesParser({ xmlns: true }).write(drawing.svg).close()
   const parse = () => new Resvg(drawing.svg, { font: { loadSystemFonts: false } })
   // Check the complete artifact with an independent XML consumer before
   // inspecting its certificate. Scanner acceptance is not XML validity.
-  if (malformed) expect(parse).toThrow()
-  else expect(parse).not.toThrow()
-  const positive = ['ordinary', 'whitespace', 'plain-text', 'grouped-marker', 'spaced-title', 'selfclosing-desc'].includes(mode)
+  if (validXml) expect(xml).not.toThrow()
+  else expect(xml).toThrow()
+  if (validResvg) expect(parse).not.toThrow()
+  else expect(parse).toThrow()
   if (positive) {
     const pixels = parse().render().pixels
     let dark = 0
@@ -235,6 +289,10 @@ test.each(['ordinary', 'whitespace', 'plain-text', 'grouped-marker', 'spaced-tit
       if (pixels[index + 3]! > 0 && pixels[index]! < 80 && pixels[index + 1]! < 80 && pixels[index + 2]! < 80) dark++
     }
     expect(dark).toBeGreaterThan(0)
+    // (42,38) is inside the arrow fill, above the horizontal shaft. The
+    // no-marker control keeps the same shaft and clear supporting body.
+    const markerPixel = (38 * 200 + 42) * 4
+    expect(Array.from(pixels.slice(markerPixel, markerPixel + 4))).toEqual(mode === 'no-marker' ? [0, 0, 0, 0] : [0, 0, 0, 255])
   }
   const emittedRoot = scanSvgStartTags(drawing.svg).find(tag => tag.name === 'svg')!
   expect(Object.fromEntries(emittedRoot.attributes.map(attribute => [attribute.name, attribute.value]))).toMatchObject(mode === 'different-viewport' ? { width: '30', height: '100' } : { width: '200', height: '100' })
@@ -246,7 +304,7 @@ test.each(['ordinary', 'whitespace', 'plain-text', 'grouped-marker', 'spaced-tit
   const proof = certifyNativePaint(drawing.header, drawing.paint)
   if (positive) expect(proof.status, JSON.stringify(proof.issues)).toBe('passed')
   else expect(proof.status).not.toBe('passed')
-  if (malformed) expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'OUTPUT_SCOPE' }))
+  if (!validXml) expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'OUTPUT_SCOPE' }))
 })
 
 test('native paint inspects the same document occurrence roster that it emits', () => {

@@ -79,16 +79,37 @@ function startTags(markup: string): string[] {
 }
 
 const XML_NAMED_REFERENCES = new Set(['amp', 'lt', 'gt', 'quot', 'apos'])
+type XmlWork = (operations: number) => void
+const XML_WORK_EXHAUSTED = Symbol('xml-work-exhausted')
+
+function xmlIndexOf(source: string, needle: string, start: number, work?: XmlWork): number {
+  if (!work) return source.indexOf(needle, start)
+  for (let index = start; index <= source.length - needle.length; index++) {
+    work(needle.length)
+    if (source.startsWith(needle, index)) return index
+  }
+  return -1
+}
+
+function xmlSlice(source: string, start: number, end: number, work?: XmlWork): string {
+  work?.(Math.max(0, end - start))
+  return source.slice(start, end)
+}
 
 function isXmlWhitespace(char: string | undefined): boolean {
   return char === ' ' || char === '\t' || char === '\n' || char === '\r'
 }
 
-function readXmlNameEnd(source: string, start: number): number {
+function readXmlNameEnd(source: string, start: number, work?: XmlWork): number {
+  work?.(1)
   const code = source.charCodeAt(start), lower = code | 32
   if (!((lower >= 97 && lower <= 122) || code === 95)) return -1
   let end = start + 1
-  while (isAsciiXmlNameChar(source[end])) end++
+  for (;;) {
+    work?.(1)
+    if (!isAsciiXmlNameChar(source[end])) break
+    end++
+  }
   return end
 }
 
@@ -100,10 +121,12 @@ interface XmlQualifiedName {
 /** The admitted serializer subset uses ASCII XML names. Enforce QName shape
  * separately from the lexical name scanner so a colon cannot appear more than
  * once or at either edge. */
-function parsePrefixedXmlName(name: string): XmlQualifiedName | undefined {
-  const colon = name.indexOf(':')
-  if (colon <= 0 || colon === name.length - 1 || name.indexOf(':', colon + 1) >= 0) return undefined
-  return { prefix: name.slice(0, colon), local: name.slice(colon + 1) }
+function parsePrefixedXmlName(name: string, work?: XmlWork): XmlQualifiedName | undefined {
+  const colon = xmlIndexOf(name, ':', 0, work)
+  if (colon <= 0 || colon === name.length - 1 || xmlIndexOf(name, ':', colon + 1, work) >= 0) return undefined
+  work?.(1)
+  if (!/^[A-Za-z_]$/.test(name[colon + 1]!)) return undefined
+  return { prefix: xmlSlice(name, 0, colon, work), local: xmlSlice(name, colon + 1, name.length, work) }
 }
 
 const XML_NAMESPACE = 'http://www.w3.org/XML/1998/namespace'
@@ -129,17 +152,22 @@ function hasOnlyXmlCharacters(source: string): boolean {
 
 /** DTDs are prohibited, so only XML's five predefined names and numeric
  * references are legal. This rejects a bare `&` before any DOM can repair it. */
-function hasWellFormedXmlReferences(source: string): boolean {
-  for (let index = source.indexOf('&'); index >= 0; index = source.indexOf('&', index + 1)) {
-    const semicolon = source.indexOf(';', index + 1)
+function hasWellFormedXmlReferences(source: string, work?: XmlWork): boolean {
+  for (let index = xmlIndexOf(source, '&', 0, work); index >= 0; index = xmlIndexOf(source, '&', index + 1, work)) {
+    const semicolon = xmlIndexOf(source, ';', index + 1, work)
     if (semicolon < 0) return false
-    const reference = source.slice(index + 1, semicolon)
-    if (reference.startsWith('#x') || reference.startsWith('#X')) {
-      if (!/^[0-9a-f]+$/i.test(reference.slice(2))) return false
-      if (!isAllowedXmlCodePoint(Number.parseInt(reference.slice(2), 16))) return false
+    const reference = xmlSlice(source, index + 1, semicolon, work)
+    // Reserve the numeric slice, lexical check and integer conversion before
+    // materializing them; named references also fit this character bound.
+    work?.(reference.length * 3 + 4)
+    if (reference.startsWith('#x')) {
+      const digits = reference.slice(2)
+      if (!/^[0-9a-f]+$/i.test(digits)) return false
+      if (!isAllowedXmlCodePoint(Number.parseInt(digits, 16))) return false
     } else if (reference.startsWith('#')) {
-      if (!/^[0-9]+$/.test(reference.slice(1))) return false
-      if (!isAllowedXmlCodePoint(Number.parseInt(reference.slice(1), 10))) return false
+      const digits = reference.slice(1)
+      if (!/^[0-9]+$/.test(digits)) return false
+      if (!isAllowedXmlCodePoint(Number.parseInt(digits, 10))) return false
     } else if (!XML_NAMED_REFERENCES.has(reference)) {
       return false
     }
@@ -154,38 +182,56 @@ export function isWellFormedSvgText(value: string): boolean {
     && hasWellFormedXmlReferences(value)
 }
 
-/** Linear, dependency-free XML well-formedness gate shared by backend
+/** Dependency-free XML well-formedness gate shared by backend
  * admission and every final SVG result. It deliberately accepts only the
  * bounded XML subset an SVG serializer needs: one paired `<svg>` root,
  * quoted attributes, no DTD/processing instructions, balanced tags, valid
  * characters/references, and no duplicate attributes. */
-export function verifySvgDocumentEnvelope(svg: string): boolean {
+export function verifySvgDocumentEnvelope(svg: string, work?: (operations: number) => boolean): boolean {
+  // Proof callers must inspect fresh bytes: the public inspection cache is an
+  // optimization whose caller-supplied results cannot issue paint authority.
+  if (work) {
+    try {
+      return verifyDocumentEnvelope(svg, undefined, operations => { if (!work(operations)) throw XML_WORK_EXHAUSTED })
+    } catch (error) {
+      if (error === XML_WORK_EXHAUSTED) return false
+      throw error
+    }
+  }
   return inspectSvgOnce('xml-envelope', svg, () => verifyDocumentEnvelope(svg))
 }
 
-function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, rawValue: string) => void): boolean {
+function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, rawValue: string) => void, work?: XmlWork): boolean {
+  work?.(svg.length)
   if (!hasOnlyXmlCharacters(svg)) return false
   const stack: XmlElementFrame[] = []
   let rootSeen = false
   let rootClosed = false
-  let cursor = 0
+  // A leading decoded byte-order mark is legal XML; elsewhere it is text,
+  // so it cannot stand in for XML whitespace outside the root.
+  work?.(1)
+  let cursor = svg.charCodeAt(0) === 0xfeff ? 1 : 0
 
   while (cursor < svg.length) {
+    work?.(1)
     if (svg[cursor] !== '<') {
-      const boundary = svg.indexOf('<', cursor)
+      const boundary = xmlIndexOf(svg, '<', cursor, work)
       const end = boundary < 0 ? svg.length : boundary
-      const text = svg.slice(cursor, end)
-      if ((stack.length === 0 && text.trim() !== '')
+      const text = xmlSlice(svg, cursor, end, work)
+      work?.(text.length * 2)
+      if ((stack.length === 0 && !/^[ \t\r\n]*$/.test(text))
         || text.includes(']]>')
-        || !hasWellFormedXmlReferences(text)) return false
+        || !hasWellFormedXmlReferences(text, work)) return false
       cursor = end
       continue
     }
 
+    work?.(24)
     if (svg.startsWith('<!--', cursor)) {
       if (stack.length === 0) return false
-      const end = svg.indexOf('-->', cursor + 4)
-      const content = end < 0 ? '' : svg.slice(cursor + 4, end)
+      const end = xmlIndexOf(svg, '-->', cursor + 4, work)
+      const content = end < 0 ? '' : xmlSlice(svg, cursor + 4, end, work)
+      work?.(content.length + 1)
       if (end < 0 || content.includes('--') || content.endsWith('-')) return false
       cursor = end + 3
       continue
@@ -197,11 +243,13 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
     if (svg.startsWith('<!', cursor) || svg.startsWith('<?', cursor)) return false
 
     if (svg.startsWith('</', cursor)) {
-      let end = readXmlNameEnd(svg, cursor + 2)
+      let end = readXmlNameEnd(svg, cursor + 2, work)
       if (end < 0) return false
-      const name = svg.slice(cursor + 2, end)
+      const name = xmlSlice(svg, cursor + 2, end, work)
+      work?.(name.length * 2 + 1)
       if (name.includes(':')) return false
-      while (isXmlWhitespace(svg[end])) end++
+      while (isXmlWhitespace(svg[end])) { work?.(1); end++ }
+      work?.(1)
       if (svg[end] !== '>' || stack.pop()?.name !== name) return false
       cursor = end + 1
       if (stack.length === 0) {
@@ -211,11 +259,12 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
       continue
     }
 
-    const nameEnd = readXmlNameEnd(svg, cursor + 1)
+    const nameEnd = readXmlNameEnd(svg, cursor + 1, work)
     // The admitted serializer subset has only unprefixed SVG elements.
     // Qualified-name objects are needed for attributes, never for elements.
     if (nameEnd < 0 || rootClosed) return false
-    const name = svg.slice(cursor + 1, nameEnd)
+    const name = xmlSlice(svg, cursor + 1, nameEnd, work)
+    work?.(name.length)
     if (name.includes(':')) return false
     if (stack.length === 0) {
       if (rootSeen || name !== 'svg') return false
@@ -227,8 +276,9 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
     const namespaceAttributes: Array<{ readonly name: string; readonly prefix?: string; readonly local?: string; readonly value: string }> = []
     let selfClosing = false
     for (;;) {
+      work?.(4)
       const hadWhitespace = isXmlWhitespace(svg[end])
-      while (isXmlWhitespace(svg[end])) end++
+      while (isXmlWhitespace(svg[end])) { work?.(1); end++ }
       if (svg[end] === '>') { end++; break }
       if (svg[end] === '/' && svg[end + 1] === '>') {
         selfClosing = true
@@ -236,31 +286,34 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
         break
       }
       if (!hadWhitespace) return false
-      const attributeEnd = readXmlNameEnd(svg, end)
+      const attributeEnd = readXmlNameEnd(svg, end, work)
       if (attributeEnd < 0) return false
-      const attribute = svg.slice(end, attributeEnd)
+      const attribute = xmlSlice(svg, end, attributeEnd, work)
+      work?.(attribute.length * 3 + 2)
       if (rawAttributes.has(attribute)) return false
       const prefixed = attribute.includes(':')
-      const attributeName = prefixed ? parsePrefixedXmlName(attribute) : undefined
+      const attributeName = prefixed ? parsePrefixedXmlName(attribute, work) : undefined
       if (prefixed && !attributeName) return false
       rawAttributes.add(attribute)
       end = attributeEnd
-      while (isXmlWhitespace(svg[end])) end++
+      while (isXmlWhitespace(svg[end])) { work?.(1); end++ }
       if (svg[end] !== '=') return false
       end++
-      while (isXmlWhitespace(svg[end])) end++
+      while (isXmlWhitespace(svg[end])) { work?.(1); end++ }
       const quote = svg[end]
       if (quote !== '"' && quote !== "'") return false
       const valueStart = ++end
-      end = svg.indexOf(quote, valueStart)
+      end = xmlIndexOf(svg, quote, valueStart, work)
       if (end < 0) return false
-      const value = svg.slice(valueStart, end)
-      if (value.includes('<') || !hasWellFormedXmlReferences(value)) return false
+      const value = xmlSlice(svg, valueStart, end, work)
+      work?.(value.length)
+      if (value.includes('<') || !hasWellFormedXmlReferences(value, work)) return false
       // Namespace expansion never consumes ordinary unprefixed attributes:
       // their raw names already prove uniqueness. Still validate every value
       // and report its raw bytes to security in the original lexical order.
       if (attributeName || attribute === 'xmlns') {
-        namespaceAttributes.push({ name: attribute, ...attributeName, value: decodeXmlReferences(value) })
+        work?.(1)
+        namespaceAttributes.push({ name: attribute, ...attributeName, value: decodeXmlNamespaceValue(value, work) })
       }
       observeAttribute?.(attribute, value)
       end++
@@ -268,10 +321,12 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
 
     // Frames share inherited bindings until a declaration changes them. Never
     // mutate a parent's map: a child's declarations cannot leak to siblings.
+    work?.(2)
     const inheritedNamespaces = stack.at(-1)?.namespaces
     let namespaces: ReadonlyMap<string, string> = inheritedNamespaces ?? new Map([['xml', XML_NAMESPACE]])
     let declaredNamespaces: Map<string, string> | undefined
     for (const attribute of namespaceAttributes) {
+      work?.(4)
       const isDefaultDeclaration = attribute.name === 'xmlns'
       const isPrefixedDeclaration = attribute.prefix === 'xmlns'
       if (!isDefaultDeclaration && !isPrefixedDeclaration) continue
@@ -283,9 +338,13 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
         || (prefix !== 'xml' && uri === XML_NAMESPACE)
         || (prefix !== '' && uri === '')) return false
       if (!declaredNamespaces) {
+        // Copying inherited bindings is depth dependent, rather than linear
+        // in this element's markup. Reserve the actual map before allocation.
+        work?.(namespaces.size)
         declaredNamespaces = new Map(namespaces)
         namespaces = declaredNamespaces
       }
+      work?.(prefix.length + 1)
       declaredNamespaces.set(prefix, uri)
     }
 
@@ -293,6 +352,7 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
     // unprefixed SVG element. Namespaced attributes (xml/xlink/extension
     // metadata) remain available, but prefixed or namespace-reset elements
     // cannot bypass local-name security checks or render differently by host.
+    work?.(1)
     if (namespaces.get('') !== SVG_NAMESPACE) return false
     if (stack.length > 0 && name === 'svg') {
       // Preserve the established single-SVG-document contract; nested SVG
@@ -302,12 +362,17 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
 
     let expandedAttributes: Set<string> | undefined
     for (const attribute of namespaceAttributes) {
+      work?.(2)
       if (attribute.name === 'xmlns' || attribute.prefix === 'xmlns') continue
       // Raw-name uniqueness already proves unprefixed attributes unique.
       // A declared prefix always has a nonempty URI, so only prefixed names
       // can alias one another after namespace expansion.
+      work?.(attribute.prefix!.length + 1)
       const namespace = namespaces.get(attribute.prefix!)
       if (namespace === undefined) return false
+      // A long inherited URI can be repeated by many short QName attributes.
+      // Pay construction and both set-key visits before creating that string.
+      work?.((namespace.length + 1 + attribute.local!.length) * 3 + 2)
       const expanded = `${namespace}\u0000${attribute.local}`
       if (!expandedAttributes) expandedAttributes = new Set()
       if (expandedAttributes.has(expanded)) return false
@@ -318,11 +383,41 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
     if (selfClosing) {
       if (stack.length === 0) return false
     } else {
+      work?.(1)
       stack.push({ name, namespaces })
     }
   }
 
   return rootSeen && rootClosed && stack.length === 0
+}
+
+/** Namespace identity uses XML's literal-whitespace normalization followed by
+ * exactly one reference expansion. Security's recursive decoding below cannot
+ * supply that identity: it can merge distinct names or split aliases. */
+function decodeXmlNamespaceValue(input: string, work?: XmlWork): string {
+  work?.(input.length)
+  let value = input
+  if (/[\t\r\n]/.test(input)) {
+    work?.(input.length * 2)
+    value = input.replace(/\r\n|[\t\r\n]/g, ' ')
+  }
+  work?.(value.length)
+  if (!value.includes('&')) return value
+  // Reserve the original-match scan, capture, numeric conversion and output
+  // before replacement. Every admitted reference shortens its source span.
+  work?.(value.length * 5 + 1)
+  return value.replace(/&(?:#x([0-9a-fA-F]+)|#([0-9]+)|(amp|lt|gt|quot|apos));/g, (match, hex: string | undefined, decimal: string | undefined, named: string | undefined) => {
+    if (hex !== undefined) return String.fromCodePoint(Number.parseInt(hex, 16))
+    if (decimal !== undefined) return String.fromCodePoint(Number.parseInt(decimal, 10))
+    switch (named) {
+      case 'amp': return '&'
+      case 'lt': return '<'
+      case 'gt': return '>'
+      case 'quot': return '"'
+      case 'apos': return "'"
+      default: return match
+    }
+  })
 }
 
 /** XML parsers resolve character references before interpreting attributes.

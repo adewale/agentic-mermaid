@@ -4,7 +4,8 @@
 import { describe, test, expect } from 'bun:test'
 import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
-import { applyOutputSecurityPolicy, renderMermaidSVG, verifyNoExternalRefs } from '../index.ts'
+import { SaxesParser } from 'saxes'
+import { applyOutputSecurityPolicy, renderMermaidSVG, verifyNoExternalRefs, verifySvgDocumentEnvelope } from '../index.ts'
 
 const svgDocument = (body: string, attributes = '') =>
   `<svg xmlns="http://www.w3.org/2000/svg"${attributes}>${body}</svg>`
@@ -283,6 +284,45 @@ xychart
 
   test('a clean inline SVG passes', () => {
     expect(verifyNoExternalRefs('<svg xmlns="http://www.w3.org/2000/svg"><rect/></svg>')).toEqual({ ok: true, refs: [] })
+  })
+
+  test.each([
+    ['non-XML space after root', `${svgDocument('')}\u00a0`, svgDocument('<text>\u00a0</text>')],
+    ['byte-order character after root', `${svgDocument('')}\ufeff`, `\ufeff${svgDocument('<text>\ufeff</text>')}`],
+    ['uppercase hexadecimal reference prefix', svgDocument('<text>&#X41;</text>'), svgDocument('<text>&#x41; &#65;</text>')],
+    ['digit at qualified attribute local-name start', svgDocument('', ' xmlns:p="urn:metadata" p:1="x"'), svgDocument('', ' xmlns:p="urn:metadata" p:_1="x"')],
+    ['digit at namespace prefix start', svgDocument('', ' xmlns:1="urn:metadata"'), svgDocument('', ' xmlns:_1="urn:metadata" _1:value="x"')],
+    ['repeatedly decoded namespace alias',
+      svgDocument('', ' xmlns:p="urn:&#38;amp;amp;#x61;" xmlns:q="urn:&amp;amp;amp;#x61;" p:a="1" q:a="2"'),
+      svgDocument('', ' xmlns:p="urn:&#38;amp;amp;#x61;" xmlns:q="urn:&amp;amp;amp;#x62;" p:a="1" q:a="2"')],
+    ['literal namespace whitespace alias',
+      svgDocument('', ' xmlns:p="urn:\tu" xmlns:q="urn: u" p:a="1" q:a="2"'),
+      svgDocument('', ' xmlns:p="urn:&#x9;u" xmlns:q="urn: u" p:a="1" q:a="2"')],
+  ])('final XML admission distinguishes %s from valid authored content', (_name, malformed, valid) => {
+    expect(() => new SaxesParser({ xmlns: true }).write(valid).close()).not.toThrow()
+    for (const mode of ['default', 'strict'] as const) {
+      expect(applyOutputSecurityPolicy(valid, mode)).toEqual({ svg: valid, diagnostics: [] })
+      expect(() => applyOutputSecurityPolicy(malformed, mode)).toThrow('invalid SVG document envelope')
+    }
+  })
+
+  test('bounded XML admission pays repeated expanded namespace names before admitting a short document', () => {
+    const attributes = Array.from({ length: 256 }, (_, index) => ` p:a${index}="x"`).join('')
+    const svg = svgDocument('', ` xmlns:p="urn:${'u'.repeat(2_000)}"${attributes}`)
+    expect(() => new SaxesParser({ xmlns: true }).write(svg).close()).not.toThrow()
+    expect(verifySvgDocumentEnvelope(svg)).toBe(true)
+    expect(svg.length).toBeLessThan(10_000)
+    for (const [allowance, admitted] of [[400_000, false], [4_000_000, true]] as const) {
+      let spent = 0
+      const result = verifySvgDocumentEnvelope(svg, operations => {
+        if (operations > allowance - spent) return false
+        spent += operations
+        return true
+      })
+      expect(result).toBe(admitted)
+      expect(spent).toBeLessThanOrEqual(allowance)
+      if (admitted) expect(spent).toBeGreaterThan(400_000)
+    }
   })
 
   test('final inspection preserves raw attribute decoding and reference diagnostic order', () => {

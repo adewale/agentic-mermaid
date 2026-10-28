@@ -191,6 +191,6 @@ export function drawNative(
   const paint = inspectPaint(paintHeader, parts, emission.observe)
   // The styled backdrop is emitted outside the recorder's primitive roster.
   // It excludes only new proofs requiring a closed marker-paint context.
-  emission.finish(paint, paintHeader, backdrop !== '')
+  emission.finish(paint, paintHeader, svg, backdrop !== '')
   return Object.freeze({ svg, header: paintHeader, preparedText, paint })
 }
