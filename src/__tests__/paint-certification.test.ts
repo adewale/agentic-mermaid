@@ -23,6 +23,7 @@ import type { PositionedArchitectureDiagram } from '../architecture/types.ts'
 import type { PositionedErDiagram } from '../er/types.ts'
 import type { PositionedIshikawa } from '../ishikawa/types.ts'
 import { classMarkerResources } from '../class/relationship-paint.ts'
+import { inlineResolvedColors } from '../theme.ts'
 
 const scene = (parts: SceneNode[]): SceneDoc => ({ family: 'flowchart', width: 100, height: 80, transparent: false, colors: { bg: '#fff', fg: '#111' }, parts })
 const label = () => {
@@ -54,21 +55,22 @@ test.each(['default-hidden', 'explicit-hidden', 'user-space', 'start', 'reverse-
   else expect(proof.status).not.toBe('passed')
 })
 
-test.each(['clear', 'covered', 'wrong-ref', 'clipped', 'unknown-width', 'dashed', 'mutated', 'css', 'inner-child', 'resource-coordinate', 'resource-width', 'body-width', 'own-white-carrier', 'later-white-carrier'] as const)('a stroke-only circle retains actual emitted ink authority for %s', mode => {
-  const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
+test.each(['clear', 'covered', 'wrong-ref', 'clipped', 'unknown-width', 'dashed', 'mutated', 'css', 'inner-child', 'resource-coordinate', 'resource-width', 'body-width', 'own-white-carrier', 'later-white-carrier', 'same-black-carrier', 'earlier-black-carrier', 'black-backdrop'] as const)('a stroke-only circle retains actual emitted ink authority for %s', mode => {
+  const context = { positioned: { width: 100, height: 80 }, colors: mode === 'black-backdrop' ? { bg: '#000', fg: '#000' } : { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
   const marker: MarkerDescriptor = {
     id: 'ring', shape: 'circle', units: 'userSpaceOnUse', orient: 'auto',
     size: mode === 'clipped' ? { width: 1, height: 1 } : { width: 6, height: 6 },
     ref: { x: mode === 'wrong-ref' ? 3 : 5, y: 3 },
     geometry: { kind: 'circle', cx: mode === 'resource-coordinate' ? 3.00000000000001 : 3, cy: 3, r: 2 },
-    paint: { fill: 'none', stroke: '#111', strokeWidth: mode === 'unknown-width' ? 'var(--host)' : mode === 'resource-width' ? '1.00000000000001' : '1', ...(mode === 'dashed' ? { strokeDasharray: '1 1' } : {}) },
+    paint: { fill: 'none', stroke: mode === 'same-black-carrier' || mode === 'earlier-black-carrier' || mode === 'black-backdrop' ? '#000' : '#111', strokeWidth: mode === 'unknown-width' ? 'var(--host)' : mode === 'resource-width' ? '1.00000000000001' : '1', ...(mode === 'dashed' ? { strokeDasharray: '1 1' } : {}) },
   }
   const producer: DrawingProducer = factory => {
     const open = factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">')
     const definitions = factory.definitions({ id: 'defs' }, `<defs>${serializeMarkerResource(marker)}${mode === 'css' ? '<style>marker circle { stroke: none }</style>' : ''}</defs>`)
     if (mode === 'mutated') marker.paint!.stroke = 'none'
+    const earlier = mode === 'earlier-black-carrier' ? [factory.connector({ id: 'earlier-shaft', role: 'chrome', lineStyle: 'solid', geometry: { kind: 'line', x1: 20, y1: 40, x2: 60, y2: 40 }, paint: { stroke: '#000', strokeWidth: '20' } })] : []
     const edge = factory.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', endpoints: { from: 'outside', to: 'card' }, geometry: { kind: 'line', x1: 20, y1: 40, x2: 60, y2: 40 },
-      paint: { stroke: mode === 'own-white-carrier' ? '#fff' : '#111', strokeWidth: mode === 'own-white-carrier' ? '20' : '1', ...(mode === 'own-white-carrier' ? { paintOrder: 'markers stroke fill' } : {}) }, markers: { end: marker } })
+      paint: { stroke: mode === 'own-white-carrier' ? '#fff' : mode === 'same-black-carrier' || mode === 'earlier-black-carrier' || mode === 'black-backdrop' ? '#000' : '#111', strokeWidth: mode === 'own-white-carrier' || mode === 'same-black-carrier' ? '20' : '1', ...(mode === 'own-white-carrier' ? { paintOrder: 'markers stroke fill' } : {}) }, markers: { end: marker } })
     const later = mode === 'later-white-carrier' ? [factory.connector({ id: 'later-eraser', role: 'chrome', lineStyle: 'solid', geometry: { kind: 'line', x1: 20, y1: 40, x2: 60, y2: 40 }, paint: { stroke: '#fff', strokeWidth: '20' } })] : []
     const card = factory.shape({ id: 'card', role: 'node',
       geometry: mode === 'covered' ? { kind: 'rect', x: 53, y: 34, width: 14, height: 12 }
@@ -77,15 +79,29 @@ test.each(['clear', 'covered', 'wrong-ref', 'clipped', 'unknown-width', 'dashed'
       paint: { fill: '#fff', stroke: '#888', strokeWidth: mode === 'body-width' ? '1.00000000000001' : '1' },
       ...(mode === 'inner-child' ? { childPaints: [{ fill: '#fff', stroke: '#888', strokeWidth: '1' }, { fill: 'none', stroke: '#111', strokeWidth: '2' }] } : {}),
     })
-    return { ...scene([]), parts: [open, definitions, edge, ...later, card, factory.documentClose()] }
+    return { ...scene([]), colors: context.colors, parts: [open, definitions, ...earlier, edge, ...later, card, factory.documentClose()] }
   }
-  const drawing = drawNative(producer, context, 'flowchart')
+  const native = drawNative(producer, context, 'flowchart', mode === 'black-backdrop' ? { colors: { bg: '#000' } } : undefined)
+  const drawing = mode === 'black-backdrop' ? { ...native, svg: inlineResolvedColors(native.svg, native.header.colors) } : native
   expect(drawing.svg).toContain('<line x1="20" y1="40" x2="60" y2="40"')
   expect(drawing.svg).toContain('marker-end="url(#ring)"')
-  expect(drawing.svg).toContain(mode === 'resource-coordinate' ? '<circle cx="3.00000000000001" cy="3" r="2" fill="none" stroke="#111"' : '<circle cx="3" cy="3" r="2" fill="none" stroke="#111"')
+  expect(drawing.svg).toContain(mode === 'resource-coordinate' ? '<circle cx="3.00000000000001" cy="3" r="2" fill="none" stroke="#111"' : mode === 'same-black-carrier' || mode === 'earlier-black-carrier' || mode === 'black-backdrop' ? '<circle cx="3" cy="3" r="2" fill="none" stroke="#000"' : '<circle cx="3" cy="3" r="2" fill="none" stroke="#111"')
   if (mode === 'resource-width') expect(drawing.svg).toContain('stroke-width="1.00000000000001"')
   if (mode === 'own-white-carrier' || mode === 'later-white-carrier') expect(drawing.svg).toContain('<line x1="20" y1="40" x2="60" y2="40" stroke="#fff" stroke-width="20"')
   if (mode === 'own-white-carrier') expect(drawing.svg).toContain('paint-order="markers stroke fill"')
+  if (mode === 'same-black-carrier' || mode === 'earlier-black-carrier' || mode === 'black-backdrop') {
+    if (mode !== 'black-backdrop') expect(drawing.svg).toContain('<line x1="20" y1="40" x2="60" y2="40" stroke="#000" stroke-width="20"')
+    if (mode !== 'same-black-carrier') expect(drawing.svg).toContain('<line x1="20" y1="40" x2="60" y2="40" stroke="#000" stroke-width="1" marker-end="url(#ring)"')
+    if (mode === 'black-backdrop') expect(drawing.svg).toContain('<rect width="100" height="80" fill="#000" data-backdrop="page" />')
+    expect(drawing.svg).not.toContain('paint-order=')
+    const markerEnd = ' marker-end="url(#ring)"'
+    expect(drawing.svg.split(markerEnd)).toHaveLength(2)
+    // Pure black avoids raster rounding noise: the circle has no visible
+    // effect when its whole surviving ring lies over existing opaque ink.
+    const withMarker = new Resvg(drawing.svg).render().pixels
+    const withoutMarker = new Resvg(drawing.svg.replace(markerEnd, '')).render().pixels
+    expect(Buffer.compare(withMarker, withoutMarker)).toBe(0)
+  }
   if (['clear', 'covered', 'clipped', 'css', 'own-white-carrier', 'later-white-carrier'].includes(mode)) {
     // The top ring point (58,38) is real stroke ink, away from the carrier
     // shaft at y40 and the attached card's leftmost stroke at x59.5.

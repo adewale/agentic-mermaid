@@ -189,6 +189,8 @@ export function drawNative(
   const paintHeader = Object.freeze({ ...capturedHeader, family: finalHeader?.family ?? family })
   if (!finalHeader || !emission.same({ ...finalHeader, width: Number(formatSvgNumber(finalHeader.width)), height: Number(formatSvgNumber(finalHeader.height)) }, paintHeader)) emission.uncertain()
   const paint = inspectPaint(paintHeader, parts, emission.observe)
-  emission.finish(paint, paintHeader)
+  // The styled backdrop is emitted outside the recorder's primitive roster.
+  // It excludes only new proofs requiring a closed marker-paint context.
+  emission.finish(paint, paintHeader, backdrop !== '')
   return Object.freeze({ svg, header: paintHeader, preparedText, paint })
 }

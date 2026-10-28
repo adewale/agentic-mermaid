@@ -317,7 +317,7 @@ export function createNativePaintEmission(maxOperations: number) {
       }
       return { node: captured, paintNode: Object.preventExtensions(paintNode), conditional: collapsed }
     },
-    finish(inspection: ScenePaintGeometryInspection, header: Omit<SceneDoc, 'parts'>): void {
+    finish(inspection: ScenePaintGeometryInspection, header: Omit<SceneDoc, 'parts'>, unrecordedPaint = false): void {
       const checked = new Map<string, (typeof references)[number]>()
       for (const marker of references) {
         if (!pay()) break
@@ -340,7 +340,7 @@ export function createNativePaintEmission(maxOperations: number) {
       // Conditional fallback occurrences already prohibit P, even if rewrapped.
       for (const primitive of inspection.primitives) if (primitive.visibility !== 'conditional') emittedOccurrences.add(primitive)
       emissionWork.set(inspection, Object.freeze({ operations, exhausted, uncertain,
-        closedMarkerContext: closedMarkerContext && rootOpens === 1 && rootCloses === 1 && !uncertain && !exhausted, header }))
+        closedMarkerContext: closedMarkerContext && !unrecordedPaint && rootOpens === 1 && rootCloses === 1 && !uncertain && !exhausted, header }))
     },
   }
 }

@@ -446,12 +446,13 @@ function prepareCircleStroke(node: NativeConnectorPaintSource, marker: MarkerDes
   if (marker!.id.length > 64) return undefined
   for (let i = 0; i < marker!.id.length; i++) if (!work()) return undefined
   if (!/^[A-Za-z_][A-Za-z0-9_.-]*$/.test(marker!.id)) return undefined
-  const paint = marker!.paint, line = node.route.geometry
+  const paint = marker!.paint, line = node.route.geometry, ownWidth = circleProofWidth(node.stroke.width, work)
   if (position === 'mid' || line.kind !== 'line' || node.route.closed || node.transform || node.stroke.nonScaling || node.stroke.dash
+    || node.markers.mid.length !== 0 || (position === 'start' ? node.markers.end !== undefined : node.markers.start !== undefined)
     || node.stroke.mixBlendMode && node.stroke.mixBlendMode !== 'normal'
     || node.stroke.paintOrder !== undefined && node.stroke.paintOrder !== 'normal'
     || node.stroke.opacity !== undefined && node.stroke.opacity !== 1 && node.stroke.opacity !== '1'
-    || !circleProofWidth(node.stroke.width, work)
+    || !ownWidth
     || ![line.x1, line.y1, line.x2, line.y2, g.cx, g.cy, g.r].every(circleProofInteger) || !(g.r > 0)
     || line.x1 === line.x2 && line.y1 === line.y2 || line.x1 !== line.x2 && line.y1 !== line.y2
     || marker!.units !== 'userSpaceOnUse' || marker!.bounds || marker!.viewBox || (marker!.scale ?? 1) !== 1
@@ -481,8 +482,14 @@ function prepareCircleStroke(node: NativeConnectorPaintSource, marker: MarkerDes
   const dx = tx * reverse, dy = ty * reverse
   const cx = anchor.x + dx * (g.cx - marker!.ref.x) - dy * (g.cy - marker!.ref.y)
   const cy = anchor.y + dy * (g.cx - marker!.ref.x) + dx * (g.cy - marker!.ref.y)
+  for (let i = 0; i < 8; i++) if (!work()) return undefined
+  const witness = { x: cx + dy * g.r, y: cy - dx * g.r }
+  // A transverse ring point must clear the carrier's entire infinite strip.
+  // For a cardinal shaft that strip includes butt, round and square caps, so
+  // even an identically painted wide carrier cannot absorb this witness.
+  if (!(Math.abs((witness.x - line.x1) * ty - (witness.y - line.y1) * tx) > ownWidth / 2)) return undefined
   return { bounds: { x0: cx - radius, y0: cy - radius, x1: cx + radius, y1: cy + radius },
-    witnesses: [{ x: cx - dx * g.r, y: cy - dy * g.r }] }
+    witnesses: [witness] }
 }
 
 /** Every later possible occluder must have this exact served sharp-rectangle
@@ -1101,10 +1108,11 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
         ? prepareCircleStroke(node, descriptor, marker.position, work) : undefined
       if (circleStroke) for (const later of inspection.primitives) {
         if (!work()) { circleStroke = undefined; break }
-        if (later.order <= primitive.order || later.kind === 'document') continue
-        // Shafts, chrome, labels and unsupported shape geometry can erase the
-        // witness too. Do not infer their separation from the shape-only tree.
-        if (!circleStrokeBody(later, work)) { circleStroke = undefined; break }
+        if (later.order === primitive.order || later.kind === 'document') continue
+        // The carrier must be the first non-document primitive. Earlier ink can
+        // absorb its distinction too; later ink needs the complete rectangle
+        // proof. Neither follows from the shape-only occlusion tree.
+        if (later.order < primitive.order || !circleStrokeBody(later, work)) { circleStroke = undefined; break }
       }
       if (circleStroke && !work()) circleStroke = undefined
       // Keep the old conservative envelope and include the exact served pose;
