@@ -1254,3 +1254,94 @@ legacy Native declared-resource custody, including unused definitions, before
 row87's wider stroke/context admission. Shared peer work remains in the
 separate Trident proposal. No timing campaign, holdout access, changed release
 version/default, package publication, new PR/issue/comment, merge or force push.
+
+
+### Declared Native marker resource custody
+
+Runtime/test revision **`4ce6cf5b3ec2e3850ebae9c5a8663a3b4af838aa`** closes
+Native's declared-resource loophole using its existing actual-definition scan,
+canonical serializer and paid comparison. No second parser/writer is added.
+Definitions metadata is read through captured own data/array slots and enrolled
+in occurrence order. A later matching reference cannot erase an earlier
+mismatch. Validated marked contexts require complete definitions grammar and
+all actual resources bound to declarations/references; undeclared extras stay U.
+An exact outer defs opener is required, rather than trusting scanner-skipped
+attributes. The shared context's privately issued resolver identifies the
+validated marked domain; unknown context and budget failure already refuse P.
+
+Explicit marker declarations are byte-checked even in unmarked drawings;
+unrelated unmarked nonmarker definitions do not acquire the new whole-defs
+closure obligation. Generic mutable/getter/CSS/ownership isolation and the
+400,000 cap remain unchanged. Missing-descriptor unused canonical resources
+receive no authority, while matching declared unused resources remain P.
+This is declared-resource custody, not universal document-ID/root-XML closure.
+
+The owning cubic table adds four independently expected cases through both
+execution paths. At unchanged0de, genuine RED is **5 P / 3 F**, 119 assertions:
+Native incorrectly passes the missing-descriptor case and two actual hidden
+arrowheads. Scene already refuses those; declared canonical-unused positives
+pass under both. An earlier prepended-shadow hypothesis gives 3 P / 5 F because
+marker ink remains visible; those source/log observations are retained and are
+not counted as hidden-ink defects. Later placement reproduces actual shadows.
+An initial external raster capture exits137 due to repeated pixel getter
+materialization; partial files remain unavailable evidence. The corrected
+bounded capture retains one buffer per render and directly verifies original
+production bytes before/after. This is development acquisition, not a timing
+or confirmatory holdout campaign.
+
+For both later unused-marker-child and top-level-primitive ID shadows, actual
+whole-image marker removal changes **zero pixels**. Removing only the exact
+shadow restores **30 contributed pixels**. The literal tip triangle remains
+outside its card; an off-shaft witness contributes independently of the shaft.
+Both Native/Scene actual SVGs match. Independent PNG CRC/deflate/filter decoding
+checks all 32 complete PNGs and exact SVG subtraction, without calling a
+renderer or certificate. All **64 RED/GREEN SVG/PNG pairs** directly match;
+Native now refuses the hidden markers with OUTPUT_SCOPE. No pixel repair or
+public Mermaid-source defect is claimed.
+
+A separate owning Native validation pair emits the same literal 664-byte SVG
+and one black resource while its declaration either matches or claims none;
+a later connector descriptor matches black. RED0de is **1 P / 1 F** because
+Native ignores the conflicting declaration. GREEN is **2 P / 0 F**, 13
+assertions; matching remains P and conflict becomes U/OUTPUT_SCOPE. Actual
+SVG/header/inputs and test bytes directly match their recorded baseline.
+This is descriptor-custody protection, distinct from hidden visible ink.
+
+Frozen verification at4ce6cf5b3:
+
+| Evidence | Result |
+| --- | --- |
+| Full cubic owner table | 36 P / 0 F; 461 assertions (subset below) |
+| Eight paint/admission/endpoint/inline-label/Block/Requirement owners | 498 P / 0 F; 8,105 assertions |
+| Disjoint Class/font/theme/SVG-postpass owners | 523 P / 0 F; 5,641 assertions |
+| Canonical core/repository types | Both pass; unchanged Trident f080 type preparation |
+| Full lint | Pass, 1,905 files; one existing oversized-JSON warning |
+| Six cold public captures | All P; actual SVG/source/options byte-equal retained2af captures |
+
+The disjoint owner total is **1,021 P / 0 F / 13,746 assertions**. Three exact
+source/test copies before final checks equal current members after checks and
+the committed Git bytes. The readiness heuristic passes for this100-line
+source/test increment. The six public calls retain SCENE_ASSERTIONS=1; Native
+production paths are additionally covered by existing fresh-process crisp
+owners. No new solver/cache policy comparison follows from those six calls.
+
+Five requested Sol6.1High agents supplied disjoint implementation or falsifiable
+review. Evidence is under `/tmp/pr449-native-all-resources-20261028/` (RED1/RED2,
+complete raw/raster epochs, source freeze, owner/statics logs and public-final)
+and `/tmp/pr449-resource-isolation-20261028/`. Independent reports are
+`INDEPENDENT-RED2-SAVED-INK-READBACK.json`,
+`INDEPENDENT-GREEN-SAVED-INK-REBIND.json` and
+`INDEPENDENT-FINAL-SIX-SOURCE-INK-BINDING.json`. Requirement bend0 still lacks
+its own saved PNG; shared-pose/nonadditive counts and unavailable State raw
+operands retain their previous limits. Fonts bind directly to owning Git
+members, without importing or rendering a hardlinked baseline snapshot.
+
+All original seven uncertainties and six acceptance goals remain open, the
+independent holdout stays sealed and shared Trident peer work is unchanged.
+Live Main019eedd is beyond integrated03641 and is not jointly qualified.
+This increment has local verification; exact combined-candidate CI remains
+necessary. The next source-derived concerns are duplicate document title IDs
+outside definitions and malformed root suffixes; neither is yet an executed
+counterexample. They must be checked before broadening row87's served stroke
+and fractional-body proof domain. No timing/compiler tuning, cap/default/version
+change, package publication, new PR/issue/comment, merge or force push.
