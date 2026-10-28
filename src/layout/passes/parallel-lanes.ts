@@ -407,6 +407,9 @@ export function applyParallelDuplicateLanes(
   for (const bucket of byDirectedPair.values()) {
     if (bucket.length < 2 || !bucket.some(edge => edge.label)) continue
     if (!bucket.some(edge => edge.label && bucket.some(other => other !== edge && routesShareCollinearRun(edge, other)))) continue
+    // Shared routing alone does not make a labelled group defective. Keep
+    // ELK's already separated captions instead of replacing their safe seats.
+    if (bucket.every(edge => edge.label) && measureLabelConflicts({ nodes: [], edges: bucket }, style).labelLabel === 0) continue
     const source = nodeMap.get(bucket[0]!.source)
     const target = nodeMap.get(bucket[0]!.target)
     if (!source || !target) continue
