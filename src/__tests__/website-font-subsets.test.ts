@@ -61,6 +61,8 @@ describe('canonical website Inter subsets', () => {
   test('public CSS prefers ranged content-addressed subsets while editor/export CSS stays full-TTF-only', () => {
     const styles = readFileSync(join(PUBLIC, 'styles.css'), 'utf8')
     const editor = readFileSync(join(PUBLIC, 'editor', 'index.html'), 'utf8')
+    const editorSources = Array.from(editor.matchAll(/@font-face\s*\{[^}]*?src:\s*([^;]+);/g),
+      match => match[1]!.replace(/["'\s]/g, ''))
     for (const face of WEBSITE_INTER_SUBSET_FACES) {
       const output = manifest.outputs.find(candidate => candidate.source === face.file)!
       const fullSource = `src: url('/fonts/${face.file}') format('truetype');`
@@ -69,7 +71,7 @@ describe('canonical website Inter subsets', () => {
       expect(styles).toContain(subsetSource)
       expect(styles).toContain(`font-weight: ${face.weight}; font-style: normal; font-display: swap; unicode-range: ${WEBSITE_INTER_UNICODE_RANGES.join(', ')};`)
       expect(styles.indexOf(fullSource)).toBeLessThan(styles.indexOf(subsetSource))
-      expect(editor).toContain(fullSource)
+      expect(editorSources).toContain(`url(/fonts/${face.file})format(truetype)`)
       expect(editor).not.toContain(output.file)
       expect(statSync(join(PUBLIC, 'fonts', output.file)).size).toBe(output.bytes)
       expect(statSync(join(PUBLIC, 'fonts', face.file)).size).toBe(expectedWebsiteInterSources().find(source => source.file === face.file)!.bytes)
