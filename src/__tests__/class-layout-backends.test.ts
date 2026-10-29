@@ -5,6 +5,10 @@ import { layoutMermaidWithReceipt, parseRegisteredMermaid } from '../agent/core.
 import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
 import { renderMermaidASCII } from '../ascii/index.ts'
 import * as classLayoutModule from '../class/layout.ts'
+import { lowerClassDrawing } from '../class/renderer.ts'
+import { drawNative } from '../scene/native-drawing.ts'
+import { certifyNativePaint } from '../scene/paint-certification.ts'
+import { resolveDiagramColors } from '../color-resolver.ts'
 import { CLASS_STYLE_DEFAULTS, classTextBlock, finalizeClassOwnedSurfaces, layoutClassDiagram } from '../class/layout.ts'
 import { parseClassDiagram } from '../class/parser.ts'
 import { assertClassElkSelfContactsClear, constructClassElkSelfContacts } from '../class/elk-contacts.ts'
@@ -22,13 +26,20 @@ const compoundFixture = readFileSync(new URL('../../eval/layout-compare/fixtures
 describe('Class layout backends', () => {
   test.each(['TB', 'BT', 'LR', 'RL'])('renders a long native Class chain with exact card contacts in %s', direction => {
     const source = `classDiagram\ndirection ${direction}\n` + Array.from({ length: 127 }, (_, i) => `N${i} --> N${i + 1}`).join('\n')
+    const options = { graphLayout: { backend: 'agentic' as const, fallback: 'none' as const } }
     let rendered!: ReturnType<typeof renderMermaidSVGWithReceipt>
-    expect(() => { rendered = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'agentic', fallback: 'none' } }) }).not.toThrow()
+    expect(() => { rendered = renderMermaidSVGWithReceipt(source, options) }).not.toThrow()
     expect(rendered.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [] })
     expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', fallback: 'none' })])
     expect(rendered.svg.match(/class="class-node"/g)).toHaveLength(128)
     expect(rendered.svg.match(/class="class-relationship"/g)).toHaveLength(127)
     expect(rendered.svg).toContain('data-id="N127"')
+    // Unit-test scene assertions use the Scene adapter. Also consume the real
+    // native emission ledger used by plain Node and browser entry points.
+    const positioned = layoutClassDiagram(parseClassDiagram(toMermaidLines(source)), options)
+    const context = { positioned, colors: resolveDiagramColors(options, {}), resolved: { renderOptions: options } }
+    const drawing = drawNative(factory => lowerClassDrawing(factory, context), context, 'class')
+    expect(certifyNativePaint(drawing.header, drawing.paint)).toMatchObject({ status: 'passed', issues: [] })
   })
 
   test.each([4, 5].flatMap(children => ['TB', 'BT', 'LR', 'RL'].map(direction => ({ children, direction }))))('reserves independent inheritance fan channels for $children siblings in $direction', ({ children, direction }) => {
