@@ -164,6 +164,7 @@ describe('rank reconnection preserves owned header-safe geometry', () => {
     'docs flowchart 98 preserves every node, group and relationship under %j', options => {
       const corpus = JSON.parse(readFileSync(join(import.meta.dir, '../../eval/mermaid-docs-corpus/corpus.json'), 'utf8')) as Array<{ family: string; index: number; source: string }>
       const source = corpus.find(sample => sample.family === 'flowchart' && sample.index === 98)!.source
+      expect(() => renderMermaidSVGWithReceipt(source, options)).not.toThrow()
       const rendered = renderMermaidSVGWithReceipt(source, options)
       expect(rendered.receipt.layoutCertification?.status).toBe('passed')
       const tags = scanSvgStartTags(rendered.svg).map(tag => Object.fromEntries(tag.attributes.map(attribute => [attribute.name, attribute.value])))
@@ -202,7 +203,7 @@ describe('rank reconnection preserves owned header-safe geometry', () => {
         expect(() => honorLinkRankDistance(nodes, edges, groups, graph)).toThrow(RankReconnectCertificationError)
         expect(edges[0]!.points).toBe(points)
       } else {
-        honorLinkRankDistance(nodes, edges, groups, graph)
+        expect(() => honorLinkRankDistance(nodes, edges, groups, graph)).not.toThrow()
         expect(edges[0]!.points[0]).toEqual(saved[0])
         expect(edges[0]!.points.at(-1)).toEqual(project({ x: 166, y: 70 }))
         expect(edges[0]!.points.map(point => point[horizontal ? 'y' : 'x'])).toEqual(saved.map(point => point[horizontal ? 'y' : 'x']))
