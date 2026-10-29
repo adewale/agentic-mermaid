@@ -36,7 +36,7 @@ const descriptorData = Object.freeze({
     "kind": "family",
     "version": "1.0.0",
     "compatibility": {
-      "core": "0.5.1"
+      "core": "0.5.2"
     },
     "provenance": {
       "owner": "agentic-mermaid",

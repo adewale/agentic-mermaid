@@ -4,6 +4,15 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+### Fixed
+
+- Keep Flowchart relationship ends readable: clear endpoint labels and styled
+  arrowheads, symmetric grouped fan-outs with safe caption seats, and distinct
+  terminals for differently painted or separately captioned relationships.
+- Reject shared buses that imply invisible or differently painted relationships,
+  including replacements that introduce a new misleading overlap without
+  increasing the overlap count.
+
 ## 0.5.1 — 2026-10-29
 
 Includes the 0.5.0 changes below. That version's npm and MCP Registry

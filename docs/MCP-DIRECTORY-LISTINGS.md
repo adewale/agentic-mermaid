@@ -49,7 +49,7 @@ from `verify.ok` alone.
 
 ## Directory record
 
-The root `server.json` prepares version `0.5.1`; this metadata change does not
+The root `server.json` prepares version `0.5.2`; this metadata change does not
 establish Registry publication. The directory observations below retain their
 recorded dates.
 
