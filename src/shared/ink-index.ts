@@ -1,10 +1,27 @@
 export type InkBounds = { x0: number; y0: number; x1: number; y1: number }
 export interface InkTree<T> { bounds: InkBounds; leaves?: readonly T[]; left?: InkTree<T>; right?: InkTree<T> }
 
+/** Stable comparison and merge work must have the same ledger in every host. */
+export function chargeInkSort<T>(items: T[], compare: (a: T, b: T) => number, charge: (count?: number) => void): void {
+  let ordered = 1
+  for (; ordered < items.length; ordered++) { charge(); if (compare(items[ordered - 1]!, items[ordered]!) > 0) break }
+  if (ordered >= items.length) return
+  charge(items.length)
+  const middle = Math.floor(items.length / 2), left = items.slice(0, middle), right = items.slice(middle)
+  chargeInkSort(left, compare, charge); chargeInkSort(right, compare, charge)
+  let a = 0, b = 0
+  for (let i = 0; i < items.length; i++) {
+    charge()
+    let takeLeft = a < left.length && b === right.length
+    if (a < left.length && b < right.length) { charge(); takeLeft = !(compare(left[a]!, right[b]!) > 0) }
+    items[i] = takeLeft ? left[a++]! : right[b++]!
+  }
+}
+
 /** The caller owns these arrays and chooses its accounting and tie order. */
-export function buildInkTree<T>(items: T[], bounds: (item: T) => InkBounds, charge: (count?: number) => void, tie?: (a: T, b: T) => number): InkTree<T> | undefined {
+export function buildInkTree<T>(items: T[], bounds: (item: T) => InkBounds, charge?: (count?: number) => void, tie?: (a: T, b: T) => number): InkTree<T> | undefined {
   const build = (rows: T[]): InkTree<T> => {
-    charge(rows.length + 1)
+    charge?.(rows.length + 1)
     const box = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity }
     for (const row of rows) {
       const b = bounds(row)
@@ -13,7 +30,9 @@ export function buildInkTree<T>(items: T[], bounds: (item: T) => InkBounds, char
     }
     if (rows.length <= 8) return { bounds: box, leaves: rows }
     const axis = box.x1 - box.x0 >= box.y1 - box.y0 ? 'x0' : 'y0'
-    rows.sort((a, b) => { charge(); return bounds(a)[axis] - bounds(b)[axis] || tie?.(a, b) || 0 })
+    const compare = (a: T, b: T) => bounds(a)[axis] - bounds(b)[axis] || tie?.(a, b) || 0
+    if (charge) chargeInkSort(rows, compare, charge)
+    else rows.sort(compare)
     const middle = Math.floor(rows.length / 2)
     return { bounds: box, left: build(rows.slice(0, middle)), right: build(rows.slice(middle)) }
   }

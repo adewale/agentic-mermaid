@@ -1,4 +1,4 @@
-import { buildInkTree, createInkIndex, type InkTree } from '../shared/ink-index.ts'
+import { buildInkTree, createInkIndex, chargeInkSort, type InkTree } from '../shared/ink-index.ts'
 import type { RenderedLayout } from '../agent/types.ts'
 import { connectorMarkerPaintRegions, connectorStrokeHasJoins, expandSceneBounds, nodePaintBounds, paintedStrokeExtent, unionSceneBounds, transformedBounds, visitTypedPathSegments, type ConnectorMarkerPaintRegion, type TypedPathSegment } from './bounds.ts'
 import type { AxisAlignedBox } from '../shared/transformed-bounds.ts'
@@ -59,7 +59,7 @@ type Tree = InkTree<Surface>
 function tree(items: Surface[]): Tree | undefined {
   // Preserve the existing surface traversal and tie order. Its accounting is
   // unchanged; the new marker/text indexes charge their own construction.
-  return buildInkTree(items, item => item.bounds, () => {}, (a, b) => a.primitive.order - b.primitive.order)
+  return buildInkTree(items, item => item.bounds, undefined, (a, b) => a.primitive.order - b.primitive.order)
 }
 
 const PAINT_QUERY_WORK_LIMIT = Symbol('paint query work limit')
@@ -71,7 +71,7 @@ function orderedPaintQuery<T extends { bounds: AxisAlignedBox; index: number }>(
   return bounds => {
     try {
       const found = query(bounds)
-      found.sort((a, b) => { charge(); return a.index - b.index })
+      chargeInkSort(found, (a, b) => a.index - b.index, charge)
       return found
     } catch (error) { if (error !== PAINT_QUERY_WORK_LIMIT) throw error; return [] }
   }
