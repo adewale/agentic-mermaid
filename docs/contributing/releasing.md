@@ -86,6 +86,20 @@ mode, or recovery flag. v1.8.0's release notes contain no publication-recovery
 change, so an unrelated binary upgrade would add risk without removing the
 client-side exact-identity check.
 
+## Development versions do not publish
+
+After publishing a version, bump the package, runtime, MCP server and browser
+compatibility versions together to the next unpublished version. Keep that
+version across development merges until the next release. Leave the changelog
+entries under **Unreleased** until you choose to publish.
+
+A version bump or merge does not create a release or publish to npm. Only
+publishing a GitHub Release starts `publish.yml`. Successful main CI also starts
+the deployment workflow, but an unpublished package version makes it skip before
+building or uploading a production candidate. It may open one release to-do
+issue; that issue is a reminder, not an instruction to release immediately.
+Production keeps serving the previous verified release while work continues.
+
 ## Cutting a release
 
 1. **Land everything on `main` green.** Releases are cut from `main`.
