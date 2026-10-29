@@ -22,6 +22,9 @@ import { createWrittenPolyline } from './written-geometry.ts'
 export type SvgGeometryWriteSink = ((source: Geometry, served: Geometry | undefined) => void) & {
   /** Bound to this operation's ledger; called before variable projection work. */
   readonly reserveProjection?: (source: Geometry, operations: number) => boolean
+  /** One complete shape write's actual paint literals and transform presence.
+   * Undefined means the bounded attribute receipt could not be retained. */
+  readonly rectangleAttributes?: (source: ShapeMark, attributes: Readonly<Record<string, string>> | undefined) => void
 }
 
 /** One append-only writer for a mark. Attribute emission does not allocate
@@ -29,12 +32,14 @@ export type SvgGeometryWriteSink = ((source: Geometry, served: Geometry | undefi
  * Numeric fields use the shared SVG spelling at this write boundary. */
 class SvgWriter {
   value = ''
+  observeAttributes?: (name: string, literal: string) => void
 
   raw(text: string): void { this.value += text }
 
   attribute(name: string, value: string | number, changedToken?: (offset: number, literal: string) => boolean | void, numericToken?: (literal: string, raw: string) => boolean | void): string {
     const literal = typeof value === 'number' ? formatSvgNumber(value) : formatSvgNumericAttribute(name, value, changedToken, numericToken)
     this.value += ` ${name}="${typeof value === 'number' ? literal : escapeAttr(literal)}"`
+    this.observeAttributes?.(name, literal)
     return literal
   }
 }
@@ -96,14 +101,22 @@ type ElementGeometry = Exclude<Geometry, { kind: 'compound' }> | Exclude<Connect
 
 function geometryAttributes(out: SvgWriter, geometry: ElementGeometry, sink?: SvgGeometryWriteSink): void {
   switch (geometry.kind) {
-    case 'rect':
-      out.attribute('x', geometry.x)
-      out.attribute('y', geometry.y)
-      out.attribute('width', geometry.width)
-      out.attribute('height', geometry.height)
-      if (geometry.rx !== undefined) out.attribute('rx', geometry.rx)
-      if (geometry.ry !== undefined) out.attribute('ry', geometry.ry)
+    case 'rect': {
+      const rawX = geometry.x, x = out.attribute('x', rawX)
+      const rawY = geometry.y, y = out.attribute('y', rawY)
+      const rawWidth = geometry.width, width = out.attribute('width', rawWidth)
+      const rawHeight = geometry.height, height = out.attribute('height', rawHeight)
+      let rawRx: number | undefined, rawRy: number | undefined, rx: string | undefined, ry: string | undefined
+      // Keep the optional fields' original conditional/read order, including
+      // generic getter callers. The receipt retains only actual attribute reads.
+      if (geometry.rx !== undefined) { rawRx = geometry.rx; rx = out.attribute('rx', rawRx) }
+      if (geometry.ry !== undefined) { rawRy = geometry.ry; ry = out.attribute('ry', rawRy) }
+      if (sink) sink(geometry, {
+        kind: 'rect', x: Number(x), y: Number(y), width: Number(width), height: Number(height),
+        ...(rx === undefined ? {} : { rx: Number(rx) }), ...(ry === undefined ? {} : { ry: Number(ry) }),
+      })
       return
+    }
     case 'circle':
       out.attribute('cx', geometry.cx)
       out.attribute('cy', geometry.cy)
@@ -198,6 +211,13 @@ export function writeShapeSvg(node: ShapeMark, sink?: SvgGeometryWriteSink): str
   const out = new SvgWriter()
   const compound = node.geometry.kind === 'compound'
   const pieces = node.geometry.kind === 'compound' ? node.geometry.children : [node.geometry]
+  const report = compound ? undefined : sink?.rectangleAttributes
+  const attributes: Record<string, string> | undefined = report ? Object.create(null) : undefined
+  let attributeCount = 0, invalidAttributes = false
+  const observe = attributes ? (name: string, literal: string): void => {
+    if (++attributeCount > 14 || Object.hasOwn(attributes, name)) { invalidAttributes = true; return }
+    attributes[name] = literal
+  } : undefined
   for (let index = 0; index < pieces.length; index++) {
     const piece = pieces[index]!
     if (piece.kind === 'compound') throw new TypeError(`Shape "${node.id}" nests compound geometry`)
@@ -205,11 +225,16 @@ export function writeShapeSvg(node: ShapeMark, sink?: SvgGeometryWriteSink): str
     out.raw(`<${piece.kind}`)
     if (index === 0) hooks(out, node.attributes)
     geometryAttributes(out, piece, sink)
+    // Only the13 paint fields and one transform can enter this receipt.
+    // Data/identity hooks stay outside the observed writer phase entirely.
+    out.observeAttributes = observe
     paintAttributes(out, compound ? node.childPaints?.[index] ?? node.paint : node.paint)
     transformAttribute(out, node.transform)
+    out.observeAttributes = undefined
     if (index === 0) identityAttributes(out, node.identity, node.accessibility)
     out.raw(' />')
   }
+  report?.(node, invalidAttributes ? undefined : Object.freeze(attributes!))
   return out.value
 }
 

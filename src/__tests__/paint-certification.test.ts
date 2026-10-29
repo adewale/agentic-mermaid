@@ -17,6 +17,8 @@ import { inspectScenePrimitives, scenePrimitiveSource, inspectNativePaintGeometr
 import { sceneNodeSerialization, createSceneWriteCapture } from '../scene/serialization.ts'
 import { serializeMarkerResource, tipAnchoredArrow } from '../scene/marker-resources.ts'
 import { drawNative } from '../scene/native-drawing.ts'
+import { SaxesParser } from 'saxes'
+import { useTestChildren } from './helpers/test-child.ts'
 import type { DrawingProducer } from '../scene/drawing.ts'
 import { measureQuality } from '../agent/quality.ts'
 import { replaceFamilyForTest } from '../agent/families.ts'
@@ -140,6 +142,196 @@ test.each(['clear', 'covered', 'wrong-ref', 'clipped', 'unknown-width', 'dashed'
     expect(proof.status).toBe('passed')
     expect(proof.issues).toEqual([])
   } else expect(proof.status).not.toBe('passed')
+})
+
+const runRectangleChild = useTestChildren(20_000)
+const publicSharpRectangleProgram = String.raw`
+import { getFamily, replaceFamilyForTest } from './src/agent/families.ts'
+import { sceneLowering } from './src/scene/drawing.ts'
+import { serializeMarkerResource } from './src/scene/marker-resources.ts'
+import { renderMermaidSVGWithReceipt } from './src/index.ts'
+function publicSharpRectangle(x, width = 30, mode = 'plain') {
+  const family = getFamily('flowchart')!
+  const marker = {
+    id: 'served-ring', shape: 'circle', units: 'userSpaceOnUse', orient: 'auto',
+    size: { width: 6, height: 6 },
+    ref: { x: 5, y: 3 }, geometry: { kind: 'circle', cx: 3, cy: 3, r: 2 },
+    paint: { fill: 'none', stroke: '#111', strokeWidth: '1' },
+  }
+  let getterReads = 0
+  const prototypeTrace = []
+  const inheritedWidthBefore = Object.getOwnPropertyDescriptor(Object.prototype, 'strokeWidth')
+  const producer = (factory, context) => {
+    const { width: pageWidth, height } = context.positioned
+    const geometry = { kind: 'rect', x, y: 20, width, height: 40 }
+    if (mode === 'getter') Object.defineProperty(geometry, 'x', { enumerable: true, get() { getterReads++; return x } })
+    if (mode === 'inherited-coordinate') { delete geometry.x; Object.setPrototypeOf(geometry, { x }) }
+    if (mode === 'rounded-unmarked') geometry.rx = 3
+    const paint = { fill: mode === 'unknown-css' ? 'var(--host,#fff)' : '#fff', stroke: '#888', strokeWidth: mode === 'unstable-width' ? '1.00000000000001' : '1', ...(mode === 'unstable-opacity' ? { opacity: '0.99999999999999' } : {}) }
+    const card = () => {
+      if (mode === 'transient-inherited-width') {
+        delete paint.strokeWidth
+        Object.defineProperty(Object.prototype, 'strokeWidth', { configurable: true, get() {
+          prototypeTrace.push(prototypeTrace.length + 1)
+          if (prototypeTrace.length === 3) delete Object.prototype.strokeWidth
+          return '0.25'
+        } })
+      }
+      const first = factory.shape({ id: 'served-card', role: 'node', geometry, paint, ...(mode === 'transform' ? { transform: { kind: 'matrix', a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 } } : {}) })
+      if (mode !== 'reused-owned-cover') return [first]
+      geometry.x = 53.004
+      return [first, factory.shape({ id: 'foreign-cover', role: 'node', owner: { id: 'served-card', role: 'node' }, geometry, paint })]
+    }
+    return { family: 'flowchart', width: pageWidth, height, colors: context.colors, transparent: false, parts: [
+      factory.documentOpen({ id: 'root', width: pageWidth, height, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="' + pageWidth + '" height="' + height + '">' ),
+      ...(mode === 'rounded-unmarked' ? [] : [
+        factory.definitions({ id: 'defs' }, '<defs>' + serializeMarkerResource(marker) + '</defs>'),
+        factory.connector({ id: 'served-edge', role: 'edge', lineStyle: 'solid', endpoints: { from: 'outside', to: 'served-card' },
+          geometry: { kind: 'line', x1: 20, y1: 40, x2: 60, y2: 40 }, paint: { stroke: '#111', strokeWidth: '1' }, markers: { end: marker } }),
+      ]),
+      ...card(),
+      factory.documentClose(),
+    ] }
+  }
+  const restore = replaceFamilyForTest('flowchart', { ...family, lowerScene: sceneLowering(producer) })
+  try {
+    return { ...renderMermaidSVGWithReceipt('flowchart LR\nA["Left<br/>upper<br/>lower"] --> B[Right]', { embedFontImport: false, security: 'strict' }), getterReads, prototypeTrace }
+  } finally {
+    if (inheritedWidthBefore) Object.defineProperty(Object.prototype, 'strokeWidth', inheritedWidthBefore)
+    else delete Object.prototype.strokeWidth
+    restore()
+  }
+}
+
+console.log(JSON.stringify({ integer: publicSharpRectangle(60), rounded: publicSharpRectangle(Number(process.env.AM_RECT_X), Number(process.env.AM_RECT_WIDTH), process.env.AM_RECT_MODE), prototypeRestored: !Object.hasOwn(Object.prototype, 'strokeWidth') }))
+`
+
+async function publicSharpRectanglePair(x: number, width: number, assertions = '0', mode = 'plain') {
+  const result = await runRectangleChild(process.execPath, ['--eval', publicSharpRectangleProgram], {
+    cwd: fileURLToPath(new URL('../../', import.meta.url)),
+    env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: assertions, AM_RECT_X: String(x), AM_RECT_WIDTH: String(width), AM_RECT_MODE: mode },
+  })
+  expect({ status: result.status, stderr: result.stderr }).toEqual({ status: 0, stderr: '' })
+  return JSON.parse(result.stdout) as { integer: ReturnType<typeof renderMermaidSVGWithReceipt>; rounded: ReturnType<typeof renderMermaidSVGWithReceipt> & { getterReads: number; prototypeTrace: number[] }; prototypeRestored: boolean }
+}
+
+function rectangleEmissionElements(svg: string) {
+  const elements: Array<{ name: string; attributes: Record<string, string> }> = []
+  const parser = new SaxesParser({ xmlns: true })
+  parser.on('opentag', tag => elements.push({ name: tag.name, attributes: Object.fromEntries(Object.entries(tag.attributes).map(([key, value]) => [key, value.value])) }))
+  parser.write(svg).close()
+  return elements
+}
+
+test.each([
+  { field: 'x', x: 60.00000000000001, width: 30 },
+  { field: 'width', x: 60, width: 30.00000000000001 },
+])('public same-emission rectangle $field proof uses the served integer body', async ({ x, width }) => {
+  const { integer, rounded } = await publicSharpRectanglePair(x, width)
+  expect(rounded.svg).toBe(integer.svg)
+  const elements = rectangleEmissionElements(rounded.svg)
+  const card = elements.find(element => element.attributes['data-id'] === 'served-card')!
+  expect(card).toEqual({ name: 'rect', attributes: { x: '60', y: '20', width: '30', height: '40', fill: '#fff', stroke: '#888', 'stroke-width': '1', 'data-id': 'served-card', 'data-role': 'node' } })
+  const resource = elements.find(element => element.name === 'marker')!
+  expect(resource.attributes).toMatchObject({ id: 'served-ring', markerWidth: '6', markerHeight: '6', refX: '5', refY: '3', orient: 'auto', markerUnits: 'userSpaceOnUse' })
+  const circle = elements.find(element => element.name === 'circle')!.attributes
+  expect(circle).toMatchObject({ cx: '3', cy: '3', r: '2', fill: 'none', stroke: '#111', 'stroke-width': '1' })
+  expect(resource.attributes.viewBox).toBeUndefined()
+  expect(elements.some(element => element.attributes.transform !== undefined)).toBe(false)
+  const outerRadius = Number(circle.r) + Number(circle['stroke-width']) / 2
+  const worldCenter = { x: 60 + Number(circle.cx) - Number(resource.attributes.refX), y: 40 + Number(circle.cy) - Number(resource.attributes.refY) }
+  expect({ ...worldCenter, outerRadius, ringRight: worldCenter.x + outerRadius, bodyInnerLeft: Number(card.attributes.x) + Number(card.attributes['stroke-width']) / 2 }).toEqual({ x: 58, y: 40, outerRadius: 2.5, ringRight: 60.5, bodyInnerLeft: 60.5 })
+  expect(elements.find(element => element.attributes['data-id'] === 'served-edge')!.attributes).toMatchObject({ x1: '20', y1: '40', x2: '60', y2: '40', stroke: '#111', 'stroke-width': '1', 'marker-end': 'url(#served-ring)', 'data-from': 'outside', 'data-to': 'served-card' })
+  // The full ring is centered at (58,40), outer radius2.5. Its rightmost
+  // x60.5 equals the card's inner border edge60.5: only the owned outline
+  // band is touched, never its fill interior. The top witness(58,38) also
+  // clears the entire shaft strip y39.5..40.5 and card border x59.5..60.5.
+  const rendered = new Resvg(rounded.svg, { font: { loadSystemFonts: false } }).render()
+  const removed = rounded.svg.replace(' marker-end="url(#served-ring)"', '')
+  expect(removed).not.toBe(rounded.svg)
+  const absent = new Resvg(removed, { font: { loadSystemFonts: false } }).render()
+  const presentPixels = rendered.pixels, absentPixels = absent.pixels
+  let topInk = 0, changed = 0
+  for (let y = 37; y < 39; y++) for (let px = 57; px < 59; px++) {
+    const index = (y * rendered.width + px) * 4
+    if (presentPixels[index]! < 96 && presentPixels[index + 1]! < 96 && presentPixels[index + 2]! < 96 && presentPixels[index + 3]! > 0) topInk++
+    if (!presentPixels.subarray(index, index + 4).equals(absentPixels.subarray(index, index + 4))) changed++
+  }
+  expect(topInk).toBeGreaterThan(0)
+  expect(changed).toBeGreaterThan(0)
+  expect(integer.receipt.layoutCertification?.status).toBe('passed')
+  expect(rounded.receipt.layoutCertification?.status).toBe('passed')
+  expect(rounded.receipt.layoutCertification?.outputDigest).toBe(renderedSvgDigest(rounded.svg))
+})
+
+test.each([
+  { mode: 'plain', x: 60.004, width: 30, served: '60.004' },
+  { mode: 'plain', x: 60, width: 30.004, served: '60' },
+  ...['getter', 'inherited-coordinate', 'reused-owned-cover', 'unknown-css', 'unstable-width', 'unstable-opacity', 'transform'].map(mode => ({ mode, x: 60.00000000000001, width: 30, served: '60' })),
+])('public same-emission rectangle retains uncertainty for $mode at $x/$width', async ({ mode, x, width, served }) => {
+  const { integer, rounded } = await publicSharpRectanglePair(x, width, '0', mode)
+  const elements = rectangleEmissionElements(rounded.svg)
+  const card = elements.find(element => element.attributes['data-id'] === 'served-card')!
+  expect(card.attributes.x).toBe(served)
+  expect(card.attributes.width).toBe(String(width))
+  expect(rounded.receipt.layoutCertification?.status).toBe('unverified')
+  expect(integer.receipt.layoutCertification?.status).toBe('passed')
+  if (mode === 'getter') expect(rounded.getterReads).toBeGreaterThan(0)
+  if (mode === 'reused-owned-cover') {
+    // The same mutable geometry supplies two distinct writes with one owner.
+    // Its later occurrence at53.004 covers the whole ring; neither the earlier
+    // clear x60 body nor endpoint ownership can excuse that filled intrusion.
+    const foreign = elements.find(element => element.attributes['data-id'] === 'foreign-cover')!
+    expect(foreign.attributes).toMatchObject({ x: '53.004', y: '20', width: '30', height: '40', fill: '#fff' })
+    const rendered = new Resvg(rounded.svg, { font: { loadSystemFonts: false } }).render().pixels
+    const absent = new Resvg(rounded.svg.replace(' marker-end="url(#served-ring)"', ''), { font: { loadSystemFonts: false } }).render().pixels
+    expect(Buffer.compare(rendered, absent)).toBe(0)
+  }
+  // Final color resolution uses the fallback; caller CSS never supplies new
+  // same-emission authority merely because these particular bytes look opaque.
+  if (mode === 'unknown-css') expect(card.attributes.fill).toBe('#fff')
+  if (mode === 'unstable-width') expect(card.attributes['stroke-width']).toBe('1')
+  if (mode === 'unstable-opacity') expect(card.attributes.opacity).toBe('1')
+  if (mode === 'transform') expect(card.attributes.transform).toBe('matrix(1 0 0 1 0 0)')
+})
+
+test('public same-emission rectangle cannot borrow a vanished inherited stroke width', async () => {
+  const { rounded, prototypeRestored } = await publicSharpRectanglePair(60.00000000000001, 30, '0', 'transient-inherited-width')
+  const elements = rectangleEmissionElements(rounded.svg)
+  const card = elements.find(element => element.attributes['data-id'] === 'served-card')!.attributes
+  expect(card).toMatchObject({ x: '60', y: '20', width: '30', height: '40', fill: '#fff', stroke: '#888', 'stroke-width': '0.25' })
+  expect(rounded.prototypeTrace).toEqual([1, 2, 3])
+  expect(prototypeRestored).toBe(true)
+  // The served outline's inner edge is60.125, leaving0.375 of the ring's
+  // full x60.5 extent inside actual fill. A later absent property/default1
+  // cannot authorize the earlier emitted quarter-pixel border.
+  const circle = elements.find(element => element.name === 'circle')!.attributes
+  const resource = elements.find(element => element.name === 'marker')!.attributes
+  const carrier = elements.find(element => element.attributes['data-id'] === 'served-edge')!.attributes
+  expect(circle).toMatchObject({ cx: '3', cy: '3', r: '2', fill: 'none', stroke: '#111', 'stroke-width': '1' })
+  expect(resource).toMatchObject({ refX: '5', refY: '3', markerWidth: '6', markerHeight: '6', markerUnits: 'userSpaceOnUse', orient: 'auto' })
+  expect(carrier).toMatchObject({ x2: '60', y2: '40', 'marker-end': 'url(#served-ring)' })
+  const ringRight = Number(carrier.x2) + Number(circle.cx) - Number(resource.refX) + Number(circle.r) + Number(circle['stroke-width']) / 2
+  expect(ringRight).toBe(60.5)
+  expect(Number(card.x) + Number(card['stroke-width']) / 2).toBe(60.125)
+  expect(ringRight - (Number(card.x) + Number(card['stroke-width']) / 2)).toBe(0.375)
+  expect(rounded.receipt.layoutCertification?.status).toBe('unverified')
+})
+
+test('public same-emission rectangle leaves ordinary rounded non-marker proof eligible', async () => {
+  const { rounded } = await publicSharpRectanglePair(60.00000000000001, 30, '0', 'rounded-unmarked')
+  const elements = rectangleEmissionElements(rounded.svg)
+  expect(elements.find(element => element.attributes['data-id'] === 'served-card')!.attributes).toMatchObject({ x: '60', y: '20', width: '30', height: '40', rx: '3', fill: '#fff', stroke: '#888', 'stroke-width': '1' })
+  expect(elements.some(element => element.name === 'marker' || element.attributes['marker-end'] !== undefined)).toBe(false)
+  expect(rounded.receipt.layoutCertification?.status).toBe('passed')
+})
+
+test('public same-emission rectangle Scene inspection remains a distinct unverified execution', async () => {
+  const { integer, rounded } = await publicSharpRectanglePair(60.00000000000001, 30, '1')
+  expect(rounded.svg).toBe(integer.svg)
+  expect(integer.receipt.layoutCertification?.status).toBe('unverified')
+  expect(rounded.receipt.layoutCertification?.status).toBe('unverified')
+  expect(rectangleEmissionElements(rounded.svg).find(element => element.attributes['data-id'] === 'served-card')!.attributes.x).toBe('60')
 })
 
 test.each(['agentic', 'elk'] as const)('public %s thick-arrow and borderless-state markers retain clipping and actual meaning', backend => {

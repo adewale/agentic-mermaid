@@ -1,4 +1,4 @@
-import type { SceneNode, SceneDoc, ConnectorMark, Geometry } from './ir.ts'
+import type { SceneNode, SceneDoc, ConnectorMark, Geometry, MarkPaint, ShapeMark } from './ir.ts'
 import type { ScenePaintGeometryInspection, ScenePaintGeometry } from './inspection.ts'
 import { scanSvgStartTags, decodedSvgAttributeValue } from '../svg-structure.ts'
 import { serializeMarkerResource } from './marker-resources.ts'
@@ -23,6 +23,15 @@ const emittedOccurrences = new WeakSet<ScenePaintGeometry>()
 export function hasNativeEmissionOccurrence(primitive: ScenePaintGeometry): boolean { return emittedOccurrences.has(primitive) }
 const emissionWork = new WeakMap<ScenePaintGeometryInspection, NativeEmissionWork>()
 export function nativeEmissionWorkOf(inspection: ScenePaintGeometryInspection): NativeEmissionWork | undefined { return emissionWork.get(inspection) }
+
+// The complete paint field set read by the shape writer. Only numeric
+// attributes can acquire a different literal through SVG number formatting.
+const rectanglePaintFields: Record<keyof MarkPaint, boolean> = {
+  fill: false, fillOpacity: true, stroke: false, strokeOpacity: true,
+  strokeWidth: true, strokeDasharray: true, strokeDashoffset: true,
+  strokeLinecap: false, strokeLinejoin: false, strokeMiterlimit: true,
+  vectorEffect: false, paintOrder: false, opacity: true,
+}
 
 /** Every occurrence retains immutable operands BEFORE the existing writer
  * call. Lines and polylines retain that actual write's numeric operands;
@@ -83,6 +92,11 @@ export function createNativePaintEmission(maxOperations: number) {
           else if (key === 'y1') ownedFields |= 2
           else if (key === 'x2') ownedFields |= 4
           else if (key === 'y2') ownedFields |= 8
+        } else if (kind === 'rect') {
+          if (key === 'x') ownedFields |= 1
+          else if (key === 'y') ownedFields |= 2
+          else if (key === 'width') ownedFields |= 4
+          else if (key === 'height') ownedFields |= 8
         } else if (kind === 'path' && key === 'd' || kind === 'polyline' && key === 'points') ownedFields |= 1
       } else if (context === 'leaf' && (kind === 'connector' && key === 'route' || kind === 'shape' && key === 'geometry')
         || context === 'route' && key === 'geometry') ownedFields |= 1
@@ -92,7 +106,7 @@ export function createNativePaintEmission(maxOperations: number) {
         : (context === 'leaf' && kind === 'shape' || context === 'route') && key === 'geometry' ? 'geometry' : context === 'geometry' && kind === 'polyline' && key === 'points' ? 'points' : pointSlot ? 'point' : undefined
       Object.defineProperty(result, key, { value: copy(descriptor.value, depth + 1, parents, childContext), enumerable: descriptor.enumerable, configurable: false, writable: false })
     }
-    const requiredFields = context === 'point' ? 3 : context === 'geometry' ? kind === 'line' ? 15 : kind === 'polyline' || kind === 'path' ? 1 : 0
+    const requiredFields = context === 'point' ? 3 : context === 'geometry' ? kind === 'line' || kind === 'rect' ? 15 : kind === 'polyline' || kind === 'path' ? 1 : 0
       : context === 'route' || context === 'leaf' && (kind === 'shape' || kind === 'connector') ? 1 : 0
     if (ownedFields !== requiredFields) throw failed
     if (Array.isArray(value)) {
@@ -132,6 +146,62 @@ export function createNativePaintEmission(maxOperations: number) {
       Object.defineProperty(result, key, key === field ? { ...descriptor, value } : descriptor)
     }
     return Object.preventExtensions(result)
+  }
+  // This proof-only record cannot acquire an inherited opacity or radius
+  // after emission. The writer and generic caller objects remain unchanged.
+  const inertRectangleRecord = <T extends object>(source: T): T | undefined => {
+    if (!pay(2)) return undefined
+    const keys = Object.getOwnPropertyNames(source)
+    if (!pay(keys.length * 3)) return undefined
+    const result = Object.create(null) as T
+    for (const key of keys) {
+      const descriptor = Object.getOwnPropertyDescriptor(source, key)
+      if (!descriptor || !('value' in descriptor)) return undefined
+      Object.defineProperty(result, key, { value: descriptor.value, enumerable: descriptor.enumerable, writable: false, configurable: false })
+    }
+    return Object.preventExtensions(result)
+  }
+  const rectanglePaint = (paint: MarkPaint): MarkPaint | undefined => {
+    if (!pay(16)) return undefined
+    const fields = Object.keys(rectanglePaintFields) as (keyof MarkPaint)[]
+    if (!pay(fields.length * 4)) return undefined
+    for (const field of fields) {
+      const descriptor = Object.getOwnPropertyDescriptor(paint, field)
+      if (!descriptor) { if (field in paint) return undefined; continue }
+      if (!('value' in descriptor)) return undefined
+      const value = descriptor.value
+      // The existing numeric formatter returns strings shorter than13
+      // verbatim. Longer numeric paints need their own emitted authority.
+      if (value !== undefined && (typeof value !== 'string' || rectanglePaintFields[field] && value.length >= 13)) return undefined
+    }
+    return inertRectangleRecord(paint)
+  }
+  const rectangleInput = (node: ShapeMark, geometry: Extract<Geometry, { kind: 'rect' }>): { geometry: typeof geometry; paint: MarkPaint } | undefined => {
+    if (!pay(16) || 'transform' in node || !(geometry.width > 0 && geometry.height > 0)) return undefined
+    for (const field of ['rx', 'ry'] as const) {
+      const descriptor = Object.getOwnPropertyDescriptor(geometry, field)
+      if (descriptor ? !('value' in descriptor) || descriptor.value !== undefined && descriptor.value !== 0 : field in geometry) return undefined
+    }
+    const paint = rectanglePaint(node.paint), retained = paint && inertRectangleRecord(geometry)
+    return retained ? { geometry: retained, paint: paint! } : undefined
+  }
+  const sameRectanglePaint = (paint: MarkPaint, attributes: Readonly<Record<string, string>>): boolean => {
+    if (!pay(16) || Object.hasOwn(attributes, 'transform')) return false
+    let matched = 0
+    for (const field of Object.keys(rectanglePaintFields) as (keyof MarkPaint)[]) {
+      const expected = paint[field]
+      // Field names are a fixed bounded inventory; arbitrary data hooks never
+      // reach this record. Pay both the name conversion and string equality.
+      if (!pay(field.length * 2 + 4)) return false
+      const attribute = field.replace(/[A-Z]/g, char => `-${char.toLowerCase()}`)
+      const descriptor = Object.getOwnPropertyDescriptor(attributes, attribute)
+      if (descriptor && (!('value' in descriptor) || typeof descriptor.value !== 'string')) return false
+      const actual = descriptor?.value as string | undefined
+      if (!pay((expected?.length ?? 0) + (actual?.length ?? 0))) return false
+      if (actual !== expected) return false
+      if (descriptor) matched++
+    }
+    return Object.getOwnPropertyNames(attributes).length === matched
   }
   // Immutable operands make this a finite field walk, without allocating a
   // second descriptor array or JSON representation before its work is paid.
@@ -337,26 +407,49 @@ export function createNativePaintEmission(maxOperations: number) {
       if (!captured) return { node, paintNode: node, svg: write(node), conditional: true }
       transferSceneNodeSerialization(node, captured)
       const geometry = captured.kind === 'shape' ? captured.geometry : captured.kind === 'connector' && captured.lineStyle !== 'invisible' ? captured.route.geometry : undefined
-      const supported = geometry?.kind === 'line' || geometry?.kind === 'polyline' || captured.kind === 'connector' && geometry?.kind === 'path'
+      // Eligibility is decided before validation/writing can observe inherited
+      // caller hooks. Unsupported rectangles retain their legacy inspection.
+      const rectangle = captured.kind === 'shape' && geometry?.kind === 'rect' ? rectangleInput(captured, geometry) : undefined
+      const supported = geometry?.kind === 'line' || geometry?.kind === 'polyline' || !!rectangle || captured.kind === 'connector' && geometry?.kind === 'path'
       // Constant custody is separate from variable projection work. The writer
       // reserves the entire token stream before allocating its first point.
       const reserved = supported && pay(192)
       let received = false, invalid = false, projectionReserved = false, served: Geometry | undefined
+      let attributesReceived = false, invalidAttributes = false, attributes: Readonly<Record<string, string>> | undefined
       const sink: SvgGeometryWriteSink | undefined = reserved ? Object.assign((source: Geometry, written: Geometry | undefined) => {
         if (source !== geometry || received) { invalid = true; return }
         received = true
-        served = written
+        // The writer's fresh rectangle record owns actual optional radii too.
+        // Seal it before later attribute hooks can change Object.prototype.
+        served = rectangle && written ? inertRectangleRecord(written) : written
       }, { reserveProjection: (source: Geometry, operations: number) => {
         if (source !== geometry || projectionReserved) { invalid = true; return false }
         projectionReserved = true
         return pay(operations)
-      } }) : undefined
+      }, rectangleAttributes: rectangle ? (source: ShapeMark, written: Readonly<Record<string, string>> | undefined): void => {
+        if (source !== captured || attributesReceived) { invalidAttributes = true; return }
+        attributesReceived = true
+        attributes = written
+      } : undefined }) : undefined
       const svg = write(captured, sink)
       const retained = { node: captured, paintNode: captured, svg, conditional: false }
       if (!supported) return retained
       // A cached serialization, missing/duplicate receipt, failed capture or
       // unsupported numeric projection cannot borrow another write's proof.
-      if (!reserved || !received || invalid || !served || served.kind !== geometry.kind) return { ...retained, conditional: true }
+      if (!reserved || !received || invalid || !served || !geometry || served.kind !== geometry.kind) return { ...retained, conditional: true }
+      if (rectangle && captured.kind === 'shape' && served.kind === 'rect') {
+        if (!attributesReceived || invalidAttributes || !attributes || !sameRectanglePaint(rectangle.paint, attributes)) return { ...retained, conditional: true }
+        // A rectangle has extent, not a line's start/end topology. Never
+        // borrow the line-collapse branch or pre-write radii for served ink.
+        if (!(served.width > 0 && served.height > 0) || (served.rx ?? 0) !== 0 || (served.ry ?? 0) !== 0) return { ...retained, conditional: true }
+        const original = rectangle.geometry
+        if (served.x === original.x && served.y === original.y && served.width === original.width && served.height === original.height
+          && served.rx === original.rx && served.ry === original.ry) return retained
+        const proof = inertRectangleRecord(captured)
+        const overlay = proof && replaceField(proof, 'geometry', served)
+        const paintNode = overlay && replaceField(overlay, 'paint', rectangle.paint)
+        return paintNode ? { ...retained, paintNode, conditional: false } : { ...retained, conditional: true }
+      }
       if (served === geometry) return retained
       if (captured.transform || captured.kind === 'connector' && (captured.route.closed || served.kind === 'polyline' && captured.markers.mid.length !== 0)) return { ...retained, conditional: true }
       if (!pay(48)) return { ...retained, conditional: true }

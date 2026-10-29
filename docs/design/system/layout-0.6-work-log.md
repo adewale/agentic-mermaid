@@ -2441,3 +2441,166 @@ rows, all six release goals, cross-document prefix counterexample, cache-custody
 and final geometry/admission authority remain open. Holdout sealed; no external
 peer qualification, solver tuning, cap/timeout increase, release/version/default
 change, package publication, force push, merge or new issue/PR/comment.
+
+### Exact worker-subtraction CI and supporting-rectangle custody
+
+Exact retained-branch commit **b75d4b51037614917585f8b896da0d6d5ad4c7fa**
+completes [CI40857070739](https://github.com/adewale/agentic-mermaid/actions/runs/40857070739)
+on its first attempt, with **14688P/76skip/0F** unit tests, all140 browser
+contracts and52 browser-site tests passing. The1084 resolved-scene comparisons
+cover35043 primitives without failures. Node22/24 installed consumers, the
+strict226-file package manifest, quickstarts, MCP, CLI, dist and website-payload
+lanes pass. **Overall CI remains failed:** the unchanged lazy gate has exactly
+32 byte violations,18raw/14gzip, with no Brotli/request failure. Every violating
+row value directly equals ed271's preceding CI observation. The separate
+nonblocking advisory retains346 regressions/393 improvements/135 changed cases
+across874 pairs; all eight summaries directly equal ed271. No retry, parser
+threshold change, cap increase or timing campaign is used.
+
+The live Main ref at this observation is
+**0a2dc30b6220c04182f8ccd45550689422606a22**; it is not integrated or jointly
+qualified. PR449 remains merged/closed; these normal fast-forward follow-ups
+are on its retained branch, not Main. Complete logs, run/checkout metadata,
+direct row comparisons and workflow bytes are retained under
+`/tmp/pr449-ci-fix2-20261029/final-b75-ci-review/`.
+
+Independent rectangle probes retain all adverse outcomes. Nonzero-origin
+viewport examples remain Native-unverified and Scene-refused. A proposed
+zero-origin clipping counterexample is **not reproduced**: raw
+1.0000000000109 writes1.00000000001, matching its translation, rather than
+writing1. Its served body begins at0. The snapped input writes1 and obtains
+the correct final viewport expansion beginning at-10. Independent Decimal
+composition of actual final XML contains both served bodies; actual body
+removal changes12288 raster pixels in each, while the fixed reveal observer
+changes none at that downscale. There is no demonstrated wrong P and no
+geometry repair from this probe. See `rect-{body,viewport,zero-origin}-review/`.
+
+A prospective narrow supporting-rectangle contract is published in the existing
+PR description before production edits, saved as `PR-B75-RECT-CONTRACT.md`.
+Five existing Sol6.1High agents own two disjoint implementation/test scopes,
+independent custody and final-ink reviews, and exact-CI/compatibility observation.
+The frozen development witness changes only a supporting sharp rectangle's raw
+x60.00000000000001 or width30.00000000000001, which writes the existing integer
+body. The existing integer-only circle/body guards must remain unchanged.
+Actual final public SVG/receipt and nonempty marker-removal ink, not a helper
+result, must distinguish baseline U from candidate P. Ordinary served fractional
+bodies, long/unknown paint and every original limit retain strict outcomes.
+This is not row87 or seven-case completion, a sealed holdout, peer qualification,
+ELK parity, or readiness. The initial test fixture's unsupported marker viewBox
+and canonical preload's Scene execution are recorded as setup failures, not
+meaningful failing-before controls. Baseline and candidate implementation
+results are recorded below only after observation.
+
+The first rectangle candidate, **RECT1**, is rejected before commit. Its focused
+public owner genuinely changes two rounded-coordinate U results to P, with
+identical complete SVG/PNG bytes and24 actual marker-removal pixels. The full
+paint owner passes340tests/2370assertions. However, the separately captured
+50-cell comparison finds **six Native-path P-to-U regressions**: State, ER,
+Journey, C4, Ishikawa and Event Modeling. All50 actual SVGs and independently
+decoded XML/text rosters are unchanged. Native receipts change operation counts;
+Scene-assertion receipts remain byte-identical. Native certification changes
+23P/2U to17P/8U; Timeline/Xychart retain their pre-existing uncertainties.
+All six affected families contain rounded rectangles, matching the overly broad
+new receipt enrollment and subsequent sharp-body rejection. Public issues
+supply only conditional counts, so private primitive IDs are not invented.
+RECT1 sources, actual outputs, complete receipts and adverse comparisons are
+preserved in `rectangle-production/RECT1/` and `native-rect-compat-b75/`.
+This blocks shipping despite passing focused tests. A prospective correction
+must select the narrow new authority before emission, preserve unsupported
+legacy outcomes, and keep eligible missing/duplicate receipts strict. A further
+review probes inherited paint that changes during the actual writer; pre-write
+paint values cannot substitute for the values the writer actually emits.
+
+The independent fixed inherited-width probe confirms an additional **RECT1
+false P**: an inherited strokeWidth getter returns0.25 and deletes itself on
+its third actual read. Actual final XML writes0.25, but the post-write proof
+assumes the missing property's default1. The full ring reaches60.5 while the
+actual body's inner outline edge is60.125, intruding0.375 into forbidden fill;
+the public receipt nevertheless reports passed/issues[]. This is a concrete
+new changed-overlay soundness blocker, not a speculative review checklist.
+The probe runs once without read-count tuning and retains source/direct-byte
+binding in `rectangle-independent-review/RECT1-TRANSIENT-WIDTH.json`.
+
+Two new owning controls genuinely fail against RECT1: that false P and the
+unmarked rounded rectangle's false U. The corrected prospective contract is
+published before implementation as `PR-RECT2-ACTUAL-PAINT-CONTRACT.md`. The
+existing writer must retain its actual13paint literals and transform presence
+without extra caller-field reads, close one bounded occurrence-bound receipt
+after writing, and compare those actual literals with inert expected paint.
+Pre-write eligibility excludes unsupported bodies without waiving a failed
+eligible receipt. Both record and comparison work remain in the existing
+ledger. This supersedes the insufficient idea that pre-write expected paint
+alone proves what a mutable prototype subsequently writes. No new candidate
+success is claimed here before observation.
+
+The final candidate, **RECT2.4**, binds one eligible supporting rectangle's
+actual x/y/width/height/radii and actual13paint/one-transform literals to the
+same complete write. Its pre-write domain is sharp, noncompound, positive
+extent, no leaf transform and inert own paint with unchanged numeric spelling.
+The actual writer issues the bounded paint/pose receipt without extra caller
+field reads. Native checks actual literals, served radii and receipt identity
+before any same-coordinate shortcut; missing/duplicate/mismatched receipts
+remain conditional. Changed proof geometry, paint and the shallow proof leaf
+have private null prototypes, preserving own metadata and checked absence.
+Nested ownership and general final-output sealing are not claimed closed.
+Unsupported rounded/transformed/long-numeric-paint rectangles retain their
+legacy paths; no integer circle/body guard, geometry byte or work cap changes.
+
+Acquisitions ran on parent **b75d4b51037614917585f8b896da0d6d5ad4c7fa** plus
+the exact two-file production patch committed with this section; literal source
+copies and direct before/after comparisons bind each epoch. RECT1 remains
+rejected and preserved. RECT2's initial parse failure and subsequent missing
+TypeScript narrowing guard are retained separately; neither is called a
+passing observation. RECT2.3 adds only the explicit geometry-presence guard;
+RECT2.4 additionally pays for the changed proof leaf's shallow inert copy.
+Final types/core+repository, lint and diff checks pass, with the existing
+oversized-JSON lint warning retained.
+
+| Final local observation | Result and scope |
+| --- | --- |
+| Existing paint owner |342P/0F/2385assertions, including14 new public final-SVG controls. Two old b75 U cases become P with identical actual SVG/PNG bytes; the two demonstrated RECT1 regressions fail before and pass after. |
+| Related writer/native owners |106P/0F/1253assertions across five existing files. Combined disjoint total448P/3638assertions; focused reruns are not added again. |
+| Independent late inherited hook | A descriptor hook installs inherited paint AFTER preeligibility; actual SVG width0.25 correctly remains U. Actual emitted literals are necessary beyond the pre-write snapshot. |
+| Fresh final compatibility |50/50returns,0errors; all actual SVGs and decoded XML/text rosters unchanged. Native-path23P/2U and Scene-assertion25P retain every outcome. |
+| Complete receipt differences | Only Native operation counts change (+32 through+8603); all other fields match. Largest final example135121/400000operations. Scene-assertion receipts are byte-identical. No timing or memory claim. |
+| Original seven development cases |28engine/policy cells, two fixed observations each:56returns/0errors/0failed certificates; row77has8P, the remaining six have48U. No row is removed. |
+| Selection/repeats/cache observations | All requested/selected strict backends observed; all28fixed repeats and14cross-policy pairs have identical full SVG/receipt bytes. Native makes0ELK calls; actual Native cache behavior remains UNOBSERVED. Existing ELK cache events distinguish OFF bypass from NORMAL miss/hit; API-call counts are not inner-solver counts. |
+
+The seven sources directly match both retained230-case corpora and current
+committed corpus/fixture bytes, rather than being identified by array offsets
+alone. Independent output digest and actual XML observations bind every final
+packet. First observations retain98POTENTIAL_OCCLUSION and2UNMEASURED_PAINT
+issues across all28cells; Native row103 additionally reports changed path
+anchors requiring explicit user-space marker units. Matching overall statuses
+with ELK does not erase that uncertainty or prove broader correctness parity.
+
+A separate fixed two-engine **b75 source** control establishes that row77
+already passed before this patch. Its actual SVG bytes equal RECT2.4, and only
+recorded operations rise1706per engine. It is explicitly **not a newly closed
+case or a U-to-P achievement** of this change. Independent current row77 ink
+qualification and actual Native cache observation remain separate requirements.
+Rows87/88/89/103/206/209 remain certificate-unverified under both engines and
+both configured policies. All seven remain enrolled in the0.6 programme.
+
+Evidence is under `/tmp/pr449-ci-fix2-20261029/`: final owner/type/lint logs,
+`rectangle-production/`, `rectangle-independent-review/`,
+`final-ink-rectangle-review/`, `rect2.4-native-compat-b75/`,
+`rect2.4-original-seven/` and `row77-b75-causal/`. All rejected earlier epochs,
+raw SVG/PNG/RGBA, complete receipts, source snapshots and setup failures remain.
+The physical four-case ink capture and exact one-guard bridge retain their
+original epoch; final public owning tests and fresh50/seven captures are
+separate evidence, not relabelled historical artifacts.
+
+This coherent change is ready for normal fast-forward continuation and its
+new-head CI observation, **not overall PR/release readiness**. The previous
+b75CI still fails32unchanged lazy byte rows; this new code needs its own exact
+head CI and actual final delivery observations before any new CI claim. The
+current live Main0a2dc30b6220c04182f8ccd45550689422606a22 is not integrated
+or jointly qualified. All six0.6 goals, full seven-case qualification, generic
+final sealing, compound cylinder/stroke/cubic proofs, cross-document prefix
+collision, cache-custody and pinned public Mermaid/Pele/Trident qualification
+remain open. Holdout sealed; ELK default/version/release and every cap remain.
+The next correctness step is to consume this occurrence-bound geometry/paint
+boundary for a sound complete fractional stroke/straight-polyline proof of
+row87, retaining whole-body separation and its thin-border counterexample;
+typed cubic and complete cylinder unions follow their owning obligations.
