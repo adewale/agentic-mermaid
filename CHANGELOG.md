@@ -4,8 +4,20 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+## 0.5.2 — 2026-10-29
+
 ### Fixed
 
+- Parse long same-line Flowchart chains without rescanning the remaining
+  chain for each node's edge-ID diagnostic. Preserve the existing syntax
+  warnings and source-map spans.
+- Align ELK routes whose straight runs differ only by floating-point roundoff
+  as they are read back, so wide Class diagrams with padded cards keep their
+  card contacts instead of refusing to render, and Flowchart, State, ER and
+  Requirement routes start exactly orthogonal.
+- Render Class diagrams with rounded relationship corners, such as the
+  `publication-figure` style, when a relationship must bypass a namespace
+  header, including nested namespaces.
 - Render publication-styled Flowcharts with compound long links when joined
   route sections differ only by floating-point roundoff, retaining their
   endpoint contacts and existing route-safety checks.

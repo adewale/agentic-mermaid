@@ -61,6 +61,8 @@ route-contract extraction preserves the existing pipeline manifest and order.
   publication or hosted delivery; #477 and #478 remain delivery concerns.
   The owner's 27 October decision defers #449's Native-layout qualification
   to 0.6.0; it is not a 0.5 publication condition. ELK remains the default.
+  The owner's 29 October decision also moves AGENT-1, AGENT-2 and AGENT-3
+  to 0.6.0. Those improvements remain open and are not 0.5.2 release claims.
 - [ ] **DEC-6 — Decide the hosted `execute` boundary from usage evidence**
   (`owner-decision`, [#204](https://github.com/adewale/agentic-mermaid/issues/204)).
   Compare hosted direct tools, hosted Code Mode and local Code Mode for real
@@ -111,7 +113,8 @@ route-contract extraction preserves the existing pipeline manifest and order.
 ## Ready build backlog
 
 - [ ] **AGENT-1 — Consolidate the agent starting guide** (`todo`, owner
-  requested 2026-10-27; target 0.5). Make `/start.md` a short task/channel
+  requested 2026-10-27; deferred to 0.6.0 by the owner on 2026-10-29).
+  Make `/start.md` a short task/channel
   router into one maintained operating guide and version-matched references.
   Generate overlapping instructions for the CLI, installed drop-in and website
   from that guide. Preserve useful channel entry points while removing repeated
@@ -119,14 +122,16 @@ route-contract extraction preserves the existing pipeline manifest and order.
   a channel once and reach the relevant operation details without reconciling
   multiple guides.
 - [ ] **AGENT-2 — Reduce library import decisions** (`todo`, owner requested
-  2026-10-27; target 0.5). Recommend one portable agent entry for parsing,
+  2026-10-27; deferred to 0.6.0 by the owner on 2026-10-29). Recommend one
+  portable agent entry for parsing,
   typed editing, verification and rendering, including resolved-scene parity;
   make native PNG an explicit runtime-specific addition. Preserve existing
   import paths and aliases. Reuse the current entries rather than adding another
   SDK layer, and verify shipped declarations/runtime behavior in Node, Bun,
   browsers and Workers before changing the recommendation.
 - [ ] **AGENT-3 — Make resolved scenes discoverable and failures actionable**
-  (`todo`, owner requested 2026-10-27; target 0.5). Expose resolved-scene
+  (`todo`, owner requested 2026-10-27; deferred to 0.6.0 by the owner on
+  2026-10-29). Expose resolved-scene
   support through existing agent discovery and the Code Mode SDK, with explicit
   result-size/runtime limits. Give unsupported-artwork failures stable typed
   fields such as `code`, `partId` and `feature`, preserving readable messages

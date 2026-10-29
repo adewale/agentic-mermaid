@@ -1,9 +1,10 @@
+import { graphEdgeTerminalClearance } from '../graph-connectors.ts'
 import { C4RouteWorkLimitError } from './errors.ts'
 export { C4RouteWorkLimitError } from './errors.ts'
 import type { Point, PositionedEdge, PositionedNode, PositionedGroup, MermaidGraph } from '../types.ts'
 import type { planC4Identity } from './identity.ts'
 import type { C4Box } from './placement.ts'
-import { simplifyPolyline, applyRouteContracts, repairLabelsOffOwnRoute, separateEdgeLabelPills, closeRouteContracts, laneContextFor, findLabelSlot, recertifyReroutedEdge, type LabelMetricsStyle } from '../route-contracts.ts'
+import { simplifyPolyline, applyRouteContracts, repairLabelsOffOwnRoute, separateEdgeLabelPills, closeRouteContracts, repairMarkerTerminals, laneContextFor, findLabelSlot, recertifyReroutedEdge, type LabelMetricsStyle } from '../route-contracts.ts'
 import { rerouteEdgesThroughNodes } from '../layout/passes/obstacle-routing.ts'
 import { calculatePathMidpoint } from '../layout/geometry.ts'
 import { segmentThroughShape } from '../layout-rubric.ts'
@@ -132,8 +133,9 @@ export function routeC4Pixels(boxes: ReadonlyMap<string, C4Box>, positioned: { n
       : Math.max(24, ...pair.map(item => (item.edge.labelBlock?.height ?? 0) + 24))
     const shift = (pair.indexOf(plan) - (pair.length - 1) / 2) * corridor
     const lane = 14 + (index % 5) * 4
-    const startExit = exit(start, startSide, startSign, lane, source.id)
-    const endExit = exit(end, endSide, endSign, lane, target.id)
+    const terminal = graphEdgeTerminalClearance(edge, style)
+    const startExit = exit(start, startSide, startSign, Math.max(lane, terminal.start ? terminal.start + (style.edgeBendRadius ?? 0) : 0), source.id)
+    const endExit = exit(end, endSide, endSign, Math.max(lane, terminal.end ? terminal.end + (style.edgeBendRadius ?? 0) : 0), target.id)
     stubs.set(edge, { start, end, startExit, endExit })
     // C4 owns only the physical face choice and initial corridor. Shared graph
     // route passes repair crossings, allocate labels and certify final routes.
@@ -185,6 +187,7 @@ export function routeC4Pixels(boxes: ReadonlyMap<string, C4Box>, positioned: { n
     edge.points = simplifyPolyline([stub.start, ...interior.points, stub.end])
     edge.labelPosition = calculatePathMidpoint(edge.points)
   }
+  repairMarkerTerminals(positioned, graph, style)
   const labelNodes = [...positioned.nodes, ...headerNodes], labelPositioned = { ...positioned, nodes: labelNodes }
   const { ctx } = laneContextFor(labelNodes, edges, graph.direction, style, positioned.groups)
   ctx.finalLabelClearance = true

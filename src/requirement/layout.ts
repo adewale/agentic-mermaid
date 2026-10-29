@@ -1,5 +1,7 @@
+import { requirementArrow, requirementMarkerTerminal } from './markers.ts'
 import type { ElkExtendedEdge, ElkNode } from 'elkjs'
 import { elkLayoutSync } from '../elk-instance.ts'
+import { alignElkRoundoff } from '../layout/elk-roundoff.ts'
 import { layoutAgenticGraph, type AgenticLayout } from '../layout/agentic-layered.ts'
 import { runMeasuredGraphBackend } from '../layout/backend.ts'
 import { measureRenderStage } from '../render-stages.ts'
@@ -73,13 +75,14 @@ export function layoutRequirementDiagram(model: RequirementBody, options: Render
   }
   const nodeSpacing = options.nodeSpacing ?? metric('nodeSpacing', 40, 0, Infinity),
     layerSpacing = options.layerSpacing ?? metric('rankSpacing', 72, 0, Infinity)
+  const terminalLead = model.relations.some(edge => edge.type !== 'contains') ? requirementMarkerTerminal(requirementArrow.id, style.lineWidth, 'end') + style.edgeBendRadius : 0
   type Placement = Pick<AgenticLayout, 'width' | 'height' | 'nodes' | 'edges'>
   const result = runMeasuredGraphBackend<Placement>(options, () => {
     return measureRenderStage('agentic', () => layoutAgenticGraph({
       nodes: nodes.map(node => ({ id: node.id, width: node.width, height: node.height })),
       edges: model.relations.map((edge, index) => ({ source: indices.get(edge.src)!, target: indices.get(edge.dst)!, minSpan: 1,
         label: { width: labels[index]!.width + 16, height: labels[index]!.height + 10 } })),
-      direction: model.direction, padding: pad, nodeSpacing, layerSpacing, edgeSpacing: Math.max(6, style.lineWidth + 4),
+      direction: model.direction, padding: pad, nodeSpacing, layerSpacing, ...(terminalLead ? { minimumTerminalLead: terminalLead } : {}), edgeSpacing: Math.max(6, style.lineWidth + 4),
     }))
   }, () => {
     const idMap = new Map(nodes.map((node, index) => [node.id, `n${index}`]))
@@ -90,6 +93,8 @@ export function layoutRequirementDiagram(model: RequirementBody, options: Render
         'elk.algorithm': 'layered',
         'elk.direction': ({ TB: 'DOWN', BT: 'UP', LR: 'RIGHT', RL: 'LEFT' } as const)[model.direction],
         'elk.edgeRouting': 'ORTHOGONAL',
+        'elk.spacing.edgeNode': String(terminalLead),
+        'elk.layered.spacing.edgeNodeBetweenLayers': String(terminalLead),
         'elk.spacing.nodeNode': String(nodeSpacing),
         'elk.layered.spacing.nodeNodeBetweenLayers': String(layerSpacing),
         'elk.padding': `[top=${pad},left=${pad},bottom=${pad},right=${pad}]`,
@@ -103,7 +108,7 @@ export function layoutRequirementDiagram(model: RequirementBody, options: Render
     return { width: placed.width ?? 0, height: placed.height ?? pad * 2, nodes: positions,
       edges: model.relations.map((_, index) => {
         const edge = placed.edges?.[index], label = edge?.labels?.[0]
-        return { points: (edge?.sections ?? []).flatMap(s => [s.startPoint, ...(s.bendPoints ?? []), s.endPoint]),
+        return { points: alignElkRoundoff((edge?.sections ?? []).flatMap(s => [s.startPoint, ...(s.bendPoints ?? []), s.endPoint])),
           ...(label?.x !== undefined ? { labelPosition: { x: label.x + (label.width ?? 0) / 2, y: (label.y ?? 0) + (label.height ?? 0) / 2 } } : {}) }
       }) }
   })

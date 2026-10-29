@@ -1,3 +1,4 @@
+import { blockMarkers, blockMarkerTerminal } from './markers.ts'
 import { rerouteEdgesThroughNodes } from '../layout/passes/obstacle-routing.ts'
 import { findLabelSlot, simplifyPolyline } from '../route-contracts.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
@@ -43,7 +44,11 @@ export function layoutBlockDiagram(model: BlockBody, options: RenderOptions = {}
   const style = resolveRenderStyle(options, undefined, face),
     pad = options.padding ?? 32
   const edgeLabels = model.edges.map(edge => preparePixelText(blockTextPlan(edge.label ?? ''), { fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, maxWidth: 320, transform: style.edgeTextTransform, letterSpacing: style.edgeLetterSpacing }))
-  const gap = Math.max(typeof config.padding === 'number' && config.padding >= 0 ? Math.min(config.padding, 200) : 20, ...edgeLabels.filter(b => b.text).map(b => b.width + 40))
+  let terminalLead = 0
+  for (const edge of model.edges) terminalLead = Math.max(terminalLead,
+    blockMarkerTerminal(blockMarkers[`${edge.arrowTypeStart}:start`]?.id, style.lineWidth, 'start'),
+    blockMarkerTerminal(blockMarkers[`${edge.arrowTypeEnd}:end`]?.id, style.lineWidth, 'end'))
+  const gap = Math.max(terminalLead ? 2 * (terminalLead + style.edgeBendRadius) : 0, typeof config.padding === 'number' && config.padding >= 0 ? Math.min(config.padding, 200) : 20, ...edgeLabels.filter(b => b.text).map(b => b.width + 40))
   const classes = new Map(model.classDefs.map(d => [d.id, d])),
     views: View[] = []
   const make = (block: Block, parentId?: string): View => {
@@ -203,7 +208,7 @@ export function layoutBlockDiagram(model: BlockBody, options: RenderOptions = {}
     }
     outgoingContacts.add(contactKey(source.id, points[0]!))
     incomingContacts.add(contactKey(target.id, points.at(-1)!))
-    const route: PositionedEdge = { id: edge.id, source: source.id, target: target.id, style: 'solid', hasArrowStart: false, hasArrowEnd: false, points: simplifyPolyline(points.map(point => ({ ...point }))) }
+    const route: PositionedEdge = { id: edge.id, source: source.id, target: target.id, style: 'solid', hasArrowStart: edge.arrowTypeStart !== 'none', hasArrowEnd: edge.arrowTypeEnd !== 'none', points: simplifyPolyline(points.map(point => ({ ...point }))) }
     // Authored grid cells remain fixed. Shared shape-aware repair owns only the
     // connector interior, including skip links across an occupied grid cell.
     const obstacles = source.block.type === 'composite' || target.block.type === 'composite' ? shapeNodes.filter(node => byId.get(node.id)!.block.type !== 'composite' || node.id === source.id || node.id === target.id) : ordinaryObstacles

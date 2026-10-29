@@ -1,3 +1,4 @@
+import type { MarkerDescriptor } from '../scene/ir.ts'
 import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import type { FamilyPositionedProjectionContext, FamilyPositionedView } from '../agent/families.ts'
 import { createFillInkResolver } from '../color-resolver.ts'
@@ -5,8 +6,8 @@ import { escapeAttr, escapeXml } from '../multiline-utils.ts'
 import { canvasOf, f, labelRect, retainedLabelBounds, retainedLabelGeometry } from '../positioned-views/geometry.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
-import type { MarkerDescriptor } from '../scene/ir.ts'
-import { serializeMarkerResources, tipAnchoredArrow } from '../scene/marker-resources.ts'
+import { serializeMarkerResources } from '../scene/marker-resources.ts'
+import { blockMarkers as markers, blockMarkerTerminal } from './markers.ts'
 import { shapeOutline } from '../shape-outline.ts'
 import { diagramTitleFields } from '../styles.ts'
 import { buildStyleBlock, svgOpenTag } from '../theme.ts'
@@ -15,12 +16,6 @@ import { arrowMask, arrowSize, blockArrowPoints } from './arrows.ts'
 import { blockShapeNode } from './layout.ts'
 import type { PositionedBlockDiagram } from './types.ts'
 
-const markers: Record<string, MarkerDescriptor> = {}
-for (const end of ['start', 'end'] as const) {
-  markers[`arrow_point:${end}`] = tipAnchoredArrow(`block-arrow-${end}`, { width: 8, height: 7 }, end, { fill: 'var(--_arrow)', stroke: 'none' }, 'userSpaceOnUse')
-  markers[`arrow_circle:${end}`] = { id: `block-circle-${end}`, shape: 'circle', size: { width: 9, height: 9 }, ref: { x: 4.5, y: 4.5 }, orient: 'auto', geometry: { kind: 'circle', cx: 4.5, cy: 4.5, r: 3.5 }, paint: { fill: 'var(--bg)', stroke: 'var(--_arrow)', strokeWidth: '1' }, units: 'userSpaceOnUse' }
-  markers[`arrow_cross:${end}`] = { id: `block-cross-${end}`, shape: 'cross', size: { width: 9, height: 9 }, ref: { x: 4.5, y: 4.5 }, orient: 'auto', geometry: { kind: 'path', d: 'M1 1L8 8M1 8L8 1' }, paint: { fill: 'none', stroke: 'var(--_arrow)', strokeWidth: '1' }, units: 'userSpaceOnUse' }
-}
 export function lowerBlockDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContext<PositionedBlockDiagram>): DrawingDocument<T> {
   const { positioned: p, colors } = ctx,
     transparent = ctx.resolved.renderOptions.transparent ?? false,
@@ -112,7 +107,7 @@ export function lowerBlockDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContex
   for (const edge of p.edges) {
     const start = markerSet[`${edge.arrowTypeStart}:start`],
       end = markerSet[`${edge.arrowTypeEnd}:end`],
-      projection = p.style.edgeBendRadius > 0 && edge.points.length > 2 ? projectRoundedConnectorPath(edge.points, p.style.edgeBendRadius) : undefined
+      projection = p.style.edgeBendRadius > 0 && edge.points.length > 2 ? projectRoundedConnectorPath(edge.points, p.style.edgeBendRadius, { terminalClearance: { start: blockMarkerTerminal(start?.id, p.style.lineWidth, 'start'), end: blockMarkerTerminal(end?.id, p.style.lineWidth, 'end') } }) : undefined
     parts.push(
       marks.connector({
         id: edge.id,

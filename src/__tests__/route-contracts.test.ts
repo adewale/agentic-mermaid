@@ -3333,9 +3333,11 @@ describe('private label-bearing route channels', () => {
   })
 })
 
-it.each([0, 1, 2, 3])('a private channel clears a reserved foreign arrow at rotation %s', turns => {
+it.each([0, 1, 2, 3].flatMap(turns => ([['end', 'solid', false], ['start', 'solid', false], ['start', 'thick', false], ['both', 'thick', false], ['start', 'thick', true]] as const).map(([marked, shaft, collinear]) => ({ turns, marked, shaft, collinear }))))('a private channel retains $marked $shaft arrow leads and clears foreign ink at rotation $turns (collinear=$collinear)', ({ turns, marked, shaft, collinear }) => {
   const direction = (['LR', 'TD', 'RL', 'BT'] as const)[turns]!
   const graph = parseMermaid(`flowchart ${direction}\nA -->|handoff| B\nA --> B\nC --> D\nX0\nX1\nX2\nX3\nX4`), style = resolveRenderStyle()
+  // Typed routing retains authored endpoint identities with a source-only head.
+  Object.assign(graph.edges[0]!, { style: shaft, hasArrowStart: marked !== 'end', hasArrowEnd: marked !== 'start' })
   const rotate = (point: Point): Point => {
     let { x, y } = point
     for (let i = 0; i < turns; i++) [x, y] = [-y, x]
@@ -3347,11 +3349,17 @@ it.each([0, 1, 2, 3])('a private channel clears a reserved foreign arrow at rota
   }
   const nodes = [node('A', 0, 0), node('B', 220, 0), node('C', 170, 100), node('D', 60, 21.15), ...[40, 80, 120, 160, 200].map((x, i) => node(`X${i}`, x, -25, 15, 17))]
   const foreign = [[180, 100], [180, -60], [140, -60], [140, 20], [100, 20], [100, -60], [60, -60], [60, 20], [40, 20], [40, 100], [70, 100], [70, 41.15]].map(([x, y]) => rotate({ x: x!, y: y! }))
-  const edges: PositionedEdge[] = graph.edges.map((edge, edgeIndex) => ({ ...edge, edgeIndex, points: edgeIndex < 2 ? [rotate({ x: 20, y: 10 }), rotate({ x: 220, y: 10 })] : foreign,
+  const edges: PositionedEdge[] = graph.edges.map((edge, edgeIndex) => ({ ...edge, edgeIndex, points: edgeIndex < 2 ? [rotate({ x: 20, y: 10 }), ...(collinear && edgeIndex === 0 ? [rotate({ x: 25, y: 10 })] : []), rotate({ x: 220, y: 10 })] : foreign,
     ...(edgeIndex === 0 ? { labelPosition: rotate({ x: 150, y: 10 }) } : {}) }))
   const before = structuredClone(edges), positioned = { nodes, edges, groups: [] }
   repairLabelsOnSharedTrunks(positioned, graph, style)
   expect(edges[2]).toEqual(before[2])
+  expect(edges[0]!.points.length).toBeGreaterThan(2)
+  for (const start of [true, false]) {
+    if (!(start ? edges[0]!.hasArrowStart : edges[0]!.hasArrowEnd)) continue
+    const path = edges[0]!.points, tip = start ? path[0]! : path.at(-1)!, turn = start ? path[1]! : path.at(-2)!
+    expect(Math.hypot(turn.x - tip.x, turn.y - tip.y)).toBeGreaterThanOrEqual(8.375 * (shaft === 'thick' ? 2 : 1) + 4)
+  }
   expect(edges[0]!.points[0]).toEqual(before[0]!.points[0])
   expect(edges[0]!.points.at(-1)).toEqual(before[0]!.points.at(-1))
   expect(auditRouteContracts(positioned, graph).filter(finding => finding.code === 'ROUTE_LABEL_ON_SHARED_TRUNK')).toEqual([])

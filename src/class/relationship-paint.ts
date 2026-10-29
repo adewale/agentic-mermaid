@@ -1,9 +1,10 @@
+import { prepareMarkerTerminals } from '../scene/marker-terminals.ts'
 import type { MarkerDescriptor } from '../scene/ir.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
 import type { Point } from '../types.ts'
 import { classInterfaceMarker } from './interface-occurrences.ts'
 import type { PositionedClassRelationship, RelationshipType } from './types.ts'
-export function classMarkerResources(style: ResolvedRenderStyle): readonly MarkerDescriptor[] {
+export function classMarkerResources(style: Pick<ResolvedRenderStyle, 'edgeStrokeColor'>): readonly MarkerDescriptor[] {
   const edgeColor = style.edgeStrokeColor ?? 'var(--_arrow)'
   const triangle = [
     { x: 0, y: 0 },
@@ -49,6 +50,14 @@ export function classMarkerResources(style: ResolvedRenderStyle): readonly Marke
     },
     classInterfaceMarker(edgeColor),
   ]
+}
+
+const markerTerminal = prepareMarkerTerminals(classMarkerResources({}))
+export function classRelationshipTerminalClearance(rel: Pick<PositionedClassRelationship, 'markerAt' | 'fromType' | 'toType' | 'type'>, style: Pick<ResolvedRenderStyle, 'lineWidth'>) {
+  return {
+    start: markerTerminal(rel.markerAt === 'from' || rel.markerAt === 'both' ? getMarkerDefId(rel.fromType ?? rel.type) ?? undefined : undefined, style.lineWidth, 'start'),
+    end: markerTerminal(rel.markerAt === 'to' || rel.markerAt === 'both' ? getMarkerDefId(rel.toType ?? rel.type) ?? undefined : undefined, style.lineWidth, 'end'),
+  }
 }
 
 export function getMarkerDefId(type: RelationshipType): string | null {

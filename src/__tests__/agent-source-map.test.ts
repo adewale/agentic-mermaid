@@ -4,7 +4,7 @@ import { mutate } from '../agent/mutate.ts'
 import type { SourceSpan } from '../agent/types.ts'
 import { sourcePreservationSpans } from '../family-detection.ts'
 import { DIAGRAM_WORK_LIMITS } from '../shared/diagram-limits.ts'
-import { expectNearLinearGrowth } from './helpers/complexity.ts'
+import { expectNearLinearGrowth, LINEAR_GROWTH_CEILING, measureGrowth } from './helpers/complexity.ts'
 
 function textAt(source: string, span: SourceSpan | undefined): string | undefined {
   return span ? source.slice(span.start.offset, span.end.offset) : undefined
@@ -746,6 +746,23 @@ A -->|lab| B`
     expectNearLinearGrowth('same-line chain of shaped nodes', size => {
       expect(parseMermaid(`flowchart LR\n${Array.from({ length: size }, (_, index) => `N${index}[L${index}]`).join('-->')}`).ok).toBe(true)
     }, DIAGRAM_WORK_LIMITS.nodes)
+  })
+
+  test('keeps long unquoted labels in a same-line chain within a linear-time envelope', () => {
+    const padding = 'x'.repeat(64)
+    // measureGrowth's default factor is 16; stay within the host's node cap.
+    const { ratio } = measureGrowth(size => {
+      const source = `flowchart LR\n${Array.from({ length: size }, (_, index) => `N${index}[L${index}${padding}]`).join('-->')}`
+      const parsed = parseMermaid(source)
+      expect(parsed.ok).toBe(true)
+      if (parsed.ok) expect(parsed.value.body.kind).toBe('flowchart')
+      if (parsed.ok && parsed.value.body.kind === 'flowchart') {
+        expect(parsed.value.body.graph.nodes.size).toBe(size)
+        expect(parsed.value.body.graph.edges).toHaveLength(size - 1)
+        expect(textAt(source, parsed.value.source.spans!.labels.get(`node:N${size - 1}`))).toBe(`L${size - 1}${padding}`)
+      }
+    }, Math.floor(DIAGRAM_WORK_LIMITS.nodes / 16))
+    expect(ratio).toBeLessThan(LINEAR_GROWTH_CEILING)
   })
 
   test('indexes preservation coordinates and merges accessibility spans linearly', () => {

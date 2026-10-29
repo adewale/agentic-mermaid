@@ -1,6 +1,7 @@
 import type { EdgeMarker, Point, PositionedEdge } from './types.ts'
 import { ARROW_HEAD } from './styles.ts'
 import type { MarkerDescriptor } from './scene/ir.ts'
+import { prepareMarkerTerminals } from './scene/marker-terminals.ts'
 import { tipAnchoredArrow } from './scene/marker-resources.ts'
 import { connectorContourSemantics, projectConnectorPath, projectRoundedConnectorPath, type ConnectorPathProjection, type ConnectorPathProjectionSegment } from './scene/connector-geometry.ts'
 import { connectorMarkerPaintRegions, type ConnectorMarkerPaintRegion } from './scene/bounds.ts'
@@ -102,6 +103,18 @@ export function markerSuffix(color: string): string {
   return literal.length <= 233 ? literal : `color-h-${canonicalTextDigest(color).slice('fnv1a64:'.length)}`
 }
 
+const terminalResources = flowchartMarkerResources(new Set(), new Set([undefined]), true, true)
+const markerTerminal = prepareMarkerTerminals(terminalResources)
+
+export function graphEdgeTerminalClearance(edge: Pick<PositionedEdge, 'style' | 'inlineStyle' | 'hasArrowStart' | 'hasArrowEnd' | 'startMarker' | 'endMarker'>, style: { lineWidth?: number }) {
+  const fixed = edge.inlineStyle?.['stroke-width'] ? '-fixed' : ''
+  const width = (style.lineWidth ?? 1) * (edge.style === 'thick' ? 2 : 1)
+  return {
+    start: edge.hasArrowStart ? markerTerminal(`${markerIdPrefix(edge.startMarker ?? 'arrow')}-start${fixed}`, width, 'start') : 0,
+    end: edge.hasArrowEnd ? markerTerminal(`${markerIdPrefix(edge.endMarker ?? 'arrow')}${fixed}`, width, 'end') : 0,
+  }
+}
+
 function pointsToCurveProjection(points: Point[]): ConnectorPathProjection {
   const first = points[0]!
   let d = `M ${first.x} ${first.y}`
@@ -122,9 +135,9 @@ function pointsToCurveProjection(points: Point[]): ConnectorPathProjection {
 }
 
 /** The same typed path drives marker tangents during placement and lowering. */
-export function graphEdgePathProjection(edge: PositionedEdge, style: { edgeBendRadius?: number }): ConnectorPathProjection | undefined {
+export function graphEdgePathProjection(edge: PositionedEdge, style: { edgeBendRadius?: number; lineWidth?: number }): ConnectorPathProjection | undefined {
   return edge.curve ? pointsToCurveProjection(edge.points)
-    : (style.edgeBendRadius ?? 0) > 0 ? projectRoundedConnectorPath(edge.points, style.edgeBendRadius!) : undefined
+    : (style.edgeBendRadius ?? 0) > 0 ? projectRoundedConnectorPath(edge.points, style.edgeBendRadius!, { terminalClearance: graphEdgeTerminalClearance(edge, style) }) : undefined
 }
 
 /** Reserve painted endpoint resources before opaque labels are moved. These

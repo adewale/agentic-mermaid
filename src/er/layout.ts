@@ -24,6 +24,7 @@ import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle, diagramTit
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { elkLayoutSync } from '../elk-instance.ts'
+import { alignElkRoundoff } from '../layout/elk-roundoff.ts'
 import { directionToElk } from '../layout/backend.ts'
 import { layoutAgenticGraph } from '../layout/agentic-layered.ts'
 import { runMeasuredGraphBackend } from '../layout/backend.ts'
@@ -1177,7 +1178,7 @@ export function layoutErDiagram(
     const placed = elkLayoutSync(elkGraph)
     return { width: placed.width, height: placed.height, entities: placed.children ?? [], routes: new Map((placed.edges ?? []).map(edge => {
       const section = edge.sections?.[0]
-      return [Number(edge.id.slice(1)), section ? [section.startPoint, ...(section.bendPoints ?? []), section.endPoint] : []]
+      return [Number(edge.id.slice(1)), section ? alignElkRoundoff([section.startPoint, ...(section.bendPoints ?? []), section.endPoint]) : []]
     })) }
   }
   const finish = (placement: ErPlacement): PositionedErDiagram => {

@@ -52,7 +52,7 @@ import { DeferredDependencyError, runMeasuredGraphBackend, GraphLayoutUnsupporte
 import { measureRenderStage } from './render-stages.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
 import { onShapeOutline, assessLayout, hardViolations, measureRubricMetrics, countEdgeCrossings, countOpposingRouteOverlaps, countParallelRouteOverlaps } from './layout-rubric.ts'
-import { applyRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, labelRect, PORT_EXACT, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills, shapePorts, simplifyPolyline, trimBoundaryEndpointRuns } from './route-contracts.ts'
+import { applyRouteContracts, classifyRoutes, closeRouteContracts, repairMarkerTerminals, diamondFacetPorts, labelRect, PORT_EXACT, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills, shapePorts, simplifyPolyline, trimBoundaryEndpointRuns } from './route-contracts.ts'
 import { bundleRouteBeforeRewrite, retainBundleRouteAfterRewrite } from './layout/bundle-routes.ts'
 import type { LabelMetricsStyle } from './route-contracts.ts'
 import { terminalHookLength } from './layout/route-geometry.ts'
@@ -1593,9 +1593,9 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     run: c => { reanchorOffOutlineEndpoints(c.nodes, c.edges, c.graph, c.style) },
   },
   {
-    id: 'rerouteEdgesThroughNodes', doc: 're-route an edge left running through a node by a node-mover (honorLinkRankDistance/alignPortLanes) around the obstacle (edge-only, freeze-safe)',
+    id: 'rerouteEdgesThroughNodes', doc: 're-route an edge left running through a node by a node-mover (honorLinkRankDistance/alignPortLanes) around the obstacle and restore protected marker leads before label placement (edge-only, freeze-safe)',
     after: ['reanchorOffOutlineEndpoints'], mutates: ['edges'], determinism: 'in-place',
-    run: c => { rerouteEdgesThroughNodes(c.nodes, c.edges, c.graph, undefined, c.groups) },
+    run: c => { rerouteEdgesThroughNodes(c.nodes, c.edges, c.graph, undefined, c.groups); repairMarkerTerminals({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
   },
   {
     id: 'repairLabelsOnSharedTrunks', doc: 'give a shared-trunk label a clear seat or a proved private channel (edge-only, freeze-safe)',

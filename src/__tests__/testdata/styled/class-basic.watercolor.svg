@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="360" height="317.8" viewBox="0 0 360 317.8" style="--bg:#fdfbf6;--fg:#31302c;--line:#4d4a44;--accent:#7a6a52;--surface:#ead9b9;--border:#5a564e;--font:Caveat;background:#fdfbf6" class="am-0lqoyaj0elk1vx">
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="317.8" viewBox="0 0 360 317.8" style="--bg:#fdfbf6;--fg:#31302c;--line:#4d4a44;--accent:#7a6a52;--surface:#ead9b9;--border:#5a564e;--font:Caveat;background:#fdfbf6" class="am-1n1vbsk1ya9wtj">
 <style>
-  svg.am-0lqoyaj0elk1vx { font-family: var(--font, 'Caveat'), system-ui, sans-serif; }
-  .am-0lqoyaj0elk1vx .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
-  svg.am-0lqoyaj0elk1vx {
+  svg.am-1n1vbsk1ya9wtj { font-family: var(--font, 'Caveat'), system-ui, sans-serif; }
+  .am-1n1vbsk1ya9wtj .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
+  svg.am-1n1vbsk1ya9wtj {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #31302c;
     --_text-sec:      #5e5d58;
@@ -38,8 +38,8 @@
 </defs>
 <polyline stroke-opacity="0" class="class-relationship" data-type="inheritance" data-relation-type="inheritance" data-marker-at="from" points="100,148.9 100,208.9" fill="none" stroke="#4d4a44" stroke-width="1" marker-start="url(#cls-inherit)" data-relationship="inheritance" data-direction="reverse" data-id="rel:Animal-&gt;Dog#0" data-role="relationship" data-from="Animal" data-to="Dog" role="graphics-symbol" aria-roledescription="relation" aria-label="Animal to Dog" />
 <path d="M101.24 149.89 C101.67 170.28, 101.2 192.77, 100.63 210.03" fill="none" stroke="#4d4a44" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" />
-<polyline stroke-opacity="0" class="class-relationship" data-type="inheritance" data-relation-type="inheritance" data-marker-at="from" points="140,148.9 140,158.9 260,158.9 260,208.9" fill="none" stroke="#4d4a44" stroke-width="1" marker-start="url(#cls-inherit)" data-relationship="inheritance" data-direction="reverse" data-id="rel:Animal-&gt;Cat#0" data-role="relationship" data-from="Animal" data-to="Cat" role="graphics-symbol" aria-roledescription="relation" aria-label="Animal to Cat" />
-<path d="M139.17 149.49 C139.73 152.91, 140.04 156.2, 139.2 158.79 M138.28 157.1 C169.81 158.78, 196.18 159.77, 261.02 158.18 M260.57 158.08 C259.26 169.26, 260.03 180.97, 258.89 209.26" fill="none" stroke="#4d4a44" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" />
+<polyline stroke-opacity="0" class="class-relationship" data-type="inheritance" data-relation-type="inheritance" data-marker-at="from" points="140,148.9 140,167.9 260,167.9 260,208.9" fill="none" stroke="#4d4a44" stroke-width="1" marker-start="url(#cls-inherit)" data-relationship="inheritance" data-direction="reverse" data-id="rel:Animal-&gt;Cat#0" data-role="relationship" data-from="Animal" data-to="Cat" role="graphics-symbol" aria-roledescription="relation" aria-label="Animal to Cat" />
+<path d="M138.42 150.01 C139.48 156.53, 140.07 162.77, 138.48 167.7 M138.28 166.1 C169.81 167.78, 196.18 168.77, 261.02 167.18 M260.57 167.08 C259.23 176.2, 260 185.86, 258.89 209.26" fill="none" stroke="#4d4a44" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" />
 <g class="class-node" data-id="Animal" data-label="Animal" data-role="class-box">
   <path d="M60.301,38.52 L179.928,41.27 L180.69,148.181 L61.205,149.355 Z" fill="#ead9b9" fill-opacity="0.3" stroke="none" data-id="class:Animal:box" data-role="class-box" />
   <path d="M60.301,38.52 L179.928,41.27 L180.69,148.181 L61.205,149.355 Z" fill="none" stroke="#ead9b9" stroke-width="1.4" stroke-opacity="0.34" />
@@ -76,7 +76,7 @@
   <text paint-order="stroke" stroke="#fdfbf6" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="208" y="263.8" class="mono" text-anchor="start" font-size="11" font-weight="400" fill="#5e5d58" data-id="member:Cat:meow" data-role="member" data-prepared-text="true" dy="3.85" textLength="52.8" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit"><tspan fill="#61605c">+ </tspan><tspan fill="#5e5d58">meow()</tspan></text>
 </g>
 <polyline class="class-marker-overlay" aria-hidden="true" points="100,148.9 100,208.9" fill="none" stroke="#4d4a44" stroke-opacity="0" stroke-width="1" marker-start="url(#cls-inherit)" pointer-events="none" data-relationship="marker-carrier" data-direction="reverse" />
-<polyline class="class-marker-overlay" aria-hidden="true" points="140,148.9 140,158.9 260,158.9 260,208.9" fill="none" stroke="#4d4a44" stroke-opacity="0" stroke-width="1" marker-start="url(#cls-inherit)" pointer-events="none" data-relationship="marker-carrier" data-direction="reverse" />
+<polyline class="class-marker-overlay" aria-hidden="true" points="140,148.9 140,167.9 260,167.9 260,208.9" fill="none" stroke="#4d4a44" stroke-opacity="0" stroke-width="1" marker-start="url(#cls-inherit)" pointer-events="none" data-relationship="marker-carrier" data-direction="reverse" />
 
 
 </svg>

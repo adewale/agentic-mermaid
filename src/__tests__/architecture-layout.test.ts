@@ -558,7 +558,7 @@ it('retains the measured header band when an empty Architecture group has no fra
     const points = /points="([^"]+)"/.exec(tag)![1]!.split(' ').map(value => value.split(',').map(Number))
     expect(points).toEqual(edgeIndex === 0
       ? [[191.971, 146], [337.278, 146], [337.278, 158], [482.585, 158]]
-      : [[123.9855, 170], [123.9855, 190], [390.585, 190], [390.585, 206]])
+      : [[123.9855, 170], [123.9855, 189.8125], [390.585, 189.8125], [390.585, 206]])
     // The actual nonempty Application band remains x38..420.585, y76..104;
     // neither emitted route enters it. The empty band's open interior is empty.
     for (let index = 1; index < points.length; index++) {

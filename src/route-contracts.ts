@@ -6,7 +6,8 @@ import { resolveLabelContent } from './shared/display-text.ts'
 import { countPointPairCrossings } from './shared/edge-crossing-pair.ts'
 import type { Direction, MermaidGraph, Point, PortSide, PositionedEdge, PositionedGroup, PositionedNode, RouteBlocker, RouteCertificate, RouteClass, RouteInvariant } from './types.ts'
 import { graphEdgeTextBlock } from './graph-text.ts'
-import { graphEdgeMarkerPaintRegions } from './graph-connectors.ts'
+import { graphEdgeMarkerPaintRegions, graphEdgeTerminalClearance } from './graph-connectors.ts'
+import { extendTerminalRuns, terminalRunLength } from './layout/terminal-clearance.ts'
 import { labelSeatPaintContext } from './layout/graph-paint-support.ts'
 import { resolveRenderStyle } from './styles.ts'
 import { trimOccludedShapeEndpoint } from './shape-clipping.ts'
@@ -30,6 +31,7 @@ import {
   type LabelMetricsStyle,
   classifyRoutes,
   type Axis,
+  axisFor,
   axisPoint,
   perpendicularAxis,
   simplifyPolyline,
@@ -51,6 +53,7 @@ import {
 } from './layout/route-geometry.ts'
 import {
   portSharpness,
+  laneContextFor,
   repairRectLikeEndpointOverflow,
   diamondSpreadTargetPortConstraint,
   satisfiesDiamondSpreadTargetPortConstraint,
@@ -65,7 +68,6 @@ import {
   dedupeBlockers,
   tryStraighten,
   sharedTrunkConflict,
-  laneContextFor,
 } from './layout/route-lanes.ts'
 import { tightenOuterFeedback, feedbackDetourKind } from './layout/route-feedback.ts'
 import { createSelfLoopRouter } from './layout/route-self-loops.ts'
@@ -1331,7 +1333,8 @@ function repairSharedLabelChannel(edge: PositionedEdge, positioned: { nodes: Pos
   ctx.fixedLabels = true; ctx.finalLabelClearance = true
   const nodes = indexRouteNodes(positioned.nodes), source = nodes.get(edge.source), target = nodes.get(edge.target)
   if (!source || !target) return false
-  const hook = terminalHookLength(style, edge)
+  const hooks = { start: terminalHookLength(style, edge, 'start'), end: terminalHookLength(style, edge, 'end') }
+  const retainedLead = { start: terminalRunLength(points, true), end: terminalRunLength(points, false) }
   const stemAxis = same ? cross : axis
   const stems = [next[stemAxis], previous[stemAxis], ...boundaries(stemAxis, 0, false)]
   const markers: NonNullable<ReturnType<typeof routeMarkerPaintRegions>> = []
@@ -1364,15 +1367,17 @@ function repairSharedLabelChannel(edge: PositionedEdge, positioned: { nodes: Pos
     })) return false
     return !hasDirectLaneBlocker({ ...edge, label: undefined }, p[cross], lo, hi, ctx, { main, cross, sign: p[main] > q[main] ? 1 : -1 })
   }
-  const spurs = (port: Point, old: Point, sign: number, lane: number): Point[][] => {
-    let lead = hook
+  const spurs = (port: Point, old: Point, sign: number, lane: number, position: 'start' | 'end'): Point[][] => {
+    let lead = hooks[position]
     for (const marker of markers) {
       const b = marker.bounds!
       if (port.x < b.x0 - shaftHalf || port.x > b.x1 + shaftHalf || port.y < b.y0 - shaftHalf || port.y > b.y1 + shaftHalf) continue
       const far = axis === 'x' ? sign > 0 ? b.x1 : b.x0 : sign > 0 ? b.y1 : b.y0
       lead = Math.max(lead, sign * (far - port[axis]) + shaftHalf + EPS)
     }
-    const minimum = Math.min(lead, Math.abs(old[axis] - port[axis]))
+    // Retain an existing short terminal verbatim; new turns use their own
+    // marker allowance, including through redundant collinear waypoints.
+    const minimum = Math.min(lead, retainedLead[position])
     const normal = { ...port, [axis]: port[axis] + sign * minimum }
     const choices = [...new Set([same ? port[cross] : normal[axis], ...stems])].filter(value => same || sign * (value - port[axis]) >= minimum)
       .sort((a, b) => Math.abs(a - port[stemAxis]) - Math.abs(b - port[stemAxis]) || a - b)
@@ -1392,8 +1397,8 @@ function repairSharedLabelChannel(edge: PositionedEdge, positioned: { nodes: Pos
   const crossingsBefore = peers.map(other => countPointPairCrossings(points, other.points))
   let best: { points: Point[]; label?: Point; crossings: number } | undefined
   channels: for (const lane of [...new Set(lanes)].slice(0, 128)) {
-    if (same && (from * (lane - start[axis]) < hook || to * (lane - end[axis]) < hook)) continue
-    const heads = spurs(start, next, from, lane), tails = spurs(end, previous, to, lane)
+    if (same && (from * (lane - start[axis]) < hooks.start || to * (lane - end[axis]) < hooks.end)) continue
+    const heads = spurs(start, next, from, lane, 'start'), tails = spurs(end, previous, to, lane, 'end')
     for (const head of heads) for (const tail of tails) {
       const a = head.at(-1)!, b = tail.at(-1)!
       const route = simplifyPolyline([...head, ...tail.toReversed()])
@@ -1832,6 +1837,32 @@ function collapseTinyEndpointSegments(nodes: readonly PositionedNode[], edges: r
       edge.points = candidate
       recertifyReroutedEdge(edge, saved, nodeMap.get(edge.source), nodeMap.get(edge.target))
     }
+  }
+}
+
+/** Restore endpoint lead lost by late obstacle/port rewrites. Runs before label
+ * seating; the final closer retains its bend-removal-only contract. */
+export function repairMarkerTerminals(positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] }, graph: Pick<MermaidGraph, 'direction'>, style: LabelMetricsStyle): void {
+  let terminalContext: ReturnType<typeof laneContextFor> | undefined
+  for (const edge of positioned.edges) {
+    if (edge.style === 'invisible' || edge.points.length < 3 || !edge.hasArrowStart && !edge.hasArrowEnd) continue
+    const clearance = graphEdgeTerminalClearance(edge, style)
+    if (terminalRunLength(edge.points, true) + 1e-7 >= clearance.start && terminalRunLength(edge.points, false) + 1e-7 >= clearance.end) continue
+    const points = extendTerminalRuns(edge.points, clearance)
+    if (!points) continue
+    terminalContext ??= laneContextFor(positioned.nodes, positioned.edges, graph.direction, style, positioned.groups)
+    const { ctx } = terminalContext
+    const source = ctx.nodes.find(node => node.id === edge.source), target = ctx.nodes.find(node => node.id === edge.target)
+    const candidate = { ...edge, points }
+    if (invalidEndpointApproaches(candidate, source, target) || routeAddsCrossings(points, edge, ctx) || !routeCandidateMarkersClear(edge, points, positioned.edges, style)) continue
+    let clear = true
+    for (let i = 1; i < points.length && clear; i++) {
+      const a = points[i - 1]!, b = points[i]!, axis = axisFor(a.x === b.x ? 'TB' : 'LR')
+      clear = !hasDirectLaneBlocker(edge, a[axis.cross], Math.min(a[axis.main], b[axis.main]), Math.max(a[axis.main], b[axis.main]), ctx, axis)
+    }
+    if (!clear) continue
+    edge.points = points
+    recertifyReroutedEdge(edge, edge.routeCertificate, source, target)
   }
 }
 

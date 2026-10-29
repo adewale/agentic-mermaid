@@ -1426,11 +1426,12 @@ function parseEdgeLine(
   // here as well for labels containing unmatched quote-like characters, where
   // the conservative splitter intentionally leaves the line intact.
   let remaining = line.trim().replace(/;\s*$/, '').trim()
+  const nodeNotes = notes ? flowchartNodeNotes(remaining, notes) : undefined
 
   // Parse the first node group (possibly with & separators). A structured
   // statement is admitted only when every non-whitespace token is consumed;
   // publishing a parsed prefix would silently invent/drop authored content.
-  const firstGroup = consumeNodeGroup(remaining, graph, subgraphStack, declaredSubgraphIds, notes)
+  const firstGroup = consumeNodeGroup(remaining, graph, subgraphStack, declaredSubgraphIds, nodeNotes)
   if (!firstGroup || firstGroup.ids.length === 0) {
     return { ok: false, remaining, reason: 'expected node' }
   }
@@ -1511,7 +1512,7 @@ function parseEdgeLine(
     }
 
     // Parse the next node group
-    const nextGroup = consumeNodeGroup(remaining, graph, subgraphStack, declaredSubgraphIds, notes)
+    const nextGroup = consumeNodeGroup(remaining, graph, subgraphStack, declaredSubgraphIds, nodeNotes)
     if (!nextGroup || nextGroup.ids.length === 0) {
       return { ok: false, remaining, reason: 'expected edge target' }
     }
@@ -1568,7 +1569,7 @@ function consumeNodeGroup(
   graph: MermaidGraph,
   subgraphStack: MermaidSubgraph[],
   declaredSubgraphIds: Set<string>,
-  notes?: Set<FlowchartStatementNote>): ConsumedNodeGroup | null {
+  notes?: FlowchartNodeNotes): ConsumedNodeGroup | null {
   const first = consumeNode(text, graph, subgraphStack, declaredSubgraphIds, notes)
   if (!first) return null
 
@@ -1696,7 +1697,7 @@ function consumeQuotedShapeNode(
   text: string,
   graph: MermaidGraph,
   subgraphStack: MermaidSubgraph[],
-  notes?: Set<FlowchartStatementNote>): ConsumedNode | null {
+  notes?: FlowchartNodeNotes): ConsumedNode | null {
   const identifier = consumeBareNodeId(text)
   if (!identifier) return null
   const suffix = text.slice(identifier.length)
@@ -1731,7 +1732,7 @@ function consumeNode(
   graph: MermaidGraph,
   subgraphStack: MermaidSubgraph[],
   declaredSubgraphIds: Set<string>,
-  notes?: Set<FlowchartStatementNote>): ConsumedNode | null {
+  notes?: FlowchartNodeNotes): ConsumedNode | null {
   const metadataNode = consumeMetadataNode(text, graph, subgraphStack)
   if (metadataNode) {
     let remaining = metadataNode.remaining
@@ -1812,12 +1813,36 @@ function consumeNode(
 
   // Upstream's lexer reads a run without blanks or `"` from a node's start to
   // an `@` (not `@{`) as an edge id (`A[a@b]` is the edge id `A[a` there).
-  if (NODE_RUN_EDGE_ID_RE.test(text)) notes?.add('node-edge-id')
+  if (notes?.nodeEdgeId(text)) notes.add('node-edge-id')
   if (parserObservationActive('flowchart')) observeParserToken('flowchart', 'node', text.slice(0, text.length - remaining.length))
   return { id, remaining }
 }
 
-const NODE_RUN_EDGE_ID_RE = /^[^\s"]+@(?![{"])/
+interface FlowchartNodeNotes {
+  add(note: FlowchartStatementNote): void
+  nodeEdgeId(suffix: string): boolean
+}
+
+/** Index the diagnostic's /^[^\s"]+@(?![{"])/ once, rather than scanning
+ * the remaining chain at every node. Node consumers only take suffixes of
+ * this trimmed statement, so their length gives the original offset. */
+function flowchartNodeNotes(statement: string, notes: Set<FlowchartStatementNote>): FlowchartNodeNotes {
+  const edgeIds = new Uint8Array(statement.length)
+  let reachesEdgeId = false
+  for (let index = statement.length - 1; index >= 0; index--) {
+    const char = statement[index]!
+    if (/[\s"]/.test(char)) reachesEdgeId = false
+    else {
+      edgeIds[index] = reachesEdgeId ? 1 : 0
+      // An @ needs at least one preceding character in the same run.
+      if (char === '@' && statement[index + 1] !== '{' && statement[index + 1] !== '"') reachesEdgeId = true
+    }
+  }
+  return {
+    add: note => { notes.add(note) },
+    nodeEdgeId: suffix => edgeIds[statement.length - suffix.length] === 1,
+  }
+}
 /** A pipe label's text from its opening pipe to an `@` without a blank or
  * `"`, which upstream's lexer reads, with the pipe, as an edge id. */
 const PIPE_LABEL_EDGE_ID_RE = /^[^\s"]*@(?![{"])/
