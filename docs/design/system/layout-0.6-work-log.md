@@ -3326,3 +3326,20 @@ next integration will require own descriptor values before reading them and
 omit the unbounded Native shortcut, retaining paid recursive admission. It must
 also preserve this milestone's fresh group/context checks and all exact-body,
 own-stroke, background and global-witness authority. No new issue/PR was filed.
+
+### 29 October: correction of planning authority
+
+The owner challenged the mandatory human-study requirement and the authority of
+the qualification document. The assistant introduced that formal acceptance
+contract at `795b2b4c62b595cc904802aa25aaafe8ae54df62`; the owner's six goals
+and release timeline did not approve the additional study, statistical margins
+or all-or-nothing completion gates. Calling the document "owner-directed" was
+an unsupported attribution. The plan and TODO now distinguish the requested
+goals from assistant-proposed methods. A human panel, study administrator and
+participant recruitment are optional research and do not block completion.
+Earlier log entries describing six binding contracts or missing humans as a
+blocker are superseded by this correction; their historical test results remain.
+No production check, budget, correctness expectation or existing CI gate is
+relaxed. Continue concrete fixes and honest actual-render/metric comparisons,
+reporting each measured domain and counterexample. Existing sealed artifacts
+remain sealed under their custody rules; they do not create a new release gate.
