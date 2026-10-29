@@ -473,15 +473,15 @@ function svgPassCases(workload: Workload): MicroCase[] {
 
 function sourceMutationCases(): MicroCase[] {
   return (['class', 'flowchart'] as const).flatMap(family => [32, 256, 2048].flatMap(size =>
-    (['noop', 'edit', 'chain10'] as const).filter(track => family !== 'class' || track !== 'noop').map(track => ({
+    (['noop', 'edit', 'chain10', 'edit-entities'] as const).filter(track => family !== 'class' || track === 'edit' || track === 'chain10').map(track => ({
       id: `source-edit:${family}:${size}:${track}`,
-      description: `${size} authored nodes; ${track === 'chain10' ? 'ten sequential source edits' : track === 'noop' ? 'exact-byte no-op label' : 'one source edit'}; complete JSON result consumed`,
+      description: `${size} authored nodes; ${track === 'chain10' ? 'ten sequential source edits' : track === 'noop' ? 'exact-byte no-op label' : track === 'edit-entities' ? 'one source edit with distinct authored/render text' : 'one source edit'}; complete JSON result consumed`,
       async setup() {
         const api = await src.agent()
         if (typeof api.mutatePreservingSource !== 'function') throw new Error('Source-preserving mutation is unavailable at this revision')
         const source = family === 'class'
           ? `classDiagram\nnamespace \`~\` {\n${Array.from({ length: size }, (_, i) => `class N${i}`).join('\n')}\n}\n`
-          : `flowchart TD\n${Array.from({ length: size }, (_, i) => `N${i}[Node ${i}]`).join('\n')}\nclassDef retained border:1px s:::colid red\n`
+          : `flowchart TD\n${Array.from({ length: size }, (_, i) => `N${i}[Node ${i}${track === 'edit-entities' && i > 0 ? ' &amp; Control' : ''}]`).join('\n')}\nclassDef retained border:1px s:::colid red\n`
         const parsed = api.parseRegisteredMermaid(source)
         if (!parsed.ok || parsed.value.body.kind !== 'opaque') throw new Error('Expected a source-preserved benchmark input')
         const edits = track === 'chain10' ? 10 : 1
@@ -499,8 +499,10 @@ function sourceMutationCases(): MicroCase[] {
         }
         const output = JSON.parse(call()) as { source: string }
         if (!output.source.startsWith(source) || track === 'noop' && output.source !== source) throw new Error('Source frame check failed')
+        const normalization = family === 'flowchart' ? await src.source() : undefined
         return { call, input: source, evidence: { family, nodes: size, edits, sourceBytes: new TextEncoder().encode(source).length,
           outputBytes: new TextEncoder().encode(output.source).length, sourceGrowthBytes: new TextEncoder().encode(output.source.slice(source.length)).length,
+          ...(normalization ? { authoredRenderViewsEqual: normalization.normalizeMermaidSource(source).familyBody === normalization.normalizeMermaidRenderSource(source).familyBody } : {}),
           scope: 'Warm pre-parsed input; complete source/diagram JSON materialization timed. No verify/layout/render; allocation estimates exclude native memory.' } }
       },
       check: nonEmptyString,

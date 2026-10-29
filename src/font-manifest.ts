@@ -1,3 +1,4 @@
+import { PACKAGE_VERSION } from './version.ts'
 import { createExtensionIdentity } from './shared/extension-identity.ts'
 import {
   RESOURCE_MANIFEST_VERSION,
@@ -59,7 +60,7 @@ export const HOSTED_FONT_RESOURCES: readonly HostedFontResource[] = Object.freez
       id: `resource:${fontResourceLocalId(face)}`,
       kind: 'resource',
       version: '1.0.0',
-      compatibility: { core: '^0.4.0' },
+      compatibility: { core: PACKAGE_VERSION },
       provenance: { owner: 'agentic-mermaid', source: 'bundled', reference: `assets/fonts/${face.file}` },
     }),
   })),

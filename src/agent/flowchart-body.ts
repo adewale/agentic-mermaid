@@ -738,6 +738,15 @@ export function mutateFlowchart(body: FlowchartBody, op: FlowchartMutationOp): R
   return mutateFlowchartGraph(cloneGraph(body.graph), op)
 }
 
+/** Each interpretation remains independent unless its exact parser input is
+ * identical. Reuse is private to this call; public diagrams are never cached. */
+function readFlowchartSourceViews(source: string): readonly [MermaidGraph, MermaidGraph] {
+  const authored = normalizeMermaidSource(source).familyBody
+  const graph = parseFlowchartLegacy(authored)
+  const rendered = normalizeMermaidRenderSource(source).familyBody
+  return [graph, authored === rendered ? graph : parseFlowchartLegacy(rendered)]
+}
+
 /** Rename only lexical node occurrences owned by the existing flowchart
  * scanner. Directive references require their own ownership and stay refused. */
 function renameFlowchartSource(source: string, op: Extract<FlowchartMutationOp, { kind: 'rename_node' }>, before: readonly MermaidGraph[]): Result<readonly SourceEdit[], MutationError> {
@@ -767,16 +776,16 @@ function renameFlowchartSource(source: string, op: Extract<FlowchartMutationOp, 
   }
   if (!edits.size) return refuse()
   const plan = [...edits.values()], candidate = applySourceEdits(source, plan)
-  const views = [normalizeMermaidSource, normalizeMermaidRenderSource]
+  const after = readFlowchartSourceViews(candidate)
   for (const [index, graph] of before.entries()) {
+    if (index === 1 && graph === before[0] && after[1] === after[0]) continue
     const expected = mutateFlowchart({ kind: 'flowchart', graph }, op)
     if (!expected.ok) return expected
     // A source rename substitutes identity at its existing declaration ordinal;
     // ordinary canonical mutation's Map reinsertion is not a requested reorder.
     const rename = (id: string) => id === op.from ? op.to : id
     expected.value.graph.nodes = new Map([...graph.nodes.keys()].map(id => [rename(id), expected.value.graph.nodes.get(rename(id))!]))
-    const actual = parseFlowchartLegacy(views[index]!(candidate).familyBody)
-    if (!sameSourceMeaning(expected.value.graph, actual)) return refuse()
+    if (!sameSourceMeaning(expected.value.graph, after[index])) return refuse()
   }
   return ok(plan)
 }
@@ -785,20 +794,21 @@ function renameFlowchartSource(source: string, op: Extract<FlowchartMutationOp, 
 export function mutateFlowchartSource(source: string, op: FlowchartMutationOp): Result<readonly SourceEdit[], MutationError> {
   if (op.kind !== 'set_label' && op.kind !== 'rename_node') return err({ code: 'INVALID_OP', message: 'Source-preserving Flowchart edits support set_label and owned rename_node only' })
   try {
-    const views = [normalizeMermaidSource, normalizeMermaidRenderSource]
-    const before = views.map(normalize => parseFlowchartLegacy(normalize(source).familyBody))
+    const before = readFlowchartSourceViews(source)
     if (op.kind === 'rename_node') return renameFlowchartSource(source, op, before)
     if (before.some(graph => !graph.nodes.has(op.target))) return err({ code: 'NODE_NOT_FOUND', message: `Source-preserving Flowchart label target "${op.target}" must name an existing native node in both source views` })
     const label = op.label.trim()
     if (before.every(graph => graph.nodes.get(op.target)!.label === label)) return ok([])
-    const expected = before.map(graph => mutateFlowchart({ kind: 'flowchart', graph }, op))
+    const first = mutateFlowchart({ kind: 'flowchart', graph: before[0] }, op)
+    const expected = [first, before[1] === before[0] ? first : mutateFlowchart({ kind: 'flowchart', graph: before[1] }, op)]
     const edits = appendSourceStatement(source, `${op.target}@{ label: ${quoteMetadataLabel(label)} }`)
     const candidate = applySourceEdits(source, edits)
-    for (let index = 0; index < views.length; index++) {
+    const after = readFlowchartSourceViews(candidate)
+    for (let index = 0; index < before.length; index++) {
+      if (index === 1 && before[1] === before[0] && after[1] === after[0]) continue
       const result = expected[index]!
       if (!result.ok) return result
-      const actual = parseFlowchartLegacy(views[index]!(candidate).familyBody)
-      if (!sameSourceMeaning(result.value.graph, actual)) return err({ code: 'INVALID_OP', message: 'Source-preserving Flowchart label cannot be written without changing the requested value or another native graph field' })
+      if (!sameSourceMeaning(result.value.graph, after[index])) return err({ code: 'INVALID_OP', message: 'Source-preserving Flowchart label cannot be written without changing the requested value or another native graph field' })
     }
     return ok(edits)
   } catch (error) {

@@ -199,7 +199,7 @@ test('Class cached producer admission remains bound to the actually selected pai
     const id = 'backend:test/class-marker-admission-cache'
     const unregister = registerBackend({ ...DefaultBackend, id,
       capabilities: DefaultBackend.capabilities.map(claim => ({ ...claim, target: id })) },
-      { compatibility: { core: '^0.4.0', scene: '^2.0.0' } })
+      { compatibility: { core: '^0.5.0', scene: '^2.0.0' } })
     let nativeCalls = 0, elkCalls = 0, policyCalls = 0
     const source = 'classDiagram\\nclass S\\nclass T\\nS o-- T\\nS <|-- T'
     const paths = [

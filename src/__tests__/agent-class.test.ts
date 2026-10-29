@@ -32,8 +32,10 @@ describe('class — explicit source-preserving member edits', () => {
 
   test.each([
     ['classDiagram\nnamespace `~`{class `P`}', 'P'],
+    ['classDiagram\nnamespace `~` {class P; class Q}\nP --> Q : Keep relation\nclick P href "https://example.com" "Keep tooltip"', 'P'],
     ['classDiagram\nnamespace `~T~A::B` {\n\tclass `IPC::Sender`\n}', 'IPC::Sender'],
     ['classDia&#103;ram\nnamespace `~` {\nclass P["Keep &amp;amp; label"]\n}', 'P'],
+    ['classDiagram\nnamespace `~` {\nclass P\n}\nclick P href "https://example.com" "Keep &quot;tooltip&quot;"', 'P'],
     ['---\r\ntitle: Delivery\r\n---\r\n%% keep wrapper\r\nclassDiagram\r\naccTitle: Classes\r\ndirection LR\r\nnamespace `~`["Keep group"] {\r\nclass P["Keep label"] {\r\n+String name\r\n}\r\n}\r\nclass Q\r\nP --> Q : Keep relation\r\nnote for P "Keep note"\r\nclass P:::hot\r\nclassDef hot fill:#f96\r\nstyle P stroke:#333\r\nclick P href "https://example.com" "Keep tooltip"\r\n', 'P'],
   ] as const)('preserves original bytes and every unrelated native field in %s', (source, id) => {
     const original = parse(source)
