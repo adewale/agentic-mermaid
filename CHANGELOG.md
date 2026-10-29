@@ -11,6 +11,10 @@ GitHub could not allocate a macOS arm64 runner; its source tag is retained.
 
 ### Fixed
 
+- Keep styled arrowheads clear of connector bends in Flowchart, Architecture,
+  Block, Class, Requirement, C4, Event Modeling and Gantt dependencies by
+  reserving the painted marker depth plus 4 px of straight shaft through
+  routing and rounding.
 - Run the required macOS release build and rendering contracts on a standard
   Intel macOS 26 runner. Windows coverage, the rendering suite, build heap
   allowance and verified-artifact publication gates are unchanged.
