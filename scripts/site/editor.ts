@@ -19,10 +19,11 @@
 
 import { runtimeRenderContractPlugin } from '../build/runtime-render-contract.ts'
 import { minifyBrowserRuntime } from '../build/runtime-minify.ts'
+import { browserOptimizerRecipe, compactBunBrowserModules } from '../build/compact-browser-modules.ts'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gzipSync } from 'node:zlib'
-import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
+import { editorExamplesDataJs } from './editor-example-data.ts'
 import { HOSTED_FONT_RESOURCES, hostedFontFaceCss } from '../../src/font-manifest.ts'
 import { knownStyleDescriptors } from '../../src/scene/style-registry.ts'
 import { EDITOR_SUPPORTED_FAMILY_LIST } from '../../src/editor-family-data.ts'
@@ -35,8 +36,7 @@ const editorDir = fileURLToPath(new URL('../../editor/', import.meta.url))
 async function readFile(relativePath: string): Promise<string> {
   const file = Bun.file(join(editorDir, relativePath))
   const contents = await file.text()
-  // Keep authoring notes in source without shipping them in the controls.
-  return relativePath.startsWith('html/') ? contents.replace(/<!--[\s\S]*?-->/g, '') : contents
+  return contents
 }
 
 async function readCssFiles(fontPrefix: string, hosted: boolean): Promise<string> {
@@ -61,10 +61,6 @@ async function readCssFiles(fontPrefix: string, hosted: boolean): Promise<string
   return hostedFontFaceCss(fontPrefix) + '\n' + (await result.outputs[0]!.text())
 }
 
-function editorExamplesDataJs(): string {
-  return `var EDITOR_EXAMPLES = ${JSON.stringify(EDITOR_EXAMPLES)};`
-}
-
 function editorFamilyDataJs(): string {
   return `var SUPPORTED_FAMILY_LIST = ${JSON.stringify(EDITOR_SUPPORTED_FAMILY_LIST)};`
 }
@@ -86,11 +82,12 @@ async function readJsFiles(): Promise<string> {
     entrypoints: [join(editorDir, 'js/entry.js')],
     target: 'browser',
     format: 'iife',
-    minify: true,
+    minify: { whitespace: true, syntax: false, identifiers: false },
   })
   if (!result.success) throw new AggregateError(result.logs, 'Editor application bundle failed')
-  const app = await minifyBrowserRuntime(await result.outputs[0]!.text())
-  return [editorExamplesDataJs(), editorFamilyDataJs(), editorFontDataJs(), app].join('\n')
+  // Compress the complete application module so catalog literals and their
+  // consumers share one scope; keep every catalog value available to the UI.
+  return minifyBrowserRuntime([editorExamplesDataJs(), editorFamilyDataJs(), editorFontDataJs(), await result.outputs[0]!.text()].join('\n'), ['EDITOR_EXAMPLES', 'EDITOR_PRESET_FONTS'])
 }
 
 function escapeHtmlAttr(value: string): string {
@@ -109,7 +106,7 @@ function styleItemsHtml(): string {
       const hint = descriptor.spec.blurb ? `${label}: ${descriptor.spec.blurb}` : label
       return `<button class="theme-dropdown-item${descriptor.isDefault ? ' active' : ''}" type="button" role="option" aria-selected="${descriptor.isDefault ? 'true' : 'false'}" data-style="${key}" title="${escapeHtmlAttr(hint)}" aria-label="${escapeHtmlAttr(hint)}">${label}</button>`
     })
-    .join('\n      ')
+    .join('\n')
 }
 
 function themeItemsHtml(): string {
@@ -124,7 +121,7 @@ function themeItemsHtml(): string {
       const swatch = descriptor.spec.colors?.bg ?? 'transparent'
       return `<button class="theme-dropdown-item" type="button" role="option" aria-selected="false" data-theme="${key}"><span class="theme-swatch" style="background:${swatch}"></span>${label}</button>`
     }),
-  ].join('\n      ')
+  ].join('\n')
 }
 
 function pngScaleItemsHtml(): string {
@@ -134,7 +131,7 @@ function pngScaleItemsHtml(): string {
       const active = scale === PNG_DEFAULT_SCALE
       return `<button class="size-pill${active ? ' active' : ''}" type="button" data-scale="${scale}" aria-pressed="${active ? 'true' : 'false'}">${scale}&times;</button>`
     })
-    .join('\n          ')
+    .join('\n')
 }
 
 async function readHtmlPartials(
@@ -148,7 +145,7 @@ async function readHtmlPartials(
   // Compact static markup before inserting catalogs or runtime code. Preserve
   // preformatted and raw-text elements, including any literal comment text.
   const readPartial = async (path: string): Promise<string> => (await readFile(path)).replace(
-    /<(pre|textarea|script|style)\b[^>]*>[\s\S]*?<\/\1\s*>|<!--[\s\S]*?-->|^[\t ]+(?=<)/gim,
+    /<(pre|textarea|script|style)\b[^>]*>[\s\S]*?<\/\1\s*>|<!--[\s\S]*?-->|^[\t ]+/gim,
     (markup, rawTag) => rawTag ? markup : '',
   )
   const [topbar, leftPanel, rightPanel] = await Promise.all([
@@ -236,11 +233,13 @@ async function generateEditorHtml(): Promise<string> {
       entrypoints: [fileURLToPath(new URL('../../src/browser-hosted.ts', import.meta.url))],
       plugins: runtimePlugins,
       target: 'browser', format: 'esm', minify: true,
+      banner: `/* browser optimizer recipe ${browserOptimizerRecipe()} */`,
       define: { AM_PREVIEW_WORKER_URL: JSON.stringify(workerUrl) },
       splitting: true, outdir: runtimeDirectory,
       naming: { entry: '[name]-[hash].js', chunk: 'chunk-[hash].js' },
     })
     if (!buildResult.success) throw new AggregateError(buildResult.logs, 'Hosted editor runtime build failed')
+    await compactBunBrowserModules(buildResult.outputs)
     // Bun materializes outputs when outdir is set. Writing a file-backed
     // BuildArtifact onto its own path would truncate the emitted module.
     const entry = buildResult.outputs.find(output => output.kind === 'entry-point')
@@ -250,7 +249,8 @@ async function generateEditorHtml(): Promise<string> {
     const buildResult = await Bun.build({
       entrypoints: [fileURLToPath(new URL('../../src/browser-standalone.ts', import.meta.url))],
       plugins: runtimePlugins,
-      target: 'browser', format: 'esm', minify: true,
+      // SWC owns syntax/identifier compression once; retain Bun's whitespace pass.
+      target: 'browser', format: 'esm', minify: { whitespace: true, syntax: false, identifiers: false },
       metafile: Boolean(metafilePath),
     })
     if (!buildResult.success) throw new AggregateError(buildResult.logs, 'Standalone editor runtime build failed')
@@ -275,15 +275,15 @@ async function generateEditorHtml(): Promise<string> {
   const document = `<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
-  <title>Agentic Mermaid – Live Editor</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-  <link rel="icon" type="image/x-icon" href="favicon.ico" />
-  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
-  <style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
+<title>Agentic Mermaid – Live Editor</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg" />
+<link rel="icon" type="image/x-icon" href="favicon.ico" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<style>
 ${css}
-  </style>
+</style>
 </head>
 <body>
 
@@ -291,24 +291,24 @@ ${html.topbar}
 
 <main class="main" id="editor-main" aria-label="Mermaid editor workspace">
 
-  <aside class="examples-sidebar" id="examples-sidebar" aria-label="Example diagrams" aria-hidden="true" inert>
-    <div class="examples-sidebar-inner">
-      <div class="examples-sidebar-header">
-        <span>Examples</span>
-        <button class="toolbar-btn" id="examples-sidebar-close" type="button" title="Close examples sidebar" aria-label="Close examples sidebar">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"/>
-            <line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        </button>
-      </div>
-      <div class="examples-sidebar-list" id="examples-sidebar-list"></div>
-    </div>
-  </aside>
+<aside class="examples-sidebar" id="examples-sidebar" aria-label="Example diagrams" aria-hidden="true" inert>
+<div class="examples-sidebar-inner">
+<div class="examples-sidebar-header">
+<span>Examples</span>
+<button class="toolbar-btn" id="examples-sidebar-close" type="button" title="Close examples sidebar" aria-label="Close examples sidebar">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<line x1="18" y1="6" x2="6" y2="18"/>
+<line x1="6" y1="6" x2="18" y2="18"/>
+</svg>
+</button>
+</div>
+<div class="examples-sidebar-list" id="examples-sidebar-list"></div>
+</div>
+</aside>
 
 ${html.leftPanel}
 
-  <div class="resize-handle" id="resize-handle" role="separator" tabindex="0" aria-label="Resize source and preview panels" aria-orientation="vertical" aria-valuemin="280" aria-valuemax="75" aria-valuenow="42" aria-valuetext="Source panel width 42 percent"></div>
+<div class="resize-handle" id="resize-handle" role="separator" tabindex="0" aria-label="Resize source and preview panels" aria-orientation="vertical" aria-valuemin="280" aria-valuemax="75" aria-valuenow="42" aria-valuetext="Source panel width 42 percent"></div>
 
 ${html.rightPanel}
 

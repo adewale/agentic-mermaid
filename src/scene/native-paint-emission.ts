@@ -2,12 +2,12 @@ import type { SceneNode, SceneDoc, ConnectorMark } from './ir.ts'
 import type { ScenePaintGeometryInspection, ScenePaintGeometry } from './inspection.ts'
 import { scanSvgStartTags, decodedSvgAttributeValue } from '../svg-structure.ts'
 import { serializeMarkerResource } from './marker-resources.ts'
-import { transferRetainedPixelText } from '../shared/prepared-text.ts'
+import { isImmutablePixelTextPart, transferRetainedPixelText } from '../shared/prepared-text.ts'
 import { formatSvgNumber } from '../shared/svg-number.ts'
 import { safeCssFontFamily } from '../shared/css-font.ts'
-import { parseSvgTransform } from './transforms.ts'
 import { deferredTerminalProjectionInput, copyDeferredTerminalProjection } from './deferred-terminal-projection.ts'
 import { transferSceneNodeSerialization } from './serialization.ts'
+import { retainedGroupEmission } from './marks.ts'
 
 export const MAX_OCCLUSION_OPERATIONS = 400_000
 
@@ -38,6 +38,7 @@ export function createNativePaintEmission(maxOperations: number) {
     if (value === null || value === undefined || typeof value === 'boolean') return value
     if (typeof value === 'number' || typeof value === 'string') return value
     if (typeof value !== 'object' || !pay() || parents.has(value)) throw failed
+    if (isImmutablePixelTextPart(value)) return value
     const prototype = Object.getPrototypeOf(value)
     if (prototype !== Object.prototype && prototype !== null && prototype !== Array.prototype) throw failed
     // The object-entry visit covers constant prototype/reflection work. Key
@@ -175,17 +176,12 @@ export function createNativePaintEmission(maxOperations: number) {
       }
       return captured
     },
-    group(shell: Extract<SceneNode, { kind: 'group' }>) {
-      if (!pay(shell.open.length * 8)) return undefined
-      const tag = scanSvgStartTags(shell.open)[0]
-      if (!tag || tag.name !== 'g') { uncertain = true; return undefined }
-      const opacity = decodedSvgAttributeValue(tag, 'opacity')
-      if (opacity !== shell.paint?.opacity || shell.paint?.fill !== undefined || decodedSvgAttributeValue(tag, 'style') !== undefined) uncertain = true
-      const transform = decodedSvgAttributeValue(tag, 'transform')
-      if (transform === undefined) return undefined
-      const matrix = parseSvgTransform(transform)
-      if (!matrix) uncertain = true
-      return matrix && Object.freeze(matrix)
+    group(shell: Extract<SceneNode, { kind: 'group' }>, original?: object) {
+      const retained = original && retainedGroupEmission(original)
+      if (!pay(3)) return undefined
+      if (!retained || retained.open !== shell.open || retained.opacity !== shell.paint?.opacity) { uncertain = true; return undefined }
+      if (retained.style || shell.paint?.fill !== undefined) uncertain = true
+      return retained.matrix
     },
     observe(node: Leaf, svg: string): boolean {
       // Reserve the actual occurrence's custody records before inspection.

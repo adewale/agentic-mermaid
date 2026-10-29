@@ -4,6 +4,7 @@ import type { LabelDisplay } from '../multiline-utils.ts'
 import type { TextTransform } from '../types.ts'
 import { parseInlineFormatting, serializeStyledSegment, FORMAT_TAG_SOURCE, type StyledSegment } from './inline-format.ts'
 import { graphemes } from './graphemes.ts'
+import { createImmutableParts } from './immutable-parts.ts'
 import { sanitizeTextControls } from './text-controls.ts'
 
 export interface DisplayRun extends Readonly<StyledSegment> {
@@ -22,16 +23,18 @@ export interface PreparedDisplayText {
 
 const displayPlans = new WeightedLru<string, PreparedDisplayText>(512, 4 * 1024 * 1024)
 const retainedPlans = new WeakSet<object>()
+const immutableDisplayParts = createImmutableParts()
+export function isImmutableDisplayTextPart(value: object): boolean { return immutableDisplayParts.has(value) }
 function retainPlan(plan: PreparedDisplayText): PreparedDisplayText { retainedPlans.add(plan); return plan }
 
 /** Capture a supplied interpretation without reading its source a second time. */
 function immutablePlan(plan: PreparedDisplayText): PreparedDisplayText {
   if (retainedPlans.has(plan)) return plan
-  return retainPlan(Object.freeze({
+  return retainPlan(immutableDisplayParts.freeze({
     source: plan.source, display: plan.display, ...(plan.transform ? { transform: plan.transform } : {}),
-    lineStarts: Object.freeze([...plan.lineStarts]),
-    lines: Object.freeze(plan.lines.map(line => Object.freeze(line.map(run => Object.freeze({
-      ...run, ...(run.clusters ? { clusters: Object.freeze(run.clusters.map(cluster => Object.freeze({ ...cluster }))) } : {}),
+    lineStarts: immutableDisplayParts.freeze([...plan.lineStarts]),
+    lines: immutableDisplayParts.freeze(plan.lines.map(line => immutableDisplayParts.freeze(line.map(run => immutableDisplayParts.freeze({
+      ...run, ...(run.clusters ? { clusters: immutableDisplayParts.freeze(run.clusters.map(cluster => immutableDisplayParts.freeze({ ...cluster }))) } : {}),
     }))))),
   }))
 }
@@ -63,7 +66,7 @@ export function replaceDisplayTextTokens(prepared: PreparedDisplayText, pattern:
   prepared = immutablePlan(prepared)
   if (prepared.transform) throw new TypeError('Display tokens must be decoded before text transforms')
   const tokens = new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : pattern.flags + 'g')
-  const lines = prepared.lines.map(line => Object.freeze(line.map(run => {
+  const lines = prepared.lines.map(line => immutableDisplayParts.freeze(line.map(run => {
     const sourceStarts: number[] = [], sourceEnds: number[] = []
     for (const cluster of run.clusters ?? [{ text: run.text, sourceStart: run.sourceStart, sourceEnd: run.sourceEnd }]) {
       for (let index = 0; index < cluster.text.length; index++) {
@@ -74,7 +77,7 @@ export function replaceDisplayTextTokens(prepared: PreparedDisplayText, pattern:
     const append = (text: string, start: number, end: number, decoded: boolean): void => {
       let offset = start
       for (const cluster of graphemes(text)) {
-        clusters.push(Object.freeze({
+        clusters.push(immutableDisplayParts.freeze({
           text: sanitizeTextControls(cluster),
           sourceStart: sourceStarts[decoded ? start : offset] ?? run.sourceStart,
           sourceEnd: sourceEnds[decoded ? end - 1 : offset + cluster.length - 1] ?? run.sourceEnd,
@@ -90,9 +93,9 @@ export function replaceDisplayTextTokens(prepared: PreparedDisplayText, pattern:
       cursor = match.index + match[0].length
     }
     append(run.text.slice(cursor), cursor, run.text.length, false)
-    return Object.freeze({ ...run, text: clusters.map(cluster => cluster.text).join(''), clusters: Object.freeze(clusters) })
+    return immutableDisplayParts.freeze({ ...run, text: clusters.map(cluster => cluster.text).join(''), clusters: immutableDisplayParts.freeze(clusters) })
   })))
-  return retainPlan(Object.freeze({ ...prepared, lines: Object.freeze(lines) }))
+  return retainPlan(immutableDisplayParts.freeze({ ...prepared, lines: immutableDisplayParts.freeze(lines) }))
 }
 
 /** The inverse display layer: encode literal run text before adding its real
@@ -115,14 +118,14 @@ export function concatDisplayText(parts: readonly DisplayTextInput[]): PreparedD
     const offset = source.length
     for (const [index, runs] of prepared.lines.entries()) {
       if (index > 0) { lines.push([]); lineStarts.push(offset + prepared.lineStarts[index]!) }
-      for (const run of runs) lines.at(-1)!.push(Object.freeze({
+      for (const run of runs) lines.at(-1)!.push(immutableDisplayParts.freeze({
         ...run, sourceStart: offset + run.sourceStart, sourceEnd: offset + run.sourceEnd,
-        ...(run.clusters ? { clusters: Object.freeze(run.clusters.map(cluster => Object.freeze({ ...cluster, sourceStart: offset + cluster.sourceStart, sourceEnd: offset + cluster.sourceEnd }))) } : {}),
+        ...(run.clusters ? { clusters: immutableDisplayParts.freeze(run.clusters.map(cluster => immutableDisplayParts.freeze({ ...cluster, sourceStart: offset + cluster.sourceStart, sourceEnd: offset + cluster.sourceEnd }))) } : {}),
       }))
     }
     source += prepared.source
   }
-  return retainPlan(Object.freeze({ source, display, lines: Object.freeze(lines.map(line => Object.freeze(line))), lineStarts: Object.freeze(lineStarts) }))
+  return retainPlan(immutableDisplayParts.freeze({ source, display, lines: immutableDisplayParts.freeze(lines.map(line => immutableDisplayParts.freeze(line))), lineStarts: immutableDisplayParts.freeze(lineStarts) }))
 }
 
 /** Transform visible characters, never serialized formatting instructions. */
@@ -148,7 +151,7 @@ export function prepareDisplayText(source: DisplayTextInput, display: LabelDispl
   if (cacheKey !== undefined) { const cached = displayPlans.get(cacheKey); if (cached) return cached }
   let offset = 0
   const lineStarts: number[] = []
-  const empty = Object.freeze([]) as readonly DisplayRun[]
+  const empty = immutableDisplayParts.freeze([]) as readonly DisplayRun[]
   const lines = source.split('\n').map(line => {
     lineStarts.push(offset)
     if (line === '') { offset++; return empty }
@@ -169,16 +172,16 @@ export function prepareDisplayText(source: DisplayTextInput, display: LabelDispl
     runs = runs.map(run => {
       let sourceAt = run.sourceStart
       const clusters = graphemes(run.text).map(cluster => {
-        const result = Object.freeze({ text: sanitizeTextControls(cluster), sourceStart: sourceAt, sourceEnd: sourceAt + cluster.length })
+        const result = immutableDisplayParts.freeze({ text: sanitizeTextControls(cluster), sourceStart: sourceAt, sourceEnd: sourceAt + cluster.length })
         sourceAt += cluster.length
         return result
       })
-      return Object.freeze({ ...run, text: clusters.map(cluster => cluster.text).join(''), clusters: Object.freeze(clusters) })
+      return immutableDisplayParts.freeze({ ...run, text: clusters.map(cluster => cluster.text).join(''), clusters: immutableDisplayParts.freeze(clusters) })
     })
     offset += line.length + 1
-    return Object.freeze(runs)
+    return immutableDisplayParts.freeze(runs)
   })
-  const prepared = retainPlan(Object.freeze({ source, display, lines: Object.freeze(lines), lineStarts: Object.freeze(lineStarts) }))
+  const prepared = retainPlan(immutableDisplayParts.freeze({ source, display, lines: immutableDisplayParts.freeze(lines), lineStarts: immutableDisplayParts.freeze(lineStarts) }))
   const result = transform ? transformPreparedDisplayText(prepared, transform) : prepared
   if (cacheKey !== undefined) displayPlans.set(cacheKey, result, cacheKey.length * 2 + source.length * 96 + 256)
   return result
@@ -190,16 +193,16 @@ function transformPreparedDisplayText(prepared: PreparedDisplayText, transform: 
     const transformed = transformDisplayText(visible, transform)
     const capitalized = transform === 'capitalize' ? new Set([...visible.matchAll(/(?<![\p{L}\p{M}\p{N}\p{Pc}])\p{L}/gu)].map(match => match.index!)) : undefined
     let at = 0, transformedAt = 0
-    return Object.freeze(line.map(run => {
+    return immutableDisplayParts.freeze(line.map(run => {
       const start = transformedAt
       const clusters = (run.clusters ?? [{ text: run.text, sourceStart: run.sourceStart, sourceEnd: run.sourceEnd }]).map(cluster => {
         const length = transform === 'uppercase' || capitalized?.has(at) ? cluster.text.toUpperCase().length : transform === 'lowercase' ? cluster.text.toLowerCase().length : cluster.text.length
         const text = transformed.slice(transformedAt, transformedAt + length)
         at += cluster.text.length; transformedAt += length
-        return Object.freeze({ ...cluster, text })
+        return immutableDisplayParts.freeze({ ...cluster, text })
       })
-      return Object.freeze({ ...run, text: transformed.slice(start, transformedAt), clusters: Object.freeze(clusters) })
+      return immutableDisplayParts.freeze({ ...run, text: transformed.slice(start, transformedAt), clusters: immutableDisplayParts.freeze(clusters) })
     }))
   })
-  return retainPlan(Object.freeze({ ...prepared, transform, lines: Object.freeze(lines) }))
+  return retainPlan(immutableDisplayParts.freeze({ ...prepared, transform, lines: immutableDisplayParts.freeze(lines) }))
 }

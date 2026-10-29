@@ -3,6 +3,7 @@
 // separate owners; the pass order and certificate lifecycle remain here.
 import { customTextMeasurementActive } from './text-measurement-profile.ts'
 import { resolveLabelContent } from './shared/display-text.ts'
+import { countPointPairCrossings } from './shared/edge-crossing-pair.ts'
 import type { Direction, MermaidGraph, Point, PortSide, PositionedEdge, PositionedGroup, PositionedNode, RouteBlocker, RouteCertificate, RouteClass, RouteInvariant } from './types.ts'
 import { graphEdgeTextBlock } from './graph-text.ts'
 import { graphEdgeMarkerPaintRegions, graphEdgeTerminalClearance } from './graph-connectors.ts'
@@ -36,6 +37,8 @@ import {
   simplifyPolyline,
   orthogonalizeResidualDiagonals,
   bendCount,
+  routesCrossOrOverlap,
+  simpleOrthogonal,
   crossDeviation,
   isMonotoneStaircase,
   type CrossSpan,
@@ -68,7 +71,7 @@ import {
 } from './layout/route-lanes.ts'
 import { tightenOuterFeedback, feedbackDetourKind } from './layout/route-feedback.ts'
 import { createSelfLoopRouter } from './layout/route-self-loops.ts'
-import { edgesMayShareTerminal, routeCandidateMarkersClear } from './layout/route-marker-clearance.ts'
+import { edgesMayShareTerminal, routeCandidateMarkersClear, routeMarkerPaintRegions } from './layout/route-marker-clearance.ts'
 export { PORT_EXACT, shapePorts, diamondFacetPorts, invalidEndpointApproaches, trimBoundaryEndpointRuns, type LabelMetricsStyle, classifyRoutes, simplifyPolyline, type RoutePortAllocation, allocateRoutePorts } from './layout/route-geometry.ts'
 export { directLaneBlockers, findLabelSlot, straightLaneFor, laneContextFor } from './layout/route-lanes.ts'
 export { labelRect } from './shared/edge-label-geometry.ts'
@@ -748,7 +751,8 @@ export function applyRouteContracts(
     return true
   }
   const loopMarkerBlockers: RouteBlocker[] = []
-  const repairSelfLoopArc = createSelfLoopRouter(nodeMap, groupMap, ctx, loopMarkerBlockers)
+  const reservedLoops = new Set<PositionedEdge>()
+  const repairSelfLoopArc = createSelfLoopRouter(nodeMap, groupMap, ctx, loopMarkerBlockers, reservedLoops)
 
   const retry: Array<{ edge: PositionedEdge; cert: DraftRouteCertificate }> = []
   for (const edge of positioned.edges) {
@@ -790,8 +794,10 @@ export function applyRouteContracts(
       // Retain that proposal; the same final occupancy/outline auditor still
       // proves it, including distinct contacts and clearance from every loop.
       loopMarkerBlockers.length = 0
+      if (retained && positioned.edges.some(other => other !== edge && other.source === other.target && routesCrossOrOverlap(edge.points, other.points))) retained = undefined
       const side = retained ?? repairSelfLoopArc(edge)
       if (side) {
+        reservedLoops.add(edge)
         cert.invariant = 'self-loop'
         cert.loopSide = side
         cert.bendCount = bendCount(edge.points)
@@ -820,7 +826,8 @@ export function applyRouteContracts(
         }
       }
     } else if (routeClass === 'primary-forward' || routeClass === 'feedback') {
-      if (cert.bendCount > 0) {
+      // Writer-equivalent elbows still need structural normalization.
+      if (edge.points.length > 2) {
         const r = attemptStraighten(edge, cert)
         if (!r.applied || r.upgradeable) retry.push({ edge, cert })
       } else {
@@ -1167,6 +1174,23 @@ export function centerOutLabelSamples(tMargin: number, work?: () => void): numbe
   return ts.sort((a, b) => { work?.(); return Math.abs(a - 0.5) - Math.abs(b - 0.5) })
 }
 
+/** Reuse the fitting interval and interpolation without changing each pass's
+ * candidate order, offsets, overhang policy or rescue work charge. */
+function* labelSegmentSamples(segments: ReturnType<typeof orderedLabelSegments>, width: number, height: number, offset = 0, overhang = false, fixedOrder = false, pay?: (units: number) => boolean): Generator<Point> {
+  if (!segments) return
+  for (const segment of segments) {
+    const half = (segment.vertical ? height : width) / 2
+    if (!overhang && segment.len <= 2 * half) continue
+    const margin = overhang ? 0 : half / segment.len
+    if (pay && !pay(160)) return
+    const samples = fixedOrder ? [5, 4, 6, 3, 7, 2, 8, 1, 9, 0, 10].map(k => margin + (1 - 2 * margin) * (k / 10)) : centerOutLabelSamples(margin)
+    for (const t of samples) yield {
+      x: segment.a.x + (segment.b.x - segment.a.x) * t + (segment.vertical ? offset : 0),
+      y: segment.a.y + (segment.b.y - segment.a.y) * t + (segment.vertical ? 0 : offset),
+    }
+  }
+}
+
 type LabelPaintRect = { x: number; y: number; w: number; h: number }
 
 /** Match renderEdgeLabel's opaque halo, including thick-edge paint. */
@@ -1226,10 +1250,9 @@ export function labelPaintClearance(positioned: { nodes: PositionedNode[]; edges
  * the edge's own axis-aligned segments (longest first — most room) and move ONLY
  * the label to the first position clear of every node and foreign segment.
  *
- * Geometry-preserving (labels only) so it is freeze-safe; deterministic (fixed
- * segment order + findLabelSlot's fixed candidate set). When no clear slot exists
- * — e.g. an exactly-overlapping duplicate edge shares the whole trunk — the label
- * is left untouched, since there is nowhere unambiguous to put it.
+ * Prefer a geometry-preserving label seat. A fully shared run can instead
+ * require a private channel; that bounded proposal retains both endpoint
+ * normals and proves the route and its pill together before committing.
  */
 export function repairLabelsOnSharedTrunks(
   positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] },
@@ -1239,6 +1262,7 @@ export function repairLabelsOnSharedTrunks(
   // Clear the shared-trunk ambiguity without covering a card or endpoint
   // marker. Perpendicular shaft crossings retain their established policy.
   let clearance: ReturnType<typeof labelPaintClearance> | undefined
+  const channels: Array<{ edge: PositionedEdge; width: number }> = []
   for (const edge of positioned.edges) {
     if (!edge.label || !edge.labelPosition || edge.points.length < 2) continue
     if (!sharedTrunkConflict(edge, positioned.edges, style)) continue
@@ -1257,24 +1281,158 @@ export function repairLabelsOnSharedTrunks(
     const shift = Math.min(pw, ph) / 2 - 1
     for (const offset of [0, shift, -shift]) {
       if (fixed) break
-      for (const seg of segs) {
-        if (fixed) break
-        const half = (seg.vertical ? ph : pw) / 2
-        if (seg.len <= 2 * half) continue // pill can't sit on this segment without overhanging a bend
-        const tMargin = half / seg.len
-        // Sample the fitting interval, ordered center-out (the midpoint reads best).
-        for (const k of [5, 4, 6, 3, 7, 2, 8, 1, 9, 0, 10]) {
-          const t = tMargin + (1 - 2 * tMargin) * (k / 10)
-          const cx = seg.a.x + (seg.b.x - seg.a.x) * t + (seg.vertical ? offset : 0)
-          const cy = seg.a.y + (seg.b.y - seg.a.y) * t + (seg.vertical ? 0 : offset)
-          edge.labelPosition = { x: cx, y: cy }
-          if (paint.clearPaintRect(pillRect(cx, cy, m), halo, edge) && !sharedTrunkConflict(edge, positioned.edges, style)) { fixed = true; break }
-        }
+      for (const point of labelSegmentSamples(segs, pw, ph, offset, false, true)) {
+        edge.labelPosition = point
+        if (paint.clearPaintRect(pillRect(point.x, point.y, m), halo, edge) && !sharedTrunkConflict(edge, positioned.edges, style)) { fixed = true; break }
       }
     }
 
-    if (!fixed) edge.labelPosition = saved // nowhere unambiguous on this route — leave as placed
+    if (!fixed) { edge.labelPosition = saved; channels.push({ edge, width: m.width }) }
   }
+  // Seat short captions before wide ones reserve the outer channels. Label-
+  // only repairs retain their original order and geometry-preserving priority.
+  channels.sort((a, b) => a.width - b.width)
+  for (const { edge } of channels) {
+    if (!sharedTrunkConflict(edge, positioned.edges, style)) continue
+    if (!repairSharedLabelChannel(edge, positioned, graph, style, clearance!)) {
+      for (let attempt = 0; attempt < positioned.edges.length; attempt++) {
+        const other = sharedTrunkConflict(edge, positioned.edges, style)
+        if (!other || !repairSharedLabelChannel(other, positioned, graph, style, clearance!, edge)) break
+      }
+    }
+  }
+}
+
+/** A fully shared label-bearing run has no label-only solution. Keep both
+ * owned endpoint normals and propose a private orthogonal channel; admit the
+ * complete route and pill together before publishing either. */
+function repairSharedLabelChannel(edge: PositionedEdge, positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] }, graph: MermaidGraph, style: LabelMetricsStyle, paint: ReturnType<typeof labelPaintClearance>, owner = edge): boolean {
+  if (!withinLayoutPreferenceBudget(graph) || customTextMeasurementActive() || edge.source === edge.target || positioned.groups.length || edge.curve || (style.edgeBendRadius ?? 0) > 0 || (style.lineWidth ?? 1) > 2 || edge.inlineStyle?.['stroke-width']) return false
+  const points = edge.points, start = points[0]!, end = points.at(-1)!, next = points[1]!, previous = points.at(-2)!
+  const axis = start.y === next.y ? 'x' : 'y', cross = axis === 'x' ? 'y' : 'x'
+  if (start[cross] !== next[cross] || end[cross] !== previous[cross]) return false
+  const from = Math.sign(next[axis] - start[axis]), to = Math.sign(previous[axis] - end[axis])
+  if (!from || !to) return false
+  const same = from === to, fixed = same ? axis : cross, main = same ? cross : axis
+  const m = (edge.label ? edge : owner).labelBlock ?? graphEdgeTextBlock(resolveLabelContent((edge.label ? edge : owner).label!, (edge.label ? edge : owner).labelContent), style)
+  const half = (fixed === 'x' ? m.width : m.height) / 2 + LABEL_PILL_PADDING + 8
+  const preferred = (edge.labelPosition ?? owner.labelPosition)![fixed]
+  const boundaries = (coordinate: 'x' | 'y', padding: number, includeRoutes: boolean): number[] => {
+    const values: number[] = []
+    for (const node of positioned.nodes) values.push(node[coordinate] - padding - CLEARANCE, node[coordinate] + (coordinate === 'x' ? node.width : node.height) + padding + CLEARANCE)
+    for (const other of positioned.edges) {
+      if (includeRoutes) for (const point of other.points) values.push(point[coordinate] - padding - CLEARANCE, point[coordinate] + padding + CLEARANCE)
+      const r = other === edge && !includeRoutes ? null : labelRect(other, style)
+      if (r) values.push((coordinate === 'x' ? r.x : r.y) - padding - 8 - EPS, (coordinate === 'x' ? r.x + r.w : r.y + r.h) + padding + 8 + EPS)
+    }
+    return values
+  }
+  const lanes = [preferred - half - CLEARANCE, preferred + half + CLEARANCE, ...boundaries(fixed, half, true)]
+  lanes.sort((a, b) => Math.abs(a - preferred) - Math.abs(b - preferred) || a - b)
+  const ctx = laneContextFor(positioned.nodes, positioned.edges, graph.direction, style, positioned.groups).ctx
+  ctx.fixedLabels = true; ctx.finalLabelClearance = true
+  const nodes = indexRouteNodes(positioned.nodes), source = nodes.get(edge.source), target = nodes.get(edge.target)
+  if (!source || !target) return false
+  const hooks = { start: terminalHookLength(style, edge, 'start'), end: terminalHookLength(style, edge, 'end') }
+  const retainedLead = { start: terminalRunLength(points, true), end: terminalRunLength(points, false) }
+  const stemAxis = same ? cross : axis
+  const stems = [next[stemAxis], previous[stemAxis], ...boundaries(stemAxis, 0, false)]
+  const markers: NonNullable<ReturnType<typeof routeMarkerPaintRegions>> = []
+  for (const other of positioned.edges) {
+    if (other === edge) continue
+    const regions = routeMarkerPaintRegions(other, style)
+    if (!regions) return false
+    markers.push(...regions)
+  }
+  const shaftHalf = (style.lineWidth ?? 1) * (edge.style === 'thick' ? 2 : 1) / 2 + EPS
+  const segmentClear = (p: Point, q: Point): boolean => {
+    const vertical = p.x === q.x, main = vertical ? 'y' : 'x', cross = vertical ? 'x' : 'y'
+    let lo = Math.min(p[main], q[main]), hi = Math.max(p[main], q[main])
+    // Exact retained end-runs introduce no ink. Trim them before proving a
+    // new extension, including tight original bends beside another card.
+    for (let i = 1; i < points.length; i++) {
+      const a = points[i - 1]!, b = points[i]!
+      if (a[cross] !== p[cross] || b[cross] !== p[cross]) continue
+      const oldLo = Math.min(a[main], b[main]), oldHi = Math.max(a[main], b[main])
+      if (oldLo <= lo && oldHi >= lo) lo = Math.min(hi, oldHi)
+      if (oldLo <= hi && oldHi >= hi) hi = Math.max(lo, oldLo)
+    }
+    if (lo >= hi) return true
+    const left = vertical ? p.x : lo, right = vertical ? p.x : hi, top = vertical ? lo : p.y, bottom = vertical ? hi : p.y
+    // Endpoint-pose admission alone cannot protect a peer glyph from a new
+    // middle shaft. Complete written supports cover hollow/stroked glyphs too.
+    if (markers.some(marker => {
+      const b = marker.bounds!
+      return left - shaftHalf <= b.x1 && right + shaftHalf >= b.x0 && top - shaftHalf <= b.y1 && bottom + shaftHalf >= b.y0
+    })) return false
+    return !hasDirectLaneBlocker({ ...edge, label: undefined }, p[cross], lo, hi, ctx, { main, cross, sign: p[main] > q[main] ? 1 : -1 })
+  }
+  const spurs = (port: Point, old: Point, sign: number, lane: number, position: 'start' | 'end'): Point[][] => {
+    let lead = hooks[position]
+    for (const marker of markers) {
+      const b = marker.bounds!
+      if (port.x < b.x0 - shaftHalf || port.x > b.x1 + shaftHalf || port.y < b.y0 - shaftHalf || port.y > b.y1 + shaftHalf) continue
+      const far = axis === 'x' ? sign > 0 ? b.x1 : b.x0 : sign > 0 ? b.y1 : b.y0
+      lead = Math.max(lead, sign * (far - port[axis]) + shaftHalf + EPS)
+    }
+    // Retain an existing short terminal verbatim; new turns use their own
+    // marker allowance, including through redundant collinear waypoints.
+    const minimum = Math.min(lead, retainedLead[position])
+    const normal = { ...port, [axis]: port[axis] + sign * minimum }
+    const choices = [...new Set([same ? port[cross] : normal[axis], ...stems])].filter(value => same || sign * (value - port[axis]) >= minimum)
+      .sort((a, b) => Math.abs(a - port[stemAxis]) - Math.abs(b - port[stemAxis]) || a - b)
+    const clear: Point[][] = []
+    for (const value of choices) {
+      const stub = { ...(same ? normal : port), [stemAxis]: value }, corner = { ...stub, [fixed]: lane }
+      const spur = simplifyPolyline(same ? [port, normal, stub, corner] : [port, stub, corner])
+      if (positioned.nodes.some(node => routeEntersNodeBox(node.id === edge.source || node.id === edge.target ? spur.slice(1) : spur, node))) continue
+      if (spur.slice(1).some((p, i) => !segmentClear(p, spur[i]!))) continue
+      clear.push(spur)
+      if (clear.length === 8) break
+    }
+    return clear
+  }
+  const beforeCrossings = countRouteCrossings(points, edge, ctx)
+  const peers = positioned.edges.filter(other => other !== edge && other.style !== 'invisible')
+  const crossingsBefore = peers.map(other => countPointPairCrossings(points, other.points))
+  let best: { points: Point[]; label?: Point; crossings: number } | undefined
+  channels: for (const lane of [...new Set(lanes)].slice(0, 128)) {
+    if (same && (from * (lane - start[axis]) < hooks.start || to * (lane - end[axis]) < hooks.end)) continue
+    const heads = spurs(start, next, from, lane, 'start'), tails = spurs(end, previous, to, lane, 'end')
+    for (const head of heads) for (const tail of tails) {
+      const a = head.at(-1)!, b = tail.at(-1)!
+      const route = simplifyPolyline([...head, ...tail.toReversed()])
+      if (!simpleOrthogonal(route) || route[1]![cross] !== start[cross] || route.at(-2)![cross] !== end[cross] || Math.abs(a[main] - b[main]) <= EPS || invalidEndpointApproaches({ ...edge, points: route }, source, target)) continue
+      if (positioned.nodes.some(node => routeEntersNodeBox(node.id === edge.source ? route.slice(1) : node.id === edge.target ? route.slice(0, -1) : route, node))) continue
+      if (route.slice(1).some((p, i) => !segmentClear(p, route[i]!)) || !routeCandidateMarkersClear(edge, route, positioned.edges, style)) continue
+      // Escaping a parallel corridor may cross a peer once on each side. Keep
+      // that bounded per peer and prefer the candidate with fewest crossings.
+      let crossings = 0
+      if (peers.some((other, i) => {
+        const count = countPointPairCrossings(route, other.points)
+        crossings += count
+        return count > crossingsBefore[i]! + 2
+      }) || best && crossings >= best.crossings) continue
+      const candidate = { ...edge, points: route }
+      let label: Point | undefined
+      if (edge.label) for (const segment of orderedLabelSegments(candidate)) {
+        const slot = findLabelSlot(candidate, segment.a, segment.b, ctx)
+        if (slot && paint.clearPaintRect(pillRect(slot.x, slot.y, m), labelHaloPadding(edge, style), edge) && !sharedTrunkConflict(candidate, positioned.edges, style, slot)) { label = slot; break }
+      }
+      if (edge.label && !label) continue
+      if (owner !== edge && sharedTrunkConflict(owner, [owner, candidate], style)) continue
+      best = { points: route, label, crossings }
+      if (crossings <= beforeCrossings) break channels
+    }
+  }
+  if (best) {
+    const saved = edge.routeCertificate
+    edge.points = best.points
+    if (edge.label) edge.labelPosition = best.label
+    recertifyReroutedEdge(edge, saved, source, target)
+    return true
+  }
+  return false
 }
 
 /**
@@ -1331,21 +1489,8 @@ export function repairLabelsOffOwnRoute(positioned: { nodes: PositionedNode[]; e
     // (1) Prefer a slot ON the route: sample each segment center-out (midpoint
     // reads best) and take the first clear one.
     let placed = false
-    for (const seg of segs) {
-      if (placed) break
-      const half = (seg.vertical ? ph : pw) / 2
-      if (seg.len <= 2 * half) continue // pill can't sit on this segment without overhanging a bend
-      const tMargin = half / seg.len
-      const ts = centerOutLabelSamples(tMargin)
-      for (const t of ts) {
-        const cx = seg.a.x + (seg.b.x - seg.a.x) * t
-        const cy = seg.a.y + (seg.b.y - seg.a.y) * t
-        if (clearAt(cx, cy)) {
-          edge.labelPosition = { x: cx, y: cy }
-          placed = true
-          break
-        }
-      }
+    for (const point of labelSegmentSamples(segs, pw, ph)) {
+      if (clearAt(point.x, point.y)) { edge.labelPosition = point; placed = true; break }
     }
     // (2) No on-route slot (the route's approach is a shared/congested trunk, so
     // every on-route position collides). Pull the label PERPENDICULARLY toward
@@ -1468,20 +1613,9 @@ export function separateEdgeLabelPills(
     const allow = ph / 2 + 4
     const offsets = [allow - 1, -(allow - 1), (allow - 1) / 2, -(allow - 1) / 2]
     for (const [d, maskFree] of [[0, false], ...offsets.map(d => [d, true]), ...(masking ? offsets.map(d => [d, false]) : [])] as Array<[number, boolean]>) {
-      for (const seg of segs) {
-        const half = (seg.vertical ? ph : pw) / 2
-        if (!overhang && seg.len <= 2 * half) continue
-        const nx = seg.vertical ? 1 : 0,
-          ny = seg.vertical ? 0 : 1 // unit perpendicular
-        const tMargin = overhang ? 0 : half / seg.len
-        if (rescue && !rescue.pay(160)) return // fixed11-sample array, comparison and loop scratch
-        const ts = centerOutLabelSamples(tMargin)
-        for (const t of ts) {
-          const cx = seg.a.x + (seg.b.x - seg.a.x) * t + nx * d
-          const cy = seg.a.y + (seg.b.y - seg.a.y) * t + ny * d
-          if (options?.preserveRouteClearance && routeWork <= 0) return
-          if (clearAt(cx, cy, maskFree)) yield { x: cx, y: cy }
-        }
+      for (const point of labelSegmentSamples(segs, pw, ph, d, overhang, false, rescue?.pay)) {
+        if (options?.preserveRouteClearance && routeWork <= 0) return
+        if (clearAt(point.x, point.y, maskFree)) yield point
       }
     }
   }
@@ -1827,22 +1961,7 @@ export function auditRouteContracts(positioned: { nodes: PositionedNode[]; edges
   }
 
   const loops = positioned.edges.filter(edge => edge.source === edge.target)
-  const segmentConflict = (a: Point, b: Point, c: Point, d: Point): boolean => {
-    const av = Math.abs(a.x - b.x) <= EPS
-    const cv = Math.abs(c.x - d.x) <= EPS
-    if (av === cv) {
-      const sameLine = av ? Math.abs(a.x - c.x) <= EPS : Math.abs(a.y - c.y) <= EPS
-      if (!sameLine) return false
-      const [a0, a1] = av ? [Math.min(a.y, b.y), Math.max(a.y, b.y)] : [Math.min(a.x, b.x), Math.max(a.x, b.x)]
-      const [c0, c1] = av ? [Math.min(c.y, d.y), Math.max(c.y, d.y)] : [Math.min(c.x, d.x), Math.max(c.x, d.x)]
-      return Math.min(a1, c1) - Math.max(a0, c0) > EPS
-    }
-    const vertical = av ? { a, b } : { a: c, b: d }
-    const horizontal = av ? { a: c, b: d } : { a, b }
-    const x = vertical.a.x
-    const y = horizontal.a.y
-    return x > Math.min(horizontal.a.x, horizontal.b.x) + EPS && x < Math.max(horizontal.a.x, horizontal.b.x) - EPS && y > Math.min(vertical.a.y, vertical.b.y) + EPS && y < Math.max(vertical.a.y, vertical.b.y) - EPS
-  }
+
   for (let i = 0; i < loops.length; i++) {
     const edge = loops[i]!
     const cert = edge.routeCertificate
@@ -1872,16 +1991,7 @@ export function auditRouteContracts(positioned: { nodes: PositionedNode[]; edges
     }
     for (let j = i + 1; j < loops.length; j++) {
       const other = loops[j]!
-      let conflict = false
-      for (let a = 1; a < edge.points.length && !conflict; a++) {
-        for (let b = 1; b < other.points.length; b++) {
-          if (segmentConflict(edge.points[a - 1]!, edge.points[a]!, other.points[b - 1]!, other.points[b]!)) {
-            conflict = true
-            break
-          }
-        }
-      }
-      if (conflict) findings.push({ code: 'ROUTE_SELF_LOOP_OCCUPANCY', edge: id, conflictWith: edgeId(other), kind: 'route-route' })
+      if (routesCrossOrOverlap(edge.points, other.points)) findings.push({ code: 'ROUTE_SELF_LOOP_OCCUPANCY', edge: id, conflictWith: edgeId(other), kind: 'route-route' })
       const edgeLabel = labelRect(edge, style)
       const otherLabel = labelRect(other, style)
       if (edgeLabel && otherLabel && edgeLabel.x < otherLabel.x + otherLabel.w && edgeLabel.x + edgeLabel.w > otherLabel.x && edgeLabel.y < otherLabel.y + otherLabel.h && edgeLabel.y + edgeLabel.h > otherLabel.y) {

@@ -3,6 +3,132 @@ import { useTestChildren } from './helpers/test-child.ts'
 
 const runChild = useTestChildren(20_000)
 
+test('private cache copies preserve text custody without trusting mutable measurement aliases', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import assert from 'node:assert/strict'
+    import { clonePositioned, retainPositioned, cachedPositioned } from './src/experimental/position-cache.ts'
+    import { preparePixelText, transferRetainedPixelText } from './src/shared/prepared-text.ts'
+    const block = preparePixelText('Read', { fontSize: 12, fontWeight: 400 })
+    const alias = structuredClone(block)
+    transferRetainedPixelText(block, alias)
+    const family = {}, source = { positioned: { width: 100, height: 80, block, alias,
+      point: { x: 20, y: 30 }, list: [block, alias], map: new Map([[block, alias], [alias, block]]), set: new Set([block, alias]) } }
+    retainPositioned(family, 'text-custody', source)
+    const publicCopy = cachedPositioned(family, 'text-custody').positioned
+    publicCopy.point.x = 400
+    publicCopy.block.lineBlocks[0].text = 'public mutation'
+    alias.lineBlocks[0].text = 'late caller alias'
+    const privateCopy = cachedPositioned(family, 'text-custody', false, true).positioned
+    assert.equal(privateCopy.point.x, 20)
+    assert.equal(privateCopy.block, block)
+    assert.equal(privateCopy.block.lineBlocks[0].text, 'Read')
+    assert.notEqual(privateCopy.alias, alias)
+    assert.equal(privateCopy.alias.lineBlocks[0].text, 'Read')
+    assert.equal(privateCopy.list[0], block)
+    assert.equal([...privateCopy.map.keys()][0], block)
+    assert.equal([...privateCopy.map.values()][1], block)
+    assert.equal([...privateCopy.set][0], block)
+    const copiedAlias = clonePositioned(alias, true)
+    alias.lineBlocks[0].text = 'later mutation'
+    assert.notEqual(copiedAlias, alias)
+    assert.equal(copiedAlias.lineBlocks[0].text, 'late caller alias')
+    assert.notEqual(clonePositioned(block), block)
+  `], { cwd: `${import.meta.dir}/../..` })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
+
+test('private text reuse preserves every frozen descendant alias independent of traversal order', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import assert from 'node:assert/strict'
+    import { clonePositioned } from './src/experimental/position-cache.ts'
+    import { preparePixelText, pixelTextLine } from './src/shared/prepared-text.ts'
+    const block = preparePixelText('Alpha <b>bold</b> Beta', { fontSize: 12, fontWeight: 400, maxWidth: 70 })
+    const projected = pixelTextLine(block, 0), parts = [], seen = new WeakSet()
+    const collect = (value, path = []) => {
+      if (!value || typeof value !== 'object' || seen.has(value)) return
+      seen.add(value); parts.push({ value, path })
+      for (const key of Object.keys(value)) collect(value[key], [...path, key])
+    }
+    collect(block)
+    for (const rootFirst of [false, true]) for (const privateMode of [false, true]) {
+      const links = parts.map(part => part.value), mutable = { x: 20 }
+      const graph = rootFirst ? { block, projected, links } : { links, block, projected }
+      graph.map = new Map(parts.map(({ value }, index) => [value, index]))
+      graph.set = new Set(links); graph.mutable = mutable; graph.self = graph
+      graph.map.set(graph.map, graph)
+      const copy = clonePositioned(graph, privateMode)
+      assert.equal(copy.self, copy)
+      assert.equal(copy.map.get(copy.map), copy)
+      assert.equal(copy.block === block, privateMode)
+      assert.equal(copy.projected === projected, privateMode)
+      parts.forEach(({ value, path }, index) => {
+        const actual = path.reduce((current, key) => current[key], copy.block)
+        assert.equal(copy.links[index], actual, path.join('.'))
+        assert.equal(copy.map.get(actual), index)
+        assert.equal(copy.set.has(actual), true)
+        assert.equal(actual === value, privateMode)
+      })
+      copy.mutable.x = 90; assert.equal(mutable.x, 20)
+      if (!privateMode) { copy.block.lines.push('mutable public copy'); assert.notEqual(copy.block.lines.length, block.lines.length) }
+    }
+  `], { cwd: `${import.meta.dir}/../..` })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
+
+test('a pass-through native Pie producer observes the same text aliases cold and warm', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import assert from 'node:assert/strict'
+    import { getFamily } from './src/agent/families.ts'
+    import { renderMermaidSVGWithReceipt } from './src/index.ts'
+    import { inheritNativeDrawing, nativeDrawingOf, sceneLowering } from './src/scene/drawing.ts'
+    const family = getFamily('pie'), lower = family.lowerScene, producer = nativeDrawingOf(lower), observations = []
+    inheritNativeDrawing(sceneLowering((factory, context) => {
+      observations.push(context.positioned.legend.map(item => item.lines === item.block.lines))
+      return producer(factory, context)
+    }), lower)
+    try {
+      const cold = renderMermaidSVGWithReceipt(family.example, { embedFontImport: false })
+      const warm = renderMermaidSVGWithReceipt(family.example, { embedFontImport: false })
+      assert.deepEqual(warm, cold)
+      assert.equal(observations.length, 2)
+      assert.ok(observations.every(values => values.length && values.every(Boolean)))
+    } finally { inheritNativeDrawing(sceneLowering(producer), lower) }
+  `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '1' } })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
+
+test('constructor text custody excludes mutable, accessor and function descendants', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import assert from 'node:assert/strict'
+    import { preparePixelText } from './src/shared/prepared-text.ts'
+    import { clonePositioned } from './src/experimental/position-cache.ts'
+    import { createNativePaintEmission } from './src/scene/native-paint-emission.ts'
+    for (const mode of ['mutable', 'shallow-frozen', 'accessor', 'function']) {
+      const extra = mode === 'accessor' ? Object.freeze({ get value() { throw Error('uncaptured accessor') } })
+        : mode === 'function' ? () => 'mutable function' : { nested: { value: 'before' } }
+      if (mode === 'shallow-frozen') Object.freeze(extra)
+      const block = preparePixelText({ source: 'Read', display: 'literal', lineStarts: [0], lines: [[{
+        text: 'Read', bold: false, italic: false, underline: false, strikethrough: false, sourceStart: 0, sourceEnd: 4, extra,
+      }]] }, { fontSize: 12, fontWeight: 400 })
+      const captured = createNativePaintEmission(10000).snapshot(block)
+      if (mode === 'function' || mode === 'accessor') assert.equal(captured, undefined)
+      else {
+        const copy = clonePositioned({ block, extra }, true)
+        assert.notEqual(copy.block, block)
+        assert.equal(copy.extra, copy.block.prepared.lines[0][0].extra)
+        extra.nested.value = 'after'
+        assert.equal(copy.extra.nested.value, 'before')
+        assert.equal(captured.prepared.lines[0][0].extra.nested.value, 'before')
+      }
+    }
+  `], { cwd: `${import.meta.dir}/../..` })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
+
 test('a held render request cannot pin evicted private geometry through a drawing proof', async () => {
   const child = await runChild('node', ['--expose-gc', '--input-type=module', '-e', `
     import assert from 'node:assert/strict'

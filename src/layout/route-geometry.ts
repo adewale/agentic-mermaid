@@ -1,3 +1,4 @@
+import { formatSvgNumber } from '../shared/svg-number.ts'
 import { type NodeLaneIndex } from '../shared/node-lane-index.ts'
 import { customTextMeasurementActive } from '../text-measurement-profile.ts'
 import { type RouteChannelGeometry } from '../shared/route-channel-geometry.ts'
@@ -351,9 +352,11 @@ export function orthogonalizeResidualDiagonals(points: Point[]): Point[] {
   return out
 }
 
-/** Interior vertex count of a polyline. */
+/** Bends of emitted line geometry; writer-equivalent coordinates cannot make
+ * an extra elbow merely because a retained contact differs by one ULP. The
+ * retained points and terminal approach vectors remain untouched. */
 export function bendCount(points: Point[]): number {
-  return Math.max(0, simplifyPolyline(points).length - 2)
+  return points.length < 3 ? 0 : Math.max(0, simplifyPolyline(points.map(p => ({ x: Number(formatSvgNumber(p.x)), y: Number(formatSvgNumber(p.y)) }))).length - 2)
 }
 
 /** Max perpendicular deviation of a route from its flow axis. */
@@ -698,4 +701,52 @@ export function translateGeometryToNonNegativeOrigin(nodes: PositionedNode[], ed
       edge.labelPosition.y += dy
     }
   }
+}
+
+/** Proper crossings and positive-length collinear overlap; endpoint touching stays legal. */
+export function routesCrossOrOverlap(first: readonly Point[], second: readonly Point[]): boolean {
+  const segmentConflict = (a: Point, b: Point, c: Point, d: Point): boolean => {
+    const av = Math.abs(a.x - b.x) <= EPS
+    const cv = Math.abs(c.x - d.x) <= EPS
+    if (av === cv) {
+      const sameLine = av ? Math.abs(a.x - c.x) <= EPS : Math.abs(a.y - c.y) <= EPS
+      if (!sameLine) return false
+      const [a0, a1] = av ? [Math.min(a.y, b.y), Math.max(a.y, b.y)] : [Math.min(a.x, b.x), Math.max(a.x, b.x)]
+      const [c0, c1] = av ? [Math.min(c.y, d.y), Math.max(c.y, d.y)] : [Math.min(c.x, d.x), Math.max(c.x, d.x)]
+      return Math.min(a1, c1) - Math.max(a0, c0) > EPS
+    }
+    const vertical = av ? { a, b } : { a: c, b: d }
+    const horizontal = av ? { a: c, b: d } : { a, b }
+    const x = vertical.a.x
+    const y = horizontal.a.y
+    return x > Math.min(horizontal.a.x, horizontal.b.x) + EPS && x < Math.max(horizontal.a.x, horizontal.b.x) - EPS && y > Math.min(vertical.a.y, vertical.b.y) + EPS && y < Math.max(vertical.a.y, vertical.b.y) - EPS
+  }
+  return first.some((b, i) => i > 0 && second.some((d, j) => j > 0 && segmentConflict(first[i - 1]!, b, second[j - 1]!, d)))
+}
+
+/** Reject new fallback paths that cross, touch, or backtrack onto themselves. */
+export function simpleOrthogonal(pts: readonly Point[], chargeWork?: (operations: number) => void): boolean {
+  for (let i = 1; i < pts.length; i++) {
+    chargeWork?.(1)
+    const a = pts[i - 1]!, b = pts[i]!
+    if (!Number.isFinite(a.x) || !Number.isFinite(a.y) || !Number.isFinite(b.x) || !Number.isFinite(b.y)
+      || a.x !== b.x && a.y !== b.y || a.x === b.x && a.y === b.y) return false
+    const vertical = a.x === b.x
+    for (let j = 1; j < i; j++) {
+      chargeWork?.(1)
+      const c = pts[j - 1]!, d = pts[j]!, peerVertical = c.x === d.x
+      if (vertical === peerVertical) {
+        const axis = vertical ? 'y' : 'x', fixed = vertical ? 'x' : 'y'
+        if (a[fixed] !== c[fixed]) continue
+        const low = Math.max(Math.min(a[axis], b[axis]), Math.min(c[axis], d[axis]))
+        const high = Math.min(Math.max(a[axis], b[axis]), Math.max(c[axis], d[axis]))
+        if (j === i - 1 ? low < high : low <= high) return false
+      } else if (j !== i - 1) {
+        const x = vertical ? a.x : c.x, y = vertical ? c.y : a.y
+        if (x >= Math.min(a.x, b.x) && x <= Math.max(a.x, b.x) && y >= Math.min(a.y, b.y) && y <= Math.max(a.y, b.y)
+          && x >= Math.min(c.x, d.x) && x <= Math.max(c.x, d.x) && y >= Math.min(c.y, d.y) && y <= Math.max(c.y, d.y)) return false
+      }
+    }
+  }
+  return true
 }

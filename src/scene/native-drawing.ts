@@ -144,7 +144,7 @@ export function drawNative(
       validator.node(shell)
       validator.depth(depth)
       const capturedShell = emission.snapshot(shell)
-      const matrix = capturedShell ? emission.group(capturedShell) : undefined
+      const matrix = capturedShell ? emission.group(capturedShell, shell) : undefined
       const own = capturedShell?.identity ?? { id: shell.id, role: shell.role }
       for (const child of children) {
         if (child.kind === 'leaf' && child.node.kind === 'shape' && !child.node.identity) validator.enclosure(child.node.id, own)

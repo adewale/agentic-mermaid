@@ -4,7 +4,7 @@ import { recertifyReroutedEdge, shapePorts, simplifyPolyline } from '../../route
 import { bundleRouteBeforeRewrite, retainBundleRouteAfterRewrite } from '../bundle-routes.ts'
 import { calculatePathMidpoint, layoutFlow, nodeCrossSize, nodeCrossStart } from '../geometry.ts'
 import { doglegBetween, hookedElbow, routeClearOfNodes } from './shared.ts'
-import { terminalHookLength, type LabelMetricsStyle } from '../route-geometry.ts'
+import { terminalHookLength, simpleOrthogonal, type LabelMetricsStyle } from '../route-geometry.ts'
 
 /**
  * Post-freeze safety net for STALE edge endpoints. A pass that MOVES a node is
@@ -176,33 +176,6 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
     }
     return null
   }
-  // New fallback paths must remain simple, including touches and backtracking.
-  // Normal adjacent segments may share only their common endpoint.
-  const simpleOrthogonal = (pts: readonly Point[]): boolean => {
-    for (let i = 1; i < pts.length; i++) {
-      chargeWork?.(1)
-      const a = pts[i - 1]!, b = pts[i]!
-      if (!Number.isFinite(a.x) || !Number.isFinite(a.y) || !Number.isFinite(b.x) || !Number.isFinite(b.y)
-        || a.x !== b.x && a.y !== b.y || a.x === b.x && a.y === b.y) return false
-      const vertical = a.x === b.x
-      for (let j = 1; j < i; j++) {
-        chargeWork?.(1)
-        const c = pts[j - 1]!, d = pts[j]!, peerVertical = c.x === d.x
-        if (vertical === peerVertical) {
-          const axis = vertical ? 'y' : 'x', fixed = vertical ? 'x' : 'y'
-          if (a[fixed] !== c[fixed]) continue
-          const low = Math.max(Math.min(a[axis], b[axis]), Math.min(c[axis], d[axis]))
-          const high = Math.min(Math.max(a[axis], b[axis]), Math.max(c[axis], d[axis]))
-          if (j === i - 1 ? low < high : low <= high) return false
-        } else if (j !== i - 1) {
-          const x = vertical ? a.x : c.x, y = vertical ? c.y : a.y
-          if (x >= Math.min(a.x, b.x) && x <= Math.max(a.x, b.x) && y >= Math.min(a.y, b.y) && y <= Math.max(a.y, b.y)
-            && x >= Math.min(c.x, d.x) && x <= Math.max(c.x, d.x) && y >= Math.min(c.y, d.y) && y <= Math.max(c.y, d.y)) return false
-        }
-      }
-    }
-    return true
-  }
   // A blocked terminal shaft may enter from a different axis than graph flow.
   // Keep that actual port ray; move the preceding turn around the blocking card.
   chargeWork?.(1)
@@ -232,7 +205,7 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
         oldNext.x === port.x && next.x === port.x && Math.sign(oldNext.y - port.y) === Math.sign(next.y - port.y)
         || oldNext.y === port.y && next.y === port.y && Math.sign(oldNext.x - port.x) === Math.sign(next.x - port.x)
       if (!sameRay(pts[0]!, pts[1]!, trial[1]!) || !sameRay(end, a, trial.at(-2)!)) continue
-      if (!throughNode(trial, noSkip) && routeClearOfNodes(trial, nodes, skip, chargeWork) && clearHeaders(trial) && simpleOrthogonal(trial)) return trial
+      if (!throughNode(trial, noSkip) && routeClearOfNodes(trial, nodes, skip, chargeWork) && clearHeaders(trial) && simpleOrthogonal(trial, chargeWork)) return trial
     }
     return null
   }

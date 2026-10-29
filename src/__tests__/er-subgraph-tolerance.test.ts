@@ -63,7 +63,7 @@ describe('er subgraph native rendering (#103)', () => {
   })
 
   it('native and lazy rendering expose exhausted retained-label work', async () => {
-    const source = ['erDiagram', ...Array.from({ length: 400 }, (_, i) => `N${i} ||--|| N${i + 1} : links`)].join('\n')
+    const source = ['erDiagram', ...Array.from({ length: 500 }, (_, i) => `N${i} ||--|| N${i + 1} : links`)].join('\n')
     expect(() => renderMermaidSVG(source)).toThrow(/ER_LABEL_WORK_LIMIT/)
     const { default: browser } = await import('../browser-lazy/families/er.ts')
     await expect(renderLoadedFamilySvg(source, {}, browser)).rejects.toThrow(/ER_LABEL_WORK_LIMIT/)

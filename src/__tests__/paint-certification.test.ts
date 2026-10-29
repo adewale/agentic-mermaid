@@ -4,7 +4,9 @@ import { readFileSync } from 'node:fs'
 import { connectorMarkerPaintRegions, nodePaintBounds } from '../scene/bounds.ts'
 import { certifyNativePaint, certifyScenePaint, prepareMarkerPolygonInk, compareMarkerStrokeInk } from '../scene/paint-certification.ts'
 import type { Geometry, MarkPaint, SceneDoc, SceneNode, SceneTransform, MarkerDescriptor } from '../scene/ir.ts'
-import { preparePixelText } from '../shared/prepared-text.ts'
+import { preparePixelText, transferRetainedPixelText } from '../shared/prepared-text.ts'
+import { admitFamilyScene } from '../scene/admission.ts'
+import { createNativePaintEmission } from '../scene/native-paint-emission.ts'
 import { getFamily, knownBuiltinFamilies } from '../agent/families.ts'
 import { layoutMermaidWithReceipt, verifyMermaid } from '../agent/core.ts'
 import { renderMermaidSVGWithReceipt, renderMermaidASCIIWithReceipt } from '../index.ts'
@@ -15,13 +17,16 @@ import { inspectScenePrimitives, scenePrimitiveSource, inspectNativePaintGeometr
 import { sceneNodeSerialization } from '../scene/serialization.ts'
 import { serializeMarkerResource, tipAnchoredArrow } from '../scene/marker-resources.ts'
 import { drawNative } from '../scene/native-drawing.ts'
-import type { DrawingProducer } from '../scene/drawing.ts'
+import type { DrawingFactory, DrawingProducer } from '../scene/drawing.ts'
 import { measureQuality } from '../agent/quality.ts'
 import { replaceFamilyForTest } from '../agent/families.ts'
 import type { PositionedArchitectureDiagram } from '../architecture/types.ts'
 import type { PositionedErDiagram } from '../er/types.ts'
 import type { PositionedIshikawa } from '../ishikawa/types.ts'
 import { classMarkerResources } from '../class/relationship-paint.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
+
+const paintTemp = useTempDirs('am-paint-')
 
 const scene = (parts: SceneNode[]): SceneDoc => ({ family: 'flowchart', width: 100, height: 80, transparent: false, colors: { bg: '#fff', fg: '#111' }, parts })
 const label = () => {
@@ -29,6 +34,172 @@ const label = () => {
   return marks.text({ id: 'text', role: 'label', text: 'Read', block, x: 20, y: 30, fontSize: 12, anchor: 'start', paint: { fill: '#111' } })
 }
 const surface = (fill = '#fff') => marks.shape({ id: 'cover', role: 'node', geometry: { kind: 'rect', x: 10, y: 10, width: 80, height: 60 }, paint: { fill } })
+
+test.each(['close', 'join'] as const)('group %s cannot emit uninspected covering artwork', field => {
+  const colors = { bg: '#fff', fg: '#111' }, artwork = '<rect x="10" y="10" width="80" height="60" fill="#fff"/>'
+  const context = { positioned: { width: 100, height: 80 }, colors, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => ({ ...scene([]), parts: [
+    factory.group({ id: 'group', role: 'chrome', open: '<g>', close: field === 'close' ? `</g>${artwork}` : '</g>', join: field === 'join' ? artwork : '\n', children: [{ node: factory.text({ id: 'text', role: 'label', text: 'Read', block: preparePixelText('Read', { fontSize: 12, fontWeight: 400 }), x: 20, y: 30, fontSize: 12, anchor: 'start', paint: { fill: '#111' } }), indent: 0 }] }),
+  ] })
+  expect(() => producer(marks, context)).toThrow('close and join must not add artwork')
+  expect(() => drawNative(producer, context, 'flowchart')).toThrow('close and join must not add artwork')
+})
+
+test('leading group whitespace preserves actual typed opacity in both adapters', () => {
+  const colors = { bg: '#fff', fg: '#111' }, context = { positioned: { width: 100, height: 80 }, colors, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => ({ ...scene([]), parts: [factory.group({ id: 'whitespace', role: 'chrome', open: '\n <g>', close: '</g>', paint: { opacity: '0' }, children: [{ node: factory.text({ id: 'text', role: 'label', text: 'Read', block: preparePixelText('Read', { fontSize: 12, fontWeight: 400 }), x: 20, y: 30, fontSize: 12, anchor: 'start', paint: { fill: '#111' } }), indent: 0 }] })] })
+  const drawing = drawNative(producer, context, 'flowchart')
+  expect(drawing.svg).toContain('opacity="0"')
+  for (const proof of [certifyScenePaint(producer(marks, context)), certifyNativePaint(drawing.header, drawing.paint)]) expect(proof).toMatchObject({ status: 'passed', issues: [] })
+})
+
+test.each(['close', 'join', 'open', 'transform', 'paint'] as const)('mutated Scene group %s cannot replace its typed emitted authority', field => {
+  const group = marks.group({ id: 'group', role: 'chrome', open: '<g>', close: '</g>', children: [{ node: label(), indent: 0 }] })
+  if (field === 'close') group.close = '</g><rect x="10" y="10" width="80" height="60" fill="#fff"/>'
+  if (field === 'join') group.join = '<rect x="10" y="10" width="80" height="60" fill="#fff"/>'
+  if (field === 'open') group.open = '<g opacity="0">'
+  if (field === 'transform') group.transform = { kind: 'matrix', a: 1, b: 0, c: 0, d: 1, e: 200, f: 0 }
+  if (field === 'paint') group.paint = { opacity: '0' }
+  const document = scene([group])
+  expect(() => certifyScenePaint(document)).toThrow('Group')
+  expect(() => admitFamilyScene(getFamily('flowchart')!, document, false)).toThrow('Group')
+})
+
+test.each(['custom-property', 'inherited-fill'] as const)('scoped %s paint remains unverified in direct and emitted groups', mode => {
+  const colors = { bg: '#fff', fg: '#111' }, context = { positioned: { width: 100, height: 80 }, colors, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => ({ ...scene([]), parts: [factory.group({ id: 'scoped', role: 'chrome', open: mode === 'custom-property' ? '<g style="--ink:transparent">' : '<g>', close: '</g>', ...(mode === 'inherited-fill' ? { paint: { fill: 'none' } } : {}), children: [{ node: factory.text({ id: 'text', role: 'label', text: 'Read', block: preparePixelText('Read', { fontSize: 12, fontWeight: 400 }), x: 20, y: 30, fontSize: 12, anchor: 'start', paint: mode === 'custom-property' ? { fill: 'var(--ink, #111)' } : {} }), indent: 0 }] })] })
+  const direct = certifyScenePaint(producer(marks, context)), drawing = drawNative(producer, context, 'flowchart'), emitted = certifyNativePaint(drawing.header, drawing.paint)
+  expect(drawing.svg).toContain(mode === 'custom-property' ? '--ink:transparent' : 'fill="none"')
+  expect(direct).toMatchObject({ status: 'unverified', issues: [expect.objectContaining({ code: 'CONDITIONAL_PAINT' })] })
+  expect(emitted.status).toBe('unverified')
+  expect(emitted.issues.some(issue => issue.code === 'OUTPUT_SCOPE')).toBe(true)
+})
+
+test.each(['first-after', 'second-before', 'second-after', 'union-gap', 'partial-first', 'outside'] as const)('sibling text query caching preserves exact %s paint obligations', mode => {
+  const colors = { bg: '#fff', fg: '#111' }, context = { positioned: { width: 100, height: 80 }, colors, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => {
+    const text = (id: string, y: number) => factory.text({ id, role: 'label', text: 'Read', block: preparePixelText('Read', { fontSize: 12, fontWeight: 400 }), x: 20, y, fontSize: 12, anchor: 'start', paint: { fill: '#111' } })
+    const cover = factory.shape({ id: 'cover', role: 'chrome', geometry: { kind: 'rect', x: mode === 'outside' ? 70 : mode === 'partial-first' ? 40 : 10, y: mode === 'union-gap' ? 43 : mode.startsWith('second') ? 50 : 20, width: mode === 'partial-first' ? 4 : 50, height: mode === 'union-gap' ? 4 : 20 }, paint: { fill: '#fff' } })
+    const first = text('first', 30), second = text('second', 60)
+    const children = mode === 'second-after' ? [first, second, cover] : [first, cover, second]
+    return { ...scene([]), parts: [factory.group({ id: 'siblings', role: 'chrome', open: '<g>', close: '</g>', children: children.map(node => ({ node, indent: 0 })) })] }
+  }
+  const drawing = drawNative(producer, context, 'flowchart')
+  for (const proof of [certifyScenePaint(producer(marks, context)), certifyNativePaint(drawing.header, drawing.paint)]) {
+    const ids = proof.issues.filter(issue => issue.code === 'TEXT_OCCLUDED' || issue.code === 'POTENTIAL_OCCLUSION').map(issue => issue.id)
+    expect(ids).toEqual(mode === 'first-after' || mode === 'partial-first' ? ['first'] : mode === 'second-after' ? ['second'] : [])
+    expect(proof.status).toBe(mode === 'partial-first' ? 'unverified' : ['first-after', 'second-after'].includes(mode) ? 'failed' : 'passed')
+  }
+})
+
+test.each(['wide-sibling-set', 'dense-union-gap'] as const)('sparse %s keeps independent text queries within the existing work allowance', mode => {
+  const block = preparePixelText('Read', { fontSize: 12, fontWeight: 400 }), count = 1000
+  const groups = Array.from({ length: count }, (_, index) => {
+    const x = mode === 'wide-sibling-set' ? 20 + index * 100 : 20
+    const text = (id: string, y: number) => marks.text({ id, role: 'label', text: 'Read', block, x, y, fontSize: 12, anchor: 'start', paint: { fill: '#111' } })
+    const cover = marks.shape({ id: `card:${index}`, role: 'node', geometry: { kind: 'rect', x: x - 10, y: mode === 'wide-sibling-set' ? 10 : 42, width: 80, height: mode === 'wide-sibling-set' ? 60 : 2 }, paint: { fill: '#fff' } })
+    return mode === 'wide-sibling-set' ? [cover, text(`text:${index}`, 30)] : [marks.group({ id: `group:${index}`, role: 'chrome', open: '<g>', close: '</g>', children: [text(`first:${index}`, 30), cover, text(`second:${index}`, 60)].map(node => ({ node, indent: 0 })) })]
+  }).flat()
+  const parts = mode === 'wide-sibling-set' ? [marks.group({ id: 'wide', role: 'chrome', open: '<g>', close: '</g>', children: groups.map(node => ({ node, indent: 0 })) })] : groups
+  const proof = certifyScenePaint({ ...scene(parts), width: count * 100 + 100 })
+  expect(proof).toMatchObject({ status: 'passed', issues: [], checks: { occlusionPairs: 0, maxOperations: 400000 } })
+  expect(proof.checks.operations).toBeLessThan(100000)
+})
+
+test('zero-candidate union gaps abandon broad traversal before sparse text queries exhaust proof', () => {
+  const count = 2048, block = preparePixelText('Read', { fontSize: 12, fontWeight: 400 })
+  const groups = Array.from({ length: 256 }, (_, index) => marks.group({ id: `group:${index}`, role: 'chrome', open: '<g>', close: '</g>', children: [20, count * 30 - 20].map((x, position) => ({ node: marks.text({ id: `text:${index}:${position}`, role: 'label', text: 'Read', block, x, y: 30, fontSize: 12, anchor: 'start', paint: { fill: '#111' } }), indent: 0 })) }))
+  const cards = Array.from({ length: count }, (_, index) => marks.shape({ id: `card:${index}`, role: 'node', geometry: { kind: 'rect', x: 10 + index * 30, y: index % 2 ? -100 : 100, width: 20, height: 10 }, paint: { fill: '#fff' } }))
+  const proof = certifyScenePaint({ ...scene([...groups, ...cards]), width: count * 30 + 100, height: 300 })
+  expect(proof).toMatchObject({ status: 'passed', issues: [], checks: { occlusionPairs: 0, maxOperations: 400000 } })
+  expect(proof.checks.operations).toBeLessThan(100000)
+})
+
+test('public cold native Timeline keeps its unsupported scoped paint unverified', () => {
+  const entry = (path: string) => JSON.stringify(new URL(path, import.meta.url).href)
+  const probe = paintTemp.file('timeline-scoped-paint.ts', `
+    import {renderMermaidSVGWithReceipt} from ${entry('../index.ts')};
+    import {getFamily} from ${entry('../agent/families.ts')};
+    console.log(JSON.stringify(renderMermaidSVGWithReceipt(getFamily('timeline').example).receipt.layoutCertification));
+  `)
+  const result = Bun.spawnSync([process.execPath, probe], { env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' }, stdout: 'pipe', stderr: 'pipe' })
+  expect({ status: result.exitCode, error: new TextDecoder().decode(result.stderr) }).toEqual({ status: 0, error: '' })
+  const proof = JSON.parse(new TextDecoder().decode(result.stdout))
+  expect(proof.status).toBe('unverified')
+  expect(proof.issues.some((issue: { code: string }) => issue.code === 'OUTPUT_SCOPE')).toBe(true)
+})
+
+test('the public ER custody boundary selects immutable Scene proof before native capture', () => {
+  const entry = (path: string) => JSON.stringify(new URL(path, import.meta.url).href)
+  const probe = paintTemp.file('paint-capacity.ts', `
+    import {renderMermaidSVGWithReceipt} from ${entry('../index.ts')}
+    import {withPerformanceObserver} from ${entry('../performance-observations.ts')}
+    import {resolveRenderRequestForExecution} from ${entry('../render-contract.ts')}
+    import {positionResolvedFamily} from ${entry('../positioning.ts')}
+    import {renderPositionedMermaidSVG} from ${entry('../graphical-render.ts')}
+    import {assertScenesOf} from ${entry('../scene/assertions.ts')}
+    const rows=[];
+    for(const count of [256,257]) {
+      const source='erDiagram\\nN0 ||--|| N1 : owns\\n'+Array.from({length:count},(_,i)=>'N'+i).join('\\n');
+      const options={graphLayout:{backend:'elk',fallback:'none'},embedFontImport:false};
+      let previous;
+      for(const phase of ['cold','warm']) {
+        const events=[];
+        const rendered=withPerformanceObserver(e=>events.push(e),()=>renderMermaidSVGWithReceipt(source,options));
+        rows.push({count,phase,sameSvg:previous===undefined||previous===rendered.svg,proof:rendered.receipt.layoutCertification,
+          entities:(rendered.svg.match(/class="entity"/g)||[]).length,
+          preflight:events.some(e=>e.kind==='cache'&&e.owner==='native-drawing'&&e.outcome==='bypass'&&e.reason==='paint-proof-capacity'),
+          nativeAttempt:events.some(e=>e.kind==='cache'&&e.owner==='native-drawing'&&e.outcome==='miss')});
+        previous=rendered.svg;
+      }
+      const request=resolveRenderRequestForExecution(source,options,'svg');
+      assertScenesOf(request);
+      const scene=renderPositionedMermaidSVG(request,positionResolvedFamily('er',request),[]);
+      rows.push({count,phase:'scene',sameSvg:previous===scene.svg,proof:scene.layoutCertification});
+    }
+    console.log(JSON.stringify(rows));
+  `)
+  const result = Bun.spawnSync([process.execPath, probe], { env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' }, stdout: 'pipe', stderr: 'pipe' })
+  expect({ status: result.exitCode, error: new TextDecoder().decode(result.stderr) }).toEqual({ status: 0, error: '' })
+  const rows = JSON.parse(new TextDecoder().decode(result.stdout))
+  expect(rows).toHaveLength(6)
+  for (const row of rows) {
+    expect({ count: row.count, phase: row.phase, sameSvg: row.sameSvg, proof: row.proof }).toMatchObject({ sameSvg: true, proof: { status: 'passed', issues: [] } })
+    expect(row.proof.checks.operations).toBeLessThanOrEqual(400000)
+    if (row.phase !== 'scene') {
+      expect(row.entities).toBe(row.count)
+      expect(row.preflight).toBe(row.count > 256)
+      expect(row.nativeAttempt).toBe(row.count <= 256)
+    }
+  }
+}, 15000)
+
+function distantMarkerTextPairs<T>(factory: DrawingFactory<T>, count: number, marker: MarkerDescriptor): T[] {
+  const block = preparePixelText('Distant', { fontSize: 12, fontWeight: 400 })
+  return Array.from({ length: count }, (_, index) => {
+    const x = 500 + index * 80
+    return [
+      factory.connector({ id: `distant-route:${index}`, role: 'edge', lineStyle: 'solid', endpoints: { from: `distant-from:${index}`, to: `distant-to:${index}` }, geometry: { kind: 'line', x1: x + 70, y1: 20, x2: x + 20, y2: 20 }, paint: { stroke: '#111', strokeWidth: '1' }, markers: { start: marker } }),
+      factory.text({ id: `distant-label:${index}`, role: 'label', text: 'Distant', block, x: x + 45, y: 65, fontSize: 12, anchor: 'middle', paint: { fill: '#111' } }),
+    ]
+  }).flat()
+}
+
+test.each([0, 32])('sparse decorative markers preserve completed direct and emitted text proof (%s markers)', markerCount => {
+  const width = 200, height = 31000, colors = { bg: '#fff', fg: '#111' }
+  const block = preparePixelText('x', { fontSize: 12, fontWeight: 400 })
+  const marker = tipAnchoredArrow('decorative-arrow', { width: 8, height: 5 }, 'end', { fill: '#111', stroke: '#111', strokeWidth: '0.75' }, 'userSpaceOnUse')
+  const context = { positioned: { width, height }, colors, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => ({ family: 'flowchart', width, height, colors, transparent: false, parts: [
+    factory.documentOpen({ id: 'root', width, height, colors, transparent: false, font: 'Inter', hasMonoFont: false }, `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">`),
+    ...(markerCount ? [factory.definitions({ id: 'resources' }, `<defs>${serializeMarkerResource(marker)}</defs>`)] : []),
+    ...Array.from({ length: markerCount }, (_, index) => factory.connector({ id: `chrome:${index}`, role: 'chrome', lineStyle: 'solid', geometry: { kind: 'line', x1: 20, y1: 40 + index * 20, x2: 60, y2: 40 + index * 20 }, paint: { stroke: '#111', strokeWidth: '1' }, markers: { end: marker } })),
+    ...Array.from({ length: 1500 }, (_, index) => factory.text({ id: `text:${index}`, role: 'label', text: 'x', block, x: 20, y: 1000 + index * 20, fontSize: 12, anchor: 'start', paint: { fill: '#111' } })),
+    factory.documentClose(),
+  ] })
+  const drawing = drawNative(producer, context, 'flowchart')
+  for (const proof of [certifyScenePaint(producer(marks, context)), certifyNativePaint(drawing.header, drawing.paint)]) expect(proof).toMatchObject({ status: 'passed', issues: [] })
+})
 
 test.each(['LR', 'RL', 'TB', 'BT'] as const)('rounded endpoint contacts retain strict paint proof in %s', direction => {
   const source = `flowchart ${direction}\nN0[n0]\nN1[n1]\nN2([n2])\nN3((n3))\nN2 --> N1\nN1 <==> N2\nN0 --> N2\nN2 --> N3\nN0 --> N2`
@@ -276,20 +447,24 @@ test('missing preparation, opaque content and conditional output remain unverifi
 test('native families expose request-bound graphical, verification, layout and quality proof', () => {
   for (const family of knownBuiltinFamilies()) {
     const source = getFamily(family)!.example
-    const rendered = renderMermaidSVGWithReceipt(source, { layoutSafety: 'strict' })
+    const scoped = family === 'timeline'
+    const renderOptions = scoped ? {} : { layoutSafety: 'strict' as const }
+    const expectedStatus = scoped ? 'unverified' : 'passed'
+    const rendered = renderMermaidSVGWithReceipt(source, renderOptions)
     const proof = rendered.receipt.layoutCertification
-    expect(proof?.status, family).toBe('passed')
+    expect(proof?.status, family).toBe(expectedStatus)
+    if (scoped) expect(proof?.issues.some(issue => issue.code === 'CONDITIONAL_PAINT'), family).toBe(true)
     expect(proof?.outputDigest, family).toBe(renderedSvgDigest(rendered.svg))
     if (proof?.unit === 'px') {
       const actual = rendered.svg.match(/viewBox="([^"]+)"/)![1]!.split(/\s+/).map(Number)
       const retained = [proof.viewport.x, proof.viewport.y, proof.viewport.width, proof.viewport.height]
       retained.forEach((value, index) => expect(Math.abs(value - actual[index]!), family).toBeLessThanOrEqual(5e-12 * Math.max(Math.abs(value), Number.MIN_VALUE)))
     }
-    const layout = layoutMermaidWithReceipt(source, { debug: true, layoutSafety: 'strict' })
-    expect(layout.receipt.layoutCertification?.status, family).toBe('passed')
-    expect(layout.layout.paintCertification?.status, family).toBe('passed')
-    expect(measureQuality(layout.layout).paintCertification?.status, family).toBe('passed')
-    expect(verifyMermaid(source, { renderOptions: { layoutSafety: 'strict' } }).layoutCertification?.status, family).toBe('passed')
+    const layout = layoutMermaidWithReceipt(source, { ...renderOptions, debug: true })
+    expect(layout.receipt.layoutCertification?.status, family).toBe(expectedStatus)
+    expect(layout.layout.paintCertification?.status, family).toBe(expectedStatus)
+    expect(measureQuality(layout.layout).paintCertification?.status, family).toBe(expectedStatus)
+    expect(verifyMermaid(source, { renderOptions }).layoutCertification?.status, family).toBe(expectedStatus)
   }
 })
 
@@ -407,6 +582,22 @@ test('private emission custody cannot be discarded while fresh generic Native in
   expect(certifyNativePaint(drawing.header, { ...drawing.paint }).status).toBe('unverified')
   expect(certifyNativePaint(drawing.header, { ...drawing.paint, primitives: [...drawing.paint.primitives] }).status).toBe('unverified')
   expect(certifyNativePaint({ ...drawing.header }, drawing.paint).status).toBe('unverified')
+})
+
+test.each(['mutable', 'shallow-frozen', 'accessor'] as const)('a transferred text measurement brand cannot bypass %s emission custody', mode => {
+  const block = preparePixelText('Read', { fontSize: 12, fontWeight: 400 })
+  const alias: any = structuredClone(block)
+  transferRetainedPixelText(block, alias)
+  if (mode === 'accessor') Object.defineProperty(alias.lineBlocks[0], 'text', { get: () => 'Read' })
+  if (mode !== 'mutable') Object.freeze(alias)
+  const captured = createNativePaintEmission(10000).snapshot({ block: alias })
+  if (mode === 'accessor') expect(captured).toBeUndefined()
+  else {
+    expect(captured).toBeDefined()
+    alias.lineBlocks[0].text = 'Changed after capture'
+    expect(captured!.block.lineBlocks[0].text).toBe('Read')
+    expect(Object.isFrozen(captured!.block.lineBlocks[0])).toBe(true)
+  }
 })
 
 test.each(['full', 'compound', 'fill-opacity-zero', 'thin', 'partial', 'repaint', 'dashed', 'translucent', 'unknown-width', 'unknown-opacity', 'non-scaling', 'scaled', 'rotated', 'sheared', 'circle', 'ellipse', 'polygon', 'marker-none', 'marker-unknown'] as const)('%s endpoint stroke cannot hide a fully covered marker behind its contact exemption', mode => {
@@ -629,7 +820,7 @@ test.each(['transparent', 'translucent', 'dashed', 'group-opacity', 'compound-pi
   expect(certifyScenePaint(scene(parts))).toMatchObject({ status: 'unverified', issues: [expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', id: 'edge', by: 'node' })] })
 })
 
-test('separated leaves cannot evade the final occlusion traversal budget', () => {
+test.each(['before', 'after'] as const)('separated artwork painted %s text retains the actual traversal obligation', order => {
   const parts: SceneNode[] = [], count = 2048
   for (let i = 0; i < count; i++) {
     const y = Math.floor(i / 8) % 2 === 0 ? 100 : -100
@@ -637,11 +828,12 @@ test('separated leaves cannot evade the final occlusion traversal budget', () =>
   }
   const block = preparePixelText('X', { fontSize: 12, fontWeight: 400 })
   for (let i = 0; i < count; i++) parts.push(marks.text({ id: `text:${i}`, role: 'label', text: 'X', block, x: 500, y: 0, fontSize: 12, anchor: 'start', paint: { fill: '#111' } }))
-  const proof = certifyScenePaint({ ...scene(parts), width: 1000, height: 200 })
-  expect(proof.status).toBe('unverified')
+  const proof = certifyScenePaint({ ...scene(order === 'after' ? parts.reverse() : parts), width: 1000, height: 200 })
+  expect(proof.status).toBe(order === 'before' ? 'passed' : 'unverified')
   expect(proof.checks.occlusionPairs).toBe(0)
   expect(proof.checks.operations).toBeLessThanOrEqual(proof.checks.maxOperations)
-  expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'CHECK_BUDGET' }))
+  if (order === 'after') expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'CHECK_BUDGET' }))
+  else expect(proof.issues).toEqual([])
 })
 
 
@@ -1188,7 +1380,7 @@ test('a translucent note has no proved opaque core to reject a semantic shaft', 
 // These are ordinary polygon resources: the proof must not depend on a family
 // name or marker id. The first midpoint (61,32.5) lies strictly inside the
 // second fill, away from its 0.75px outline, at the covered offset.
-test.each(['covered', 'separate', 'aabb-corner', 'coincident', 'rounded-tangent', 'rounded-anchor', 'rounded-end', 'rounded-vertical', 'rounded-auto-start', 'written-tangent', 'written-anchor', 'rounded-transform', 'rounded-opacity', 'rounded-dash', 'rounded-width', 'rounded-fill', 'rounded-stroke', 'collapsed-terminal', 'rounded-mid', 'different-coincident', 'owned-repaint', 'same-owner-cover', 'unknown-fill', 'transparent-fill', 'affine', 'clipped', 'nonsemantic', 'no-earlier-stroke', 'unemitted-opacity', 'later-restoration', 'overlay-repaint', 'same-color', 'thick-outline', 'unmeasured-restoration', 'late-open', 'early-open-covered', 'early-open-clear', 'no-closing-stroke', 'string-marker-units', 'vertex-only-cover', 'partial-restoration', 'no-earlier-ink'] as const)('distinct marker stroke/fill proof preserves %s', mode => {
+test.each((['covered', 'separate', 'aabb-corner', 'coincident', 'rounded-tangent', 'rounded-anchor', 'rounded-end', 'rounded-vertical', 'rounded-auto-start', 'written-tangent', 'written-anchor', 'rounded-transform', 'rounded-opacity', 'rounded-dash', 'rounded-width', 'rounded-fill', 'rounded-stroke', 'collapsed-terminal', 'rounded-mid', 'different-coincident', 'owned-repaint', 'same-owner-cover', 'unknown-fill', 'transparent-fill', 'affine', 'clipped', 'nonsemantic', 'no-earlier-stroke', 'unemitted-opacity', 'later-restoration', 'overlay-repaint', 'same-color', 'thick-outline', 'unmeasured-restoration', 'late-open', 'early-open-covered', 'early-open-clear', 'no-closing-stroke', 'string-marker-units', 'vertex-only-cover', 'partial-restoration', 'no-earlier-ink'] as const).flatMap(mode => [0, ...(['covered', 'separate', 'later-restoration', 'overlay-repaint'].includes(mode) ? [64] : [])].map(distant => ({ mode, distant }))))('distinct marker stroke/fill proof preserves $mode among $distant distant pairs', ({ mode, distant }) => {
   const first: MarkerDescriptor = { id: 'diamond-resource', shape: 'diamond', units: 'userSpaceOnUse', orient: 'auto-start-reverse',
     size: { width: 14, height: 12 }, viewBox: { x: 0, y: 0, width: 14, height: 12 }, ref: { x: 13, y: 6 },
     geometry: mode === 'no-closing-stroke' ? { kind: 'polyline', points: [{ x: 7, y: 1 }, { x: 13, y: 6 }, { x: 7, y: 11 }] } : ['early-open-covered', 'early-open-clear'].includes(mode) ? { kind: 'polyline', points: [{ x: 7, y: 11 }, { x: 1, y: 6 }, { x: 7, y: 1 }] } : { kind: 'polygon', points: [{ x: 7, y: 1 }, { x: 13, y: 6 }, { x: 7, y: 11 }, { x: 1, y: 6 }] },
@@ -1206,7 +1398,8 @@ test.each(['covered', 'separate', 'aabb-corner', 'coincident', 'rounded-tangent'
   if (mode === 'no-closing-stroke') { later.size = { width: 1, height: 1 }; later.ref = { x: 0.5, y: 0.5 }; later.geometry = { kind: 'polygon', points: [{ x: 0, y: 0 }, { x: 1, y: 0.5 }, { x: 0, y: 1 }] }; later.paint!.strokeWidth = '0.1' }
   if (mode === 'string-marker-units') { first.units = 'strokeWidth'; later.units = 'strokeWidth' }
   const y = mode === 'vertex-only-cover' ? 38 : ['separate', 'early-open-clear'].includes(mode) ? 55 : mode === 'aabb-corner' ? 39.5 : duplicate || ['coincident', 'different-coincident', 'owned-repaint', 'no-closing-stroke'].includes(mode) ? 30 : 33.865217391
-  const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
+  const width = distant ? 6000 : 100
+  const context = { positioned: { width, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
   const producer: DrawingProducer = factory => {
     const connector = (id: string, marker: MarkerDescriptor, cy: number, overlay = false) => {
       const changed = id === 'later' && duplicate
@@ -1222,10 +1415,11 @@ test.each(['covered', 'separate', 'aabb-corner', 'coincident', 'rounded-tangent'
         ...(['affine', 'rounded-transform'].includes(mode) ? { transform: { kind: 'matrix' as const, a: 1, b: 0, c: 0, d: 1, e: 1, f: 0 } } : {}),
         paint: { stroke: '#111', strokeWidth: mode === 'string-marker-units' ? ' 1.004000000000001px ' : '1' }, ...(overlay ? { stroke: { opacity: 0 } } : {}), markers: mode === 'rounded-mid' ? { mid: [marker] } : mode === 'rounded-end' ? { end: marker } : { start: marker } })
     }
-    return { ...scene([]), parts: [
-      factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'),
+    return { ...scene([]), width, parts: [
+      factory.documentOpen({ id: 'root', width, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="80">`),
       factory.definitions({ id: 'resources' }, `<defs>${serializeMarkerResource(first)}${later === first ? '' : serializeMarkerResource(later)}</defs>`),
       connector('earlier', first, 30), connector('later', later, y),
+      ...distantMarkerTextPairs(factory, distant, first),
       ...(mode === 'overlay-repaint' ? [connector('overlay:earlier', first, 30, true), connector('overlay:later', later, y, true)] : []),
       ...(mode === 'later-restoration' ? [factory.connector({ id: 'restorer', role: 'chrome', lineStyle: 'solid', geometry: { kind: 'polyline', points: [{ x: 64, y: 25 }, { x: 70, y: 30 }, { x: 64, y: 35 }, { x: 58, y: 30 }, { x: 64, y: 25 }] }, paint: { stroke: '#111', strokeWidth: '1' } })] : []), ...(mode === 'partial-restoration' ? [factory.connector({ id: 'partial-restorer', role: 'chrome', lineStyle: 'solid', geometry: { kind: 'polyline', points: [{ x: 60, y: 31.35 }, { x: 65.5, y: 31.35 }, { x: 65.5, y: 38.5 }, { x: 60, y: 38.5 }] }, paint: { stroke: '#111', strokeWidth: '0.1' } })] : []), ...(mode === 'unmeasured-restoration' ? [factory.shape({ id: 'unmeasured-restorer', role: 'chrome', geometry: { kind: 'rect', x: 58, y: 30, width: 10, height: 6 }, paint: { fill: 'none', stroke: '#111', strokeWidth: 'var(--host)' } })] : []), factory.documentClose(),
     ] }
@@ -1273,18 +1467,19 @@ test.each(['covered-white', 'covered-same-black', 'separate', 'unknown-fill'] as
 })
 
 
-test.each(['foreign', 'owned', 'separated', 'nonpainting', 'transparent', 'same-paint', 'before', 'owned-repaint', 'empty-marker'] as const)('prepared text and canonical marker visibility retain uncertainty for %s', mode => {
+test.each((['foreign', 'owned', 'separated', 'nonpainting', 'transparent', 'same-paint', 'before', 'owned-repaint', 'empty-marker'] as const).flatMap(mode => [0, ...(['foreign', 'separated', 'before', 'owned-repaint'].includes(mode) ? [64] : [])].map(distant => ({ mode, distant }))))('prepared text and canonical marker visibility retain uncertainty for $mode among $distant distant pairs', ({ mode, distant }) => {
   const canonical = classMarkerResources({ lineWidth: 1, edgeStrokeColor: '#47474a' } as any).find(marker => marker.id === 'cls-inherit')!
   const marker: MarkerDescriptor = mode === 'empty-marker' ? { ...canonical, paint: { fill: 'none', stroke: 'none' } } : canonical
   const block = preparePixelText('0..1', { fontSize: 11, fontWeight: 400 })
-  const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
+  const width = distant ? 6000 : 100
+  const context = { positioned: { width, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
   const producer: DrawingProducer = factory => {
     const carrier = () => factory.connector({ id: 'relation', role: 'relationship', endpoints: { from: 'A', to: 'B' }, lineStyle: 'solid', geometry: { kind: 'line', x1: 70, y1: 40, x2: 20, y2: 40 }, paint: { stroke: '#47474a', strokeWidth: '1' }, markers: { start: marker } })
     const label = () => factory.text({ id: 'count', role: 'cardinality', ...(mode === 'owned' || mode === 'owned-repaint' ? { owner: { id: 'relation', role: 'relationship' } } : {}), text: '0..1', block, x: 61, y: mode === 'separated' ? 65 : 40, fontSize: 11, anchor: 'middle', paint: { fill: mode === 'nonpainting' ? 'none' : mode === 'same-paint' ? '#47474a' : '#69696c', stroke: mode === 'nonpainting' ? 'none' : mode === 'same-paint' ? '#47474a' : '#fff', strokeWidth: '3', strokeLinejoin: 'round', paintOrder: 'stroke', ...(mode === 'transparent' ? { opacity: '0' } : {}) } })
-    const parts = [factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'), factory.definitions({ id: 'defs' }, `<defs>${serializeMarkerResource(marker)}</defs>`), ...(mode === 'before' ? [label(), carrier()] : [carrier(), label()])]
+    const parts = [factory.documentOpen({ id: 'root', width, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="80">`), factory.definitions({ id: 'defs' }, `<defs>${serializeMarkerResource(marker)}</defs>`), ...(mode === 'before' ? [label(), carrier()] : [carrier(), label()])]
     if (mode === 'owned-repaint') parts.push(factory.connector({ id: 'repaint', role: 'chrome', owner: { id: 'relation', role: 'relationship' }, lineStyle: 'solid', geometry: { kind: 'line', x1: 70, y1: 40, x2: 20, y2: 40 }, paint: { stroke: '#47474a', strokeWidth: '1' }, stroke: { opacity: 0 }, markers: { start: marker } }))
-    parts.push(factory.documentClose())
-    return { ...scene([]), parts }
+    parts.push(...distantMarkerTextPairs(factory, distant, marker), factory.documentClose())
+    return { ...scene([]), width, parts }
   }
   const drawing = drawNative(producer, context, 'class')
   expect(drawing.svg).toContain('marker-start="url(#cls-inherit)"')

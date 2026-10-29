@@ -5,6 +5,10 @@ import { layoutMermaidWithReceipt, parseRegisteredMermaid } from '../agent/core.
 import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
 import { renderMermaidASCII } from '../ascii/index.ts'
 import * as classLayoutModule from '../class/layout.ts'
+import { lowerClassDrawing } from '../class/renderer.ts'
+import { drawNative } from '../scene/native-drawing.ts'
+import { certifyNativePaint } from '../scene/paint-certification.ts'
+import { resolveDiagramColors } from '../color-resolver.ts'
 import { CLASS_STYLE_DEFAULTS, classTextBlock, finalizeClassOwnedSurfaces, layoutClassDiagram } from '../class/layout.ts'
 import { parseClassDiagram } from '../class/parser.ts'
 import { assertClassElkSelfContactsClear, constructClassElkSelfContacts } from '../class/elk-contacts.ts'
@@ -21,6 +25,24 @@ const fixture = readFileSync(new URL('../../eval/layout-compare/fixtures/class-b
 const compoundFixture = readFileSync(new URL('../../eval/layout-compare/fixtures/class-compound-backends.mmd', import.meta.url), 'utf8')
 
 describe('Class layout backends', () => {
+  test.each(['TB', 'BT', 'LR', 'RL'])('renders a long native Class chain with exact card contacts in %s', direction => {
+    const source = `classDiagram\ndirection ${direction}\n` + Array.from({ length: 127 }, (_, i) => `N${i} --> N${i + 1}`).join('\n')
+    const options = { graphLayout: { backend: 'agentic' as const, fallback: 'none' as const } }
+    let rendered!: ReturnType<typeof renderMermaidSVGWithReceipt>
+    expect(() => { rendered = renderMermaidSVGWithReceipt(source, options) }).not.toThrow()
+    expect(rendered.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [] })
+    expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', fallback: 'none' })])
+    expect(rendered.svg.match(/class="class-node"/g)).toHaveLength(128)
+    expect(rendered.svg.match(/class="class-relationship"/g)).toHaveLength(127)
+    expect(rendered.svg).toContain('data-id="N127"')
+    // Unit-test scene assertions use the Scene adapter. Also consume the real
+    // native emission ledger used by plain Node and browser entry points.
+    const positioned = layoutClassDiagram(parseClassDiagram(toMermaidLines(source)), options)
+    const context = { positioned, colors: resolveDiagramColors(options, {}), resolved: { renderOptions: options } }
+    const drawing = drawNative(factory => lowerClassDrawing(factory, context), context, 'class')
+    expect(certifyNativePaint(drawing.header, drawing.paint)).toMatchObject({ status: 'passed', issues: [] })
+  })
+
   test.each([4, 5].flatMap(children => ['TB', 'BT', 'LR', 'RL'].map(direction => ({ children, direction }))))('reserves independent inheritance fan channels for $children siblings in $direction', ({ children, direction }) => {
     const ids = Array.from({ length: children }, (_, index) => `Child${children - index - 1}`)
     const source = `classDiagram\ndirection ${direction}\n${ids.map(id => `Root <|-- ${id}`).join('\n')}`
@@ -1387,25 +1409,28 @@ test('Class header repair includes the actual shaft half-width outside a header 
   expect(p.namespaces).toEqual(original.namespaces)
 })
 
-test.each([false,true])('ELK contacts use the exact written rectangle face after title=%s', titled => {
+test.each(['elk', 'agentic'].flatMap(backend => [false, true].map(titled => ({ backend, titled }))))('Class contacts use the exact written rectangle face after title=$titled with $backend', ({ backend, titled }) => {
   const source=(titled?'---\ntitle: Exact rectangle\n---\n':'')+'classDiagram\n'+(titled?'direction TB':'direction LR')+'\nclass S\nclass T\nS -- T'
-  const spy=spyOn(elk,'elkLayoutSync').mockImplementation((input:any)=>{
+  const produce=(input:any)=>{
     const graph=structuredClone(input),vertical=titled
+    graph.children ??= graph.nodes
     Object.assign(graph,{width:1700,height:1700})
-    Object.assign(graph.children.find((n:any)=>n.id==='S'),{x:vertical?400:909.6033333333332,y:vertical?932.8666666666666:289.4166666666667,width:120,height:88.9})
-    Object.assign(graph.children.find((n:any)=>n.id==='T'),{x:vertical?400:1383.8199999999997,y:vertical?1383.8199999999997:289.4166666666667,width:120,height:88.9})
+    Object.assign(graph.children.find((n:any)=>n.id==='S'),{x:vertical?400:909.6033333333332,y:vertical?932.8666666666666:289.4166666666667,width:120,height:backend === 'elk' ? 88.9 : input.nodes[0].height})
+    Object.assign(graph.children.find((n:any)=>n.id==='T'),{x:vertical?400:1383.8199999999997,y:vertical?1383.8199999999997:289.4166666666667,width:120,height:backend === 'elk' ? 88.9 : input.nodes[0].height})
     const a=graph.children.find((n:any)=>n.id==='S'),b=graph.children.find((n:any)=>n.id==='T'),points=vertical?[{x:a.x+60,y:a.y+a.height},{x:b.x+60,y:b.y}]:[{x:a.x+a.width,y:a.y+44.45},{x:b.x,y:b.y+44.45}]
     graph.edges[0].sections=[{id:'section',startPoint:points[0],endPoint:points[1]}]
-    return graph
-  })
+    return backend === 'elk' ? graph : { width:graph.width, height:graph.height, nodes:graph.children, edges:[{points}] }
+  }
+  const spy = backend === 'elk' ? spyOn(elk, 'elkLayoutSync').mockImplementation(produce) : spyOn(nativeClassProducer, 'layoutAgenticGraph').mockImplementation(produce)
   try {
-    const rendered=renderMermaidSVGWithReceipt(source,{graphLayout:{backend:'elk',fallback:'none'}})
+    let rendered!: ReturnType<typeof renderMermaidSVGWithReceipt>
+    expect(() => { rendered=renderMermaidSVGWithReceipt(source,{graphLayout:{backend:backend as 'elk' | 'agentic',fallback:'none'}}) }).not.toThrow()
     expect(rendered.receipt.layoutCertification?.status).toBe('passed')
     const carrier=rendered.svg.match(/<polyline\b[^>]*class="class-relationship"[^>]*>/)![0],
       points=carrier.match(/\spoints="([^"]+)"/)![1]!.trim().split(/[ ,]+/).map(Number)
     // Exact decimal sums of the actual rectangle fields. The old independent
     // long-tail endpoint spelling rounds inward/outward at the1000 boundary.
-    expect(points[titled?1:0]).toBe(titled?1057.166666667:1029.603333333)
+    expect(points[titled?1:0]).toBe(titled?(backend === 'elk' ? 1057.166666667 : 1017.166666667):1029.603333333)
     expect(points[titled?0:1]).toBe(points[titled?2:3])
     expect(rendered.svg).toContain('data-id="S"')
     expect(rendered.svg).toContain('data-id="T"')
