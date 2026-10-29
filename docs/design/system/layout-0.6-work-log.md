@@ -1950,3 +1950,76 @@ publication. Next correctness implementation remains the private geometry-draft
 and exact final-admission seal across standalone/layout/cache consumers, then
 row87 served-stroke/fractional-body proof. Delivery still requires a material,
 independently qualified reduction; failed compiler screens are not a fix.
+
+
+### ID/key-sharing exact-candidate CI result and next delivery boundary
+
+[CI40793691622](https://github.com/adewale/agentic-mermaid/actions/runs/40793691622)
+completes **failed overall** on exact published
+**`a25b9e7b3a7f5a4c21e7c026b6d026a7857c3579`**, with runtime
+**`0db3f02c7db91aed1017fd8d19db26181184f8d8`** and ID repair
+**`c632a2eaade2f24146695635c921ac4bbe5d201a`**. One attempt, no retries.
+All three unit shards pass **14664P/76skips/0F**:4545/5006/5113P and45/13/18skips.
+This is two more passes than prior14662, corresponding to the new owning cases;
+it does not establish broader correctness parity. Local disjoint615P remains
+separate overlapping evidence, not added to CI's population.
+
+Semantic173P/0F has63/64qualified and one unavailable. Grammar882retains zero
+untracked/unreviewed inputs. Broader440/548renders,431structured/10opaque/
+107preserved, upstream3474registered with1879passed/121native-refusal/
+720assertion-mismatch/735adapter-unavailable/6reference-unqualified/13skip,
+three uncollected files and thirteen seed7silent reads remain. These counts
+match prior diagnostics, not independently adjudicated final ink or full support.
+Quality types/lint and513diagrams/2052format audits pass with zero hard/soft/
+render errors. All functional consumer lanes pass, including Node22/24,
+quickstarts, MCP, CLI, dist, payload and browser-site. The browser lane's only
+failure is its original editor byte gate:21P/1F, raw4481508>4429400; gzip is not
+reached. The local complete candidate gzip1353193 remains separately observed.
+
+The lazy gate retains29unique rows,17raw/12gzip. CI raw values equal the local
+build; some CI compressed values differ by a few bytes and both observations
+remain intact. CI Sequence214872>214000, Packet194449>192500, Radar205024>205000,
+ZenUML220066>220000. No cap or check is changed. The resulting failed Quality
+and browser jobs propagate to test/CIcomplete. The nonblocking advisory also
+returns failure: corpus234has47regressions/52improvements/135other changes;
+generated256has123regressions/133improvements; six64case cohorts retain
+29/35,33/31,29/35,30/34,26/38,29/35. Both engines have zero API errors across
+these historical cohorts. None is the sealed0.6holdout or establishes aesthetics.
+
+The PR description is updated under the standing authorization, while PR449
+stays closed. The292-line bounded readiness heuristic passes; two console
+matches are the generator's normal size output and a test child's JSON transport.
+The generated-media linter still fails one presentation check because the actual
+workspace PNGs are not uploaded as public PR media; section/provenance checks
+pass. This is an outstanding presentation limitation, not fabricated image URLs
+or a failed pixel comparison. The source tests and direct physical observations
+remain available in the local evidence. No overall readiness is claimed.
+
+A bounded further architecture review finds a concrete remaining delivery path:
+all679copied ELK computational source blobs, including259layered/115core, match
+between the old compiler recipe's54123e8and the0.11.1release hyperlinkc831ba4.
+However, its displayed28e5173revision differs in many core/layered files, compiler
+inputs differ and the shipped GWT worker is rebuilt/changed. Installed0.11.1
+artifacts match the actual public tag. This supports reconstructing a maintained
+matching recipe, not relabelling an old0.11.0binary. New artifact provenance,
+explicit private-vendor API narrowing and complete current consumer qualification
+are required. No rebuild, vendor overlay or adoption occurs. Pruning ELK could
+help the editor and ELK-demand closures; it cannot close the non-ELK lazy rows.
+The exact-source finding and release-label ambiguity stay in
+`architecture-new/pruned-version-review/REPORT.md`.
+
+All decoded relevant job logs, terminal job list, unique lazy violations,
+artifact references and summary are under `/tmp/pr449-ci-fix-20261028/`.
+Current large ZIPs are not fetched; an earlier ZIP403remains an earlier failed
+observation. Actual local shipping artifacts and seven committed source/test/
+generator members are directly bound to Git and retained in `final-artifacts/`;
+all61lazy archive members match emitted bytes. No source-input hashes are added.
+
+This is verified correctness progress and partial standalone shrink; **CI is
+not repaired**. Next implementation remains final geometry/admission authority,
+with the maintained matching-ELK delivery reconstruction and non-ELK shared-core
+reduction as distinct unresolved delivery work. Original seven and all six goals
+remain open, holdout sealed and peer/Trident qualification incomplete. The
+work-log-only follow-up changes no production/test/dependency/workflow and has
+no separate full-CI or readiness claim. No force push, merge, new PR/issue/comment,
+check/cap relaxation, default/version change, publication or timing campaign.
