@@ -2877,3 +2877,106 @@ shared final-output correspondence still required before broader qualification.
 No performance campaign, cap/check relaxation, backend/version/release change,
 package publication, force push, PR merge or external comment occurred. The
 previous exact e440 CI failed33 lazy byte rows; this source needs its own CI.
+
+### 29 October: share row87 write authority and reject unrecorded group paint
+
+Source/test revision: `ee1ca980fdaac34d02a90cfb5747107abefeb9a9`, parent
+`8b098e2c5d6203eb263af588ccf3a1d4f9618f30`. This is follow-up work on the
+retained PR449 branch, not Main. The historically merged PR stays closed.
+
+The Native milestone did not close the Scene/strict obligation. Actual baseline
+observations showed the same2,999-byte original SVG remained U through asserted
+Scene, and strict rendering refused, under both engines. Frozen owning
+expectations gave genuine14P/4F/360assertions across three sources, two engines
+and Native/Scene/strict execution. Four original Scene/strict cells failed;
+adverse cases and Native originals remained enrolled. Stock expectations and
+the independently authored source facts were not tuned after this observation.
+
+One shared emission-context predicate now owns prepared text, canonical context
+and absence of transforms. Native's duplicate new predicate was removed.
+Scene's existing first-write transaction now binds eligible sharp rectangles
+to actual geometry and all13 emitted paint attributes, and prepared text to its
+actual write. Receipt issuance, exact Scene/node/source/WRITTEN-byte identity,
+private admission handoff, cached replay and per-inspection occurrence custody
+remain distinct. New shape/text facts are consumed once per inspection. Raw
+mutable/getter inputs cannot gain this authority from a later prototype change;
+the private null-prototype ownership handoff precedes all new observations.
+The opt-in is limited to original builtin unstyled output, excluding the
+backend-added styled backdrop. Unsupported shapes retain their old proof paths.
+
+Independent review found two implementation soundness problems before this
+publication, and actual controls determined the fixes:
+
+- The optional capture flag could be inherited, or read six times through an
+  accessor, granting P without explicit output opt-in. Two genuine RED cases
+  give2F/52assertions after observing identical final SVG and real marker ink.
+  Capture now snapshots only an exact own-data true value; inherited/accessor
+  options remain off, without invoking the accessor.
+- Group closing strings and join separators could draw opaque rectangles
+  absent from typed primitives. Four Native/Scene cases gave P despite complete
+  final-pixel marker erasure. An empty Native group whose owner getter prevented
+  shell capture caused the same false P in fractional and legacy integer
+  domains. Those two further cases also observed well-formed final SVG and zero
+  whole-image marker-removal effect before the failing certification assertion.
+  Shared fractional context now checks complete captured group shell strings;
+  the Native producer marks a failed GROUP capture uncertain using the existing
+  issuer API. This closes all proof paths for that unobserved group without
+  changing unrelated snapshot failures, the writer or geometry.
+
+The six group reproductions are separate genuine epochs, not a fabricated
+combined run. Initial missing DOM identity/count expectations and a nonexistent
+owner refusal remain recorded as setup failures, not product false passes.
+The constructor rejects the proposed constant opening-string example, so that
+unrendered case is not counted. A private raw-group comparison on the same
+candidate (optionOFF/ON, not an8b checkout) observes identical SVG, identical16
+paint reads, no extra paint-reflection traps and no issued receipt.
+
+The first broad owner run was483P/1F: an old test explicitly required Scene U
+because write authority was missing. Its physically clear integer/raw-tail
+pair has identical SVG, full ringright60.5 exactly touching fillinner60.5 and a
+shaft/body-clearing stroke patch. The added scope was prospectively published
+and independently reviewed before that existing test required P with literal
+geometry/viewport and actual marker-removal observations. A subsequent484P run
+predates the group findings and is not the final result. The first typecheck
+found a test-only optional-string narrowing error, corrected without relaxing
+its refusal assertion.
+
+| Final observation | Result |
+| --- | --- |
+| Six owning files | **490P / 0F / 4,662assertions**. Canonical core/repository types pass. Full lint passes with the existing1.2MiB JSON warning. |
+| Original87 Native/Scene/strict × both engines | All six original cells P. Four new actual Scene/strict captures return the identical2,999-byte SVG; one marker, eight primitives, five measured, two prepared text, no conditional/unmeasured paint or viewport repair. Independent final-ink readback retains41 marker-dependent pixels, A/B glyphs/ownership and1/8 fill clearance. |
+| Same thin-border/wide-shaft controls | Eight ordinary Native/Scene returns U. Four strict adverse calls retain typed U refusals and explicitly have no returned final SVG/PNG. Thin actual SVG3,000B retains41 marker-dependent pixels but forbidden fill intrusion; wide actual SVG4,827B has zero marker-removal effect. |
+| Fresh/cache/foreign/forged/alias/option controls | Fresh genuine receipt P; cached replay, foreign/forged receipt, aliased shape/text and inherited/accessor opt-in cannot acquire new authority. Clear group positives stay P; all six demonstrated full-erasure controls now reject P. |
+| Existing50 canonical observations |50 returns,48P/2oldU, zero changed SVG/XML/status; complete receipts differ only in charged operations. Maximum136,033/400,000, delta+20..1,594. |
+| Original seven, existing56 observations |56 returns,16P/40U, zero changed SVG/XML/status against published8b Native milestone; rows77/87 P and88/89/103/206/209 U. Maximum321,225/400,000, delta+20..848. Full repeat/cross-policy packets, output digests, requested/selected engines checked. |
+| Source/cache accounting |852 baseline inputs match committed8b directly; seven runtime changes and nine per-mode source copies match frozen R3. Same31 runtime artifacts. Native makes zero ELK calls; its actual layout cache remains unobserved. ELK OFF records16 bypasses; NORMAL7 misses/9 hits across16 API calls, without claiming inner solver calls. |
+| Independent review | Final combined-source review, module/cohort review and actual model/SVG/PNG/RGBA ink review bind R3. No remaining concrete finding inside this bounded scope. Broader correctness is unproven. |
+
+The final candidate is directly bound to copied source/test bytes; no hashes of
+own source/inputs supply authority. Full logs, exact source snapshots, actual
+public models/SVG/receipts/PNG/RGBA, setup failures and independent reviews live
+under `/tmp/pr449-row87-scene-20261029/` and the retained phase2 owning evidence
+under `/tmp/pr449-row87-campaign-20261029/tests/phase2/`.
+
+This is a common certifier improvement benefiting both engines, with unchanged
+visible output; it is not Native-over-ELK superiority or universal correctness.
+The original seven stay enrolled: rows88/89/103/206/209 remain U, including the
+cubic-anchor and cylinder obligations. Native actual layout-cache use remains
+unobserved in the retained protocol. All six0.6goals remain open and the holdout
+remains sealed. No performance/timing campaign, cap relaxation, release/default
+change, package publication, force push, PR merge/reopen, issue or external
+comment occurs. Pinned Pele1.9 meaning supports A/B/circle direction; its inline
+filled dot is not our hollow ring. Full public Mermaid/Pele qualification and
+shared Trident fidelity work remain outstanding.
+
+Exact8b CI40898742115 is terminal failure:14,719unitsP/76skip/0F, both browser
+lanes pass,34lazy byte rows fail and the advisory comparison fails. Relative
+payload comparison was skipped; exact standalone metadata download returned403.
+These observations belong to8b, not this source. Final retained-branch CI must
+run once on the final published head; no inherited readiness is asserted.
+
+Next concrete dependency: qualify remaining crossing/stroke cases88/89 against
+the shared actual-write authority, then the cubic103 and cylinder206/209 proof
+obligations. Keep broader authored interaction coverage and independently
+observed final-artifact correspondence ahead of any holdout opening or timing
+campaign. Main integration and failed delivery/advisory gates remain explicit.
