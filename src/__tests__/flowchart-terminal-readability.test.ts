@@ -14,12 +14,13 @@
 //   offsets and seats both captions level, whatever their lengths.
 
 import { describe, expect, test } from 'bun:test'
-import '../index.ts'
+import { renderMermaidSVG } from '../index.ts'
 import { parseMermaid } from '../parser.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { resolveRenderRequest } from '../render-contract.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import { graphEdgeMarkerPaintRegions, graphEdgePathProjection } from '../graph-connectors.ts'
+import { terminalHookLength } from '../layout/route-geometry.ts'
 import { labelHaloExtension, labelRect } from '../shared/edge-label-geometry.ts'
 import type { Point, PositionedEdge, PositionedGraph, PositionedNode } from '../types.ts'
 
@@ -45,6 +46,11 @@ const LINEAGE = `flowchart TD
     Pele -->|Rust port| Ondine
     Pele -->|port| Bezel
   end`
+
+// #584 pins the later drawing, where Dart and Flutter are separate nodes.
+const REVISED_LINEAGE = LINEAGE
+  .replace('    Dart[Mermaid Dart]', '    Dart[Mermaid Dart]\n    Flutter[Mermaid Flutter]')
+  .replace('    Beautiful -->|fork| Agentic', '    Dart -->|native Flutter renderer| Flutter\n    Beautiful -->|fork| Agentic')
 
 const CASES: Array<{ name: string; source: string }> = [
   { name: 'the reported lineage', source: LINEAGE },
@@ -174,6 +180,53 @@ function expectReadableEnds(positioned: PositionedGraph, horizontal: boolean, st
 }
 
 describe('Flowchart relationship ends stay readable (#566)', () => {
+  test('eleven-project lineage leaves straight shaft behind the rounded derivative arrow (#584)', () => {
+    const source = REVISED_LINEAGE
+    const { positioned, horizontal, style } = laidOut(source, PUBLICATION)
+    // Inspect the public SVG too: a 12px raw hook used to become a 6px
+    // straight segment after rounding, under an 11.6px stroke-scaled head.
+    const svg = renderMermaidSVG(source, PUBLICATION)
+    const edge = svg.match(/<path class="edge"[^>]*data-label="derivative"[^>]*>/)?.[0]
+    expect(edge).toBeDefined()
+    const d = edge!.match(/\bd="([^"]+)"/)![1]!
+    expect(d).toContain('Q')
+    const terminal = d.match(/Q[^MLQ]*? ([\d.-]+),([\d.-]+) L([\d.-]+),([\d.-]+)$/)
+    expect(terminal).not.toBeNull()
+    const [, x0, y0, x1, y1] = terminal!.map(Number)
+    const length = Math.hypot(x1! - x0!, y1! - y0!)
+    const width = Number(edge!.match(/stroke-width="([^"]+)"/)![1])
+    const id = edge!.match(/marker-end="url\(#([^)]*)\)"/)![1]!
+    const marker = svg.match(new RegExp(`<marker id="${id}"[^>]*>[\\s\\S]*?</marker>`))![0]
+    expect(marker).toContain('markerWidth="8"')
+    expect(marker).toContain('refX="8"')
+    expect(marker).not.toContain('markerUnits="userSpaceOnUse"')
+    const markerStroke = Number(marker.match(/stroke-width="([^"]+)"/)![1])
+    // Include the round-joined polygon's stroke behind its nominal base.
+    expect(length - (8 + markerStroke / 2) * width).toBeGreaterThanOrEqual(3.9998)
+    expectReadableEnds(positioned, horizontal, style)
+  })
+
+  test.each([
+    { name: 'stroke-scaled arrow', thick: false, fixed: false },
+    { name: 'thick arrow', thick: true, fixed: false },
+    { name: 'fixed-size custom-width arrow', thick: false, fixed: true },
+  ])('a reduced rounded hook seats its $name on a straight shaft (#584)', ({ thick, fixed }) => {
+    const style = { ...resolveRenderStyle(), lineWidth: 1.45, edgeBendRadius: 8 }
+    const edge: PositionedEdge = {
+      source: 'A', target: 'B', style: thick ? 'thick' : 'solid',
+      hasArrowStart: false, hasArrowEnd: true, points: [],
+      ...(fixed ? { inlineStyle: { 'stroke-width': '4px' } } : {}),
+    }
+    const hook = terminalHookLength(style, edge)
+    // A single elbow isolates the old 12px-hook / 6px-rounded-tail failure.
+    edge.points = [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: hook }]
+    const [from, to] = paintedTerminalRun(edge, style)
+    const marker = endMarker(edge, style)
+    expect(to).toEqual(edge.points.at(-1)!)
+    expect(from.x).toBe(to.x)
+    expect(marker.y0 - from.y).toBeGreaterThanOrEqual(3.9998)
+  })
+
   test.each([3, 12])('a %dpx edge style reserves its thick marker stroke', lineWidth => {
     const { positioned, horizontal, style } = laidOut('flowchart LR\nA[Source] ==> C[Target]\nB[Other source] -.-> C', { style: { roles: { edge: { lineWidth, bendRadius: 8 } } } })
     expectReadableEnds(positioned, horizontal, style)
