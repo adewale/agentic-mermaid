@@ -420,7 +420,7 @@ function markerHasInk(marker: MarkerDescriptor | undefined, witnesses: readonly 
   return false
 }
 
-interface CircleStrokeProof { readonly bounds: AxisAlignedBox; readonly witnesses: readonly ScenePoint[] }
+interface CircleStrokeProof { readonly bounds: AxisAlignedBox; readonly witnesses: readonly ScenePoint[]; readonly separated: boolean }
 
 // This first served-circle domain uses exact integer operands and cardinal
 // permutations. Half-widths are dyadic; no trig, tolerance or raw-resource
@@ -490,7 +490,7 @@ function prepareCircleStroke(node: NativeConnectorPaintSource, marker: MarkerDes
   // even an identically painted wide carrier cannot absorb this witness.
   if (!(Math.abs((witness.x - line.x1) * ty - (witness.y - line.y1) * tx) > ownWidth / 2)) return undefined
   return { bounds: { x0: cx - radius, y0: cy - radius, x1: cx + radius, y1: cy + radius },
-    witnesses: [witness] }
+    witnesses: [witness], separated: false }
 }
 
 /** Every later possible occluder must have this exact served sharp-rectangle
@@ -507,6 +507,140 @@ function circleStrokeBody(primitive: ScenePaintPrimitive, work: () => boolean): 
     && paint.strokeDasharray === undefined && paint.strokeDashoffset === undefined
     && (paint.strokeLinejoin === undefined || paint.strokeLinejoin === 'miter') && (paint.strokeMiterlimit === undefined || paint.strokeMiterlimit === '4')
     && (paint.vectorEffect === undefined || paint.vectorEffect === 'none')
+}
+
+/** A second circle domain uses exact thousandth-unit operands, represented
+ * in half-thousandth ticks. No coordinate is rounded onto this lattice. The
+ * private emission context owns all transforms, resources and text writes. */
+function prepareFractionalCircleStroke(
+  node: NativeConnectorPaintSource, marker: MarkerDescriptor | undefined, position: 'start' | 'mid' | 'end',
+  carrier: ScenePaintPrimitive, primitives: readonly ScenePaintPrimitive[], viewport: AxisAlignedBox,
+  resolveColor: (value: string) => string | undefined, attached: (owner: SceneOwner) => boolean, work: () => boolean,
+): CircleStrokeProof | undefined {
+  const pay = (count: number): boolean => { for (let i = 0; i < count; i++) if (!work()) return false; return true }
+  // Captured own slots are immutable, but an omitted field must not acquire
+  // a different default through Object.prototype after the resource write.
+  const record = <T>(value: T | undefined, fields: readonly string[]): T | undefined => {
+    if (!value || typeof value !== 'object' || !pay(4)) return undefined
+    const retained = Object.create(null)
+    for (const field of fields) {
+      if (!pay(4)) return undefined
+      const descriptor = Object.getOwnPropertyDescriptor(value, field)
+      if (!descriptor) { if (field in value) return undefined; continue }
+      if (!('value' in descriptor)) return undefined
+      Object.defineProperty(retained, field, { value: descriptor.value })
+    }
+    return Object.freeze(retained) as T
+  }
+  // All inputs are bounded by one million units. Tick sums/differences remain
+  // below 2^34, so every arithmetic operation below is an exact safe integer.
+  const ticks = (value: number | string | undefined): number | undefined => {
+    if (!pay(32) || value === undefined || typeof value === 'number' && (!Number.isFinite(value) || Math.abs(value) > 1e6)) return undefined
+    const text = String(value)
+    if (!pay(text.length * 3) || !/^-?(?:0|[1-9]\d*)(?:\.\d{1,3})?$/.test(text)) return undefined
+    const negative = text[0] === '-', parts = (negative ? text.slice(1) : text).split('.')
+    const whole = Number(parts[0]), fraction = Number((parts[1] ?? '').padEnd(3, '0'))
+    if (whole > 1e6 || whole === 1e6 && fraction !== 0) return undefined
+    return (negative ? -1 : 1) * (whole * 2000 + fraction * 2)
+  }
+  const opaque = (value: string | undefined): RgbaColor | undefined => {
+    if (!value || !pay(value.length * 4 + 1)) return undefined
+    const literal = tryParseCssColor(value)
+    if (literal) return literal[3] === 1 ? literal : undefined
+    // A fallback can hide an unknown host variable. Only a single variable
+    // bound by the actual validated document can supply this new authority.
+    if (!/^var\(--[A-Za-z_][A-Za-z0-9_-]*\)$/.test(value)) return undefined
+    const resolved = resolveColor(value)
+    if (!resolved || !pay(resolved.length * 4 + 1)) return undefined
+    const color = tryParseCssColor(resolved)
+    return color?.[3] === 1 ? color : undefined
+  }
+  marker = record(marker, ['geometry', 'paint', 'bounds', 'viewBox', 'scale', 'orient', 'units', 'size', 'ref'])
+  const g = record(marker?.geometry, ['kind', 'cx', 'cy', 'r'])
+  const paint = record(marker?.paint, ['fill', 'stroke', 'strokeWidth', 'opacity', 'fillOpacity', 'strokeOpacity', 'strokeDasharray', 'strokeDashoffset', 'strokeLinecap', 'strokeLinejoin', 'strokeMiterlimit', 'paintOrder', 'vectorEffect'])
+  const size = record(marker?.size, ['width', 'height']), ref = record(marker?.ref, ['x', 'y']), line = node.route.geometry
+  if (!pay(96) || g?.kind !== 'circle' || !paint || position === 'mid' || node.transform || node.route.closed
+    || node.stroke.nonScaling || node.stroke.dash || node.stroke.mixBlendMode && node.stroke.mixBlendMode !== 'normal'
+    || node.stroke.paintOrder !== undefined && node.stroke.paintOrder !== 'normal'
+    || node.stroke.opacity !== undefined && node.stroke.opacity !== 1 && node.stroke.opacity !== '1'
+    || node.markers.mid.length || (position === 'start' ? node.markers.end : node.markers.start)
+    || marker!.bounds || marker!.viewBox || (marker!.scale ?? 1) !== 1
+    || marker!.orient !== undefined && marker!.orient !== 'auto' && marker!.orient !== 'auto-start-reverse'
+    || marker!.units !== undefined && marker!.units !== 'strokeWidth' && marker!.units !== 'userSpaceOnUse'
+    || !size || !ref || paint.fill !== 'none'
+    || paint.opacity !== undefined && paint.opacity !== '1' || paint.fillOpacity !== undefined || paint.strokeOpacity !== undefined
+    || paint.strokeDasharray !== undefined || paint.strokeDashoffset !== undefined
+    || paint.strokeLinecap !== undefined && paint.strokeLinecap !== 'butt'
+    || paint.strokeLinejoin !== undefined && paint.strokeLinejoin !== 'miter'
+    || paint.strokeMiterlimit !== undefined && paint.strokeMiterlimit !== '4'
+    || paint.paintOrder !== undefined && paint.paintOrder !== 'normal'
+    || paint.vectorEffect !== undefined && paint.vectorEffect !== 'none') return undefined
+  let first: ScenePoint, last: ScenePoint
+  if (line.kind === 'line') { first = { x: line.x1, y: line.y1 }; last = { x: line.x2, y: line.y2 } }
+  else if (line.kind === 'polyline' && line.points.length === 2) { first = line.points[0]!; last = line.points[1]! }
+  else return undefined
+  const values = [first.x, first.y, last.x, last.y, g.cx, g.cy, g.r, ref.x, ref.y,
+    size.width, size.height, paint.strokeWidth ?? '1', node.stroke.width].map(ticks)
+  if (values.some(value => value === undefined)) return undefined
+  const [x1, y1, x2, y2, localX, localY, radius, refX, refY, sizeX, sizeY, width, shaftWidth] = values as [number, number, number, number, number, number, number, number, number, number, number, number, number]
+  if (shaftWidth !== 2000 || !(radius! > 0) || !(width! >= 8) || x1 === x2 && y1 === y2 || x1 !== x2 && y1 !== y2) return undefined
+  const color = opaque(paint.stroke), background = opaque('var(--bg)')
+  if (!color || !background || !pay(8) || color[0] === background[0] && color[1] === background[1] && color[2] === background[2]) return undefined
+  const outer = radius! + width! / 2
+  if (!(localX! - outer > 0 && localY! - outer > 0 && localX! + outer < sizeX! && localY! + outer < sizeY!)) return undefined
+  const tx = Math.sign(x2! - x1!), ty = Math.sign(y2! - y1!)
+  const reverse = position === 'start' && marker!.orient === 'auto-start-reverse' ? -1 : 1
+  const dx = tx * reverse, dy = ty * reverse, anchorX = position === 'start' ? x1! : x2!, anchorY = position === 'start' ? y1! : y2!
+  const cx = anchorX + dx * (localX! - refX!) - dy * (localY! - refY!)
+  const cy = anchorY + dy * (localX! - refX!) + dx * (localY! - refY!)
+  const ring = { x0: cx - outer, y0: cy - outer, x1: cx + outer, y1: cy + outer }
+  const wx = cx + dy * radius!, wy = cy - dx * radius!
+  // The fixed open +/-1 tick square lies within two ticks of the radius.
+  // Half the stroke is at least four ticks, so the entire patch is ink.
+  const patch = { x0: wx - 1, y0: wy - 1, x1: wx + 1, y1: wy + 1 }
+  if (!pay(24) || Math.abs((wx - x1!) * ty - (wy - y1!) * tx) <= shaftWidth / 2 + 1) return undefined
+  const separated = (a: AxisAlignedBox, b: AxisAlignedBox): boolean => a.x1 < b.x0 || b.x1 < a.x0 || a.y1 < b.y0 || b.y1 < a.y0
+  const viewportTicks = [viewport.x0, viewport.y0, viewport.x1, viewport.y1].map(ticks)
+  if (viewportTicks.some(value => value === undefined) || ring.x0 < viewportTicks[0]! || ring.y0 < viewportTicks[1]!
+    || ring.x1 > viewportTicks[2]! || ring.y1 > viewportTicks[3]!) return undefined
+  for (const primitive of primitives) {
+    if (!pay(48)) return undefined
+    if (primitive === carrier || primitive.coverage === 'non-painting') continue
+    if (primitive.kind === 'document' || primitive.order < carrier.order || primitive.coverage !== 'measured'
+      || primitive.visibility === 'conditional' || primitive.groupOpacity !== undefined || !hasNativeEmissionOccurrence(primitive)) return undefined
+    const matrix = scenePrimitiveMatrix(primitive), source = paintPrimitiveSource(primitive)
+    if (!matrix || !matrix.every((value, index) => value === [1, 0, 0, 1, 0, 0][index])) return undefined
+    if (primitive.kind === 'text') {
+      const b = primitive.bounds
+      if (primitive.text?.measurement !== 'prepared' || !b || !Object.values(b).every(value => Number.isFinite(value) && Math.abs(value) <= 1e6)) return undefined
+      // One tick covers admitted advance projection; two more cover product
+      // and parsed-float rounding. Only this text enclosure grows outward;
+      // ring and body contact comparisons remain exact integer arithmetic.
+      const text = { x0: Math.floor(b.x0 * 2000) - 3, y0: Math.floor(b.y0 * 2000) - 3,
+        x1: Math.ceil(b.x1 * 2000) + 3, y1: Math.ceil(b.y1 * 2000) + 3 }
+      if (!separated(ring, text)) return undefined
+      continue
+    }
+    if (source?.kind !== 'shape' || source.geometry.kind !== 'rect') return undefined
+    const rect = source.geometry, p = source.paint
+    if ((rect.rx ?? 0) !== 0 || (rect.ry ?? 0) !== 0 || !opaque(p.fill) || !opaque(p.stroke)
+      || p.opacity !== undefined && p.opacity !== '1' || p.fillOpacity !== undefined && p.fillOpacity !== '1'
+      || p.strokeOpacity !== undefined && p.strokeOpacity !== '1' || p.strokeDasharray !== undefined || p.strokeDashoffset !== undefined
+      || p.strokeLinejoin !== undefined && p.strokeLinejoin !== 'miter' || p.strokeMiterlimit !== undefined && p.strokeMiterlimit !== '4'
+      || p.vectorEffect !== undefined && p.vectorEffect !== 'none' || p.paintOrder !== undefined && p.paintOrder !== 'normal') return undefined
+    const operands = [rect.x, rect.y, rect.width, rect.height, p.strokeWidth ?? '1'].map(ticks)
+    if (operands.some(value => value === undefined)) return undefined
+    const [x, y, w, h, stroke] = operands as [number, number, number, number, number]
+    if (!(w! > 0 && h! > 0 && stroke! > 0)) return undefined
+    const half = stroke! / 2, outerRect = { x0: x! - half, y0: y! - half, x1: x! + w! + half, y1: y! + h! + half }
+    if (!separated(patch, outerRect)) return undefined
+    if (separated(ring, outerRect)) continue
+    if (!attached(primitive.owner) || !(w! > stroke! && h! > stroke!)) return undefined
+    const inner = { x0: x! + half, y0: y! + half, x1: x! + w! - half, y1: y! + h! - half }
+    if (!(ring.x1 <= inner.x0 || ring.x0 >= inner.x1 || ring.y1 <= inner.y0 || ring.y0 >= inner.y1)) return undefined
+  }
+  return { bounds: { x0: ring.x0 / 2000, y0: ring.y0 / 2000, x1: ring.x1 / 2000, y1: ring.y1 / 2000 },
+    witnesses: [{ x: wx / 2000, y: wy / 2000 }], separated: true }
 }
 
 interface MarkerPieceSource {
@@ -1315,9 +1449,10 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
         && !!matrix && matrix[0] === 1 && matrix[1] === 0 && matrix[2] === 0 && matrix[3] === 1 && matrix[4] === 0 && matrix[5] === 0
       const mayFill = markerMayHaveOpaqueFill(resolvePaintColor, descriptor, work)
       const strokeProof = semantic && exactWorld ? prepareMarkerPolygonInk(scene, node, descriptor, marker.position, work, resolvePaintColor) : undefined
-      let circleStroke = semantic && exactWorld && !repaired && emissionWork?.closedMarkerContext
-        ? prepareCircleStroke(node, descriptor, marker.position, work) : undefined
-      if (circleStroke) for (const later of inspection.primitives) {
+      let circleStroke = semantic && exactWorld && !repaired && emissionWork?.fractionalCircleContext && emissionWork.header.transparent === false
+        ? prepareFractionalCircleStroke(node, descriptor, marker.position, primitive, inspection.primitives, finalBounds, resolvePaintColor, owner => endpointRelation(node, owner) === 'attached', work) : undefined
+      if (!circleStroke && semantic && exactWorld && !repaired && emissionWork?.closedMarkerContext) circleStroke = prepareCircleStroke(node, descriptor, marker.position, work)
+      if (circleStroke && !circleStroke.separated) for (const later of inspection.primitives) {
         if (!work()) { circleStroke = undefined; break }
         if (later.order === primitive.order || later.kind === 'document') continue
         // The carrier must be the first non-document primitive. Earlier ink can
@@ -1330,6 +1465,10 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
       // tolerated source tangent metadata cannot hide a later-body query.
       const retainedBounds = unionSceneBounds(marker.bounds, originalRegions?.[markerIndex]?.bounds)!
       const bounds = circleStroke ? unionSceneBounds(retainedBounds, circleStroke.bounds)! : retainedBounds
+      if (circleStroke?.separated && (!work() || !contains(finalBounds, bounds))) {
+        circleStroke = undefined
+        issue({ code: 'UNMEASURED_PAINT', id: primitive.id, message: 'Final viewport does not contain the complete served circle envelope' })
+      }
       if (contours) {
         // Preserve the raw envelope and add every actual served pose. The
         // complete occurrence also governs later-restoration pruning below.
@@ -1344,6 +1483,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
     // A matching later conditional repaint may restore this marker, but does
     // not establish final visible ink. The scene's conditional issue stays U.
     if (target.primitive.visibility === 'conditional') return
+    if (target.circleStroke?.separated) { work(); return }
     if (exhausted || !work() || !branch || !overlaps(branch.bounds, target.bounds)) return
     if (!branch.leaves) { markerCheck(branch.left, target); markerCheck(branch.right, target); return }
     for (const surface of branch.leaves) {
@@ -1374,6 +1514,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
   for (let targetIndex = 0; targetIndex < markerTargets.length; targetIndex++) {
     const target = markerTargets[targetIndex]!
     if (!work()) break
+    if (target.circleStroke?.separated) continue
     if (!target.semantic || target.primitive.visibility === 'conditional'
       || target.strokeProof?.fill === 'absent' && target.strokeProof.stroke === 'absent') continue
     const primitives = inspection.primitives
