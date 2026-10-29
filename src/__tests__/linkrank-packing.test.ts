@@ -17,9 +17,10 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { honorLinkRankDistance } from '../layout/passes/rank-distance.ts'
 import { LayoutCertificationError as RankReconnectCertificationError } from '../layout/certification-error.ts'
-import type { PositionedNode, PositionedEdge, PositionedGroup } from '../types.ts'
+import type { Point, PositionedNode, PositionedEdge, PositionedGroup, RenderOptions } from '../types.ts'
 import { segmentEntersMeasuredBox } from '../layout/measured-route-safety.ts'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
+import { scanSvgStartTags } from '../svg-structure.ts'
 
 const cases: [string, string][] = [
   // Shove lands a node on a bystander: nodeOverlaps + edgeThroughNode without
@@ -159,6 +160,65 @@ describe('issue #87 link-rank evidence fixtures keep the requested gap', () => {
 })
 
 describe('rank reconnection preserves owned header-safe geometry', () => {
+  test.each([{}, { style: 'publication-figure' }, { style: ['publication-figure', 'nord-light', { font: 'Inter' }] }] satisfies RenderOptions[])(
+    'docs flowchart 98 preserves every node, group and relationship under %j', options => {
+      const corpus = JSON.parse(readFileSync(join(import.meta.dir, '../../eval/mermaid-docs-corpus/corpus.json'), 'utf8')) as Array<{ family: string; index: number; source: string }>
+      const source = corpus.find(sample => sample.family === 'flowchart' && sample.index === 98)!.source
+      expect(() => renderMermaidSVGWithReceipt(source, options)).not.toThrow()
+      const rendered = renderMermaidSVGWithReceipt(source, options)
+      expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+      const tags = scanSvgStartTags(rendered.svg).map(tag => Object.fromEntries(tag.attributes.map(attribute => [attribute.name, attribute.value])))
+      expect(tags.filter(tag => tag.class === 'node').map(tag => tag['data-id']).sort()).toEqual(['bottom1', 'bottom2', 'outside', 'top1', 'top2'])
+      expect(tags.filter(tag => tag.class === 'subgraph').map(tag => tag['data-id']).sort()).toEqual(['subgraph1', 'subgraph2'])
+      expect(tags.filter(tag => tag.class === 'edge').map(tag => [tag['data-from'], tag['data-to'], tag['data-arrow-end']]).sort()).toEqual([
+        ['outside', 'subgraph1', 'true'], ['outside', 'top2', 'true'], ['top1', 'bottom1', 'true'], ['top2', 'bottom2', 'true'],
+      ])
+    },
+  )
+
+  test.each(['LR', 'RL', 'TD', 'BT'] as const)('%s section roundoff retains a safe route and its contacts; a real diagonal still refuses', direction => {
+    const graph = parseMermaid(`flowchart ${direction}\nsubgraph G\nT[Target]\nend\nS ---> T`)
+    const horizontal = direction === 'LR' || direction === 'RL', sign = direction === 'RL' || direction === 'BT' ? -1 : 1
+    let crossOffset = 0
+    const project = ({ x, y }: Point): Point => horizontal ? { x: sign * x, y: y + crossOffset } : { x: y + crossOffset, y: sign * x }
+    const box = <T extends { x: number; y: number; width: number; height: number }>(item: T): T => {
+      const a = project(item), b = project({ x: item.x + item.width, y: item.y + item.height })
+      return { ...item, x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), width: Math.abs(b.x - a.x), height: Math.abs(b.y - a.y) }
+    }
+    for (const seam of [64 * Number.EPSILON, 0.00000000001, 0.00001, 2]) {
+      // The small real diagonal has the same SVG spelling but exceeds
+      // roundoff. At a huge translation, 2px is within the relative error
+      // bound but spells differently. Neither may reuse the retained route.
+      crossOffset = seam === 2 ? 1e16 : 0
+      const nodes: PositionedNode[] = [
+        box({ id: 'S', label: 'Source', shape: 'rectangle' as const, x: 0, y: 50, width: 20, height: 20 }),
+        box({ id: 'T', label: 'Target', shape: 'rectangle' as const, x: 100, y: 50, width: 20, height: 20 }),
+      ]
+      const groups: PositionedGroup[] = [box({ id: 'G', label: 'Group', x: 90, y: 20, width: 40, height: 70, children: [], headerHeight: 0 })]
+      // Target contact is on the cross face: a generic main-axis dogleg cannot
+      // replace this exterior detour while retaining the outward approach.
+      const points = [{ x: 20, y: 60 }, { x: 40, y: 60 + seam }, { x: 40, y: 110 }, { x: 110, y: 110 }, { x: 110, y: 70 }].map(project)
+      const saved = structuredClone(points), edges: PositionedEdge[] = [{ ...graph.edges[0]!, edgeIndex: 0, points }]
+      if (seam !== 64 * Number.EPSILON) {
+        expect(() => honorLinkRankDistance(nodes, edges, groups, graph)).toThrow(RankReconnectCertificationError)
+        expect(edges[0]!.points).toBe(points)
+      } else {
+        expect(() => honorLinkRankDistance(nodes, edges, groups, graph)).not.toThrow()
+        expect(edges[0]!.points[0]).toEqual(saved[0])
+        expect(edges[0]!.points.at(-1)).toEqual(project({ x: 166, y: 70 }))
+        expect(edges[0]!.points.map(point => point[horizontal ? 'y' : 'x'])).toEqual(saved.map(point => point[horizontal ? 'y' : 'x']))
+        expect(invalidEndpointApproaches(edges[0]!, nodes[0], nodes[1])).toBe(0)
+        for (let index = 1; index < edges[0]!.points.length; index++) for (const node of nodes) {
+          expect(segmentEntersMeasuredBox(edges[0]!.points[index - 1]!, edges[0]!.points[index]!, node)).toBe(false)
+        }
+      }
+      expect(points).toEqual(saved)
+      const main = horizontal ? 'x' : 'y', size = horizontal ? 'width' : 'height'
+      const gap = sign === 1 ? nodes[1]![main] - nodes[0]![main] - nodes[0]![size] : nodes[0]![main] - nodes[1]![main] - nodes[1]![size]
+      expect(gap).toBe(136)
+    }
+  })
+
   const source = (direction: string, operator = '---->') => `flowchart ${direction}\nsubgraph S1\nA[One]\nend\nsubgraph S2\nB[Two]\nend\nA ${operator} B`
   const clear = (edges: PositionedEdge[], groups: PositionedGroup[], nodes: PositionedNode[]) => {
     const all = [...groups]

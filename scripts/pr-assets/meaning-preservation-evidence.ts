@@ -319,6 +319,15 @@ const fixtures: Fixture[] = [
       ? 'Inspect the complete subgraph membership after earlier references, with unchanged authored edges. Added members change container sizes and placement; this is an intentional topology correction.'
       : 'Inspect one contextual start/end per scope, all authored transitions, and separate concurrent regions. Generated endpoint names now include the region; unchanged names are not a paint contract.',
   })),
+  ...corpusSamples.filter(sample => sample.id === 'corpus/flowchart/98').map(sample => ({
+    id: 'flowchart-98-publication',
+    title: 'Docs flowchart 98: publication-styled compound rank reconnection',
+    source: sample.source,
+    renderOptions: { style: 'publication-figure' } satisfies RenderOptions,
+    captureLayout: true as const,
+    pngWidth: 1400,
+    cue: 'The baseline refuses this exact source and style with link-rank-reconnect: outside->top2; its error is the honest before state. After, inspect all five nodes, both groups and four directed relationships, including the exterior approach into top2. The raw compound contacts and long-link gap remain protected; machine-roundoff seams no longer discard the safe retained route. This fixture does not establish general compound routing completeness.',
+  })),
   {
     id: "compat-flowchart-membership",
     title: "Flowchart references retain their owning subgraphs",
