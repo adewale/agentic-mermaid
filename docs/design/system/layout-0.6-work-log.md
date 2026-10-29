@@ -1833,3 +1833,120 @@ then row87served-stroke/fractional-body witnesses. Original seven and all six
 acceptance goals remain open, holdout sealed, peer comparisons incomplete and
 shared Trident proposals unshipped. No merge, new issue/PR/comment, force push,
 default/version change or package publication.
+
+
+### Late accessibility identity repair and bounded CI subtraction — 29 October
+
+The owner requests fixing CI and continuing correctness. Necessary delivery
+repairs are authorized; the original byte budgets, all executable checks and
+all work limits remain. The existing layout diagnostic is already advisory
+(`continue-on-error`); its adverse vectors are retained, not reclassified as a
+blocking failure. This increment does not repair all CI failures.
+
+**Correctness repair:** `c632a2eaade2f24146695635c921ac4bbe5d201a`.
+A controlled installed Flowchart producer renames its canonical arrow marker
+and typed references to `svg-title`. The public strict-Agentic render certifies
+raw ink, then accessibility injection prepends a title with that same ID.
+Independent final XML parsing finds the duplicate. Chromium154 resolves the
+first ID to the title and loses the head: actual and one-marker-URL-removed
+pixels are equal. Three controls retain34head pixels. Resvg retains the head
+in all four cases; that different observation remains enrolled. This is an
+installed-producer seam, not a demonstrated natural authored-source failure.
+
+The graphical finalizer now reserves actual once-XML-decoded emitted IDs and
+allocates deterministic unused title/description suffixes. Root ARIA points to
+the allocated metadata, while the original resource declarations and marker
+references remain. Existing family-owned ARIA and fallback names keep their
+own behavior. The owning accessibility file covers14cases in each fresh Scene
+assertion mode, crossing prefixes, both metadata kinds, ordinary and encoded
+occupied suffixes. Genuine baseline RED is2F/26assertions; focused GREEN is
+2P/290assertions. An initial explicit empty-idPrefix fixture is rejected by the
+existing option contract; that setup attempt is retained separately.
+
+Fresh public production-drawing SVGs and eight HTTP-served Chromium PNGs show
+the repaired title is `svg-title-1`, marker stays `svg-title`, and the head goes
+from0to34pixels. All four actual outputs retain the same positive head ink;
+three controls and all four removed-marker interventions keep exact baseline
+RGBA. Independent PNG decoding validates CRC, decompression, row filters and
+pixels; independent XML checks references. Actual SVG bytes bind the saved
+interventions. This is actual final ink evidence, not a certificate oracle.
+The source/diff epoch is unchanged across acquisition. It does not close generic
+final-certificate sealing, prefix injectivity, no-marker XML or the original
+seven diagrams.
+
+**CI subtraction:** `0db3f02c7db91aed1017fd8d19db26181184f8d8`.
+The pinned config generator shares only its exact720-key constructor literal.
+Both complete independent factories, public exports, initialization order and
+fresh mutable arrays/Sets remain. No theme code enters merge-only consumers.
+Generated artifacts are the production-imported exception allowed by CLAUDE;
+no dependency, declaration, parser, security gate or default changes.
+Independent direct-production probes reconstruct the original full sources by
+reversing only helper import/call substitution. Getter/proxy/cyclic-object,
+exception/reentrancy, nested-result isolation and constructor-mutation/recovery
+controls pass. Import constructs zero Sets; later calls construct distinct
+720-key arrays and Sets. Initializer traces match1/1773events. Exact100000-step
+admission stays merge14285P/14286F and full14248P/14249F, with successful fresh
+calls after rejection. Constructor errors add an ordinary helper stack frame;
+stack-byte equality is not claimed. Pinned regeneration and strict generator
+checks pass; emitted two-facade comparisons pass24controls.
+
+Local disjoint owners pass **615tests/0F/16094assertions**: accessibility/related
+91/1912, security+paint358/2438, and six config owners166/11744. Focused2P is
+inside91, not added twice. Canonical core/repository types pass on the combined
+candidate with prepared Tridentf080. Full lint passes with the existing oversized
+JSON warning. The full unit suite belongs to exact-candidate CI, not a new local
+all-unit run. Five requested GPT-6.1 Sol High agents supplied disjoint test,
+config prototype, independent production review, artifact review and delivery
+architecture work; root alone edited the graphical production boundary.
+
+Complete current standalone bytes are **4481508raw/1353193canonical Bun gzip9**,
+versus publishedc1 **4493756/1356042**:12248raw/2849gzip lower including the ID
+repair. It still exceeds original4429400/1334500caps by **52108/18693**.
+Four fresh combined0db3public SVGs exactly match the earlier repaired artifacts;
+all eight actual/intervention inputs directly match the retained browser inputs.
+Those physical observations therefore bind to0db3without a new raster claim.
+App89929 and CSS53555bytes are unchanged. The current canonical lazy build and
+DTS succeed; its structural/provider/entity checks pass before the original
+budget gate correctly fails **29rows:17raw/12gzip**, no request/Brotli failures.
+This includes two additional gzip crossings (Radar and ZenUML) after the ID
+repair versus priorCI27rows; the cost is retained. Against freshly rebuilt
+c632before key-sharing, family raw counts are identical and gzip changes are
+small (1–8bytes lower in the failed gzip rows). Sequence is214879>214000,
+Packet raw608996>586500 and gzip194453>192500. This is partial editor shrink,
+not green CI, lazy-cap repair, a performance win or ELK parity.
+
+Rejected work remains evidence. Whole-program config sharing passes bounded
+semantics but promotes the full appearance graph into merge consumers and has
+an adverse tiny Brotli result; it is not adopted. Inline0 worsens old-input
+bytes; reduce_funcs:false is identical. Dense-array representations fail the
+old-input gzip cap, including the reserved-Oxc renamer variant. No new compiler
+dependency or custom string transform ships. A single current syntax:false
+Bun→unchangedSWC screen is4493382/1356579 and fails bothcaps; it is not adopted.
+Static exact theme factoring has under43.2KB gross raw ceiling before overhead
+and no demonstrated full gzip improvement; no transformation runs. Static ELK
+alias readback does not support a reduce_vars hypothesis, so no profile runs.
+Old0.11.0 pruned-ELK evidence does not qualify current0.11.1 or authorize a silent
+vendor/dependency contract change. A maintained matching vendor would require
+its own reconstruction and complete consumer qualification.
+
+Earlier failed observations are preserved: the first producer attachment did
+not affect the actual Native producer; a partial repeated-pixel-getter probe
+exits137 with cause unestablished; its corrected single-buffer successor
+completes. One prior agent turn reports an automated content-filter error;
+root/another agent complete the needed acquisition. Artifact ZIP retrieval
+receives proxy403 despite the configured unrestricted policy; decoded API CI
+logs and remote artifact references remain available. No permission rejection
+or current execution blocker is inferred. Only closed ignored website output
+and dist source maps were removed to recover space; runtime JS, source,
+dependencies and all failed/proof artifacts remain. Evidence lives under
+`/tmp/pr449-ci-fix-20261028/`, with direct-byte-verified baseline lazy archive.
+
+All six goals and original77/87/88/89/103/206/209 remain open/unverified; holdout
+sealed, Trident prepared/unshipped, public Mermaid/Pele qualification incomplete.
+Live Main last checked `db5de4b457944853c99c21a3921598fc49f8140a` is not jointly
+qualified; this work stays on the retained branch. No merge/new issue/PR/comment,
+force push, cap relaxation, version/default change, timing campaign or package
+publication. Next correctness implementation remains the private geometry-draft
+and exact final-admission seal across standalone/layout/cache consumers, then
+row87 served-stroke/fractional-body proof. Delivery still requires a material,
+independently qualified reduction; failed compiler screens are not a fix.
