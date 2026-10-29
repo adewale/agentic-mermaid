@@ -70,6 +70,8 @@ jobs:
       - name: Install frozen dependencies
         run: bun install --frozen-lockfile
       - name: Build the distributable
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
         run: bun run build
       - name: Run registry-derived cross-platform rendering contracts
         run: bun test src/__tests__/render-conformance-plan.test.ts --timeout 120000
