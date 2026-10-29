@@ -2694,3 +2694,106 @@ counterexample and full-body separation; general final sealing, cubic/cylinder
 unions, broader independent coverage and peer qualification remain. Lazy byte
 failures are retained, not waived. The next committed source requires its own
 exact-head CI; fc9's completed run is not relabelled as that new result.
+
+### 29 October: reconcile contextual duplicate-marker proof with Main
+
+Starting revision: `a1890b6265fe48bc120735540e5830d0b19df904`.
+Fast-forward pull of the retained branch returned already up to date; Main was
+observed at `0a2dc30b6220c04182f8ccd45550689422606a22`. The read-only
+reconsideration found overlapping correctness work in Main. Its merge-object
+preview has eight conflicts; no wholesale merge, raised cap, release metadata
+or routing change is adopted. The first selective port follows the
+duplicate-marker paint rule from `700da836a418277225e2f058a77c48dc010b050b`.
+Broader serialized-marker/contact changes in `ceca964f1a4aa4b3e748edbbce8728abd65ce632`
+remain pending; neither Main commit is claimed wholly integrated.
+
+The failed assumption is observable without another implementation: equal
+resource bytes and marker pose do not imply equal paint at different carriers.
+One actual resource uses `context-stroke` for fill and outline; its earlier
+carrier is dark and its later carrier is white. The old pairwise exemption
+skips comparison. A second path collapses equal-owner/resource/pose entries
+before that comparison, including a chrome repaint inheriting semantic status.
+Both sites must require known equal paint; one pairwise guard is insufficient.
+
+The existing paint-certification owner now contains independently authored
+public-output controls for literal paint, contextual distinct owners, shared
+owners and owned chrome repaint, through Native OFF and Scene ON. The special
+test producer declares its actual chrome/connector capability; production
+admission checks remain unchanged. The first RED attempt retained one accurate
+role-admission rejection separately. The corrected final fixture gives genuine
+**six failures (old P, required U) and two literal positive passes**, 82
+assertions, against unchanged a189 production. The preceding unmodified owning
+suite passed 344 tests/2,413 assertions. Test presence is not an oracle.
+
+Independent actual-output evidence uses an isolated, directly byte-checked
+a189 production snapshot and the same eight public calls. All eight return P.
+Strict returned XML retains one 14-by-12 diamond resource, two ordered
+70,30-to-20,30 carriers, their different stroke colors and actual references.
+Chromium 154 reads those SVG documents over a bounded local HTTP route map;
+24 screenshots include actual output and removal of each marker reference.
+At the independently authored off-shaft strict-interior point (64,27), each
+contextual case is opaque white in actual output and with the earlier reference
+removed, but dark (17,17,17) when the later reference is removed. Literal paint
+stays dark in all three views. This establishes contextual-paint support and
+actual earlier-marker ink erasure; it does not infer paint from a certificate,
+replace context paint with a guessed color, or claim whole-diagram fidelity.
+`currentColor` and inheritance do not automatically follow carrier stroke and
+are not relabelled as observed causal variants.
+
+Five existing Sol 6.1 High agents have disjoint source and owning-test writers
+plus independent proof, final-ink and integration reviews. Root owns serialized
+execution and integration. Evidence, adverse controls, direct source copies
+and actual images are under `/tmp/pr449-integration-proof-20261029/`.
+The workspace evidence volume is full; the separate `/tmp` execution volume
+remains writable. No evidence is discarded to make space.
+
+Implemented source/test revision:
+`152fe1e88ce71d14f1c3605e66db3a2f0d1169b4`, parent a189 above. Only
+`src/scene/paint-certification.ts` changes production (49 additions/3 deletions);
+the owning test adds 69 lines. Inspection, Native emission, SVG writer, imports,
+dependency lock, caps, default, version and delivery pipeline remain unchanged.
+Own-data descriptors copied into inert paint refuse relevant accessors and
+inherited fields without invoking their getters. Explicit fill remains required;
+unresolved/contextual paint cannot establish equality. String scans, copying and
+equality consume the existing work ledger. The existing same-key semantic
+transfer is retained, but unknown paint records U before overwriting; exact-pose
+pairwise skipping also requires known equal paint. No normalized-pose alias or
+new primitive acceptance is added.
+
+Rejected R1 and its five existing repaint regressions remain recorded. R1
+unnecessarily demanded an explicit marker outline and opaque group. R2 preserves
+the existing typed no-outline semantics for an own-omitted stroke under the
+unchanged closed emitted root/definitions/style obligations; arbitrary SVG
+inheritance is not declared none. Finite positive group alpha remains owned by
+the existing visibility/compositing rules rather than the resource color
+identity. No old expectation or fixture paint was changed to hide a regression.
+
+Verification of the exact R2 production bytes before commit:
+
+| Check | Observed result |
+| --- | --- |
+| Six owning test files | 458 P / 0 F / 3,754 assertions, including all eight new controls and all five restored repaint positives. Focused runs are not added to this total. |
+| Canonical checks | Core and repository typechecks pass; full lint passes with the pre-existing oversized-JSON warning; diff check passes. |
+| Canonical public examples | 50/50 return, 48 P / 2 pre-existing U (OFF 23 P / 2 U; ON 25 P). Complete SVG/XML/text/status unchanged from actual a189 packets. Only 16 receipt operation counts change (+129 through +852); largest changed-cell count 135,916 / 400,000. |
+| Original seven | 28 engine/policy cells, two fixed observations each: 56 returns, 8 P for already-passing row77 / 48 U for the other six. Complete SVG/XML/text/status unchanged; all 56 receipts change only operations (+129 through +7,336), maximum 320,744 / 400,000. All repeated and cross-policy full SVG/receipt pairs match. |
+| Observed execution | Strict requested/selected backends and independently computed output digests match. Native makes zero ELK calls; actual Native cache behavior remains UNOBSERVED. ELK records 16 OFF bypasses and 16 NORMAL API calls (7 misses / 9 hits); API calls are not solver counts. |
+| Public regression artifacts | Eight fresh candidate captures return two literal P and six contextual U. The isolated baseline has eight P. Their complete SVG bytes are compared separately to bind the actual retained Chromium images; no proof helper substitutes for final ink. |
+
+R1 acquisition was never run. The existing bounded acquisition was reused once
+at R2, with unchanged source inputs, work/time/output limits and all six worker
+exits zero. An analysis output-name collision correctly refused overwriting the
+already-written compatibility comparison; the combined analysis preserves it
+and uses a separate output name. No product/data acquisition was repeated.
+Source authority uses direct byte snapshots/comparisons, not hashes of own
+inputs. Independent proof and integration reviews bind the actual R2 bytes.
+
+This is a common certifier soundness repair, not an ELK/Native parity or aesthetic
+claim. All six0.6goals remain open; original rows87/88/89/103/206/209 remain U,
+with row103's changed cubic-anchor obligation retained. Broader final-artifact
+correspondence, remaining Main marker/contact/routing/source-preservation
+integration, the independent authored interaction pilot, cubic/cylinder proofs
+and pinned public Mermaid/Pele qualification remain outstanding, in that
+dependency order. The independent holdout remains sealed. No timing/profiling
+campaign, cap relaxation, default/version/publication change or PR merge occurs.
+The previous exact a189 CI failed 33 lazy byte rows; this source requires its
+own exact-head CI, and no inherited readiness is asserted.
