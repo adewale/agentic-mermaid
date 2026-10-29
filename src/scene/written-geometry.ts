@@ -1,5 +1,5 @@
 import type { ConnectorContourSemantics, Geometry, MarkPaint, ScenePoint, ShapeMark } from './ir.ts'
-import { scanSvgStartTags, decodedSvgAttributeValue } from '../svg-structure.ts'
+import { scanSvgStartTagsFresh, decodedSvgAttributeValue } from '../svg-structure.ts'
 import { formatSvgNumber, formatSvgNumericAttribute } from '../shared/svg-number.ts'
 
 // The complete paint field set read by the shape writer. Only numeric
@@ -48,7 +48,7 @@ const attributeName = (field: string): string => field.replace(/[A-Z]/g, c => `-
 const record = <T extends object>(source: T): T => Object.freeze(Object.assign(Object.create(null), source))
 
 /** Structural eligibility is deliberately exact, not a family or node-ID rule.
- * No ordinary rect/line-only compound pays an SVG scan. No generic raw input
+ * Only three/five-piece structural candidates pay an SVG scan. No generic raw input
  * may reach this entry point before its existing private ownership gate. */
 export function prepareWrittenCompoundShape(node: ShapeMark, pay: Pay): WrittenCompoundInput | undefined {
   if (!pay(24)) return undefined
@@ -56,17 +56,17 @@ export function prepareWrittenCompoundShape(node: ShapeMark, pay: Pay): WrittenC
   if (!geometry || ownData(geometry, 'kind') !== 'compound') return undefined
   const children = ownData(geometry, 'children') as unknown
   const childPaints = ownData(node, 'childPaints') as unknown
-  if (!Array.isArray(children) || children.length !== 5 || !Array.isArray(childPaints) || childPaints.length !== 5) return undefined
-  // Reject ordinary rect/line compounds before identity or paint capture.
-  // Only this ellipse-bearing structural domain pays a fragment scan.
+  if (!Array.isArray(children) || children.length !== 3 && children.length !== 5 || !Array.isArray(childPaints) || childPaints.length !== children.length) return undefined
+  // Reject other compound structures before identity or paint capture.
   if (!pay(12)) return undefined
-  for (const index of ['3', '4']) {
-    const child = ownData(children, index)
-    if (!child || typeof child !== 'object' || ownData(child, 'kind') !== 'ellipse') return undefined
+  const kinds: readonly Piece['kind'][] = children.length === 3 ? ['rect', 'line', 'line'] : ['rect', 'line', 'line', 'ellipse', 'ellipse']
+  for (let i = 0; i < kinds.length; i++) {
+    if (!pay(6)) return undefined
+    const child = ownData(children, String(i))
+    if (!child || typeof child !== 'object' || ownData(child, 'kind') !== kinds[i]) return undefined
   }
   const transform = own(node, 'transform')
   if (transform ? !Object.hasOwn(transform, 'value') || transform.value !== undefined : 'transform' in node) return undefined
-  const kinds = ['rect', 'line', 'line', 'ellipse', 'ellipse'] as const
   const pieces: Piece[] = [], sources: Geometry[] = []
   const identity = ownData(node, 'identity')
   if (!identity || typeof identity !== 'object') return undefined
@@ -118,7 +118,7 @@ export function prepareWrittenCompoundShape(node: ShapeMark, pay: Pay): WrittenC
       else expectedIdentity.set('aria-label', item)
     }
   }
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < kinds.length; i++) {
     if (!pay(6)) return undefined
     const slot = own(children, String(i)), paintSlot = own(childPaints, String(i))
     if (!slot || !Object.hasOwn(slot, 'value') || !paintSlot || !Object.hasOwn(paintSlot, 'value')) return undefined
@@ -156,6 +156,9 @@ export function prepareWrittenCompoundShape(node: ShapeMark, pay: Pay): WrittenC
   return token
 }
 
+// Both supported structures emit exactly the rect/line/line callbacks. The
+// ellipse writer emits no geometry callback; its two literal tags and paints
+// are still checked by the complete fresh-fragment scan below.
 export function observeWrittenCompoundShape(token: WrittenCompoundInput, source: Geometry, written: Geometry | undefined, pay: Pay): void {
   const input = inputs.get(token)
   if (!input) return
@@ -171,8 +174,8 @@ export function completeWrittenCompoundShape(token: WrittenCompoundInput, source
   const input = inputs.get(token)
   inputs.delete(token)
   if (!input || input.invalid || input.observed !== 3 || source !== input.source || !pay(6 * svg.length + 8)) return undefined
-  const tags = scanSvgStartTags(svg)
-  if (tags.length !== 5) return undefined
+  const tags = scanSvgStartTagsFresh(svg)
+  if (tags.length !== input.pieces.length) return undefined
   const children: Geometry[] = [], paints: MarkPaint[] = []
   let cursor = 0
   for (let i = 0; i < tags.length; i++) {

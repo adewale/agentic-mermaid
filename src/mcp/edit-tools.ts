@@ -24,13 +24,17 @@ order and are all-or-nothing: the first failing op stops the batch (its position
 is \`opIndex\`) and the input is left untouched.
 Each op is { "kind": <op>, …fields }. Call \`describe_sdk\` for the detected
 family before authoring unfamiliar ops; it returns compact signatures or exact
-field types, enum values, defaults, and constraints.`,
+field types, enum values, defaults, and constraints.
+Set mode to source-preserving for supported edits to opaque Class or Flowchart
+source. Exact edited bytes and portability warnings are retained; unsupported
+operations still fail atomically. This mode does not promise portable export.`,
     inputSchema: {
       type: 'object',
       additionalProperties: false,
       properties: {
         source: { type: 'string', description: 'Mermaid source to edit.' },
         ops: mutationBatchSchema('Non-empty ordered list of edit ops; each is { kind, ...fields }.'),
+        mode: { type: 'string', enum: ['structured', 'source-preserving'], default: 'structured', description: 'Source-preserving mode edits owned source ranges without regenerating unsupported syntax.' },
       },
       required: ['source', 'ops'],
     },
@@ -58,6 +62,7 @@ Call \`describe_sdk\` for the family before authoring unfamiliar ops.`,
 ]
 
 export function handleEditTool(id: number | string | null, args: Record<string, unknown>, mode: 'source' | 'family', maxBytes = Infinity, tooLargeHint = 'input exceeds the size cap'): JsonRpcResponse {
+  if (mode === 'family' && args.mode !== undefined) return rpcError(id, -32602, 'build does not accept an edit mode')
   const ops = args.ops
   if (!Array.isArray(ops)) return rpcError(id, -32602, `${mode === 'source' ? 'mutate' : 'build'} requires \`ops\` (array)`)
   if (ops.length === 0) return rpcError(id, -32602, `${mode === 'source' ? 'mutate' : 'build'} requires at least one op`)
@@ -73,7 +78,7 @@ export function handleEditTool(id: number | string | null, args: Record<string, 
     return toolResult(id, { ok: false as const, family: null, error: { code: 'OPS_TOO_LARGE', message: tooLargeHint } }, true)
   }
   const envelope = mode === 'source'
-    ? applyOps({ source: args.source as string, ops })
+    ? applyOps({ source: args.source as string, ops, mode: args.mode as 'structured' | 'source-preserving' | undefined })
     : applyOps({ family: args.family as string, ops })
   return toolResult(id, envelope, !envelope.ok)
 }

@@ -17,8 +17,6 @@ on:
         description: Seeded mutations for each modern core diagram family
         type: number
         default: 5000
-  schedule:
-    - cron: '17 4 * * 1'
 
 permissions:
   contents: read
@@ -70,7 +68,7 @@ jobs:
         env:
           MERMAID_UPSTREAM_DIR: ${{ runner.temp }}/mermaid
           MERMAID_REFERENCE_DIR: ${{ runner.temp }}/mermaid-reference
-          GRAMMAR_FUZZ: ${{ github.event_name == 'workflow_dispatch' && format('{0}', inputs.mutations_per_family) || github.event_name == 'schedule' && '5000' || format('{0}', inputs.mutations_per_family) }}
+          GRAMMAR_FUZZ: ${{ inputs.mutations_per_family }}
         run: bun run eval:mermaid-grammar --fuzz "$GRAMMAR_FUZZ" --seed 7 --workers 4
       - name: Retain assertions and separate diagnostic gaps
         if: always()

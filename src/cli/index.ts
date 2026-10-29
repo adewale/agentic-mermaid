@@ -5,6 +5,7 @@ import { preflightCli, type PreparedCli } from './preflight.ts'
 export * from './args.ts'
 export { GLOBAL_USAGE, COMMAND_HELP } from './help.ts'
 import { applyMutationBatch } from '../agent/mutate.ts'
+import { applyOps, type VerifySummary } from '../agent/apply.ts'
 // ============================================================================
 // am — agentic-mermaid CLI (v4).
 // ============================================================================
@@ -653,9 +654,9 @@ function cmdSerialize(): number {
   return EXIT_OK
 }
 
-type CliMutationError = MutationError | { code: 'UNSUPPORTED_FAMILY' | 'VERIFY_FAILED' | 'PARSE_FAILED' | 'INVALID_OP'; message: string; details?: unknown }
+type CliMutationError = MutationError | { code: string; message: string; details?: unknown }
 
-type MutationRunResult = { ok: true; source: string; verify: ReturnType<typeof verifyMermaid> } | { ok: false; error: CliMutationError; verify?: ReturnType<typeof verifyMermaid> }
+type MutationRunResult = { ok: true; source: string; verify: VerifySummary; mode?: 'source-preserving' } | { ok: false; error: CliMutationError; verify?: VerifySummary }
 
 function parseMutationOpsFlag(args: ParsedArgs): Result<AnyMutationOp[], CliMutationError> {
   const opStr = flagValue(args, 'op') ?? ''
@@ -675,7 +676,12 @@ function parseMutationOpsFlag(args: ParsedArgs): Result<AnyMutationOp[], CliMuta
 }
 
 
-export function mutateSource(source: string, ops: AnyMutationOp[]): MutationRunResult {
+export function mutateSource(source: string, ops: AnyMutationOp[], preserveSource = false): MutationRunResult {
+  if (preserveSource) {
+    const result = applyOps({ source, ops, mode: 'source-preserving' })
+    if (!result.ok) return { ok: false, error: { ...result.error, ...(result.opIndex !== undefined ? { details: { index: result.opIndex, op: ops[result.opIndex] } } : {}) } }
+    return { ok: true, source: result.source, verify: result.verify, mode: 'source-preserving' }
+  }
   const r0 = parseRegisteredMermaid(source)
   if (!r0.ok) {
     const env = parseErrorEnvelope(r0.error)
@@ -708,7 +714,7 @@ function cmdMutate(args: ParsedArgs, json: boolean): number {
     process.stderr.write(`mutate: ${ops.error.message}\n`)
     return EXIT_ARG_ERROR
   }
-  return emitMutationRun(mutateSource(source, ops.value), json)
+  return emitMutationRun(mutateSource(source, ops.value, args.flags['preserve-source'] === true), json)
 }
 
 function emitMutationRun(r: MutationRunResult, json: boolean): number {
@@ -716,7 +722,7 @@ function emitMutationRun(r: MutationRunResult, json: boolean): number {
     process.stdout.write(JSON.stringify({ ok: false, error: r.error, verify: r.verify }, replacer) + '\n')
     return r.error.code === 'VERIFY_FAILED' ? verifyFailureExit(r.verify?.warnings ?? []) : EXIT_ARG_ERROR
   }
-  process.stdout.write(json ? JSON.stringify({ ok: true, source: r.source, verify: r.verify }, replacer) + '\n' : r.source)
+  process.stdout.write(json ? JSON.stringify({ ok: true, source: r.source, verify: r.verify, ...(r.mode ? { mode: r.mode } : {}) }, replacer) + '\n' : r.source)
   return EXIT_OK
 }
 
@@ -1266,6 +1272,7 @@ interface BatchLine {
   options?: Record<string, unknown>
   mutation?: AnyMutationOp
   mutations?: AnyMutationOp[]
+  preserveSource?: boolean
 }
 
 export interface BatchRenderOptions extends Record<string, unknown> {
@@ -1416,7 +1423,8 @@ export function runBatchLine(rawLine: string, lineIndex = 0): BatchOutput {
         }
         const ops = (hasMutations ? parsed.mutations : [parsed.mutation]) as Parameters<typeof mutateSource>[1]
         if (ops.length === 0) return { ok: false, op, error: { code: 'INVALID_OP', message: 'mutate batch line mutations must be a non-empty array' } }
-        const r = mutateSource(parsed.source, ops)
+        if (parsed.preserveSource !== undefined && typeof parsed.preserveSource !== 'boolean') return { ok: false, op, error: { code: 'INVALID_OP', message: 'preserveSource must be boolean' } }
+        const r = mutateSource(parsed.source, ops, parsed.preserveSource === true)
         if (!r.ok)
           return {
             ok: false,
@@ -1428,7 +1436,7 @@ export function runBatchLine(rawLine: string, lineIndex = 0): BatchOutput {
             },
             ...(r.verify ? { verify: JSON.parse(JSON.stringify(r.verify, replacer)) } : {}),
           }
-        return { ok: true, op, data: { source: r.source, verify: JSON.parse(JSON.stringify(r.verify, replacer)) } }
+        return { ok: true, op, data: { source: r.source, verify: JSON.parse(JSON.stringify(r.verify, replacer)), ...(r.mode ? { mode: r.mode } : {}) } }
       }
       default:
         return { ok: false, op, error: { code: 'UNKNOWN_OP', message: `unknown op: ${op}` } }

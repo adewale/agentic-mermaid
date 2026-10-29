@@ -13,9 +13,9 @@ import { FLOWCHART_SOURCE_HOOKS, STATE_SOURCE_HOOKS, SEQUENCE_SOURCE_HOOKS, TIME
 import { mutateC4 } from './c4-body.ts'
 import { withMutationDraft } from './mutation-draft.ts'
 import { mutateArchitecture } from './architecture-body.ts'
-import { mutateClass } from './class-body.ts'
+import { mutateClass, mutateClassSource } from './class-body.ts'
 import { mutateEr } from './er-body.ts'
-import { createFlowchartMutationDraft, mutateFlowchart } from './flowchart-body.ts'
+import { createFlowchartMutationDraft, mutateFlowchart, mutateFlowchartSource } from './flowchart-body.ts'
 import { mutateGantt } from './gantt-body.ts'
 import { mutateGitGraph } from './gitgraph-body.ts'
 import { mutateJourney } from './journey-body.ts'
@@ -38,6 +38,7 @@ function structuredMutation<K extends DiagramBody['kind'] & DiagramKind>(kind: K
 
 export const FLOWCHART_AGENT_HOOKS = {
   ...FLOWCHART_SOURCE_HOOKS,
+  mutateSource: (source, op) => mutateFlowchartSource(source, op as never),
   mutate: withMutationDraft((body, op) => {
     if (body.kind !== 'flowchart') return err<MutationError>({ code: 'INVALID_OP', message: `flowchart mutator received body kind ${body.kind}` })
     return mutateFlowchart(body, op as never)
@@ -76,6 +77,7 @@ export const TIMELINE_AGENT_HOOKS = {
 export const CLASS_AGENT_HOOKS = {
   ...CLASS_SOURCE_HOOKS,
   mutate: /* @__PURE__ */ structuredMutation('class', mutateClass),
+  mutateSource: (source, op) => mutateClassSource(source, op as never),
 } satisfies FamilyOperations
 
 export const ER_AGENT_HOOKS = {

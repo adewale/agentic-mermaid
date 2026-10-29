@@ -4,7 +4,7 @@ import type { FamilyDescriptor } from '../agent/families.ts'
 import { registerFamily } from '../agent/family-registration.ts'
 import type { ExternalFamilyId } from '../agent/types.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
-import { createExtensionIdentity } from '../shared/extension-identity.ts'
+import { createExtensionIdentity, KNOWN_EXTENSION_CONTRACT_VERSIONS } from '../shared/extension-identity.ts'
 
 const EVIDENCE = 'src/__tests__/code-mode-structured-errors.test.ts'
 
@@ -20,7 +20,7 @@ function nonGraphicalDescriptor(
       id,
       kind: 'family',
       version: '1.0.0',
-      compatibility: { core: '^0.4.0' },
+      compatibility: { core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core },
       provenance: { owner: 'code-mode-structured-errors-test', source: 'test' },
     }),
     id,

@@ -96,6 +96,7 @@ export const TEXT_BASELINE_SHIFT = '0.35em' as const
 export const ARROW_HEAD = {
   width: 8,
   height: 5,
+  strokeWidth: 0.75,
 } as const
 
 /** Flowchart dotted-edge stroke pattern; renderer emits stroke-dasharray="4 4". */

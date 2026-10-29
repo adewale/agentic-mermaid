@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { layoutGitGraph } from '../gitgraph/layout.ts'
 import { mutateGitGraph, parseGitGraphBody, renderGitGraphBody, verifyGitGraph } from '../agent/gitgraph-body.ts'
-import { mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
+import { mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import type { GitGraphBody, GitGraphMutationOp, MutationError, Result } from '../agent/types.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
@@ -40,6 +40,60 @@ function commit(input: GitGraphBody, id: string) {
 }
 
 describe('GitGraph typed operations — discriminating replay contract', () => {
+  test('quoted payloads use the pinned STRING codec through save, public parsing and independent edits', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const [raw, expected] of [
+        ['x\n%%y', 'x\n%%y'],
+        ['x\u2028%%y', 'x\u2028%%y'],
+        ['x\u2029%%y', 'x\u2029%%y'],
+        [String.raw`x\n%%y`, 'x\n%%y'],
+        [String.raw`x\\n%%y`, String.raw`x\n%%y`],
+        [String.raw`x\b\f\n\r\t\v\0y`, 'x\b\f\n\r\t\v\0y'],
+        [String.raw`x\q\u0041\x41y`, 'xqu0041x41y'],
+        [String.raw`x\%\%{literal}\%\%`, 'x%%{literal}%%'],
+        [String.raw`x\"\'y`, 'x"\'y'],
+        [String.raw`#0\; #b\; #n\; #t\; #amp\; #35\; #quot\;`, '#0; #b; #n; #t; #amp; #35; #quot;'],
+        [String.raw`sty\le a:#abc; class\Def a:#123;`, 'style a:#abc; classDef a:#123;'],
+      ] satisfies Array<[string, string]>) {
+        for (const delimiter of ['"', "'"]) {
+          const source = `gitGraph\ncommit id:${delimiter}${raw}${delimiter} msg:${delimiter}${raw}${delimiter} tag:${delimiter}${raw}${delimiter}\ncommit id:"next"`
+          const parsed = parseRegisteredMermaid(source)
+          if (!parsed.ok || parsed.value.body.kind !== 'gitgraph') throw new Error('Expected structured GitGraph')
+          const expectedCommit = { id: expected, message: expected, tags: [expected], parents: [] }
+          expect(parsed.value.body.commits[0]).toMatchObject(expectedCommit)
+          expect(parsed.value.body.commits[1]?.parents).toEqual([expected])
+          const saved = serializeMermaid(parsed.value)
+          const reloaded = parseRegisteredMermaid(saved)
+          if (!reloaded.ok) throw new Error('Expected reload')
+          expect(reloaded.value.body).toEqual(parsed.value.body)
+          if (!/[\0\b\f\r\v]/.test(expected)) expect(renderMermaidSVG(saved)).toBe(renderMermaidSVG(parsed.value))
+          expect(verifyMermaid(parsed.value).warnings.filter(w => w.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+          expect(await upstream.project(saved, d => [...d.db.getCommits().values()].map(c => ({ id: c.id, message: c.message, tags: c.tags, parents: c.parents })))).toEqual({ ok: true, value: [expectedCommit, { id: 'next', message: '', tags: [], parents: [expected] }] })
+          const edited = mutate(parsed.value, { kind: 'append_commit', id: 'tail\n%%comment', message: expected, tags: [expected] })
+          if (!edited.ok || edited.value.body.kind !== 'gitgraph') throw new Error('Expected independent append')
+          expect(edited.value.body.commits[0]).toEqual(parsed.value.body.commits[0])
+          expect(edited.value.body.commits.at(-1)).toMatchObject({ id: 'tail\n%%comment', message: expected, tags: [expected], parents: ['next'] })
+          expect(await upstream.project(serializeMermaid(edited.value), d => [...d.db.getCommits().values()].at(-1).id)).toEqual({ ok: true, value: 'tail\n%%comment' })
+        }
+      }
+      // Generous bare tokens are not STRINGs: incomplete delimiters and
+      // escape endings retain their literal authored bytes until quoted.
+      for (const raw of ['"', "'", '"unfinished', "'unfinished", '"tail\\', "'tail\\", '"escaped\\"', "'escaped\\'", 'tail\\']) {
+        const parsed = parseRegisteredMermaid(`gitGraph commit id:${raw}`)
+        if (!parsed.ok || parsed.value.body.kind !== 'gitgraph') throw new Error('Expected readable bare-token extension')
+        expect(parsed.value.body.commits[0]?.id).toBe(raw)
+        const edited = mutate(parsed.value, { kind: 'append_commit', id: 'next' })
+        if (!edited.ok) throw new Error(edited.error.message)
+        const saved = serializeMermaid(edited.value)
+        const reloaded = parseRegisteredMermaid(saved)
+        expect(reloaded.ok && reloaded.value.body).toEqual(edited.value.body)
+        expect(renderMermaidSVG(parsed.value)).toContain('<svg')
+        expect(await upstream.project(saved, d => [...d.db.getCommits().values()].map(c => ({ id: c.id, parents: c.parents })))).toEqual({ ok: true, value: [{ id: raw, parents: [] }, { id: 'next', parents: [raw] }] })
+      }
+    } finally { upstream.close() }
+  })
+
   test('branch spelling preserves identities and references through native drawing and portable export', async () => {
     const upstream = startUpstreamMermaid()
     try {

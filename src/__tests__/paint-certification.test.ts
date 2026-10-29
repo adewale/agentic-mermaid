@@ -32,6 +32,7 @@ import { admitSceneDocument } from '../scene/external-data-snapshot.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { createNativePaintEmission, MAX_OCCLUSION_OPERATIONS } from '../scene/native-paint-emission.ts'
 import { inspectSvgOnce, withSvgInspectionCache } from '../svg-inspection-cache.ts'
+import { scanSvgStartTags } from '../svg-structure.ts'
 
 const scene = (parts: SceneNode[]): SceneDoc => ({ family: 'flowchart', width: 100, height: 80, transparent: false, colors: { bg: '#fff', fg: '#111' }, parts })
 const label = () => {
@@ -53,8 +54,26 @@ function drawPaintControl(producer: DrawingProducer, context: Parameters<typeof 
   return { svg, header: admitted, paint: inspectScenePaintGeometry(admitted, receipt), proof: certifyScenePaint(admitted, undefined, { sceneWriteReceipt: receipt }), admitted, raw, receipt }
 }
 
-test.each(['default-hidden', 'explicit-hidden', 'user-space', 'start', 'reverse-start', 'vertical', 'borderless', 'matched-viewbox', 'visible', 'interior-ref', 'entering', 'tiny-entering', 'scale-hint', 'viewbox', 'rotated', 'diagonal', 'written-mismatch', 'unknown-width', 'unsupported-output'] as const)('a clipped endpoint viewport proves complete marker containment only for %s', mode => {
-  const start = mode === 'start' || mode === 'reverse-start', vertical = mode === 'vertical'
+test.each(['LR', 'RL', 'TB', 'BT'] as const)('rounded endpoint contacts retain strict paint proof in %s', direction => {
+  const source = `flowchart ${direction}\nN0[n0]\nN1[n1]\nN2([n2])\nN3((n3))\nN2 --> N1\nN1 <==> N2\nN0 --> N2\nN2 --> N3\nN0 --> N2`
+  const rendered = renderMermaidSVGWithReceipt(source, { layoutSafety: 'strict', embedFontImport: false })
+  expect(rendered.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [] })
+})
+
+test.each(['contact', 'rx-only', 'ry-only', 'entering', 'unrelated', 'borderless', 'translucent-border', 'unknown-width'] as const)('rounded supporting lines retain actual marker ink obligations (%s)', mode => {
+  // The left semicircle is centred at (58,38), radius18. At y35 its
+  // boundary is58-sqrt(18²-3²), inside the rectangle's otherwise empty corner.
+  const x = 58 - Math.sqrt(18 * 18 - 3 * 3) + (mode === 'entering' ? 2 : 0)
+  const marker = tipAnchoredArrow('rounded-arrow', { width: 8, height: 5 }, 'end', { fill: '#111', stroke: '#111', strokeWidth: '0.75', strokeLinejoin: 'round' }, 'userSpaceOnUse')
+  const edge = marks.connector({ id: 'rounded-edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 10, y1: 35, x2: x, y2: 35 }, paint: { stroke: '#111' }, endpoints: { from: 'outside', to: mode === 'unrelated' ? 'another-node' : 'rounded-node' }, markers: { end: marker } })
+  const card = marks.shape({ id: 'rounded-node', role: 'node', geometry: { kind: 'rect', x: 40, y: 20, width: 50, height: 36, ...(mode !== 'ry-only' ? { rx: 18 } : {}), ...(mode !== 'rx-only' ? { ry: 18 } : {}) }, paint: { fill: '#fff', stroke: mode === 'borderless' ? 'none' : '#111', strokeWidth: mode === 'unknown-width' ? '1em' : '0.75', ...(mode === 'translucent-border' ? { strokeOpacity: '0.5' } : {}) } })
+  const proof = certifyScenePaint(scene([edge, card]))
+  if (['contact', 'rx-only', 'ry-only'].includes(mode)) expect(proof.status).toBe('passed')
+  else expect(proof.status).not.toBe('passed')
+})
+
+test.each(['default-hidden', 'explicit-hidden', 'user-space', 'start', 'reverse-start', 'vertical', 'written-tangent', 'vertical-written-tangent', 'borderless', 'matched-viewbox', 'visible', 'interior-ref', 'entering', 'tiny-entering', 'scale-hint', 'viewbox', 'rotated', 'diagonal', 'written-mismatch', 'written-axial', 'written-collapsed', 'written-width', 'unknown-width', 'unsupported-output'] as const)('a clipped endpoint viewport proves complete marker containment only for %s', mode => {
+  const start = mode === 'start' || mode === 'reverse-start', vertical = mode === 'vertical' || mode === 'vertical-written-tangent'
   const marker: MarkerDescriptor = tipAnchoredArrow('viewport-arrow', { width: 8, height: 5 }, start && mode !== 'reverse-start' ? 'start' : 'end', { fill: '#111', stroke: '#111', strokeWidth: '0.75', strokeLinejoin: 'round' }, mode === 'user-space' ? 'userSpaceOnUse' : undefined)
   if (mode === 'reverse-start') marker.orient = 'auto-start-reverse'
   if (mode === 'explicit-hidden') marker.overflow = 'hidden'
@@ -69,11 +88,71 @@ test.each(['default-hidden', 'explicit-hidden', 'user-space', 'start', 'reverse-
   const points = vertical ? [{ x: 40, y: 20 }, { x: 40, y: anchor }] : start ? [{ x: anchor, y: 40 }, { x: 20, y: 40 }] : [{ x: 20, y: 40 }, { x: anchor, y: 40 }]
   if (mode === 'diagonal') points[0]!.y = 30
   if (mode === 'written-mismatch') points[1]!.y = 40.00000000000001
-  const edge = marks.connector({ id: 'viewport-edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'polyline', points }, paint: { stroke: '#111', strokeWidth: mode === 'unknown-width' ? 'var(--host)' : mode === 'viewbox' ? '4' : '2' }, endpoints: start ? { from: 'viewport-node', to: 'outside' } : { from: 'outside', to: 'viewport-node' }, markers: start ? { start: marker } : { end: marker } })
+  if (mode === 'written-axial') points[1]!.x = 60.00000000000001
+  if (mode === 'written-collapsed') points[0]!.x = 60.00000000000001
+  if (mode === 'written-tangent') for (const point of points) point.y = 40.00000000000001
+  if (mode === 'vertical-written-tangent') for (const point of points) point.x = 40.00000000000001
+  const edge = marks.connector({ id: 'viewport-edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'polyline', points }, paint: { stroke: '#111', strokeWidth: mode === 'unknown-width' ? 'var(--host)' : mode === 'viewbox' ? '4' : mode === 'written-width' ? '2.000000000000001' : '2' }, endpoints: start ? { from: 'viewport-node', to: 'outside' } : { from: 'outside', to: 'viewport-node' }, markers: start ? { start: marker } : { end: marker } })
   const card = marks.shape({ id: 'viewport-node', role: 'node', geometry: vertical ? { kind: 'rect', x: 20, y: 60, width: 40, height: 30 } : { kind: 'rect', x: 60, y: 20, width: 30, height: 40, ...(borderless ? { rx: 5, ry: 5 } : {}) }, paint: { fill: '#fff', stroke: borderless ? 'none' : '#888', strokeWidth: '0.75' } })
   const proof = certifyScenePaint(scene([edge, card]), undefined, { outputSupported: mode !== 'unsupported-output' })
-  if (['default-hidden', 'explicit-hidden', 'user-space', 'start', 'reverse-start', 'vertical', 'borderless', 'matched-viewbox'].includes(mode)) expect(proof.status).toBe('passed')
+  if (['default-hidden', 'explicit-hidden', 'user-space', 'start', 'reverse-start', 'vertical', 'written-tangent', 'vertical-written-tangent', 'borderless', 'matched-viewbox'].includes(mode)) expect(proof.status).toBe('passed')
   else expect(proof.status).not.toBe('passed')
+})
+
+test.each(['horizontal-negative', 'horizontal-positive', 'vertical-negative', 'vertical-positive'] as const)('serialized marker ink, rather than its raw witness, retains %s translation uncertainty', mode => {
+  const vertical = mode.startsWith('vertical'), negative = mode.endsWith('negative')
+  // These two authored coordinates round in opposite directions by about
+  // 5e-8, farther than the witness slack and the complete tiny marker height.
+  const raw = negative ? 10000.123456749994 : 10000.123456750007
+  const written = negative ? 10000.1234567 : 10000.1234568
+  const marker = tipAnchoredArrow('translated-arrow', { width: 8e-9, height: 5e-9 }, 'end', { fill: '#111', stroke: 'none' }, 'userSpaceOnUse')
+  const edge = marks.connector({ id: 'translated-edge', role: 'edge', lineStyle: 'solid',
+    geometry: vertical ? { kind: 'line', x1: raw, y1: 20, x2: raw, y2: 60 } : { kind: 'line', x1: 20, y1: raw, x2: 60, y2: raw },
+    paint: { stroke: '#111', strokeWidth: '1' }, endpoints: { from: 'outside', to: 'translated-node' }, markers: { end: marker } })
+  const card = marks.shape({ id: 'translated-node', role: 'node',
+    geometry: vertical ? { kind: 'rect', x: written - (negative ? 20 : 0), y: 40, width: 20, height: 50 }
+      : { kind: 'rect', x: 40, y: written - (negative ? 20 : 0), width: 50, height: 20 },
+    paint: { fill: '#fff', stroke: '#111', strokeWidth: '0.00000002' } })
+  expect(sceneNodeSerialization(edge)).toContain(vertical ? `x1="${written}"` : `y1="${written}"`)
+  // Before serialization this entire marker clears the thin border. The
+  // emitted marker lies inside that border, so no exterior raw point may
+  // enable the attached-border contact allowance or skip the spatial pair.
+  const rawBounds = connectorMarkerPaintRegions(edge)[0]!.bounds!
+  const border = nodePaintBounds(card)!
+  expect(vertical ? negative ? rawBounds.x0 > border.x1 : rawBounds.x1 < border.x0 : negative ? rawBounds.y0 > border.y1 : rawBounds.y1 < border.y0).toBe(true)
+  const proof = certifyScenePaint(scene([edge, card]))
+  expect(proof.status).not.toBe('passed')
+  expect(proof.issues).toContainEqual(expect.objectContaining({ id: 'translated-edge', by: 'translated-node' }))
+})
+
+test.each(['plain', 'transformed', 'cancelled'] as const)('the added axial marker support requires unchanged emitted shape coordinates (%s)', mode => {
+  const marker = tipAnchoredArrow('axis-arrow', { width: 8, height: 5 }, 'end', { fill: '#111', stroke: '#111', strokeWidth: '0.75', strokeLinejoin: 'round' })
+  const translation = mode === 'cancelled' ? 10000.123456750007 : 1e-13
+  const context = { positioned: { width: 120, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => ({ ...scene([]), width: 120, parts: [
+    factory.documentOpen({ id: 'root', width: 120, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="80">'),
+    factory.definitions({ id: 'resources' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
+    factory.connector({ id: 'axis-edge', role: 'edge', lineStyle: 'thick', geometry: { kind: 'line', x1: 110, y1: 38, x2: 90, y2: 38 }, paint: { stroke: '#111', strokeWidth: '2' }, endpoints: { from: 'outside', to: 'axis-node' }, markers: { end: marker } }),
+    factory.group({ id: 'axis-node', role: 'node', open: mode === 'cancelled' ? `<g transform="translate(${-translation} 0)">` : '<g>', close: '</g>',
+      ...(mode === 'cancelled' ? { transform: { kind: 'matrix' as const, a: 1, b: 0, c: 0, d: 1, e: -translation, f: 0 } } : {}),
+      children: [{ node: factory.shape({ id: 'axis-shape', role: 'node', owner: { id: 'axis-node', role: 'node' }, geometry: { kind: 'rect', x: 40, y: 20, width: 50, height: 36, rx: 18, ry: 18 }, paint: { fill: '#fff', stroke: '#111', strokeWidth: '0.75' },
+        ...(mode !== 'plain' ? { transform: { kind: 'matrix' as const, a: 1, b: 0, c: 0, d: 1, e: translation, f: 0 } } : {}) }), indent: 0 }] }),
+    factory.documentClose(),
+  ] })
+  const drawing = drawNative(producer, context, 'flowchart')
+  for (const proof of [certifyScenePaint(producer(marks, context)), certifyNativePaint(drawing.header, drawing.paint)]) {
+    if (mode === 'plain') expect(proof.status).toBe('passed')
+    else {
+      expect(proof.status).not.toBe('passed')
+      expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', id: 'axis-edge', by: 'axis-shape' }))
+    }
+  }
+  if (mode === 'cancelled') {
+    // The authored leaf and group matrices cancel, but the leaf attribute
+    // normalizes while the verbatim group transform retains its raw value.
+    expect(drawing.svg).toContain('transform="matrix(1 0 0 1 10000.1234568 0)"')
+    expect(drawing.svg).toContain('transform="translate(-10000.123456750007 0)"')
+  }
 })
 
 test.each(['clear', 'covered', 'inherited-separated', 'uncaptured-group-eraser', 'wrong-ref', 'clipped', 'unknown-width', 'dashed', 'mutated', 'css', 'inner-child', 'resource-coordinate', 'resource-width', 'body-width', 'own-white-carrier', 'later-white-carrier', 'same-black-carrier', 'earlier-black-carrier', 'black-backdrop'] as const)('a stroke-only circle retains actual emitted ink authority for %s', mode => {
@@ -226,6 +305,85 @@ test('an opposite endpoint marker cannot borrow a mutated supplied line tangent 
 })
 
 const runRectangleChild = useTestChildren(20_000)
+const ownDescriptorSlotProgram = String.raw`
+import { drawNative } from './src/scene/native-drawing.ts'
+import { certifyNativePaint } from './src/scene/paint-certification.ts'
+import { DefaultBackend } from './src/scene/backend.ts'
+import * as marks from './src/scene/marks.ts'
+const boundary = process.env.AM_DESCRIPTOR_SLOT_BOUNDARY
+const colors = { bg: '#fff', fg: '#111' }, context = { positioned: { width: 120, height: 100 }, colors, resolved: { renderOptions: {} } }
+if (Object.hasOwn(Object.prototype, 'value')) throw new Error('Expected a clean isolated prototype')
+const fixture = () => {
+  let reads = 0
+  const paint = { fill: '#f00', stroke: '#111', strokeWidth: '1' }
+  Object.defineProperty(paint, 'opacity', { enumerable: true, configurable: true, get() { reads++; return '0' } })
+  const producer = factory => ({ family: 'flowchart', width: 120, height: 100, colors, transparent: false, parts: [
+    factory.documentOpen({ id: 'root', width: 120, height: 100, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="100" viewBox="0 0 120 100">'),
+    factory.shape({ id: 'authored-card', role: 'node', geometry: { kind: 'rect', x: 20, y: 20, width: 80, height: 60, rx: 0, ry: 0 }, paint }),
+    factory.documentClose(),
+  ] })
+  return { producer, document: boundary === 'external' ? producer(marks) : undefined, reads: () => reads }
+}
+// Accessors, external documents and the null-prototype pollution descriptor
+// all exist before any inherited descriptor slot is introduced.
+const clean = fixture(), polluted = fixture()
+const pollution = Object.assign(Object.create(null), { value: '1', writable: true, configurable: true, enumerable: false })
+const run = input => boundary === 'external' ? DefaultBackend.render(input.document, { seed: 0 }) : drawNative(input.producer, context, 'flowchart')
+let cleanOutput, pollutedOutput, cleanError, pollutedError
+try { cleanOutput = run(clean) } catch (error) { cleanError = error }
+try {
+  Object.defineProperty(Object.prototype, 'value', pollution)
+  pollutedOutput = run(polluted)
+} catch (error) { pollutedError = error } finally { delete Object.prototype.value }
+const observe = (output, error, input) => ({
+  svg: boundary === 'external' ? output : output?.svg,
+  proof: boundary === 'native' && output ? certifyNativePaint(output.header, output.paint) : undefined,
+  error: error ? { name: error.name, message: error.message } : undefined,
+  getterReads: input.reads(),
+})
+console.log(JSON.stringify({ boundary, prototypeRestored: !Object.hasOwn(Object.prototype, 'value'), clean: observe(cleanOutput, cleanError, clean), polluted: observe(pollutedOutput, pollutedError, polluted) }))
+`
+
+test.each(['native', 'external'] as const)('an inherited descriptor value cannot replace authored opacity at the %s boundary', async boundary => {
+  const child = await runRectangleChild(process.execPath, ['--eval', ownDescriptorSlotProgram], {
+    cwd: fileURLToPath(new URL('../../', import.meta.url)), env: { ...process.env, AM_DESCRIPTOR_SLOT_BOUNDARY: boundary },
+  })
+  expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+  type Observation = { svg?: string; proof?: ReturnType<typeof certifyNativePaint>; error?: { name: string; message: string }; getterReads: number }
+  const packet = JSON.parse(child.stdout) as { boundary: string; prototypeRestored: boolean; clean: Observation; polluted: Observation }
+  expect(packet.boundary).toBe(boundary)
+  expect(packet.prototypeRestored).toBe(true)
+  const actual = (observation: Observation) => {
+    if (!observation.svg) return undefined
+    const elements = rectangleEmissionElements(observation.svg)
+    expect(elements.find(element => element.name === 'svg')!.attributes).toMatchObject({ width: '120', height: '100', viewBox: '0 0 120 100' })
+    const card = elements.find(element => element.attributes['data-id'] === 'authored-card')!.attributes
+    expect(card).toMatchObject({ x: '20', y: '20', width: '80', height: '60', rx: '0', ry: '0', fill: '#f00', stroke: '#111', 'stroke-width': '1' })
+    const pixels = new Resvg(observation.svg, { background: '#fff', font: { loadSystemFonts: false } }).render().pixels
+    let red = 0
+    for (let offset = 0; offset < pixels.length; offset += 4) if (pixels[offset]! > 200 && pixels[offset + 1]! < 50 && pixels[offset + 2]! < 50 && pixels[offset + 3]! > 200) red++
+    return { opacity: card.opacity, red }
+  }
+  const clean = actual(packet.clean), polluted = actual(packet.polluted)
+  if (polluted?.opacity !== '0' && packet.polluted.svg) console.info('inherited descriptor actual authored-opacity violation', JSON.stringify({ boundary, packet, clean, polluted }))
+  if (boundary === 'native') {
+    expect(packet.clean.error).toBeUndefined()
+    expect(clean).toEqual({ opacity: '0', red: 0 })
+    expect(packet.clean.getterReads).toBeGreaterThan(0)
+    expect(packet.polluted.error).toBeUndefined()
+    expect(polluted).toEqual({ opacity: '0', red: 0 })
+    expect(packet.polluted.getterReads).toBe(packet.clean.getterReads)
+    expect(packet.polluted.svg).toBe(packet.clean.svg)
+    expect(packet.polluted.proof?.status).not.toBe('passed')
+  } else {
+    expect(packet.clean.error).toMatchObject({ name: 'TypeError', message: expect.stringContaining('paint.opacity must be an enumerable data property') })
+    expect(packet.clean.getterReads).toBe(0)
+    expect(packet.polluted.error).toMatchObject({ name: 'TypeError', message: expect.stringContaining('paint.opacity must be an enumerable data property') })
+    expect(packet.polluted.getterReads).toBe(0)
+    expect(packet.polluted.svg).toBeUndefined()
+  }
+})
+
 const publicSharpRectangleProgram = String.raw`
 import { getFamily, replaceFamilyForTest } from './src/agent/families.ts'
 import { sceneLowering } from './src/scene/drawing.ts'
@@ -834,14 +992,22 @@ test.each((['curves', 'cylinder15', 'cylinder9'] as const).flatMap(kind =>
     expect(texts).toEqual(['A', 'B', 'C'])
     expect(edges.map(element => [element.attributes['data-id'], element.attributes['data-from'], element.attributes['data-to'], element.attributes['data-curve'], element.attributes['stroke-width']])).toEqual([['e1', 'A', 'B', 'linear', '2'], ['e2', 'A', 'C', 'natural', '1']])
     expect(elements.find(element => element.name === 'svg')!.attributes.viewBox).toBe('0 0 248 181.8')
+    const sourceBody = nodes.get('A')!.paints[0]!.attributes
+    expect(sourceBody).toMatchObject({ x: '40', width: '60', height: '36.9', fill: '#f9f9f9', stroke: '#949495', 'stroke-width': '0.75' })
     for (const [index, element] of edges.entries()) {
-      const startY = backend === 'agentic' ? index === 0 ? 84.75 : 97.05 : index === 0 ? 52.3 : 64.6
-      const endY = backend === 'agentic' ? index === 0 ? 58.45 : 123.35 : index === 0 ? 26 : 90.9
+      const target = index === 0 ? 'B' : 'C', targetBody = nodes.get(target)!.paints[0]!.attributes
+      // Authored A fans out in source order from symmetric right-side ports;
+      // each arrow enters its own target's left-side centre. Translation of
+      // every node and path preserves these contacts, unlike a misplaced tip.
+      // This fixture's served node operands are exact hundredths; integer
+      // arithmetic keeps its port equality independent of float tails.
+      for (const value of [sourceBody.y, sourceBody.height, targetBody.y, targetBody.height]) expect(Number.isSafeInteger(Number(value) * 100)).toBe(true)
+      const startY = (Number(sourceBody.y) * 100 + Number(sourceBody.height) * 100 * (index === 0 ? 1 : 2) / 3) / 100
+      const endY = (Number(targetBody.y) * 100 + Number(targetBody.height) * 50) / 100
       expect(element.name).toBe('path')
       expect(element.attributes.d!.match(/[A-Za-z]/g)).toEqual(['M', 'C', 'C', 'C'])
       expect(element.attributes.d!.match(/[-+]?(?:\d+\.?\d*|\.\d+)/g)!.map(Number)).toEqual([100, startY, 112, startY, 112, startY, 124, startY, 124, startY, 124, endY, 124, endY, 136, endY, 136, endY, 148, endY])
-      const target = index === 0 ? 'B' : 'C'
-      expect(nodes.get(target)!.paints[0]!.attributes).toMatchObject({ x: '148', width: '60', height: '36.9', fill: '#f9f9f9', stroke: '#949495', 'stroke-width': '0.75' })
+      expect(targetBody).toMatchObject({ x: '148', width: '60', height: '36.9', fill: '#f9f9f9', stroke: '#949495', 'stroke-width': '0.75' })
       // Written last two controls(136,y) and tip(148,y) give an eastward
       // actual terminal derivative. The default-unit clipped marker spans
       // x[132,148],y±5 for thick e1, and x[140,148],y±2.5 for e2.
@@ -998,13 +1164,15 @@ test.each((['covered', 'dashed', 'unknown-width', 'scaled', 'mutated'] as const)
   expect(drawing.proof.status).not.toBe('passed')
 })
 
-function drawCylinderWriteControl(mode: 'clear' | 'inward' | 'extra-piece' | 'getter' | 'inherited' | 'fallback-fill' | 'fallback-stroke' | 'background-stroke' | 'foreground-stroke', execution: 'native' | 'scene') {
+function drawCylinderWriteControl(mode: 'clear' | 'inward' | 'extra-piece' | 'getter' | 'inherited' | 'fallback-fill' | 'fallback-stroke' | 'background-stroke' | 'foreground-stroke' | 'background-stroke4' | 'foreground-stroke4' | 'background-fill-foreground-stroke4' | 'background-fill-background-stroke4' | 'hollow-circle' | 'inherited-prepared-body', execution: 'native' | 'scene', bodyKind: 'cylinder' | 'rectangle' | 'borderless-rectangle' = 'cylinder', rootMarkup?: string, nonPaintContent?: string) {
   const colors = { bg: '#fff', fg: '#111' }, reads: string[] = []
-  const wideStroke = mode === 'background-stroke' || mode === 'foreground-stroke'
+  const wideStroke = mode === 'background-stroke' || mode === 'foreground-stroke' || mode === 'background-stroke4' || mode === 'foreground-stroke4' || mode === 'background-fill-foreground-stroke4' || mode === 'background-fill-background-stroke4' || mode === 'hollow-circle'
   const width = wideStroke ? 800 : 160, height = wideStroke ? 800 : 100, offset = wideStroke ? 240 : 0
   const context = { positioned: { width, height }, colors, resolved: { renderOptions: {} } }
-  const marker = tipAnchoredArrow('cylinder-tip', { width: 8, height: 5 }, 'end', wideStroke
-    ? { fill: '#111', stroke: mode === 'background-stroke' ? '#fff' : '#111', strokeWidth: '64', strokeLinejoin: 'round', paintOrder: 'normal' }
+  const marker: MarkerDescriptor = mode === 'hollow-circle'
+    ? { id: 'cylinder-tip', shape: 'circle', size: { width: 8, height: 5 }, ref: { x: 8, y: 2.5 }, orient: 'auto', geometry: { kind: 'circle', cx: 4, cy: 2.5, r: 2 }, paint: { fill: '#fff', stroke: '#111', strokeWidth: '0.75' } }
+    : tipAnchoredArrow('cylinder-tip', { width: 8, height: 5 }, 'end', wideStroke
+    ? { fill: mode === 'background-fill-foreground-stroke4' || mode === 'background-fill-background-stroke4' ? '#fff' : '#111', stroke: mode === 'background-stroke' || mode === 'background-stroke4' || mode === 'background-fill-background-stroke4' ? '#fff' : '#111', strokeWidth: mode.endsWith('stroke4') ? '4' : '64', strokeLinejoin: 'round', paintOrder: 'normal' }
     : { fill: '#111', stroke: 'none' })
   if (wideStroke) marker.overflow = 'hidden'
   const childPaints: MarkPaint[] = [{ fill: '#fff', stroke: 'none' }, { stroke: '#111', strokeWidth: '1' }, { stroke: '#111', strokeWidth: '1' }, { fill: '#fff', stroke: '#111', strokeWidth: '1' }, { fill: '#fff', stroke: '#111', strokeWidth: '1' }]
@@ -1016,36 +1184,45 @@ function drawCylinderWriteControl(mode: 'clear' | 'inward' | 'extra-piece' | 'ge
   if (mode === 'inherited') { delete childPaints[1]!.strokeWidth; Object.setPrototypeOf(childPaints[1], { strokeWidth: '1' }) }
   const children: Geometry[] = [{ kind: 'rect', x: 60 + offset, y: 20 + offset, width: 60, height: 40 }, { kind: 'line', x1: 60 + offset, y1: 20 + offset, x2: 60 + offset, y2: 60 + offset }, { kind: 'line', x1: 120 + offset, y1: 20 + offset, x2: 120 + offset, y2: 60 + offset }, { kind: 'ellipse', cx: 90 + offset, cy: 60 + offset, rx: 30, ry: 7 }, { kind: 'ellipse', cx: 90 + offset, cy: 20 + offset, rx: 30, ry: 7 }]
   if (mode === 'extra-piece') { children.push({ kind: 'rect', x: 51, y: 36, width: 10, height: 8 }); childPaints.push({ fill: '#fff', stroke: 'none' }) }
-  const tip = mode === 'inward' ? 61 : 60
+  const tip = mode === 'inherited-prepared-body' ? 70 : mode === 'inward' ? 61 : 60
   const producer: DrawingProducer = factory => ({ family: 'flowchart', width, height, transparent: false, colors, parts: [
-    factory.documentOpen({ id: 'root', width, height, colors, transparent: false, font: 'Inter', hasMonoFont: false }, `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`),
+    factory.documentOpen({ id: 'root', width, height, colors, transparent: false, font: 'Inter', hasMonoFont: false }, rootMarkup ?? `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`),
     factory.definitions({ id: 'defs' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
     factory.connector({ id: 'cylinder-edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 20 + offset, y1: 40 + offset, x2: tip + offset, y2: 40 + offset }, paint: { stroke: '#111', strokeWidth: '1' }, endpoints: { from: 'outside', to: 'body' }, markers: { end: marker } }),
-    factory.shape({ id: 'body', role: 'node', geometry: { kind: 'compound', children }, paint: { fill: '#fff', stroke: '#111', strokeWidth: '1' }, childPaints }),
+    factory.shape({ id: 'body', role: 'node', geometry: bodyKind !== 'cylinder' ? children[0]! : { kind: 'compound', children }, paint: { fill: '#fff', stroke: bodyKind === 'borderless-rectangle' ? 'none' : '#111', strokeWidth: '1' }, ...(bodyKind === 'cylinder' ? { childPaints } : {}) }),
+    ...(nonPaintContent === undefined ? [] : [factory.documentContent({ id: 'metadata-cover', role: 'chrome', nonPaint: 'accessibility' }, nonPaintContent)]),
     factory.documentClose(),
   ] })
   return { ...drawPaintControl(producer, context, execution, { fractionalCircleOutput: true }), reads }
 }
 
-function expectCylinderWriteInk(drawing: ReturnType<typeof drawCylinderWriteControl>, mode: 'clear' | 'inward' | 'extra-piece' | 'getter' | 'inherited' | 'fallback-fill' | 'fallback-stroke' | 'background-stroke' | 'foreground-stroke') {
+function expectCylinderWriteInk(drawing: ReturnType<typeof drawCylinderWriteControl>, mode: 'clear' | 'inward' | 'extra-piece' | 'getter' | 'inherited' | 'fallback-fill' | 'fallback-stroke' | 'background-stroke' | 'foreground-stroke' | 'background-stroke4' | 'foreground-stroke4' | 'background-fill-foreground-stroke4' | 'background-fill-background-stroke4' | 'hollow-circle' | 'inherited-prepared-body', bodyKind: 'cylinder' | 'rectangle' | 'borderless-rectangle' = 'cylinder') {
   const elements = rectangleEmissionElements(drawing.svg)
-  const wideStroke = mode === 'background-stroke' || mode === 'foreground-stroke'
+  const wideStroke = mode === 'background-stroke' || mode === 'foreground-stroke' || mode === 'background-stroke4' || mode === 'foreground-stroke4' || mode === 'background-fill-foreground-stroke4' || mode === 'background-fill-background-stroke4' || mode === 'hollow-circle'
   expect(elements.find(element => element.name === 'svg')!.attributes.viewBox).toBe(wideStroke ? '0 0 800 800' : '0 0 160 100')
   expect(elements.find(element => element.name === 'marker')!.attributes).toMatchObject({ markerWidth: '8', markerHeight: '5', refX: '8', refY: '2.5', orient: 'auto' })
   expect(elements.find(element => element.name === 'marker')!.attributes.markerUnits).toBeUndefined()
-  expect(elements.find(element => element.name === 'polygon')!.attributes).toMatchObject({ points: '0 0, 8 2.5, 0 5', fill: '#111', ...(wideStroke
-    ? { stroke: mode === 'background-stroke' ? '#fff' : '#111', 'stroke-width': '64', 'stroke-linejoin': 'round', 'paint-order': 'normal' }
-    : { stroke: 'none' }) })
+  if (mode === 'hollow-circle') {
+    expect(elements.filter(element => element.name === 'polygon')).toHaveLength(0)
+    expect(elements.find(element => element.name === 'circle')!.attributes).toEqual({ cx: '4', cy: '2.5', r: '2', fill: '#fff', stroke: '#111', 'stroke-width': '0.75' })
+    // The complete ring lies[293.625,298.375]×[277.625,282.375],
+    // outside the actual rectangle and inside the local8×5 clipping viewport.
+    expect(298.375).toBeLessThan(300)
+  } else expect(elements.find(element => element.name === 'polygon')!.attributes).toMatchObject({ points: '0 0, 8 2.5, 0 5', fill: mode === 'background-fill-foreground-stroke4' || mode === 'background-fill-background-stroke4' ? '#fff' : '#111', ...(wideStroke
+      ? { stroke: mode === 'background-stroke' || mode === 'background-stroke4' || mode === 'background-fill-background-stroke4' ? '#fff' : '#111', 'stroke-width': mode.endsWith('stroke4') ? '4' : '64', 'stroke-linejoin': 'round', 'paint-order': 'normal' }
+      : { stroke: 'none' }) })
   if (wideStroke) expect(elements.find(element => element.name === 'marker')!.attributes.overflow).toBe('hidden')
-  expect(elements.find(element => element.attributes['data-id'] === 'cylinder-edge')!.attributes).toMatchObject({ x1: wideStroke ? '260' : '20', y1: wideStroke ? '280' : '40', x2: wideStroke ? '300' : mode === 'inward' ? '61' : '60', y2: wideStroke ? '280' : '40', 'stroke-width': '1', 'marker-end': 'url(#cylinder-tip)' })
+  expect(elements.find(element => element.attributes['data-id'] === 'cylinder-edge')!.attributes).toMatchObject({ x1: wideStroke ? '260' : '20', y1: wideStroke ? '280' : '40', x2: wideStroke ? '300' : mode === 'inherited-prepared-body' ? '70' : mode === 'inward' ? '61' : '60', y2: wideStroke ? '280' : '40', 'stroke-width': '1', 'marker-end': 'url(#cylinder-tip)' })
   const index = elements.findIndex(element => element.attributes['data-id'] === 'body')
-  const pieces = elements.slice(index, index + (mode === 'extra-piece' ? 6 : 5))
-  expect(pieces.map(piece => piece.name)).toEqual(mode === 'extra-piece' ? ['rect', 'line', 'line', 'ellipse', 'ellipse', 'rect'] : ['rect', 'line', 'line', 'ellipse', 'ellipse'])
-  expect(pieces[0]!.attributes).toMatchObject({ x: wideStroke ? '300' : '60', y: wideStroke ? '260' : '20', width: '60', height: '40', fill: mode === 'fallback-fill' ? 'var(--host,#fff)' : '#fff', stroke: 'none' })
-  expect(pieces[1]!.attributes).toMatchObject({ x1: wideStroke ? '300' : '60', y1: wideStroke ? '260' : '20', x2: wideStroke ? '300' : '60', y2: wideStroke ? '300' : '60', stroke: mode === 'fallback-stroke' ? 'var(--host,#111)' : '#111', 'stroke-width': '1' })
-  expect(pieces[2]!.attributes).toMatchObject({ x1: wideStroke ? '360' : '120', y1: wideStroke ? '260' : '20', x2: wideStroke ? '360' : '120', y2: wideStroke ? '300' : '60', stroke: '#111', 'stroke-width': '1' })
-  expect(pieces[3]!.attributes).toMatchObject({ cx: wideStroke ? '330' : '90', cy: wideStroke ? '300' : '60', rx: '30', ry: '7', fill: '#fff', stroke: '#111', 'stroke-width': '1' })
-  expect(pieces[4]!.attributes).toMatchObject({ cx: wideStroke ? '330' : '90', cy: wideStroke ? '260' : '20', rx: '30', ry: '7', fill: '#fff', stroke: '#111', 'stroke-width': '1' })
+  const pieces = elements.slice(index, index + (bodyKind !== 'cylinder' ? 1 : mode === 'extra-piece' ? 6 : 5))
+  expect(pieces.map(piece => piece.name)).toEqual(bodyKind !== 'cylinder' ? ['rect'] : mode === 'extra-piece' ? ['rect', 'line', 'line', 'ellipse', 'ellipse', 'rect'] : ['rect', 'line', 'line', 'ellipse', 'ellipse'])
+  expect(pieces[0]!.attributes).toMatchObject({ x: wideStroke ? '300' : '60', y: wideStroke ? '260' : '20', width: '60', height: '40', fill: mode === 'fallback-fill' ? 'var(--host,#fff)' : '#fff', ...(bodyKind !== 'cylinder' ? { stroke: bodyKind === 'borderless-rectangle' ? 'none' : '#111', 'stroke-width': '1' } : { stroke: 'none' }) })
+  if (bodyKind === 'cylinder') {
+    expect(pieces[1]!.attributes).toMatchObject({ x1: wideStroke ? '300' : '60', y1: wideStroke ? '260' : '20', x2: wideStroke ? '300' : '60', y2: wideStroke ? '300' : '60', stroke: mode === 'fallback-stroke' ? 'var(--host,#111)' : '#111', 'stroke-width': '1' })
+    expect(pieces[2]!.attributes).toMatchObject({ x1: wideStroke ? '360' : '120', y1: wideStroke ? '260' : '20', x2: wideStroke ? '360' : '120', y2: wideStroke ? '300' : '60', stroke: '#111', 'stroke-width': '1' })
+    expect(pieces[3]!.attributes).toMatchObject({ cx: wideStroke ? '330' : '90', cy: wideStroke ? '300' : '60', rx: '30', ry: '7', fill: '#fff', stroke: '#111', 'stroke-width': '1' })
+    expect(pieces[4]!.attributes).toMatchObject({ cx: wideStroke ? '330' : '90', cy: wideStroke ? '260' : '20', rx: '30', ry: '7', fill: '#fff', stroke: '#111', 'stroke-width': '1' })
+  }
   expect(elements.some(element => element.attributes.transform !== undefined)).toBe(false)
   if (mode === 'inward') {
     // Actual triangle(53,37.5),(61,40),(53,42.5) contains a positive
@@ -1066,9 +1243,10 @@ function expectCylinderWriteInk(drawing: ReturnType<typeof drawCylinderWriteCont
   const rendered = new Resvg(viewedSvg).render(), pixels = rendered.pixels
   const absent = new Resvg(viewedSvg.replace(token, '')).render().pixels
   if (wideStroke) {
-    // The negative's width64 white stroke paints after the dark fill and
-    // covers the triangle inside its actual 8x5 clipped viewport. It can erase
-    // the shaft; the paired dark stroke must introduce contrasting marker ink.
+    // The triangle's area20 and semiperimeter2.5+sqrt(70.25) give inradius
+    // <2. Thus even width4's white stroke covers its complete fill after normal
+    // painting. Its shaft erasure is distinct from the paired dark marker ink.
+    if (mode !== 'hollow-circle') expect(20 / (2.5 + Math.sqrt(70.25))).toBeLessThan(2)
     let contrastingOffSupport = 0, nonOpaque = 0
     const samples: Array<{ x: number; y: number; actual: number[]; absent: number[] }> = []
     for (let offset = 3; offset < pixels.length; offset += 4) if (pixels[offset] !== 255 || absent[offset] !== 255) nonOpaque++
@@ -1081,10 +1259,25 @@ function expectCylinderWriteInk(drawing: ReturnType<typeof drawCylinderWriteCont
         break
       }
     }
-    if (mode === 'background-stroke') {
+    if (mode === 'background-stroke' || mode === 'background-stroke4' || mode === 'background-fill-background-stroke4') {
       if (contrastingOffSupport !== 0) console.info('background stroke physical precondition unavailable', JSON.stringify({ contrastingOffSupport, samples }))
       expect(contrastingOffSupport).toBe(0)
     } else expect(contrastingOffSupport).toBeGreaterThan(0)
+  } else if (mode === 'inherited-prepared-body') {
+    // The authored triangle[62,70]×[37.5,42.5] is wholly inside the later
+    // opaque body[60,120]×[20,60], away from both cap stroke bands.
+    expect(62).toBeGreaterThan(Number(pieces[0]!.attributes.x))
+    expect(70).toBeLessThan(Number(pieces[0]!.attributes.x) + Number(pieces[0]!.attributes.width))
+    expect(37.5).toBeGreaterThan(Number(pieces[4]!.attributes.cy) + 7 + 0.5)
+    expect(42.5).toBeLessThan(Number(pieces[3]!.attributes.cy) - 7 - 0.5)
+    const opaquePixels = (svg: string) => new Resvg(svg, { background: '#fff' }).render().pixels
+    expect(Buffer.compare(opaquePixels(drawing.svg), opaquePixels(drawing.svg.replace(token, '')))).toBe(0)
+    const bodyStart = drawing.svg.indexOf('<rect x="60" y="20" width="60" height="40" fill="#fff" stroke="none" data-id="body" data-role="node" />')
+    expect(bodyStart).toBeGreaterThan(drawing.svg.indexOf('marker-end="url(#cylinder-tip)"'))
+    const bodyXml = drawing.svg.slice(bodyStart, drawing.svg.indexOf('</svg>'))
+    expect(bodyXml.match(/<(?:rect|line|ellipse)\b/g)).toHaveLength(5)
+    const exposed = drawing.svg.replace(bodyXml, '')
+    expect(Buffer.compare(opaquePixels(exposed), opaquePixels(exposed.replace(token, '')))).not.toBe(0)
   } else if (mode === 'extra-piece') {
     expect(pieces[5]!.attributes).toMatchObject({ x: '51', y: '36', width: '10', height: '8', fill: '#fff', stroke: 'none' })
     expect(Buffer.compare(pixels, absent)).toBe(0)
@@ -1099,14 +1292,38 @@ function expectCylinderWriteInk(drawing: ReturnType<typeof drawCylinderWriteCont
 }
 
 test.each([
-  ...(['clear', 'inward', 'extra-piece', 'fallback-fill', 'fallback-stroke', 'background-stroke', 'foreground-stroke'] as const).flatMap(mode => (['native', 'scene'] as const).map(execution => ({ mode, execution }))),
-  { mode: 'getter' as const, execution: 'native' as const },
-  { mode: 'inherited' as const, execution: 'native' as const },
-])('cylinder write $mode keeps complete actual paint authority through $execution', ({ mode, execution }) => {
-  const drawing = drawCylinderWriteControl(mode, execution)
-  expectCylinderWriteInk(drawing, mode)
+  ...(['clear', 'inward', 'extra-piece', 'inherited-prepared-body', 'fallback-fill', 'fallback-stroke', 'background-stroke', 'foreground-stroke'] as const).flatMap(mode => (['native', 'scene'] as const).map(execution => ({ mode, execution, bodyKind: 'cylinder' as const }))),
+  ...(['background-stroke4', 'foreground-stroke4'] as const).flatMap(mode => (['cylinder', 'rectangle'] as const).flatMap(bodyKind => (['native', 'scene'] as const).map(execution => ({ mode, execution, bodyKind })))),
+  ...(['native', 'scene'] as const).map(execution => ({ mode: 'background-fill-foreground-stroke4' as const, execution, bodyKind: 'rectangle' as const })),
+  ...(['native', 'scene'] as const).map(execution => ({ mode: 'background-fill-background-stroke4' as const, execution, bodyKind: 'rectangle' as const })),
+  ...(['native', 'scene'] as const).map(execution => ({ mode: 'hollow-circle' as const, execution, bodyKind: 'rectangle' as const })),
+  ...(['native', 'scene'] as const).map(execution => ({ mode: 'background-stroke4' as const, execution, bodyKind: 'borderless-rectangle' as const })),
+  { mode: 'getter' as const, execution: 'native' as const, bodyKind: 'cylinder' as const },
+  { mode: 'inherited' as const, execution: 'native' as const, bodyKind: 'cylinder' as const },
+])('cylinder write $mode keeps complete actual paint authority through $execution ($bodyKind)', ({ mode, execution, bodyKind }) => {
+  const inheritedBody = Object.getOwnPropertyDescriptor(Object.prototype, 'preparedBody')
+  let preparedBodyCalls = 0
+  let drawing: ReturnType<typeof drawCylinderWriteControl>
+  try {
+    if (mode === 'inherited-prepared-body') {
+      const descriptor = Object.assign(Object.create(null), { configurable: true, writable: true, value: () => { preparedBodyCalls++; return { x: 0, y: 0 } } })
+      Object.defineProperty(Object.prototype, 'preparedBody', descriptor)
+    }
+    drawing = drawCylinderWriteControl(mode, execution, bodyKind)
+  } finally {
+    if (mode === 'inherited-prepared-body') {
+      if (inheritedBody) Object.defineProperty(Object.prototype, 'preparedBody', inheritedBody)
+      else delete (Object.prototype as { preparedBody?: unknown }).preparedBody
+    }
+  }
+  if (mode === 'inherited-prepared-body') expect(Object.getOwnPropertyDescriptor(Object.prototype, 'preparedBody')).toEqual(inheritedBody)
+  expectCylinderWriteInk(drawing, mode, bodyKind)
+  if (mode === 'inherited-prepared-body') {
+    if (preparedBodyCalls !== 0 || drawing.proof.status === 'passed') console.info('introduced prepared-body draft physical violation', JSON.stringify({ execution, preparedBodyCalls, svg: drawing.svg, proof: drawing.proof }))
+    expect(preparedBodyCalls).toBe(0)
+  }
   if (mode === 'getter') expect(drawing.reads.length).toBeGreaterThan(0)
-  if (mode === 'clear' || mode === 'foreground-stroke') expect(drawing.proof.status).toBe('passed')
+  if (mode === 'clear' || mode === 'foreground-stroke' || mode === 'foreground-stroke4' || mode === 'background-fill-foreground-stroke4' || mode === 'hollow-circle') expect(drawing.proof.status).toBe('passed')
   else expect(drawing.proof.status).not.toBe('passed')
 })
 
@@ -1121,7 +1338,88 @@ test('cylinder write cached replay cannot borrow first-write compound facts', ()
   expect(certifyScenePaint(drawing.admitted, undefined, { sceneWriteReceipt: cached.finish(drawing.admitted) }).status).not.toBe('passed')
 })
 
-function drawFractionalSceneReceiptControl(alias?: 'shape' | 'text', captureOptions: Parameters<typeof createSceneWriteCapture>[1] = { fractionalCircleOutput: true }, variant: { execution?: 'native' | 'scene'; group?: 'plain' | 'close' | 'join' | 'lost-shell'; ownerReads?: string[] } = {}) {
+test.each((['opacity', 'viewBox'] as const).flatMap(mode => (['native', 'scene'] as const).map(execution => ({ mode, execution }))))('public cached root $mode values cannot certify hidden actual marker ink through $execution', ({ mode, execution }) => {
+  const clear = drawCylinderWriteControl('clear', execution)
+  expectCylinderWriteInk(clear, 'clear')
+  expect(clear.proof.status).toBe('passed')
+  const root = '<svg xmlns="http://www.w3.org/2000/svg" width="160" height="100" viewBox="0 0 160 100">'
+  const actualRoot = mode === 'opacity' ? root.replace('>', ' style="opacity:0">') : root.replace('0 0 160 100', '100 0 160 100')
+  const tokens = scanSvgStartTags(actualRoot)
+  const forged = tokens.map(tag => ({ ...tag, attributes: tag.attributes.map(attribute => ({ ...attribute,
+    value: attribute.name === (mode === 'opacity' ? 'style' : 'viewBox') ? mode === 'opacity' ? '' : '0 0 160 100' : attribute.value,
+  })) }))
+  withSvgInspectionCache(() => {
+    // The public cache accepts caller data. Preserve genuine token spans and
+    // forge only the value that this transaction must read from actual bytes.
+    inspectSvgOnce('start-tags', actualRoot, () => forged)
+    const drawing = drawCylinderWriteControl('clear', execution, 'cylinder', actualRoot)
+    expect(clear.svg.split(root)).toHaveLength(2)
+    expect(drawing.svg).toBe(clear.svg.replace(root, actualRoot))
+    const attributes = rectangleEmissionElements(drawing.svg).find(element => element.name === 'svg')!.attributes
+    expect(attributes).toMatchObject({ width: '160', height: '100', viewBox: mode === 'viewBox' ? '100 0 160 100' : '0 0 160 100' })
+    if (mode === 'opacity') expect(attributes.style).toBe('opacity:0')
+    const reference = ' marker-end="url(#cylinder-tip)"'
+    expect(drawing.svg.split(reference)).toHaveLength(2)
+    // The renderer's white viewing background leaves every served root byte
+    // unchanged. Opacity hides everything; the pan hides the marker while
+    // retaining part of the body, so a blank raster cannot satisfy that case.
+    const pixels = new Resvg(drawing.svg, { background: '#fff' }).render().pixels
+    const absent = new Resvg(drawing.svg.replace(reference, ''), { background: '#fff' }).render().pixels
+    expect(Buffer.compare(pixels, absent)).toBe(0)
+    let nonWhite = 0, nonOpaque = 0, offShaftContrast = 0
+    for (let offset = 0; offset < pixels.length; offset += 4) {
+      if (pixels[offset + 3] !== 255 || absent[offset + 3] !== 255) nonOpaque++
+      if (pixels[offset] !== 255 || pixels[offset + 1] !== 255 || pixels[offset + 2] !== 255) nonWhite++
+      const y = Math.floor(offset / 4 / 160)
+      if (Math.abs(y + 0.5 - 40) > 1.25 && (pixels[offset]! < absent[offset]! || pixels[offset + 1]! < absent[offset + 1]! || pixels[offset + 2]! < absent[offset + 2]!)) offShaftContrast++
+    }
+    expect(nonOpaque).toBe(0)
+    expect(offShaftContrast).toBe(0)
+    if (mode === 'opacity') expect(nonWhite).toBe(0)
+    else {
+      // Actual marker ink[52,60]×[37.5,42.5] is wholly left of viewBoxx100.
+      // The right body side(worldx120,y40) still paints at viewportx20.
+      expect(60).toBeLessThan(Number(attributes.viewBox!.split(' ')[0]))
+      expect(nonWhite).toBeGreaterThan(0)
+      expect(pixels[(40 * 160 + 19) * 4]).toBeLessThan(255)
+    }
+    if (drawing.proof.status === 'passed') console.info('public cached root actual false-pass observation', JSON.stringify({ mode, execution, svg: drawing.svg, proof: drawing.proof, nonWhite, offShaftContrast }))
+    expect(drawing.proof.status).not.toBe('passed')
+  })
+})
+
+test.each(['native', 'scene'] as const)('public cached metadata inventory cannot hide actual opaque marker erasure through %s', execution => {
+  const clear = drawCylinderWriteControl('clear', execution)
+  expectCylinderWriteInk(clear, 'clear')
+  expect(clear.proof.status).toBe('passed')
+  const cover = '<rect x="51" y="36" width="10" height="8" fill="#fff" />'
+  const reference = ' marker-end="url(#cylinder-tip)"'
+  expect(clear.svg.split('</svg>')).toHaveLength(2)
+  const covered = clear.svg.replace('</svg>', `${cover}\n</svg>`)
+  expect(rectangleEmissionElements(covered).find(element => element.name === 'rect' && element.attributes.x === '51')!.attributes).toEqual({ x: '51', y: '36', width: '10', height: '8', fill: '#fff' })
+  // This exact authored cover contains the complete triangle[52,60]×[37.5,42.5].
+  // The positive's actual marker ink reappears when that later cover is removed.
+  const pixels = (svg: string) => new Resvg(svg, { background: '#fff' }).render().pixels
+  expect(Buffer.compare(pixels(covered), pixels(covered.replace(reference, '')))).toBe(0)
+  const exposed = covered.replace(`${cover}\n`, '')
+  expect(exposed).toBe(clear.svg)
+  expect(Buffer.compare(pixels(exposed), pixels(exposed.replace(reference, '')))).not.toBe(0)
+  withSvgInspectionCache(() => {
+    inspectSvgOnce('start-tags', cover, () => [])
+    let drawing: ReturnType<typeof drawCylinderWriteControl>
+    try { drawing = drawCylinderWriteControl('clear', execution, 'cylinder', undefined, cover) } catch (error) {
+      expect(error).toMatchObject({ name: 'SceneValidationError' })
+      expect((error as Error).message).toContain('nonPaint')
+      console.info('public cached metadata typed admission refusal', JSON.stringify({ execution, name: (error as Error).name, message: (error as Error).message, returnedSvg: false }))
+      return
+    }
+    expect(drawing.svg).toBe(covered)
+    if (drawing.proof.status === 'passed') console.info('public cached metadata actual false-pass observation', JSON.stringify({ execution, svg: drawing.svg, proof: drawing.proof }))
+    expect(drawing.proof.status).not.toBe('passed')
+  })
+})
+
+function drawFractionalSceneReceiptControl(alias?: 'shape' | 'text', captureOptions: Parameters<typeof createSceneWriteCapture>[1] = { fractionalCircleOutput: true }, variant: { execution?: 'native' | 'scene'; group?: 'plain' | 'close' | 'join' | 'lost-shell' | 'style'; ownerReads?: string[] } = {}) {
   const colors = { bg: '#fff', fg: '#111' }
   const context = { positioned: { width: 248, height: 116.9 }, colors, resolved: { renderOptions: {} } }
   const marker: MarkerDescriptor = { id: 'receipt-ring', shape: 'circle', orient: 'auto', size: { width: 8, height: 8 }, ref: { x: 7.5, y: 4 }, geometry: { kind: 'circle', cx: 4, cy: 4, r: 3.25 }, paint: { fill: 'none', stroke: '#111', strokeWidth: '1' } }
@@ -1136,7 +1434,7 @@ function drawFractionalSceneReceiptControl(alias?: 'shape' | 'text', captureOpti
       factory.shape({ id: 'B', role: 'node', geometry: { kind: 'rect', x: 148, y: 40, width: 60, height: 36.9 }, paint: { fill: '#fff', stroke: '#888', strokeWidth: '0.75' } }),
       text, ...(alias === 'text' ? [text] : []),
       factory.text({ id: 'receipt-label:B', role: 'label', owner: { id: 'B', role: 'node' }, text: 'B', block: preparePixelText('B', { fontSize: 13, fontWeight: 500 }), x: 178, y: 58.45, fontSize: 13, anchor: 'middle', paint: { fill: '#111' } }),
-      ...(variant.group ? [factory.group({ id: 'receipt-shell', role: 'chrome', open: '<g>',
+      ...(variant.group ? [factory.group({ id: 'receipt-shell', role: 'chrome', open: variant.group === 'style' ? '<g style="--fg:#fff">' : '<g>',
         ...(variant.group === 'lost-shell' ? { owner: { get id() { variant.ownerReads?.push('owner-id:A'); return 'A' }, role: 'node' as const } } : {}),
         close: variant.group === 'close' || variant.group === 'lost-shell' ? '<rect x="138" y="52" width="13" height="13" fill="#fff"/></g>' : '</g>',
         join: variant.group === 'join' ? '<rect x="138" y="52" width="13" height="13" fill="#fff"/>' : '\n',
@@ -1236,6 +1534,27 @@ test('fractional group failed Native shell capture cannot omit an empty painted 
   expectFractionalSceneReceiptInk(drawing.svg, undefined, 'lost-shell')
   expect(reads.length).toBeGreaterThan(0)
   expect(drawing.proof.status).not.toBe('passed')
+})
+
+test.each(['native', 'scene'] as const)('caller-owned cached group tokens cannot erase actual %s group style', execution => {
+  const plain = drawFractionalSceneReceiptControl(undefined, undefined, { execution, group: 'plain' })
+  expect(plain.proof.status).toBe('passed')
+  const styled = drawFractionalSceneReceiptControl(undefined, undefined, { execution, group: 'style' })
+  expect(styled.proof.status).not.toBe('passed')
+  const start = styled.svg.indexOf('<g '), end = styled.svg.indexOf('>', start) + 1
+  expect(start).toBeGreaterThan(0)
+  const open = styled.svg.slice(start, end)
+  expect(open).toContain('style="--fg:#fff"')
+  withSvgInspectionCache(() => {
+    const attributes = [{ name: 'style', value: '--fg:#fff', quote: '"' as const, nameStart: 3, valueStart: 10, valueEnd: 19 }]
+    inspectSvgOnce('start-tags', open, () => [{ name: 'g', start: 0, end: open.length, attributes, selfClosing: false }])
+    // The public cache deliberately retains caller-owned mutable results.
+    // Removing its style cannot replace the private actual group parse.
+    attributes.length = 0
+    const repeated = drawFractionalSceneReceiptControl(undefined, undefined, { execution, group: 'style' })
+    expect(repeated.svg).toBe(styled.svg)
+    expect(repeated.proof.status).not.toBe('passed')
+  })
 })
 
 test.each(['inherited', 'accessor'] as const)('Scene fractional capture option %s cannot acquire explicit output authority', mode => {
@@ -1419,7 +1738,8 @@ test('endpoint symbols use final owned repaint order rather than marker counts',
 })
 
 test('one viewport repair contains negative coordinates, stroke and endpoint artwork without moving identities', () => {
-  const edge = marks.connector({ id: 'authored->edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: -10, y1: 20, x2: 110, y2: 20 }, paint: { stroke: '#111', strokeWidth: '4' }, endpoints: { from: 'authored', to: 'edge' }, markers: { end: { id: 'arrow', shape: 'arrow', bounds: { x0: -5, y0: -5, x1: 5, y1: 5 }, units: 'userSpaceOnUse' } } })
+  const marker: MarkerDescriptor = { id: 'arrow', shape: 'arrow', units: 'userSpaceOnUse', size: { width: 10, height: 10 }, ref: { x: 0, y: 0 }, viewBox: { x: -5, y: -5, width: 10, height: 10 }, overflow: 'visible', bounds: { x0: -5, y0: -5, x1: 5, y1: 5 }, geometry: { kind: 'polygon', points: [{ x: -5, y: -5 }, { x: 5, y: 0 }, { x: -5, y: 5 }] }, paint: { fill: '#111', stroke: '#111', strokeWidth: '4', strokeLinejoin: 'round' } }
+  const edge = marks.connector({ id: 'authored->edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: -10, y1: 20, x2: 110, y2: 20 }, paint: { stroke: '#111', strokeWidth: '4' }, endpoints: { from: 'authored', to: 'edge' }, markers: { end: marker } })
   const proof = certifyScenePaint(scene([edge]))
   expect(proof.status).toBe('passed')
   expect(proof.attempts).toBe(2)
@@ -1428,6 +1748,38 @@ test('one viewport repair contains negative coordinates, stroke and endpoint art
   expect(proof.viewport.x).toBeLessThanOrEqual(-12)
   expect(proof.viewport.x + proof.viewport.width).toBeGreaterThanOrEqual(117)
   expect(edge.endpoints).toMatchObject({ from: 'authored', to: 'edge' })
+  const boundsOnly = marks.connector({ id: 'bounds-only', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: -10, y1: 20, x2: 110, y2: 20 }, paint: { stroke: '#111', strokeWidth: '4' }, endpoints: { from: 'authored', to: 'edge' }, markers: { end: { id: 'arrow', shape: 'arrow', bounds: marker.bounds, units: 'userSpaceOnUse' } } })
+  expect(certifyScenePaint(scene([boundsOnly])).status).toBe('unverified')
+  const family = getFamily('flowchart')!
+  const restore = replaceFamilyForTest('flowchart', { ...family, lowerScene() {
+    return { ...scene([]), parts: [
+      marks.documentOpen({ id: 'root', width: 100, height: 80, colors: { bg: '#fff', fg: '#111' }, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80" viewBox="0 0 100 80" style="--bg:#fff;--fg:#111">'),
+      marks.definitions({ id: 'resources' }, `<defs>${serializeMarkerResource(marker)}</defs>`), edge, marks.documentClose(),
+    ] }
+  } })
+  let rendered: ReturnType<typeof renderMermaidSVGWithReceipt>
+  try { rendered = renderMermaidSVGWithReceipt('flowchart LR\nauthored --> edge', { layoutSafety: 'strict', embedFontImport: false }) }
+  finally { restore() }
+  expect(rendered.receipt.layoutCertification).toMatchObject({ status: 'passed', attempts: 2, repairs: ['expand-viewport'] })
+  const svg = rendered.svg
+  const elements = rectangleEmissionElements(svg)
+  const viewport = elements.find(element => element.name === 'svg')!.attributes.viewBox!.split(/\s+/).map(Number)
+  expect(viewport[0]).toBeLessThanOrEqual(-12)
+  expect(viewport[0]! + viewport[2]!).toBeGreaterThanOrEqual(117)
+  expect(elements.find(element => element.name === 'polygon')!.attributes.points).toBe('-5 -5, 5 0, -5 5')
+  expect(elements.find(element => element.name === 'line')!.attributes).toMatchObject({ x1: '-10', x2: '110', 'stroke-width': '4', 'data-from': 'authored', 'data-to': 'edge' })
+  const raster = new Resvg(svg, { background: '#fff' }).render(), actual = raster.pixels
+  const absent = new Resvg(svg.replace(' marker-end="url(#arrow)"', ''), { background: '#fff' }).render().pixels
+  expect(Buffer.compare(actual, absent)).not.toBe(0)
+  let offShaft = 0
+  for (let y = 0; y < raster.height; y++) for (let x = 0; x < raster.width; x++) {
+    const worldY = viewport[1]! + (y + 0.5) * viewport[3]! / raster.height
+    if (Math.abs(worldY - 20) <= 2) continue
+    const offset = (y * raster.width + x) * 4
+    if (actual[offset]! < absent[offset]! || actual[offset + 1]! < absent[offset + 1]! || actual[offset + 2]! < absent[offset + 2]!) offShaft++
+  }
+  expect(offShaft).toBeGreaterThan(0)
+
 })
 
 test('missing preparation, opaque content and conditional output remain unverified', () => {
@@ -2144,6 +2496,18 @@ test.each(['unfilled-rect', 'filled-rect', 'unfilled-polygon', 'stroke-only-comp
   // Marker x=31..39 lies wholly in the left stroke band x=30..50,
   // although it is outside the rectangle's fill beginning at x=40. Exact
   // continuous rectangle bands prove coverage; polygon/line bounds alone do not.
+  if (mode === 'unfilled-rect') {
+    const reference = ' marker-end="url(#arrow)"'
+    const cover = '<rect x="40" y="10" width="30" height="60" fill="none" stroke="#111" stroke-width="20" />'
+    expect(drawing.svg.split(reference)).toHaveLength(2)
+    expect(drawing.svg.split(cover)).toHaveLength(2)
+    expect(rectangleEmissionElements(drawing.svg).find(element => element.attributes['marker-end'] === 'url(#arrow)')!.attributes).toMatchObject({ x1: '5', y1: '30', x2: '39', y2: '30', stroke: '#111', 'stroke-width': '1' })
+    expect(drawing.paint.primitives.find(primitive => primitive.id === 'edge')!.role).toBe('chrome')
+    const pixels = (svg: string) => new Resvg(svg).render().pixels
+    expect(Buffer.compare(pixels(drawing.svg), pixels(drawing.svg.replace(reference, '')))).toBe(0)
+    const withoutCover = drawing.svg.replace(cover, '')
+    expect(Buffer.compare(pixels(withoutCover), pixels(withoutCover.replace(reference, '')))).not.toBe(0)
+  }
   const expected = clear ? 'passed' : mode === 'unfilled-polygon' || mode === 'standalone-line' ? 'unverified' : 'failed'
   expect(certifyScenePaint(producer(marks, context)).status).toBe(expected)
   expect(certifyNativePaint(drawing.header, drawing.paint).status).toBe(expected)
@@ -2563,6 +2927,81 @@ test('a cap-entering marker stays unverified', () => {
   expect(cylinderWitness(2).proof.status).toBe('unverified')
 })
 
+test.each(['right-end', 'left-end', 'right-start', 'left-start', 'entering', 'tiny-entering', 'extra-line', 'translucent', 'dashed', 'unknown-width', 'non-scaling', 'transformed', 'covered', 'borrowed-outline', 'borrowed-body-outline', 'reordered'] as const)('a side-attached cylinder marker requires its actual opaque boundary (%s)', mode => {
+  const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => {
+    const left = mode.startsWith('left'), start = mode.endsWith('start')
+    const x = left ? 20 : 80 - (mode === 'entering' ? 1 : mode === 'tiny-entering' ? 1e-9 : 0)
+    const sidePaint: MarkPaint = { stroke: '#111', strokeWidth: mode === 'covered' ? '40' : mode === 'unknown-width' ? '1em' : '0.75',
+      ...(mode === 'translucent' || mode === 'borrowed-outline' ? { strokeOpacity: '0.5' } : {}), ...(mode === 'dashed' ? { strokeDasharray: '1 100' } : {}), ...(mode === 'non-scaling' ? { vectorEffect: 'non-scaling-stroke' } : {}) }
+    const marker = tipAnchoredArrow('side-arrow', { width: 8, height: 5 }, start ? 'start' : 'end', { fill: '#111', stroke: '#111', strokeWidth: '0.75', strokeLinejoin: 'round' }, 'userSpaceOnUse')
+    if (mode === 'borrowed-outline' || mode === 'borrowed-body-outline') marker.ref = { x: 7, y: 2.5 }
+    const children: Geometry[] = [
+      { kind: 'rect', x: 20, y: 27, width: 60, height: 26 },
+      { kind: 'line', x1: 20, y1: 27, x2: 20, y2: 53 },
+      { kind: 'line', x1: 80, y1: 27, x2: 80, y2: 53 },
+      { kind: 'ellipse', cx: 50, cy: 53, rx: 30, ry: 7 },
+      { kind: 'ellipse', cx: 50, cy: 27, rx: 30, ry: 7 },
+      ...(mode === 'extra-line' ? [{ kind: 'line' as const, x1: 82, y1: 40, x2: 90, y2: 40 }] : []),
+    ]
+    const childPaints: MarkPaint[] = [
+      { fill: '#fff', stroke: 'none' }, sidePaint, sidePaint,
+      { fill: '#fff', stroke: '#111', strokeWidth: '0.75' }, { fill: '#fff', stroke: '#111', strokeWidth: '0.75' },
+      ...(mode === 'extra-line' ? [{ stroke: '#111', strokeWidth: '4' }] : []),
+    ]
+    if (mode === 'reordered') {
+      children.splice(0, 2, ...children.slice(0, 2).reverse())
+      childPaints.splice(0, 2, ...childPaints.slice(0, 2).reverse())
+    }
+    const card = factory.shape({ id: 'cylinder', role: 'node', geometry: { kind: 'compound', children }, paint: { fill: '#fff', stroke: '#111', strokeWidth: '0.75' }, childPaints,
+      ...(mode === 'transformed' ? { transform: { kind: 'matrix' as const, a: 1, b: 0, c: 0, d: 1, e: 0.25, f: 0 } } : {}) })
+    const outside = left ? 2 : 98
+    const edge = factory.connector({ id: 'side-edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: start ? x : outside, y1: 40, x2: start ? outside : x, y2: 40 }, paint: { stroke: '#111', strokeWidth: '1' },
+      endpoints: start ? { from: 'cylinder', to: 'outside' } : { from: 'outside', to: 'cylinder' }, markers: start ? { start: marker } : { end: marker } })
+    const oldOutline = factory.shape({ id: 'old-outline', role: 'node', owner: { id: 'cylinder', role: 'node' }, geometry: mode === 'borrowed-body-outline' ? { kind: 'rect', x: 20, y: 27, width: 60, height: 26 } : { kind: 'line', x1: 80, y1: 27, x2: 80, y2: 53 }, paint: { fill: 'none', stroke: '#111', strokeWidth: '40' } })
+
+    return { ...scene([]), parts: [
+      factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80" style="--bg:#fff;--fg:#111">'),
+      factory.definitions({ id: 'resources' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
+      ...(mode === 'borrowed-outline' || mode === 'borrowed-body-outline' ? [oldOutline] : []), edge, card, factory.documentClose(),
+    ] }
+  }
+  const positive = mode.endsWith('end') || mode.endsWith('start')
+  // Raw typed bodies do not carry the actual five-piece write authority.
+  const raw = certifyScenePaint(producer(marks, context))
+  if (positive) {
+    expect(raw.status).toBe('unverified')
+    expect(drawPaintControl(producer, context, 'scene').proof.status).toBe('unverified')
+  } else expect(raw.status).not.toBe('passed')
+  for (const execution of ['native', 'scene'] as const) {
+    if (mode === 'unknown-width') {
+      expect(() => drawPaintControl(producer, context, execution, { fractionalCircleOutput: true })).toThrow('strokeWidth: must be a finite number or safe numeric custom-property reference')
+      continue
+    }
+    const drawing = drawPaintControl(producer, context, execution, { fractionalCircleOutput: true })
+    if (positive) {
+      const elements = rectangleEmissionElements(drawing.svg)
+      expect(elements.find(element => element.name === 'marker')!.attributes).toMatchObject({ markerUnits: 'userSpaceOnUse', markerWidth: '8', markerHeight: '5', refX: mode.endsWith('start') ? '0' : '8', refY: '2.5' })
+      expect(elements.find(element => element.name === 'polygon')!.attributes).toMatchObject({ fill: '#111', stroke: '#111', 'stroke-width': '0.75' })
+      expect(elements.filter(element => element.name === 'line').slice(1).map(element => element.attributes)).toContainEqual(expect.objectContaining({ x1: mode.startsWith('left') ? '20' : '80', y1: '27', y2: '53', stroke: '#111', 'stroke-width': '0.75' }))
+      const token = ` marker-${mode.endsWith('start') ? 'start' : 'end'}="url(#side-arrow)"`
+      expect(drawing.svg.split(token)).toHaveLength(2)
+      const actual = new Resvg(drawing.svg, { background: '#fff', fitTo: { mode: 'zoom', value: 4 } }).render()
+      const absent = new Resvg(drawing.svg.replace(token, ''), { background: '#fff', fitTo: { mode: 'zoom', value: 4 } }).render().pixels
+      const pixels = actual.pixels
+      let offShaft = 0
+      for (let y = 0; y < actual.height; y++) for (let x = 0; x < actual.width; x++) {
+        if (Math.abs((y + 0.5) / 4 - 40) <= 1) continue
+        const offset = (y * actual.width + x) * 4
+        if (pixels[offset]! < absent[offset]! || pixels[offset + 1]! < absent[offset + 1]! || pixels[offset + 2]! < absent[offset + 2]!) offShaft++
+      }
+      expect(offShaft).toBeGreaterThan(0)
+      expect(drawing.proof.status).toBe('passed')
+    } else expect(drawing.proof.status).not.toBe('passed')
+  }
+
+})
+
 test.each(['butt', 'round', 'square'] as const)('%s line-child stroke through marker cannot be excluded with its zero-area fill', strokeLinecap => {
   const { proof } = cylinderWitness(0, { geometry: { kind: 'line', x1: 40, y1: 15, x2: 60, y2: 15 }, paint: { fill: 'none', stroke: '#111', strokeWidth: '4', strokeLinecap } })
   expect(proof.status).toBe('unverified')
@@ -2706,25 +3145,40 @@ test('a translucent note has no proved opaque core to reject a semantic shaft', 
 // These are ordinary polygon resources: the proof must not depend on a family
 // name or marker id. The first midpoint (61,32.5) lies strictly inside the
 // second fill, away from its 0.75px outline, at the covered offset.
-test.each(['covered', 'separate', 'aabb-corner', 'coincident', 'different-coincident', 'owned-repaint', 'same-owner-cover', 'unknown-fill', 'transparent-fill', 'affine', 'clipped', 'nonsemantic', 'no-earlier-stroke', 'unemitted-opacity', 'later-restoration', 'overlay-repaint', 'same-color', 'thick-outline', 'unmeasured-restoration', 'late-open', 'early-open-covered', 'early-open-clear', 'no-closing-stroke', 'string-marker-units', 'vertex-only-cover', 'partial-restoration', 'no-earlier-ink'] as const)('distinct marker stroke/fill proof preserves %s', mode => {
+test.each(['covered', 'separate', 'aabb-corner', 'coincident', 'rounded-tangent', 'rounded-anchor', 'rounded-end', 'rounded-vertical', 'rounded-auto-start', 'written-tangent', 'written-anchor', 'rounded-transform', 'rounded-opacity', 'rounded-dash', 'rounded-width', 'rounded-fill', 'rounded-stroke', 'collapsed-terminal', 'rounded-mid', 'different-coincident', 'owned-repaint', 'same-owner-cover', 'unknown-fill', 'transparent-fill', 'affine', 'clipped', 'nonsemantic', 'no-earlier-stroke', 'unemitted-opacity', 'later-restoration', 'overlay-repaint', 'same-color', 'thick-outline', 'unmeasured-restoration', 'late-open', 'early-open-covered', 'early-open-clear', 'no-closing-stroke', 'string-marker-units', 'vertex-only-cover', 'partial-restoration', 'no-earlier-ink'] as const)('distinct marker stroke/fill proof preserves %s', mode => {
   const first: MarkerDescriptor = { id: 'diamond-resource', shape: 'diamond', units: 'userSpaceOnUse', orient: 'auto-start-reverse',
     size: { width: 14, height: 12 }, viewBox: { x: 0, y: 0, width: 14, height: 12 }, ref: { x: 13, y: 6 },
     geometry: mode === 'no-closing-stroke' ? { kind: 'polyline', points: [{ x: 7, y: 1 }, { x: 13, y: 6 }, { x: 7, y: 11 }] } : ['early-open-covered', 'early-open-clear'].includes(mode) ? { kind: 'polyline', points: [{ x: 7, y: 11 }, { x: 1, y: 6 }, { x: 7, y: 1 }] } : { kind: 'polygon', points: [{ x: 7, y: 1 }, { x: 13, y: 6 }, { x: 7, y: 11 }, { x: 1, y: 6 }] },
     paint: { fill: mode === 'no-earlier-ink' ? 'none' : mode === 'vertex-only-cover' ? '#111' : mode.startsWith('early-open') || mode === 'no-closing-stroke' ? 'none' : '#fff', stroke: ['no-earlier-stroke', 'no-earlier-ink'].includes(mode) ? 'none' : '#111', strokeWidth: mode === 'aabb-corner' ? '0.25' : '1.5' } }
-  const later: MarkerDescriptor = ['coincident', 'owned-repaint'].includes(mode) ? first : { id: 'triangle-resource', shape: 'arrow', units: 'userSpaceOnUse', orient: 'auto-start-reverse', overflow: mode === 'clipped' ? 'hidden' : 'visible',
+  if (mode === 'rounded-auto-start') first.orient = 'auto'
+  const duplicate = mode.startsWith('rounded-') || ['written-tangent', 'written-anchor', 'collapsed-terminal'].includes(mode)
+  let later: MarkerDescriptor = duplicate || ['coincident', 'owned-repaint'].includes(mode) ? first : { id: 'triangle-resource', shape: 'arrow', units: 'userSpaceOnUse', orient: 'auto-start-reverse', overflow: mode === 'clipped' ? 'hidden' : 'visible',
     size: { width: mode === 'clipped' ? 6 : 12, height: mode === 'clipped' ? 5 : 10 }, ref: { x: 12, y: 5 },
     geometry: { kind: mode === 'late-open' ? 'polyline' : 'polygon', points: [{ x: 0, y: 0 }, { x: 12, y: 5 }, { x: 0, y: 10 }] },
     paint: { fill: mode === 'late-open' ? 'none' : mode === 'unknown-fill' ? 'var(--host)' : mode === 'transparent-fill' ? 'rgba(255,255,255,0.5)' : mode === 'same-color' ? '#111' : '#fff', stroke: '#111', strokeWidth: mode === 'thick-outline' ? '20' : '1.5', ...(mode === 'unemitted-opacity' ? { fillOpacity: '0', strokeOpacity: '0' } : {}) } }
+  if (['rounded-opacity', 'rounded-dash', 'rounded-width', 'rounded-fill', 'rounded-stroke'].includes(mode)) {
+    later = { ...later, id: 'changed-resource', paint: { ...later.paint, ...(mode === 'rounded-opacity' ? { opacity: '0.5' } : mode === 'rounded-dash' ? { strokeDasharray: '1 1' } : mode === 'rounded-width' ? { strokeWidth: '4' } : mode === 'rounded-fill' ? { fill: '#f00' } : { stroke: '#fff' }) } }
+  }
   if (mode === 'vertex-only-cover') { later.size = { width: 14, height: 12 }; later.ref = { x: 13, y: 6 }; later.viewBox = { x: 0, y: 0, width: 14, height: 12 }; later.geometry = first.geometry }
   if (mode === 'no-closing-stroke') { later.size = { width: 1, height: 1 }; later.ref = { x: 0.5, y: 0.5 }; later.geometry = { kind: 'polygon', points: [{ x: 0, y: 0 }, { x: 1, y: 0.5 }, { x: 0, y: 1 }] }; later.paint!.strokeWidth = '0.1' }
   if (mode === 'string-marker-units') { first.units = 'strokeWidth'; later.units = 'strokeWidth' }
-  const y = mode === 'vertex-only-cover' ? 38 : ['separate', 'early-open-clear'].includes(mode) ? 55 : mode === 'aabb-corner' ? 39.5 : ['coincident', 'different-coincident', 'owned-repaint', 'no-closing-stroke'].includes(mode) ? 30 : 33.865217391
+  const y = mode === 'vertex-only-cover' ? 38 : ['separate', 'early-open-clear'].includes(mode) ? 55 : mode === 'aabb-corner' ? 39.5 : duplicate || ['coincident', 'different-coincident', 'owned-repaint', 'no-closing-stroke'].includes(mode) ? 30 : 33.865217391
   const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
   const producer: DrawingProducer = factory => {
-    const connector = (id: string, marker: MarkerDescriptor, cy: number, overlay = false) => factory.connector({ id, role: mode === 'nonsemantic' || overlay ? 'chrome' : 'edge', owner: { id: ['owned-repaint', 'same-owner-cover'].includes(mode) ? 'earlier' : overlay ? id.replace('overlay:', '') : id, role: mode === 'nonsemantic' ? 'chrome' : 'edge' },
-      lineStyle: 'solid', endpoints: { from: 'shared-source', to: id }, geometry: { kind: 'line', x1: mode === 'no-closing-stroke' && id === 'later' ? 64 : 70, y1: cy, x2: 20, y2: cy },
-      ...(mode === 'affine' ? { transform: { kind: 'matrix' as const, a: 1, b: 0, c: 0, d: 1, e: 1, f: 0 } } : {}),
-      paint: { stroke: '#111', strokeWidth: mode === 'string-marker-units' ? ' 1.004000000000001px ' : '1' }, ...(overlay ? { stroke: { opacity: 0 } } : {}), markers: { start: marker } })
+    const connector = (id: string, marker: MarkerDescriptor, cy: number, overlay = false) => {
+      const changed = id === 'later' && duplicate
+      const noise = mode.startsWith('written-') ? 1e-8 : 1e-13
+      const anchorNoise = changed && ['rounded-anchor', 'written-anchor', 'rounded-end'].includes(mode) ? noise : 0
+      const tangentNoise = changed ? noise : 0
+      const a = { x: mode === 'no-closing-stroke' && id === 'later' ? 64 : 70, y: cy + (mode === 'rounded-end' ? tangentNoise : anchorNoise) }
+      const b = { x: mode === 'collapsed-terminal' && changed ? 70 + noise : 20, y: cy + (mode === 'rounded-end' ? anchorNoise : tangentNoise) }
+      if (mode === 'rounded-vertical') for (const point of [a, b]) [point.x, point.y] = [point.y, point.x]
+      const geometry = mode === 'rounded-mid' ? { kind: 'polyline' as const, points: [a, { x: 45, y: cy }, b] } : { kind: 'line' as const, x1: a.x, y1: a.y, x2: b.x, y2: b.y }
+      return factory.connector({ id, role: mode === 'nonsemantic' || overlay ? 'chrome' : 'edge', owner: { id: ['owned-repaint', 'same-owner-cover'].includes(mode) ? 'earlier' : overlay ? id.replace('overlay:', '') : id, role: mode === 'nonsemantic' ? 'chrome' : 'edge' },
+        lineStyle: 'solid', endpoints: { from: 'shared-source', to: id }, geometry,
+        ...(['affine', 'rounded-transform'].includes(mode) ? { transform: { kind: 'matrix' as const, a: 1, b: 0, c: 0, d: 1, e: 1, f: 0 } } : {}),
+        paint: { stroke: '#111', strokeWidth: mode === 'string-marker-units' ? ' 1.004000000000001px ' : '1' }, ...(overlay ? { stroke: { opacity: 0 } } : {}), markers: mode === 'rounded-mid' ? { mid: [marker] } : mode === 'rounded-end' ? { end: marker } : { start: marker } })
+    }
     return { ...scene([]), parts: [
       factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'),
       factory.definitions({ id: 'resources' }, `<defs>${serializeMarkerResource(first)}${later === first ? '' : serializeMarkerResource(later)}</defs>`),
@@ -2734,7 +3188,7 @@ test.each(['covered', 'separate', 'aabb-corner', 'coincident', 'different-coinci
     ] }
   }
   const drawing = drawNative(producer, context, 'flowchart')
-  expect(drawing.svg).toContain('marker-start')
+  expect(drawing.svg).toContain(mode === 'rounded-end' ? 'marker-end' : mode === 'rounded-mid' ? 'marker-mid' : 'marker-start')
   if (mode === 'string-marker-units') expect(drawing.svg).toContain('stroke-width=" 1.004000000000001px "')
   if (mode === 'transparent-fill' || mode === 'late-open') {
     // The narrower opaque-fill loss API still proves no opaque fill loss.
@@ -2743,10 +3197,11 @@ test.each(['covered', 'separate', 'aabb-corner', 'coincident', 'different-coinci
     const connectors = producer(marks, context).parts.filter((node): node is Extract<SceneNode, { kind: 'connector' }> => node.kind === 'connector')
     expect(compareMarkerStrokeInk(prepareMarkerPolygonInk({ colors: context.colors }, connectors[0]!, first, 'start', () => true), prepareMarkerPolygonInk({ colors: context.colors }, connectors[1]!, later, 'start', () => true), () => true)).toBe('clear')
   }
-  const expected = ['covered', 'different-coincident', 'same-owner-cover', 'unemitted-opacity', 'overlay-repaint', 'early-open-covered', 'string-marker-units', 'vertex-only-cover', 'partial-restoration'].includes(mode) ? 'failed' : ['unknown-fill', 'affine', 'clipped', 'later-restoration', 'same-color', 'thick-outline', 'unmeasured-restoration', 'no-closing-stroke', 'no-earlier-stroke', 'transparent-fill', 'late-open'].includes(mode) ? 'unverified' : 'passed'
-  for (const proof of [certifyScenePaint(producer(marks, context)), certifyNativePaint(drawing.header, drawing.paint)]) {
+  const expected = ['covered', 'different-coincident', 'same-owner-cover', 'unemitted-opacity', 'overlay-repaint', 'early-open-covered', 'string-marker-units', 'vertex-only-cover', 'partial-restoration'].includes(mode) ? 'failed' : ['unknown-fill', 'affine', 'clipped', 'later-restoration', 'same-color', 'thick-outline', 'unmeasured-restoration', 'no-closing-stroke', 'no-earlier-stroke', 'transparent-fill', 'late-open', 'written-tangent', 'written-anchor', 'rounded-transform', 'rounded-opacity', 'rounded-dash', 'rounded-width', 'rounded-fill', 'rounded-stroke', 'collapsed-terminal', 'rounded-mid'].includes(mode) ? 'unverified' : 'passed'
+  for (const [execution, proof] of [certifyScenePaint(producer(marks, context)), certifyNativePaint(drawing.header, drawing.paint)].entries()) {
     expect(proof.status).toBe(expected)
     if (expected === 'failed') expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'MARKER_OCCLUDED', id: mode === 'overlay-repaint' ? 'overlay:earlier' : 'earlier', by: mode === 'overlay-repaint' ? 'overlay:later' : 'later' }))
+    else if (expected === 'unverified' && execution === 1 && ['rounded-transform', 'collapsed-terminal', 'rounded-mid'].includes(mode)) expect(proof.issues).toEqual([{ code: 'CONDITIONAL_PAINT', message: '1 primitives depend on unresolved paint or interaction state' }])
     else if (expected === 'unverified') expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', id: 'earlier', by: 'later' }))
     else expect(proof.issues).toEqual([])
   }
@@ -2985,4 +3440,77 @@ test.each(['clear', 'hidden-overlap', 'unknown-view', 'aspect-mismatch', 'round-
     if (!covered) expect(proof.issues.some(issue => issue.code === 'MARKER_OCCLUDED')).toBe(false)
   }
   expect(JSON.stringify(earlier)).toBe(originalResource)
+})
+
+test.each(['LR', 'RL'] as const)('ELK cyclic15 uses the serialized terminal pose for shared markers in %s', direction => {
+  const source = readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-15.mmd', import.meta.url), 'utf8').replace(/^flowchart LR/, `flowchart ${direction}`)
+  const result = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'elk' }, security: 'strict', embedFontImport: false })
+  expect(result.receipt.layoutCertification?.status).toBe('passed')
+  expect(result.receipt.layoutCertification?.issues).toEqual([])
+  expect(result.svg.match(/data-role="edge"/g)).toHaveLength(31)
+  expect(result.svg.match(/data-marker-end="arrow"/g)).toHaveLength(31)
+  expect(result.svg).toContain('data-from="n6" data-to="n11"')
+  expect(result.svg).toContain('data-from="n4" data-to="n11"')
+})
+
+
+test.each(['exact', 'rounded'].flatMap(pose => ['known', 'known-vars', 'known-transform', 'context-stroke', 'context-fill', 'currentColor', 'inherited', 'unknown-var', 'mixed-fill', 'mixed-stroke', 'omitted-fill', 'omitted-stroke', 'opacity-var', 'width-var', 'offset-var'].map(paint => [pose, paint] as const)))('shared marker repaint keeps %s pose and %s paint distinct', (pose, mode) => {
+  const paint: MarkPaint = { fill: '#fff', stroke: '#111', strokeWidth: '1.5' }
+  if (['context-stroke', 'context-fill', 'currentColor', 'inherited', 'unknown-var'].includes(mode)) paint.fill = paint.stroke = mode === 'inherited' ? 'inherit' : mode === 'unknown-var' ? 'var(--host)' : mode
+  if (mode === 'known-vars') { paint.fill = 'var(--bg)'; paint.stroke = 'var(--fg)' }
+  if (mode === 'mixed-fill') paint.fill = 'context-stroke'
+  if (mode === 'mixed-stroke') paint.stroke = 'context-stroke'
+  if (mode === 'omitted-fill') delete paint.fill
+  if (mode === 'omitted-stroke') delete paint.stroke
+  if (mode === 'opacity-var') paint.opacity = 'var(--host)'
+  if (mode === 'width-var') paint.strokeWidth = 'var(--host)'
+  if (mode === 'offset-var') paint.strokeDashoffset = 'var(--host)'
+  const marker: MarkerDescriptor = { id: 'shared-resource', shape: 'diamond', units: 'userSpaceOnUse', orient: 'auto-start-reverse', overflow: 'visible', size: { width: 14, height: 12 }, viewBox: { x: 0, y: 0, width: 14, height: 12 }, ref: { x: 13, y: 6 }, geometry: { kind: 'polygon', points: [{ x: 7, y: 1 }, { x: 13, y: 6 }, { x: 7, y: 11 }, { x: 1, y: 6 }] }, paint }
+  const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => ({ ...scene([]), parts: [
+    factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80"${mode === 'known-vars' ? ' style="--bg:#fff;--fg:#111"' : ''}>`),
+    factory.definitions({ id: 'resources' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
+    ...['earlier', 'later'].map(id => factory.connector({ id, role: 'edge', owner: { id, role: 'edge' }, lineStyle: 'solid', endpoints: { from: 'shared-source', to: id }, geometry: { kind: 'line', x1: 70, y1: 30, x2: 20, y2: pose === 'rounded' && id === 'later' ? 30 + 1e-13 : 30 }, paint: { stroke: id === 'earlier' ? '#111' : '#fff', strokeWidth: '1' }, ...(mode === 'known-transform' ? { transform: { kind: 'matrix' as const, a: 1, b: 0, c: 0, d: 1, e: 1, f: 0 } } : {}), markers: { start: marker } })),
+    factory.documentClose(),
+  ] })
+  const drawing = drawNative(producer, context, 'flowchart')
+  expect(drawing.svg.match(/id="shared-resource"/g)).toHaveLength(1)
+  expect(drawing.svg.match(/<line x1="70" y1="30" x2="20" y2="30"/g)).toHaveLength(2)
+  const expected = ['known', 'known-vars'].includes(mode) || mode === 'known-transform' && pose === 'exact' ? 'passed' : 'unverified'
+  for (const [execution, proof] of [certifyScenePaint(producer(marks, context)), certifyNativePaint(drawing.header, drawing.paint)].entries()) {
+    expect(proof.status).toBe(expected)
+    if (expected === 'unverified' && execution === 1 && mode === 'known-transform' && pose === 'rounded') expect(proof.issues).toEqual([{ code: 'CONDITIONAL_PAINT', message: '1 primitives depend on unresolved paint or interaction state' }])
+    else if (expected === 'unverified') expect(proof.issues.some(issue => issue.code === 'POTENTIAL_OCCLUSION' || issue.code === 'UNMEASURED_PAINT')).toBe(true)
+    else expect(proof.issues).toEqual([])
+  }
+  if (mode === 'known-vars') {
+    const unbound: DrawingProducer = (factory, ctx) => producer({ ...factory, documentOpen: (fields, svg) => factory.documentOpen(fields, svg.replace(' style="--bg:#fff;--fg:#111"', '')) }, ctx)
+    const absent = drawNative(unbound, context, 'flowchart')
+    expect(absent.svg).toBe(drawing.svg.replace(' style="--bg:#fff;--fg:#111"', ''))
+    const proof = certifyNativePaint(absent.header, absent.paint)
+    expect(proof.status).toBe('unverified')
+    expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'OUTPUT_SCOPE' }))
+  }
+  if (mode === 'omitted-stroke') for (const served of [drawing, drawPaintControl(producer, context, 'scene')]) {
+    const polygon = rectangleEmissionElements(served.svg).find(element => element.name === 'polygon')!.attributes
+    expect(polygon.fill).toBe('#fff')
+    expect(polygon.stroke).toBeUndefined()
+    const removed = served.svg.replace(/ marker-start="url\(#shared-resource\)"/g, '')
+    const foreground = served.svg.replace('fill="#fff" stroke-width="1.5"', 'fill="#fff" stroke="#111" stroke-width="1.5"')
+    const raster = (svg: string) => new Resvg(svg, { background: '#fff', fitTo: { mode: 'zoom', value: 4 } }).render()
+    const actual = raster(served.svg), absent = raster(removed).pixels, contrasting = raster(foreground).pixels
+    const pixels = actual.pixels
+    let offShaft = 0, positive = 0
+    for (let y = 22 * 4; y < 38 * 4; y++) for (let x = 54 * 4; x < 75 * 4; x++) {
+      if (Math.abs((y + 0.5) / 4 - 30) <= 1.5) continue
+      const offset = (y * actual.width + x) * 4
+      if (!pixels.subarray(offset, offset + 4).equals(absent.subarray(offset, offset + 4))) offShaft++
+      if (contrasting[offset]! < absent[offset]! || contrasting[offset + 1]! < absent[offset + 1]! || contrasting[offset + 2]! < absent[offset + 2]!) positive++
+    }
+    expect(offShaft).toBe(0)
+    expect(positive).toBeGreaterThan(0)
+    const proof = 'proof' in served ? served.proof : certifyNativePaint(served.header, served.paint)
+    expect(proof.status).toBe('unverified')
+  }
+
 })

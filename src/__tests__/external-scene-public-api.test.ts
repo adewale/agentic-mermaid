@@ -131,7 +131,7 @@ function descriptor(
       id,
       kind: 'family',
       version: '1.0.0',
-      compatibility: { core: '^0.4.0', scene: '^2.0.0' },
+      compatibility: { core: mainEntry.KNOWN_EXTENSION_CONTRACT_VERSIONS.core, scene: '^2.0.0' },
       provenance: { owner: 'external-scene-public-api-test', source: 'test', reference: EVIDENCE },
     }),
     id,
@@ -192,7 +192,7 @@ describe('public external Scene construction and admission', () => {
         id: base.identity.id,
         kind: 'family',
         version: base.identity.version,
-        compatibility: { core: '^0.4.0' },
+        compatibility: { core: mainEntry.KNOWN_EXTENSION_CONTRACT_VERSIONS.core },
         provenance: base.identity.provenance,
       }),
     }

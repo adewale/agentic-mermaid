@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { asBlock, asRequirement, mutate, parseRegisteredMermaid } from '../agent/core.ts'
+import { asBlock, asRequirement, mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/core.ts'
 import type { SourceMap, SourceSpan, ValidDiagram } from '../agent/types.ts'
 
 function parsed(source: string): ValidDiagram {
@@ -66,6 +66,76 @@ describe('stable-family authored declaration source maps', () => {
     expect(text(source, metadata?.get('task#2')?.get('ticket')?.value)).toBe('"GW-1"')
     expect(metadata?.get('task')?.get('tags')?.value.start.line).toBe(8)
     expect(span(source, diagram, 'nodes', 'task')).toBe('task[Work]@{\n      "assigned": "Iris"\n      tags: [parser, "日本"]\n      priority: High\n    }')
+  })
+  test.each(['\n', '\r\n'])('Kanban folded metadata spans retain authored blocks and repeated owners through %j cleanup', newline => {
+    const card = 'card[Work]@{\n      folded: >-\n        one\n        two&#10;        three\n      nested: &shared\n        note: |+\n          keep\n\n      alias: *shared\n      scalar: &scalar !!str 23\n      scalarAlias: *scalar\n      "quoted #quot;": "A&amp;amp; B"\n    }'
+    const source = ['---', 'title: Delivery', '---', '%% wrapper', 'kanban', '  Todo', '%%{init: {"theme":"base"}}%%', `    ${card}`, '  Done', '    card[Review]@{ assigned: "Iris" }'].join('\n').replaceAll('\n', newline)
+    const diagram = parsed(source)
+    if (diagram.body.kind !== 'kanban') throw new Error('Expected Kanban body')
+    expect(diagram.body.columns[0]!.tasks[0]!.metadata).toEqual({ folded: 'one two three', nested: { note: 'keep\n\n' }, alias: { note: 'keep\n\n' }, scalar: '23', scalarAlias: '23', 'quoted #quot;': 'A&amp; B' })
+    expect(span(source, diagram, 'nodes', 'card')).toBe(card.replaceAll('\n', newline))
+    expect(span(source, diagram, 'labels', 'node:card')).toBe('Work')
+    expect(span(source, diagram, 'nodes', 'card#2')).toBe('card[Review]@{ assigned: "Iris" }')
+    const fields = diagram.source.spans?.metadata?.get('card')
+    expect(text(source, fields?.get('folded')?.key)).toBe('folded')
+    expect(text(source, fields?.get('folded')?.value)).toBe('>-\n        one\n        two&#10;        three\n'.replaceAll('\n', newline))
+    expect(text(source, fields?.get('nested')?.value)).toBe('&shared\n        note: |+\n          keep\n\n'.replaceAll('\n', newline))
+    expect(text(source, fields?.get('alias')?.value)).toBe('*shared')
+    expect(text(source, fields?.get('scalar')?.value)).toBe('&scalar !!str 23')
+    expect(text(source, fields?.get('scalarAlias')?.value)).toBe('*scalar')
+    expect(text(source, fields?.get('quoted #quot;')?.key)).toBe('"quoted #quot;"')
+    expect(text(source, fields?.get('quoted #quot;')?.value)).toBe('"A&amp;amp; B"')
+    expect(text(source, diagram.source.spans?.metadata?.get('card#2')?.get('assigned')?.value)).toBe('"Iris"')
+  })
+  test.each(['>-', '|'])('Kanban %s metadata ending beside its closing brace excludes synthetic YAML framing from the value span', indicator => {
+    const source = `kanban\nTodo\n  task[Work]@{\n    content: ${indicator}\n      one}`
+    const diagram = parsed(source)
+    if (diagram.body.kind !== 'kanban') throw new Error('Expected Kanban body')
+    expect(diagram.body.columns[0]!.tasks[0]!.metadata).toEqual({ content: indicator === '>-' ? 'one' : 'one\n' })
+    expect(text(source, diagram.source.spans?.metadata?.get('task')?.get('content')?.value)).toBe(`${indicator}\n      one`)
+    expect(span(source, diagram, 'nodes', 'task')).toBe(`task[Work]@{\n    content: ${indicator}\n      one}`)
+  })
+  test('Kanban authored spans compose adjacent directive deletions and XML-created lines', () => {
+    const source = 'kanban\r\nTodo%%{init: {}}%%%%{init: {}}%%\r\n  card["A &amp; B"]@{ assigned: &person !!str "Iris&#10;Lee", "key&#10;name": value, alias: *person }'
+    const diagram = parsed(source)
+    if (diagram.body.kind !== 'kanban') throw new Error('Expected Kanban body')
+    expect(diagram.body.columns[0]!.tasks[0]).toMatchObject({ id: 'card', label: 'A & B', metadata: { assigned: 'Iris<br/>Lee', 'key<br/>name': 'value', alias: 'Iris<br/>Lee' } })
+    expect(span(source, diagram, 'groups', 'Todo')).toBe('Todo')
+    expect(span(source, diagram, 'nodes', 'card')).toBe('card["A &amp; B"]@{ assigned: &person !!str "Iris&#10;Lee", "key&#10;name": value, alias: *person }')
+    expect(span(source, diagram, 'labels', 'node:card')).toBe('A &amp; B')
+    const fields = diagram.source.spans?.metadata?.get('card')
+    expect(text(source, fields?.get('assigned')?.value)).toBe('&person !!str "Iris&#10;Lee"')
+    expect(text(source, fields?.get('key<br/>name')?.key)).toBe('"key&#10;name"')
+    expect(text(source, fields?.get('alias')?.value)).toBe('*person')
+  })
+  test('Kanban XML-created grammar lines retain native spans and authored comments through edits', () => {
+    const source = 'kanban\r\n%%{init: {}}%%%%{init: {}}%%Todo&#10;  card["A&#10;B"]@{ assigned: Iris } %% Keep &amp; text'
+    const diagram = parsed(source)
+    if (diagram.body.kind !== 'kanban') throw new Error('Expected Kanban body')
+    expect(diagram.body.columns[0]!.tasks[0]).toMatchObject({ id: 'card', label: 'A\nB', metadata: { assigned: 'Iris' } })
+    expect(span(source, diagram, 'groups', 'Todo')).toBe('Todo')
+    expect(span(source, diagram, 'labels', 'node:card')).toBe('A&#10;B')
+    expect(text(source, diagram.source.spans?.metadata?.get('card')?.get('assigned')?.value)).toBe('Iris')
+    expect(diagram.meta.bodyComments).toContainEqual(expect.objectContaining({ raw: '%% Keep &amp; text' }))
+    expect(diagram.meta.droppedComments).toBeUndefined()
+    const edited = mutate(diagram, { kind: 'set_task_label', id: 'card', label: 'Renamed' })
+    if (!edited.ok) throw new Error(JSON.stringify(edited.error))
+    const saved = serializeMermaid(edited.value)
+    expect(saved).toContain('%% Keep &amp; text')
+    const reloaded = parsed(saved)
+    if (reloaded.body.kind !== 'kanban') throw new Error('Expected saved Kanban body')
+    expect(reloaded.body.columns[0]!.tasks[0]).toMatchObject({ id: 'card', label: 'Renamed', metadata: { assigned: 'Iris' } })
+  })
+  test.each([
+    ['kanban\n%%{init: {}}%%Todo\n  card[Work]', 'Todo', 1],
+    ['kanban\rTodo\r  card[Work]', 'Todo', 1],
+    ['kanban\nR&amp;D[Name]\n  card[Work]', 'R&D', 9],
+  ] as const)('Kanban native provenance retains canonical locations after %j preparation', (source, id, col) => {
+    const diagram = parsed(source)
+    expect(diagram.source.groups.get(id)).toEqual({ line: 2, col: 1 })
+    expect(diagram.source.labels.get(`group:${id}`)).toEqual({ line: 2, col })
+    expect(diagram.source.nodes.get('card')).toEqual({ line: 3, col: 1 })
+    expect(diagram.source.labels.get('node:card')).toEqual({ line: 3, col: 6 })
   })
   test('Requirement fields and repeated relations use declaration identities rather than label matches', () => {
     const source = '---\ntitle: proof\n---\nrequirementDiagram\n  requirement r1 {\n    text: "Same"\n    risk: high\n  }\n  requirement r2 {\n    text: "Same"\n  }\n  element proof {\n    type: "Same"\n  }\n  proof - verifies -> r1\n  proof - verifies -> r1\n  r2 <- traces - r1\n',

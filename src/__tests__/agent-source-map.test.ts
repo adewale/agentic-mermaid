@@ -4,7 +4,7 @@ import { mutate } from '../agent/mutate.ts'
 import type { SourceSpan } from '../agent/types.ts'
 import { sourcePreservationSpans } from '../family-detection.ts'
 import { DIAGRAM_WORK_LIMITS } from '../shared/diagram-limits.ts'
-import { expectNearLinearGrowth } from './helpers/complexity.ts'
+import { expectNearLinearGrowth, LINEAR_GROWTH_CEILING, measureGrowth } from './helpers/complexity.ts'
 
 function textAt(source: string, span: SourceSpan | undefined): string | undefined {
   return span ? source.slice(span.start.offset, span.end.offset) : undefined
@@ -748,6 +748,23 @@ A -->|lab| B`
     }, DIAGRAM_WORK_LIMITS.nodes)
   })
 
+  test('keeps long unquoted labels in a same-line chain within a linear-time envelope', () => {
+    const padding = 'x'.repeat(64)
+    // measureGrowth's default factor is 16; stay within the host's node cap.
+    const { ratio } = measureGrowth(size => {
+      const source = `flowchart LR\n${Array.from({ length: size }, (_, index) => `N${index}[L${index}${padding}]`).join('-->')}`
+      const parsed = parseMermaid(source)
+      expect(parsed.ok).toBe(true)
+      if (parsed.ok) expect(parsed.value.body.kind).toBe('flowchart')
+      if (parsed.ok && parsed.value.body.kind === 'flowchart') {
+        expect(parsed.value.body.graph.nodes.size).toBe(size)
+        expect(parsed.value.body.graph.edges).toHaveLength(size - 1)
+        expect(textAt(source, parsed.value.source.spans!.labels.get(`node:N${size - 1}`))).toBe(`L${size - 1}${padding}`)
+      }
+    }, Math.floor(DIAGRAM_WORK_LIMITS.nodes / 16))
+    expect(ratio).toBeLessThan(LINEAR_GROWTH_CEILING)
+  })
+
   test('indexes preservation coordinates and merges accessibility spans linearly', () => {
     expectNearLinearGrowth('accTitle preservation spans', size => {
       const titles = `flowchart LR\n${Array.from({ length: size }, (_, index) => `accTitle: T${index}`).join('\n')}`
@@ -840,7 +857,7 @@ foo[Node]`
     }
   })
 
-  test('maps chart and Gantt tokens by grammar role and source occurrence', () => {
+  test('maps chart and Gantt tokens by grammar role and source occurrence', async () => {
     const xy = 'xychart-beta\n line "line" [1 "Q2", 3 "Q4"]'
     const xyParsed = parseMermaid(xy)
     expect(xyParsed.ok).toBe(true)
@@ -849,14 +866,31 @@ foo[Node]`
     expect(xyParsed.value.source.spans!.labels.get('xychart:series-0:name')!.start.col).toBe(8)
     expect(textAt(xy, xyParsed.value.source.spans!.labels.get('xychart:series-0:point#1'))).toBe('3')
 
-    const quadrant = 'quadrantChart\n title quadrant: [fake]\n quadrant: [0.2,0.3]'
-    const quadrantParsed = parseMermaid(quadrant)
-    expect(quadrantParsed.ok).toBe(true)
-    if (quadrantParsed.ok) {
-      const point = quadrantParsed.value.source.spans!.labels.get('quadrant:point#0')!
-      expect(point.start.line).toBe(3)
-      expect(textAt(quadrant, point)).toBe('quadrant')
-    }
+    const { serializeMermaid, renderMermaidSVG } = await import('../agent/index.ts')
+    const { startUpstreamMermaid } = await import('./helpers/upstream-mermaid.ts')
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const [source, tokens, labels] of [
+        ['quadrantChart\n title quadrant: [fake]\n quadrant: [0.2,0.3]', ['quadrant'], ['quadrant']],
+        ['quadrantChart\n"First\n    Second":[0.2,0.3]; Last:[0.6,0.7]', ['"First\n    Second"', 'Last'], ['First\nSecond', 'Last']],
+        ['quadrantChart\n "A&amp;amp; B\n    C":::hot:[0.2,0.3]radius:10; "Tail&amp;amp; D":[0.6,0.7]\nclassDef hot color:#112233', ['"A&amp;amp; B\n    C"', '"Tail&amp;amp; D"'], ['A&amp; B\nC', 'Tail&amp; D']],
+      ] as const) {
+        const parsed = parseMermaid(source)
+        expect(parsed.ok).toBe(true)
+        if (!parsed.ok || parsed.value.body.kind !== 'quadrant') throw Error('Expected structured Quadrant points')
+        expect(parsed.value.body.points.map(point => point.label)).toEqual([...labels])
+        tokens.forEach((token, index) => {
+          const point = parsed.value.source.spans!.labels.get(`quadrant:point#${index}`)!
+          expect(point).toBeDefined()
+          expect(textAt(source, point)).toBe(token)
+          expect(point.start.offset).toBe(source.lastIndexOf(token))
+        })
+        const saved = serializeMermaid(parsed.value, { wrapper: 'canonical' })
+        expect(await upstream.publicAccepts(source)).toBe(true)
+        expect(await upstream.publicAccepts(saved)).toBe(true)
+        expect(renderMermaidSVG(saved)).toBe(renderMermaidSVG(source))
+      }
+    } finally { upstream.close() }
 
     const gantt = `gantt
  section Same

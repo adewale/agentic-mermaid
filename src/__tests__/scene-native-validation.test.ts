@@ -2,7 +2,8 @@ import { expect, test } from 'bun:test'
 import { Resvg } from '@resvg/resvg-js'
 import { SaxesParser } from 'saxes'
 import * as marks from '../scene/marks.ts'
-import { createNativeSceneValidator, SCENE_VALIDATION_LIMITS, SceneValidationError } from '../scene/scene-validation.ts'
+import { assertFinalSvgByteBudget, createNativeSceneValidator, SCENE_VALIDATION_LIMITS, SceneValidationError } from '../scene/scene-validation.ts'
+import { inspectSvgOnce, withSvgInspectionCache } from '../svg-inspection-cache.ts'
 import { deferredTerminalProjectionInput, withDeferredTerminalProjections } from '../scene/deferred-terminal-projection.ts'
 import { serializeLinearGradientResources } from '../scene/gradient-resources.ts'
 import type { LinearGradientDescriptor, SceneDoc } from '../scene/ir.ts'
@@ -434,6 +435,17 @@ test('native admission enforces per-fragment and aggregate serialization limits'
   const chunk = `<metadata>${'x'.repeat(4_100_000)}</metadata>`
   for (let index = 0; index < 3; index++) validator.node(marks.documentContent({ id: `metadata:${index}`, role: 'chrome' }, chunk))
   expect(() => validator.node(marks.documentContent({ id: 'metadata:over', role: 'chrome' }, chunk))).toThrow(/aggregate 16000000-byte/)
+  const oversized = 'x'.repeat(SCENE_VALIDATION_LIMITS.maxFinalSvgBytes + 1)
+  withSvgInspectionCache(() => {
+    // An untyped probe must not corrupt shared accounting so a forged result
+    // for otherwise uncacheable oversized output can become budget authority.
+    let reads = 0
+    const forgedSource = Object.defineProperty({}, 'length', { get() { reads++; return -oversized.length } })
+    inspectSvgOnce('probe', forgedSource as unknown as string, () => false)
+    inspectSvgOnce('final-svg-budget', oversized, () => true)
+    expect(() => assertFinalSvgByteBudget(oversized)).toThrow(/final SVG limit/)
+    expect(reads).toBe(0)
+  })
 })
 
 test('native admission bounds total node count even when each leaf is tiny', () => {

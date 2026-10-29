@@ -10,7 +10,7 @@ import {
   ResourceResolutionError,
   openedResourceDescriptorPath,
 } from '../node-resource-resolver.ts'
-import { createExtensionIdentity } from '../shared/extension-identity.ts'
+import { createExtensionIdentity, KNOWN_EXTENSION_CONTRACT_VERSIONS } from '../shared/extension-identity.ts'
 import { snapshotResourceManifest, verifyResourceBytes, type ResourceManifest, type ResourceManifestEntry } from '../resource-manifest.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
 
@@ -205,7 +205,7 @@ describe('content-addressed installed resource manifest', () => {
       const identity: Record<string, unknown> = {
         kind: 'resource',
         version: '1.0.0',
-        compatibility: { core: '^0.4.0' },
+        compatibility: { core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core },
         provenance: { owner: 'test', source: 'getter-sabotage' },
       }
       Object.defineProperty(identity, 'id', {

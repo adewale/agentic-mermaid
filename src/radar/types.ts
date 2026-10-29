@@ -163,6 +163,7 @@ export interface PositionedRadarTypography {
 }
 
 export interface PositionedRadarChart extends PositionedDiagram {
+  widthFit?: import('../shared/chart-width.ts').ChartWidthFit
   width: number
   height: number
   /** Plot center. */

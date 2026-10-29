@@ -1,3 +1,4 @@
+import { KNOWN_EXTENSION_CONTRACT_VERSIONS } from '../shared/extension-identity.ts'
 // Loop 8 P: PNG export — basic validity tests.
 
 import { describe, test, expect } from 'bun:test'
@@ -33,7 +34,7 @@ describe('renderMermaidPNG', () => {
           : svg
       },
     }, {
-      compatibility: { core: '^0.4.0', scene: '^2.0.0' },
+      compatibility: { core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core, scene: '^2.0.0' },
       provenance: { owner: 'native-png-contract-test', source: 'test' },
     })
     try {

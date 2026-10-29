@@ -446,6 +446,9 @@ describe('class labeled declaration conformance', () => {
       ['class `direction RL`', 'class_direction_identity'],
       ['namespace `direction RL` {\nclass A\n}', 'class_direction_identity'],
       ['class A\nA : direction RL{x', 'class_member_direction'],
+      ['namespace `~`{class `P`}', 'class_namespace_generic'],
+      ['namespace `~T~A::B` {\n\tclass `IPC::Sender`\n}', 'class_namespace_generic'],
+      ['namespace Root {\nnamespace `~T~` {\nclass A\n}\n}', 'class_namespace_generic'],
     ]) {
       const source = `classDiagram\n${statement}\n`
       const parsed = parseMermaid(source)
@@ -456,6 +459,42 @@ describe('class labeled declaration conformance', () => {
       expect(mutate(parsed.value, { kind: 'add_class', id: 'Other' }).ok).toBe(false)
     }
     expect(classDiagram('classDiagram\nclass A {\ndirection RL\n}').body.classes[0]!.members).toEqual(['direction RL'])
+  })
+
+  test('quoted namespace content consumes embedded tildes while keeping exact public identities and membership', async () => {
+    const wrapper = '---\ntitle: Namespace metadata\n---\n%% leading comment\n'
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const [body, parent, namespaceIds] of [
+        ['namespace `x~` {\nclass A\n}', 'x~', ['x~']],
+        ['namespace `x~T~A::B` {\nclass A\n}', 'x~T~A::B', ['x~T~A::B']],
+        ['namespace ` x~` {\nclass A\n}', ' x~', [' x~']],
+        ['namespace Root {\nnamespace `x~` {\nnamespace `y~` {\nclass A\n}\n}\n}', 'Root.x~.y~', ['Root', 'Root.x~', 'Root.x~.y~']],
+        ['namespace Root["Root title"] {\n%% keep namespace comment\nnamespace `x~`["Child title"] {\nclass A\n}\n}', 'Root.x~', ['Root', 'Root.x~']],
+      ] satisfies Array<[string, string, string[]]>) {
+        const source = `${wrapper}classDiagram\n${body}\n`
+        const diagram = classDiagram(source)
+        expect(diagram.meta.frontmatter?.title).toBe('Namespace metadata')
+        expect(diagram.body.classes.find(node => node.id === 'A')?.namespace).toBe(parent)
+        expect(verifyMermaid(diagram).warnings.filter(w => w.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+        const edited = apply(diagram, { kind: 'add_member', class: 'A', text: '+read()' })
+        const saved = serializeMermaid(edited)
+        expect(saved.startsWith(wrapper)).toBe(true)
+        if (body.includes('%% keep namespace comment')) expect(saved.match(/%% keep namespace comment/g)).toHaveLength(1)
+        const reloaded = classDiagram(saved)
+        expect(reloaded.body).toEqual(edited.body)
+        expect(serializeMermaid(reloaded)).toBe(saved)
+        expect(edited.body.namespaces).toEqual(diagram.body.namespaces)
+        expect(edited.body.classes.find(node => node.id === 'A')).toMatchObject({ namespace: parent, members: ['+read()'] })
+        for (const input of [source, saved]) {
+          expect(await upstream.project(input, d => ({
+            namespaces: [...d.db.getNamespaces().keys()],
+            parent: d.db.getClasses().get('A').parent,
+            owners: [...d.db.getNamespaces().values()].filter(ns => ns.classes.has('A')).map(ns => ns.id),
+          }))).toEqual({ ok: true, value: { namespaces: namespaceIds, parent, owners: [parent] } })
+        }
+      }
+    } finally { upstream.close() }
   })
 
   test.each([

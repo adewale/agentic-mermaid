@@ -41,6 +41,7 @@ interface Budgets {
 // --root measures another checkout's build (the PR payload delta measures the
 // base branch with this script); --measure-only skips this checkout's
 // structural assertions and budgets and only reports transfer sizes.
+// --session pie,radar reports incremental closure transfer in the requested order.
 const rootFlag = process.argv.indexOf('--root')
 const ROOT = rootFlag >= 0 ? resolve(process.argv[rootFlag + 1]!) : join(import.meta.dir, '../..')
 const MEASURE_ONLY = process.argv.includes('--measure-only')
@@ -240,7 +241,21 @@ if (!MEASURE_ONLY) {
   }
 }
 
+const sessionFlag = process.argv.indexOf('--session')
+const session = sessionFlag < 0 ? undefined : (() => {
+  const ids = process.argv[sessionFlag + 1]?.split(',') ?? []
+  if (!ids.length || ids.some(id => !MEASURED_FAMILY_IDS.includes(id as BrowserBuiltinFamilyId))) throw new Error('--session requires comma-separated built-in family IDs present in this build')
+  const fetched = new Set(initialFiles)
+  const stages = ids.map(id => {
+    const added = familyFiles[id as BrowserBuiltinFamilyId].filter(file => !fetched.has(file))
+    for (const file of added) fetched.add(file)
+    return { family: id, incremental: { requests: added.length, ...transferSize(added) }, cumulative: { requests: fetched.size, ...transferSize([...fetched]) } }
+  })
+  return { families: ids, scope: 'selected family closures; additional YAML/HTML entity demands and actual network scheduling are separate', stages }
+})()
+
 const report = {
+  ...(session ? { session } : {}),
   schemaVersion: 1 as const,
   compression: 'sum of each fetched file; gzip level 9; Brotli quality 11',
   familyClosure: 'selected ELK transfer; static excludes on-demand providers; YAML and HTML entity downloads remain explicit',

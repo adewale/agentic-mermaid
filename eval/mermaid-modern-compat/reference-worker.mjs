@@ -41,7 +41,7 @@ for await (const line of createInterface({ input: process.stdin, crlfDelay: Infi
         parserAst = { origin, value: { frames: ast.frames.map(frame => ({ entityIdentifier: frame.entityIdentifier })) } };
       } catch (error) { parserAst = { origin, error: String(error?.message ?? error) }; }
     }
-    writeSync(1, wire({ ok: true, type: diagram.type, ...(diagram.type === 'zenuml' ? { parserIdentity: zen.identity, parserAst: { origin: zen.identity.parser, unavailable: 'The public parse API returns pass/errorDetails, not an AST' } } : parserAst ? { parserAst } : {}), snapshot: snapshot(diagram.db, diagram.type === 'gantt') }));
+    writeSync(1, wire({ ok: true, type: diagram.type, ...(diagram.type === 'zenuml' ? { parserIdentity: zen.identity, parserAst: { origin: zen.identity.parser, unavailable: 'The public parse API returns pass/errorDetails, not an AST' }, renderedLabels: await zen.renderedLabels(diagram.text) } : parserAst ? { parserAst } : {}), snapshot: snapshot(diagram.db, diagram.type === 'gantt') }));
   } catch (error) {
     writeSync(1, wire({ ok: false, error: String(error?.message ?? error).slice(0, 3000) }));
   }

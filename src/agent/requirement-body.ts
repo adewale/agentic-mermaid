@@ -15,7 +15,7 @@ import { requirementStyleTextCanSerialize } from '../requirement/lexer.ts'
 export function parseRequirementBody(input: string[] | string, accessibility: Accessibility = {}): RequirementBody | null {
   try {
     const source = typeof input === 'string'
-      ? input.replace(/^[^\r\n]*/, 'requirementDiagram')
+      ? input
       : ['requirementDiagram', ...input]
     const styles: RequirementStyleDirective[] = []
     const body = parseRequirementDiagram(source, directive => styles.push(directive))
@@ -99,12 +99,22 @@ function requirementStylePropertiesProblem(prefix: string, props: Readonly<Recor
   return undefined
 }
 
-export function requirementUnsupportedSyntaxWarnings(source: string): LayoutWarning[] {
+export function requirementUnsupportedSyntaxWarnings(source: string, authoredLine?: (line: number) => string | undefined): LayoutWarning[] {
   try {
     const styles: RequirementStyleDirective[] = []
-    const body = parseRequirementDiagram(cleanupMermaidSource(source).authoredPayloadText, directive => styles.push(directive))
+    const payload = cleanupMermaidSource(source).authoredPayloadText
+    const lines = payload.split(/\r\n?|\n/)
+    const warnings: LayoutWarning[] = []
+    let line = 1, previous = 0
+    const body = parseRequirementDiagram(payload, directive => styles.push(directive), offset => {
+      line += payload.slice(previous, offset).match(/\r\n?|\n/g)?.length ?? 0
+      previous = offset
+      const text = authoredLine?.(line) ?? lines[line - 1]!
+      if (/[^\S\r\n]+$/.test(text) && !warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'requirement_whitespace')) warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax: 'requirement_whitespace', line, message: 'Requirement whitespace before a required line break is read as a statement boundary. Pinned Mermaid consumes that break as whitespace and rejects the next statement; canonical output removes the trailing whitespace.' })
+    })
     const problem = requirementStyleProblem(body, styles)
-    return problem ? [{ code: 'UNSUPPORTED_SYNTAX', syntax: 'requirement_style_token', message: problem }] : []
+    if (problem) warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax: 'requirement_style_token', message: problem })
+    return warnings
   } catch {
     return []
   }

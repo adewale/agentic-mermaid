@@ -347,7 +347,7 @@ export function runtimeRenderContractPlugin({ schemaDocumentation = true, termin
         const rowsPath = resolve(dirname(preparedTextPath), 'text-rows.ts')
         build.onResolve({ filter: /[\\/]text-rows\.ts$/ }, args => resolve(args.resolveDir, args.path) === rowsPath ? { path: preparedTextPath } : undefined)
         build.onLoad({ filter: /[\\/]src[\\/]shared[\\/]prepared-text\.ts$/ }, ({ path }) => path !== preparedTextPath ? undefined : ({
-          contents: `${readFileSync(path, 'utf8')}\n${runtimeDeclarations(rowsPath, ['layoutTextRows'], './prepared-text.ts')}`, loader: 'ts', resolveDir: dirname(path),
+          contents: `${readFileSync(path, 'utf8')}\n${runtimeDeclarations(rowsPath, ['layoutTextRows', 'layoutTextColumns'], './prepared-text.ts')}`, loader: 'ts', resolveDir: dirname(path),
         }))
         const themePath = fileURLToPath(new URL('../../src/theme.ts', import.meta.url))
         const accessibilityPath = resolve(dirname(themePath), 'shared/svg-a11y.ts')

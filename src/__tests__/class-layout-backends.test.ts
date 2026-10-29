@@ -13,6 +13,7 @@ import { renderMermaidSVGWithReceipt } from '../index.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
 import { withRenderStageObserver } from '../render-stages.ts'
 import { missingSvgLabels } from './helpers/svg-labels.ts'
+import { measureQuality } from '../agent/quality.ts'
 import { graphStressSamples } from '../../eval/layout-compare/generated.ts'
 
 const native = { graphLayout: { backend: 'agentic' as const } }
@@ -20,6 +21,65 @@ const fixture = readFileSync(new URL('../../eval/layout-compare/fixtures/class-b
 const compoundFixture = readFileSync(new URL('../../eval/layout-compare/fixtures/class-compound-backends.mmd', import.meta.url), 'utf8')
 
 describe('Class layout backends', () => {
+  test.each([4, 5].flatMap(children => ['TB', 'BT', 'LR', 'RL'].map(direction => ({ children, direction }))))('reserves independent inheritance fan channels for $children siblings in $direction', ({ children, direction }) => {
+    const ids = Array.from({ length: children }, (_, index) => `Child${children - index - 1}`)
+    const source = `classDiagram\ndirection ${direction}\n${ids.map(id => `Root <|-- ${id}`).join('\n')}`
+    const rendered = renderMermaidSVGWithReceipt(source, native)
+    expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+    const painted = (rendered.svg.match(/<polyline\b[^>]*>/g) ?? []).filter(tag => tag.includes('data-type="inheritance"'))
+    expect(painted).toHaveLength(children)
+    expect(painted.every(tag => /\smarker-start=/.test(tag))).toBe(true)
+    const { layout } = layoutMermaidWithReceipt(source, native), quality = measureQuality(layout)
+    expect(layout.edges.map(edge => [edge.from, edge.to])).toEqual(ids.map(id => ['Root', id]))
+    expect(quality.edgeCrossings).toBe(0)
+    expect(quality.routeOverlaps).toEqual({ parallel: 0, opposing: 0 })
+    const boxes = new Map(layout.nodes.map(node => [node.id, node]))
+    const horizontal = direction === 'LR' || direction === 'RL', reverse = direction === 'RL' || direction === 'BT'
+    let previousPort = -Infinity
+    for (const edge of layout.edges) {
+      const from = boxes.get(edge.from)!, to = boxes.get(edge.to)!, start = edge.path[0]!, end = edge.path.at(-1)!
+      const port = horizontal ? start[1] : start[0]
+      expect(port).toBeGreaterThan(previousPort)
+      previousPort = port
+      if (horizontal) {
+        expect(start[0]).toBeCloseTo(from.x + (reverse ? 0 : from.w), 8)
+        expect(end[0]).toBeCloseTo(to.x + (reverse ? to.w : 0), 8)
+        expect(port).toBeGreaterThan(from.y)
+        expect(port).toBeLessThan(from.y + from.h)
+      } else {
+        expect(start[1]).toBeCloseTo(from.y + (reverse ? 0 : from.h), 8)
+        expect(end[1]).toBeCloseTo(to.y + (reverse ? to.h : 0), 8)
+        expect(port).toBeGreaterThan(from.x)
+        expect(port).toBeLessThan(from.x + from.w)
+      }
+    }
+  })
+
+  test.each(['TB', 'BT', 'LR', 'RL'])('keeps inherited sibling routes ordered after seating arrowheads in %s', direction => {
+    const source = `classDiagram
+direction ${direction}
+Animal <|-- Duck
+Animal <|-- Fish
+Animal <|-- Zebra
+Animal : +int age
+Animal : +String gender
+Animal : +isMammal()
+Animal : +mate()
+Duck : +String beakColor
+Duck : +swim()
+Duck : +quack()
+Fish : -int sizeInFeet
+Fish : -canEat()
+Zebra : +bool is_wild
+Zebra : +run()
+note for Duck "can fly<br>can swim<br>can dive<br>can help in debugging"`
+    const result = layoutMermaidWithReceipt(source, native), quality = measureQuality(result.layout)
+    expect(result.layout.edges.map(edge => [edge.from, edge.to])).toEqual([['Animal', 'Duck'], ['Animal', 'Fish'], ['Animal', 'Zebra']])
+    expect(quality.edgeCrossings).toBe(0)
+    expect(quality.routeOverlaps).toEqual({ parallel: 0, opposing: 0 })
+    expect(renderMermaidSVGWithReceipt(source, native).receipt.layoutCertification?.status).toBe('passed')
+  })
+
   test.each(['TB', 'BT', 'LR', 'RL'])('retains member compartments, notes, cardinalities and relationship meaning in %s', direction => {
     const source = fixture.replace('direction LR', `direction ${direction}`)
     const model = parseClassDiagram(toMermaidLines(source)),

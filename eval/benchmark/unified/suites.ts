@@ -1,3 +1,4 @@
+import { inspectBuiltCheckout } from '../source-checkout.ts'
 import { harnessFile } from 'trident/unified/harness-paths.ts'
 import { fileURLToPath } from 'node:url'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
@@ -117,13 +118,13 @@ export function benchmarkSuites(options: SuiteOptions): SuiteDefinition[] {
         add(args, '--candidate', options.packageRoot ?? options.root)
         if (!built) prerequisites.push('Built candidate missing; provide --candidate-tarball or build the package')
       }
-      if (options.baseline) {
-        add(args, '--baseline', options.baseline)
-        if (!existsSync(join(options.baseline, 'package.json'))) prerequisites.push('--baseline must name a built package directory; use --baseline-ref for output identity or --baseline-npm for a published release')
-      } else if (options.baselineTarball) {
+      if (options.baselineTarball) {
         add(args, '--baseline-tarball', options.baselineTarball)
         add(args, '--baseline-sha256', options.baselineSha256)
         if (!options.baselineSha256) prerequisites.push('Release exact-artifact mode requires --baseline-sha256 for the selected baseline tarball')
+      } else if (options.baseline) {
+        add(args, '--baseline', options.baseline)
+        if (!existsSync(join(options.baseline, 'package.json'))) prerequisites.push('--baseline must name a built package directory; use --baseline-ref for output identity or --baseline-npm for a published release')
       } else {
         const selector = options.baselineNpm ?? (options.baselineLock && existsSync(options.baselineLock) ? json(options.baselineLock).requested : 'latest')
         args.push('--baseline-npm', selector)
@@ -176,7 +177,14 @@ export function benchmarkSuites(options: SuiteOptions): SuiteDefinition[] {
   }
   standalone('render-stages', 'Official-corpus SVG receipt stage costs', 'eval/benchmark/render-stage-bench.ts', [String(options.rounds), join(out('render-stages'), 'report.json')])
   standalone('performance-profile', 'Experimental profile correctness qualification', 'eval/benchmark/qualify-performance-profile.ts', ['--out', join(out('performance-profile'), 'report.json')])
-  standalone('endpoint-marker', 'Endpoint marker geometry across immutable built checkouts', 'eval/benchmark/endpoint-marker-compare.ts', [options.baseline ?? '', options.packageRoot ?? root, out('endpoint-marker')], options.baseline ? [] : ['Provide --baseline with an immutable built Agentic checkout; --package-root selects the other built checkout.'])
+  const baselineCheckout = options.baselineCheckout ?? options.baseline
+  const candidateCheckout = options.candidateCheckout ?? options.packageRoot ?? options.root
+  const endpointMissing: string[] = []
+  for (const [role, directory] of [['baseline', baselineCheckout], ['candidate', candidateCheckout]] as const) {
+    if (!directory) endpointMissing.push(`Provide --${role}-checkout with an immutable built Agentic checkout`)
+    else try { inspectBuiltCheckout(directory) } catch (error) { endpointMissing.push(`${role} checkout: ${String(error)}`) }
+  }
+  standalone('endpoint-marker', 'Endpoint marker geometry across immutable built checkouts', 'eval/benchmark/endpoint-marker-compare.ts', [baselineCheckout ?? '', candidateCheckout, out('endpoint-marker')], endpointMissing)
   standalone(
     'output-identity',
     'Cross-revision output identity across styles and formats',

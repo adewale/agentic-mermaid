@@ -3,6 +3,7 @@ import { describe, expect, test } from 'bun:test'
 
 import {
   DefaultBackend,
+  KNOWN_EXTENSION_CONTRACT_VERSIONS,
   createMermaidBrowserPNGRenderer,
   createMermaidRenderer,
   applyOutputSecurityPolicy,
@@ -19,7 +20,7 @@ import { primitiveCapabilityClaimKey } from '../scene/capabilities.ts'
 import { pngFixture } from './helpers/png-fixture.ts'
 const PNG_SIGNATURE = [137, 80, 78, 71, 13, 10, 26, 10]
 const BACKEND_REGISTRATION_OPTIONS = Object.freeze({
-  compatibility: Object.freeze({ core: '^0.4.0', scene: '^2.0.0' }),
+  compatibility: Object.freeze({ core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core, scene: '^2.0.0' }),
 })
 
 function firstPartyBackends() {

@@ -3104,3 +3104,225 @@ claimed. All six0.6 acceptance goals remain open.
 
 Exact rejected/final sources, commands, public artifacts and reviews are retained
 in `/tmp/pr449-completion-20261029/`. Next: commit this verified shared-proof milestone, then acquire every original-seven execution/cache/engine cell with repeat packets and all marker groups, compare against independently frozen authored meaning and inspect actual final SVG/PNG. Continue the full 230-input development cohort and pinned peer epochs; integrate the coherent Main clearance repair before final candidate/holdout qualification. Final-head CI must be observed through completion, retaining byte/advisory failures. Human study administration and responses remain unavailable.
+
+### 29 October: published seven-case review and broader baseline complete
+
+The published proof milestone is `762ee634407ccbf8bc5390ade475bdbdc11dc5c5`,
+following `e45bccc813bb5569c3aea2febb81d55e473ba8b0`. Its original-seven capture
+is complete: 84 engine/execution/requested-cache cells, 168 public returns,
+all product certificates P, all repeated SVG/receipt pairs equal and all first
+SVGs equal retained historical bytes. All 708 enrolled marker-group removal
+observations have positive pixel sensitivity. The largest receipt uses 399,188
+of the unchanged 400,000 operations, leaving only 812.
+
+Independent authored expectations preceded acquisition. Review compared 84
+public models and independently read all 14 unique backend/row SVGs and PNGs:
+37 authored nodes and 62 ordered relationship occurrences per backend, 30
+literal relationship-label occurrences, 248 outline-contact diagnostics and 118
+marker direction/reference-tip checks. Independently decoded PNGs for all 118
+distinct removal groups have nonzero differences (minimum 33 pixels).
+Source/font/counterfactual custody and repeated receipts match. No concrete lost
+meaning, wrong endpoint/direction or erased marker was found under the bounded
+checks. Contact diagnostics and pixel sensitivity are not universal whole-head
+theorems; agent visual review is not independent human aesthetics evidence.
+This source-API milestone does not qualify a future Main integration/package.
+
+The complete 230-input development cohort at that exact head gives Native
+**217P/13U** and explicit ELK **221P/9U** under each requested cache policy.
+All 920 first SVG/terminal calls return and repeated outputs match. Native makes
+zero ELK API calls; its actual layout-cache use remains unobserved. Native-only
+uncertainties are Flowchart202/203/204/210. Both engines retain U on
+205/207/208 and large Class223–228. No adverse input is removed. Selected
+OFF-policy execution at previous published
+`a2c1c3f13680785221ed65af7f19ca25cbca9cb5` reproduces all 13 Native U with
+identical SVGs. These OFF-policy negatives were not introduced by762; this is
+not a complete old-head cohort or a NORMAL-policy comparison.
+
+Paid logical profiles retain the negative outcomes and exact SVGs. Class224
+refuses an XML-envelope reservation of56 at399,988 operations. Flowchart207
+completes emission at378,371 and exhausts certification in marker preparation.
+Duplicated group-markup parsing costs about19,000 operations per measured case.
+A separate same-emission parsing-reuse experiment is being prepared; no new
+admission or timing improvement is claimed before execution.
+
+Main `cff46b766b5de287ba421234ca42b7093ec18eff` remains an isolated combined
+candidate in `/tmp/pr449-main-integration-20261029-762`. Version0.4.2,
+dependencies, publication workflow and retained stricter work/delivery limits
+are preserved. Its generic rectangle path exposes an existing own-stroke defect:
+background-colored width4 strokes erase contrasting fill, but two Native/Scene
+physical controls return P. The eight-case baseline is6P/2F/136assertions after
+actual XML/off-shaft raster checks. A central surviving-fill/stroke guard gives
+29P/481assertions, retaining foreground/hollow-stroke positives. Review then
+tightened own-data descriptor tests with `Object.hasOwn`. Complete gates on
+those final bytes are still running: the first original-cylinder15 Native cell
+returns U while its Scene/strict counterparts pass. This combined candidate is
+therefore not verified, committed, adopted or published. The inherited
+descriptor-value source hypothesis is not an observed public false pass.
+
+Evidence is under `/tmp/pr449-completion-20261029/`, particularly
+`original-seven-independent-meaning/`, `final-seven/R16-COMMITTED/`,
+`development230-R16/`, `baseline-a2-selected13/`, paid logical profiles and
+`main-integration-762/`. All six release contracts remain open. The holdout is
+unopened, human participation is zero and performance is paused. No new issue,
+PR, external comment, force push, release/default change, publication, cap
+relaxation or PR merge/reopen occurred.
+
+### 29 October: combined-candidate authority repairs and retained negative epochs
+
+The following results concern the isolated combined candidate with parents
+`762ee634407ccbf8bc5390ade475bdbdc11dc5c5` and
+`cff46b766b5de287ba421234ca42b7093ec18eff`; they do not qualify a newer Main
+or a package. Main subsequently advanced to
+`1fc21f5181db543c7a9735dbd166ad89d8dae03f` (#580). That later integration
+must retain the stricter existing caps and undergo fresh affected checks.
+
+Public string-keyed SVG inspection caching allowed caller-preseeded results to
+be mistaken for production XML/security/viewport observations. Physical controls
+on the earlier candidate reproduced six accepted root-opacity, panned-viewBox
+and late-opaque-cover counterexamples across Native/Scene (six failures and one
+positive control). Production inspectors now own private, unregistered keys and
+fixed inspection callbacks. Shared charged group-context parsing retains fresh
+same-emission authority. Earlier group-style controls failed before the repair
+and passed afterward; public string probes cannot seed production authority.
+The source patches were first reviewed at private revisions
+`3636eeb666c023994d5faf6d152a63d73ba06769` and
+`11bb2215e5ca1ceb42af1fb78677d387af850e59`, then ported to this candidate.
+An excessively large viewBox diagnostic crashed the raster observer; both
+setup epochs remain unavailable, not substituted as successful observations.
+
+Inherited `Object.prototype.value` could make an accessor descriptor appear to
+own a data value. A Native public control changed from five reads of an opacity
+getter, invisible output and U to zero reads, visible output and P after
+prototype pollution. External admission similarly changed from rejection to
+accepted substituted paint. Two owning controls fail before the own-slot repair.
+The five owning capture/snapshot/serialization/context consumers now require an
+own descriptor value. This is a source-meaning/custody defect: the emitted SVG
+agreed with the substituted value, so it is not misreported as an SVG/receipt
+mismatch. Context results also always own their optional bound resolver; that
+additional invariant is a reviewed defense, not a separately observed false P.
+
+Three-piece subroutine bodies now share the actual-write compound authority
+with five-piece cylinders. All three writer callbacks and all three/five actual
+fragment tags are checked; ellipses do not issue additional writer callbacks.
+Exact full-union contact checks use actual own strokes, clipping and a surviving
+marker witness clear of every other paint occurrence. No family, fixture ID,
+epsilon or cap exception is used. The four Native-only development refusals
+202/203/204/210 become P with byte-identical SVG and PNG. Their new owning tests
+retain independently authored endpoints, XML and actual marker-removal evidence;
+the genuine earlier epoch had five failing cases, the repaired epoch eleven
+passing cases and 158 assertions.
+
+The combined candidate initially exhausted the largest cylinder's proof budget.
+Negative data-copy and indexing experiments remain retained. Immutable same-
+emission text rosters and a private bound-background fact alone still returned U.
+Paid logical attribution then identified repeated exact body parsing. A request-
+local prepared-body closure now retains only completed immutable body/paint
+facts. Each marker still receives fresh resource, pose, clipping, own-stroke,
+ownership and global-ink checks; generic calls remain fresh. No partial, failed
+or P/contact result is cached. Both public Native206 returns pass at
+391,461/400,000, versus two U at 400,000 in the preceding epoch. SVG, repeated
+SVG, PNG, public model and terminal bytes are identical. An independent direct
+comparison verified all 865 frozen runtime/font/package files. This is bounded
+admission recovery, not a timing or performance result.
+
+Review found an omitted optional prepared-body field in an intermediate draft
+could inherit a callable authority. Physical Native/Scene controls failed before
+the draft was fixed (zero marker-removal sensitivity but P); both pass after
+requiring an own undefined field, with no inherited call. This was introduced
+only in the private draft, not an additional published defect.
+
+A final dirty-source development probe retains the original 20 inputs (the
+seven original witnesses and all 13 earlier Native refusals), with expectations
+authored before calls. Native and ELK each return 12P/8U under OFF. All 40 SVG
+and terminal repeats match; all 40 public models and 542 independent arrow
+direction/contact diagnostics pass their bounded checks. Native makes zero ELK
+calls. Nineteen Native and sixteen ELK PNGs decode; five remain unavailable at
+the unchanged 16MiB raw-RGBA guard. Remaining U are 207/208 and Class223–228.
+This is not the full 230-input or final clean-source matrix.
+
+Full frozen owning checks revealed remaining failures rather than readiness:
+18 curve/body and 45 endpoint/stroke tests pass; the complementary paint/Scene
+partition has 589 pass and 13 fail. Route owners pass 312 tests/41,652 assertions.
+Security/text owners have 261 pass and ten failures caused by imported test
+extensions requiring ^0.5.0 against the deliberately retained 0.4.2 host. Core
+and repository typechecks pass; Biome passes with the existing oversized-JSON
+warning. No failure is trimmed or waived. The 13 paint failures include a real
+omitted-stroke false P: four actual Native/captured-Scene outputs paint a white
+marker without a stroke on the white viewing surface, with zero off-shaft ink
+and zero marker-removal sensitivity; an explicit foreground-stroke control has
+positive ink/sensitivity. The foreground guard is being repaired at the owning
+boundary. Bounds-only marker fixtures, unbound CSS positives and precise
+conditional-paint diagnostics are also being reconciled with actual output.
+The apparent Scene cylinder-side gap was independently resolved as a probe
+omitting the existing explicit precision-capture opt-in: all four properly
+captured outputs pass with unchanged SVG, so no runtime exception is justified.
+
+The original sealed 14-case holdout remains unopened but is withdrawn from
+independent confirmation because its custodian subsequently authored runtime
+code. A different custodian is preparing a replacement after independent
+observer/protocol review, including a generic data-only external-cohort loader.
+No replacement holdout result is claimed. Pinned public peers retain the full
+91-case/1,893-criterion enrollment: Mermaid Dagre 1645P/6F/242U, Mermaid ELK
+1605P/4F/284U and Pele1.9 1782P/2F/109U at private Trident R5
+`a80211080609220b283c3a6b4b4618921cf0808b`. Raw failures and unavailable
+observations remain enrolled. Current Agentic arms remain unacquired, 1,893U
+each; these unequal observations do not establish a peer correctness ranking.
+Human participants/responses remain zero, and performance work remains paused.
+
+Exact sources, commands, process cleanup, negative epochs and actual artifacts
+remain under `/tmp/pr449-completion-20261029/`, including
+`main-candidate-final20-off/`, `prepared-body206-third/`,
+`tests/main-final-complete-owner-gates/`, `scene-side-optin-review/` and
+`qualification/`. Next: close the owning failures, integrate the reviewed later
+Main coherently, commit the verified candidate and repeat affected clean-source
+qualification before a fast-forward-safe retained-branch push and exact-head CI.
+No new issue or PR is created; all six release acceptance contracts remain open.
+
+The complementary failures are now resolved at their owning boundaries. The
+opaque semantic-marker guard rejects background fill without contrasting
+stroke; two private old-source tests fail before this guard, while the final
+89-case interaction subset passes 526 assertions. Bounds-only geometry remains
+U, but the repaired viewport positive now uses a real public rendering with
+authored marker geometry/resources: actual final XML, endpoints and off-shaft
+marker-removal ink are checked. CSS-variable positives now actually bind the
+root variables; the unbound control remains U. Conditional Native cases assert
+their precise conditional reason while Scene overlap checks remain intact.
+Raw/unrequested cylinder bodies remain U; fresh Native and explicitly requested
+Scene actual-write precision passes all four side-contact positives and retains
+every adverse variant. No second generic proof authority was added.
+
+Final frozen R18 paint/writer/Scene checks pass **665 tests / 8,906 assertions**
+across seven files. All three prospectively disjoint/exhaustive partitions exit
+normally, reap every owned child and compare all 1,480 source files byte-for-
+byte before, at lock acquisition and after execution. The superseded R17 was
+stopped before any test because a concurrent test-only import correction changed
+one file; its invalidation and original failures remain retained. Canonical
+core/repository types and full lint pass (the existing oversized-JSON warning).
+The version fixture repair uses the host's existing compatibility authority for
+synthetic positive registrations and retains independently incompatible ranges;
+**324 unique tests across 22 files pass**, without changing production version
+or compatibility. An initially misplaced subprocess import and its complete
+corrected-file replay are retained. Route checks remain 312P/41,652 assertions;
+the production source for those owners is unchanged by these final test repairs.
+
+The replacement holdout is now actually constructed and sealed by the separate
+custodian: cohort `e9c578b7-218f-4c1d-911c-1d69f25ca7aa`, twelve purposeful
+base/edit pairs, 24 source states across six consuming and six common families.
+All 25 acquisition/observer/controller files and outcome rules were independently
+reviewed and frozen at 22:36 UTC; construction/sealing followed at 22:38 UTC.
+Twelve newly pinned Mermaid 11.12.2 documents supplied a different construction
+method. No parser, renderer or product query occurred; no source or result was
+opened by Agentic implementers. The custodian is now custody-only. The original
+14 remain sealed and ineligible. Generic external-cohort loading is already
+frozen, rather than deferred until after opening. Current Agentic peer arms and
+the confirmatory holdout remain unacquired pending final candidate binding.
+
+Read-only review of later Main `1fc21f5` found two concrete custody violations
+in its new immutable-text reuse. A caller-prepared accessor array can be branded
+immutable through inherited descriptor `value`, and 70 nested prepared plans
+bypass Native's existing depth64 walk (P versus U, identical SVG). These are
+isolated new-Main controls, not a complete new-Main qualification. The coherent
+next integration will require own descriptor values before reading them and
+omit the unbounded Native shortcut, retaining paid recursive admission. It must
+also preserve this milestone's fresh group/context checks and all exact-body,
+own-stroke, background and global-witness authority. No new issue/PR was filed.

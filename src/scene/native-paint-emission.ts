@@ -5,7 +5,6 @@ import { serializeMarkerResource } from './marker-resources.ts'
 import { transferRetainedPixelText } from '../shared/prepared-text.ts'
 import { formatSvgNumber } from '../shared/svg-number.ts'
 import { safeCssFontFamily } from '../shared/css-font.ts'
-import { parseSvgTransform } from './transforms.ts'
 import { deferredTerminalProjectionInput, copyDeferredTerminalProjection } from './deferred-terminal-projection.ts'
 import { transferSceneNodeSerialization } from './serialization.ts'
 import type { SvgGeometryWriteSink } from './svg-writer.ts'
@@ -59,7 +58,8 @@ export function createNativePaintEmission(maxOperations: number) {
     if (!pay(keys.length)) throw failed
     parents.add(value)
     const result: Record<string, unknown> | unknown[] = Array.isArray(value) ? [] : {}
-    const kind = context === 'leaf' || context === 'geometry' ? Object.getOwnPropertyDescriptor(value, 'kind')?.value : undefined
+    const kindSlot = context === 'leaf' || context === 'geometry' ? Object.getOwnPropertyDescriptor(value, 'kind') : undefined
+    const kind = kindSlot && Object.hasOwn(kindSlot, 'value') ? kindSlot.value : undefined
     if ((context === 'leaf' || context === 'geometry') && typeof kind !== 'string') throw failed
     let ownedFields = 0, ownedPointSlots = 0
     let arrayLength: PropertyDescriptor | undefined
@@ -72,7 +72,7 @@ export function createNativePaintEmission(maxOperations: number) {
       if (key === 'length' && Array.isArray(value)) { arrayLength = descriptor; continue }
       // Deferred terminal geometry is neither read nor used by paint writing.
       if (key === 'terminalProjection' && deferredProjection) continue
-      if (!('value' in descriptor)) throw failed
+      if (!Object.hasOwn(descriptor, 'value')) throw failed
       // Custody comes from the paid descriptor visits, never inherited fields
       // which could become getters after capture. No second point pass.
       if (context === 'point') {
@@ -102,8 +102,8 @@ export function createNativePaintEmission(maxOperations: number) {
       : context === 'route' || context === 'leaf' && (kind === 'shape' || kind === 'connector') ? 1 : 0
     if (ownedFields !== requiredFields) throw failed
     if (Array.isArray(value)) {
-      if (context === 'points' && ownedPointSlots !== arrayLength?.value) throw failed
-      if (!arrayLength || !('value' in arrayLength)) throw failed
+      if (!arrayLength || !Object.hasOwn(arrayLength, 'value')) throw failed
+      if (context === 'points' && ownedPointSlots !== arrayLength.value) throw failed
       Object.defineProperty(result, 'length', { value: arrayLength.value, writable: false })
     }
     if (deferredProjection) {
@@ -114,7 +114,10 @@ export function createNativePaintEmission(maxOperations: number) {
     transferRetainedPixelText(value, result)
     // A hostile proxy can change its kind between reflective observations.
     // Never attach a line projection to a different captured geometry kind.
-    if ((context === 'leaf' || context === 'geometry') && Object.getOwnPropertyDescriptor(result, 'kind')?.value !== kind) throw failed
+    if (context === 'leaf' || context === 'geometry') {
+      const kindSlot = Object.getOwnPropertyDescriptor(result, 'kind')
+      if (!kindSlot || !Object.hasOwn(kindSlot, 'value') || kindSlot.value !== kind) throw failed
+    }
     parents.delete(value)
     // Every retained data property is already nonwritable/nonconfigurable;
     // arrays also own readonly length. Prevent extensions without rescanning
@@ -130,7 +133,7 @@ export function createNativePaintEmission(maxOperations: number) {
     if (!pay(2)) return undefined
     const keys = Object.getOwnPropertyNames(source)
     const ownField = Object.getOwnPropertyDescriptor(source, field)
-    if (!ownField || !('value' in ownField)) return undefined
+    if (!ownField || !Object.hasOwn(ownField, 'value')) return undefined
     if (!pay(keys.length * 3)) return undefined
     const result = Object.create(Object.getPrototypeOf(source)) as T
     for (const key of keys) {
@@ -149,7 +152,7 @@ export function createNativePaintEmission(maxOperations: number) {
     const result = Object.create(null) as T
     for (const key of keys) {
       const descriptor = Object.getOwnPropertyDescriptor(source, key)
-      if (!descriptor || !('value' in descriptor)) return undefined
+      if (!descriptor || !Object.hasOwn(descriptor, 'value')) return undefined
       Object.defineProperty(result, key, { value: descriptor.value, enumerable: descriptor.enumerable, writable: false, configurable: false })
     }
     if (capturedLeaves.has(source) && pay()) capturedLeaves.set(result, capturedLeaves.get(source)!)
@@ -165,7 +168,7 @@ export function createNativePaintEmission(maxOperations: number) {
         if (field in paint) { uncertain = true; return undefined }
         continue
       }
-      if (!('value' in descriptor)) return undefined
+      if (!Object.hasOwn(descriptor, 'value')) return undefined
       const value = descriptor.value
       // The existing numeric formatter returns strings shorter than13
       // verbatim. Longer numeric paints need their own emitted authority.
@@ -177,7 +180,7 @@ export function createNativePaintEmission(maxOperations: number) {
     if (!pay(16) || 'transform' in node || !(geometry.width > 0 && geometry.height > 0)) return undefined
     for (const field of ['rx', 'ry'] as const) {
       const descriptor = Object.getOwnPropertyDescriptor(geometry, field)
-      if (descriptor ? !('value' in descriptor) || descriptor.value !== undefined && descriptor.value !== 0 : field in geometry) return undefined
+      if (descriptor ? !Object.hasOwn(descriptor, 'value') || descriptor.value !== undefined && descriptor.value !== 0 : field in geometry) return undefined
     }
     const paint = rectanglePaint(node.paint)
     return paint ? { paint } : undefined
@@ -192,7 +195,7 @@ export function createNativePaintEmission(maxOperations: number) {
       if (!pay(field.length * 2 + 4)) return false
       const attribute = field.replace(/[A-Z]/g, char => `-${char.toLowerCase()}`)
       const descriptor = Object.getOwnPropertyDescriptor(attributes, attribute)
-      if (descriptor && (!('value' in descriptor) || typeof descriptor.value !== 'string')) return false
+      if (descriptor && (!Object.hasOwn(descriptor, 'value') || typeof descriptor.value !== 'string')) return false
       const actual = descriptor?.value as string | undefined
       if (!pay((expected?.length ?? 0) + (actual?.length ?? 0))) return false
       if (actual !== expected) return false
@@ -216,7 +219,7 @@ export function createNativePaintEmission(maxOperations: number) {
       const da = Object.getOwnPropertyDescriptor(a, key), db = Object.getOwnPropertyDescriptor(b, key)
       if (!da) continue
       na++
-      if (!db || !('value' in da) || !('value' in db) || da.enumerable !== db.enumerable || !same(da.value, db.value)) return false
+      if (!db || !Object.hasOwn(da, 'value') || !Object.hasOwn(db, 'value') || da.enumerable !== db.enumerable || !same(da.value, db.value)) return false
     }
     for (const key of bk) { if (!pay()) return false; if (Object.hasOwn(b, key)) nb++ }
     return na === nb
@@ -235,7 +238,7 @@ export function createNativePaintEmission(maxOperations: number) {
     for (const key of keys) {
       if (!pay(3)) return undefined
       const descriptor = Object.getOwnPropertyDescriptor(value, key)
-      if (!descriptor || !('value' in descriptor)) return undefined
+      if (!descriptor || !Object.hasOwn(descriptor, 'value')) return undefined
       const child = markupCost(descriptor.value)
       if (child === undefined) return undefined
       cost += key.length + 16 + child
@@ -250,13 +253,14 @@ export function createNativePaintEmission(maxOperations: number) {
     parts<T>(items: readonly T[], max: number): readonly T[] {
       if (!pay()) { uncertain = true; return items }
       if (!Array.isArray(items)) { uncertain = true; return items }
-      const length = Object.getOwnPropertyDescriptor(items, 'length')?.value
+      const lengthSlot = Object.getOwnPropertyDescriptor(items, 'length')
+      const length = lengthSlot && Object.hasOwn(lengthSlot, 'value') ? lengthSlot.value : undefined
       if (!Number.isSafeInteger(length) || length < 0 || length > max) throw new RangeError('Native drawing contains too many emitted nodes')
       if (!pay(length * 4)) { uncertain = true; return items }
       const retained: T[] = []
       for (let index = 0; index < length; index++) {
         const descriptor = Object.getOwnPropertyDescriptor(items, String(index))
-        if (!descriptor || !('value' in descriptor)) { uncertain = true; retained.push(items[index]!) }
+        if (!descriptor || !Object.hasOwn(descriptor, 'value')) { uncertain = true; retained.push(items[index]!) }
         else retained.push(descriptor.value as T)
       }
       return Object.freeze(retained)
@@ -318,18 +322,10 @@ export function createNativePaintEmission(maxOperations: number) {
       return captured
     },
     group(shell: Extract<SceneNode, { kind: 'group' }>) {
-      context.group(shell)
       closedMarkerContext = false
-      if (!pay(shell.open.length * 8)) return undefined
-      const tag = scanSvgStartTags(shell.open)[0]
-      if (!tag || tag.name !== 'g') { uncertain = true; return undefined }
-      const opacity = decodedSvgAttributeValue(tag, 'opacity')
-      if (opacity !== shell.paint?.opacity || shell.paint?.fill !== undefined || decodedSvgAttributeValue(tag, 'style') !== undefined) uncertain = true
-      const transform = decodedSvgAttributeValue(tag, 'transform')
-      if (transform === undefined) return undefined
-      const matrix = parseSvgTransform(transform)
-      if (!matrix) uncertain = true
-      return matrix && Object.freeze(matrix)
+      const actual = context.nativeGroup(shell)
+      if (actual?.uncertain) uncertain = true
+      return actual?.matrix
     },
     observe(node: Leaf, svg: string): boolean {
       // Reserve the actual occurrence's custody records before inspection.
@@ -365,16 +361,17 @@ export function createNativePaintEmission(maxOperations: number) {
         if (!pay(2)) return false
         const declaration = Object.getOwnPropertyDescriptor(node, 'markerResources')
         if (declaration) {
-          if (!('value' in declaration) || declaration.value !== undefined && !Array.isArray(declaration.value)) uncertain = true
+          if (!Object.hasOwn(declaration, 'value') || declaration.value !== undefined && !Array.isArray(declaration.value)) uncertain = true
           else if (declaration.value !== undefined) {
             if (!pay(2)) return false
             const markers = declaration.value as NonNullable<typeof node.markerResources>
-            const length = Object.getOwnPropertyDescriptor(markers, 'length')?.value
+            const lengthSlot = Object.getOwnPropertyDescriptor(markers, 'length')
+            const length = lengthSlot && Object.hasOwn(lengthSlot, 'value') ? lengthSlot.value : undefined
             if (!Number.isSafeInteger(length) || length < 0) uncertain = true
             else for (let index = 0; index < length; index++) {
               if (!pay(3)) break
               const marker = Object.getOwnPropertyDescriptor(markers, String(index))
-              if (!marker || !('value' in marker)) uncertain = true
+              if (!marker || !Object.hasOwn(marker, 'value')) uncertain = true
               else references.push(marker.value)
             }
           }

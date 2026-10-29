@@ -13,7 +13,7 @@ import {
   type FamilyDescriptor,
 } from '../agent/families.ts'
 import { registerFamily } from '../agent/family-registration.ts'
-import { createExtensionIdentity } from '../shared/extension-identity.ts'
+import { createExtensionIdentity, KNOWN_EXTENSION_CONTRACT_VERSIONS } from '../shared/extension-identity.ts'
 import { toFinite } from '../agent/types.ts'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
 import { serializeMermaid, synthesizeFromGraph } from '../agent/serialize.ts'
@@ -30,7 +30,7 @@ function descriptor(onVerify: () => void = () => {}): FamilyDescriptor {
       id: FAMILY,
       kind: 'family',
       version: '1.0.0',
-      compatibility: { core: '^0.4.0' },
+      compatibility: { core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core },
       provenance: { owner: 'extension-mcp-parity-test', source: 'test', reference: EVIDENCE },
     }),
     id: FAMILY,

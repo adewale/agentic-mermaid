@@ -87,6 +87,10 @@ export function flowchartUpstreamRejectedSyntaxWarnings(source: string): LayoutW
   // The links read so far, whose edge ids a later link may repeat.
   const graph = emptyFlowchartGraph()
   for (const { text, line } of statements) {
+    if (/^subgraph(?![\w-])/.test(text) && /direction\s+(?:TB|BT|RL|LR|TD)/.test(text)) warnings.push({
+      code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_subgraph_direction_text',
+      message: 'Direction-like text in a subgraph title is read as its label. Pinned Mermaid consumes the whole line as a direction token, even inside quotes; canonical export protects the label with an entity code.',
+    })
     if (/^subgraph(?![\w-])/.test(text)) openSubgraphs.push(line)
     else if (text === 'end' && openSubgraphs.length > 0) openSubgraphs.pop()
     else if (text === 'end') {

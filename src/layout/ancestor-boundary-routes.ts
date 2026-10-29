@@ -30,7 +30,7 @@ class AncestorCorridorMiss extends Error {}
 export function planAncestorBoundaryConnections(
   input: MeasuredGraph, owners: Int32Array, work: ChannelWork, fail: (reason: string) => never,
 ): AncestorBoundaryPlan {
-  const groups = input.groups!, leaves = input.nodes.length, clearance = Math.max(8, input.edgeSpacing ?? 6)
+  const groups = input.groups!, leaves = input.nodes.length, clearance = Math.max(8, input.edgeSpacing ?? 6, input.minimumTerminalLead ?? 0)
   const connections = new Map<number, AncestorBoundaryConnection>(), rows = new Map<number, number>(), strips = new Map<number, number>(), leads = new Map<number, number>()
   const encloses = (container: number, endpoint: number): boolean => {
     for (let parent = owners[endpoint]!; parent >= 0; parent = owners[leaves + parent]!) {

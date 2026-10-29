@@ -37,10 +37,12 @@ function isStylePart(t: number): boolean {
 }
 export interface RequirementStyleDirective { prefix: string; styles: string[] }
 
-export function parseRequirementDiagram(input: string | string[], onStyle?: (directive: RequirementStyleDirective) => void): RequirementBody {
-  const source = (Array.isArray(input) ? input.join('\n') : input).replace(/^[^\S\r\n]*requirement[^\S\r\n]*(?=\r\n?|\n|$)/i, 'requirementDiagram')
+export function parseRequirementDiagram(input: string | string[], onStyle?: (directive: RequirementStyleDirective) => void, onRequiredLineBreak?: (offset: number) => void): RequirementBody {
+  const authored = Array.isArray(input) ? input.join('\n') : input
+  const source = authored.replace(/^[^\S\r\n]*requirement[^\S\r\n]*(?=\r\n?|\n|$)/i, 'requirementDiagram')
+  const headerDelta = source.length - authored.length
   const db = new Database()
-  parseRequirement(source.endsWith('\n') ? source : source + '\n', db, onStyle)
+  parseRequirement(source.endsWith('\n') ? source : source + '\n', db, onStyle, onRequiredLineBreak ? offset => onRequiredLineBreak(offset - headerDelta) : undefined)
   for (const definition of db.classes.values()) checkedAuthoredStyle(parseStyleProps(definition.styles.join(',')), `classDef ${definition.id}`)
   for (const [id, styles] of db.authoredStyles) {
     checkedAuthoredStyle(parseStyleProps(styles.join(',')), `style ${id}`)
@@ -62,7 +64,7 @@ export function parseRequirementDiagram(input: string | string[], onStyle?: (dir
     accessibilityDescription: db.accDescr,
   }
 }
-export function parseRequirement(src: string, db: RequirementDb, onStyle?: (directive: RequirementStyleDirective) => void): void {
+export function parseRequirement(src: string, db: RequirementDb, onStyle?: (directive: RequirementStyleDirective) => void, onRequiredLineBreak?: (offset: number) => void): void {
   const { types, texts, starts } = tokenize(src)
   let i = 0
   const fields: number[] = []
@@ -77,6 +79,10 @@ export function parseRequirement(src: string, db: RequirementDb, onStyle?: (dire
   }
   const expect = (type: number): string => {
     if (types[i]! !== type) fail(type)
+    // The pin's whitespace token can swallow this required boundary after
+    // a quoted value/keyword/brace. An unquoted string already owns its
+    // trailing spaces, so it never takes that whitespace-token path.
+    if (type === T.NEWLINE && types[i - 1] !== T.unqString) onRequiredLineBreak?.(starts[i]!)
     return texts[i++]!
   }
   // The value of the next token if it is a keyword in the given range of token types.

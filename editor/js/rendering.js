@@ -1,5 +1,5 @@
 import { ui } from './context.js';
-import { asciiOutput, editor, previewInner, renderTime, runtimeRecovery, spinner, statusDot, statusText, unicodeOutput, verifyDetails, verifyDetailsBtn, verifyDetailsList, verifyGeometric, verifyLint, verifyStructural, verifySummary, verifyTierGeometric, verifyTierLint, verifyTierStructural } from './elements.js';
+import { asciiOutput, editor, previewBody, previewInner, renderTime, runtimeRecovery, spinner, statusDot, statusText, unicodeOutput, verifyDetails, verifyDetailsBtn, verifyDetailsList, verifyGeometric, verifyLint, verifyStructural, verifySummary, verifyTierGeometric, verifyTierLint, verifyTierStructural } from './elements.js';
 import { updateExportAvailability } from './export.js';
 import { refreshC4Navigation } from './c4-navigation.js';
 import { refreshDiagramTools } from './diagram-tools.js';
@@ -12,6 +12,7 @@ import { cancelPreviewMotion } from './pan.js';
 import { applyZoom, fitToView } from './zoom.js';
 import { updateHash } from './sharing.js';
 export var renderTimer, renderSpinnerTimer, renderRequestVersion, lastSuccessfulUiMs, autoFitPending, lastRenderedSvgSource, lastRenderedTextArtifacts, textOutputCacheKey, VERIFY_TIER_BY_CODE, VERIFY_SEVERITY_BY_CODE, lastVerifyTierCounts, TEXT_RENDER_MAX_LINES;
+var paneWidthObserver, lastPaneWidth, lastPaneFitKey, paneFitPresentationPending;
 
 
 export function currentEditorSource() {
@@ -28,7 +29,8 @@ export function hasCurrentVerifiedSvgArtifact() {
   return !!ui.lastRenderedSvgArtifact
     && lastRenderedSvgSource === currentEditorSource()
     && previewInner.querySelector('svg') !== null
-    && previewInner.dataset.sharedRequestDigest === ui.lastRenderedSvgArtifact.receipt.sharedRequestDigest;
+    && previewInner.dataset.sharedRequestDigest === ui.lastRenderedSvgArtifact.receipt.sharedRequestDigest
+    && (!state.fitLabelsToPane || !ui.lastRenderedSvgOptions || JSON.stringify(ui.lastRenderedSvgOptions) === JSON.stringify(buildOptions()));
 }
 
 
@@ -41,6 +43,7 @@ export function clearRenderSpinner() {
 
 export function invalidateRenderedArtifacts() {
   ui.lastRenderedSvgArtifact = null;
+  ui.lastRenderedSvgOptions = null;
   lastRenderedSvgSource = null;
   markTextOutputsDirty();
   delete previewInner.dataset.sharedRequestDigest;
@@ -56,6 +59,8 @@ export function scheduleRender(delay) {
   var version = ++renderRequestVersion;
   if (typeof window.__mermaid.cancelPendingRender === 'function') window.__mermaid.cancelPendingRender();
   if (renderTimer) clearTimeout(renderTimer);
+  if (!state.fitLabelsToPane) paneFitPresentationPending = true;
+  lastPaneFitKey = state.fitLabelsToPane ? paneFitKey() : null;
   // Keep the old picture visible until its replacement is ready, but revoke
   // its authority immediately. Source, Style, theme, or config changes must
   // never leave stale export buttons or receipts live during the debounce.
@@ -148,11 +153,38 @@ export function buildOptions() {
   // Share hashes are attacker-controlled. Resolve them through the same pure
   // production boundary imported by build/tests, then keep strict SVG parsing
   // at the insertion sink below as the second line of defence.
-  return window.__mermaid.resolveEditorRenderOptions(state, {
+  return window.__mermaid.resolveEditorRenderOptions(Object.assign({}, state, {
+    source: currentEditorSource(),
+    paneWidth: state.fitLabelsToPane ? availablePaneWidth() : undefined,
+  }), {
     allowedFields: window.__mermaid.SHARED_RENDER_OPTION_FIELDS || [],
     validate: window.__mermaid.validateSerializableRenderOptions,
     resolvePaletteInput: editorPaletteInput,
   });
+}
+
+
+export function availablePaneWidth() {
+  if (typeof previewBody === 'undefined' || !previewBody || !previewBody.clientWidth) return lastPaneWidth;
+  var style = getComputedStyle(previewBody);
+  var width = Math.floor(previewBody.clientWidth - (parseFloat(style.paddingLeft) || 0) - (parseFloat(style.paddingRight) || 0));
+  if (width > 0) lastPaneWidth = width;
+  return lastPaneWidth;
+}
+
+
+function paneFitKey() {
+  try {
+    var options = buildOptions();
+    return JSON.stringify([options.pie && options.pie.maxWidth, options.radar && options.radar.maxWidth]);
+  } catch (error) { return null; } // Ordinary rendering owns invalid-config diagnostics.
+}
+
+
+export function refreshPaneFitting() {
+  if (!state.fitLabelsToPane) return;
+  var key = paneFitKey();
+  if (key !== lastPaneFitKey) scheduleRender();
 }
 
 
@@ -209,7 +241,7 @@ export function retainTextOutputArtifact(format, artifact) {
 
 
 export function textOutputKey(source) {
-  return source + "\n" + JSON.stringify(buildOptions());
+  return source + "\n" + JSON.stringify(ui.lastRenderedSvgOptions || buildOptions());
 }
 
 
@@ -414,7 +446,7 @@ export async function renderTextOutputs(source) {
     return;
   }
   try {
-    var opts = Object.assign({}, buildOptions(), { colorMode: "none" });
+    var opts = Object.assign({}, ui.lastRenderedSvgOptions || buildOptions(), { colorMode: "none" });
     var artifacts = await Promise.all([
       renderMermaidUnicodeWithReceipt(source, opts),
       renderMermaidAsciiWithReceipt(source, Object.assign({}, opts, { useAscii: true }))
@@ -459,6 +491,7 @@ export async function doRender(version) {
   clearRenderSpinner();
   var source = currentEditorSource();
   if (!source) {
+    paneFitPresentationPending = true;
     if (runtimeRecovery) runtimeRecovery.hidden = true;
     if (!isCurrentRender(version, source)) return;
     previewInner.innerHTML = emptyPreviewHtml();
@@ -485,14 +518,27 @@ export async function doRender(version) {
   }, 250);
 
   try {
+    if (state.fitLabelsToPane && typeof window.__mermaid.prepareEditorRenderOptions === 'function') {
+      await window.__mermaid.prepareEditorRenderOptions(state);
+      if (!isCurrentRender(version, source)) return;
+    }
     var renderOptions = buildOptions();
+    lastPaneFitKey = state.fitLabelsToPane ? paneFitKey() : null;
     var rendered = await Promise.resolve(renderMermaidWithReceipt(source, renderOptions));
     var commitStarted = performance.now();
     var svg = rendered.svg;
-    if (!isCurrentRender(version, source)) return;
+    if (!isCurrentRender(version, source) || JSON.stringify(renderOptions) !== JSON.stringify(buildOptions())) return;
     var svgSafety = verifyNoExternalRefs(svg);
     if (!svgSafety.ok) throw new Error("Unsafe SVG output blocked: " + svgSafety.refs.join(", "));
     insertStrictRenderedSvg(svg);
+    var familyId = rendered.receipt.executionDecision && rendered.receipt.executionDecision.family.id;
+    var fittingPane = state.fitLabelsToPane && (familyId === 'family:pie' || familyId === 'family:radar');
+    if (!fittingPane) paneFitPresentationPending = true;
+    else if (paneFitPresentationPending) {
+      state.zoom = 1;
+      autoFitPending = false;
+      paneFitPresentationPending = false;
+    }
     applyZoom(state.zoom);
     if (autoFitPending && typeof fitToView === 'function') { fitToView(); autoFitPending = false; }
     setEditorErrorLine(0);
@@ -505,6 +551,7 @@ export async function doRender(version) {
     markTextOutputsDirty();
     if (verification && verification.ok) {
       ui.lastRenderedSvgArtifact = rendered;
+      ui.lastRenderedSvgOptions = renderOptions;
       lastRenderedSvgSource = source;
       previewInner.dataset.sharedRequestDigest = rendered.receipt.sharedRequestDigest;
       previewInner.dataset.renderRequestDigest = rendered.receipt.requestDigest;
@@ -574,6 +621,17 @@ autoFitPending = true;
 // Exact canonical artifact inserted into the preview. Export adapters derive
 // from this record/source, never from a host-mutated preview DOM.
 ui.lastRenderedSvgArtifact = null;
+ui.lastRenderedSvgOptions = null;
+lastPaneWidth = undefined;
+lastPaneFitKey = null;
+paneFitPresentationPending = true;
+if (paneWidthObserver) paneWidthObserver.disconnect();
+if (typeof previewBody !== 'undefined' && previewBody && typeof ResizeObserver !== 'undefined') {
+  paneWidthObserver = new ResizeObserver(refreshPaneFitting);
+  paneWidthObserver.observe(previewBody);
+} else if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  window.addEventListener('resize', refreshPaneFitting);
+}
 
 lastRenderedSvgSource = null;
 

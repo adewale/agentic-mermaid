@@ -77,6 +77,29 @@ describe('checked graph layout selection', () => {
     JSON.stringify(result.receipt)
   })
 
+  test.each([
+    { seed: 40, nodes: 9, edges: 23, from: 'n3', to: 'n7', labels: ['edge 4 xxxxxxx', 'edge 8 xxxxxxxxxxx'] },
+    { seed: 156, nodes: 8, edges: 18, from: 'n0', to: 'n5', labels: ['edge 0 xxx', 'edge 12 xxxxxxxxxxxxxxx', 'edge 16 xxxxxxxxxxxxxxxxxxx'] },
+  ].flatMap(sample => ['TD', 'BT', 'LR', 'RL'].map(direction => ({ ...sample, direction }))))('retains labelled duplicates without displacing safe captions in ELK cycle $seed in $direction', ({ seed, nodes, edges, from, to, labels, direction }) => {
+    const source = generatedFlowchartSamples({ start: seed, count: 1 })[0]!.source.replace('flowchart TD', `flowchart ${direction}`)
+    const options = { graphLayout: { backend: 'elk' as const }, ...(seed === 40 ? { layoutSafety: 'strict' as const } : {}) }
+    const svg = renderMermaidSVGWithReceipt(source, options)
+    const result = layoutMermaidWithReceipt(source, { ...options, debug: true })
+    expect(result.layout.nodes).toHaveLength(nodes)
+    expect(result.layout.edges).toHaveLength(edges)
+    const parallel = result.layout.edges.filter(edge => edge.from === from && edge.to === to)
+    expect(parallel).toHaveLength(labels.length)
+    expect(parallel[0]!.path).not.toEqual(parallel[1]!.path)
+    expect(measureQuality(result.layout).labelConflicts?.labelLabel).toBe(0)
+    if (seed === 40) {
+      expect(measureQuality(result.layout).labelConflicts?.total).toBe(0)
+      expect(svg.receipt.layoutCertification?.status).toBe('passed')
+    }
+    for (const label of labels) expect(svg.svg).toContain(label)
+    expect(svg.receipt.layoutCertification?.status).not.toBe('failed')
+    expect(svg.receipt.layoutDecisions?.[0]?.selected).toBe('elk')
+  })
+
   test.each(['TD', 'LR', 'BT', 'RL'].flatMap(direction => [
     { direction, links: 'A & B --> C & D', ids: ['A', 'B', 'C', 'D'], facts: ['A->C', 'A->D', 'B->C', 'B->D'] },
     { direction, links: 'A & B --> C', ids: ['A', 'B', 'C'], facts: ['A->C', 'B->C'] },

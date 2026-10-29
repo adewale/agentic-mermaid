@@ -53,5 +53,6 @@ state = {
   seed: 0,
   zoom: 1,
   config: {},
+  fitLabelsToPane: false,
 };
 }

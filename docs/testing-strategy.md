@@ -16,13 +16,12 @@ is historical; its removed reports and receipts are not current requirements.
 
 ## Local CI parity
 
-The scheduled nightly finder also runs the unit file set in randomized order
-and starts a fresh OS process for each file. These modes search for test-order,
-module-state and native-runtime interference without adding randomness to PR
-gates. Each log records its seed and exact files. Replay a focused failure with
+Test-order and fresh-process sweeps are manual diagnostics for changes to shared
+fixtures or module state. Replay a focused failure with
 `AM_TEST_ORDER_SEED=<seed> bun run scripts/ci/find-test-order.ts shuffled <files>`
-or replace `shuffled` with `fresh-process`. The new modes retain artifact logs;
-they do not create issues automatically.
+or replace `shuffled` with `fresh-process`. No scheduled whole-suite order sweep
+or issue collector runs. Each test must initialize its own reference fixture;
+another test's initialization is not a prerequisite.
 
 Run `bun run quality:check` to execute the complete GitHub **Quality gates**
 job locally. The command installs the frozen dependency graph and then runs
@@ -256,14 +255,15 @@ sources we did not write:
   are unavailable evidence. Stable-getter and original-to-serialized reference
   comparisons remain separate. Parent fields are retained, and generated-looking
   authored strings are not globally rewritten. None of these selected scopes
-  proves full semantic fidelity. The default is 5,000
-  seeded mutations per family; CI uses 100 per family on PRs/main and the full
-  default weekly and on manual dispatch, all at seed 7. Mutations draw on the
+  proves full semantic fidelity. Manual runs default to 5,000
+  seeded mutations per family; required CI uses 100 per family at seed 7.
+  The separate weekly contract-discovery job samples at a recorded fresh seed
+  with the bounds described below. Mutations draw on the
   corpus's own token images and on fixed lexer-boundary fragments
   (`grammar-fragments.ts`). Each run counts **silent reads** per family (pinned
   Mermaid rejects, ours reads, verify names no problem) and lists them reduced;
-  the nightly finder runs the native families at a fresh seed and files new
-  ones in one issue. Per-input JSONL and detailed counterexamples are
+  weekly discovery retains confirmed public-contract candidates for human
+  review without opening issues. Per-input JSONL and detailed counterexamples are
   ignored build artifacts. This measures native admission and reference grammar
   round trips as well as the scoped native semantics/operations. Agentic has
   no homologous Mermaid token/`yy` interface, so exact protocol equality
@@ -403,49 +403,56 @@ mutating process-global configuration).
 Pinning is for *holding* known ground; randomness is for *finding* new
 counterexamples ("an invariant enforced by a random property is a lottery,
 not a gate" — `docs/contributing/lessons-learned.md`). Rolling seeds belong in
-finder lanes: the scheduled `nightly-finder.yml` workflow, the deep-fuzz scripts
+finder lanes: the weekly `contract-discovery.yml` workflow, the deep-fuzz scripts
 under `eval/`, or deliberate `AM_FC_SEED=random` sweeps.
 
-The nightly finder rolls fresh seeds across every fast-check file with
-`AM_FC_NUM_RUNS=300` (at least 300 cases, including locally pinned properties).
-It never blocks a pull request. A newly failing property files or comments on one
-collector issue with its owning test file and replay command
-(`scripts/ci/nightly-finder-report.ts`). Repeated properties do not notify the
-collector again while it remains open. Every failing run retains the complete
-`sweep.log` and JSON seeds, paths and untruncated counterexamples in the
-`property-finder-evidence` artifact for 30 days, including repeated findings.
-Review those artifacts when investigating another input from a known property.
-Fix a real counterexample and keep it forever as a fast-check `examples` entry on the property: seeds and paths do not
-survive fast-check upgrades, `examples` do. Its first local run found a real
-Architecture routing counterexample (`AM_FC_SEED=1102132276` in
-`architecture-layout.test.ts`) that the pinned seed never reached. Its fixed exit
-distance could enter a neighboring card’s clearance envelope; exits now stop at that envelope before the visibility
-search. The reduced input and the other recovered #362 Architecture cases are
-permanent passing `examples` entries in the grouped-layout property.
+The weekly **Contract discovery** workflow is a single read-only job capped at
+ten runner-minutes, including setup. It first rolls one recorded seed through
+the existing Flowchart and ER shadow-model command properties and the valid
+Architecture round-trip property. Valid model generators construct legal grammar
+contexts; reserved/malformed identifiers have separate source-preservation,
+diagnostic and mutation-refusal tests. The normal pinned gate remains deterministic.
 
-The grammar lane runs native families at a fresh seed; seed 7 remains in the
-PR comparison. Raw disagreements stay in its complete summary artifact.
-`grammar-triage-run.ts` replays each retained reduction and original witness,
-alongside the reviewed #494 corpus, checking canonical exports with the pinned
-grammar and selected native meaning on reload. Source-only reads must carry a
-source diagnostic and refuse typed edits. Known inputs are checked again;
-matching source bytes alone cannot suppress a changed failure kind.
+A finder-only fast-check reporter writes structured seed/path, counterexample,
+callsite, run/shrink counts and failure details. Bun's JUnit result supplies the
+owning named test and setup errors. Capturing a property failure still throws;
+recording a failure cannot turn it into a pass. There is no display-log scraper,
+property-title suppression list or GitHub issue-writing permission. Model failure
+stops further search for that run and retains the replay evidence.
 
-Reviewed decisions live in `eval/mermaid-modern-compat/corpus/grammar-finder-494.json`.
-They are external counterexamples and authored dispositions, not generated
-output baselines. A reference-pin change invalidates their reporting matches.
-The same corpus replay runs in canonical CI with `--check`, which fails on an
-untracked contract failure or a mismatched review pin. Existing scoped follow-ups remain visible without
-requiring their failure to persist: a repaired input is allowed to improve.
-The PR that fixes a scoped follow-up updates its corpus decisions and removes
-that failure allowance; the historical input and provenance remain.
+The grammar stage uses a seed-selected corpus sample (at most eight short inputs
+per native family), 100 text mutations per family, two workers, at most two
+retained candidates per contract/family and eight reduction checks. These are
+bounded discovery settings, not a claim of exhaustive grammar coverage. It keeps
+portable-write, native reload/meaning and source-diagnostic candidates separately
+from raw reference token/action/model differences. A reduction must retain the
+same candidate contract violation; otherwise the original witness remains. Partial
+summaries and the last source survive an interrupted search. Expensive native/
+reference instrumentation is a diagnostic; parser disagreement alone is not a bug.
 
-Only demonstrated, untracked contract failures create issues. Each report owns
-one finite run attempt and family, with sources, evidence and completion
-criteria. Closing it does not reset the corpus; later runs do not append new
-findings to it. Unreviewed generous reads remain visible in the artifact and
-job summary without being called bugs. Search/triage failures create a finite
-incomplete-run report. Evidence is retained for 90 days.
+Canonical CI still replays the reviewed corpus in
+`eval/mermaid-modern-compat/corpus/grammar-finder-494.json` with `--check` and runs
+the required pinned semantic and packed-consumer gates. The historical filename
+retains provenance; it is not an issue-notification channel. Review-pin changes
+invalidate reporting matches. A repaired input may improve: the corpus never
+requires a known defect to persist.
+
+Discovery emits JSON, a step summary and retained artifacts for human review;
+it never creates or comments on issues. A failed run must be classified as a
+product contract violation, test-domain/oracle mistake, reference/setup failure,
+or interrupted search before assigning finite work. Replay on the current pin
+and main; retain a minimal original/model counterexample in the existing owning
+property and fix the failure class. Review existing finite grammar issues before
+opening additional work. Useful yield is reproducible confirmed failure classes
+per runner/review hour, with replay completeness and triage time alongside it;
+mutation, disagreement and ticket counts do not measure correctness.
+Pause recurring discovery while confirmed findings await repair or its oracle
+needs correction; replay those finite inputs before spending another search budget.
+
+The former nightly workflow and #362 collector are retired. Historical runs and
+counterexamples remain evidence. Their open-ended notification infrastructure is
+not needed to keep valid regression coverage. Larger grammar or order searches
+remain explicit manual commands for targeted changes and reference upgrades.
 
 Before the pin was frozen, every unpinned suite was
 swept across 48/24/12 seeds (scaled by runtime; 1,368 suite-runs total) with
@@ -595,8 +602,8 @@ table here, which would drift. In broad strokes:
   a completed build instead of competing to generate it. A final `CI complete` job waits for the required
   test aggregate, every E2E matrix job and red → green, providing one
   protectable result that cannot turn green early.
-- **Nightly (`nightly-finder.yml`):** random-seed sweeps of every property
-  suite; failures become an issue, never a blocked PR.
+- **Weekly (`contract-discovery.yml`):** one bounded model/grammar discovery job;
+  findings remain replay artifacts for human triage, without automated issues.
 - **Per deploy (`deploy-cloudflare.yml`, release to-do):** when the deploy
   skips because `package.json` names a version that is not on npm, it opens
   one `release-todo` issue for that version, and a verified deploy of the
@@ -718,7 +725,14 @@ table here, which would drift. In broad strokes:
 - **Manual / periodic:** `layout-compare` before/after, the benchmark vs competitors,
   `bun run bench:micro` (per-stage hotspot timings, allocation per call under
   `--runtime node`, and `--baseline <ref>` for interleaved revision ratios;
-  advisory, never a gate), `bun run bench:peers` (the built package against
+  advisory, never a gate). Filter `^source-edit:` for opaque Class/Flowchart
+  edits at 32, 256 and 2,048 nodes, including ten-edit chains and exact label
+  no-ops. These start from a warm parsed input and time complete result JSON
+  materialization; they exclude verification, layout and rendering. Reports
+  retain source/output byte counts and growth. Node allocation estimates cover
+  V8, not native memory or peak RSS. Compare with `--baseline <source-edit-ref>`
+  and calibrate timing noise with `--aa`; an unavailable baseline API is not a
+  fast successful edit. `bun run bench:peers` (the built package against
   the pinned browserless and terminal peers in `eval/fork-graph/`, with output checks outside timing/allocation and label
   checks before timing; includes the native Go Sketch worker, requiring Go >=1.25).
   `bench:peers --corpus` attempts every official fence occurrence, including

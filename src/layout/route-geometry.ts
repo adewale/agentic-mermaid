@@ -6,6 +6,7 @@ import { isOutwardShapeApproach } from '../shape-clipping.ts'
 import { pointOnShapeSide, shapeCardinalPorts, shapeRoutingProfile } from '../shape-outline.ts'
 import { renderedEndpointContact } from '../rendered-endpoint-diagnostics.ts'
 import { labelRect } from '../shared/edge-label-geometry.ts'
+import { graphEdgeTerminalClearance } from '../graph-connectors.ts'
 
 // Quality exploration is deterministic and bounded independently of machine
 // speed. Larger graphs keep the existing first-certified fallback behavior.
@@ -30,6 +31,16 @@ export const EPS = 0.01
 export const CLEARANCE = 4
 /** Required free space around a label hosted on a straightened lane. */
 export const LABEL_CLEARANCE = 8
+
+/** Established distance from a route's last bend to its endpoint. */
+const TERMINAL_HOOK = 12
+
+/** Reserve the canonical marker support, visible shaft and preferred corner.
+ * Unmarked ends retain the established minimum hook. */
+export function terminalHookLength(style: Pick<LabelMetricsStyle, 'lineWidth' | 'edgeBendRadius'>, edge?: Pick<PositionedEdge, 'style' | 'inlineStyle' | 'hasArrowStart' | 'hasArrowEnd' | 'startMarker' | 'endMarker'>, end: 'start' | 'end' = 'end'): number {
+  const clearance = graphEdgeTerminalClearance(edge ?? { style: 'solid', hasArrowStart: true, hasArrowEnd: true }, style)
+  return Math.max(TERMINAL_HOOK, clearance[end] + (style.edgeBendRadius ?? 0))
+}
 
 /** Shapes whose forward-facing side is a straight axis-aligned segment.
  *  Fork/join bars are plain (rounded) rectangles geometrically, which is what
@@ -197,6 +208,7 @@ export interface LabelMetricsStyle {
   edgeTextTransform?: 'uppercase' | 'lowercase' | 'capitalize'
   edgeLetterSpacing?: number
   lineWidth?: number
+  nodeLineWidth?: number
   edgeStrokeColor?: string
   edgeBendRadius?: number
 }

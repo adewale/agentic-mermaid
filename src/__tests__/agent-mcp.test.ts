@@ -8,7 +8,7 @@ import { renderMermaidSVG } from '../index.ts'
 import vm from 'node:vm'
 import pkg from '../../package.json'
 import { BUILTIN_FAMILY_METADATA, getFamily, replaceFamilyForTest } from '../agent/families.ts'
-import { runCli } from '../cli/index.ts'
+import { runCli, runBatchLine } from '../cli/index.ts'
 import { MCP_CLI_HELP, parseMcpCliOptions, runMcpCli } from '../mcp/mcp-cli.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { handleRequest, LOCAL_TOOLS } from '../mcp/server.ts'
@@ -19,6 +19,41 @@ import { useTestChildren } from './helpers/test-child.ts'
 const runChild = useTestChildren(20_000)
 
 const temp = useTempDirs()
+
+describe('source-preserving edits across agent channels', () => {
+  test.each([
+    ['classDiagram\nnamespace `~`{class P}', { kind: 'add_member', class: 'P', text: '+read()' }],
+    ['classDiagram\nnamespace `~T~A::B` {\nclass `IPC::Sender`\n}', { kind: 'add_member', class: 'IPC::Sender', text: '+read()' }],
+    ['flowchart TD\nA[Old]-->B\nclassDef retained border:1px s:::colid red', { kind: 'set_label', target: 'A', label: 'Reviewed' }],
+  ] as const)('retains source, warnings and atomic results in library, CLI and MCP: %s', async (source, op) => {
+    const result = applyOps({ source, ops: [op], mode: 'source-preserving' })
+    expect(result).toMatchObject({ ok: true, mode: 'source-preserving', verify: { ok: true, warnings: expect.arrayContaining([expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX' })]) } })
+    if (!result.ok) throw new Error(result.error.message)
+    expect(result.source.startsWith(source)).toBe(true)
+    expect(applyOps({ source, ops: [op] }).ok).toBe(false)
+    const file = join(temp.dir('source-mode-'), 'diagram.mmd')
+    writeFileSync(file, source)
+    const cli = capture(() => runCli(['mutate', file, '--op', JSON.stringify(op), '--preserve-source', '--json']))
+    expect(cli.code).toBe(0)
+    expect(JSON.parse(cli.out)).toMatchObject({ ok: true, source: result.source, mode: 'source-preserving' })
+    expect(runBatchLine(JSON.stringify({ op: 'mutate', source, mutation: op, preserveSource: true }))).toMatchObject({ ok: true, data: { source: result.source, mode: 'source-preserving' } })
+    const response = await handleRequest({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'mutate', arguments: { source, ops: [op], mode: 'source-preserving' } } })
+    expect(JSON.parse((response!.result as any).content[0].text)).toEqual(result)
+    const script = await executeInSandbox(`const d=mermaid.parseRegisteredMermaid(${JSON.stringify(source)}).value; const edited=mermaid.mutatePreservingSource(d,${JSON.stringify(op)}); if(!edited.ok) return edited; return {source:edited.value.source, warnings:mermaid.verifyMermaid(edited.value.diagram).warnings};`)
+    expect(script.ok).toBe(true)
+    expect(script.value).toMatchObject({ source: result.source, warnings: expect.arrayContaining([expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX' })]) })
+    const direct = await executeInSandbox(`const d=mermaid.parseRegisteredMermaid(${JSON.stringify(source)}).value; return mermaid.mutatePreservingSource(d,${JSON.stringify(op)});`)
+    expect(direct.ok).toBe(true)
+    expect(direct.value).toEqual(result)
+    const failed = applyOps({ source, ops: [op, { kind: 'invalid_second_op' }], mode: 'source-preserving' })
+    expect(failed).toMatchObject({ ok: false, opIndex: 1 })
+    expect('source' in failed).toBe(false)
+  })
+  test('refuses invalid modes and source-preserving builders', () => {
+    for (const mode of ['unknown', null, false]) expect(applyOps({ source: 'flowchart TD\nA', ops: [], mode } as any).ok).toBe(false)
+    expect(applyOps({ family: 'class', ops: [{ kind: 'add_class', id: 'A' }], mode: 'source-preserving' }).ok).toBe(false)
+  })
+})
 
 describe('sandbox — happy', () => {
   test('flowchart workflow', async () => {

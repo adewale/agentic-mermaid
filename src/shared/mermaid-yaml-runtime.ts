@@ -216,12 +216,13 @@ export interface YamlMappingRange {
 /** Optional parser provenance uses the same YAML package without retaining a
  * second eager package edge in the Kanban family. Offsets are source-local. */
 export function readYamlMappingRanges(source: string): YamlMappingRange[] {
-  const document = parseDocument(source)
+  const document = parseDocument(source, { keepSourceTokens: true })
   const ranges: YamlMappingRange[] = []
   if (!isMap(document.contents)) return ranges
   for (const pair of document.contents.items) {
     if (!isScalar(pair.key) || !pair.key.range || !pair.value || !('range' in pair.value) || !pair.value.range) continue
-    ranges.push({ name: String(pair.key.value), keyStart: pair.key.range[0], keyEnd: pair.key.range[1], valueStart: pair.value.range[0], valueEnd: pair.value.range[1] })
+    const property = pair.srcToken?.sep?.find(token => token.type === 'anchor' || token.type === 'tag')
+    ranges.push({ name: String(pair.key.value), keyStart: pair.key.range[0], keyEnd: pair.key.range[1], valueStart: property?.offset ?? pair.value.range[0], valueEnd: pair.value.range[1] })
   }
   return ranges
 }

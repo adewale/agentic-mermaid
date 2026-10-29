@@ -43,7 +43,7 @@ function peerPaintRemainsClear(before: PositionedNode[], nodes: PositionedNode[]
     // bounded constructor as the existing late endpoint repair, on a private
     // copy; a stale marker is not evidence that the new contact has space.
     const projection = { ...edge, points }
-    reanchorOffOutlineEndpoints(nodes, [projection], graph)
+    reanchorOffOutlineEndpoints(nodes, [projection], graph, style)
     points = projection.points
     for (const start of [true, false]) {
       if (!(start ? edge.hasArrowStart : edge.hasArrowEnd)) continue

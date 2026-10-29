@@ -37,10 +37,13 @@ export function recordSourceMapEnds(sourceMap: SourceMap, ends: SourceMapEnds): 
   sourceMapEnds.set(sourceMap, ends)
 }
 
-type MetadataLocations = Map<string, Map<string, { key: { start: SourceLocation; end: SourceLocation }; value: { start: SourceLocation; end: SourceLocation } }>>
-const sourceMapMetadata = new WeakMap<SourceMap, MetadataLocations>()
-export function recordSourceMapMetadata(sourceMap: SourceMap, metadata: MetadataLocations): void {
-  sourceMapMetadata.set(sourceMap, metadata)
+type AuthoredSourceMapSpans = Partial<Pick<SourceMapSpans, 'nodes' | 'edges' | 'groups' | 'labels' | 'metadata'>>
+const authoredSourceMapSpans = new WeakMap<SourceMap, AuthoredSourceMapSpans>()
+
+/** Native parsers may retain exact authored spans through their preparation
+ * receipt instead of recovering them from canonical, trimmed lines. */
+export function recordAuthoredSourceMapSpans(sourceMap: SourceMap, spans: AuthoredSourceMapSpans): void {
+  authoredSourceMapSpans.set(sourceMap, spans)
 }
 
 /** Internal provenance for diagnostics; keep the public SourceMap shape stable. */
@@ -529,20 +532,24 @@ export function attachSourceMapSpans(sourceMap: SourceMap, canonicalSource: stri
     groups: withEnds(mapStatementSpans(sourceMap.groups, lineStarts, positionOf, analysisFor), sourceMap.groups, ends?.groups),
     labels: withEnds(labels, sourceMap.labels, ends?.labels),
   }
-  const metadata = sourceMapMetadata.get(sourceMap)
-  if (metadata?.size) {
-    spans.metadata = new Map()
-    for (const [id, fields] of metadata) {
-      const located = new Map<string, { key: SourceSpan; value: SourceSpan }>()
-      for (const [name, field] of fields) {
-        const keyStart = offsetOf(field.key.start),
-          keyEnd = offsetOf(field.key.end),
-          valueStart = offsetOf(field.value.start),
-          valueEnd = offsetOf(field.value.end)
-        if (keyStart !== undefined && keyEnd !== undefined && valueStart !== undefined && valueEnd !== undefined) located.set(name, { key: sourceSpan(lineStarts, keyStart, keyEnd), value: sourceSpan(lineStarts, valueStart, valueEnd) })
+  const authored = authoredSourceMapSpans.get(sourceMap)
+  if (authored) {
+    const canonicalAt = new Map([...lines].map(([line, authored]) => [authored.start, line]))
+    const authoredLines = physicalLines(authoredSource)
+    for (const category of ['nodes', 'edges', 'groups', 'labels'] as const) {
+      const exact = authored[category]
+      if (!exact) continue
+      spans[category] = exact
+      for (const [key, span] of exact) {
+        const row = authoredLines[span.start.line - 1]
+        const canonicalLine = row && canonicalAt.get(row.start)
+        const canonical = canonicalLine && canonicalLines[canonicalLine - 1]
+        const location = sourceMap[category].get(key)
+        if (canonical && location) sourceMap[category].set(key, { line: canonicalLine, col: location.col + indentationWidth(canonical.text) })
+        else sourceMap[category].delete(key)
       }
-      if (located.size) spans.metadata.set(id, located)
     }
+    if (authored.metadata) spans.metadata = authored.metadata
   }
   sourceMap.spans = spans
   authoredLinesBySourceMap.set(sourceMap, new Map([...lines].map(([canonicalLine, authoredLine]) => [

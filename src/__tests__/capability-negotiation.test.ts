@@ -11,7 +11,7 @@ import {
   resolveRenderRequest,
   resolveRenderRequestForExecution,
 } from '../render-contract.ts'
-import { createExtensionIdentity } from '../shared/extension-identity.ts'
+import { createExtensionIdentity, KNOWN_EXTENSION_CONTRACT_VERSIONS } from '../shared/extension-identity.ts'
 import { resolveStyleStack, STYLE_SPEC_FORMAT_VERSION, validateStyleSpec } from '../scene/style-registry.ts'
 import {
   getFamily,
@@ -25,7 +25,7 @@ import * as publicAgentApi from '../agent/index.ts'
 import { DefaultBackend, knownBackendDescriptors, registerBackend } from '../scene/backend.ts'
 
 const EVIDENCE = 'src/__tests__/capability-negotiation.test.ts'
-const BACKEND_COMPATIBILITY = Object.freeze({ core: '^0.4.0', scene: '^2.0.0' })
+const BACKEND_COMPATIBILITY = Object.freeze({ core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core, scene: '^2.0.0' })
 
 function extensionDescriptor(
   localId: string,
@@ -40,7 +40,7 @@ function extensionDescriptor(
       id,
       kind: 'family',
       version: options.version ?? '1.0.0',
-      compatibility: { core: '^0.4.0' },
+      compatibility: { core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core },
       provenance: { owner: 'capability-negotiation-test', source: 'test' },
     }),
     id,

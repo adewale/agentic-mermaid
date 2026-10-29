@@ -1,5 +1,5 @@
 import { decodeXML } from 'entities'
-import { inspectSvgOnce } from './svg-inspection-cache.ts'
+import { createSvgInspector } from './svg-inspection-cache.ts'
 import { isAsciiXmlNameChar } from './shared/xml-name.ts'
 
 export interface SvgAttributeToken {
@@ -61,8 +61,16 @@ function scanStyleClose(source: string, start: number): number {
  * Final XML admission remains the authority for well-formedness; this scanner
  * only supplies exact attribute/text ranges without ever interpreting text
  * nodes as markup or CSS. */
+const inspectStartTags = createSvgInspector('start-tags', scanSvgStartTagsFresh)
+
 export function scanSvgStartTags(source: string): readonly SvgStartTagToken[] {
-  return inspectSvgOnce('start-tags', source, () => scanStartTags(source)!)
+  return inspectStartTags(source)
+}
+
+/** Private emission custody needs fresh lexical data, rather than a public
+ * inspection-cache entry supplied by another caller. */
+export function scanSvgStartTagsFresh(source: string): readonly SvgStartTagToken[] {
+  return scanStartTags(source)!
 }
 
 /** Constructor checks need the first tag's values, not retained token objects. */

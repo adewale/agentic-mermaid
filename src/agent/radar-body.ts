@@ -38,7 +38,6 @@ import { statementAccessibilityConflicts } from './accessibility-envelope.ts'
 
 // ---- Shared lexical shapes --------------------------------------------------
 
-const HEADER_RE = /^radar-beta\s*:?\s*$/i
 const ID_RE = /^[A-Za-z_](?:[\w-]*[\w])?$/
 const ID_KEYWORDS = new Set(['radar-beta', 'axis', 'curve', 'showLegend', 'ticks', 'max', 'min', 'graticule'])
 // NUMBER, BOOLEAN, GRATICULE and TITLE precede ID in the pinned lexer.
@@ -63,9 +62,8 @@ export function parseRadarBody(lines: string[]): { body: RadarBody; accessibilit
   for (let index = 0; index < lines.length; index = ends[index]! + 1) {
     if (/^\s*acc(?:Title|Descr)\b/i.test(lines[index]!)) return null
   }
-  const sourceLines = lines.some(raw => HEADER_RE.test(raw.trim())) ? lines : ['radar-beta', ...lines]
   try {
-    const chart = parseRadarChart(sourceLines)
+    const chart = parseRadarChart(['radar-beta', ...lines])
     const body: RadarBody = {
       kind: 'radar',
       title: chart.title,

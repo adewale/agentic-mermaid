@@ -49,9 +49,13 @@ from `verify.ok` alone.
 
 ## Directory record
 
+The root `server.json` prepares version `0.5.2`; this metadata change does not
+establish Registry publication. The directory observations below retain their
+recorded dates.
+
 | Directory | Registration input | Recorded status on 2026-07-30 |
 |---|---|---|
-| Official MCP Registry | Root [`server.json`](../server.json) | Active at version `0.4.1` (published to npm and the Registry on 2026-07-31). Root `server.json` carries `0.4.2`, not yet published |
+| Official MCP Registry | Root [`server.json`](../server.json) | Active at version `0.4.1` (published to npm and the Registry on 2026-07-31) |
 | OpenAI Plugins | Endpoint plus canonical fields above | Account-gated submission; tool titles and privacy notice captured in this repository |
 | Claude Connectors Directory | Endpoint plus canonical fields above | Account-gated Team/Enterprise submission; tool titles and privacy notice captured in this repository |
 | Cursor Directory | Repository and endpoint | Not found in directory; account-gated submission remains |

@@ -562,7 +562,7 @@ identified below; this record does not excuse them as opaque preservation.
 | XYChart accTitle after a statement, beside a different one on its own line | **Keep the source and warn (`xychart_accessibility_order`).** | Implemented: a mid-line `accTitle:` or `accDescr` starts its statement, as in Mermaid, and its value reaches the envelope. Where a different value for the same field also stands on its own line, Mermaid keeps whichever comes last; ours draws the one on its own line, the typed body stays opaque and verify warns. Drawing the one written last was removed: 0 of 106,252 real-world diagrams use the construct. |
 | Radar accTitle after a statement, beside a different one on its own line | **Keep the source and warn (`radar_accessibility_order`).** | Implemented: a mid-line `accTitle:` or `accDescr` is read into the envelope, as XYChart's is. Where a directive on its own line gives the same field a different value, Mermaid keeps whichever is written last; ours draws the one on its own line, as in XYChart, the typed body stays opaque and verify warns. Drawing the one written last was removed: 0 of 106,252 real-world diagrams use the construct. |
 | XYChart quoted text with spaces at its ends | **Keep the text silently.** | Implemented: Mermaid trims every XYChart title, axis title and category (`y-axis "  Revenue  "` is `Revenue` upstream). Ours keeps the text inside the quotes as written and writes it quoted, which Mermaid reads trimmed, as it reads the source. |
-| Text that runs across lines | **Keep each line break silently; drop the indentation after it.** | Implemented: Flowchart, Class, State, Mindmap, XYChart, Pie, Quadrant, GitGraph, Architecture and Radar read a quoted string across line breaks, and ER an attribute comment, as do Flowchart and Mindmap shape and link text and a Quadrant point's `[x, y]`, as Mermaid's lexers do. Readers drop the whitespace at each line break (a line's trailing space and the continuation's indentation), which Mermaid keeps, and except in GitGraph and Mindmap they drop a blank line inside the text, which Mermaid keeps too; in Mindmap a last line holding only the closing delimiter adds no line break. Mermaid removes a line starting with `%%` before lexing, even inside text; ours drops it too (verify reports `COMMENT_DROPPED`), except GitGraph and State, which keep it as text, as they keep a `%%` later on a line inside a string. Each writer spells the break as Mermaid reads it back in that family: `<br>` or `<br/>` in Flowchart, Class, State and Mindmap labels, `\n` in Radar, and a line break inside the quotes elsewhere. A State block note drops the blank lines it starts and ends with, as Mermaid does; Mermaid's kept indentation on later lines remains a divergence. |
+| Text that runs across lines | **Keep each line break silently; drop the indentation after it.** | Implemented: Flowchart, Class, State, Mindmap, XYChart, Pie, Quadrant, GitGraph, Architecture and Radar read a quoted string across line breaks, and ER an attribute comment, as do Flowchart and Mindmap shape and link text and a Quadrant point's `[x, y]`, as Mermaid's lexers do. Readers drop the whitespace at each line break (a line's trailing space and the continuation's indentation), which Mermaid keeps, and except in GitGraph and Mindmap they drop a blank line inside the text, which Mermaid keeps too; in Mindmap a last line holding only the closing delimiter adds no line break. Mermaid removes a line starting with `%%` before lexing, even inside text; ours drops it too (verify reports `COMMENT_DROPPED`), except GitGraph and State, which keep it as text, as they keep a `%%` later on a line inside a string. Each writer spells the break as Mermaid reads it back in that family: `<br>` or `<br/>` in Flowchart, Class, State and Mindmap labels, `\n` in GitGraph and Radar, and a line break inside the quotes elsewhere. A State block note drops the blank lines it starts and ends with, as Mermaid does; Mermaid's kept indentation on later lines remains a divergence. |
 | Class members separated by `;` on a block's brace line | **Keep the author's members silently.** | Implemented: Mermaid's member token runs to a brace or line break, so `class A {+x; +y()}` is one method named `x; +y` upstream (and `{+x;}` keeps `x;`). Ours splits members on the line that opens the block at `;`, but not inside `(...)` or at an entity code such as `#59;`, and writes one member per line, which Mermaid reads as the same members. Members on later body lines keep `;` as text, as Mermaid does. |
 | State statements sharing a line | **Read them as Mermaid does, and warn (`state_statements_share_line`).** | Implemented: Mermaid reads `A B` as two states and `A --> B C --> D` as two transitions, and so do we, but authors usually mean one name (mermaid-js/mermaid#2973), so verify says how to write one. |
 | Gantt statements after `;` | **Read each statement and warn (`gantt_semicolon_separator`).** | Implemented: Mermaid ends a task's data, and a dateFormat, axisFormat, tickInterval, includes or excludes value, at `;` and reads what follows as the next task, labelled with the `;` (`Task :a1, …; Task2 :a2, …` is a task `; Task2`), or rejects it when no task follows. Ours reads the next statement as authored (`Task2`) and writes each statement on its own line. A `;` in a task label, a title, a section or a todayMarker's CSS stays text. |
@@ -888,6 +888,40 @@ Kanban labels and implicit identities can contain literal `%%{` text. Writers
 shield percent signs with entity codes in labels and IDs, and with YAML hex
 escapes in metadata strings, including nested records. The text survives both
 preprocessing and native round trips without becoming an init directive.
+
+Kanban metadata retains literal private-marker text such as `ﬂ°°35¶ß`,
+including nested keys and values and YAML-escaped spellings. Mermaid's global
+entity prepass conflates those keys with authored `#35;` codes; Agentic keeps
+their provenance through YAML and shields hashes in portable metadata writes.
+Metadata `label` values interpret authored Mermaid codes (`#35;` displays `#`),
+whereas `set_task_label` takes literal display text. Literal marker text stays
+literal in metadata labels. Keys that collide after restoring authored codes
+are rejected, including nested keys, rather than silently losing an entry.
+Mermaid accepts these portable writes, but its final display decoder can still
+conflate a literal private marker with an entity; Agentic retains the literal
+text rather than reproducing that display loss.
+
+Class namespace atoms beginning with a tilde, such as `~` or `~T~A::B`,
+remain source-preserved: Mermaid's namespace lexer enters its generic state,
+and its namespace DB does not decode an alternative escaped spelling. Tildes
+later in an emitted backtick atom remain writable. A Flowchart style containing
+the exact raw value `border:1px s:::colid red` likewise remains source-preserved:
+Mermaid tokenizes `:::` as a style separator, while accepted backslash or
+whitespace alternatives change the stored value. Portable structural writes
+refuse these cases instead of changing identities or discarding authored style
+text. Version 0.5 retains these three original export restrictions: source-level
+editing keeps the authored identities and style fields, together with their
+portability diagnostics. It does not invent portable IDs or discard unsupported
+fields. The bounded edits, dependency refusals and appended-declaration growth
+are described in [source-level editing](../agent-mutation-policy.md); successful
+editing does not establish portable canonical export.
+
+GitGraph STRING fields use the pinned Langium escape codec, including escaped
+line breaks. Writers shield comment/directive percent signs, entity delimiters
+and preprocessing keywords without changing the decoded field. A physical
+continuation starting with `%%` therefore no longer requires source-only
+admission. This does not extend scene identity admission to control characters
+that cannot be rendered safely.
 
 C4 reads titles and accessibility fields inside boundaries as global metadata
 and warns that Mermaid requires them at document scope. Portable writes move

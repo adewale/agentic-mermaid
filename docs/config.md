@@ -52,6 +52,43 @@ const svg = renderMermaidSVG(source, {
 
 Explicit options win over source-level config when both specify the same supported field. `RenderOptions.onConfigDiagnostic` can collect warnings for explicit config that is unknown, invalid, or has no faithful effect; without a collector, explicit ineffective State config warns through `console.warn` rather than disappearing silently.
 
+## Graphical chart width budgets
+
+Pie and Radar accept opt-in pixel budgets through render options:
+
+```ts
+renderMermaidSVG(pieSource, { pie: { maxWidth: 360 } })
+renderMermaidSVG(radarSource, { radar: { maxWidth: 360 } })
+```
+
+Fitting retains the selected text sizes and complete legend text. It tries at
+most three positioned layouts and draws the selected result once. A diagram
+that already fits keeps its natural layout. Pie may move its default legend
+below the plot; explicit legend placement retains precedence. Radar may move
+its legend below the plot and reduce an unconfigured plot to its readable
+minimum, provided existing visible scale annotations survive; authored
+`radar.width` and `radar.height` retain precedence. Title and legend wrapping
+use at least the unavoidable plot width, so infeasible requests do not force
+text into narrower columns without reducing the diagram width. When an
+indivisible grapheme exceeds the available column, the family retains its
+natural wrapping instead of producing a tall column that still cannot fit.
+Short single-line legends can use two measured columns in a fitted top/bottom
+arrangement. They retain source order, reading across then down, without a
+second text measurement or smaller type. Radar's final radius candidate uses
+the horizontal spoke reach; the search still stops after three layouts.
+
+The result can be taller or remain wider than requested. `verifyMermaid` with
+the same `renderOptions` reports `LAYOUT_LIMIT_EXCEEDED` when the bounded
+policy cannot meet the budget. The options leave terminal cell placement
+unchanged. Omitting them preserves the existing graphical layout.
+
+The live editor's **Fit labels to pane** setting applies these budgets to Pie
+and Radar previews. It is a local preference; measured pane width is not
+written into the diagram or shared configuration. Explicit width budgets win.
+Verification and SVG/PNG exports use the effective options of the retained
+preview, and resizing revokes stale export authority until the new preview is
+ready.
+
 ## YAML frontmatter
 
 ```mermaid

@@ -5,7 +5,7 @@ import { LayoutCertificationError } from './certification-error.ts'
 export { DeferredDependencyError, LayoutCertificationError, type LayoutCertificationAttempt } from './certification-error.ts'
 export { withRenderStageObserver, measureRenderStage, type RenderStage, type RenderStageSample } from '../render-stages.ts'
 
-export const AGENTIC_LAYERED_IMPLEMENTATION = 'agentic-layered@26'
+export const AGENTIC_LAYERED_IMPLEMENTATION = 'agentic-layered@28'
 
 export interface GraphLayoutDecision {
   readonly requested: 'elk' | 'agentic'

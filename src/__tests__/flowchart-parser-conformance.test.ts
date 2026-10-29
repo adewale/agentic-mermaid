@@ -94,6 +94,30 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
     expect(serializeMermaid(parseAgent(serialized))).toBe(serialized)
   })
 
+  test('group direction-like titles retain their text, membership and authored direction on export', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const [source, label, direction, members] of [
+        ['flowchart\nsubgraph direction BT\nb\nend', 'direction BT', undefined, ['b']],
+        ['flowchart TB\n    subgraph A      direction BT\n    a --> b\n      direction RL\n    end', 'A      direction BT', 'RL', ['a', 'b']],
+        ['flowchart TD\nsubgraph Authored[direction BT]\nb\nend', 'direction BT', undefined, ['b']],
+      ] as const) {
+        const diagram = parseAgent(source)
+        const written = serializeMermaid(diagram)
+        expect(await upstream.publicAccepts(written), written).toBe(true)
+        expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'flowchart_subgraph_direction_text' }))
+        for (const input of [source, written]) {
+          const group = parseGraph(input).subgraphs[0]!
+          expect(group.label).toBe(label)
+          expect(group.direction).toBe(direction)
+          expect(group.nodeIds).toEqual([...members])
+        }
+        expect(parseGraph(written).subgraphs[0]!.id).toBe(parseGraph(source).subgraphs[0]!.id)
+        expect(serializeMermaid(parseAgent(written))).toBe(written)
+      }
+    } finally { upstream.close() }
+  })
+
   test('anonymous group IDs reserve authored nodes and containers regardless of declaration order', async () => {
     const declarations = 'subgraph "A--B"\nD[Delta]\nend\nsubgraph "A  B"\nE[Echo]\nend'
     const authored = 'A_B[Important]\nA_B_2[Also important]\nsubgraph A_B_3[Explicit]\nC[Charlie]\nend'
@@ -536,7 +560,7 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
 test('Flowchart style token collisions preserve authored source across all style owners', async () => {
   const upstream = startUpstreamMermaid()
   try {
-    for (const declaration of ['classDef hot stroke-w(idth:4px', 'style A border:1px solid r==>ed', 'linkStyle 0 ==> stroke-width:1px', 'classDef hot font-family:"Quoted"', 'style A label:ndQ backgro/]und:#fff', 'classDef class fill:red', 'class A 1style']) {
+    for (const declaration of ['classDef hot stroke-w(idth:4px', 'style A border:1px solid r==>ed', 'linkStyle 0 ==> stroke-width:1px', 'classDef hot font-family:"Quoted"', 'style A label:ndQ backgro/]und:#fff', 'classDef class fill:red', 'class A 1style', 'classDef exClass background:#bbb,border:1px s:::colid red', 'style A border:::x']) {
       const source = `flowchart LR\nA --> B\n${declaration}\n`
       expect(await upstream.publicAccepts(source)).toBe(false)
       const parsed = parseMermaid(source)

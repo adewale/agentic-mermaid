@@ -177,7 +177,14 @@ export function renderAndVerifyMermaid(source: string, options: RenderOptions = 
 
 function verifyMermaidInternal(input: ParsedDiagram | string, opts: VerifyOptions, shared?: SharedVerificationRender): VerifyResult {
   logToolInvocation('verify')
-  const parsed = typeof input === 'string' ? parseRegisteredMermaid(input) : { ok: true as const, value: input }
+  let parsed: ReturnType<typeof parseRegisteredMermaid>
+  try {
+    parsed = typeof input === 'string' ? parseRegisteredMermaid(input) : { ok: true as const, value: input }
+  } catch (error) {
+    if (!(error instanceof DiagramWorkLimitError)) throw error
+    const failed = finalize([renderFailureWarning(error, () => 'fails')], emptyRenderedLayout(typeof input === 'string' ? 'flowchart' : input.kind), opts, false)
+    return { ...failed, ok: false, checks: { ...failed.checks!, renderability: 'failed' } }
+  }
   // Capture source evidence before any config/layout/render early return.
   // Result branches and diagnostic suppression cannot revoke an observed loss.
   const sourceEvidence = parsed.ok ? [...commentLossWarnings(parsed.value), ...roundtripFaithfulnessWarnings(parsed.value)] : []
@@ -584,6 +591,16 @@ function c4LayoutWarnings(positioned: VerificationArtifact): LayoutWarning[] {
   } // The render-parity gate owns layout failures.
 }
 
+function chartWidthWarnings(family: 'pie' | 'radar', positioned: VerificationArtifact): LayoutWarning[] {
+  try {
+    const chart = positioned()?.positioned as { widthFit?: import('../shared/chart-width.ts').ChartWidthFit } | undefined
+    const fit = chart?.widthFit
+    return fit?.status === 'exceeded' ? [{ code: 'LAYOUT_LIMIT_EXCEEDED', constraint: `${family}.maxWidth`, message: `The requested ${family} width ${fit.maxWidth}px cannot contain the ${fit.width}px artifact within the bounded fitting policy; legend text, selected typography and existing scale annotations are retained.` }] : []
+  } catch {
+    return [] // The render-parity gate owns layout failures.
+  }
+}
+
 function treemapHiddenLabelWarnings(positioned: VerificationArtifact): LayoutWarning[] {
   try {
     const chart = positioned()?.positioned as PositionedTreemap | undefined
@@ -808,7 +825,8 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
               : d.body.kind === 'treemap'
                 ? treemapHiddenLabelWarnings(positioned)
                 : []
-    return finalize(dedupedConcat(dedupedConcat(dedupedConcat(pluginWarnings, familyGeometry), layoutOutcome.warnings), appearanceWarnings), layout, opts)
+    const fittingWarnings = d.body.kind === 'pie' || d.body.kind === 'radar' ? chartWidthWarnings(d.body.kind, positioned) : []
+    return finalize(dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(pluginWarnings, familyGeometry), layoutOutcome.warnings), appearanceWarnings), fittingWarnings), layout, opts)
   }
 
   // State diagrams (BUILD-19): the StateBody projects to a MermaidGraph via the

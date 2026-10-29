@@ -6,7 +6,7 @@ import { parseBlockDiagram } from '../../src/block/parser.ts'
 import { parseC4Diagram } from '../../src/c4/parser.ts'
 import { parseClassDiagram } from '../../src/class/parser.ts'
 import { parseErDiagram } from '../../src/er/parser.ts'
-import { parseGanttModel } from '../../src/gantt/parser.ts'
+import { applyResolvedGanttFrontmatterConfig, parseGanttModel, resolveGanttFrontmatterConfig } from '../../src/gantt/parser.ts'
 import { parseGitGraph } from '../../src/gitgraph/parser.ts'
 import { resolveGitGraphPositionConfig } from '../../src/gitgraph/position.ts'
 import { parseIshikawaDiagram } from '../../src/ishikawa/parser.ts'
@@ -25,7 +25,8 @@ import { resolvedFamilyRenderContextOf, resolvedRenderExecutionPlanOf, resolveRe
 import { parseRequirementDiagram } from '../../src/requirement/parser.ts'
 import { parseSankeyDiagram } from '../../src/sankey/parser.ts'
 import { resolveSequenceConfig } from '../../src/sequence/config.ts'
-import { parseSequenceDiagram } from '../../src/sequence/parser.ts'
+import { authoredSequenceLine, parseSequenceDiagram } from '../../src/sequence/parser.ts'
+import { sequenceFamilySource } from '../../src/sequence/family-source.ts'
 import { type ParserObservation, snapshotParserObservationValue, withParserObservation } from '../../src/shared/parser-observation.ts'
 import { parseTimelineDiagram } from '../../src/timeline/parser.ts'
 import { parseTreemapDiagram } from '../../src/treemap/parser.ts'
@@ -79,8 +80,10 @@ function nativeParserForRequest(family: string, request: ReturnType<typeof resol
         return parseClassDiagram(lines, normalizeMermaidSource(normalized.originalText).familyLines)
       case 'er':
         return withFrontmatterTitle(withAccessibilityFields(parseErDiagram(lines), normalized.accessibility), normalized.frontmatter)
-      case 'gantt':
-        return parseGanttModel(lines)
+      case 'gantt': {
+        const config = (context.familyConfig as { config?: ReturnType<typeof resolveGanttFrontmatterConfig> } | undefined)?.config ?? resolveGanttFrontmatterConfig(undefined)
+        return applyResolvedGanttFrontmatterConfig(parseGanttModel(lines), config)
+      }
       case 'gitgraph': {
         const config = resolveGitGraphPositionConfig(normalized.config.gitGraph, normalized.config.themeVariables)
         return parseGitGraph(normalized.familyBody, { mainBranchName: config.mainBranchName, mainBranchOrder: config.mainBranchOrder })
@@ -97,8 +100,11 @@ function nativeParserForRequest(family: string, request: ReturnType<typeof resol
         return parseRadarChart(normalized.lines)
       case 'sankey':
         return parseSankeyDiagram(normalized.body.split(/\r?\n/))
-      case 'sequence':
-        return parseSequenceDiagram(lines, (context.familyConfig as { sequence?: ReturnType<typeof resolveSequenceConfig> } | undefined)?.sequence ?? {})
+      case 'sequence': {
+        const family = sequenceFamilySource(normalized, 'decoded')
+        const config = (context.familyConfig as { sequence?: ReturnType<typeof resolveSequenceConfig> } | undefined)?.sequence ?? {}
+        return withFrontmatterTitle(withAccessibilityFields(parseSequenceDiagram(family.familyLines, { ...config, authoredLine: authoredSequenceLine(family) }), normalized.accessibility), normalized.frontmatter)
+      }
       case 'timeline':
         return parseTimelineDiagram(lines, normalized.accessibility)
       case 'xychart':

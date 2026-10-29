@@ -56,7 +56,7 @@ export interface SceneWriteWork { readonly scene: SceneDoc; readonly operations:
 
 const ownValue = (value: object, key: string): unknown => {
   const descriptor = Object.getOwnPropertyDescriptor(value, key)
-  return descriptor && 'value' in descriptor ? descriptor.value : undefined
+  return descriptor && Object.hasOwn(descriptor, 'value') ? descriptor.value : undefined
 }
 
 class CapturedSceneWrites {
@@ -125,7 +125,7 @@ export function createSceneWriteCapture(maxOperations: number, options: { fracti
     const result = Object.create(null) as T
     for (const key of keys) {
       const descriptor = Object.getOwnPropertyDescriptor(source, key)
-      if (!descriptor || !('value' in descriptor)) return undefined
+      if (!descriptor || !Object.hasOwn(descriptor, 'value')) return undefined
       Object.defineProperty(result, key, { value: descriptor.value, enumerable: descriptor.enumerable })
     }
     return Object.preventExtensions(result)
@@ -137,7 +137,7 @@ export function createSceneWriteCapture(maxOperations: number, options: { fracti
     if (!pay(4) || Object.getPrototypeOf(node) !== null || !Object.isFrozen(node)) { context.invalidateFractionalCircle(); return false }
     const keys = Object.getOwnPropertyNames(node)
     if (!pay(keys.length * 2)) return false
-    for (const key of keys) if (!('value' in Object.getOwnPropertyDescriptor(node, key)!)) { context.invalidateFractionalCircle(); return false }
+    for (const key of keys) if (!Object.hasOwn(Object.getOwnPropertyDescriptor(node, key)!, 'value')) { context.invalidateFractionalCircle(); return false }
     if (!context.hint(node)) return false
     fractional.add(node)
     return true
@@ -177,7 +177,7 @@ export function createSceneWriteCapture(maxOperations: number, options: { fracti
       if (!pay(4)) return false
       const descriptor = Object.getOwnPropertyDescriptor(paint, field)
       if (!descriptor) { if (field in paint) return false; continue }
-      if (!('value' in descriptor) || descriptor.value !== undefined && (typeof descriptor.value !== 'string' || rectanglePaintFields[field] && descriptor.value.length >= 13)) return false
+      if (!Object.hasOwn(descriptor, 'value') || descriptor.value !== undefined && (typeof descriptor.value !== 'string' || rectanglePaintFields[field] && descriptor.value.length >= 13)) return false
     }
     rectangles.add(node)
     return true
@@ -192,8 +192,9 @@ export function createSceneWriteCapture(maxOperations: number, options: { fracti
       if (!pay(field.length * 2 + 4)) return
       const attribute = field.replace(/[A-Z]/g, char => `-${char.toLowerCase()}`), expected = paint[field]
       const descriptor = Object.getOwnPropertyDescriptor(attributes, attribute)
-      if (descriptor && (!('value' in descriptor) || typeof descriptor.value !== 'string')) conditional = true
-      const actual = descriptor?.value as string | undefined
+      const ownData = !!descriptor && Object.hasOwn(descriptor, 'value')
+      if (descriptor && (!ownData || typeof descriptor.value !== 'string')) conditional = true
+      const actual = ownData ? descriptor.value as string | undefined : undefined
       if (!pay((expected?.length ?? 0) + (actual?.length ?? 0))) return
       if (actual !== expected) conditional = true
       if (descriptor) matched++
@@ -253,7 +254,8 @@ export function createSceneWriteCapture(maxOperations: number, options: { fracti
         if (!pay(routeKeys.length * 3 + 12)) return
         const paintRoute = Object.create(Object.getPrototypeOf(node.route)) as ConnectorNode['route']
         for (const key of routeKeys) {
-          const descriptor = Object.getOwnPropertyDescriptor(node.route, key)!
+          const descriptor = Object.getOwnPropertyDescriptor(node.route, key)
+          if (!descriptor || !Object.hasOwn(descriptor, 'value')) return
           const value = key === 'geometry' ? served : key === 'contours' ? contours : key === 'startTangent' ? first?.startTangent : key === 'endTangent' ? last?.endTangent : descriptor.value
           Object.defineProperty(paintRoute, key, { ...descriptor, value })
         }
@@ -448,7 +450,7 @@ function serializeSceneNode(node: SceneNode, sink?: SvgGeometryWriteSink, observ
       const fresh = Object.create(null) as Geometry
       for (const key of Object.getOwnPropertyNames(written)) {
         const descriptor = Object.getOwnPropertyDescriptor(written, key)
-        if (!descriptor || !('value' in descriptor)) { invalid = true; return }
+        if (!descriptor || !Object.hasOwn(descriptor, 'value')) { invalid = true; return }
         Object.defineProperty(fresh, key, { value: descriptor.value, enumerable: descriptor.enumerable })
       }
       served = Object.preventExtensions(fresh)

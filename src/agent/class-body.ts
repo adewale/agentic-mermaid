@@ -33,10 +33,12 @@ import { classInterfaceSide, createClassInterfaceAllocator } from '../class/inte
 
 import { decodeXML } from 'entities'
 import type { ClassStatementNode } from '../class/parser.ts'
-import { classCommentRejections, classDiagramHasStatement, MERMAID_DIRECTIVE_RE, parseClassBodyAnnotationToken, parseClassMember, parseClassRelationship, readClassStatements, readsAsClassName, supportedRelationEndpoint, withoutStyleComment } from '../class/parser.ts'
+import { classCommentRejections, classDiagramHasStatement, classStatementEnds, MERMAID_DIRECTIVE_RE, parseClassBodyAnnotationToken, parseClassDiagram, parseClassMember, parseClassRelationship, readClassStatements, readsAsClassName, supportedRelationEndpoint, withoutStyleComment } from '../class/parser.ts'
 import { classTextLabel, decodeClassText, hasClassDirectionToken, memberToString, writeClassText } from '../class/text.ts'
 import { toMermaidLines } from '../mermaid-source-wrapper.ts'
-import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
+import { parseAccessibilityDirective, scanAccessibilityDirectives, withAccessibilityFields } from '../shared/accessibility-directives.ts'
+import { normalizeMermaidSource, preservedMermaidFamilySource, withFrontmatterTitle } from '../mermaid-source.ts'
+import { sourceLineStarts, sourcePointAt } from '../shared/source-spans.ts'
 import { prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
 import { mermaidEntityPrepass } from '../shared/mermaid-entities.ts'
 import { compactStyleDeclarations, ownStyleDeclarations, parseMutableStyleProps, parseStyleDeclarations, projectStyleDeclarations, retainedStyleDeclarations, unsafeStylePaintError, type StyleDeclaration } from '../shared/style-props.ts'
@@ -45,6 +47,7 @@ import { labelOverflowCollector } from './body-utils.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 import type { ClassBody, ClassMutationOp, ClassNamespaceDecl, ClassNode, ClassNote, ClassRelation, ClassRelationKind, LayoutWarning, MutationError, Result, VerifyOptions } from './types.ts'
 import { err, ok } from './types.ts'
+import { appendSourceStatement, applySourceEdits, sameSourceMeaning, type SourceEdit } from './source-mutation.ts'
 
 // ---- Parser ---------------------------------------------------------------
 
@@ -116,6 +119,7 @@ function classBodyWriteProblem(body: ClassBody): string | undefined {
     }
   }
   if (body.namespaces?.some(namespace => namespace.label === '')) return 'An explicitly empty Class namespace label has no lossless Mermaid spelling; retain the source without typed editing'
+  if (body.namespaces?.some(namespace => namespaceStartsGeneric(namespace.name.split('.')))) return 'A leading tilde in a Class namespace path segment opens a generic token even inside backticks and has no lossless Mermaid spelling'
   if (body.namespaces?.some(namespace => hasClassDirectionToken(namespace.name))) return 'A Class namespace identity containing a greedy direction token has no lossless Mermaid spelling'
   if (Object.keys(body.classDefDeclarations ?? {}).some(name => !Object.hasOwn(body.classDefs ?? {}, name))) return 'Ordered Class declarations require a matching property record'
   for (const node of body.classes) if (node.styleDeclarations && !node.style) return 'Ordered Class declarations require a matching property record'
@@ -429,6 +433,13 @@ function quoteDirectiveTarget(id: string): string {
   return /^[\w$]+$/.test(id) ? id : `\`${id}\``
 }
 
+/** The writer quotes each non-identifier path atom separately. At the first
+ * content character, Mermaid's wildcard ~ rule precedes bqstring content;
+ * otherwise [^`]+ consumes the whole atom, including any later tildes. */
+function namespaceStartsGeneric(segments: readonly string[]): boolean {
+  return segments.some(segment => quoteDirectiveTarget(segment).startsWith('`~'))
+}
+
 /** Emit one class declaration (+ optional member block) at an indent depth. */
 function pushClassLines(lines: string[], c: ClassNode, indent: string, deferredMembers: string[]): void {
   if (c.isInterface) return
@@ -678,6 +689,98 @@ export function mutateClass(body: ClassBody, op: ClassMutationOp): Result<ClassB
   // relation order after removal/addition, retaining authored labels and boxes.
   const canonical = parseClassBody(renderClass(next).trimEnd().split('\n').slice(1))
   return canonical ? ok(canonical) : err({ code: 'INVALID_OP', message: 'Class edit could not retain its lollipop interface occurrences in Mermaid source' })
+}
+
+interface ClassSourceMember {
+  node: ClassStatementNode
+  text?: string
+  field?: 'attributes' | 'methods'
+  index: number
+}
+
+/** Address the authored member sequence, including annotations, before
+ * projecting its interleaved members into the native attribute/method lists. */
+function classMemberSourceEdit(source: string, id: string, index: number, target: ReturnType<typeof parseClassDiagram>['classes'][number]): Result<{ edit: SourceEdit; field: 'attributes' | 'methods'; index: number }, MutationError> {
+  const refuse = (): Result<never, MutationError> => err({ code: 'INVALID_OP', message: 'Member removal requires an unambiguous authored member owning one complete physical line without comments or directives' })
+  const payload = preservedMermaidFamilySource(normalizeMermaidSource(source), 'authored')
+  if (payload.text.includes('\r')) return refuse()
+  const lines = payload.text.split('\n'), scanned = scanAccessibilityDirectives(lines, classStatementEnds(lines))
+  const tree = readClassStatements(scanned.familyLines, undefined, false)
+  if (scanned.unclosedIndex !== undefined || tree.diagnostics.length) return refuse()
+  const members: ClassSourceMember[] = [], counts = { attributes: 0, methods: 0 }
+  const add = (node: ClassStatementNode, text?: string): void => {
+    if (text === undefined) { members.push({ node, index: -1 }); return }
+    const parsed = parseClassMember(decodeXML(text))
+    if (!parsed) { members.push({ node, text, index: -1 }); return }
+    const field = parsed.isMethod ? 'methods' : 'attributes'
+    members.push({ node, text, field, index: counts[field]++ })
+  }
+  const frames: Array<{ nodes: readonly ClassStatementNode[]; owner?: string; index: number }> = [{ nodes: tree.statements, index: 0 }]
+  while (frames.length) {
+    const frame = frames.at(-1)!
+    if (frame.index === frame.nodes.length) { frames.pop(); continue }
+    const node = frame.nodes[frame.index++]!, value = node.value
+    if (value.kind === 'class') {
+      if (value.declaration.id === id && value.declaration.annotation !== undefined) add(node)
+      if (node.children) frames.push({ nodes: node.children, owner: value.declaration.id, index: 0 })
+    } else if (value.kind === 'namespace') frames.push({ nodes: node.children!, index: 0 })
+    else if (value.kind === 'member' && (value.reference?.id ?? frame.owner) === id) add(node, value.text)
+    else if (value.kind === 'body-annotation' && frame.owner === id || value.kind === 'annotation' && value.annotation.id === id) add(node)
+  }
+  if (!Number.isInteger(index) || index < 0 || index >= members.length) return err({ code: 'MEMBER_NOT_FOUND', message: `member index ${index} out of range` })
+  if (counts.attributes !== target.attributes.length || counts.methods !== target.methods.length
+    || members.some(member => member.field && !sameSourceMeaning(parseClassMember(decodeXML(member.text!))?.member, target[member.field][member.index]))) return refuse()
+  const selected = members[index]!, field = selected.field
+  if (!field) return refuse()
+  const rowIndex = selected.node.source.line - 1, row = scanned.familyLines[rowIndex]!
+  const familyStarts = sourceLineStarts(scanned.familyLines.join('\n'))
+  if (selected.node.source.end !== familyStarts[rowIndex]! + row.length || selected.node.raw.trim() !== row.trim() || selected.node.text !== row.trim()) return refuse()
+  const payloadRow = scanned.familyOrigins[rowIndex]!, payloadStart = sourceLineStarts(payload.text)[payloadRow]!
+  const start = payload.sourceOffset(payloadStart, 'end'), end = payload.sourceOffset(payloadStart + lines[payloadRow]!.length, 'start')
+  const authoredStarts = sourceLineStarts(source), authoredRow = sourcePointAt(authoredStarts, start).line - 1
+  const lineStart = authoredStarts[authoredRow]!, lineEnd = authoredStarts[authoredRow + 1] ?? source.length
+  const content = source.slice(lineStart, lineEnd).replace(/\r\n$|[\r\n]$/, '')
+  if (start !== lineStart || end !== lineStart + content.length || decodeXML(content).includes('%%')) return refuse()
+  return ok({ edit: { start: lineStart, end: lineEnd, text: '' }, field, index: selected.index })
+}
+
+/** Edit owned member source while retaining every unrelated native field. */
+export function mutateClassSource(source: string, op: ClassMutationOp): Result<readonly SourceEdit[], MutationError> {
+  if (op.kind !== 'add_member' && op.kind !== 'remove_member') return err({ code: 'INVALID_OP', message: 'Source-preserving Class edits support add_member and owned whole-line remove_member only' })
+  const read = (text: string) => {
+    const normalized = normalizeMermaidSource(text, {}, 'render')
+    // Without a distinct authored grammar, the native reader already uses
+    // each semantic statement as its own quote provenance.
+    return withFrontmatterTitle(withAccessibilityFields(parseClassDiagram(normalized.familyLines, normalized.authoredFamilyLines), normalized.accessibility), normalized.frontmatter)
+  }
+  try {
+    const before = read(source), target = before.classes.find(node => node.id === op.class)
+    if (!target) return err({ code: 'CLASS_NOT_FOUND', message: `class ${op.class} not found` })
+    if (target.isInterface) return err({ code: 'INVALID_OP', message: 'An interface occurrence has no class member compartment' })
+    let edits: readonly SourceEdit[], expected = before
+    if (op.kind === 'add_member') {
+      const invalid = validateClassMembers([op.text])
+      if (invalid) return err(invalid)
+      const member = parseClassMember(op.text)
+      if (parseClassBodyAnnotationToken(op.text.trim()) !== null || !member?.member.name.trim()) return err({ code: 'INVALID_OP', message: 'Source-preserving add_member requires an attribute or method, not an annotation or empty member' })
+      const field = member.isMethod ? 'methods' : 'attributes'
+      expected = { ...before, classes: before.classes.map(node => node === target ? { ...node, [field]: [...node[field], member.member] } : node) }
+      // Reopening retains the original namespace claim; `ID : member` cannot
+      // address every quoted identity (notably IPC::Sender).
+      edits = appendSourceStatement(source, `class ${quoteIfNeeded(target.id)} {\n  ${op.text}\n}`)
+    } else {
+      const removal = classMemberSourceEdit(source, op.class, op.index, target)
+      if (!removal.ok) return removal
+      const { field, index, edit } = removal.value
+      expected = { ...before, classes: before.classes.map(node => node === target ? { ...node, [field]: node[field].filter((_, at) => at !== index) } : node) }
+      edits = [edit]
+    }
+    const candidate = applySourceEdits(source, edits)
+    if (!sameSourceMeaning(read(candidate), expected)) return err({ code: 'INVALID_OP', message: 'The source edit would change Class meaning beyond the requested member' })
+    return ok(edits)
+  } catch (error) {
+    return err({ code: 'INVALID_OP', message: error instanceof Error ? error.message : String(error) })
+  }
 }
 
 function mutateClassBody(body: ClassBody, op: ClassMutationOp): Result<ClassBody, MutationError> {
@@ -969,6 +1072,10 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
       if (value.kind === 'class' && value.declaration.label === '' || value.kind === 'namespace' && value.label === '') warnings.push({
         code: 'UNSUPPORTED_SYNTAX', syntax: 'class_empty_label', line: header + 1 + node.source.line,
         message: 'An explicitly empty Class label is retained for native rendering. Pinned Mermaid requires nonempty label text, so typed editing is unavailable rather than replacing the label with its identity.',
+      })
+      if (value.kind === 'namespace' && namespaceStartsGeneric(value.path)) warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'class_namespace_generic', line: header + 1 + node.source.line,
+        message: 'A leading tilde in a Class namespace path segment opens Mermaid generic syntax even inside backticks. Entity codes change the identity; source and native rendering are preserved without typed editing.',
       })
       if (value.kind === 'style') for (const reference of value.references) if (!writableInlineStyleTarget(reference.id)) warnings.push({
         code: 'UNSUPPORTED_SYNTAX', syntax: 'class_style_target', line: header + 1 + node.source.line,

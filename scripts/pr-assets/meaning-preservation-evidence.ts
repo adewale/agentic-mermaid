@@ -27,8 +27,10 @@ interface Fixture {
   source: string
   cue: string
   renderOptions?: RenderOptions
+  baselineRenderOptions?: RenderOptions
   pngWidth?: number
   pngScale?: number
+  previewMaxWidth?: number
   measurementProfile?: 'nonadditive-tracking'
   captureLayout?: true
   classMutation?: ClassMutationOp
@@ -85,7 +87,111 @@ const stableRepresentativeCues = {
     'Seven components occupy four authored composite groups, including nested Delivery/Persistence inside a two-column Gateway plane span, two empty cells and durable queue/store artwork. Follow six complete labeled connections; Batch enters Ingress from the west while Enqueue leaves south, preserving distinct physical contacts.',
 } as const
 const ownershipGoldenIds = new Set(['corpus/flowchart/94', 'corpus/flowchart/95', 'corpus/flowchart/96', 'corpus/flowchart/98', 'corpus/state/0', 'corpus/state/1', 'corpus/state/8', 'corpus/state/14', 'corpus/state/16', 'corpus/state/17', 'corpus/state/18', 'corpus/state/19'])
+const lineageSource = `flowchart TD
+  subgraph MermaidFamily[Mermaid lineage]
+    Mermaid[Mermaid.js]
+    Beautiful[Beautiful Mermaid]
+    Dart[Mermaid Dart]
+    Agentic[Agentic Mermaid]
+    Zombie[Zombie Mermaid]
+    ASCII[Mermaid ASCII]
+    Mermaid -->|derivative| Beautiful
+    Mermaid -->|Dart port| Dart
+    Beautiful -->|fork| Agentic
+    Beautiful -->|fork| Zombie
+    ASCII -.->|ASCII component port| Beautiful
+  end
+  subgraph OtherEngines[Other implementation lineages]
+    Pele[Pele]
+    Ondine[Ondine]
+    Bezel[Bezel]
+    Franken[Frankenmermaid]
+    Pele -->|Rust port| Ondine
+    Pele -->|port| Bezel
+  end`
+const lineagePublication: RenderOptions = {
+  style: ['publication-figure', 'nord-light', {
+    font: 'Inter',
+    roles: {
+      node: { fontSize: 18, fontWeight: 600, fillColor: '#fffdf8', borderColor: '#7891a6', textColor: '#233448' },
+      edge: { fontSize: 14, strokeColor: '#5e81ac', textColor: '#456079' },
+      group: { fontSize: 15, fontWeight: 700, borderColor: '#a3b4c3' },
+    },
+  }],
+}
+const chartFittingFixtures: Array<{ id: string; title: string; family: 'pie' | 'radar'; source: string; cue: string }> = [
+  {
+    id: "chart-fit-pie-long",
+    title: "Pie: long upstream legend labels",
+    family: "pie",
+    source: "---\ndescription: >-\n  Pie diagram with unusually long slice-label text (\"Time spent looking for\n  movie\", \"Time spent watching it\") to verify long labels don't overflow or\n  clip in the legend/chart.\n---\npie title NETFLIX\n  \"Time spent looking for movie\": 90\n  \"Time spent watching it\": 10",
+    cue: "Inspect both complete activity labels and their values in a 360px host; fitting retains selected type instead of scaling the natural side legend with the whole SVG. Pinned source: https://github.com/mermaid-js/mermaid/blob/1fb7869866dd619168d840291c9c54b4f129758b/e2e/diagrams/pie/nightly-check/should-render-a-simple-pie-diagram-with-long-labels.mmd#L1"
+  },
+  {
+    id: "chart-fit-pie-palette",
+    title: "Pie: twelve upstream palette entries",
+    family: "pie",
+    source: "---\ndescription: >-\n  Twelve-slice pie chart under the \"redux-color\" redux colour theme, exercising\n  the full categorical palette scale (including wrap-around past the base colour\n  count) rather than just the first few slices.\nconfig:\n  theme: redux-color\n---\npie title Slice palette\n  \"Alpha\" : 20\n  \"Bravo\" : 16\n  \"Charlie\" : 14\n  \"Delta\" : 12\n  \"Echo\" : 10\n  \"Foxtrot\" : 8\n  \"Golf\" : 7\n  \"Hotel\" : 6\n  \"India\" : 3\n  \"Juliett\" : 2\n  \"Kilo\" : 1\n  \"Lima\" : 1",
+    cue: "Inspect all twelve swatch/value associations in source order across then down. The natural baseline predates width fitting; short legends pack while the plot and selected type retain their sizes. Pinned source: https://github.com/mermaid-js/mermaid/blob/1fb7869866dd619168d840291c9c54b4f129758b/e2e/diagrams/pie/nightly-check/redux-color-theme.mmd#L1"
+  },
+  {
+    id: "chart-fit-radar-restaurants",
+    title: "Radar: four upstream restaurant curves",
+    family: "radar",
+    source: "radar-beta\n  title Restaurant Comparison\n  axis food[\"Food Quality\"], service[\"Service\"], price[\"Price\"]\n  axis ambiance[\"Ambiance\"]\n\n  curve a[\"Restaurant A\"]{4, 3, 2, 4}\n  curve b[\"Restaurant B\"]{3, 4, 3, 3}\n  curve c[\"Restaurant C\"]{2, 3, 4, 2}\n  curve d[\"Restaurant D\"]{2, 2, 4, 3}\n\n  graticule polygon\n  max 5",
+    cue: "Inspect Food Quality, Service, Price and Ambiance, all four distinct curves and complete series labels. Packed rows must retain each swatch/series association. Pinned source: https://github.com/mermaid-js/mermaid/blob/1fb7869866dd619168d840291c9c54b4f129758b/docs/syntax/radar.md#L62"
+  },
+  {
+    id: "chart-fit-radar-grades",
+    title: "Radar: six upstream subject axes",
+    family: "radar",
+    source: "---\ntitle: \"Grades\"\n---\nradar-beta\n  axis m[\"Math\"], s[\"Science\"], e[\"English\"]\n  axis h[\"History\"], g[\"Geography\"], a[\"Art\"]\n  curve a[\"Alice\"]{85, 90, 80, 70, 75, 90}\n  curve b[\"Bob\"]{70, 75, 85, 80, 90, 85}\n\n  max 100\n  min 0",
+    cue: "Inspect all six subject axes, Alice/Bob series and the authored 0–100 domain. The horizontal-spoke estimate fits this 360px budget within the family candidate bound. Pinned source: https://github.com/mermaid-js/mermaid/blob/1fb7869866dd619168d840291c9c54b4f129758b/docs/syntax/radar.md#L34"
+  },
+  {
+    id: "chart-fit-radar-long-axes",
+    title: "Radar: explicit long-label derivative",
+    family: "radar",
+    source: "radar-beta\n  title Frontend framework selection for a long-lived international product portfolio\n  axis perf[\"Runtime performance under sustained and bursty demand\"], dx[\"Developer experience during debugging and refactoring\"], eco[\"Ecosystem integration and long-term library availability\"]\n  axis learn[\"Ease of learning for a team with mixed experience\"], docs[\"Documentation quality across maintenance workflows\"]\n\n  curve react[\"React: large-team ecosystem and integration baseline\"]{4, 4, 5, 3, 4}\n  curve vue[\"Vue: gradual adoption and maintainability baseline\"]{4, 5, 4, 4, 5}\n  curve svelte[\"Svelte: compile-time optimisation and application baseline\"]{5, 5, 3, 4, 4}\n\n  graticule polygon\n  max 5\n  min 0",
+    cue: "Labeled derivative: expands title, five axis labels and three curve labels while retaining upstream IDs, order and distinct values. Inspect complete text and any naturally visible tick annotations. This deliberately infeasible 360px input may exceed the budget; do not treat a scaled review image as a fit. Pinned source: https://github.com/mermaid-js/mermaid/blob/1fb7869866dd619168d840291c9c54b4f129758b/packages/examples/src/examples/radar.ts#L26"
+  },
+]
 const fixtures: Fixture[] = [
+  ...(['default', 'publication'] as const).map(style => ({
+    id: `flowchart-lineage-${style}`,
+    title: `Issue #566: exact lineage diagram, ${style} styling`,
+    source: lineageSource,
+    renderOptions: style === 'publication' ? lineagePublication : {},
+    captureLayout: true as const, pngWidth: 1800,
+    cue: 'Exact ten-project source from #566, with the same source and options before and after. Inspect derivative clear of Mermaid.js, the straight shaft behind its Beautiful Mermaid arrowhead, port clear of Pele, mirrored Ondine/Bezel emissions with level captions, and distinct solid derivative/dotted ASCII component port terminals into Beautiful Mermaid. The publication pair uses the issue’s full Nord/Inter role overrides. The existing relationship-readability tests check this same lineage under both styles; these finite pairs do not establish arbitrary-graph readability.',
+  })),
+  ...([undefined, 'excalidraw'] as const).flatMap(style => chartFittingFixtures.map(fixture => ({
+    ...fixture, id: fixture.id + '-' + (style ?? 'default'),
+    renderOptions: { style, [fixture.family]: { maxWidth: 360 } },
+    baselineRenderOptions: { style },
+    captureLayout: true as const, pngScale: 1, previewMaxWidth: 360,
+  }))),
+  {
+    id: 'flowchart-grouped-wide-captions',
+    title: 'Grouped fan-out captions keep the sibling connector visible',
+    source: 'flowchart TD\nsubgraph G[Group]\nA -->|A very long alpha caption| B\nA -->|A very long beta caption| C\nend',
+    renderOptions: { style: 'publication-figure' }, captureLayout: true,
+    cue: 'Inspect the alpha caption below A: both outgoing shafts remain visible, both captions are level, and their halos stay inside the group. The owning readability test checks endpoint clearance and foreign-shaft masking. This two-leaf witness does not prove every crowded group has a feasible symmetric fork.',
+  },
+  {
+    id: 'flowchart-thick-terminal-shaft',
+    title: 'Thick arrowhead sits completely on its straight terminal',
+    source: 'flowchart LR\nA[Source] ==> C[Target]\nB[Other source] -.-> C',
+    renderOptions: { style: 'publication-figure' }, captureLayout: true,
+    cue: 'Inspect the thick arrow into Target: its complete marker stroke clears the rounded corner. Source/target identities, the thick solid edge and the dotted sibling are unchanged. The owning test measures actual marker support and straight shaft; this image alone does not establish all marker or route styles.',
+  },
+  {
+    id: 'flowchart-invisible-join',
+    title: 'An invisible layout link cannot license a visible bus relationship',
+    source: 'flowchart LR\nB ~~~ D\nA --> C\nB --> C\nA --> D',
+    captureLayout: true,
+    cue: 'Follow B only to C, and A to both C and D. The layout-only B-to-D link must not acquire a visible connection through opposing shared bus ink. The owning bundle tests preserve the valid all-solid complete join and reject invisible or differently painted inferred relationships. Ordinary crossings remain allowed; this is not a claim of universal crossing-free routing.',
+  },
   {
     id: 'flowchart-curved-port-diagonal',
     title: 'Curved-node Flowchart survives chain alignment',
@@ -212,6 +318,15 @@ const fixtures: Fixture[] = [
       : sample.family === 'flowchart'
       ? 'Inspect the complete subgraph membership after earlier references, with unchanged authored edges. Added members change container sizes and placement; this is an intentional topology correction.'
       : 'Inspect one contextual start/end per scope, all authored transitions, and separate concurrent regions. Generated endpoint names now include the region; unchanged names are not a paint contract.',
+  })),
+  ...corpusSamples.filter(sample => sample.id === 'corpus/flowchart/98').map(sample => ({
+    id: 'flowchart-98-publication',
+    title: 'Docs flowchart 98: publication-styled compound rank reconnection',
+    source: sample.source,
+    renderOptions: { style: 'publication-figure' } satisfies RenderOptions,
+    captureLayout: true as const,
+    pngWidth: 1400,
+    cue: 'The baseline refuses this exact source and style with link-rank-reconnect: outside->top2; its error is the honest before state. After, inspect all five nodes, both groups and four directed relationships, including the exterior approach into top2. The raw compound contacts and long-link gap remain protected; machine-roundoff seams no longer discard the safe retained route. This fixture does not establish general compound routing completeness.',
   })),
   {
     id: "compat-flowchart-membership",
@@ -1209,6 +1324,10 @@ const fixtureOptions = Object.fromEntries(
       {
         svg,
         png: { ...svg, background: svg.transparent ? '#00000000' : '#ffffff', ...(fixture.pngWidth ? { fitTo: { width: fixture.pngWidth } } : {}), ...(fixture.pngScale !== undefined ? { scale: fixture.pngScale } : {}) },
+        ...(fixture.baselineRenderOptions ? { baseline: {
+          svg: { security: 'strict' as const, ...fixture.baselineRenderOptions },
+          png: { security: 'strict' as const, ...fixture.baselineRenderOptions, background: fixture.baselineRenderOptions.transparent ? '#00000000' : '#ffffff', ...(fixture.pngWidth ? { fitTo: { width: fixture.pngWidth } } : {}), ...(fixture.pngScale !== undefined ? { scale: fixture.pngScale } : {}) },
+        } } : {}),
         ...(fixture.measurementProfile ? { measurementProfile: { kind: fixture.measurementProfile, ...measurementProfiles[fixture.measurementProfile] } } : {}),
       },
     ]
@@ -1221,6 +1340,7 @@ interface Evidence {
   source?: string
   edit?: unknown
   error?: string
+  requestedOptionsError?: string
 }
 interface TerminalEvidence {
   ascii?: string
@@ -1248,7 +1368,8 @@ function renderRevision(sha: string): RevisionEvidence {
       import { createMermaidRenderer } from './src/index.ts'
       import { renderMermaidASCIIWithMeta } from './src/ascii/meta.ts'
       const fixtures = ${JSON.stringify(fixtures)}
-      const fixtureOptions = ${JSON.stringify(fixtureOptions)}
+      const requestedFixtureOptions = ${JSON.stringify(fixtureOptions)}
+      const fixtureOptions = { ...requestedFixtureOptions }
       const renders = {}
       const terminals = {}
       for (const fixture of fixtures) {
@@ -1283,6 +1404,15 @@ function renderRevision(sha: string): RevisionEvidence {
               ...(reloaded.value.body.kind === 'er' ? { reloadedEntityOrder: reloaded.value.body.entities.map(entity => entity.id) } : {}),
             }
           }
+          let requestedOptionsError
+          if (${JSON.stringify(sha === base)} && fixture.baselineRenderOptions) {
+            try { renderMermaidSVG(input, requestedFixtureOptions[fixture.id].svg) }
+            catch (error) {
+              if (!/unknown render option "(?:pie|radar)"/.test(String(error))) throw error
+              requestedOptionsError = String(error)
+              fixtureOptions[fixture.id] = requestedFixtureOptions[fixture.id].baseline
+            }
+          }
           const measurement = fixtureOptions[fixture.id].measurementProfile
           const host = measurement ? { textMeasurement: {
             id: measurement.id, version: measurement.version,
@@ -1291,6 +1421,7 @@ function renderRevision(sha: string): RevisionEvidence {
           renders[fixture.id] = {
             svg: host ? createMermaidRenderer(host).renderMermaidSVG(input, fixtureOptions[fixture.id].svg) : renderMermaidSVG(input, fixtureOptions[fixture.id].svg),
             png: Buffer.from(host ? createMermaidPNGRenderer(host).renderMermaidPNG(input, fixtureOptions[fixture.id].png) : renderMermaidPNG(input, fixtureOptions[fixture.id].png)).toString('base64'),
+            ...(requestedOptionsError ? { requestedOptionsError } : {}),
             ...(fixture.classMutation || fixture.mutation ? { source: input } : {}),
             ...(edit ? { edit } : {}),
             ...(fixture.captureLayout ? { layout: layoutMermaidWithReceipt(input, { ...fixtureOptions[fixture.id].svg, regions: true }).layout } : {}),
@@ -1346,17 +1477,19 @@ const rows = fixtures
         if (result.source) writeFileSync(join(out, `${fixture.id}-${phase}-export.mmd`), result.source)
         if (result.edit) writeFileSync(join(out, `${fixture.id}-${phase}-edit.json`), JSON.stringify(result.edit, null, 2))
         const semanticSidecar = result.layout ? `<p><a href="${fixture.id}-${phase}-layout.json">${phase} public layout identities and regions</a></p>` : ''
+        const unsupportedBaseline = result.requestedOptionsError ? `<p>The new option is unsupported at this baseline: <code>${esc(result.requestedOptionsError)}</code>. The image is its natural-layout control using the baseline options below.</p>` : ''
         const editSidecar = result.edit ? `<p><a href="${fixture.id}-${phase}-edit.json">${phase} typed and reloaded edit facts/order</a></p><pre>${esc(JSON.stringify(result.edit, null, 2))}</pre>` : ''
         const exportedSource = result.source ? `<p><a href="${fixture.id}-${phase}-export.mmd">${phase} exported Mermaid source</a></p><pre>${esc(result.source)}</pre>` : ''
         return `<figure${fixture.renderOptions?.transparent ? ' class="transparent"' : ''}><figcaption>${phase}</figcaption>${
-          result.png ? `<img alt="${phase}: ${esc(fixture.title)}" src="data:image/png;base64,${result.png}">` : `<pre>${esc(result.error ?? 'No render')}</pre>`
-        }${semanticSidecar}${editSidecar}${exportedSource}</figure>`
+          result.png ? `<img${fixture.previewMaxWidth ? ` style="width:auto;max-width:min(100%,${fixture.previewMaxWidth}px)"` : ''} alt="${phase}: ${esc(fixture.title)}" src="data:image/png;base64,${result.png}">` : `<pre>${esc(result.error ?? 'No render')}</pre>`
+        }${unsupportedBaseline}${semanticSidecar}${editSidecar}${exportedSource}</figure>`
       })
       .join('')
     const optionsCaption =
-      (fixture.renderOptions ? `<p>Render options at both revisions: <code>${esc(JSON.stringify(fixture.renderOptions))}</code>.</p>` : '') +
+      (revisions.before.renders[fixture.id]?.requestedOptionsError ? `<p>Baseline control options: <code>${esc(JSON.stringify(fixture.baselineRenderOptions))}</code>. Current options: <code>${esc(JSON.stringify(fixture.renderOptions))}</code>. The authored source and Look are unchanged; the baseline has no width-fitting capability.</p>` : fixture.renderOptions ? `<p>Render options at both revisions: <code>${esc(JSON.stringify(fixture.renderOptions))}</code>.</p>` : '') +
       (fixture.pngWidth ? `<p>PNG previews are scaled to ${fixture.pngWidth}px wide at both revisions; SVG and layout sidecars retain native geometry.</p>` : '') +
       (fixture.pngScale !== undefined ? `<p>PNG scale at both revisions: ${fixture.pngScale}.</p>` : '') +
+      (fixture.previewMaxWidth ? `<p>Review host: ${fixture.previewMaxWidth}px; smaller diagrams retain natural size and wider diagrams scale down.</p>` : '') +
       (fixture.measurementProfile ? `<p>Host measurement profile at both revisions: <code>${esc(JSON.stringify({ kind: fixture.measurementProfile, ...measurementProfiles[fixture.measurementProfile] }))}</code>. The callback is bound through the public renderer constructors.</p>` : '')
     const mutation = fixture.classMutation ?? fixture.mutation
     const mutationCaption = mutation ? `<p>${fixture.classMutation ? 'Class edit' : 'Edit'} at both revisions: <code>${esc(JSON.stringify(mutation))}</code>.</p>` : ''
@@ -1380,7 +1513,7 @@ const terminalRows = terminalFixtures
 for (const phase of ['before', 'after'] as const) writeFileSync(join(out, `class-export-${phase}.mmd`), revisions[phase].classExport)
 writeFileSync(
   join(out, 'review.html'),
-  `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Diagram meaning: before and after</title><style>body{font:16px/1.5 system-ui;margin:40px auto;padding:0 24px;max-width:1100px;color:#222;background:white}.pair{display:grid;grid-template-columns:1fr 1fr;gap:24px}section{border-top:1px solid #ddd;margin-top:32px}figure{margin:0}figcaption{font-weight:bold}img{display:block;width:100%;height:auto}figure.transparent img{background-color:white;background-image:conic-gradient(#ddd 25%,transparent 0 50%,#ddd 0 75%,transparent 0);background-size:16px 16px}pre{white-space:pre-wrap;background:#f6f6f6;padding:16px}@media(max-width:700px){.pair{grid-template-columns:1fr}}</style><h1>Diagram meaning: before and after</h1><p>Baseline SHA: <code>${base}</code><br>Head SHA: <code>${head}</code></p><p>Same sources and render options at both revisions, with strict security and bundled PNG fonts. Default style and opaque PNGs use a white background unless a fixture states otherwise; explicit options are shown beside that fixture and recorded in receipt.json. Captions identify repair witnesses, host-measurement stress profiles and artwork-preservation controls. Historical fixtures and the final Class export may already be fixed at this baseline; only the displayed outputs establish a difference between these revisions. Focused witnesses do not prove all-layout or cross-platform visual parity.</p>${rows}<section><h2>Class export after deleting A</h2><p>Compare the serialized result after deleting A: class B should remain and the empty namespace should be omitted.</p><div class="pair"><pre>${esc(revisions.before.classExport)}</pre><pre>${esc(revisions.after.classExport)}</pre></div></section></html>`,
+  `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Diagram meaning: before and after</title><style>body{font:16px/1.5 system-ui;margin:40px auto;padding:0 24px;max-width:1100px;color:#222;background:white}.pair{display:grid;grid-template-columns:1fr 1fr;gap:24px}section{border-top:1px solid #ddd;margin-top:32px}figure{margin:0}figcaption{font-weight:bold}img{display:block;width:100%;height:auto}figure.transparent img{background-color:white;background-image:conic-gradient(#ddd 25%,transparent 0 50%,#ddd 0 75%,transparent 0);background-size:16px 16px}pre{white-space:pre-wrap;background:#f6f6f6;padding:16px}@media(max-width:700px){.pair{grid-template-columns:1fr}}</style><h1>Diagram meaning: before and after</h1><p>Baseline SHA: <code>${base}</code><br>Head SHA: <code>${head}</code></p><p>Same sources, with strict security and bundled PNG fonts. Per-revision render options are shown explicitly; a new unsupported option may use a natural-layout baseline control beside its real option error. Default style and opaque PNGs use a white background unless a fixture states otherwise; explicit options are shown beside that fixture and recorded in receipt.json. Captions identify repair witnesses, host-measurement stress profiles and artwork-preservation controls. Historical fixtures and the final Class export may already be fixed at this baseline; only the displayed outputs establish a difference between these revisions. Focused witnesses do not prove all-layout or cross-platform visual parity.</p>${rows}<section><h2>Class export after deleting A</h2><p>Compare the serialized result after deleting A: class B should remain and the empty namespace should be omitted.</p><div class="pair"><pre>${esc(revisions.before.classExport)}</pre><pre>${esc(revisions.after.classExport)}</pre></div></section></html>`,
 )
 writeFileSync(
   join(out, 'terminal-review.html'),
@@ -1399,6 +1532,10 @@ writeFileSync(
       terminalOptions: { ascii: { colorMode: 'none', useAscii: true }, unicode: { colorMode: 'html', useAscii: false } },
       options: { security: 'strict', style: 'default unless fixtureOptions overrides it', fonts: 'bundled' },
       fixtureOptions,
+      baselineOptionRefusals: Object.fromEntries(fixtures.flatMap(fixture => {
+        const error = revisions.before.renders[fixture.id]?.requestedOptionsError
+        return error ? [[fixture.id, error]] : []
+      })),
     },
     null,
     2,

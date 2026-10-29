@@ -12,7 +12,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
 import { extname, join, normalize } from 'node:path'
 import { deflateRawSync, inflateRawSync } from 'node:zlib'
-import { chromium, type Browser, type Page } from 'playwright'
+import { chromium, type Browser, type Page, type Route } from 'playwright'
 import '../src/scene/builtin-backends.ts'
 import { PNG_DEFAULT_SCALE } from '../src/png-contract.ts'
 import { getFamily, knownBuiltinFamilies } from '../src/agent/families.ts'
@@ -248,6 +248,52 @@ describe('editor and site interactions in a real browser', () => {
       expect(await page.locator('#runtime-recovery').isVisible()).toBe(false)
     } finally { await page.close() }
   }, 60_000)
+
+  test.each(['disabled', 'replaced'] as const)('a failed fitting download respects a %s request', async transition => {
+    const page = await browser.newPage({ viewport: { width: 1100, height: 900 } })
+    const source = 'pie title Delivery\n"Complete": 6\n"Remaining": 4'
+    const held: Route[] = []
+    let started!: () => void
+    let failImports = false
+    const importing = new Promise<void>(resolve => { started = resolve })
+    try {
+      await wrapAdapter(page, 'prepareEditorRenderOptions', `function(original) { return function() {
+        window.__fittingPreparations = (window.__fittingPreparations || 0) + 1;
+        return Promise.resolve(original.apply(this, arguments)).finally(function() { window.__fittingSettled = true; });
+      }; }`)
+      await page.goto(`${base}/editor/?empty=1`)
+      await page.locator('#code-editor').fill(source)
+      await waitForVerifiedRender(page)
+      await page.route('**/editor/runtime/**', route => {
+        if (failImports) return route.abort()
+        held.push(route)
+        started()
+      })
+      await page.locator('#settings-btn').click()
+      await page.locator('#cfg-fit-labels').check()
+      await importing
+      if (transition === 'disabled') {
+        await page.locator('#cfg-fit-labels').uncheck()
+        await page.waitForFunction(() => document.getElementById('status-text')?.textContent === 'OK'
+          && !!document.getElementById('preview-inner')?.dataset.sharedRequestDigest)
+      } else {
+        await page.locator('#code-editor').fill(source + '\n"Current": 1')
+        await page.waitForFunction(() => (window as any).__fittingPreparations >= 2)
+      }
+      failImports = true
+      await Promise.all(held.map(route => route.abort()))
+      await page.waitForFunction(() => (window as any).__fittingSettled)
+      if (transition === 'disabled') {
+        expect(await page.locator('#status-text').textContent()).toBe('OK')
+        expect(await page.locator('#runtime-recovery').isVisible()).toBe(false)
+        expect(await page.locator('#export-svg-btn').isEnabled()).toBe(true)
+      } else {
+        await page.waitForFunction(() => document.getElementById('status-text')?.textContent === 'Error')
+        expect(await page.locator('#runtime-recovery').isVisible()).toBe(true)
+        expect(await page.locator('#export-svg-btn').isEnabled()).toBe(false)
+      }
+    } finally { await page.close() }
+  })
 
   test.each([1280, 390])('reload recovery at %i px preserves unverified edits and settings without browser storage', async width => {
     let retired = false, documents = 0

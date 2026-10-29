@@ -1,3 +1,4 @@
+import { PACKAGE_VERSION } from '../version.ts'
 /**
  * Stable role vocabulary shared by every Scene backend.  Built-in roles keep
  * their existing rendering policy, while extensions must use a namespace
@@ -187,7 +188,7 @@ export const SCENE_ROLE_DESCRIPTORS: readonly SceneRoleDescriptor[] = Object.fre
       id: `role:${role}`,
       kind: 'role',
       version: '1.0.0',
-      compatibility: { core: '^0.4.0', scene: '^2.0.0' },
+      compatibility: { core: PACKAGE_VERSION, scene: '^2.0.0' },
       provenance: { owner: 'agentic-mermaid', source: 'built-in', reference: 'src/scene/roles.ts' },
     }),
     role: role as BuiltinSceneRole,

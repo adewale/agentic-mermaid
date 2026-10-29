@@ -1,6 +1,5 @@
 import type { Point, PositionedGraph } from '../types.ts'
 import type { RenderedLayout } from '../agent/types.ts'
-import type { ResolvedRenderStyle } from '../styles.ts'
 import { LABEL_PILL_PADDING, LABEL_INTERIOR_TOLERANCE as INTERIOR_TOLERANCE, segmentEntersLabelRect, labelRect } from '../shared/edge-label-geometry.ts'
 import { calculatePathMidpoint } from './geometry.ts'
 
@@ -41,7 +40,7 @@ function overlappingInteriors(a: Rect, b: Rect): boolean {
  */
 export function measureLabelConflicts(
   positioned: Pick<PositionedGraph, 'nodes' | 'edges'>,
-  style: ResolvedRenderStyle,
+  style: Parameters<typeof labelRect>[1],
   involved?: ReadonlySet<number>,
 ): LabelConflictCounts {
   const labels = positioned.edges.flatMap((edge, index) => {

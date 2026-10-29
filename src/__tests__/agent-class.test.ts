@@ -3,11 +3,13 @@
 import { describe, expect, test } from 'bun:test'
 import { decodeHTML } from 'entities'
 import { classUnsupportedSyntaxWarnings } from '../agent/class-body.ts'
-import { applyOps, asClass, mutate, mutateChecked, parseRegisteredMermaid as parseMermaid, renderMermaidSVG, renderMermaidASCII, serializeMermaid, verifyMermaid, synthesizeFromGraph } from '../agent/index.ts'
+import { applyOps, asClass, mutate, mutateChecked, mutatePreservingSource, parseRegisteredMermaid as parseMermaid, renderMermaidSVG, renderMermaidASCII, serializeMermaid, verifyMermaid, synthesizeFromGraph } from '../agent/index.ts'
 import { renderMermaidSVG as renderSourceSVG, renderMermaidSVGWithReceipt, renderMermaidASCII as renderSourceASCII } from '../index.ts'
 import type { ClassBody, ClassMutationOp } from '../agent/types.ts'
 import { parseClassDiagram } from '../class/parser.ts'
 import { decodedSvgAttributeValue, scanSvgStartTags, type SvgStartTagToken } from '../svg-structure.ts'
+import { normalizeMermaidSource, withFrontmatterTitle } from '../mermaid-source.ts'
+import { withAccessibilityFields } from '../shared/accessibility-directives.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 // Independent consumer projection: Mermaid resolves DB markers in HTML.
@@ -22,6 +24,105 @@ const parse = (s: string) => {
   if (!r.ok) throw new Error('parse: ' + JSON.stringify(r.error))
   return r.value
 }
+
+describe('class — explicit source-preserving member edits', () => {
+  const native = (source: string) => {
+    const normalized = normalizeMermaidSource(source, {}, 'render')
+    return withFrontmatterTitle(withAccessibilityFields(parseClassDiagram(normalized.familyLines, normalized.authoredFamilyLines ?? normalized.familyLines), normalized.accessibility), normalized.frontmatter)
+  }
+
+  test.each([
+    ['classDiagram\nnamespace `~`{class `P`}', 'P'],
+    ['classDiagram\nnamespace `~` {class P; class Q}\nP --> Q : Keep relation\nclick P href "https://example.com" "Keep tooltip"', 'P'],
+    ['classDiagram\nnamespace `~T~A::B` {\n\tclass `IPC::Sender`\n}', 'IPC::Sender'],
+    ['classDia&#103;ram\nnamespace `~` {\nclass P["Keep &amp;amp; label"]\n}', 'P'],
+    ['classDiagram\nnamespace `~` {\nclass P\n}\nclick P href "https://example.com" "Keep &quot;tooltip&quot;"', 'P'],
+    ['---\r\ntitle: Delivery\r\n---\r\n%% keep wrapper\r\nclassDiagram\r\naccTitle: Classes\r\ndirection LR\r\nnamespace `~`["Keep group"] {\r\nclass P["Keep label"] {\r\n+String name\r\n}\r\n}\r\nclass Q\r\nP --> Q : Keep relation\r\nnote for P "Keep note"\r\nclass P:::hot\r\nclassDef hot fill:#f96\r\nstyle P stroke:#333\r\nclick P href "https://example.com" "Keep tooltip"\r\n', 'P'],
+  ] as const)('preserves original bytes and every unrelated native field in %s', (source, id) => {
+    const original = parse(source)
+    expect(original.body.kind).toBe('opaque')
+    const originalJson = JSON.stringify(original)
+    const before = native(source)
+    const first = mutatePreservingSource(original, { kind: 'add_member', class: id, text: '+read()' })
+    if (!first.ok) throw new Error(first.error.message)
+    expect(first.value.source.startsWith(source)).toBe(true)
+    expect(first.value.diagram.body.kind).toBe('opaque')
+    expect(serializeMermaid(first.value.diagram)).toBe(first.value.source)
+    const expected = { ...before, classes: before.classes.map(node => node.id === id ? { ...node, methods: [...node.methods, { visibility: '+' as const, name: 'read', type: undefined, isStatic: false, isAbstract: false, isMethod: true, params: undefined }] } : node) }
+    expect(native(first.value.source)).toEqual(expected)
+    const second = mutatePreservingSource(first.value.diagram, { kind: 'add_member', class: id, text: '+ready()' })
+    if (!second.ok) throw new Error(second.error.message)
+    expect(second.value.source.startsWith(first.value.source)).toBe(true)
+    expect(serializeMermaid(parse(second.value.source))).toBe(second.value.source)
+    expect(native(second.value.source).classes.find(node => node.id === id)?.methods.map(member => member.name)).toEqual(['read', 'ready'])
+    const third = mutatePreservingSource(second.value.diagram, { kind: 'add_member', class: id, text: '+int count' })
+    if (!third.ok) throw new Error(third.error.message)
+    expect(third.value.source.startsWith(second.value.source)).toBe(true)
+    const secondMeaning = native(second.value.source)
+    expect(native(third.value.source)).toEqual({ ...secondMeaning, classes: secondMeaning.classes.map(node => node.id === id ? { ...node, attributes: [...node.attributes, { visibility: '+' as const, name: 'count', sourceText: '+int count', type: 'int', isStatic: false, isAbstract: false, isMethod: false }] } : node) })
+    const syntaxes = (diagram: typeof original) => verifyMermaid(diagram).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX').map(warning => warning.syntax)
+    expect(syntaxes(second.value.diagram)).toEqual(syntaxes(original))
+    expect(renderSourceSVG(second.value.source)).toContain('ready()')
+    expect(renderSourceASCII(second.value.source)).toContain('ready()')
+    expect(renderMermaidSVG(second.value.diagram)).toBe(renderSourceSVG(second.value.source))
+    expect(renderMermaidASCII(second.value.diagram)).toBe(renderSourceASCII(second.value.source))
+    expect(mutate(original, { kind: 'add_member', class: id, text: '+read()' }).ok).toBe(false)
+    expect(JSON.stringify(original)).toBe(originalJson)
+  })
+
+  test('refuses unsupported operations, annotations and structural injection atomically', () => {
+    const original = parse('classDiagram\nnamespace `~` {\nclass P\n}\nP --() API')
+    const unchanged = JSON.stringify(original)
+    for (const op of [
+      { kind: 'remove_class', id: 'P' },
+      { kind: 'remove_member', class: 'P', index: 0 },
+      { kind: 'add_member', class: 'missing', text: '+read()' },
+      { kind: 'add_member', class: 'interface0', text: '+read()' },
+      { kind: 'remove_member', class: 'interface0', index: 0 },
+      ...['<<interface>>', '+read()\nclass Injected', 'x}\nclass Injected {', 'x} class Injected {', 'x&#125; class Injected {', '%%{init: {}}%%', '%&percnt;{init: {"theme":"dark"}}%%', 'accTitle: Changed', ''].map(text => ({ kind: 'add_member', class: 'P', text })),
+    ]) expect(mutatePreservingSource(original, op).ok).toBe(false)
+    expect(JSON.stringify(original)).toBe(unchanged)
+    const ordinary = parse('classDiagram\nclass A')
+    const editable = mutate(ordinary, { kind: 'add_member', class: 'A', text: '+read()' })
+    expect(editable.ok && editable.value.body.kind).toBe('class')
+  })
+
+  test('removes the addressed whole-line member in authored order across attributes, methods, annotations and reopened classes', () => {
+    const source = '---\r\ntitle: Keep\r\n---\r\nclassDiagram\r\nnamespace `~` {\r\nclass P {\r\n<<service>>\r\n  +int first\r\n  +read()\r\n  +int second\r\n}\r\n}\r\n%% Keep this comment\r\nclass P {\r\n  +read()\r\n}\r\n'
+    const original = parse(source), before = native(source)
+    const removed = mutatePreservingSource(original, { kind: 'remove_member', class: 'P', index: 3 })
+    if (!removed.ok) throw new Error(removed.error.message)
+    expect(removed.value.source).toBe(source.replace('  +int second\r\n', ''))
+    const target = before.classes.find(node => node.id === 'P')!
+    expect(native(removed.value.source)).toEqual({ ...before, classes: before.classes.map(node => node === target ? { ...node, attributes: node.attributes.slice(0, 1) } : node) })
+    const repeated = mutatePreservingSource(removed.value.diagram, { kind: 'remove_member', class: 'P', index: 3 })
+    if (!repeated.ok) throw new Error(repeated.error.message)
+    expect(repeated.value.source).toBe(removed.value.source.replace('class P {\r\n  +read()\r\n}', 'class P {\r\n}'))
+    expect(native(repeated.value.source).classes.find(node => node.id === 'P')?.methods.map(member => member.name)).toEqual(['read'])
+    const appended = mutatePreservingSource(repeated.value.diagram, { kind: 'add_member', class: 'P', text: '+ready()' })
+    if (!appended.ok) throw new Error(appended.error.message)
+    const reverted = mutatePreservingSource(appended.value.diagram, { kind: 'remove_member', class: 'P', index: 3 })
+    if (!reverted.ok) throw new Error(reverted.error.message)
+    expect(native(reverted.value.source)).toEqual(native(repeated.value.source))
+    expect(reverted.value.source).toContain('%% Keep this comment\r\n')
+    expect(renderMermaidSVG(reverted.value.diagram)).toBe(renderSourceSVG(reverted.value.source))
+    expect(renderMermaidASCII(reverted.value.diagram)).toBe(renderSourceASCII(reverted.value.source))
+  })
+
+  test.each([
+    ['class P {+read()}', 0],
+    ['class P {\n+read() }', 0],
+    ['class P {\n<<service>>\n+read()\n}', 0],
+    ['class P {\n+int first&#10;+read()\n}', 1],
+    ['class P\nP : +read() %% Keep comment', 0],
+    ['class P {\n+read()\n}', 0.5],
+  ] as const)('refuses member deletion without exclusive authored line ownership in %s', (declaration, index) => {
+    const source = `classDiagram\nnamespace \`~\` {\n${declaration}\n}`
+    const original = parse(source), unchanged = JSON.stringify(original)
+    expect(mutatePreservingSource(original, { kind: 'remove_member', class: 'P', index }).ok).toBe(false)
+    expect(JSON.stringify(original)).toBe(unchanged)
+  })
+})
 
 describe('class — parse', () => {
   test('classDiagram-v2 uses the native Class reader, editing and output paths', async () => {

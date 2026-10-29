@@ -118,7 +118,7 @@ export function drawNative(
     documentClose: () => leaf(marks.documentClose()),
     group(fields) {
       const submittedChildren = Object.getOwnPropertyDescriptor(fields, 'children')
-      if (!submittedChildren || !('value' in submittedChildren)) emission.uncertain()
+      if (!submittedChildren || !Object.hasOwn(submittedChildren, 'value')) emission.uncertain()
       const { children: inputChildren, ...shellFields } = fields
       const submitted = emission.parts(inputChildren, SCENE_VALIDATION_LIMITS.maxNodes)
       const childParts: Array<{ readonly node: Fragment; readonly indent: number }> = []
@@ -128,7 +128,7 @@ export function drawNative(
         // Read each caller wrapper only once. The same owned node+indent pair
         // supplies both retained ancestry and actual SVG composition.
         const nodeField = Object.getOwnPropertyDescriptor(child, 'node'), indentField = Object.getOwnPropertyDescriptor(child, 'indent')
-        if (!nodeField || !('value' in nodeField) || !indentField || !('value' in indentField)) emission.uncertain()
+        if (!nodeField || !Object.hasOwn(nodeField, 'value') || !indentField || !Object.hasOwn(indentField, 'value')) emission.uncertain()
         const entry = Object.freeze({ node: child.node, indent: child.indent })
         childParts.push(entry)
         if (!ownedFragments.has(entry.node)) emission.uncertain()
@@ -166,7 +166,7 @@ export function drawNative(
   // Late getters cannot substitute a different document after serialization.
   for (const field of ['parts', 'family', 'width', 'height', 'colors', 'transparent'] as const) {
     const descriptor = Object.getOwnPropertyDescriptor(document, field)
-    if (!descriptor || !('value' in descriptor)) emission.uncertain()
+    if (!descriptor || !Object.hasOwn(descriptor, 'value')) emission.uncertain()
   }
   const parts = emission.parts(document.parts, SCENE_VALIDATION_LIMITS.maxNodes)
   for (const part of parts) if (!ownedFragments.has(part)) emission.uncertain()

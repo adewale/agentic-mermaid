@@ -1,3 +1,4 @@
+import { dependencyArrowMarker, dependencyStrokeWidth } from './dependency-paint.ts'
 import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import { type PixelTextBlock, pixelTextLine, preparePixelText } from '../shared/prepared-text.ts'
 // ============================================================================
@@ -501,7 +502,7 @@ export function lowerGanttDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContex
         role: 'edge',
         geometry: { kind: 'path', d, points },
         lineStyle: 'solid',
-        paint: critical ? { stroke: palette.criticalStroke, strokeWidth: String(Math.max(1.8, style.lineWidth * 1.5)) } : { stroke: palette.edgeStroke, strokeWidth: String(Math.max(1.2, style.lineWidth)) },
+        paint: critical ? { stroke: palette.criticalStroke, strokeWidth: String(dependencyStrokeWidth(style.lineWidth, true)) } : { stroke: palette.edgeStroke, strokeWidth: String(dependencyStrokeWidth(style.lineWidth, false)) },
         markers: { mid: [], end: dependencyMarkers.find(marker => marker.id === markerId) },
         endpoints: { from: fromKey, to: toKey },
         relationship: { kind: dep.kind, direction: 'forward' },
@@ -588,18 +589,6 @@ export function lowerGanttDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContex
  *  derived from semantic layout content, never from render order or RNG. */
 function ganttNamespace(layout: GanttLayoutResult): string {
   return `gantt-${hashId(layout.width, layout.height, ...layout.bars.map(b => `${b.taskIndex}:${b.id ?? b.label}`), ...layout.dependencies.map(d => `${d.fromTaskIndex}>${d.toTaskIndex}:${d.kind}`))}`
-}
-
-function dependencyArrowMarker(id: string, color: string): MarkerDescriptor {
-  return {
-    id,
-    shape: 'arrow',
-    size: { width: 8, height: 7 },
-    ref: { x: 8, y: 3.5 },
-    orient: 'auto',
-    geometry: { kind: 'path', d: 'M0,0 L8,3.5 L0,7 Z' },
-    paint: { fill: color },
-  }
 }
 
 /** Stable task key for connector data attributes: the Mermaid task id when

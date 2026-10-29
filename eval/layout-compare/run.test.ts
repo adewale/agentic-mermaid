@@ -1,10 +1,15 @@
 import { expect, test } from 'bun:test'
-import { snapshotSample, compareSample, buildReportHtml, buildSnapshot, summarizeComparisonsByFamily } from './run.ts'
+import { existsSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { snapshotSample, compareSample, compareSnapshots, buildReportHtml, buildSnapshot, summarizeComparisonsByFamily, type SampleResult } from './run.ts'
 import { generatedFlowchartSamples } from './generated.ts'
 import { parseRegisteredMermaid } from '../../src/agent/index.ts'
 import { withRenderStageObserver } from '../../src/render-stages.ts'
 import { getFamily, replaceFamilyForTest } from '../../src/agent/families.ts'
 import { apiFailure } from './outcomes.ts'
+import { useTempDirs } from '../../src/__tests__/helpers/temp-dir.ts'
+
+const temporary = useTempDirs('layout-report-admission-')
 
 test.each([true, false])('quality capture attempts both public APIs when debug-only failure=%s', failDebug => {
   const family = getFamily('flowchart'), calls: boolean[] = []
@@ -90,6 +95,108 @@ test('a crossing improvement cannot hide added bends, route length or area', () 
   expect(comparison.verdict).toBe('regression')
   expect(comparison.notes.some(note => note.startsWith('polyline bends:'))).toBe(true)
   expect(comparison.notes.some(note => note.startsWith('canvas area:'))).toBe(true)
+  const backend = compareSample({ ...before, metrics }, after, 'backend')
+  expect(backend.verdict).toBe('improvement')
+  expect(backend.notes).toEqual(comparison.notes)
+  const conflicting = { ...after, metrics: { ...after.metrics, labelConflicts: { total: 1, labelLabel: 1, labelNode: 0, labelEdge: 0 } } }
+  expect(compareSample({ ...before, metrics }, conflicting, 'backend').verdict).toBe('regression')
+  expect(compareSample(after, { ...after, metrics: { ...after.metrics, edgeCount: 0 } }, 'backend').verdict).toBe('regression')
+  expect(compareSample(after, { ...after, metrics: { ...after.metrics, routeGeometry: undefined } }, 'backend').verdict).toBe('regression')
+})
+
+test('backend reports require the same clean revision and authored inputs without hiding missing samples', () => {
+  const sample = snapshotSample({ id: 'identity', family: 'flowchart', source: 'flowchart TD\nA --> B' }, 'identity-')
+  const common = { label: 'review', rev: 'a'.repeat(40), dirty: false, createdAt: '2026-10-28T00:00:00Z', samples: [sample] }
+  const before = { ...common, renderOptions: { graphLayout: { backend: 'elk' as const } } }
+  const after = { ...common, renderOptions: { graphLayout: { backend: 'agentic' as const } } }
+  expect(compareSnapshots(before, after, 'backend')[0]!.verdict).toBe('unchanged')
+  expect(compareSnapshots(before, { ...after, samples: [] }, 'backend')[0]!.verdict).toBe('status-changed')
+  expect(() => compareSnapshots(before, { ...after, rev: 'b'.repeat(40) }, 'backend')).toThrow('immutable revision')
+  expect(() => compareSnapshots(before, { ...after, dirty: true }, 'backend')).toThrow('immutable revision')
+  expect(() => compareSnapshots(before, before, 'backend')).toThrow('different backends')
+  expect(() => compareSnapshots(before, { ...after, renderOptions: { ...after.renderOptions, nodeSpacing: 1 } }, 'backend')).toThrow('render options differ')
+  expect(() => compareSnapshots(before, { ...after, samples: [sample, sample] }, 'backend')).toThrow('duplicate sample')
+  expect(() => compareSnapshots(before, { ...after, samples: [{ ...sample, source: 'flowchart TD\nA --> C' }] }, 'backend')).toThrow('inputs differ')
+  expect(buildReportHtml(before, after, 'backend')).toContain('Bends, route length and canvas area remain visible tradeoffs')
+})
+
+test('report admission rejects malformed compared metrics before support or tradeoff verdicts', () => {
+  const sample = snapshotSample({ id: 'admission', family: 'flowchart', source: 'flowchart TD\nA --> B' }, 'admission-', {}, { includeAscii: false })
+  expect(sample.ok).toBe(true)
+  const metrics = sample.metrics!
+  const malformed = [
+    { ...sample, metrics: undefined },
+    { ...sample, svg: undefined },
+    { ...sample, ok: 'true' },
+    ...[null, '0', false, NaN, Infinity, -1, 0.5].map(edgeCrossings => ({ ...sample, metrics: { ...metrics, edgeCrossings } })),
+    ...[-0.01, 1.01].map(labelLegibility => ({ ...sample, metrics: { ...metrics, labelLegibility } })),
+    { ...sample, metrics: { ...metrics, nodeCount: -1 } },
+    { ...sample, metrics: { ...metrics, edgeCount: 0.5 } },
+    { ...sample, metrics: { ...metrics, labelConflicts: null } },
+    { ...sample, metrics: { ...metrics, labelConflicts: { ...metrics.labelConflicts, total: null } } },
+    { ...sample, metrics: { ...metrics, routeOverlaps: { parallel: 0, opposing: null } } },
+    { ...sample, metrics: { ...metrics, routeGeometry: { ...metrics.routeGeometry, bends: -1 } } },
+    { ...sample, metrics: { ...metrics, routeGeometry: { ...metrics.routeGeometry, length: Infinity } } },
+    { ...sample, metrics: { ...metrics, routeGeometry: { ...metrics.routeGeometry, area: -1 } } },
+    { ...sample, metrics: { ...metrics, labelMeasurement: { measuredNodes: 2 } } },
+  ] as SampleResult[]
+  const declined = { ...sample, ok: false, metrics: undefined, error: 'declined' }
+  for (const invalid of malformed) for (const mode of ['revision', 'backend'] as const) {
+    expect(() => compareSample(sample, invalid, mode)).toThrow('Invalid layout comparison')
+    expect(() => compareSample(invalid, declined, mode)).toThrow('Invalid layout comparison')
+    expect(() => compareSample(declined, invalid, mode)).toThrow('Invalid layout comparison')
+  }
+  // These auxiliary measurements legitimately use Infinity (null in JSON),
+  // unavailable contrast, or negative overlap spacing. They do not drive this report.
+  const serialized = JSON.parse(JSON.stringify({ ...sample, metrics: { ...metrics,
+    labelEdgeProximity: Infinity, aspectRatio: Infinity, minimumTextContrast: null, minimumNodeSpacing: -1,
+    labelConflicts: undefined, routeOverlaps: undefined, routeGeometry: undefined, labelMeasurement: undefined,
+  } })) as SampleResult
+  expect(compareSample(serialized, serialized).verdict).toBe('unchanged')
+})
+
+test('label measurement loss cannot hide behind unchanged perfect legibility', () => {
+  const sample = snapshotSample({ id: 'label-coverage', family: 'flowchart', source: 'flowchart TD\nA --> B' }, 'label-coverage-', {}, { includeAscii: false })
+  expect(sample.ok).toBe(true)
+  const metrics = sample.metrics!, coverage = metrics.labelMeasurement
+  // Older JSON records omit this observation rather than carrying an undefined field.
+  const missing = JSON.parse(JSON.stringify({ ...sample, metrics: { ...metrics, labelMeasurement: undefined } })) as SampleResult
+  const loss = compareSample(sample, missing, 'backend'), gain = compareSample(missing, sample, 'backend')
+  expect({ verdict: loss.verdict, notes: loss.notes }).toEqual({ verdict: 'regression', notes: ['labelMeasurement: measurement lost'] })
+  expect({ verdict: gain.verdict, notes: gain.notes }).toEqual({ verdict: 'changed', notes: ['labelMeasurement: measurement gained; geometry not compared'] })
+  for (const group of [
+    ['measuredNodes', 'unmeasuredNodes'], ['measuredEdges', 'unmeasuredEdges'], ['measuredLabels', 'unmeasuredLabels'],
+  ] as const) {
+    const beforeCoverage = { ...coverage, [group[0]]: 1, [group[1]]: 0 }
+    const before = { ...sample, metrics: { ...metrics, labelMeasurement: beforeCoverage } }
+    const after = { ...sample, metrics: { ...metrics, labelMeasurement: { ...beforeCoverage, [group[0]]: 0, [group[1]]: 1 } } }
+    expect(compareSample(before, after, 'backend').verdict).toBe('regression')
+    expect(compareSample(after, before, 'backend').verdict).toBe('changed')
+  }
+  for (const visibility of ['hiddenNodes', 'semanticNodes'] as const) {
+    const changed = { ...sample, metrics: { ...metrics, labelMeasurement: { ...coverage, measuredNodes: coverage.measuredNodes - 1, [visibility]: 1 } } }
+    expect(compareSample(sample, changed, 'backend').verdict).toBe('regression')
+  }
+})
+
+test('report CLI rejects empty and malformed JSON populations without writing a clean report', () => {
+  const sample = snapshotSample({ id: 'cli-admission', family: 'flowchart', source: 'flowchart TD\nA --> B' }, 'cli-admission-', {}, { includeAscii: false })
+  expect(sample.ok).toBe(true)
+  const common = { label: 'admission', rev: 'a'.repeat(40), dirty: false, createdAt: '2026-10-28T00:00:00Z' }
+  const before = { ...common, renderOptions: { graphLayout: { backend: 'elk' } }, samples: [sample] }
+  const after = { ...common, renderOptions: { graphLayout: { backend: 'agentic' } }, samples: [sample] }
+  const directory = temporary.dir()
+  for (const [index, pair] of [
+    [{ ...before, samples: [] }, { ...after, samples: [] }],
+    [before, { ...after, samples: [{ ...sample, metrics: { ...sample.metrics, edgeCrossings: null } }] }],
+  ].entries()) {
+    const left = join(directory, `before-${index}.json`), right = join(directory, `after-${index}.json`), out = join(directory, `report-${index}.html`)
+    writeFileSync(left, JSON.stringify(pair[0])); writeFileSync(right, JSON.stringify(pair[1]))
+    const child = Bun.spawnSync([process.execPath, new URL('./run.ts', import.meta.url).pathname, 'report', '--before', left, '--after', right, '--comparison', 'backend', '--out', out], { timeout: 10_000 })
+    expect(child.exitCode).not.toBe(0)
+    expect(new TextDecoder().decode(child.stderr)).toContain('Invalid layout comparison')
+    expect(existsSync(out)).toBe(false)
+  }
 })
 
 test.each(['labelConflicts', 'routeOverlaps', 'routeGeometry'] as const)('losing %s measurement stays adverse and gaining it does not claim a geometry win', dimension => {

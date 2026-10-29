@@ -149,7 +149,9 @@ diamonds) — which forced shape-aware clipping for the entire catalog
   enter at the top"). Ours: ELK feedbackEdges + loop tightening exits the
   exact S/N port and enters the target's side midpoint.
 - **Fan-in merges** — bar: ELK layered convergence. Ours: same-target edges
-  may converge exactly collinearly at the shared port (single arrowhead).
+  may converge exactly collinearly at the shared port (single arrowhead)
+  when they paint identically and at most one is labelled; distinguishable
+  relationships keep separate arrowheads (#566).
 
 ## Appendix B: competitive findings (condensed)
 

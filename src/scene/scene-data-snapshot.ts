@@ -111,7 +111,7 @@ export function snapshotBoundedExternalData(
           throw new TypeError(`External Scene ${path} must be a plain array`)
         }
         const lengthDescriptor = Reflect.getOwnPropertyDescriptor(candidate, 'length')
-        if (!lengthDescriptor || !('value' in lengthDescriptor)
+        if (!lengthDescriptor || !Object.hasOwn(lengthDescriptor, 'value')
           || typeof lengthDescriptor.value !== 'number'
           || !Number.isSafeInteger(lengthDescriptor.value) || lengthDescriptor.value < 0) {
           throw new TypeError(`External Scene ${path}.length must be a non-negative integer data property`)
@@ -151,7 +151,7 @@ export function snapshotBoundedExternalData(
         for (let index = 0; index < length; index++) {
           const descriptor = descriptors.get(String(index))
           if (!descriptor) throw new TypeError(`External Scene ${path} must not be sparse`)
-          if (!('value' in descriptor) || !descriptor.enumerable) {
+          if (!Object.hasOwn(descriptor, 'value') || !descriptor.enumerable) {
             throw new TypeError(`External Scene ${path}[${index}] must be an enumerable data property`)
           }
           snapshot[index] = visit(descriptor.value, depth + 1, `${path}[${index}]`)
@@ -196,7 +196,7 @@ export function snapshotBoundedExternalData(
           throw new TypeError(`External Scene ${path}.${key} must be an enumerable data property`)
         }
         let captured: unknown
-        if ('value' in descriptor) captured = descriptor.value
+        if (Object.hasOwn(descriptor, 'value')) captured = descriptor.value
         else {
           captured = materializeOwnTerminalProjection(candidate, key, descriptor)
           if (captured === undefined) throw new TypeError(`External Scene ${path}.${key} must be an enumerable data property`)

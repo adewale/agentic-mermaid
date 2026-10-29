@@ -286,6 +286,16 @@ function markerBoundsAt(
   }
 }
 
+/** Axial support at unit carrier width, using the same geometry, reference,
+ * viewBox, marker scale and stroked envelope as painted marker queries. */
+export function markerTerminalDepth(marker: MarkerDescriptor, position: 'start' | 'end'): number {
+  const angle = typeof marker.orient === 'number' ? marker.orient
+    : position === 'start' && marker.orient === 'auto-start-reverse' ? 180 : 0
+  const bounds = markerBoundsAt(marker, { x: 0, y: 0 }, 1, true, angle)
+  if (!bounds) throw new TypeError(`Unmeasured terminal marker ${marker.id}`)
+  return Math.max(0, position === 'start' ? bounds.x1 : -bounds.x0)
+}
+
 export interface ConnectorMarkerPaintRegion {
   position: 'start' | 'mid' | 'end'
   resource: string
@@ -297,7 +307,12 @@ export interface ConnectorMarkerPaintRegion {
 }
 
 /** Individual marker occurrences from the native connector authority. */
-export function connectorMarkerPaintRegions(node: Pick<ConnectorMark, 'route' | 'stroke' | 'markers' | 'transform'>, parentTransform?: SceneTransform, servedContours?: readonly ConnectorContourSemantics[]): ConnectorMarkerPaintRegion[] {
+export function connectorMarkerPaintRegions(node: {
+  route: Pick<ConnectorMark['route'], 'geometry' | 'closed' | 'contours'>
+  stroke: Pick<ConnectorMark['stroke'], 'width'>
+  markers: ConnectorMark['markers']
+  transform?: SceneTransform
+}, parentTransform?: SceneTransform, servedContours?: readonly ConnectorContourSemantics[]): ConnectorMarkerPaintRegion[] {
   const geometry = node.route.geometry, endpoints = servedContours ? { starts: servedContours.map(contour => contour.start), ends: servedContours.map(contour => contour.end) } : connectorEndpointAnchors(geometry, node.route.closed)
   const written = geometry.kind === 'polyline' ? writtenPolylineProjectionOf(geometry) : undefined
   const mids = node.markers.mid.length ? connectorMidpoints(geometry, node.route.closed) : []

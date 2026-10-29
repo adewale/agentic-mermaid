@@ -3,6 +3,7 @@ import { describe, expect, spyOn, test } from 'bun:test'
 import type { ElkNode } from 'elkjs'
 import { parseMermaid } from '../parser.ts'
 import { renderMermaidSVG, renderMermaidASCII } from '../index.ts'
+import { verifyMermaid } from '../agent/index.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { elkLayoutSync } from '../elk-instance.ts'
 import * as elkAdapter from '../elk-instance.ts'
@@ -94,6 +95,19 @@ describe('graph work admission', () => {
     expect(configured.length + normalizeMermaidSource(configured).text.length).toBeLessThanOrEqual(DIAGRAM_WORK_LIMITS.sourceCharacters)
     expect(() => renderMermaidSVG(configured)).toThrow(DiagramWorkLimitError)
     expect(() => renderMermaidSVG(configured)).toThrow(/, with its configuration, exceeds/)
+  })
+
+  test('metadata YAML expansion shares the source budget and retains its resource error', () => {
+    const alphabet = Array.from({ length: 0x1900 }, (_, index) => String.fromCharCode(0xe000 + index)).join('')
+    const value = alphabet.repeat(20) + '#x;'.repeat(40_000)
+    for (const source of [`flowchart LR\n A@{ marker: "${value}" }`, `kanban\nTodo\n card[Work]@{ marker: "${value}" }`, `sequenceDiagram\n participant A@{ alias: "${value}" }`]) {
+      expect(source.length + normalizeMermaidSource(source).text.length).toBeLessThan(DIAGRAM_WORK_LIMITS.sourceCharacters)
+      expect(() => renderMermaidSVG(source)).toThrow(DiagramWorkLimitError)
+      const verified = verifyMermaid(source)
+      expect(verified.ok).toBe(false)
+      expect(verified.checks?.renderability).toBe('failed')
+      expect(verified.warnings).toContainEqual({ code: 'RENDER_FAILED', origin: 'source', reason: expect.stringContaining('DIAGRAM_WORK_LIMIT') })
+    }
   })
 
   test('programmatic graphs are bounded before graph conversion', () => {

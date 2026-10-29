@@ -8,6 +8,7 @@ import { parseErDiagram } from '../er/parser.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
 import { withRenderStageObserver } from '../render-stages.ts'
 import { missingSvgLabels } from './helpers/svg-labels.ts'
+import { measureQuality } from '../agent/quality.ts'
 
 import * as agenticProducer from '../layout/agentic-layered.ts'
 import * as elkProducer from '../elk-instance.ts'
@@ -19,6 +20,19 @@ const compoundFixture = readFileSync(new URL('../../eval/layout-compare/fixtures
 const fixture = readFileSync(new URL('../../eval/layout-compare/fixtures/er-backends.mmd', import.meta.url), 'utf8')
 
 describe('ER layout backends', () => {
+  test.each(['TB', 'BT', 'LR', 'RL'])('reserves cardinality leads without crossing a neighbouring tree route in %s', direction => {
+    const source = `erDiagram\n  direction ${direction}\n` + Array.from({ length: 40 }, (_, index) =>
+      `  E${index} {\n    int id PK\n    string name${index}\n  }\n` + (index ? `  E${Math.floor((index - 1) / 2)} ||--o{ E${index} : has\n` : ''),
+    ).join('')
+    const result = layoutMermaidWithReceipt(source, native), quality = measureQuality(result.layout)
+    expect(result.layout.nodes).toHaveLength(40)
+    expect(result.layout.edges.map(edge => [edge.from, edge.to])).toEqual(Array.from({ length: 39 }, (_, index) => [`E${Math.floor(index / 2)}`, `E${index + 1}`]))
+    expect(quality.edgeCrossings).toBe(0)
+    expect(quality.routeOverlaps).toEqual({ parallel: 0, opposing: 0 })
+    expect(quality.labelConflicts?.total).toBe(0)
+    expect(renderMermaidSVGWithReceipt(source, native).receipt.layoutCertification?.status).toBe('passed')
+  })
+
   test.each(['TB', 'BT', 'LR', 'RL'])('preserves cards, cardinalities, identifying shafts and labels in %s', direction => {
     const source = fixture.replace('direction LR', `direction ${direction}`)
     const model = parseErDiagram(toMermaidLines(source)), original = structuredClone(model)

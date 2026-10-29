@@ -23,7 +23,8 @@ import { semanticChildId } from '../scene/identity.ts'
 import { hashId } from '../scene/seed.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { resolveArchitectureIcon } from './icons.ts'
-import { serializeMarkerResources, tipAnchoredArrow } from '../scene/marker-resources.ts'
+import { serializeMarkerResources } from '../scene/marker-resources.ts'
+import { ARCHITECTURE_MARKERS, architectureMarkerTerminal } from './markers.ts'
 import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
 
 // ============================================================================
@@ -411,6 +412,7 @@ function lowerEdge<T>(marks: DrawingFactory<T>, edge: PositionedArchitectureEdge
 
   if (visual.edgeBendRadius > 0 && edge.points.length > 2) {
     const projection = projectRoundedConnectorPath(edge.points, visual.edgeBendRadius, {
+      terminalClearance: { start: architectureMarkerTerminal(startMarker?.id, visual.edgeLineWidth, 'start'), end: architectureMarkerTerminal(endMarker?.id, visual.edgeLineWidth, 'end') },
       metric: 'manhattan',
     })
     return marks.connector({
@@ -537,18 +539,5 @@ function renderIcon<T>(marks: DrawingFactory<T>, x: number, y: number, size: num
     children: children.map((node, index) => ({ node, indent: index === 0 ? 2 : 0 })),
   })
 }
-
-const ARCHITECTURE_MARKER_PAINT = {
-  fill: 'var(--arch-edge-stroke, var(--_arrow))',
-  stroke: 'var(--arch-edge-stroke, var(--_arrow))',
-  strokeWidth: '0.75',
-  strokeLinejoin: 'round' as const,
-}
-
-const ARCHITECTURE_MARKERS: readonly MarkerDescriptor[] = [
-  tipAnchoredArrow('architecture-arrow-end', { width: 8, height: 5 }, 'end', ARCHITECTURE_MARKER_PAINT),
-  tipAnchoredArrow('architecture-arrow-start', { width: 8, height: 5 }, 'start', ARCHITECTURE_MARKER_PAINT),
-]
-
 
 export const lowerArchitectureScene = sceneLowering<PositionedArchitectureDiagram>(lowerArchitectureDrawing)

@@ -51,6 +51,7 @@ import { getFamily } from './families.ts'
 import { admitOpRecord, validateOp, hasOpSchema } from './op-schema.ts'
 import { AccessibilityTextError, accessibilityFromBody, ensureAccessibilityLines, normalizeBodyAccessibility } from './accessibility-envelope.ts'
 import { parseRegisteredMermaid as parseMermaid } from './parse.ts'
+import { applySourceEdits, sameSourceMeaning } from './source-mutation.ts'
 
 export function mutate(d: FlowchartValidDiagram, op: FlowchartMutationOp): Result<FlowchartValidDiagram, MutationError>
 export function mutate(d: StateValidDiagram, op: StateMutationOp): Result<StateValidDiagram, MutationError>
@@ -236,6 +237,50 @@ export function mutateChecked(d: MutableValidDiagram, op: unknown): Result<Mutab
 export function mutateChecked(d: ParsedDiagram, op: unknown): Result<ParsedDiagram, MutationError>
 export function mutateChecked(d: ParsedDiagram, op: unknown): Result<ParsedDiagram, MutationError> {
   return checkedMutation(d, op, false)
+}
+
+export interface SourceMutationResult {
+  /** Save these exact bytes. Unsupported syntax remains source-preserved;
+   * this artifact is not promised to be portable Mermaid. */
+  readonly source: string
+  readonly diagram: ParsedDiagram
+}
+
+/** Explicit source-level edits for opaque bodies. Family hooks admit only
+ * operations whose complete native read-back changes by the requested delta.
+ * Ordinary mutate, checked batches and canonical writers retain their contracts. */
+export function mutatePreservingSource(d: ParsedDiagram, op: unknown): Result<SourceMutationResult, MutationError> {
+  const result = editPreservedSource(d, op)
+  logToolInvocation('mutate', result.ok)
+  return result
+}
+
+function editPreservedSource(d: ParsedDiagram, op: unknown): Result<SourceMutationResult, MutationError> {
+  if (d.body.kind !== 'opaque' || d.body.family !== d.kind) return err({ code: 'INVALID_OP', message: 'Source-preserving mutation requires an opaque body of its parsed family; use mutate for structured bodies' })
+  const plugin = getFamily(d.kind)
+  if (!plugin?.mutateSource || !hasOpSchema(d.kind)) return err({ code: 'UNSUPPORTED_FAMILY', message: `${d.kind} has no source-preserving mutation contract` })
+  const admitted = admitOpRecord(op)
+  const invalid = validateOp(d.kind, admitted.ok ? admitted.value : op)
+  if (invalid) return err(invalid)
+  // The opaque body and captured wrapper own the original bytes. The ordinary
+  // serializer may normalize the final newline, so it is not this authority.
+  const source = (d.meta.wrapperSource ?? '') + d.body.source
+  try {
+    const next = plugin.mutateSource(source, (admitted.ok ? admitted.value : op) as AnyMutationOp)
+    if (!next.ok) return next
+    const editedSource = applySourceEdits(source, next.value)
+    if (editedSource === source) return ok({ source, diagram: d })
+    const parsed = parseMermaid(editedSource)
+    if (!parsed.ok) return err({ code: 'INVALID_OP', message: `Source-preserving mutation could not be reparsed: ${parsed.error.map(error => error.message).join('; ')}` })
+    if (parsed.value.kind !== d.kind || parsed.value.body.kind !== 'opaque') return err({ code: 'INVALID_OP', message: 'Source-preserving mutation changed family or source-preserved representation' })
+    // Source coordinates are rebuilt after a removal or rename. Comment text
+    // and order remain meaning; their old physical row numbers do not.
+    const metadata = (value: ParsedDiagram['meta']) => ({ ...value, comments: value.comments.map(comment => comment.text) })
+    if (!sameSourceMeaning(metadata(d.meta), metadata(parsed.value.meta))) return err({ code: 'INVALID_OP', message: 'Source-preserving mutation changed configuration, accessibility or comment metadata' })
+    return ok({ source: editedSource, diagram: parsed.value })
+  } catch (error) {
+    return err({ code: 'INVALID_OP', message: error instanceof Error ? error.message : String(error) })
+  }
 }
 
 function checkedMutation(d: ParsedDiagram, op: unknown, deferSerialization: boolean, draft?: BatchDraft): Result<ParsedDiagram, MutationError> {

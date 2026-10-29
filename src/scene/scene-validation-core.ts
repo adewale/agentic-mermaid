@@ -36,7 +36,7 @@ import { assertRenderableMarker, serializeMarkerResources } from './marker-resou
 import { assertRenderableLinearGradient, LINEAR_GRADIENT_LIMITS, serializeLinearGradientResources } from './gradient-resources.ts'
 import { BUILTIN_SCENE_ROLE_TRAITS, sceneRoleTraits } from './roles.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
-import { inspectSvgOnce } from '../svg-inspection-cache.ts'
+import { createSvgInspector } from '../svg-inspection-cache.ts'
 import type { SvgGeometryWriteSink } from './svg-writer.ts'
 import { canonicalizeSceneNodeSerialization, sceneNodeSerialization, sceneNodeSerializationObserved, type SceneSerializationObserver } from './serialization.ts'
 import { MARK_CLASS_TOKENS, MARK_DATA_KEY, WRITER_OWNED_DATA_KEYS } from './svg-writer.ts'
@@ -124,6 +124,8 @@ const PAINT_FIELDS = [
 
 type MutableDiagnostic = SceneValidationDiagnostic
 
+const withinFinalSvgByteBudget = createSvgInspector('final-svg-budget', (value: string) => boundedUtf8ByteLength(value, MAX_FINAL_SVG_BYTES) <= MAX_FINAL_SVG_BYTES)
+
 /** Enforce the one post-backend/family SVG artifact budget without allocating
  * an encoded copy. Callers apply this both before and after SVG transforms so
  * neither extension output nor namespace/accessibility expansion can bypass it. */
@@ -132,7 +134,7 @@ export function assertFinalSvgByteBudget(value: unknown, stage = 'final SVG'): a
   // A UTF-16 code unit encodes to at most three UTF-8 bytes, so a string this
   // short is within the budget without counting.
   if (value.length * 3 <= MAX_FINAL_SVG_BYTES) return
-  if (!inspectSvgOnce('final-svg-budget', value, () => boundedUtf8ByteLength(value, MAX_FINAL_SVG_BYTES) <= MAX_FINAL_SVG_BYTES)) {
+  if (!withinFinalSvgByteBudget(value)) {
     throw new RangeError(`${stage} exceeds the ${MAX_FINAL_SVG_BYTES}-byte final SVG limit`)
   }
 }

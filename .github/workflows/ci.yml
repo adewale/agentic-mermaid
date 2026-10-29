@@ -72,6 +72,20 @@ jobs:
         with:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile
+      - name: Prepare the immutable base for layout review
+        if: github.event_name == 'pull_request'
+        env:
+          LAYOUT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          layout_base="$RUNNER_TEMP/layout-review-base"
+          git fetch --no-tags --depth=1 origin "$LAYOUT_BASE_SHA"
+          git worktree add --detach "$layout_base" "$LAYOUT_BASE_SHA"
+          if cmp -s bun.lock "$layout_base/bun.lock"; then
+            ln -s "$GITHUB_WORKSPACE/node_modules" "$layout_base/node_modules"
+          else
+            (cd "$layout_base" && bun install --frozen-lockfile)
+          fi
+          echo "LAYOUT_BASE_ROOT=$layout_base" >> "$GITHUB_ENV"
       - name: Render graph backend comparison
         env:
           LAYOUT_REVIEW: ${{ runner.temp }}/layout-backends
@@ -80,6 +94,8 @@ jobs:
           bun -e '
             import { renderMermaidPNGWithReceipt, renderMermaidSVGWithReceipt } from "./src/agent/index.ts";
             import { flowchartTree } from "./eval/shared/graph-fixtures.ts";
+            import { collectSamples } from "./eval/layout-compare/run.ts";
+            import { generatedFlowchartSamples } from "./eval/layout-compare/generated.ts";
             const fixtures = [
               ["fan-in-fan-out", await Bun.file("eval/layout-compare/fixtures/fan-in-fan-out.mmd").text()],
               ["nested-wide-titles", await Bun.file("eval/layout-compare/fixtures/nested-wide-titles.mmd").text()],
@@ -110,6 +126,77 @@ jobs:
               await Bun.write(`${directory}/${name}-${backend}.svg`, vector.svg);
               await Bun.write(`${directory}/${name}-${backend}.png`, rendered.png);
               await Bun.write(`${directory}/${name}-${backend}.json`, JSON.stringify({ source, options: pngOptions, receipt: rendered.receipt, svgOptions: options, svgReceipt: vector.receipt, review: name === "tree-300" ? "PNG is an overview; zoom the full SVG for leaf labels and route crossings." : "Inspect labels, arrows and route clearance." }, null, 2));
+            }
+            const samples = collectSamples({ includeStress: true });
+            const advisory = [
+              { name: "class-inheritance", source: samples.find(s => s.id === "corpus/class/0")?.source },
+              { name: "er-tree", source: samples.find(s => s.id === "fixture/stress/er-40-entities.mmd")?.source },
+              { name: "parallel-labels", source: generatedFlowchartSamples({ start: 40, count: 1 })[0].source },
+            ];
+            if (advisory.some(s => !s.source)) throw new Error("Missing layout advisory review input");
+            // Each revision gets its own process and module/registry identities.
+            // Inputs are fixed by the candidate, then replayed unchanged at base.
+            const probe = `
+              const { renderMermaidPNGWithReceipt, renderMermaidSVGWithReceipt, layoutMermaidWithReceipt, measureQuality } = await import(process.cwd() + "/src/agent/index.ts");
+              const revision = new TextDecoder().decode(Bun.spawnSync(["git", "rev-parse", "HEAD"]).stdout).trim();
+              for (const { name, source } of JSON.parse(process.env.LAYOUT_REVIEW_INPUTS)) for (const backend of ["elk", "agentic"]) {
+                const label = process.env.LAYOUT_REVIEW_LABEL;
+                const path = process.env.LAYOUT_REVIEW + "/advisory-" + name + "-" + label + "-" + backend;
+                const options = { graphLayout: { backend }, security: "strict" };
+                try {
+                  const svg = renderMermaidSVGWithReceipt(source, options);
+                  const png = renderMermaidPNGWithReceipt(source, { ...options, fitTo: { width: 1000 } });
+                  const layout = layoutMermaidWithReceipt(source, options);
+                  await Bun.write(path + ".svg", svg.svg);
+                  await Bun.write(path + ".png", png.png);
+                  await Bun.write(path + ".json", JSON.stringify({ revision, label, source, options, metrics: measureQuality(layout.layout), receipt: svg.receipt, review: "Compare labels, endpoint markers and crossings. PNG is an overview; zoom the full SVG for the ER tree." }, null, 2));
+                } catch (error) {
+                  await Bun.write(path + ".json", JSON.stringify({ revision, label, source, options, error: String(error), review: "This revision could not render the input; no baseline image was fabricated." }, null, 2));
+                  if (label === "after") throw error;
+                }
+              }
+            `;
+            for (const [label, root] of [["before", process.env.LAYOUT_BASE_ROOT], ["after", process.cwd()]]) {
+              if (!root) continue;
+              const child = Bun.spawnSync(["bun", "-e", probe], { cwd: root, stdout: "inherit", stderr: "inherit", env: { ...process.env, LAYOUT_REVIEW_INPUTS: JSON.stringify(advisory), LAYOUT_REVIEW_LABEL: label } });
+              if (child.exitCode !== 0) throw new Error("Layout advisory review failed: " + label);
+            }
+          '
+      - name: Render source-preserving edit review
+        env:
+          LAYOUT_REVIEW: ${{ runner.temp }}/layout-backends
+        run: |
+          bun -e '
+            const inputs = [
+              { name: "source-class-member", source: "classDiagram\nnamespace `~T~A::B` {\n  class A {\n    +old\n  }\n}\n", op: { kind: "add_member", class: "A", text: "+reviewed" } },
+              { name: "source-flow-label", source: "flowchart TD\n  A[Old] --> B\n  classDef retained border:1px s:::colid red\n", op: { kind: "set_label", target: "A", label: "Reviewed" } },
+            ];
+            const probe = `
+              const api = await import(process.cwd() + "/src/agent/index.ts");
+              const revision = new TextDecoder().decode(Bun.spawnSync(["git", "rev-parse", "HEAD"]).stdout).trim();
+              for (const input of JSON.parse(process.env.SOURCE_REVIEW_INPUTS)) {
+                const label = process.env.LAYOUT_REVIEW_LABEL;
+                const path = process.env.LAYOUT_REVIEW + "/" + input.name + "-" + label;
+                const parsed = api.parseRegisteredMermaid(input.source);
+                const edited = typeof api.mutatePreservingSource === "function" && parsed.ok
+                  ? api.mutatePreservingSource(parsed.value, input.op) : undefined;
+                const source = edited?.ok ? edited.value.source : input.source;
+                const options = { security: "strict" };
+                const vector = api.renderMermaidSVGWithReceipt(source, options);
+                const raster = api.renderMermaidPNGWithReceipt(source, options);
+                await Bun.write(path + ".svg", vector.svg);
+                await Bun.write(path + ".png", raster.png);
+                await Bun.write(path + ".json", JSON.stringify({ revision, label, input, source, options,
+                  edit: edited ?? { ok: false, error: "Source-preserving API unavailable at this revision; image shows original source." },
+                  receipt: vector.receipt, review: "Inspect the added reviewed member or Reviewed label; namespace, old member, endpoint and retained style must survive." }, null, 2));
+                if (label === "after" && !edited?.ok) throw new Error("Source edit review failed: " + input.name);
+              }
+            `;
+            for (const [label, root] of [["before", process.env.LAYOUT_BASE_ROOT], ["after", process.cwd()]]) {
+              if (!root) continue;
+              const child = Bun.spawnSync(["bun", "-e", probe], { cwd: root, stdout: "inherit", stderr: "inherit",
+                env: { ...process.env, SOURCE_REVIEW_INPUTS: JSON.stringify(inputs), LAYOUT_REVIEW_LABEL: label } });
+              if (child.exitCode !== 0) throw new Error("Source edit review failed: " + label);
             }
           '
       - uses: actions/upload-artifact@v7
@@ -188,6 +275,12 @@ jobs:
         run: |
           failed=0
           for directory in "$EVIDENCE_DIR/corpus" "$EVIDENCE_DIR" "$EVIDENCE_DIR/development-256-319" "$EVIDENCE_DIR/development-320-383" "$EVIDENCE_DIR/independent-sha256-counter-v1-0-63" "$EVIDENCE_DIR/independent-sha256-counter-v1-64-127" "$EVIDENCE_DIR/independent-sha256-counter-v1-128-191" "$EVIDENCE_DIR/independent-sha256-counter-v1-192-255"; do
+            # Both are supported first-party producers. A baseline failure must
+            # remain a finding even when the other backend improves support.
+            if ! bun -e 'let failed = false; for (const path of process.argv.slice(1)) { const snapshot = await Bun.file(path).json(); for (const sample of snapshot.samples) if (!sample.ok) { console.error(path + ": " + sample.id + ": " + sample.error); failed = true; } } if (failed) process.exit(1);' \
+              "$directory/elk.json" "$directory/agentic.json"; then
+              failed=1
+            fi
             if ! bun run eval/layout-compare/run.ts report --before "$directory/elk.json" \
               --after "$directory/agentic.json" --out "$directory/report.html"; then
               failed=1
@@ -451,7 +544,18 @@ jobs:
           if git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- scripts/pr-assets/meaning-preservation-evidence.ts src/layout-engine.ts src/layout src/layout-rubric.ts src/route-contracts.ts src/shape-clipping.ts src/shape-outline.ts src/class src/pie src/journey src/gitgraph src/radar src/xychart src/sequence src/architecture src/ishikawa src/sankey src/agent/families-builtin.ts src/svg-family-hooks/flowchart.ts src/parser.ts src/state src/er src/ascii src/block; then
             exit 0
           fi
-          bun run scripts/pr-assets/meaning-preservation-evidence.ts "$BASE_SHA" "$HEAD_SHA" bench-report/meaning-preservation compat-er-attribute-quotes compat-corpus-flowchart-94 compat-corpus-flowchart-95 compat-corpus-flowchart-96 compat-corpus-state-0 compat-corpus-state-1 compat-corpus-state-8 compat-corpus-state-14 compat-corpus-state-16 compat-corpus-state-17 compat-corpus-state-18 compat-corpus-state-19 compat-flowchart-membership compat-c4-named-label compat-state-floating-note compat-er-parent compat-sequence-wrap agent-flat-namespace agent-category-role agent-journey-visibility journey-literal-formatted-identity agent-gitgraph-rails agent-small-values compat-flowchart-block-label compat-sequence-spaced-metadata compat-class-identifiers compat-architecture-compact-edge compat-gitgraph-repeated-pick compat-ellipse compat-parallel-overlay compat-architecture-text-icon nightly-architecture-card-clearance terminal-block-protected-approaches terminal-state-distinct-contacts terminal-local-bundle terminal-local-labeled-trunk terminal-state-declaration-timing terminal-approach-envelopes flowchart-feedback-outward-contact compat-corpus-flowchart-98 native-priority-aj native-priority-an flowchart-cosmetic-circle-approach flowchart-peer-label-capacity flowchart-mixed-parallel-feedback rayner-xy-title-income-30000 rayner-xy-title-income-65673.88 rayner-xy-title-income-150000 rayner-architecture-local-pods-1-1-1 rayner-architecture-local-pods-2-2-0 architecture-alignment-components grammar-ishikawa-header grammar-sankey-repeated-header class-elk-authored-prefix class-elk-compound-collision class-elk-quoted-ancestry class-elk-empty-content class-elk-notes-only terminal-class-notes-only native-eventmodeling flowchart-curved-port-diagonal
+          bun run scripts/pr-assets/meaning-preservation-evidence.ts "$BASE_SHA" "$HEAD_SHA" bench-report/meaning-preservation compat-er-attribute-quotes compat-corpus-flowchart-94 compat-corpus-flowchart-95 compat-corpus-flowchart-96 compat-corpus-state-0 compat-corpus-state-1 compat-corpus-state-8 compat-corpus-state-14 compat-corpus-state-16 compat-corpus-state-17 compat-corpus-state-18 compat-corpus-state-19 compat-flowchart-membership compat-c4-named-label compat-state-floating-note compat-er-parent compat-sequence-wrap agent-flat-namespace agent-category-role agent-journey-visibility journey-literal-formatted-identity agent-gitgraph-rails agent-small-values compat-flowchart-block-label compat-sequence-spaced-metadata compat-class-identifiers compat-architecture-compact-edge compat-gitgraph-repeated-pick compat-ellipse compat-parallel-overlay compat-architecture-text-icon nightly-architecture-card-clearance terminal-block-protected-approaches terminal-state-distinct-contacts terminal-local-bundle terminal-local-labeled-trunk terminal-state-declaration-timing terminal-approach-envelopes flowchart-feedback-outward-contact compat-corpus-flowchart-98 native-priority-aj native-priority-an flowchart-cosmetic-circle-approach flowchart-peer-label-capacity flowchart-mixed-parallel-feedback rayner-xy-title-income-30000 rayner-xy-title-income-65673.88 rayner-xy-title-income-150000 rayner-architecture-local-pods-1-1-1 rayner-architecture-local-pods-2-2-0 architecture-alignment-components grammar-ishikawa-header grammar-sankey-repeated-header class-elk-authored-prefix class-elk-compound-collision class-elk-quoted-ancestry class-elk-empty-content class-elk-notes-only terminal-class-notes-only native-eventmodeling flowchart-curved-port-diagonal flowchart-grouped-wide-captions flowchart-thick-terminal-shaft flowchart-invisible-join flowchart-lineage-default flowchart-lineage-publication flowchart-98-publication
+
+      - name: Render bounded chart fitting witnesses
+        if: ${{ matrix.suite == 'payload' && github.event_name == 'pull_request' }}
+        env:
+          BASE_SHA: ${{ steps.pr-revisions.outputs.base }}
+          HEAD_SHA: ${{ steps.pr-revisions.outputs.head }}
+        run: |
+          if git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- src/pie src/radar src/shared/chart-width.ts src/shared/text-rows.ts src/editor-render-options.ts; then
+            exit 0
+          fi
+          bun run scripts/pr-assets/meaning-preservation-evidence.ts "$BASE_SHA" "$HEAD_SHA" bench-report/meaning-preservation/charts chart-fit-pie-long-default chart-fit-pie-long-excalidraw chart-fit-pie-palette-default chart-fit-pie-palette-excalidraw chart-fit-radar-restaurants-default chart-fit-radar-restaurants-excalidraw chart-fit-radar-grades-default chart-fit-radar-grades-excalidraw chart-fit-radar-long-axes-default chart-fit-radar-long-axes-excalidraw
 
       - name: Capture native ZenUML Looks and configured browser controls
         if: ${{ matrix.suite == 'payload' && github.event_name == 'pull_request' }}

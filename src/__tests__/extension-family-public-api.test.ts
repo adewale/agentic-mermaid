@@ -8,7 +8,7 @@ import { buildCapabilities, runBatchLine, runCli } from '../cli/index.ts'
 import { createTracingMermaid } from '../mcp/facade.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
-import { createExtensionIdentity } from '../shared/extension-identity.ts'
+import { createExtensionIdentity, KNOWN_EXTENSION_CONTRACT_VERSIONS } from '../shared/extension-identity.ts'
 import { detectDiagramType, type NormalizedMermaidSource } from '../mermaid-source.ts'
 import { captureCli } from './helpers/cli-capture.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
@@ -25,7 +25,7 @@ function extensionDescriptor(localId: string, header: string): FamilyDescriptor 
       id,
       kind: 'family',
       version: '1.0.0',
-      compatibility: { core: '^0.4.0' },
+      compatibility: { core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core },
       provenance: { owner: 'extension-public-api-test', source: 'test' },
     }),
     id,
@@ -85,7 +85,7 @@ describe('registered family public layout and verify APIs', () => {
           id,
           kind: 'family',
           version: '1.0.0',
-          compatibility: { core: '^0.4.0' },
+          compatibility: { core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core },
           provenance: { owner: 'extension-public-api-test', source: 'test' },
         }),
       }
@@ -541,7 +541,7 @@ descriptorUpgradeDiagram
         id: v2Base.id,
         kind: 'family',
         version: '2.0.0',
-        compatibility: { core: '^0.4.0' },
+        compatibility: { core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core },
         provenance: { owner: 'extension-public-api-test', source: 'test' },
       }),
       capabilityEvidence: v2Base.capabilityEvidence.map(claim => (claim.capability === 'source-preservation' || claim.capability === 'parse' || claim.capability === 'serialize' ? { ...claim, state: 'native' } : claim)),
@@ -607,7 +607,7 @@ descriptorUpgradeDiagram
         id: v2Base.id,
         kind: 'family',
         version: '2.0.0',
-        compatibility: { core: '^0.4.0' },
+        compatibility: { core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core },
         provenance: { owner: 'extension-public-api-test', source: 'test' },
       }),
       capabilityEvidence: v2Base.capabilityEvidence.map(claim => (claim.capability === 'source-preservation' || claim.capability === 'parse' ? { ...claim, state: 'native' } : claim)),

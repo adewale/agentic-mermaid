@@ -30,6 +30,32 @@ test('Sankey repeated headers share one direct and typed CSV reading', async () 
   } finally { upstream.close() }
 })
 
+test('Sankey restored empty comments remain portable beside CSV and accessibility metadata', async () => {
+  const { startUpstreamMermaid } = await import('./helpers/upstream-mermaid.ts')
+  const upstream = startUpstreamMermaid()
+  try {
+    for (const source of [
+      'sankey\n%%\nn,o,2',
+      'sankey\n%%\nBio-corsion,Losses,26.862\n\nBio-conversion,Solid,280.322\n\nBio-conversion,Gas,81.144',
+      'sankey-beta\n%%\nA,_,0',
+      'sankey-beta\naccTitle: Flows\n%%\nA,B,1\n%% detail\nB,C,1\n%%',
+    ]) {
+      const parsed = sankey(source)
+      const written = serializeMermaid(parsed)
+      expect(await upstream.publicAccepts(written), written).toBe(true)
+      const reloaded = sankey(written)
+      expect(reloaded.body).toEqual(parsed.body)
+      expect(reloaded.meta.accessibility).toEqual(parsed.meta.accessibility)
+      expect(reloaded.meta.bodyComments?.map(comment => comment.raw.trimEnd())).toEqual(parsed.meta.bodyComments?.map(comment => comment.raw.trimEnd()))
+      expect(serializeMermaid(reloaded)).toBe(written)
+      expect(renderMermaidSVG(written)).toBe(renderMermaidSVG(source))
+      const edited = mutate(parsed, { kind: 'set_link_value', source: parsed.body.links[0]!.source, target: parsed.body.links[0]!.target, value: 3 })
+      if (!edited.ok) throw new Error(edited.error.message)
+      expect(await upstream.publicAccepts(serializeMermaid(edited.value))).toBe(true)
+    }
+  } finally { upstream.close() }
+})
+
 test('Sankey directive-like identities remain source-preserved extensions', async () => {
   const { startUpstreamMermaid } = await import('./helpers/upstream-mermaid.ts')
   const upstream = startUpstreamMermaid()

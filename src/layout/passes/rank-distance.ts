@@ -6,6 +6,7 @@ import { minimumLinkRankGap } from '../link-rank-gap.ts'
 import { onShapeOutline, segmentThroughShape } from '../../layout-rubric.ts'
 import { isOutwardShapeApproach } from '../../shape-clipping.ts'
 import { LayoutCertificationError } from '../certification-error.ts'
+import { formatSvgNumber } from '../../shared/svg-number.ts'
 
 export function honorLinkRankDistance(nodes: PositionedNode[], edges: PositionedEdge[], groups: PositionedGroup[], graph: MermaidGraph): void {
   if (!graph.edges.some(e => (e.length ?? 1) > 1)) return
@@ -380,9 +381,14 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
     const order = edge.points.map(point => point[f.main]).sort((a, b) => a < b ? -1 : a > b ? 1 : 0)
     for (let index = 1; index < order.length; index++) if (order[index]! > order[index - 1]!
       && !(project(order[index]!) > project(order[index - 1]!))) return null
+    // Hierarchical ELK sections can join one arithmetic roundoff apart. Keep
+    // their raw contacts, accepting only seams that also paint at the same
+    // coordinate; a real diagonal still cannot borrow this cardinal proof.
+    const sameCoordinate = (a: number, b: number): boolean => a === b
+      || Math.abs(a - b) <= 8 * Number.EPSILON * Math.max(1, Math.abs(a), Math.abs(b)) && formatSvgNumber(a) === formatSvgNumber(b)
     for (let index = 1; index < points.length; index++) {
       const a = points[index - 1]!, b = points[index]!
-      if (a.x !== b.x && a.y !== b.y) return null
+      if (!sameCoordinate(a.x, b.x) && !sameCoordinate(a.y, b.y)) return null
       for (const node of nodes) if (segmentThroughShape(a, b, node)) return null
     }
     const sourceDelta = contactDelta(edge.source), targetDelta = contactDelta(edge.target)

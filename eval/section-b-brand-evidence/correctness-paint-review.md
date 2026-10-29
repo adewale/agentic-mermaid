@@ -36,3 +36,21 @@ The three `zenuml-native-checkout` SVG goldens for patent-drawing/github-light, 
 PR commit `4371bf456d50431cc5b6a4e45c1e85bc1a046e7c` moved numeric canonicalization before CSS scope hashing. Passive unchanged-result observations and an independent hash calculation confirm that each old golden's scope hashes the raw preformatted SVG, while its replacement hashes the canonical written SVG. Examples include raw dash offsets `6.2000000000000455` and `5.149999999999977`, already written as `6.2` and `5.15` in both old and new emitted artifacts.
 
 For each complete SVG, one consistent old-to-new namespace substitution makes the full literal strings identical: exactly three occurrences, covering the root class and its selectors. Every other byte of geometry, paint, text, element order, resource identity and reference is unchanged. Only these three reviewed goldens were refreshed; `normalizeSvg` remains whitespace-only by default and scope masking remains diagnostic only. This is an agent review of exact namespace equivalence, not a new physical, raster or universal rendering qualification.
+
+## Issue #566 terminal readability review, 28 October 2026
+
+The canonical sheet regenerated from the issue #566 working tree contains 100 family-by-variant cells at 1560×14024. Its SHA-256 is `527f9d58bca6aac83fa9e998b469691f6114fb4884cfcd489542af036d6ef209`. A per-pixel comparison with the previously approved sheet (`5981b0cbd8f93ef27e21f3aea781e47af8783af68f39891d8776698610ac4d90`) finds exactly one changed cell: Architecture under the sentinel variant (22,855 pixels). Every other cell, every heading and the background are pixel-identical.
+
+Architecture placement uses the shared Flowchart ELK conversion. Its edge/node spacing now equals the terminal hook that seats a stroke-scaled marker after a rounded corner (here 3px strokes and a 14px radius), so the placed diagram is slightly wider and is scaled to fit the cell. The agent inspected the before/after cell at native 520×380: the API->Database arrowhead now sits on a straight shaft instead of overhanging its rounded corner; API->Cache keeps its reads label and its entry; the Backend group, icons and palette are unchanged. Default-style Architecture geometry is byte-identical (the layout-equivalence corpus shows no Architecture change).
+
+This approves the composed finite rendering sheet only. It is agent review, not human approval, deployed-site parity, general backend parity or an exhaustive density, readability or font-outline proof. No limits, source semantics or certification checks were relaxed.
+# PR #571 adversarial audit repair, 2026-10-29
+
+The styled terminal hook now includes the arrow resource's round stroke support,
+and ELK reserves the actual visible edges' marker demands. Regenerated the sheet
+and compared every pixel with the previous PR capture: changes are confined to
+the Architecture sentinel cell. Inspected its complete before/after crops at
+native size: API, Database, Cache, the Backend frame, reads caption and both
+directed links remain legible; spacing changes slightly. The other 99 cells are
+byte-identical at the pixel level. The approval records the exact new PNG bytes.
+This is agent review, not human approval or exhaustive rendering certification.

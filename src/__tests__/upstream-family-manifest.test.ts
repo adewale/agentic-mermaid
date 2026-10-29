@@ -12,7 +12,7 @@ import { runCli } from '../cli/index.ts'
 import { MermaidFamilyDetectionError } from '../family-detection.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 import { detectDiagramType, detectDiagramTypeFromFirstLine } from '../mermaid-source.ts'
-import { canonicalExtensionId, createExtensionIdentity, ExtensionCollisionError } from '../shared/extension-identity.ts'
+import { canonicalExtensionId, createExtensionIdentity, ExtensionCollisionError, KNOWN_EXTENSION_CONTRACT_VERSIONS } from '../shared/extension-identity.ts'
 import { explicitFamilyConfigDiagnostics } from '../shared/family-config-diagnostics.ts'
 import { findUpstreamFamilyByHeader, UPSTREAM_MERMAID_FAMILY_INDEX } from '../upstream-family-index.ts'
 import { captureCli } from './helpers/cli-capture.ts'
@@ -28,7 +28,7 @@ function syntheticFamily(localId: string, header: string): FamilyDescriptor {
       id,
       kind: 'family',
       version: '1.0.0',
-      compatibility: { core: '^0.4.0' },
+      compatibility: { core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core },
       provenance: { owner: localId.split('/')[0] ?? localId, source: 'test' },
     }),
     id,

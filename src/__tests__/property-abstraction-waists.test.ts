@@ -406,6 +406,7 @@ describe('property: FamilyDescriptor render waist', () => {
       import fc from 'fast-check'
       import { BUILTIN_FAMILY_METADATA, getFamily, knownFamilies } from './src/agent/families.ts'
       import { registerFamily } from './src/agent/family-registration.ts'
+      import { KNOWN_EXTENSION_CONTRACT_VERSIONS } from './src/shared/extension-identity.ts'
 
       const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'.split('')
       const builtin = BUILTIN_FAMILY_METADATA.map(f => f.id)
@@ -429,7 +430,7 @@ describe('property: FamilyDescriptor render waist', () => {
           seen.add(familyId)
           registerFamily({
             contractVersion: 2,
-            identity: { id: familyId, kind: 'family', version: '1.0.0', compatibility: { core: '^0.4.0' }, provenance: { owner: 'property-test', source: 'test' } },
+            identity: { id: familyId, kind: 'family', version: '1.0.0', compatibility: { core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core }, provenance: { owner: 'property-test', source: 'test' } },
             id: familyId,
             label: familyId,
             example: 'test-' + id + '\n  example payload',

@@ -32,7 +32,9 @@ import { readGanttStatements } from '../gantt/parser.ts'
 import { type JourneyParseIssue, walkJourneyLines } from '../journey/parse-core.ts'
 import { getFrontmatterScalar, normalizeMermaidSource } from '../mermaid-source.ts'
 import { PIE_QUOTED_TEXT, splitAuthoredPieTitleLine } from '../pie/source-title.ts'
-import { splitPointClassSuffix } from '../quadrant/point-style.ts'
+import { parseQuadrantChart } from '../quadrant/parser.ts'
+import { sourceLineStarts, sourcePointAt } from '../family-detection.ts'
+import { cleanupMermaidSource, originalMermaidOffset } from '../shared/mermaid-cleanup.ts'
 import { sequenceFamilySource } from '../sequence/family-source.ts'
 import { SequenceParticipantIdError } from '../sequence/parser.ts'
 import { splitSequenceStatementLines } from '../sequence/statements.ts'
@@ -638,17 +640,19 @@ function buildChartSourceMap(body: DiagramBody, canonicalSource: string): Source
       if (found?.label === slice.label) map.labels.set(`pie:slice#${index}`, found.location)
     })
   } else if (body.kind === 'quadrant') {
-    const pointLines = locatedSourceLines(lines).flatMap(source => {
-      const match = source.trimmed.match(/^(.+?)\s*:\s*\[\s*[+-]?(?:\d+(?:\.\d+)?|\.\d+)\s*,\s*[+-]?(?:\d+(?:\.\d+)?|\.\d+)\s*\]/)
-      if (!match) return []
-      const label = splitPointClassSuffix(match[1]!.trim()).label
-      const labelStart = source.line.indexOf(label, source.start)
-      return labelStart < 0 ? [] : [{ label, location: loc(source.lineIndex + 1, labelStart + 1) }]
+    const cleanup = cleanupMermaidSource(canonicalSource)
+    const starts = sourceLineStarts(canonicalSource)
+    const ends = new Map<string, SourceLocation>()
+    let index = 0
+    parseQuadrantChart(cleanup.text.split('\n'), undefined, (point, range) => {
+      const key = `quadrant:point#${index}`
+      if ((body as QuadrantBody).points[index++]?.label !== point.label) return
+      const start = sourcePointAt(starts, originalMermaidOffset(cleanup, range.start))
+      const end = sourcePointAt(starts, originalMermaidOffset(cleanup, range.end, 'end'))
+      map.labels.set(key, loc(start.line, start.col))
+      ends.set(key, loc(end.line, end.col))
     })
-    ;(body as QuadrantBody).points.forEach((point, index) => {
-      const found = pointLines[index]
-      if (found?.label === point.label) map.labels.set(`quadrant:point#${index}`, found.location)
-    })
+    recordSourceMapEnds(map, { labels: ends })
   } else if (body.kind === 'sankey') {
     // Canonical form: header line, then one CSV row per link in order.
     const rowLines = lines
@@ -1175,11 +1179,15 @@ export const QUADRANT_SOURCE_HOOKS = {
   // when style-looking metadata is preserved on an opaque body.
   verify: (body, opts) => (body.kind === 'quadrant' ? verifyQuadrant(body, opts) : body.kind === 'opaque' ? verifyOpaqueQuadrant(body) : []),
   buildSourceMap: buildChartSourceMap,
-  .../* @__PURE__ */ structuredFamilyHooks('quadrant', {
-    headerOk: h => /^quadrant(?:chart)?\s*$/i.test(stripTrailingComment(h)),
-    parseBody: parseQuadrantBody,
-    serialize: renderQuadrant,
-  }),
+  parse: ctx => {
+    const source = normalizeMermaidSource(ctx.source.originalText, {}, 'render')
+    const body = /^quadrant(?:chart)?\s*$/i.test(stripTrailingComment(source.familyLines[0] ?? '')) ? parseQuadrantBody(source.familyLines.slice(1)) : null
+    return ok(body ?? { kind: 'opaque', family: 'quadrant', source: ctx.opaqueSource })
+  },
+  serialize: body => {
+    if (body.kind !== 'quadrant') throw new Error(`quadrant serializer received body kind ${body.kind}`)
+    return renderQuadrant(body)
+  },
 } satisfies Omit<FamilyOperations, 'mutate'>
 
 // ---- Gantt ------------------------------------------------------------------
@@ -1285,13 +1293,12 @@ export const GITGRAPH_SOURCE_HOOKS = {
       const merged: Record<string, unknown> = {
         ...(meta.frontmatter?.gitGraph && typeof meta.frontmatter.gitGraph === 'object' ? meta.frontmatter.gitGraph : {}),
       }
-      return ok(
-        parseGitGraphBody(source.familyBody, {
-          mainBranchName: typeof merged.mainBranchName === 'string' ? merged.mainBranchName : undefined,
-          mainBranchOrder: typeof merged.mainBranchOrder === 'number' ? merged.mainBranchOrder : undefined,
-          title: typeof meta.frontmatter?.title === 'string' ? meta.frontmatter.title : undefined,
-        }),
-      )
+      const body = parseGitGraphBody(source.familyBody, {
+        mainBranchName: typeof merged.mainBranchName === 'string' ? merged.mainBranchName : undefined,
+        mainBranchOrder: typeof merged.mainBranchOrder === 'number' ? merged.mainBranchOrder : undefined,
+        title: typeof meta.frontmatter?.title === 'string' ? meta.frontmatter.title : undefined,
+      })
+      return ok(body)
     } catch (error) {
       return err([{ code: 'PARSE_FAILED', message: error instanceof Error ? error.message : String(error) }])
     }

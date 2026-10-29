@@ -3,7 +3,7 @@ import { BUILTIN_FAMILY_METADATA, getFamily, replaceFamilyForTest } from '../age
 import { type ExternalFamilyId, type FamilyDescriptor, layoutMermaid, layoutMermaidWithReceipt, measureQuality, parseRegisteredMermaid as parseMermaid, parseRegisteredMermaid, registerFamily, renderMermaidSVGWithReceipt, verifyMermaid } from '../agent/index.ts'
 import { toFinite } from '../agent/types.ts'
 import { LayoutCertificationError } from '../layout/certification.ts'
-import { createExtensionIdentity } from '../shared/extension-identity.ts'
+import { createExtensionIdentity, KNOWN_EXTENSION_CONTRACT_VERSIONS } from '../shared/extension-identity.ts'
 
 const EVIDENCE = 'src/__tests__/positioned-artifact-convergence.test.ts'
 
@@ -15,7 +15,7 @@ function extensionDescriptor(localId: string, header: string, hooks: Pick<Family
       id,
       kind: 'family',
       version: '1.0.0',
-      compatibility: { core: '^0.4.0' },
+      compatibility: { core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core },
       provenance: { owner: 'positioned-artifact-test', source: 'test' },
     }),
     id,

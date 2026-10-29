@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "status": "approved",
   "artifact": "src/__tests__/testdata/section-b-brand-evidence.png",
-  "artifactSha256": "5981b0cbd8f93ef27e21f3aea781e47af8783af68f39891d8776698610ac4d90",
-  "reviewedAt": "2026-10-27",
-  "reviewer": "Codex agent, PR #449 / Main #545 composed rendering review",
-  "scope": "100 family-by-variant cells at 1560×14024 from the combined PR #449/Main #545 source. Compared with Main approved artifact 22f0c15f725e19a135a8233cf3960ea786dffbc178813432bf2551498f07c578: exactly 587 pixels change in eight cells, reproducing the previously reviewed PR correction. Four Class cells move source cardinality 1 away from the aggregation marker and halo (166 pixels); four Requirement cells retain authored verifies dashed shafts (421 pixels). The other 92 cells, all headings and background are pixel-identical to Main, including all eight added Event Modeling/ZenUML cells. Compared by family and variant with PR approved artifact 540df3a8b83cca9e73ce34ab56afeb83d00e2852b88a0b53b60fb7b3ea476350: all 92 diagram-body crops are pixel-identical; five heading cells each differ by one antialiasing pixel due to the taller variant bands. The agent inspected all eight Class/Requirement before/after triptychs and eight Event Modeling/ZenUML cells at native 520×380. Existing correctness-paint-review.md and stable-families-review.md retain the separate prior reviews. This approves only the composed finite sheet; it is agent review, not human approval, backend parity, deployed-site parity or exhaustive readability/font-outline proof.",
-  "audit": "eval/section-b-brand-evidence/correctness-paint-review.md"
+  "artifactSha256": "fb51685fcc73631b270046a22dcb8f895ea739d54e1723cb757c4fc7c5d06319",
+  "reviewedAt": "2026-10-29",
+  "reviewer": "Codex agent, PR #585 arrowhead clearance review",
+  "scope": "Agent review of all 13 changed cells at native size in the 1560x14024 sheet: Class, Architecture and Block across four variants, plus Event Modeling sentinel. Side-by-side old/current crops preserve cards, relationships, group membership, labels and marker meanings; extra lead/grid space separates corners from marker ink. All other cells are pixel-identical. This finite review is not human approval, deployed-site parity or exhaustive geometry proof.",
+  "audit": "eval/section-b-brand-evidence/arrowhead-clearance-review.md"
 }

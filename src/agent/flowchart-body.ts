@@ -16,6 +16,7 @@
 // ============================================================================
 
 import { parseMermaid as parseFlowchartLegacy } from '../parser.ts'
+import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
 import { parseMutableStyleProps, unsafeStylePaintError } from '../shared/style-props.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
@@ -42,6 +43,9 @@ import type {
 import { ok, err } from './types.ts'
 import { graphClassNames } from '../shared/graph-classes.ts'
 import { edgeSelectorIndices } from '../shared/edge-selectors.ts'
+import { normalizeMermaidSource, normalizeMermaidRenderSource, preservedMermaidFamilySource } from '../mermaid-source.ts'
+import { sourceLineStarts } from '../shared/source-spans.ts'
+import { appendSourceStatement, applySourceEdits, sameSourceMeaning, type SourceEdit } from './source-mutation.ts'
 
 export type FlowchartBody = Extract<DiagramBody, { kind: 'flowchart' }>
 
@@ -104,18 +108,15 @@ export function parseFlowchartBody(canonicalSource: string, opaqueSource = canon
     if (nonportableNodeId(graph) !== undefined || !portableGraphStyles(graph)) return ok({ kind: 'opaque', family: 'flowchart', source: opaqueSource })
     return ok({ kind: 'flowchart', graph })
   } catch (e) {
+    if (e instanceof DiagramWorkLimitError && e.resource === 'sourceCharacters') throw e
     return err([{ code: 'PARSE_FAILED', message: e instanceof Error ? e.message : String(e) }])
   }
 }
 
 // ---- SourceMap --------------------------------------------------------------
 
-export function buildFlowchartSourceMap(body: FlowchartBody, canonicalSource: string): SourceMap {
-  const map: SourceMap = { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }
-  const lines = canonicalSource.split(/\r?\n/)
-  // Statements as the parser reads them: a label, string or link may run on
-  // across lines. Each location is placed on the line its text came from.
-  const sourceSegments: SourceStatementSegment[] = coalesceFlowchartLines(lines).flatMap(group =>
+function flowchartSourceSegments(lines: readonly string[]): SourceStatementSegment[] {
+  return coalesceFlowchartLines(lines).flatMap(group =>
     flowchartStatementSpans(group.text).map(segment => {
       const scan = scanFlowchart(segment.text)
       const regionsByStart = new Map<number, FlowchartRegion>()
@@ -136,6 +137,14 @@ export function buildFlowchartSourceMap(body: FlowchartBody, canonicalSource: st
         operatorEnds: new Set(operatorRanges.map(range => range.end)),
       }
     }))
+}
+
+export function buildFlowchartSourceMap(body: FlowchartBody, canonicalSource: string): SourceMap {
+  const map: SourceMap = { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }
+  const lines = canonicalSource.split(/\r?\n/)
+  // Statements as the parser reads them: a label, string or link may run on
+  // across lines. Each location is placed on the line its text came from.
+  const sourceSegments = flowchartSourceSegments(lines)
 
   const nodeIdTrie = buildNodeIdTrie(body.graph.nodes.keys())
   const nodeSegments = new Map<string, SourceStatementSegment[]>()
@@ -609,12 +618,17 @@ function renderShape(node: MermaidNode): string {
   }
 }
 
+/** The pinned lexer recognizes direction on the whole line before strings. */
+function protectLabelDirection(text: string): string {
+  return text.replace(/direction(?=\s+(?:TB|BT|RL|LR|TD))/g, '#100;irection')
+}
+
 /** The ONE quoted-label form for bracket, pipe and subgraph labels: the
  *  label codec's text (flowchart-labels.ts), which spells `"` as `#quot;`
  *  because upstream's quoted strings have no escapes. A leading backtick is
  *  written `#96;`: `"` and a backtick open a markdown string. */
 function quoteLabel(label: string, content?: LabelContent): string {
-  const text = writeFlowchartLabelText(label, content)
+  const text = protectLabelDirection(writeFlowchartLabelText(label, content))
   const authoredMarkdown = content?.value === label && content.authored?.startsWith('`') && content.authored.endsWith('`')
   return `"${text.startsWith('`') && !authoredMarkdown ? `#96;${text.slice(1)}` : text}"`
 }
@@ -641,7 +655,7 @@ function escapeLabel(label: string, content?: LabelContent): string {
   // Upstream rejects a bracket, `|`, `"` or `@` in a bare label, and a leading
   // `~~~` (its invisible-link token).
   if (/[\[\]{}()|"@]|^~~~/.test(label) || (content?.value === label && content.authored?.startsWith('`'))) return quoteLabel(label, content)
-  return writeFlowchartLabelText(label, content)
+  return protectLabelDirection(writeFlowchartLabelText(label, content))
 }
 
 /** `;` separates statements and no bracket shields it in an asymmetric
@@ -722,6 +736,84 @@ function styleProps(props: Record<string, string>, classDefinition = false): str
 // serialized source re-parses to.
 export function mutateFlowchart(body: FlowchartBody, op: FlowchartMutationOp): Result<FlowchartBody, MutationError> {
   return mutateFlowchartGraph(cloneGraph(body.graph), op)
+}
+
+/** Each interpretation remains independent unless its exact parser input is
+ * identical. Reuse is private to this call; public diagrams are never cached. */
+function readFlowchartSourceViews(source: string): readonly [MermaidGraph, MermaidGraph] {
+  const authored = normalizeMermaidSource(source).familyBody
+  const graph = parseFlowchartLegacy(authored)
+  const rendered = normalizeMermaidRenderSource(source).familyBody
+  return [graph, authored === rendered ? graph : parseFlowchartLegacy(rendered)]
+}
+
+/** Rename only lexical node occurrences owned by the existing flowchart
+ * scanner. Directive references require their own ownership and stay refused. */
+function renameFlowchartSource(source: string, op: Extract<FlowchartMutationOp, { kind: 'rename_node' }>, before: readonly MermaidGraph[]): Result<readonly SourceEdit[], MutationError> {
+  const refuse = (): Result<never, MutationError> => err({ code: 'INVALID_OP', message: 'Node rename requires complete lexical ownership; class/style/click references and colliding group identities are unsupported' })
+  if (before.some(graph => !graph.nodes.has(op.from))) return err({ code: 'NODE_NOT_FOUND', message: `Node "${op.from}" not found in both source views` })
+  if (op.from === op.to) return ok([])
+  const invalid = nodeIdError(op.to)
+  if (invalid) return err(invalid)
+  if (before.some(graph => graph.nodes.has(op.to))) return err({ code: 'DUPLICATE_NODE', message: `Node "${op.to}" already exists` })
+  if (before.some(graph => graph.classAssignments.has(op.from) || graph.nodeStyles.has(op.from) || graph.nodes.get(op.from)?.href !== undefined || findSubgraph(graph, op.from) || findSubgraph(graph, op.to))) return refuse()
+  const payload = preservedMermaidFamilySource(normalizeMermaidSource(source), 'authored')
+  if (payload.text.includes('\r')) return refuse()
+  const segments = flowchartSourceSegments(payload.text.split('\n')), starts = sourceLineStarts(payload.text)
+  if (segments.some(segment => /^(?:class|style|click|href)\b/i.test(segment.text))) return refuse()
+  const edits = new Map<number, SourceEdit>()
+  for (const segment of segments) {
+    if (segment.group.directive || segment.text.startsWith('%%') || nonNodeStatement(segment.text)) continue
+    if ([...segment.text.matchAll(/%%/g)].some(match => segment.topLevel[match.index])) return refuse()
+    for (let at = segment.text.indexOf(op.from); at >= 0; at = segment.text.indexOf(op.from, at + op.from.length)) {
+      if (!nodeTokenAt(segment, op.from, at)) continue
+      const position = flowchartGroupPosition(segment.group, segment.start + at)
+      const offset = starts[position.line]! + position.col
+      const start = payload.sourceOffset(offset, 'end'), end = payload.sourceOffset(offset + op.from.length, 'start')
+      if (source.slice(start, end) !== op.from) return refuse()
+      edits.set(start, { start, end, text: op.to })
+    }
+  }
+  if (!edits.size) return refuse()
+  const plan = [...edits.values()], candidate = applySourceEdits(source, plan)
+  const after = readFlowchartSourceViews(candidate)
+  for (const [index, graph] of before.entries()) {
+    if (index === 1 && graph === before[0] && after[1] === after[0]) continue
+    const expected = mutateFlowchart({ kind: 'flowchart', graph }, op)
+    if (!expected.ok) return expected
+    // A source rename substitutes identity at its existing declaration ordinal;
+    // ordinary canonical mutation's Map reinsertion is not a requested reorder.
+    const rename = (id: string) => id === op.from ? op.to : id
+    expected.value.graph.nodes = new Map([...graph.nodes.keys()].map(id => [rename(id), expected.value.graph.nodes.get(rename(id))!]))
+    if (!sameSourceMeaning(expected.value.graph, after[index])) return refuse()
+  }
+  return ok(plan)
+}
+
+/** Edit a label or fully owned identity, preserving both native graph frames. */
+export function mutateFlowchartSource(source: string, op: FlowchartMutationOp): Result<readonly SourceEdit[], MutationError> {
+  if (op.kind !== 'set_label' && op.kind !== 'rename_node') return err({ code: 'INVALID_OP', message: 'Source-preserving Flowchart edits support set_label and owned rename_node only' })
+  try {
+    const before = readFlowchartSourceViews(source)
+    if (op.kind === 'rename_node') return renameFlowchartSource(source, op, before)
+    if (before.some(graph => !graph.nodes.has(op.target))) return err({ code: 'NODE_NOT_FOUND', message: `Source-preserving Flowchart label target "${op.target}" must name an existing native node in both source views` })
+    const label = op.label.trim()
+    if (before.every(graph => graph.nodes.get(op.target)!.label === label)) return ok([])
+    const first = mutateFlowchart({ kind: 'flowchart', graph: before[0] }, op)
+    const expected = [first, before[1] === before[0] ? first : mutateFlowchart({ kind: 'flowchart', graph: before[1] }, op)]
+    const edits = appendSourceStatement(source, `${op.target}@{ label: ${quoteMetadataLabel(label)} }`)
+    const candidate = applySourceEdits(source, edits)
+    const after = readFlowchartSourceViews(candidate)
+    for (let index = 0; index < before.length; index++) {
+      if (index === 1 && before[1] === before[0] && after[1] === after[0]) continue
+      const result = expected[index]!
+      if (!result.ok) return result
+      if (!sameSourceMeaning(result.value.graph, after[index])) return err({ code: 'INVALID_OP', message: 'Source-preserving Flowchart label cannot be written without changing the requested value or another native graph field' })
+    }
+    return ok(edits)
+  } catch (error) {
+    return err({ code: 'INVALID_OP', message: `Source-preserving Flowchart label could not be verified: ${error instanceof Error ? error.message : String(error)}` })
+  }
 }
 
 export function createFlowchartMutationDraft(body: FlowchartBody): (op: FlowchartMutationOp) => Result<FlowchartBody, MutationError> {

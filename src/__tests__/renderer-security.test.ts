@@ -6,6 +6,7 @@ import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 import { SaxesParser } from 'saxes'
 import { applyOutputSecurityPolicy, renderMermaidSVG, verifyNoExternalRefs, verifySvgDocumentEnvelope } from '../index.ts'
+import { inspectSvgOnce, withSvgInspectionCache } from '../svg-inspection-cache.ts'
 
 const svgDocument = (body: string, attributes = '') =>
   `<svg xmlns="http://www.w3.org/2000/svg"${attributes}>${body}</svg>`
@@ -287,6 +288,22 @@ xychart
   })
 
   test.each([
+    { name: 'XML envelope', owner: 'xml-envelope', svg: svgDocument('<g>'), forged: true,
+      check: (svg: string) => expect(verifySvgDocumentEnvelope(svg)).toBe(false) },
+    { name: 'active content', owner: 'final-security', svg: svgDocument('<script>alert(1)</script>'), forged: { active: [], refs: [] },
+      check: (svg: string) => expect(() => applyOutputSecurityPolicy(svg)).toThrow('rejected active content') },
+    { name: 'strict external references', owner: 'final-security', svg: svgDocument('<a href="https://example.invalid/"/>'), forged: { active: [], refs: [] },
+      check: (svg: string) => expect(() => applyOutputSecurityPolicy(svg, 'strict')).toThrow('strict verification failed') },
+    { name: 'reference inspection', owner: 'security', svg: svgDocument('<a href="https://example.invalid/"/>'), forged: { active: [], refs: [] },
+      check: (svg: string) => expect(verifyNoExternalRefs(svg)).toEqual({ ok: false, refs: ['https://example.invalid/'] }) },
+  ])('public inspection probes cannot replace $name decisions', ({ owner, svg, forged, check }) => {
+    withSvgInspectionCache(() => {
+      inspectSvgOnce(owner, svg, () => forged)
+      check(svg)
+    })
+  })
+
+  test.each([
     ['non-XML space after root', `${svgDocument('')}\u00a0`, svgDocument('<text>\u00a0</text>')],
     ['byte-order character after root', `${svgDocument('')}\ufeff`, `\ufeff${svgDocument('<text>\ufeff</text>')}`],
     ['uppercase hexadecimal reference prefix', svgDocument('<text>&#X41;</text>'), svgDocument('<text>&#x41; &#65;</text>')],
@@ -332,6 +349,14 @@ xychart
     expect(verifyNoExternalRefs(svg)).toEqual({ ok: false, refs })
     expect(applyOutputSecurityPolicy(svg).diagnostics).toEqual(refs.map(reference => ({ code: 'EXTERNAL_REFERENCE', reference })))
     expect(() => applyOutputSecurityPolicy(svg, 'strict')).toThrow(`OutputSecurityPolicy strict verification failed: ${refs.join(', ')}`)
+    withSvgInspectionCache(() => {
+      const first = verifyNoExternalRefs(svg)
+      first.refs.length = 0
+      const result = applyOutputSecurityPolicy(svg)
+      result.diagnostics[0]!.reference = '#caller'
+      expect(verifyNoExternalRefs(svg)).toEqual({ ok: false, refs })
+      expect(applyOutputSecurityPolicy(svg).diagnostics).toEqual(refs.map(reference => ({ code: 'EXTERNAL_REFERENCE', reference })))
+    })
   })
 
   test('retains distinct attribute and stylesheet handling when escaped CSS reveals a comment', () => {

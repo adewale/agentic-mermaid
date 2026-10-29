@@ -9,7 +9,8 @@ import { curatedFragments } from './grammar-fragments.ts'
 import { projectNativeOperations, projectReferenceOperations } from './grammar-native-operations.ts'
 import { projectReferenceSemantic } from './grammar-native-semantics.ts'
 import { startGrammarReference } from './grammar-reference.ts'
-import { announces, ourReading, readsAsFamily, reduceSilentRead, SILENT_READ_DEFINITION, type SilentReadExample, spellSource, verifyCodes } from './grammar-silent-reads.ts'
+import { announces, ourReading, readsAsFamily, reduceGrammarWitness, reduceSilentRead, SILENT_READ_DEFINITION, type SilentReadExample, spellSource, verifyCodes } from './grammar-silent-reads.ts'
+import { nativeMeaningChanged, triageGrammarWitness, type GrammarDefectKind, type GrammarTriageResult } from './grammar-triage.ts'
 import type { GrammarObservation, GrammarReferenceReply } from './grammar-types.ts'
 import { admitModernReference } from './reference.ts'
 
@@ -26,7 +27,7 @@ function option(name: string, fallback: string): string {
   return value
 }
 if (args.includes('--help')) {
-  console.log('bun run eval/mermaid-modern-compat/grammar-run.ts [--mermaid-dir PATH] [--reference-dir PATH] [--fuzz 5000] [--seed 7] [--workers 4] [--families flowchart,sequence | --native-only] [--docs-only] [--output PATH]')
+  console.log('bun run eval/mermaid-modern-compat/grammar-run.ts [--mermaid-dir PATH] [--reference-dir PATH] [--fuzz 5000] [--seed 7] [--workers 4] [--families flowchart,sequence | --native-only] [--docs-only] [--corpus-limit 0] [--candidates-per-family 0] [--reduce-checks 150] [--output PATH]')
   process.exit(0)
 }
 const upstream = resolve(option('--mermaid-dir', process.env.MERMAID_UPSTREAM_DIR ?? join(HERE, '../../../mermaid')))
@@ -34,10 +35,15 @@ const referenceDir = resolve(option('--reference-dir', process.env.MERMAID_REFER
 const output = resolve(option('--output', join(HERE, 'output/grammar')))
 const fuzz = Number(option('--fuzz', '5000')),
   seed = Number(option('--seed', '7')),
-  workers = Number(option('--workers', '4'))
+  workers = Number(option('--workers', '4')),
+  corpusLimit = Number(option('--corpus-limit', '0')),
+  candidatesPerFamily = Number(option('--candidates-per-family', '0')),
+  reduceChecks = Number(option('--reduce-checks', '150'))
 if (!Number.isSafeInteger(fuzz) || fuzz < 0 || fuzz > 100_000) throw new Error('--fuzz must be 0..100000 per family')
 if (!Number.isSafeInteger(seed)) throw new Error('--seed must be an integer')
 if (!Number.isSafeInteger(workers) || workers < 1 || workers > 8) throw new Error('--workers must be 1..8')
+for (const [name, value, maximum] of [['corpus-limit', corpusLimit, 100_000], ['candidates-per-family', candidatesPerFamily, 32], ['reduce-checks', reduceChecks, 1000]] as const)
+  if (!Number.isSafeInteger(value) || value < 0 || value > maximum) throw new Error(`--${name} must be 0..${maximum}`)
 const reference = admitModernReference(upstream, referenceDir)
 const harvested = harvestModernCorpus(upstream, !args.includes('--docs-only'))
 const allFamilies = [...harvested.expectedFamilies].sort()
@@ -352,16 +358,46 @@ function mutate(seeds: readonly Sample[], fragments: readonly string[], rnd: () 
 const inProgress = join(output, 'in-progress.json')
 const entering = (family: string, id: string, stage: string, source: string): void => writeFileSync(inProgress, JSON.stringify({ family, id, stage, source }) + '\n')
 /** Silent reads reduced per family; the rest are counted, not reduced. */
-const SILENT_REDUCTIONS = 8
+const SILENT_REDUCTIONS = args.includes('--candidates-per-family') ? candidatesPerFamily : 8
+interface ContractExample {
+  family: string
+  id: string
+  seed: number
+  contract: GrammarDefectKind
+  source: string
+  original: string
+  triage: GrammarTriageResult
+}
 const pending = [...families]
-const results: Array<{ family: string; silentReads: { corpus: number; mutations: number; examples: SilentReadExample[] } }> = []
+const results: Array<{ family: string; silentReads: { corpus: number; mutations: number; examples: SilentReadExample[] }; contractCandidates: { checked: number; examples: ContractExample[] } }> = []
+// A timeout must leave an explicitly partial receipt, including already
+// completed families, rather than a stale successful summary from an old run.
+const checkpoint = (): void => writeFileSync(join(output, 'summary.json'), JSON.stringify({
+  status: 'incomplete', reference, agenticCommit, agenticDirty, seed, mutationsPerFamily: fuzz,
+  familiesAssessed: results.length, familiesRequested: families.length,
+  silentReads: { examples: results.flatMap(row => row.silentReads.examples) },
+  contractCandidates: { examples: results.flatMap(row => row.contractCandidates.examples) },
+  families: results,
+}, null, 2) + '\n')
+checkpoint()
 async function worker(): Promise<void> {
   const oracle = startGrammarReference(referenceDir, upstream)
   try {
     for (let family = pending.shift(); family; family = pending.shift()) {
-      const samples = [...harvested.corpus.values()].filter(sample => sample.provenance.some(origin => origin.familyHint === family))
-      const validSeed = samples.find(sample => sample.provenance.some(origin => origin.kind === 'docs' && origin.familyHint === family))
+      const allSamples = [...harvested.corpus.values()].filter(sample => sample.provenance.some(origin => origin.familyHint === family))
+      const validSeed = allSamples.find(sample => sample.provenance.some(origin => origin.kind === 'docs' && origin.familyHint === family))
       if (!validSeed) throw new Error(`No official documentation seed for ${family}`)
+      let samples = allSamples
+      if (corpusLimit) {
+        const pool = allSamples.filter(sample => sample.source.length <= 4000)
+        const choose = random(seed)
+        for (let i = pool.length - 1; i > 0; i--) {
+          const at = Math.floor(choose() * (i + 1))
+          ;[pool[i], pool[at]] = [pool[at]!, pool[i]!]
+        }
+        samples = pool.slice(0, corpusLimit)
+      }
+      entering(family, validSeed.id, 'prepare-reference', validSeed.source)
       const preparation = await oracle.prepare(family, validSeed.source)
       // Observation hooks must preserve the release parser's behavior. Only
       // getters stable under an observed repeat can establish that control.
@@ -382,6 +418,8 @@ async function worker(): Promise<void> {
       const vocabulary = new Set<string>()
       const examples: unknown[] = []
       const silent: Array<{ sample: Sample; verify: string[] }> = []
+      const contracts = new Map<GrammarDefectKind, Array<{ sample: Sample; triage: GrammarTriageResult }>>()
+      let contractChecks = 0
       const stream = openSync(join(output, `${family}.jsonl`), 'w')
       let details = 0
       const detailCounts = new Map<string, number>()
@@ -420,13 +458,40 @@ async function worker(): Promise<void> {
             count(c, before, agentic, result, index?.unchanged === true)
             if (before.tokens.status === 'available' && vocabulary.size < 240) for (const [, image] of before.tokens.value) if (image && image.length <= 40) vocabulary.add(image)
             let verify: string[] | undefined
-            if (!before.accepted && readsAsFamily(family!, agentic)) {
-              c.readsMermaidRejects++
+            const sameFamily = agentic.envelope.family === family
+            const sourceOnly = sameFamily && agentic.envelope.status === 'accepted' && (agentic.envelope.representation === 'opaque' || agentic.envelope.representation === 'preserved')
+            if ((!before.accepted && readsAsFamily(family!, agentic)) || (candidatesPerFamily > 0 && sourceOnly)) {
+              if (!before.accepted && readsAsFamily(family!, agentic)) c.readsMermaidRejects++
               entering(family!, sample.id, 'verify', sample.source)
               verify = verifyCodes(sample.source)
-              if (!announces(verify)) {
+              if (!before.accepted && readsAsFamily(family!, agentic) && !announces(verify)) {
                 c.silentReads++
                 if (silent.length < SILENT_REDUCTIONS) silent.push({ sample, verify })
+              }
+            }
+            // Shortlist actual public-contract observations independently of
+            // admission mismatches. Raw reference model/action/token changes
+            // remain diagnostics and cannot select these witnesses.
+            const hints: GrammarDefectKind[] = []
+            if (sameFamily && agentic.envelope.representation === 'structured' && after && (!after.accepted || result.writerFamilySame === false)) hints.push('portable-export')
+            if (sameFamily && agentic.envelope.representation === 'structured' && agentic.native.status === 'rejected') hints.push('native-admission')
+            if (sourceOnly && verify && !announces(verify)) hints.push('source-only-admission')
+            if (verify?.some(code => code.startsWith('THREW:'))) hints.push('verification-error')
+            if (agentic.native.status === 'accepted' && agentic.envelope.status === 'rejected') hints.push('portable-export')
+            if (candidatesPerFamily && agentic.native.status === 'accepted' && agentic.serialized !== undefined && agentic.serialized !== sample.source) {
+              const reloaded = inspectAgenticGrammar(family!, agentic.serialized)
+              assertNativeInstrumentation(reloaded, `${family}/${sample.id}/native-reload`)
+              if (reloaded.native.status !== 'accepted') hints.push('native-reload')
+              if (nativeMeaningChanged(family!, agentic.native.observation, reloaded.native.observation)) hints.push('meaning-change')
+            }
+            if (hints.some(kind => (contracts.get(kind)?.length ?? 0) < candidatesPerFamily)) {
+              entering(family!, sample.id, 'contract-triage', sample.source)
+              const triage = await triageGrammarWitness({ family: family!, source: sample.source }, async (_, source) => source === sample.source ? before : source === agentic.serialized && after ? after : oracle.control(family!, source))
+              contractChecks++
+              for (const { kind } of triage.defects) {
+                const retained = contracts.get(kind) ?? []
+                if (retained.length < candidatesPerFamily && !retained.some(row => row.sample.source === sample.source)) retained.push({ sample, triage })
+                contracts.set(kind, retained)
               }
             }
             const compact = {
@@ -493,7 +558,7 @@ async function worker(): Promise<void> {
         const reductions = new Map<string, SilentReadExample>()
         for (const { sample, verify } of silent) {
           entering(family, sample.id, 'reduce', sample.source)
-          const source = await reduceSilentRead(family, sample.source, async candidate => (await oracle.control(family!, candidate)).accepted)
+          const source = await reduceSilentRead(family, sample.source, async candidate => (await oracle.control(family!, candidate)).accepted, reduceChecks)
           const seen = reductions.get(source)
           if (seen) {
             seen.occurrences++
@@ -504,19 +569,30 @@ async function worker(): Promise<void> {
           reductions.set(source, { family, id: sample.id, ...(parent ? { parent } : {}), seed, source, spelled: spellSource(source), mermaid: mermaid.slice(0, 400), ours: ourReading(family, source), verify: verifyCodes(source), occurrences: 1, original: sample.source, originalVerify: verify })
         }
         const silentReads = { corpus: corpusCounts.silentReads, mutations: mutationCounts.silentReads, reduced: silent.length, examples: [...reductions.values()] }
+        const contractExamples: ContractExample[] = []
+        for (const [contract, retained] of contracts) for (const { sample, triage } of retained) {
+          entering(family, sample.id, `reduce-${contract}`, sample.source)
+          const parse = (_: string, source: string) => oracle.control(family!, source)
+          const source = await reduceGrammarWitness(sample.source, async candidate => (await triageGrammarWitness({ family: family!, source: candidate }, parse)).defects.some(defect => defect.kind === contract), reduceChecks)
+          contractExamples.push({ family, id: sample.id, seed, contract, source, original: sample.source, triage: source === sample.source ? triage : await triageGrammarWitness({ family, source }, parse) })
+        }
+        const contractCandidates = { checked: contractChecks, examples: contractExamples }
         const row = {
           family,
           nativeAdmissionProfile: 'canonical-renderer-request',
           preparation,
           observationControl,
           corpus: corpusCounts,
+          corpusSelection: { available: allSamples.length, selected: samples.length, limit: corpusLimit, method: corpusLimit ? 'Seeded shuffle of sources at most 4000 characters' : 'Full harvested corpus' },
           mutations: mutationCounts,
           mutationGeneration: { requested: fuzz, executed: mutationCounts.inputs, attempts, skippedOver4000: tooLong, seed, fragmentCount: fragments.length, curatedFragmentCount: curated.length },
           silentReads,
+          contractCandidates,
           examples,
         }
         results.push(row)
         writeFileSync(join(output, `${family}-summary.json`), JSON.stringify(row, null, 2) + '\n')
+        checkpoint()
         console.log(
           `${family}: complete; reference-only ${corpusCounts.referenceOnly + mutationCounts.referenceOnly}, agentic-only ${corpusCounts.agenticOnly + mutationCounts.agenticOnly}, model drift candidates ${corpusCounts.modelDriftCandidates + mutationCounts.modelDriftCandidates}, silent reads ${silentReads.corpus + silentReads.mutations}`,
         )
@@ -539,7 +615,15 @@ const silentReads = {
   byFamily: Object.fromEntries(results.filter(row => row.silentReads.corpus + row.silentReads.mutations).map(row => [row.family, { corpus: row.silentReads.corpus, mutations: row.silentReads.mutations }])),
   examples: results.flatMap(row => row.silentReads.examples),
 }
+const contractCandidates = {
+  definition: 'Bounded witnesses of actual portable export, native reload/meaning, or source-diagnostic contracts, confirmed by existing triage; independent of raw admission and reference-stream differences.',
+  perFamilyPerContract: candidatesPerFamily,
+  reductionChecks: reduceChecks,
+  checked: results.reduce((sum, row) => sum + row.contractCandidates.checked, 0),
+  examples: results.flatMap(row => row.contractCandidates.examples),
+}
 const summary = {
+  status: 'completed',
   generatedAt: new Date().toISOString(),
   reference,
   agenticCommit,
@@ -570,6 +654,7 @@ const summary = {
   seed,
   skippedInterpolatedTemplates: harvested.skippedInterpolatedTemplates,
   silentReads,
+  contractCandidates,
   families: results,
 }
 writeFileSync(join(output, 'summary.json'), JSON.stringify(summary, null, 2) + '\n')

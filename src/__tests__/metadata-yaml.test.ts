@@ -19,6 +19,8 @@ import { toEntityMarkers } from '../shared/mermaid-entities.ts'
 import { coalesceFlowchartLines } from '../flowchart-lexer.ts'
 import {
   metadataText,
+  parseMetadataBody,
+  protectMetadataEntities,
   quoteMetadataString,
   readMetadataBlock,
 } from '../shared/metadata-yaml.ts'
@@ -239,6 +241,20 @@ describe('scanMetadataBlock delimits a block by the family\'s upstream lexer', (
         { text: 'A --> B', line: 4 },
       ])
   })
+})
+
+test('metadata entity protection stays proportional when one private-use candidate dominates', () => {
+  const alphabet = Array.from({ length: 0x1900 }, (_, index) => String.fromCharCode(0xe000 + index)).join('')
+  for (const heavy of ['\uE000', '\uF8FF']) {
+    const value = alphabet + heavy.repeat(256) + '#x;'.repeat(1024)
+    const source = `value: "${value}"`
+    const protectedBody = protectMetadataEntities(source)
+    expect(protectedBody.restore(protectedBody.text)).toBe(source)
+    expect(protectedBody.sourceOffset(protectedBody.text.length)).toBe(source.length)
+    expect(protectedBody.text.length).toBeLessThanOrEqual(source.length * 2)
+    const parsed = parseMetadataBody(source, 'flowchart')
+    expect(parsed.ok ? parsed.entries.get('value') : parsed.message).toBe(value)
+  }
 })
 
 describe('quoteMetadataString', () => {

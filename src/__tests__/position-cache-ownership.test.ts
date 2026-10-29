@@ -331,6 +331,7 @@ test('family ownership follows constructed identities and backend ownership foll
     const child = await runChild(process.execPath, ['-e', `
       import assert from 'node:assert/strict'
       import { isOwnedFamily } from './src/experimental/owned-family.ts'
+      import { KNOWN_EXTENSION_CONTRACT_VERSIONS } from './src/shared/extension-identity.ts'
       import { DefaultBackend, isOriginalEnrolledDefaultBackend, registerBackend, registerBuiltInBackend } from './src/scene/backend.ts'
       const mode = ${JSON.stringify(mode)}
       const fail = () => { throw new Error('backend query touched a proxy') }
@@ -340,7 +341,7 @@ test('family ownership follows constructed identities and backend ownership foll
       assert.equal(isOriginalEnrolledDefaultBackend(proxy), false)
       if (mode === 'changed-before-enrollment') DefaultBackend.drawNode = () => { throw new Error('unexpected rendering') }
       if (mode === 'failed-enrollment') {
-        registerBackend({ ...DefaultBackend, id: 'backend:default' }, { compatibility: { core: '^0.4.0', scene: '^2.0.0' } })
+        registerBackend({ ...DefaultBackend, id: 'backend:default' }, { compatibility: { core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core, scene: '^2.0.0' } })
         assert.throws(() => registerBuiltInBackend(DefaultBackend), { name: 'ExtensionCollisionError' })
         assert.equal(Object.isFrozen(DefaultBackend), true)
         assert.equal(isOriginalEnrolledDefaultBackend(DefaultBackend), false)

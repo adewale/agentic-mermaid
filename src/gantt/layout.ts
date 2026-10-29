@@ -1,3 +1,4 @@
+import { dependencyTerminalLead, dependencyStrokeWidth } from './dependency-paint.ts'
 // ============================================================================
 // Gantt layout — schedule → deterministic geometry (docs/design/families/gantt.md §4).
 //
@@ -428,8 +429,8 @@ function compactDepPoints(points: DepPoint[]): DepPoint[] {
   return out
 }
 
-function routeDependency(from: DepAnchor, to: DepAnchor, obstacles: DepRect[], bands: DepBand[], plot: DepPlot): { points: DepPoint[]; arrowDir: 'right' | 'down' | 'up' } | null {
-  const S = GANTT_DEP_STUB
+function routeDependency(from: DepAnchor, to: DepAnchor, obstacles: DepRect[], bands: DepBand[], plot: DepPlot, stub = GANTT_DEP_STUB): { points: DepPoint[]; arrowDir: 'right' | 'down' | 'up' } | null {
+  const S = stub
   const fr = from.rect
   const tr = to.rect
   const sy = fr.y + fr.h / 2
@@ -512,7 +513,7 @@ function routeDependency(from: DepAnchor, to: DepAnchor, obstacles: DepRect[], b
   return { points: compacted, arrowDir }
 }
 
-function routeGanttDependencies(model: GanttModel, schedule: GanttSchedule, bars: GanttBarLayout[], rows: GanttRowLayout[], plot: DepPlot): GanttDependencyLayout[] {
+function routeGanttDependencies(model: GanttModel, schedule: GanttSchedule, bars: GanttBarLayout[], rows: GanttRowLayout[], plot: DepPlot, style: ResolvedRenderStyle, options: RenderOptions = {}): GanttDependencyLayout[] {
   const edges = ganttDependencyEdges(model)
   if (edges.length === 0) return []
   const barByTask = new Map(bars.map(b => [b.taskIndex, b]))
@@ -524,14 +525,14 @@ function routeGanttDependencies(model: GanttModel, schedule: GanttSchedule, bars
     const fb = barByTask.get(edge.from)
     const tb = barByTask.get(edge.to)
     if (!fb || !tb) continue // vert tasks render as markers, not bars — nothing to anchor
-    const route = routeDependency({ rect: depBarRect(fb), tipX: fb.milestoneX }, { rect: depBarRect(tb), tipX: tb.milestoneX }, obstacles, bands, plot)
-    if (!route) continue
     const fromTask = schedule.tasks[edge.from]!
     const toTask = schedule.tasks[edge.to]!
     // A connector is critical when it is a BINDING after-edge between two
     // critical-path tasks: the successor starts exactly at this predecessor's
     // end (with several `after` refs only the latest end binds).
     const critical = edge.kind === 'after' && fromTask.id !== undefined && toTask.id !== undefined && critIds.has(fromTask.id) && critIds.has(toTask.id) && fromTask.end === toTask.start
+    const route = routeDependency({ rect: depBarRect(fb), tipX: fb.milestoneX }, { rect: depBarRect(tb), tipX: tb.milestoneX }, obstacles, bands, plot, options.gantt?.dependencyArrows ? dependencyTerminalLead(dependencyStrokeWidth(style.lineWidth, options.gantt.criticalPath === true && critical)) : GANTT_DEP_STUB)
+    if (!route) continue
     out.push({
       fromTaskIndex: edge.from,
       toTaskIndex: edge.to,
@@ -603,7 +604,7 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
       labelColumnWidth = Math.max(labelColumnWidth, wrapped.width)
     }
   }
-  labelColumnWidth = Math.ceil(labelColumnWidth) + GL.labelGap
+  labelColumnWidth = Math.ceil(labelColumnWidth) + Math.max(GL.labelGap, options.renderOptions?.gantt?.dependencyArrows ? dependencyTerminalLead(dependencyStrokeWidth(style.lineWidth, options.renderOptions.gantt.criticalPath === true)) + 4 : 0)
   if (compact) rowH = Math.max(rowH, ...[...taskWraps.values()].map(label => Math.ceil(label.block.height) + GL.rowGap))
   const vertBlocks = new Map(vertTasks.map(task => [task.index, preparePixelText(task.label, { display: 'literal', transform: style.edgeTextTransform, fontSize: style.edgeLabelFontSize, fontWeight: Math.max(style.edgeLabelFontWeight, 600), letterSpacing: style.edgeLetterSpacing })]))
 
@@ -793,7 +794,7 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
 
   const critIds = new Set(schedule.analysis?.criticalPathTaskIds ?? [])
   const criticalTaskIndexes = schedule.tasks.filter(t => t.id !== undefined && critIds.has(t.id)).map(t => t.index)
-  const dependencies = routeGanttDependencies(model, schedule, bars, rows, { x: plotX, y: plotY, w: plotW, h: plotH })
+  const dependencies = routeGanttDependencies(model, schedule, bars, rows, { x: plotX, y: plotY, w: plotW, h: plotH }, style, options.renderOptions)
   const taskIndexById = new Map(model.tasks.flatMap(task => (task.id ? [[task.id, task.index] as const] : [])))
   const links = model.clicks.flatMap(click => {
     if (click.action !== 'href') return [] // callbacks are deliberately never executable

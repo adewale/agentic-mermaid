@@ -7,8 +7,8 @@ import { graphEdgeTextBlock } from '../graph-text.ts'
 import { shapeRoutingProfile } from '../shape-outline.ts'
 import { countPointPairCrossings } from '../shared/edge-crossing-pair.ts'
 import { countOpposingRouteOverlaps } from '../shared/edge-overlaps.ts'
-import { routeCandidateMarkerBlocker, routeCandidateMarkersClear } from './route-marker-clearance.ts'
-import { LABEL_PILL_PADDING, labelRect, pillRect } from '../shared/edge-label-geometry.ts'
+import { edgesMayShareTerminal, routeCandidateMarkerBlocker, routeCandidateMarkersClear } from './route-marker-clearance.ts'
+import { LABEL_PILL_PADDING, labelEndpointClearance, labelRect, pillRect } from '../shared/edge-label-geometry.ts'
 import {
   EPS,
   CLEARANCE,
@@ -283,7 +283,8 @@ function collectLaneBlockers(
     // two lines visually ("channel" conflict). Perpendicular crossings are
     // fine. Exception: two edges into the SAME target may converge exactly
     // collinearly at the shared target port — the classic flowchart fan-in
-    // merge, where the final approaches draw as one line into one arrowhead.
+    // merge, where the final approaches draw as one line into one arrowhead —
+    // when that shared ink can stand for both relationships.
     if (channels && !routeChannelMayBlock(channels, other, axis.cross, c, mainLo, mainHi, CLEARANCE, EPS)) continue
     for (let i = 1; i < other.points.length; i++) {
       const a = other.points[i - 1]!, b = other.points[i]!
@@ -292,7 +293,7 @@ function collectLaneBlockers(
       const sLo = Math.min((axis.main === 'x' ? a.x : a.y), (axis.main === 'x' ? b.x : b.y))
       const sHi = Math.max((axis.main === 'x' ? a.x : a.y), (axis.main === 'x' ? b.x : b.y))
       if (Math.min(mainHi, sHi) - Math.max(mainLo, sLo) > EPS) {
-        if (other.target === edge.target && other.source !== edge.source &&
+        if (other.target === edge.target && other.source !== edge.source && edgesMayShareTerminal(edge, other) &&
           Math.abs((axis.cross === 'x' ? a.x : a.y) - c) < EPS && i === other.points.length - 1) {
           continue
         }
@@ -333,25 +334,41 @@ export function findLabelSlot(edge: PositionedEdge, start: Point, end: Point, ct
   const PAD = 2
   const rectsOverlap = (ax: number, ay: number, aw: number, ah: number, bx: number, by: number, bw: number, bh: number, gap = PAD) => ax < bx + bw + gap && ax + aw + gap > bx && ay < by + bh + gap && ay + ah + gap > by
 
-  const slotClear = (cx: number, cy: number): boolean => {
-    const pill = pillRect(cx, cy, m)
-    for (const node of ctx.nodes) {
-      const endpoint = node.id === edge.source || node.id === edge.target
-      if (endpoint && !ctx.finalLabelClearance) continue
-      // The final closure runs after the last label pass, so its candidate
-      // must already satisfy the renderer's 8px label halo against every node.
-      const clearance = ctx.finalLabelClearance ? 8 : PAD
-      if (pill.x < node.x + node.width + clearance && pill.x + pill.w + clearance > node.x && pill.y < node.y + node.height + clearance && pill.y + pill.h + clearance > node.y) return false
+  const lineWidth = ctx.style.lineWidth ?? 1
+  const sourceClearance = labelEndpointClearance(edge, lineWidth, 'start'), targetClearance = labelEndpointClearance(edge, lineWidth, 'end')
+  // The final closure runs after the last label pass, so its candidate must
+  // already satisfy the renderer's 8px label halo against every node. Own
+  // endpoints keep the halo, their marker and a visible run of line.
+  const nodeClearance = (node: PositionedNode): number => Math.max(ctx.finalLabelClearance ? 8 : PAD,
+    node.id === edge.source ? sourceClearance : 0, node.id === edge.target ? targetClearance : 0)
+  // Production may ignore a reciprocal feedback label because a later label
+  // pass can move it. Final closure has no such future pass: both rendered
+  // 8px halos must clear now (16px between the inner pills).
+  const labelGap = ctx.finalLabelClearance ? 16 : PAD, routeGap = ctx.finalLabelClearance ? 8 : PAD
+  const others = ctx.edges.filter(other => other !== edge && !(edge.edgeIndex !== undefined && other.edgeIndex === edge.edgeIndex))
+  const otherLabel = (other: PositionedEdge) => !ctx.finalLabelClearance && isMovableReciprocalLabel(edge, other, ctx) ? null : labelRect(other, ctx.style)
+  const vertical = Math.abs(start.x - end.x) < EPS, axisAligned = vertical !== (Math.abs(start.y - end.y) < EPS)
+  const main = vertical ? 'y' : 'x', cross = vertical ? 'x' : 'y', crossEnd = vertical ? 'x1' : 'y1', mainEnd = vertical ? 'y1' : 'x1'
+  const half = (vertical ? m.height : m.width) / 2 + LABEL_PILL_PADDING, crossHalf = (vertical ? m.width : m.height) / 2 + LABEL_PILL_PADDING
+  // Every seat is tested against the same obstacles: nodes, other pills and
+  // other routes' segments, each with its own clearance. Collect them once.
+  // Seats on an axis-aligned lane share the pill's cross band and stay within
+  // half a pill of the lane, so an obstacle clear of that box blocks none.
+  const bandLo = Math.min(start[cross], end[cross]) - crossHalf - 1e-6, bandHi = Math.max(start[cross], end[cross]) + crossHalf + 1e-6
+  const reachLo = Math.min(start[main], end[main]) - half - 1e-6, reachHi = Math.max(start[main], end[main]) + half + 1e-6
+  type Obstacle = { x: number; y: number; w: number; h: number; x1: number; y1: number; gap: number }
+  let obstacleList: Obstacle[] | undefined
+  const obstacles = (): Obstacle[] => {
+    if (obstacleList) return obstacleList
+    const list: Obstacle[] = obstacleList = []
+    const add = (x: number, y: number, w: number, h: number, x1: number, y1: number, gap: number): void => {
+      if (!axisAligned || (vertical ? x1 : y1) + gap >= bandLo && (vertical ? x : y) - gap <= bandHi
+        && (vertical ? y1 : x1) + gap >= reachLo && (vertical ? y : x) - gap <= reachHi) list.push({ x, y, w, h, x1, y1, gap })
     }
-    for (const other of ctx.edges) {
-      if (other === edge || (edge.edgeIndex !== undefined && other.edgeIndex === edge.edgeIndex)) continue
-      // Production may ignore a reciprocal feedback label because a later
-      // label pass can move it. Final closure has no such future pass: both
-      // rendered 8px halos must clear now (16px between the inner pills).
-      const movable = !ctx.finalLabelClearance && isMovableReciprocalLabel(edge, other, ctx)
-      const rect = movable ? null : labelRect(other, ctx.style)
-      const labelGap = ctx.finalLabelClearance ? 16 : PAD
-      if (rect && rectsOverlap(pill.x, pill.y, pill.w, pill.h, rect.x, rect.y, rect.w, rect.h, labelGap)) return false
+    for (const node of ctx.nodes) add(node.x, node.y, node.width, node.height, node.x + node.width, node.y + node.height, nodeClearance(node))
+    for (const other of others) {
+      const rect = otherLabel(other)
+      if (rect) add(rect.x, rect.y, rect.w, rect.h, rect.x + rect.w, rect.y + rect.h, labelGap)
       for (let i = 1; i < other.points.length; i++) {
         const a = other.points[i - 1]!,
           b = other.points[i]!
@@ -359,11 +376,14 @@ export function findLabelSlot(edge: PositionedEdge, start: Point, end: Point, ct
           sxHi = Math.max(a.x, b.x)
         const syLo = Math.min(a.y, b.y),
           syHi = Math.max(a.y, b.y)
-        const routeGap = ctx.finalLabelClearance ? 8 : PAD
-        if (rectsOverlap(pill.x, pill.y, pill.w, pill.h, sxLo, syLo, sxHi - sxLo, syHi - syLo, routeGap)) return false
+        add(sxLo, syLo, sxHi - sxLo, syHi - syLo, sxHi, syHi, routeGap)
       }
     }
-    return true
+    return list
+  }
+  const slotClear = (cx: number, cy: number): boolean => {
+    const pill = pillRect(cx, cy, m)
+    return !obstacles().some(o => rectsOverlap(pill.x, pill.y, pill.w, pill.h, o.x, o.y, o.w, o.h, o.gap))
   }
 
   // Discrete candidate positions along the lane (Kakoulis–Tollis candidate
@@ -373,6 +393,25 @@ export function findLabelSlot(edge: PositionedEdge, start: Point, end: Point, ct
     const cx = start.x + (end.x - start.x) * t
     const cy = start.y + (end.y - start.y) * t
     if (slotClear(cx, cy)) return { x: cx, y: cy }
+  }
+  // A crowded or only just long enough lane can miss every sample while a
+  // clear seat remains between its obstacles. Try the seats just beside each
+  // obstacle crossing the pill's band, nearest the midpoint first.
+  if (!axisAligned) return null
+  const lo = Math.min(start[main], end[main]), hi = Math.max(start[main], end[main]), mid = (lo + hi) / 2
+  if (hi - lo < 2 * half - 2 * EPS) return null
+  const seats = [mid]
+  for (const o of obstacles()) {
+    if (o[crossEnd] + o.gap <= start[cross] - crossHalf || o[cross] - o.gap >= start[cross] + crossHalf) continue
+    seats.push(o[main] - o.gap - half - EPS, o[mainEnd] + o.gap + half + EPS)
+  }
+  // The whole pill stays on its own lane: a lane ending at a bend has no
+  // node there to push a seat back, and a pill over the corner reads as
+  // belonging to neither run.
+  const ranked = seats.filter(seat => seat >= lo + half - EPS && seat <= hi - half + EPS).sort((a, b) => Math.abs(a - mid) - Math.abs(b - mid) || a - b)
+  for (const seat of ranked.slice(0, 16)) {
+    const point = main === 'x' ? { x: seat, y: start.y } : { x: start.x, y: seat }
+    if (slotClear(point.x, point.y)) return point
   }
   return null
 }

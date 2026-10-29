@@ -183,7 +183,7 @@ async function measure(entry: MicroCase, options: Options, allocation: Awaited<R
     medianMs,
     madMs: median(samplesMs.map(value => Math.abs(value - medianMs))),
     ...(allocBytesPerCall === undefined ? {} : { allocBytesPerCall }),
-    ...(typeof prepared === 'function' ? {} : { input: prepared.input }),
+    ...(typeof prepared === 'function' ? {} : { input: prepared.input, evidence: prepared.evidence }),
   }
 }
 

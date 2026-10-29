@@ -1,3 +1,4 @@
+import { PACKAGE_VERSION } from '../version.ts'
 // ============================================================================
 // Style registry — ONE primitive for "how should this diagram look".
 //
@@ -130,7 +131,7 @@ export interface StyleReferenceResolution {
 }
 
 const CORE_STYLE_VERSION = '1.0.0'
-const CORE_STYLE_COMPATIBILITY = Object.freeze({ core: '^0.4.0' })
+const CORE_STYLE_COMPATIBILITY = Object.freeze({ core: PACKAGE_VERSION })
 const CORE_STYLE_PROVENANCE = Object.freeze({
   owner: 'agentic-mermaid',
   source: 'built-in',

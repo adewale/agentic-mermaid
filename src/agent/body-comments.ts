@@ -189,7 +189,10 @@ export function restoreBodyComments(bodySource: string, kind: ParsedDiagram['kin
     const endLine = location && 'endLine' in location ? location.endLine : location?.line
     const at = location ? comment.placement === 'before' ? location.line - 1 : endLine! : lines.length
     const list = insertions.get(at) ?? []
-    list.push(writeMermaidComment(comment.raw)); insertions.set(at, list)
+    // Mermaid's public comment cleanup requires a payload character. A bare
+    // %% otherwise reaches Sankey's CSV lexer, even on its own line.
+    const raw = kind === 'sankey' && comment.raw === '%%' ? '%% ' : comment.raw
+    list.push(writeMermaidComment(raw)); insertions.set(at, list)
   }
   return lines.flatMap((line, index) => [...(insertions.get(index) ?? []), line]).concat(insertions.get(lines.length) ?? []).join('\n') + '\n'
 }

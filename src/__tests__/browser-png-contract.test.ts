@@ -1,3 +1,4 @@
+import { KNOWN_EXTENSION_CONTRACT_VERSIONS } from '../shared/extension-identity.ts'
 import { describe, expect, test } from 'bun:test'
 import { renderMermaidPNGInBrowserWithReceipt } from '../browser-png.ts'
 import { createMermaidBrowserPNGRenderer } from '../browser-png.ts'
@@ -203,7 +204,7 @@ describe('canonical browser PNG adapter', () => {
           : svg
       },
     }, {
-      compatibility: { core: '^0.4.0', scene: '^2.0.0' },
+      compatibility: { core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core, scene: '^2.0.0' },
       provenance: { owner: 'browser-png-contract-test', source: 'test' },
     })
     let rasterCalls = 0
@@ -242,7 +243,7 @@ describe('canonical browser PNG adapter', () => {
           .replace('<svg ', '<svg data-comparison="1 > 0" ')
       },
     }, {
-      compatibility: { core: '^0.4.0', scene: '^2.0.0' },
+      compatibility: { core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core, scene: '^2.0.0' },
       provenance: { owner: 'browser-png-contract-test', source: 'test' },
     })
     try {

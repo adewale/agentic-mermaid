@@ -1,3 +1,4 @@
+import { KNOWN_EXTENSION_CONTRACT_VERSIONS } from '../shared/extension-identity.ts'
 import { describe, expect, test } from 'bun:test'
 
 import {
@@ -27,7 +28,7 @@ function registerProbeBackend(id: string, rendered: () => void): () => void {
         .replace('<svg ', `<svg data-host-backend="${id}" `)
     },
   }, {
-    compatibility: { core: '^0.4.0', scene: '^2.0.0' },
+    compatibility: { core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core, scene: '^2.0.0' },
     provenance: { owner: 'host-png-parity-test', source: 'test' },
   })
 }

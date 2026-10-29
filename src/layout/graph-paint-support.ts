@@ -157,7 +157,7 @@ export function labelSeatPaintContext(nodes: readonly PositionedNode[], edges: r
     labels.set(edge, { x: point.x, y: point.y, box })
     return box
   }
-  const clear = (edge: PositionedEdge, point: Point, positions: ReadonlyMap<PositionedEdge, Point>, blocked?: Set<PositionedEdge>, ignoredLabel?: PositionedEdge): boolean => {
+  const clear = (edge: PositionedEdge, point: Point, positions: ReadonlyMap<PositionedEdge, Point>, blocked?: Set<PositionedEdge>, ignoredLabel?: PositionedEdge | ReadonlySet<PositionedEdge>): boolean => {
     const box = label(edge, point)
     if (!box) return false
     for (const obstacle of bodies) if (!pay(1) || boxesMeet(box, obstacle)) return false
@@ -169,7 +169,7 @@ export function labelSeatPaintContext(nodes: readonly PositionedNode[], edges: r
       for (const marker of ink.markers) if (!pay(1) || !finiteBox(marker.bounds) || boxesMeet(box, marker.bounds)) return false
       if (other === edge) continue
       for (const shaft of ink.shafts) if (!pay(1) || boxesMeet(box, shaft)) return false
-      if (other === ignoredLabel) continue
+      if (ignoredLabel instanceof Set ? ignoredLabel.has(other) : other === ignoredLabel) continue
       const center = positions.get(other) ?? other.labelPosition
       if (!other.label || !center) continue
       const peer = label(other, center)

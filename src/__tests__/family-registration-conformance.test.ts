@@ -11,7 +11,7 @@ import {
   type ExternalFamilyId,
   type FamilyDescriptor,
 } from '../agent/index.ts'
-import { createExtensionIdentity } from '../shared/extension-identity.ts'
+import { createExtensionIdentity, KNOWN_EXTENSION_CONTRACT_VERSIONS } from '../shared/extension-identity.ts'
 import { toFinite } from '../agent/types.ts'
 import { declareFamilyScenePrimitiveEvidence } from '../agent/families.ts'
 import { configWarningsForMermaid } from '../agent/verify.ts'
@@ -45,6 +45,8 @@ const FAMILY_SCOPED_OPTION_VALUES = {
   shadow: true,
   class: { hierarchicalNamespaces: false },
   kanban: { maxWidth: 600 },
+  pie: { maxWidth: 360 },
+  radar: { maxWidth: 360 },
   architecture: { visual: { groupCornerRadius: 12 } },
   timeline: { maxWidth: 300 },
   journey: { experienceCurve: false },
@@ -61,7 +63,7 @@ function directDescriptor(localId: string): FamilyDescriptor {
       id,
       kind: 'family',
       version: '1.0.0',
-      compatibility: { core: '^0.4.0' },
+      compatibility: { core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core },
       provenance: { owner: 'family-conformance-test', source: 'test', reference: EVIDENCE },
     }),
     id,
@@ -111,7 +113,7 @@ function throwingSceneDescriptor(localId: string): FamilyDescriptor {
     ...base,
     identity: createExtensionIdentity({
       ...base.identity,
-      compatibility: { core: '^0.4.0', scene: '^2.0.0' },
+      compatibility: { core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core, scene: '^2.0.0' },
     }),
     semanticRoles: ['prelude'],
     semanticChannels: [],
@@ -378,7 +380,7 @@ describe('external family executable registration conformance', () => {
       enumerable: true,
       get() {
         reads.coreRange++
-        return reads.coreRange === 1 ? '^0.4.0' : undefined
+        return reads.coreRange === 1 ? KNOWN_EXTENSION_CONTRACT_VERSIONS.core : undefined
       },
     })
     const descriptor = {

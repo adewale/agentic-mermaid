@@ -1,3 +1,4 @@
+import { VISIBLE_SHAFT } from '../shared/edge-label-geometry.ts'
 import { finalizeFlatMeasuredMarkers } from './compound-boundary-routes.ts'
 import type { ChannelWork } from './channel-tracks.ts'
 import type { LayoutCertificationCandidate } from './certification.ts'
@@ -271,7 +272,7 @@ function placeNativeGraphCandidate(
         }
         const { start: startDepth, end: endDepth, span } = footprint
         if (marked) {
-          lead = Math.max(lead, startDepth, endDepth, span)
+          lead = Math.max(lead, startDepth + VISIBLE_SHAFT + style.edgeBendRadius, endDepth + VISIBLE_SHAFT + style.edgeBendRadius, span)
           doubleDepth = Math.max(doubleDepth, startDepth + endDepth)
           if (edge.hasArrowStart && source < nodes.length) portSpans[source] = Math.max(portSpans[source]!, span)
           if (edge.hasArrowEnd && target < nodes.length) portSpans[target] = Math.max(portSpans[target]!, span)

@@ -1,10 +1,12 @@
 import type { DiamondFacet, Direction, MermaidGraph, Point, PositionedEdge, PositionedGroup, PositionedNode } from '../../types.ts'
 import { portEndpointRate, segmentThroughShape } from '../../layout-rubric.ts'
-import { centerOutLabelSamples, diamondFacetPorts, labelPaintClearance, labelRect, laneContextFor, PORT_EXACT, recertifyReroutedEdge, shapePorts, simplifyPolyline, straightLaneFor } from '../../route-contracts.ts'
+import { centerOutLabelSamples, diamondFacetPorts, invalidEndpointApproaches, labelPaintClearance, labelRect, laneContextFor, PORT_EXACT, recertifyReroutedEdge, shapePorts, simplifyPolyline, straightLaneFor } from '../../route-contracts.ts'
 import type { LabelMetricsStyle } from '../../route-contracts.ts'
-import { DEFAULTS, layoutDebug, layoutEnvFlag } from '../geometry.ts'
+import { DEFAULTS, graphReachability, layoutDebug, layoutEnvFlag } from '../geometry.ts'
 import { corankFanInSpokes } from './peers.ts'
 import { reanchorOffOutlineEndpoints } from './obstacle-routing.ts'
+import { positionedEdgeForwardish } from './shared.ts'
+import { symmetricFanout } from './fanout.ts'
 import { tryStraighten } from '../route-lanes.ts'
 import { shapeOutline } from '../../shape-outline.ts'
 import { geometryBounds, nodePaintBounds, paintedStrokeExtent, unionSceneBounds } from '../../scene/bounds.ts'
@@ -73,6 +75,10 @@ export function portLaneInkClear(nodes: readonly PositionedNode[], edges: readon
         const edge = edges[edgeIndex]!
         if ((!changedNodes[nodeIndex] && !changedEdges[edgeIndex]) || edge.style === 'invisible') continue
         if (!work()) return false
+        // A canonical contact still has to face outward. Prove each endpoint
+        // separately so improving one cannot hide a new inward shaft at the other.
+        if (edge.source === node.id && invalidEndpointApproaches(edge, node) > invalidEndpointApproaches(beforeEdges[edgeIndex]!, beforeNodes[nodeIndex]!)) return false
+        if (edge.target === node.id && invalidEndpointApproaches(edge, undefined, node) > invalidEndpointApproaches(beforeEdges[edgeIndex]!, undefined, beforeNodes[nodeIndex]!)) return false
         const route = ink(edge)
         if (!route) return false
         const box = card(node)
@@ -198,7 +204,7 @@ export function alignLabeledSourcePort(
         pay()
         const rect = labelRect(edge, style)
         if (!rect) return false
-        const pill = paint.clearPaintRect(rect, labelHaloExtension(edge, style.lineWidth ?? 1))
+        const pill = paint.clearPaintRect(rect, labelHaloExtension(edge, style.lineWidth ?? 1), edge)
         if (!pill) return false
         const box = { x0: pill.x, y0: pill.y, x1: pill.x + pill.w, y1: pill.y + pill.h }
         for (const peer of candidate.edges) {
@@ -440,7 +446,7 @@ export function alignPortLanes(
     // Peer sizing can leave incident endpoints stale before this pass. Repair
     // only changed private routes, then admit the geometry we actually publish.
     const changedEdges = candidateEdges.filter((edge, index) => routeChanged(edge, edges[index]!))
-    reanchorOffOutlineEndpoints(candidateNodes, changedEdges, { direction })
+    reanchorOffOutlineEndpoints(candidateNodes, changedEdges, { direction }, style)
     if (!portLaneInkClear(candidateNodes, candidateEdges, nodes, edges, groups, style, budget)) return
   }
   // Centering is preparatory, but may not silently break more canonical
@@ -1071,6 +1077,10 @@ export function alignPortLaneCandidate(
     }
   }
 
+  let reaches: ((from: string, to: string) => boolean) | undefined
+  const emitterOwnsFanout = (src: PositionedNode): boolean =>
+    symmetricFanout(src, edges.filter(o => o.source === src.id && positionedEdgeForwardish(o, nodeMap, direction)), edges, nodeMap, groups, direction, reaches ??= graphReachability(edges)) !== undefined
+
   for (const e of edges) {
     if (facetAligned.has(e)) continue
     if (e.points.length < 2 || e.source === e.target) continue
@@ -1093,7 +1103,10 @@ export function alignPortLaneCandidate(
     // Primary-forward shape: a monotone staircase along the flow axis (a
     // feedback loop or container route must not be retargeted at a port).
     if (!isForwardMonotone(e) || simplifyPolyline(e.points).length > 4) continue
-    const moved = moveSafe(tgt, d, e) ? tgt : moveSafe(src, -d, e) ? src : null
+    // A fan-out the symmetric emitter owns stays where it is: sliding its
+    // source over one child leaves the other branch carrying the whole
+    // offset, so only the child may move onto the source's lane.
+    const moved = moveSafe(tgt, d, e) ? tgt : !emitterOwnsFanout(src) && moveSafe(src, -d, e) ? src : null
     if (moved) {
       layoutDebug('[apl] slide', moved.id, 'by', (moved === tgt ? d : -d).toFixed(1), 'for', e.source, '->', e.target)
       apply(moved, moved === tgt ? d : -d, e)

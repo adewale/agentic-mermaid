@@ -31,9 +31,9 @@ export interface GitGraphParseOptions {
   title?: string
 }
 
-// Mermaid's GitGraph grammar reads a "…" string to its closing quote across
+// Mermaid's GitGraph grammar reads either quoted string to its closing quote across
 // line breaks, which it keeps; a title runs to the end of its line.
-const QUOTED_TEXT: QuotedTextRule = { wholeLine: line => /^title(?:\s|$)/i.test(line) }
+const QUOTED_TEXT: QuotedTextRule = { spanning: '"\'', wholeLine: line => /^title(?:\s|$)/i.test(line) }
 
 /** For each line, the last line of the statement that starts there. */
 export function gitGraphStatementEnds(lines: readonly string[]): number[] {
@@ -73,7 +73,7 @@ export function parseGitGraph(source: string, options: GitGraphParseOptions = {}
     const merge = declaration ? undefined : text.match(MERGE_LINE)
     if (!declaration && !merge) continue
     const payload = declaration ? (declaration[1] ?? '') : (merge![2] ?? '')
-    if (declaration && /^"((?:\\.|[^"])*)"$/.test(payload)) continue
+    if (declaration && /^(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')$/.test(payload)) continue
     try {
       const attrs = parseAttrs(payload, index + 1, declaration ? ['id', 'tag', 'type', 'msg'] : ['id', 'tag', 'type'])
       attrsByLine.set(index, attrs)
@@ -127,14 +127,14 @@ export function parseGitGraph(source: string, options: GitGraphParseOptions = {}
     if (commitLine) {
       if (parserObservationActive('gitgraph')) observeParserStatement('gitgraph', 'commit', text, { line: index + 1, unit: 'normalized' })
       const payload = commitLine[1] ?? ''
-      const legacyMessage = payload.match(/^"((?:\\.|[^"])*)"$/)
-      const attrs = legacyMessage ? { tags: [], msg: legacyMessage[1]!.replace(/\\(["\\])/g, '$1') } : (attrsByLine.get(index) ?? parseAttrs(payload, index + 1, ['id', 'tag', 'type', 'msg']))
+      const legacyMessage = /^(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')$/.test(payload)
+      const attrs = legacyMessage ? { tags: [], msg: unquote(payload) } : (attrsByLine.get(index) ?? parseAttrs(payload, index + 1, ['id', 'tag', 'type', 'msg']))
       const commit = addCommit(attrs, 'commit', index + 1)
       statements.push({ kind: 'commit', ref: commit.id })
       if (parserObservationActive('gitgraph')) observeParserMutation('gitgraph', 'appendStatement', statements.at(-1), { line: index + 1, unit: 'normalized' })
       continue
     }
-    const branchLine = text.match(/^branch\s+("(?:\\.|[^"])+"|\S+)(?:\s+order\s*:\s*(-?\d+))?$/i)
+    const branchLine = text.match(/^branch\s+("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\S+)(?:\s+order\s*:\s*(-?\d+))?$/i)
     if (branchLine) {
       if (parserObservationActive('gitgraph')) observeParserStatement('gitgraph', 'branch', text, { line: index + 1, unit: 'normalized' })
       const name = unquote(branchLine[1]!)
@@ -154,7 +154,7 @@ export function parseGitGraph(source: string, options: GitGraphParseOptions = {}
       if (parserObservationActive('gitgraph')) observeParserMutation('gitgraph', 'appendStatement', statements.at(-1), { line: index + 1, unit: 'normalized' })
       continue
     }
-    const checkout = text.match(/^(checkout|switch)\s+("(?:\\.|[^"])+"|\S+)$/i)
+    const checkout = text.match(/^(checkout|switch)\s+("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\S+)$/i)
     if (checkout) {
       if (parserObservationActive('gitgraph')) observeParserStatement('gitgraph', 'checkout', text, { line: index + 1, unit: 'normalized' })
       const name = unquote(checkout[2]!)
@@ -242,7 +242,7 @@ export function parseGitGraph(source: string, options: GitGraphParseOptions = {}
 }
 
 const COMMIT_LINE = /^commit(?:\s+(.*))?$/is
-const MERGE_LINE = /^merge\s+("(?:\\.|[^"])+"|\S+)(?:\s+(.*))?$/is
+const MERGE_LINE = /^merge\s+("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\S+)(?:\s+(.*))?$/is
 
 interface ParsedAttrs {
   id?: string
@@ -255,7 +255,7 @@ interface ParsedAttrs {
 function parseAttrs(source: string, line: number, allowed: string[]): ParsedAttrs {
   const attrs: ParsedAttrs = { tags: [] }
   let cursor = 0
-  const regex = /([A-Za-z][\w-]*)\s*:\s*(?:"((?:\\.|[^"])*)"|(\S+))/gy
+  const regex = /([A-Za-z][\w-]*)\s*:\s*("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\S+)/gy
   while (cursor < source.length) {
     while (/\s/.test(source[cursor] ?? '')) cursor++
     if (cursor >= source.length) break
@@ -264,7 +264,7 @@ function parseAttrs(source: string, line: number, allowed: string[]): ParsedAttr
     if (!match) throw new GitGraphParseError(`Invalid gitGraph attribute syntax near '${source.slice(cursor)}'.`, line)
     const key = match[1]!.toLowerCase()
     if (!allowed.includes(key)) throw new GitGraphParseError(`Attribute '${key}' is not valid for this gitGraph statement.`, line)
-    const value = (match[2] ?? match[3] ?? '').replace(/\\(["\\])/g, '$1')
+    const value = unquote(match[2]!)
     if (key === 'id') attrs.id = value
     else if (key === 'msg') attrs.msg = value
     else if (key === 'tag') attrs.tags.push(value)
@@ -280,13 +280,19 @@ function parseAttrs(source: string, line: number, allowed: string[]): ParsedAttr
 }
 
 function unquote(value: string): string {
-  return value.startsWith('"') ? value.slice(1, -1).replace(/\\(["\\])/g, '$1') : value
+  // Langium's STRING converter recognizes these controls and otherwise drops
+  // the backslash. It does not interpret JavaScript Unicode or hex escapes.
+  // A generous bare-token extension may start with an unmatched quote; only
+  // a complete STRING has delimiters or escapes to decode.
+  if (!/^(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')$/.test(value)) return value
+  const controls: Record<string, string> = { b: '\b', f: '\f', n: '\n', r: '\r', t: '\t', v: '\v', 0: '\0' }
+  return value.slice(1, -1).replace(/\\(.)/g, (_, char: string) => controls[char] ?? char)
 }
 
 function quoteToken(value: string): string {
   // INT and title tokens precede branch references in the pinned lexer.
   // Quote their prefixes, keywords, and names outside the reference alphabet.
-  return /^[A-Za-z_](?:[-./\w]*[-\w])?$/.test(value) && !/^(?:title|(?:gitGraph|commit|branch|checkout|switch|merge|cherry-pick|LR|TB|BT|NORMAL|REVERSE|HIGHLIGHT)$)/i.test(value) ? value : `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
+  return /^[A-Za-z_](?:[-./\w]*[-\w])?$/.test(value) && !/^(?:title|(?:gitGraph|commit|branch|checkout|switch|merge|cherry-pick|LR|TB|BT|NORMAL|REVERSE|HIGHLIGHT)$)/i.test(value) ? value : quote(value)
 }
 
 function finiteOrder(value: number | undefined, fallback: number): number {
@@ -348,6 +354,17 @@ function implicitBranchOrder(index: number): number {
   return index <= 9 ? index / 10 : 1 - 1 / (index + 1)
 }
 
-function quote(value: string): string {
-  return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
+export function quoteGitGraphString(value: string): string {
+  const escapes: Record<string, string> = { '\b': 'b', '\f': 'f', '\n': 'n', '\r': 'r', '\t': 't', '\v': 'v', '\0': '0' }
+  // Mermaid preprocesses comments, directives and entity-looking codes without
+  // observing STRING boundaries. Unknown STRING escapes restore these literal
+  // characters after the prepasses, including percent beside LS/PS. Its style
+  // prepass also strips a semicolon from strings containing these keywords.
+  const escaped = value.replace(/[\\"%\b\f\n\r\t\v\0]/g, char => `\\${escapes[char] ?? char}`)
+    .replace(/#\w+;/g, entity => `${entity.slice(0, -1)}\\;`)
+    .replace(/style/g, 'sty\\le')
+    .replace(/classDef/g, 'class\\Def')
+  return `"${escaped}"`
 }
+
+const quote = quoteGitGraphString

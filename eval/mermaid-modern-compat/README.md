@@ -152,18 +152,24 @@ to be announced, so these are the bug candidates. Every run counts them per
 family in `summary.json` (`silentReads`), reduces the first eight of each
 family by line and then code point, and prints each distinct reduction with
 what ours read and Mermaid's error.
-`--native-only` restricts a run to the families ours parses. The nightly finder
-(`.github/workflows/nightly-finder.yml`) runs those at a fresh seed and files
-new silent reads in one issue; the PR gate and weekly run keep seed 7.
+`--native-only` restricts a run to the families ours parses. Weekly discovery
+(`.github/workflows/contract-discovery.yml`) has a ten-minute job cap and read-only
+permissions. It uses `--fuzz 100 --corpus-limit 8 --candidates-per-family 2
+--reduce-checks 8` with a recorded rolling seed. Structured contract candidates
+are retained independently of silent-read examples and rechecked through the
+existing triage oracle. Reduction preserves the same violated contract. Reports
+are JSON/artifacts for human review; no issue is created or updated automatically.
 
 Canonical CI calls the reusable semantic workflow for every PR/main revision,
 and its success is required by `CI complete` and exact-commit release attestation.
-This includes policy and corpus changes outside source paths. It runs 100 mutations **per family**, 5,000
-weekly (Monday 04:17 UTC), and defaults to 5,000 on manual dispatch. Grammar
-infrastructure failures fail that step; unsupported syntax and families remain reported diagnostics.
-Use `--families flowchart,sequence`, `--docs-only`, `--fuzz`, `--seed`,
-`--workers`, and `--output` for targeted reproductions. The independent reference
-directories use the same environment variables as the semantic gate below.
+It keeps the current pinned corpus replay, original assertions, and 100 mutations
+per family at seed 7. Larger searches are explicit manual dispatches (default
+5,000 mutations), rather than a second overlapping weekly schedule. Grammar
+infrastructure failures fail the step; unsupported syntax and families remain
+separate diagnostics. Use `--families flowchart,sequence`, `--docs-only`, `--fuzz`,
+`--seed`, `--workers`, and `--output` for targeted reproductions. Omitting the
+bounded discovery flags keeps the full corpus/manual diagnostic limits. The
+independent reference directories use the environment variables below.
 
 `bun run test:mermaid-modern` is the assertion-bearing companion. It requires
 the Mermaid source commit from `docs/project/upstream-mermaid-policy.json`

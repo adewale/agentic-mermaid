@@ -1,3 +1,4 @@
+import { KNOWN_EXTENSION_CONTRACT_VERSIONS } from '../shared/extension-identity.ts'
 import { describe, expect, test } from 'bun:test'
 import {
   createMermaidBrowserPNGRenderer,
@@ -208,7 +209,7 @@ describe('trusted host pixel measurement profiles', () => {
         return DefaultBackend.render(document, context)
       },
     }, {
-      compatibility: { core: '^0.4.0', scene: '^2.0.0' },
+      compatibility: { core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core, scene: '^2.0.0' },
       provenance: { owner: 'host-text-measurement-test', source: 'test' },
     })
     try {

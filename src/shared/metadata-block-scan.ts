@@ -20,7 +20,7 @@ export type MetadataBlockScan =
  * Delimit the `@{…}` block whose `{` is at `text[open]`, by the family's
  * upstream lexer rules (see the module comment).
  */
-export function scanMetadataBlock(text: string, open: number, grammar: MetadataGrammar): MetadataBlockScan {
+export function scanMetadataBlock(text: string, open: number, grammar: MetadataGrammar, onReplacement?: (start: number, end: number, length: number) => void): MetadataBlockScan {
   if (text[open] !== '{') throw new RangeError(`scanMetadataBlock: no "{" at ${open}`)
   if (grammar === 'sequence') {
     const end = text.indexOf('}', open + 1)
@@ -34,7 +34,11 @@ export function scanMetadataBlock(text: string, open: number, grammar: MetadataG
     if (character === '"') {
       const close = text.indexOf('"', index + 1)
       if (close < 0) return { kind: 'unclosed' }
-      body += `"${text.slice(index + 1, close).replace(/\n\s*/g, '<br/>')}"`
+      const contentStart = index + 1
+      body += `"${text.slice(contentStart, close).replace(/\n\s*/g, (text, offset: number) => {
+        onReplacement?.(contentStart + offset, contentStart + offset + text.length, 5)
+        return '<br/>'
+      })}"`
       index = close
     } else if (character === '}') {
       return { kind: 'closed', body, end: index }

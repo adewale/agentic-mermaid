@@ -11,7 +11,7 @@ import { parseMcpCliOptions } from '../mcp/mcp-cli.ts'
 import { knownStyles, resolveStyleReference } from '../scene/style-registry.ts'
 import { FAMILY_DESCRIPTOR_CONTRACT_VERSION, getFamily } from '../agent/families.ts'
 import { registerFamily } from '../agent/family-registration.ts'
-import { createExtensionIdentity } from '../shared/extension-identity.ts'
+import { createExtensionIdentity, KNOWN_EXTENSION_CONTRACT_VERSIONS } from '../shared/extension-identity.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 
@@ -88,7 +88,7 @@ describe('removed compatibility surfaces stay removed', () => {
     // runtime. The same descriptor fails on the version alone at v1, and gets
     // past that check (to a later, unrelated admission rule) at v2.
     const id = 'family:acme/contract-probe'
-    const identity = createExtensionIdentity({ id, kind: 'family', version: '1.0.0', compatibility: { core: '^0.4.0' }, provenance: { owner: 'acme', source: 'test' } })
+    const identity = createExtensionIdentity({ id, kind: 'family', version: '1.0.0', compatibility: { core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core }, provenance: { owner: 'acme', source: 'test' } })
     const descriptor = { ...getFamily('flowchart')!, id, identity, headers: ['contractProbe'], aliases: [] }
     expect(() => registerFamily({ ...descriptor, contractVersion: 1 } as never)).toThrow(/uses an unsupported descriptor contract/)
     expect(() => registerFamily({ ...descriptor, contractVersion: FAMILY_DESCRIPTOR_CONTRACT_VERSION } as never)).not.toThrow(/unsupported descriptor contract/)

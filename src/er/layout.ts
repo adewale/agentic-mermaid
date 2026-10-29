@@ -1132,6 +1132,7 @@ export function layoutErDiagram(
     const subjects = new Set([...indices.keys(), ...groupIds])
     const spans = new Map<string, number>()
     let layerSpacing = options.layerSpacing ?? ER.layerSpacing
+    let minimumTerminalLead = 0
     for (const rel of diagram.relationships) {
       const role = resolveRoleStyle(styleFace, 'relationship', { category: rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })
       for (const [id, kind] of [[rel.entity1, rel.cardinality1], [rel.entity2, rel.cardinality2]] as const) {
@@ -1140,6 +1141,7 @@ export function layoutErDiagram(
         if (!bound) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
         const depth = bound.x1 + (role?.lineWidth ?? style.lineWidth) / 2 + style.lineWidth + .25
         const lead = depth + Math.min(role?.bendRadius ?? style.edgeBendRadius, depth)
+        minimumTerminalLead = Math.max(minimumTerminalLead, lead)
         // The layered producer's earliest channel turn is layerSpacing/4.
         layerSpacing = Math.max(layerSpacing, 4 * lead)
         if (!groupIds.has(id)) spans.set(id, (spans.get(id) ?? 0) + bound.y1 - bound.y0 + style.lineWidth + .25)
@@ -1161,7 +1163,7 @@ export function layoutErDiagram(
     const placed = measureRenderStage('agentic', () => layoutAgenticGraph({
       nodes: diagram.entities.map(entity => ({ id: entity.id, ...nativeSizes.get(entity.id)! })), edges,
       direction: diagram.direction ?? 'LR', padding: ER.padding, nodeSpacing: options.nodeSpacing ?? ER.nodeSpacing,
-      layerSpacing, edgeSpacing: Math.max(6, style.lineWidth + 4),
+      layerSpacing, ...(minimumTerminalLead > 0 ? { minimumTerminalLead } : {}), edgeSpacing: Math.max(6, style.lineWidth + 4),
     }))
     return { width: placed.width, height: placed.height, preserveTerminalNormals: true, labelPlacement: 'shaft-aware',
       entities: placed.nodes.map((position, index) => ({ id: diagram.entities[index]!.id, ...position, ...nativeSizes.get(diagram.entities[index]!.id)! })),

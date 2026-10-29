@@ -1,9 +1,10 @@
+import { extendTerminalRuns } from '../terminal-clearance.ts'
 import type { ResolvedRenderStyle } from '../../styles.ts'
 import { measureLabelConflicts } from '../label-conflicts.ts'
 import type { Direction, MermaidGraph, Point, PositionedEdge, PositionedGroup, PositionedNode } from '../../types.ts'
 import { clipEdgeToShape } from '../../shape-clipping.ts'
 import { countEdgeCrossings, countParallelRouteOverlaps, onShapeOutline } from '../../layout-rubric.ts'
-import { PORT_EXACT, simplifyPolyline } from '../../route-contracts.ts'
+import { PORT_EXACT, simplifyPolyline, centerOutLabelSamples } from '../../route-contracts.ts'
 import type { LabelMetricsStyle } from '../../route-contracts.ts'
 import { calculatePathMidpoint, layoutFlow, nodeCrossSize, rectsOverlap } from '../geometry.ts'
 import { nodeInsideGroups, routeClearOfNodes } from './shared.ts'
@@ -11,7 +12,7 @@ import { labelBoxAt, longestSegmentMidpoint, readableLabelGap, bundledLabelCandi
 import type { BundledLabelCandidate } from './bundled-labels.ts'
 import { retainConstructedBundleRoutes } from '../bundle-routes.ts'
 import { labelHaloExtension } from '../../shared/edge-label-geometry.ts'
-import { graphEdgeMarkerPaintRegions } from '../../graph-connectors.ts'
+import { graphEdgeMarkerPaintRegions, graphEdgeTerminalClearance } from '../../graph-connectors.ts'
 import { routeCandidateMarkerBlocker } from '../route-marker-clearance.ts'
 import { portLaneInkClear, portLaneInkWork, withinPortLaneBudget } from './port-lanes.ts'
 
@@ -302,11 +303,9 @@ export function applyParallelDuplicateLanes(
     return false
   }
 
-  // Mixed labeled+unlabeled duplicates used to fall through every pre-freeze
-  // lane splitter: the labeled member was not eligible for duplicate lanes,
-  // and the lone unlabeled member was not a duplicate by itself. The
-  // post-freeze shared-trunk label repair then had to reroute geometry. Own the
-  // exact-pair case here instead, before route certificates are issued.
+  // Labelled duplicates can remain coincident when the symmetric outer lanes
+  // are blocked, including pairs where both occurrences have labels. Separate
+  // their shared run before route certificates freeze the geometry.
   const byDirectedPair = new Map<string, PositionedEdge[]>()
   for (const edge of edges) {
     if (edge.source === edge.target) continue
@@ -327,7 +326,7 @@ export function applyParallelDuplicateLanes(
     const box = labelBoxAt(edge, point, style), halo = labelHaloExtension(edge, style.lineWidth ?? 1)
     return { x: box.x - halo, y: box.y - halo, width: box.width + 2 * halo, height: box.height + 2 * halo }
   }
-  const separateMixedPair = (bucket: PositionedEdge[], back: boolean, sep: number, placement: 'source' | 'target' | 'original'): boolean => {
+  const separateLabeledPair = (bucket: PositionedEdge[], back: boolean, sep: number, placement: 'source' | 'target' | 'original', shift = 0): boolean | 'marker-blocked' => {
     bucket.sort((a, b) => (a.edgeIndex ?? 0) - (b.edgeIndex ?? 0))
     const source = nodeMap.get(bucket[0]!.source)!
     const target = nodeMap.get(bucket[0]!.target)!
@@ -335,9 +334,15 @@ export function applyParallelDuplicateLanes(
     const entryMain = entrySide(target, back)
     const k = bucket.length
     if (sep < 4) return false
+    // Compact endpoint seats do not shrink a caption's painted footprint.
+    // Reserve that main-axis space between jogs before final label seating.
+    const jogPitch = bucket.every(edge => edge.label) ? Math.max(sep, ...bucket.map(edge => {
+      const box = haloBoxAt(edge, { x: 0, y: 0 })
+      return (f.isHorizontal ? box.width : box.height) + readableLabelGap(style)
+    })) : sep
     const fromTarget = placement === 'target'
-    const sourceCenter = source[f.cross] + crossSize(source) / 2
-    const targetCenter = target[f.cross] + crossSize(target) / 2
+    const sourceCenter = source[f.cross] + crossSize(source) / 2 + shift
+    const targetCenter = target[f.cross] + crossSize(target) / 2 + shift
 
     const lanes: Array<{ edge: PositionedEdge; sCross: number; tCross: number }> = []
     const col: number[] = []
@@ -345,7 +350,7 @@ export function applyParallelDuplicateLanes(
       const sCross = sourceCenter + (i - (k - 1) / 2) * sep
       const tCross = targetCenter + (i - (k - 1) / 2) * sep
       const sign = (back ? -1 : 1) * f.sign
-      let jog = fromTarget ? entryMain - sign * (BASE_GAP + i * sep) : exitMain + sign * (BASE_GAP + i * sep)
+      let jog = fromTarget ? entryMain - sign * (BASE_GAP + i * jogPitch) : exitMain + sign * (BASE_GAP + i * jogPitch)
       const lo = Math.min(exitMain, entryMain), hi = Math.max(exitMain, entryMain)
       if (jog <= lo + 4 || jog >= hi - 4) jog = (exitMain + entryMain) / 2
       lanes.push({ edge: bucket[i]!, sCross, tCross })
@@ -375,7 +380,8 @@ export function applyParallelDuplicateLanes(
       }
       proposed.push({ edge, points: clipped, label: edge.label ? longestSegmentMidpoint(clipped) : undefined })
     }
-    if (parallelLaneProposalAllowed(edges, proposed, style, { allowCrossingsForOverlap: true }) !== true) return false
+    const admission = parallelLaneProposalAllowed(edges, proposed, style, { allowCrossingsForOverlap: true })
+    if (admission !== true) return admission
     if (placement !== 'original') {
       const outside = edges.filter(edge => !bucket.includes(edge))
       const candidateRoutes = [...outside, ...proposed.map(p => ({ ...p.edge, points: p.points }))]
@@ -406,8 +412,11 @@ export function applyParallelDuplicateLanes(
   }
 
   for (const bucket of byDirectedPair.values()) {
-    if (bucket.length < 2 || !bucket.some(edge => edge.label) || !bucket.some(edge => !edge.label)) continue
-    if (!bucket.some(edge => edge.label && bucket.some(other => !other.label && routesShareCollinearRun(edge, other)))) continue
+    if (bucket.length < 2 || !bucket.some(edge => edge.label)) continue
+    if (!bucket.some(edge => edge.label && bucket.some(other => other !== edge && routesShareCollinearRun(edge, other)))) continue
+    // Shared routing alone does not make a labelled group defective. Keep
+    // ELK's already separated captions instead of replacing their safe seats.
+    if (bucket.every(edge => edge.label) && measureLabelConflicts({ nodes: [], edges: bucket }, style).labelLabel === 0) continue
     const source = nodeMap.get(bucket[0]!.source)
     const target = nodeMap.get(bucket[0]!.target)
     if (!source || !target) continue
@@ -415,14 +424,32 @@ export function applyParallelDuplicateLanes(
     const capacity = (Math.min(crossSize(source), crossSize(target)) - 2 * MARGIN) / (bucket.length - 1)
     const required = Math.max(TARGET_SEP, ...bucket.filter(edge => edge.label).map(edge => {
       const box = haloBoxAt(edge, { x: 0, y: 0 })
-      return Math.max(box.width, box.height) / 2 + 3
+      return (f.isHorizontal ? box.height : box.width) / 2 + 3
     }))
+    const separate = (sep: number, placement: 'source' | 'target' | 'original'): boolean => {
+      const first = separateLabeledPair(bucket, back, sep, placement)
+      if (first === true) return true
+      if (first !== 'marker-blocked' || !withinPortLaneBudget(nodes, edges, groups)) return false
+      // A feeder may occupy the centred pair. Sample the same bounded face
+      // window in the existing centre-out order, retaining full marker proof.
+      const room = (capacity - sep) * (bucket.length - 1) / 2
+      return room > 0 && centerOutLabelSamples(0).some(t => {
+        const shift = (2 * t - 1) * room
+        return shift !== 0 && separateLabeledPair(bucket, back, sep, placement, shift) === true
+      })
+    }
     // A feedback route can block the source-side jog while leaving the target
     // approach clear. Try the mirrored corridor under the same route budgets.
-    if (required <= capacity && (separateMixedPair(bucket, back, required, 'source') || separateMixedPair(bucket, back, required, 'target'))) continue
+    if (required <= capacity && (separate(required, 'source') || separate(required, 'target'))) continue
     // Do not partially widen a cramped face or move a label onto a new obstacle.
     // Keep the existing construction when no complete halo-safe proposal fits.
-    separateMixedPair(bucket, back, Math.min(TARGET_SEP, capacity), 'original')
+    if (separate(Math.min(TARGET_SEP, capacity), 'original')) continue
+    if (bucket.every(edge => edge.label)) {
+      // A crowded face may fit narrower lanes. Actual marker admission, not
+      // the preferred pitch, decides whether those slots can be published.
+      const compact = Math.min(TARGET_SEP / 2, capacity)
+      separate(compact, 'source') || separate(compact, 'target') || separate(compact, 'original')
+    }
   }
 
   const fwdByTarget = new Map<string, PositionedEdge[]>()
@@ -534,6 +561,9 @@ export function applyParallelDuplicateLanes(
         pts = clipEdgeToShape(pts, source, true)
         pts = clipEdgeToShape(pts, target, false)
         pts = simplifyPolyline(pts)
+        const protectedPoints = extendTerminalRuns(pts, graphEdgeTerminalClearance(edge, style))
+        if (!protectedPoints) return undefined
+        pts = protectedPoints
         if (pts.length < 2 ||
           !onShapeOutline(source, pts[0]!) ||
           !onShapeOutline(target, pts[pts.length - 1]!) ||

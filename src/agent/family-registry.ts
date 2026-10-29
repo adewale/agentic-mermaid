@@ -1,3 +1,4 @@
+import { PACKAGE_VERSION } from '../version.ts'
 import * as familyDetection from '../shared/builtin-family-detection.ts'
 import { enrollOwnedFamily } from '../experimental/owned-family.ts'
 import { STABLE_FAMILY_DESCRIPTOR_SEEDS } from './stable-family-metadata.ts'
@@ -331,6 +332,10 @@ export interface FamilyOperations {
   serialize?: (body: FamilyParsedBody, meta?: Readonly<ValidDiagramMeta>) => string
   /** Optional: family-specific structured mutation. */
   mutate?: (body: DiagramBody, op: AnyMutationOp) => Result<DiagramBody, MutationError>
+  /** Optional source-preserving edit. Retain bytes outside owned edit ranges and
+   * verify the complete native model against the requested semantic delta.
+   * This does not grant canonical portability or structured-body admission. */
+  mutateSource?: (source: string, op: AnyMutationOp) => Result<readonly import('./source-mutation.ts').SourceEdit[], MutationError>
   /** Optional: family-specific verify (Tier 1 + Tier 2). Returns warnings only.
    * The hook alone does not make public verification native: verification also
    * consumes the family's executable SVG and positioned-layout projections. */
@@ -1370,7 +1375,7 @@ function completeBuiltinDescriptor(seed: BuiltinFamilyDescriptorSeed, hooks: Fam
       id: `family:${seed.id}`,
       kind: 'family',
       version: '1.0.0',
-      compatibility: { core: '^0.4.0' },
+      compatibility: { core: PACKAGE_VERSION },
       provenance: { owner: 'agentic-mermaid', source: 'built-in' },
     }),
     collisionPriority: 100,
@@ -1451,6 +1456,7 @@ const FAMILY_DESCRIPTOR_FIELDS = Object.freeze([
   'buildSourceMap',
   'serialize',
   'mutate',
+  'mutateSource',
   'verify',
   'layout',
   'projectPositioned',
@@ -1871,6 +1877,22 @@ export function installBuiltinFamily(id: DiagramKind, hooks: Parameters<typeof c
   if (!seed) throw new Error(`Unknown built-in family "${id}"`)
   const descriptor = completeBuiltinDescriptor(seed, hooks)
   validateDescriptor(descriptor)
+  enrollOwnedFamily(descriptor)
+  REGISTRY.set(id, descriptor)
+  CONFORMANCE.set(id, builtinFamilyConformanceReport(descriptor))
+  return descriptor
+}
+
+/** A preview worker may load rendering before editing. Add only the owning
+ * mutation hooks, retaining its installed render/terminal implementations. */
+export function installBuiltinMutationHooks(id: DiagramKind, hooks: Pick<FamilyOperations, 'mutate' | 'mutateSource'>): FamilyDescriptor {
+  const existing = REGISTRY.get(id)
+  if (!existing) throw new Error(`Built-in family must be loaded before editing: ${id}`)
+  if (existing.mutate === hooks.mutate && existing.mutateSource === hooks.mutateSource) return existing
+  assertRegistryMutationAllowed()
+  const seed = BUILTIN_FAMILY_DESCRIPTOR_SEEDS.find(seed => seed.id === id)!
+  const descriptor = completeBuiltinDescriptor(seed, { ...existing, mutate: hooks.mutate, mutateSource: hooks.mutateSource })
+  validateDescriptor(descriptor, id)
   enrollOwnedFamily(descriptor)
   REGISTRY.set(id, descriptor)
   CONFORMANCE.set(id, builtinFamilyConformanceReport(descriptor))

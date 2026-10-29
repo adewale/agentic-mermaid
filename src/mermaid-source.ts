@@ -35,7 +35,7 @@ import {
 import { splitSequenceStatementLines } from './sequence/statements.ts'
 import { parseDirectiveYaml, parseMermaidYaml } from './shared/mermaid-yaml.ts'
 import { syntaxError } from './shared/syntax-error.ts'
-import { authoredMermaidSlice, cleanedMermaidOffset, cleanupMermaidSource, originalMermaidOffset, type MermaidCleanup } from './shared/mermaid-cleanup.ts'
+import { authoredMermaidSlice, cleanedMermaidOffset, cleanupMermaidSource, originalMermaidOffset, type MermaidCleanup, type MermaidCleanupBias } from './shared/mermaid-cleanup.ts'
 import { matchMermaidFrontmatter, mermaidFirstLine, INIT_DIRECTIVE_REGEX, stripMermaidDirectives, splitHeaderStatement, toMermaidLines } from './mermaid-source-wrapper.ts'
 
 export { toMermaidLines }
@@ -485,22 +485,65 @@ const COMMENT_LINE_REGEX = /^\s*%%(?!\{)\s*(.*)\r?$/
  * the same directive boundary automatically.
  */
 export function stripMermaidInitDirectives(text: string): string {
-  return text.replace(INIT_DIRECTIVE_REGEX, '')
+  return withoutMermaidInitDirectives(text)
+}
+
+function withoutMermaidInitDirectives(text: string, removed?: (offset: number, length: number) => void): string {
+  return removed ? text.replace(INIT_DIRECTIVE_REGEX, (match, _line, _inline, offset: number) => {
+    removed(offset, match.length)
+    return ''
+  }) : text.replace(INIT_DIRECTIVE_REGEX, '')
+}
+
+/** The preserved native grammar payload and its exact authored boundaries.
+ * Sparse directive deletions compose with the shared cleanup receipt. */
+export function preservedMermaidFamilySource(source: Readonly<Pick<NormalizedMermaidSource, 'originalText' | 'wrapperSource' | 'authoredWrapperLength' | 'cleanup'>>, view: 'authored' | 'render' = 'render'): { text: string; sourceOffset: (offset: number, bias?: MermaidCleanupBias) => number; familyOffset: (offset: number, bias?: MermaidCleanupBias) => number } {
+  const cleanup = source.cleanup ?? cleanupMermaidSource(source.originalText)
+  const wrapperLength = source.wrapperSource?.length ?? 0
+  const authoredStart = source.cleanup && source.authoredWrapperLength !== undefined
+    ? originalMermaidOffset(cleanup, wrapperLength, 'end', 'text') : wrapperLength
+  const selectedView = source.cleanup && view === 'render' ? 'payloadText' : 'authoredPayloadText'
+  const start = cleanedMermaidOffset(cleanup, authoredStart, 'end', selectedView)
+  const payload = cleanup[selectedView].slice(start)
+  let deletions: Array<{ at: number; before: number; after: number }> | undefined
+  let removedLength = 0
+  const text = withoutMermaidInitDirectives(payload, (offset, length) => {
+    const at = offset - removedLength
+    const previous = deletions?.at(-1)
+    if (previous?.at === at) previous.after = offset + length
+    else (deletions ??= []).push({ at, before: offset, after: offset + length })
+    removedLength += length
+  })
+  return { text, sourceOffset: (offset, bias = 'start') => {
+    if (!Number.isInteger(offset) || offset < 0 || offset > text.length) throw new RangeError('Family source offset is outside the preserved payload')
+    let low = 0, high = deletions?.length ?? 0
+    while (low < high) {
+      const middle = low + Math.floor((high - low) / 2)
+      if (deletions![middle]!.at <= offset) low = middle + 1
+      else high = middle
+    }
+    const deletion = deletions?.[low - 1]
+    const payloadOffset = deletion ? offset === deletion.at ? bias === 'start' ? deletion.before : deletion.after : offset + deletion.after - deletion.at : offset
+    return originalMermaidOffset(cleanup, start + payloadOffset, bias, selectedView)
+  }, familyOffset: (offset, bias = 'start') => {
+    const position = cleanedMermaidOffset(cleanup, offset, bias, selectedView) - start
+    if (position < 0 || position > payload.length) throw new RangeError('Authored offset is outside the preserved family')
+    let low = 0, high = deletions?.length ?? 0
+    while (low < high) {
+      const middle = low + Math.floor((high - low) / 2)
+      if (deletions![middle]!.before <= position) low = middle + 1
+      else high = middle
+    }
+    const deletion = deletions?.[low - 1]
+    return deletion ? position <= deletion.after ? deletion.at : position - deletion.after + deletion.at : position
+  } }
 }
 
 /** Read the shared post-wrapper source without normalizing payload line endings.
  * Rendering uses the once-decoded view; authored parsing keeps entity spelling.
  * The family grammar still owns quoted payloads and accessibility directives. */
 export function preservedMermaidFamilyText(source: Readonly<Pick<NormalizedMermaidSource, 'originalText' | 'wrapperSource' | 'authoredWrapperLength' | 'cleanup'>>, view: 'authored' | 'render' = 'render'): string {
-  const cleanup = source.cleanup
-  const wrapperLength = source.wrapperSource?.length ?? 0
-  const authoredStart = cleanup && source.authoredWrapperLength !== undefined
-    ? originalMermaidOffset(cleanup, wrapperLength, 'end', 'text') : wrapperLength
-  if (!cleanup) return stripMermaidInitDirectives(source.originalText.slice(authoredStart).replace(/\r\n/g, '\n'))
-  const selectedView = view === 'render' ? 'payloadText' : 'authoredPayloadText'
-  const start = cleanedMermaidOffset(cleanup, authoredStart, 'end', selectedView)
-  const text = cleanup[selectedView]
-  return stripMermaidInitDirectives(text.slice(start))
+  return preservedMermaidFamilySource(source, view).text
 }
 
 /**

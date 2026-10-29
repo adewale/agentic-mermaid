@@ -4,7 +4,69 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+## 0.5.3 — 2026-10-29
+
+Includes the 0.5.2 changes below. Its registry publication was blocked when
+GitHub could not allocate a macOS arm64 runner; its source tag is retained.
+
+### Fixed
+
+- Keep styled arrowheads clear of connector bends in Flowchart, Architecture,
+  Block, Class, Requirement, C4, Event Modeling and Gantt dependencies by
+  reserving the painted marker depth plus 4 px of straight shaft through
+  routing and rounding.
+- Run the required macOS release build and rendering contracts on a standard
+  Intel macOS 26 runner. Windows coverage, the rendering suite, build heap
+  allowance and verified-artifact publication gates are unchanged.
+
+## 0.5.2 — 2026-10-29
+
+### Fixed
+
+- Parse long same-line Flowchart chains without rescanning the remaining
+  chain for each node's edge-ID diagnostic. Preserve the existing syntax
+  warnings and source-map spans.
+- Align ELK routes whose straight runs differ only by floating-point roundoff
+  as they are read back, so wide Class diagrams with padded cards keep their
+  card contacts instead of refusing to render, and Flowchart, State, ER and
+  Requirement routes start exactly orthogonal.
+- Render Class diagrams with rounded relationship corners, such as the
+  `publication-figure` style, when a relationship must bypass a namespace
+  header, including nested namespaces.
+- Render publication-styled Flowcharts with compound long links when joined
+  route sections differ only by floating-point roundoff, retaining their
+  endpoint contacts and existing route-safety checks.
+- Keep Flowchart relationship ends readable: clear endpoint labels and styled
+  arrowheads, symmetric grouped fan-outs with safe caption seats, and distinct
+  terminals for differently painted or separately captioned relationships.
+- Reject shared buses that imply invisible or differently painted relationships,
+  including replacements that introduce a new misleading overlap without
+  increasing the overlap count.
+
+## 0.5.1 — 2026-10-29
+
+Includes the 0.5.0 changes below. That version's npm and MCP Registry
+publication was blocked by the macOS declaration build; its GitHub source tag
+is retained.
+
+### Fixed
+
+- Give release-platform builds a 4 GiB Node old-space limit so tsup's declaration
+  worker can finish on macOS runners. The limit applies only to the build step;
+  rendering smoke tests and verified-artifact publication retain their checks.
+
+## 0.5.0 — 2026-10-28
+
+Changes since 0.4.1, including the unpublished 0.4.2 development cycle.
+
 ### Added
+
+- Explicit source-preserving edits for opaque Class and Flowchart diagrams
+  across library, CLI, MCP and editor-worker workflows. Class supports adding
+  members and removing owned whole-line members; Flowchart supports label
+  overrides and owned node renames. Edits retain other source bytes and require
+  complete native-model read-back; ambiguous ownership, dependencies and
+  semantic changes outside the requested edit are refused atomically.
 
 - Serve existing Markdown directly from the canonical API, warning and error
   page URLs when GET/HEAD requests prefer `text/markdown`, with page-specific
@@ -22,6 +84,11 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Performance
 
+- Source-preserving edits avoid duplicate Flowchart parsing when authored and
+  rendered parser inputs are identical, and avoid redundant Class quote-provenance
+  work when the authored grammar is unchanged. Distinct text interpretations
+  retain independent read-back. Local edit-kernel measurements do not establish
+  an end-to-end CLI, MCP or browser speedup.
 - Published Node bundles compact whitespace without rewriting syntax or renaming
   callable exports. The package keeps its existing exports, resources and lazy ELK
   boundary.
@@ -42,6 +109,11 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   guarantee.
 
 ### Fixed
+
+- GitGraph string exports preserve authored values through Mermaid reload;
+  Class namespace admission and Kanban authored-source provenance retain their
+  respective identity and text contracts. Marker certification checks the
+  serialized marker paint and placement used by the shipped SVG (#572).
 
 - Preserve Class direction-like label text in portable exports, refuse lossy
   empty Class and unrepresentable Quadrant labels, and share Ishikawa/Sankey
@@ -479,6 +551,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   website, and full and lazy browser bundles.
 
 ### Changed
+- Extension core compatibility now follows the 0.5 release line. External
+  extensions declaring only `^0.4.0` must explicitly declare support for 0.5;
+  the Scene contract remains version 2. Bundled descriptors bind to their
+  shipped core version.
 - Every built-in family's shapes, text and connectors are now written by one
   SVG writer from the typed fields paint certification reads, so a render's
   certificate describes the drawing it ships. Families no longer attach their

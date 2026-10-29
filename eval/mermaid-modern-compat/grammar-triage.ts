@@ -25,6 +25,8 @@ export interface GrammarTriageResult extends GrammarWitness {
   referenceAccepted: boolean
   warningCodes: string[]
   semanticFields: string[]
+  exportRefusal?: string
+  renderability?: 'passed' | 'failed' | 'not-checked'
   defects: Array<{ kind: GrammarDefectKind; detail: string; trackedBy?: number }>
 }
 
@@ -32,20 +34,26 @@ const record = (value: unknown): Record<string, unknown> => value && typeof valu
 const stable = (value: unknown): unknown => Array.isArray(value) ? value.map(stable) : value && typeof value === 'object'
   ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => [key, stable(item)])) : value
 
-/** Compare declared native meaning, retaining public identities. Block's `na`
- * and `square` both render rectangles (block/layout.ts); native observation
- * aliases for generated groups are replaced with their actual model IDs on
- * both sides, never inferred from an authored ID's spelling. */
+/** Compare declared native meaning, retaining public identities. Only actual
+ * private spacers and equivalent pixel-width spellings lose representation
+ * details; authored IDs and text remain exact. */
 function meaning(family: string, observation: NativeParserObservation): unknown {
   if (!observation.semantic) return undefined
   const value = structuredClone(observation.semantic.value)
+  if (family === 'quadrant') {
+    const data = record(value)
+    const styles = [...(data.points as Array<Record<string, unknown>>).map(point => record(point.style)), ...Object.values(record(data.classDefs)).map(record)]
+    for (const style of styles) if (typeof style.strokeWidth === 'string' && /^\d+(?:\.\d+)?(?:px)?$/.test(style.strokeWidth)) style.strokeWidth = Number.parseFloat(style.strokeWidth)
+    return stable(value)
+  }
   if (family !== 'block') return stable(value)
   const data = record(value), nodes = data.nodes as Array<Record<string, unknown>>
-  const actual: Array<{ id: unknown; parent: unknown }> = []
+  const actual: Array<{ id: unknown; parent: unknown; space: boolean }> = []
   const visit = (parent: Record<string, unknown>, parentId: unknown): void => {
     for (const item of parent.children as unknown[] ?? []) {
       const node = record(item)
-      actual.push({ id: node.id, parent: parentId })
+      const space = node.type === 'space'
+      actual.push({ id: space ? { spacer: actual.length, parent: parentId } : node.id, parent: parentId, space })
       visit(node, node.id)
     }
   }
@@ -55,6 +63,7 @@ function meaning(family: string, observation: NativeParserObservation): unknown 
   nodes.forEach((node, i) => {
     node.id = actual[i]!.id
     node.parent = actual[i]!.parent
+    if (actual[i]!.space) node.label = ''
     if (node.type === 'na') node.type = 'square'
   })
   for (const edge of data.edges as Array<Record<string, unknown>>) {
@@ -86,7 +95,11 @@ export async function triageGrammarWitness(
     const trackedBy = reviewed?.followup?.kinds.includes(kind) ? reviewed.followup.issue : undefined
     result.defects.push({ kind, detail, ...(trackedBy ? { trackedBy } : {}) })
   }
-  try { result.warningCodes = [...new Set(verifyMermaid(witness.source).warnings.map(w => w.code))] }
+  try {
+    const verification = verifyMermaid(witness.source)
+    result.warningCodes = [...new Set(verification.warnings.map(w => w.code))]
+    result.renderability = verification.checks?.renderability
+  }
   catch (error) { defect('verification-error', String(error)) }
   const parsed = parseRegisteredMermaid(witness.source)
   if (!parsed.ok) {
@@ -97,13 +110,13 @@ export async function triageGrammarWitness(
   if (parsed.value.body.kind === 'opaque' || parsed.value.body.kind === 'preserved') {
     if (reviewed?.disposition === 'reader-extension') defect('reader-regression', 'A reviewed structured reader extension became source-only')
     const edit = mutate(parsed.value, { kind: 'set_title', title: 'Grammar triage control' })
-    if (!announces(result.warningCodes) || edit.ok) defect('source-only-admission', 'Source-only input must carry a source diagnostic and refuse typed mutation')
+    if ((!result.defects.some(item => item.kind === 'verification-error') && !announces(result.warningCodes)) || edit.ok) defect('source-only-admission', 'Source-only input must carry a source diagnostic and refuse typed mutation')
     result.disposition = result.defects.length ? 'defect' : 'diagnosed-limitation'
     return result
   }
   const before = inspectAgenticGrammar(witness.family, witness.source)
   assertInstrumentation(before.native.observation)
-  if (before.native.status !== 'accepted') defect('native-admission', before.native.error ?? 'Typed admission and native renderer admission disagree')
+  if (before.native.status !== 'accepted' && !announces(result.warningCodes)) defect('native-admission', before.native.error ?? 'Typed admission and native renderer admission disagree without a source diagnostic')
   let written: GrammarReferenceReply
   try {
     result.canonical = serializeMermaid(parsed.value, { wrapper: 'canonical' })
@@ -111,6 +124,13 @@ export async function triageGrammarWitness(
   } catch (error) {
     // Failed reference transport/instrumentation must not become a product issue.
     if (result.canonical !== undefined) throw error
+    // Canonical wrapper mode explicitly declines invalid/over-budget config;
+    // that documented refusal is not an invalid source string being emitted.
+    if (error instanceof Error && error.message.startsWith('Cannot export canonical Mermaid:')) {
+      result.exportRefusal = error.message
+      result.disposition = result.defects.length ? 'defect' : 'diagnosed-limitation'
+      return result
+    }
     defect('portable-export', `Structured serialization threw: ${String(error)}`)
     result.disposition = 'defect'
     return result
@@ -119,9 +139,9 @@ export async function triageGrammarWitness(
   if (!written.accepted || canonical(written.detectedType ?? written.type) !== witness.family) defect('portable-export', written.error ?? 'Canonical export changed diagram family')
   const after = inspectAgenticGrammar(witness.family, result.canonical)
   assertInstrumentation(after.native.observation)
-  if (before.native.status === 'accepted' && after.native.status !== 'accepted') defect('native-reload', after.native.error ?? 'Native reader rejects its canonical output')
+  if (before.native.status === 'accepted' && result.renderability === 'passed' && after.native.status !== 'accepted') defect('native-reload', after.native.error ?? 'Native reader rejects its canonical output')
   result.semanticFields = before.native.observation.semantic?.fields ?? []
   if (nativeMeaningChanged(witness.family, before.native.observation, after.native.observation)) defect('meaning-change', `Selected native fields changed on reload: ${result.semanticFields.join(', ')}`)
-  result.disposition = result.defects.length ? 'defect' : 'reader-extension'
+  result.disposition = result.defects.length ? 'defect' : (before.native.status !== 'accepted' || result.renderability === 'failed') && announces(result.warningCodes) ? 'diagnosed-limitation' : 'reader-extension'
   return result
 }

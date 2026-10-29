@@ -1,9 +1,9 @@
 import type { EdgeMarker, Point, PositionedEdge } from './types.ts'
 import { ARROW_HEAD } from './styles.ts'
 import type { MarkerDescriptor } from './scene/ir.ts'
+import { prepareMarkerTerminals } from './scene/marker-terminals.ts'
 import { tipAnchoredArrow } from './scene/marker-resources.ts'
-import { projectConnectorPath, projectRoundedConnectorPath, type ConnectorPathProjection, type ConnectorPathProjectionSegment } from './scene/connector-geometry.ts'
-import { connector } from './scene/marks.ts'
+import { connectorContourSemantics, projectConnectorPath, projectRoundedConnectorPath, type ConnectorPathProjection, type ConnectorPathProjectionSegment } from './scene/connector-geometry.ts'
 import { connectorMarkerPaintRegions, type ConnectorMarkerPaintRegion } from './scene/bounds.ts'
 import { canonicalTextDigest } from './render-contract.ts'
 
@@ -23,7 +23,7 @@ function arrowMarkerResources(color?: string, fixed = false): readonly MarkerDes
   // through the target outline.
   const stroke = color ?? 'var(--_arrow)'
   const suffix = `${color ? `-${markerSuffix(color)}` : ''}${fixed ? '-fixed' : ''}`
-  const paint = { fill: stroke, stroke, strokeWidth: '0.75', strokeLinejoin: 'round' as const }
+  const paint = { fill: stroke, stroke, strokeWidth: String(ARROW_HEAD.strokeWidth), strokeLinejoin: 'round' as const }
   return [
     tipAnchoredArrow(`arrowhead${suffix}`, { width: w, height: h }, 'end', paint, fixed ? 'userSpaceOnUse' : undefined),
     tipAnchoredArrow(`arrowhead-start${suffix}`, { width: w, height: h }, 'start', paint, fixed ? 'userSpaceOnUse' : undefined),
@@ -103,6 +103,18 @@ export function markerSuffix(color: string): string {
   return literal.length <= 233 ? literal : `color-h-${canonicalTextDigest(color).slice('fnv1a64:'.length)}`
 }
 
+const terminalResources = flowchartMarkerResources(new Set(), new Set([undefined]), true, true)
+const markerTerminal = prepareMarkerTerminals(terminalResources)
+
+export function graphEdgeTerminalClearance(edge: Pick<PositionedEdge, 'style' | 'inlineStyle' | 'hasArrowStart' | 'hasArrowEnd' | 'startMarker' | 'endMarker'>, style: { lineWidth?: number }) {
+  const fixed = edge.inlineStyle?.['stroke-width'] ? '-fixed' : ''
+  const width = (style.lineWidth ?? 1) * (edge.style === 'thick' ? 2 : 1)
+  return {
+    start: edge.hasArrowStart ? markerTerminal(`${markerIdPrefix(edge.startMarker ?? 'arrow')}-start${fixed}`, width, 'start') : 0,
+    end: edge.hasArrowEnd ? markerTerminal(`${markerIdPrefix(edge.endMarker ?? 'arrow')}${fixed}`, width, 'end') : 0,
+  }
+}
+
 function pointsToCurveProjection(points: Point[]): ConnectorPathProjection {
   const first = points[0]!
   let d = `M ${first.x} ${first.y}`
@@ -123,9 +135,9 @@ function pointsToCurveProjection(points: Point[]): ConnectorPathProjection {
 }
 
 /** The same typed path drives marker tangents during placement and lowering. */
-export function graphEdgePathProjection(edge: PositionedEdge, style: { edgeBendRadius?: number }): ConnectorPathProjection | undefined {
+export function graphEdgePathProjection(edge: PositionedEdge, style: { edgeBendRadius?: number; lineWidth?: number }): ConnectorPathProjection | undefined {
   return edge.curve ? pointsToCurveProjection(edge.points)
-    : (style.edgeBendRadius ?? 0) > 0 ? projectRoundedConnectorPath(edge.points, style.edgeBendRadius!) : undefined
+    : (style.edgeBendRadius ?? 0) > 0 ? projectRoundedConnectorPath(edge.points, style.edgeBendRadius!, { terminalClearance: graphEdgeTerminalClearance(edge, style) }) : undefined
 }
 
 /** Reserve painted endpoint resources before opaque labels are moved. These
@@ -139,11 +151,13 @@ export function graphEdgeMarkerPaintRegions(edge: PositionedEdge, style: { lineW
   const start = edge.hasArrowStart ? resources.find(marker => marker.id === `${markerIdPrefix(edge.startMarker ?? 'arrow')}-start${suffix}`) : undefined
   const end = edge.hasArrowEnd ? resources.find(marker => marker.id === `${markerIdPrefix(edge.endMarker ?? 'arrow')}${suffix}`) : undefined
   const projection = graphEdgePathProjection(edge, style)
-  const node = connector({
-    id: edge.id ?? `${edge.source}->${edge.target}`, role: 'edge', lineStyle: edge.style,
-    geometry: projection?.geometry ?? { kind: 'polyline', points: edge.points },
-    paint: { stroke: color ?? 'var(--_line)', strokeWidth: edge.inlineStyle?.['stroke-width'] ?? String((style.lineWidth ?? 1) * (edge.style === 'thick' ? 2 : 1)) },
-    markers: { start, end }, ...(projection ? { route: { contours: projection.contours } } : {}),
+  const geometry = projection?.geometry ?? { kind: 'polyline' as const, points: edge.points }
+  // This query owns only marker paint. Use the same resources, path and
+  // contour authority as lowering, without admitting a discarded Scene mark
+  // (identity, hit geometry, terminal projection and immutable snapshots).
+  return connectorMarkerPaintRegions({
+    route: { geometry, closed: false, contours: projection?.contours ?? connectorContourSemantics(geometry, false) },
+    stroke: { width: edge.inlineStyle?.['stroke-width'] ?? String((style.lineWidth ?? 1) * (edge.style === 'thick' ? 2 : 1)) },
+    markers: { start, mid: [], end },
   })
-  return connectorMarkerPaintRegions(node)
 }

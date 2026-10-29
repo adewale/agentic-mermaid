@@ -539,11 +539,11 @@ export function flowchartStyleValueCanSerialize(value: string, classDefinition =
   // Only classDef's DB constructor rejoins style fragments and resolves `\,`.
   // Direct node/link styles retain the split fragments as separate properties.
   const parts = classDefinition ? value.split(',') : [value]
-  return !!value.trim() && !/[\r\n]/.test(value) && parts.every(part => !!part.trim() && portableStyleComponents(part))
+  return !!value.trim() && !value.startsWith('::') && !/[\r\n]/.test(value) && parts.every(part => !!part.trim() && portableStyleComponents(part))
 }
 
 function portableStyleComponents(value: string): boolean {
-  if (/direction\s+(?:TB|BT|RL|LR|TD)/.test(value)) return false
+  if (/direction\s+(?:TB|BT|RL|LR|TD)|:::/.test(value)) return false
   let rest = value
   while (rest) {
     // These earlier lexer rules produce statement/link/string tokens, which

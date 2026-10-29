@@ -1,3 +1,4 @@
+import { KNOWN_EXTENSION_CONTRACT_VERSIONS } from '../shared/extension-identity.ts'
 import { describe, expect, test } from 'bun:test'
 import { DEFAULT_ARCHITECTURE_VISUAL } from '../architecture/config.ts'
 import { createMermaidRenderer, DefaultBackend, registerBackend, renderContractDigest, renderMermaidSVG } from '../index.ts'
@@ -334,7 +335,7 @@ describe('shared RenderOptions authority', () => {
         return DefaultBackend.render(document, context).replace('</svg>', `<!--${padding}--></svg>`)
       },
     }, {
-      compatibility: { core: '^0.4.0', scene: '^2.0.0' },
+      compatibility: { core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core, scene: '^2.0.0' },
       provenance: { owner: 'large-svg-digest-test', source: 'test' },
     })
     try {

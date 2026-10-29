@@ -8,7 +8,7 @@
 // innerHTML.
 // ============================================================================
 
-import { inspectSvgOnce } from './svg-inspection-cache.ts'
+import { createSvgInspector } from './svg-inspection-cache.ts'
 import { isAsciiXmlNameChar } from './shared/xml-name.ts'
 
 export const OUTPUT_SECURITY_POLICY_VERSION = 2 as const
@@ -277,6 +277,8 @@ export function isWellFormedSvgText(value: string): boolean {
     && hasWellFormedXmlReferences(value)
 }
 
+const inspectDocumentEnvelope = createSvgInspector('xml-envelope', verifyDocumentEnvelope)
+
 /** Dependency-free XML well-formedness gate shared by backend
  * admission and every final SVG result. It deliberately accepts only the
  * bounded XML subset an SVG serializer needs: one paired `<svg>` root,
@@ -293,7 +295,7 @@ export function verifySvgDocumentEnvelope(svg: string, work?: (operations: numbe
       throw error
     }
   }
-  return inspectSvgOnce('xml-envelope', svg, () => verifyDocumentEnvelope(svg))
+  return inspectDocumentEnvelope(svg)
 }
 
 function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, rawValue: string) => void, work?: XmlWork): boolean {
@@ -605,9 +607,7 @@ interface SecurityFindings {
   readonly refs: readonly string[]
 }
 
-function securityFindings(svg: string): SecurityFindings {
-  return inspectSvgOnce('security', svg, () => inspectSecurity(svg))
-}
+const securityFindings = createSvgInspector('security', inspectSecurity)
 
 function inspectAttributeSecurity(qualified: string, value: string, refs: string[], active: string[]): void {
   const name = qualified.slice(qualified.lastIndexOf(':') + 1).toLowerCase()
@@ -672,28 +672,26 @@ export function verifyNoExternalRefs(svg: string): { ok: boolean; refs: string[]
   return { ok: refs.length === 0, refs: [...refs] }
 }
 
-function inspectFinalSvg(svg: string): SecurityFindings | false {
-  return inspectSvgOnce('final-security', svg, () => {
-    const refs: string[] = []
-    const active: string[] = []
-    let failed = false
-    let failure: unknown
-    const valid = verifyDocumentEnvelope(svg, (name, rawValue) => {
-      if (failed) return
-      try {
-        inspectAttributeSecurity(name, rawValue, refs, active)
-      } catch (error) {
-        // Finish XML validation before surfacing security errors: malformed
-        // envelopes have always taken precedence, including invalid CSS escapes.
-        failed = true
-        failure = error
-      }
-    })
-    if (!valid) return false
-    if (failed) throw failure
-    return inspectSecurityTail(svg.replace(/<!--[\s\S]*?-->/g, ''), refs, active)
+const inspectFinalSvg = createSvgInspector('final-security', (svg: string): SecurityFindings | false => {
+  const refs: string[] = []
+  const active: string[] = []
+  let failed = false
+  let failure: unknown
+  const valid = verifyDocumentEnvelope(svg, (name, rawValue) => {
+    if (failed) return
+    try {
+      inspectAttributeSecurity(name, rawValue, refs, active)
+    } catch (error) {
+      // Finish XML validation before surfacing security errors: malformed
+      // envelopes have always taken precedence, including invalid CSS escapes.
+      failed = true
+      failure = error
+    }
   })
-}
+  if (!valid) return false
+  if (failed) throw failure
+  return inspectSecurityTail(svg.replace(/<!--[\s\S]*?-->/g, ''), refs, active)
+})
 
 export function applyOutputSecurityPolicy(svg: string, mode: OutputSecurityMode = 'default'): OutputSecurityResult {
   const inspection = inspectFinalSvg(svg)

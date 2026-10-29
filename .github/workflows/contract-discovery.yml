@@ -1,0 +1,101 @@
+name: Contract discovery
+
+# Bounded, advisory discovery. Required deterministic semantic/corpus checks
+# remain in canonical CI. Findings are artifacts for review, never new issues.
+on:
+  schedule:
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: contract-discovery
+  cancel-in-progress: true
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+          no-cache: true
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+      - name: Record the replay seed and source
+        id: replay
+        run: |
+          seed=$(( $(od -An -N4 -tu4 /dev/urandom) % 2147483647 + 1 ))
+          echo "seed=$seed" >> "$GITHUB_OUTPUT"
+          mkdir -p "$RUNNER_TEMP/contract-discovery"
+          printf '{"commit":"%s","seed":%s,"status":"incomplete"}\n' "$GITHUB_SHA" "$seed" > "$RUNNER_TEMP/contract-discovery/run.json"
+      - name: Check valid-model and typed-edit contracts
+        id: models
+        timeout-minutes: 3
+        env:
+          AM_FC_SEED: ${{ steps.replay.outputs.seed }}
+          AM_FC_NUM_RUNS: '300'
+          CONTRACT_DISCOVERY_DIR: ${{ runner.temp }}/contract-discovery
+        run: |
+          bun test --timeout 30000 --preload ./scripts/ci/contract-discovery-preload.ts \
+            --reporter=junit --reporter-outfile "$CONTRACT_DISCOVERY_DIR/models.xml" \
+            src/__tests__/agent.test.ts src/__tests__/property-er-model.test.ts src/__tests__/agent-architecture.test.ts \
+            --test-name-pattern 'property: flowchart mutation commands|property: any command sequence|generated service and edge meaning'
+      - name: Install the pinned grammar reference
+        env:
+          MERMAID_UPSTREAM_DIR: ${{ runner.temp }}/mermaid
+          MERMAID_REFERENCE_DIR: ${{ runner.temp }}/mermaid-reference
+        run: bash scripts/setup-mermaid-reference.sh
+      - name: Search bounded grammar contract candidates
+        id: grammar
+        env:
+          MERMAID_UPSTREAM_DIR: ${{ runner.temp }}/mermaid
+          MERMAID_REFERENCE_DIR: ${{ runner.temp }}/mermaid-reference
+        run: |
+          bun run eval:mermaid-grammar --native-only --fuzz 100 --seed "${{ steps.replay.outputs.seed }}" \
+            --workers 2 --corpus-limit 8 --candidates-per-family 2 --reduce-checks 8 \
+            --output "$RUNNER_TEMP/contract-discovery/grammar"
+          bun run eval/mermaid-modern-compat/grammar-triage-run.ts \
+            --summary "$RUNNER_TEMP/contract-discovery/grammar/summary.json" \
+            --output "$RUNNER_TEMP/contract-discovery/triage" --check
+      - name: Record completion and review boundary
+        if: always()
+        env:
+          DISCOVERY_STATUS: ${{ job.status }}
+          MODELS_OUTCOME: ${{ steps.models.outcome }}
+          GRAMMAR_OUTCOME: ${{ steps.grammar.outcome }}
+        run: |
+          bun -e '
+            const path = process.env.RUNNER_TEMP + "/contract-discovery/run.json";
+            if (!(await Bun.file(path).exists())) process.exit(0);
+            const report = await Bun.file(path).json();
+            const triage = Bun.file(process.env.RUNNER_TEMP + "/contract-discovery/triage/triage.json");
+            const result = await triage.exists() ? await triage.json() : undefined;
+            Object.assign(report, { status: process.env.DISCOVERY_STATUS, models: process.env.MODELS_OUTCOME, grammar: process.env.GRAMMAR_OUTCOME, findings: result?.untrackedDefectInputs, reference: result?.reference });
+            await Bun.write(path, JSON.stringify(report, null, 2) + "\n");
+          '
+          echo 'Discovery is bounded evidence, not exhaustive coverage. Review phase/error, exact source, seed/path and reference pin; replay on current main before opening finite work.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Retain structured replay evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: contract-discovery-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/contract-discovery/run.json
+            ${{ runner.temp }}/contract-discovery/properties.jsonl
+            ${{ runner.temp }}/contract-discovery/models.xml
+            ${{ runner.temp }}/contract-discovery/grammar/summary.json
+            ${{ runner.temp }}/contract-discovery/grammar/in-progress.json
+            ${{ runner.temp }}/contract-discovery/triage/triage.json
+          retention-days: 30
+          if-no-files-found: warn
