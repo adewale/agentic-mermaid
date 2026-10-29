@@ -11,8 +11,12 @@ import { visitTypedPathSegments } from '../scene/bounds.ts'
 import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
 import { erCardinalityInk, type ErGeometryWork } from './cardinality-geometry.ts'
 
+export function erRelationshipStyle(rel: Pick<PositionedErRelationship, 'identifying'>, styleFace?: Readonly<InternalStyleFace>) {
+  return resolveRoleStyle(styleFace, 'relationship', { category: rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })
+}
+
 export function erRelationshipBlock(rel: Pick<PositionedErRelationship, 'label' | 'identifying' | 'labelContent'>, style: ResolvedRenderStyle, styleFace?: Readonly<InternalStyleFace>): PixelTextBlock {
-  const role = resolveRoleStyle(styleFace, 'relationship', { category: rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })
+  const role = erRelationshipStyle(rel, styleFace)
   return preparePixelText(resolveLabelContent(rel.label, rel.labelContent), { transform: role?.textTransform ?? style.edgeTextTransform, fontSize: role?.fontSize ?? style.edgeLabelFontSize, fontWeight: role?.fontWeight ?? style.edgeLabelFontWeight, letterSpacing: role?.letterSpacing ?? style.edgeLetterSpacing })
 }
 
@@ -118,7 +122,7 @@ function placeRelationshipLabels(diagram: PositionedErDiagram, style: ResolvedRe
   // Actual emitted path bounds keep occupied text clear of curve ink.
   const shafts = shaftAware ? diagram.relationships.flatMap(owner => {
     if (owner.points.length < 2) return []
-    const roleStyle = resolveRoleStyle(styleFace, 'relationship', { category: owner.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })
+    const roleStyle = erRelationshipStyle(owner, styleFace)
     const radius = roleStyle?.bendRadius ?? style.edgeBendRadius, width = roleStyle?.lineWidth ?? style.lineWidth
     if (width <= 0) return []
     const rounded = radius > 0 && owner.points.length > 2

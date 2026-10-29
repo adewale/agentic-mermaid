@@ -5,7 +5,6 @@ export { ErRouteWorkLimitError, ErRouteGeometryError } from './errors.ts'
 import { resolveLabelContent, type DisplayTextInput } from '../shared/display-text.ts'
 import { assertErDiagramWork, DIAGRAM_WORK_LIMITS } from '../shared/diagram-limits.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
-import { resolveRoleStyle } from '../scene/style-registry.ts'
 import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
 import { visitTypedPathSegments } from '../scene/bounds.ts'
 /**
@@ -38,7 +37,7 @@ import { segmentThroughShape } from '../layout-rubric.ts'
 import { generatedIds } from '../shared/generated-identity.ts'
 import { simplifyPolyline } from '../route-contracts.ts'
 import { calculatePathMidpoint } from '../layout/geometry.ts'
-import { erCandidateCaptionClear, erRelationshipBlock, finalizeErRelationshipLabels, retainedErRelationshipLabels, separateRelationshipLabels } from './label-layout.ts'
+import { erCandidateCaptionClear, erRelationshipBlock, erRelationshipStyle, finalizeErRelationshipLabels, retainedErRelationshipLabels, separateRelationshipLabels } from './label-layout.ts'
 export { erRelationshipBlock } from './label-layout.ts'
 export { erCommentText } from './text.ts'
 
@@ -288,7 +287,7 @@ function repairErFrameRoutes(entities: PositionedErEntity[], groups: PositionedE
     if (caption && !caption.indices.has(index)) continue
     if (rel.points.length < 2) continue
     const [start, end] = [rel.points[0]!, rel.points.at(-1)!]
-    const roleStyle = resolveRoleStyle(styleFace, 'relationship', { category: rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })
+    const roleStyle = erRelationshipStyle(rel, styleFace)
     // A clear sharp polyline can still cut a card when its corners are rounded.
     // Both producers reserve their actual rendered bend/stroke envelope.
     const clearance = (roleStyle?.bendRadius ?? style.edgeBendRadius) + 2 * (roleStyle?.lineWidth ?? style.lineWidth)
@@ -483,7 +482,7 @@ function buildErElkGraph(
   let markerClearance = 0
   const spans = new Map<string, number>()
   for (const rel of diagram.relationships) {
-    const role = resolveRoleStyle(styleFace, 'relationship', { category: rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })
+    const role = erRelationshipStyle(rel, styleFace)
     for (const [id, cardinality] of [[rel.entity1, rel.cardinality1], [rel.entity2, rel.cardinality2]] as const) {
       // Canonical cardinalities contain at most four shape bounds; debit
       // their construction, union and this retained capacity record together.
@@ -584,7 +583,7 @@ function extractErLayout(
   const positionedGroups = deriveErGroups(diagram, positionedEntities, style, interior.padding, framePadding)
   // Reserve a full terminal zone plus the rounded envelopes of both peers.
   // Otherwise an unrelated card can leave no legal cardinality-bearing stem.
-  const siblingGap = result.preserveTerminalNormals ? 20 + 2 * Math.max(style.edgeBendRadius, ...diagram.relationships.map(rel => resolveRoleStyle(styleFace, 'relationship', { category: rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })?.bendRadius ?? style.edgeBendRadius)) : 20
+  const siblingGap = result.preserveTerminalNormals ? 20 + 2 * Math.max(style.edgeBendRadius, ...diagram.relationships.map(rel => erRelationshipStyle(rel, styleFace)?.bendRadius ?? style.edgeBendRadius)) : 20
   separateErCompounds(diagram, positionedEntities, positionedGroups, style, relationshipBlocks, interior.padding, interior.exits, siblingGap, styleFace, work, framePadding)
   const boxes = new Map<string, { x: number; y: number; width: number; height: number }>()
   positionedEntities.forEach(entity => boxes.set(entity.id, entity))
@@ -729,7 +728,7 @@ function applyErGroupDirections(diagram: ErDiagram, entities: PositionedErEntity
       const source = erCardinalityEnvelope(rel.cardinality1, style.lineWidth), target = erCardinalityEnvelope(rel.cardinality2, style.lineWidth)
       erCharge(work, 2)
       if (!source || !target) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
-      const radius = resolveRoleStyle(styleFace, 'relationship', { category: rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })?.bendRadius ?? style.edgeBendRadius
+      const radius = erRelationshipStyle(rel, styleFace)?.bendRadius ?? style.edgeBendRadius
       const terminal = Math.max(18, source.x1) + Math.max(18, target.x1) + 2 * radius + 2 * (style.lineWidth + .25)
       return [Math.max(rel.label ? relationshipBlocks[i]![horizontal ? 'width' : 'height'] + 56 : 0,
         terminal + (rel.label ? relationshipBlocks[i]![horizontal ? 'width' : 'height'] + 20 : 0))]
@@ -764,7 +763,7 @@ function erFrameInkPadding(diagram: ErDiagram, style: ResolvedRenderStyle, style
         }
       }
     }
-    const radius = resolveRoleStyle(styleFace, 'relationship', { category: rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })?.bendRadius ?? style.edgeBendRadius
+    const radius = erRelationshipStyle(rel, styleFace)?.bendRadius ?? style.edgeBendRadius
     for (const [id, kind] of [[rel.entity1, rel.cardinality1], [rel.entity2, rel.cardinality2]] as const) {
       const parent = parents.get(id)
       if (!parent) continue
@@ -774,7 +773,7 @@ function erFrameInkPadding(diagram: ErDiagram, style: ResolvedRenderStyle, style
       // The parent owns the real glyph-bearing stem and the existing
       // router's virtual endpoint, inflated obstacle, and one-pixel middle
       // clearance. Reserve those exact authorities before deriving the frame.
-      const roleWidth = resolveRoleStyle(styleFace, 'relationship', { category: rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })?.lineWidth ?? style.lineWidth
+      const roleWidth = erRelationshipStyle(rel, styleFace)?.lineWidth ?? style.lineWidth
       const guide = bound.x1 + 2 * radius + 2 * roleWidth + 3 * (style.lineWidth + .25) + 2 + .75
       padding.set(parent, Math.max(padding.get(parent) ?? 20, guide))
     }
@@ -870,7 +869,7 @@ function separateErCompounds(diagram: ErDiagram, entities: PositionedErEntity[],
         const from = subjects.get(rel.entity1), to = subjects.get(rel.entity2)
         if (!from || !to) continue
         const points = erExteriorRoute(from, to)
-        const radius = resolveRoleStyle(styleFace, 'relationship', { category: rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })?.bendRadius ?? style.edgeBendRadius
+        const radius = erRelationshipStyle(rel, styleFace)?.bendRadius ?? style.edgeBendRadius
         // Actual glyph + rounded lead, the middle router's 1px clearance on
         // either side, and actual stroke gaps. This is used only after a live
         // glyph/body conflict, never as a global spacing increase.
@@ -902,7 +901,7 @@ function separateErCompounds(diagram: ErDiagram, entities: PositionedErEntity[],
       if (!from || !to || from === to) continue
       const source = erCardinalityEnvelope(rel.cardinality1, style.lineWidth), target = erCardinalityEnvelope(rel.cardinality2, style.lineWidth)
       if (!source || !target) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
-      const radius = resolveRoleStyle(styleFace, 'relationship', { category: rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })?.bendRadius ?? style.edgeBendRadius
+      const radius = erRelationshipStyle(rel, styleFace)?.bendRadius ?? style.edgeBendRadius
       const occupied = (bounds: typeof source) => Math.max(0, bounds.x1, -bounds.x0, bounds.y1, -bounds.y0) + radius
       const terminals = occupied(source) + occupied(target) + 2 * (style.lineWidth + .25)
       // Retain the established labelled cross-clearance floor; actual glyph
@@ -1134,7 +1133,7 @@ export function layoutErDiagram(
     let layerSpacing = options.layerSpacing ?? ER.layerSpacing
     let minimumTerminalLead = 0
     for (const rel of diagram.relationships) {
-      const role = resolveRoleStyle(styleFace, 'relationship', { category: rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })
+      const role = erRelationshipStyle(rel, styleFace)
       for (const [id, kind] of [[rel.entity1, rel.cardinality1], [rel.entity2, rel.cardinality2]] as const) {
         const bound = erCardinalityEnvelope(kind, style.lineWidth)
         erCharge(work)
@@ -1253,7 +1252,7 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     return sign > 0 ? (horizontal ? piece.x1 - point.x : piece.y1 - point.y) : (horizontal ? point.x - piece.x0 : point.y - piece.y0)
   }))
   const shafts = () => relationships.flatMap((rel, index) => {
-    const role = resolveRoleStyle(styleFace, 'relationship', { category: rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })
+    const role = erRelationshipStyle(rel, styleFace)
     const half = (role?.lineWidth ?? style.lineWidth) / 2
     const radius = role?.bendRadius ?? style.edgeBendRadius
     const clipButtCap = (box: ErInkBox, a: Point, b: Point, start: boolean) => {
@@ -1362,7 +1361,7 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     })
     const laterGlyphs = new Set(laterOnFace)
     charge(laterOnFace.length)
-    const roleStyle = resolveRoleStyle(styleFace, 'relationship', { category: terminal.rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })
+    const roleStyle = erRelationshipStyle(terminal.rel, styleFace)
     const half = (roleStyle?.lineWidth ?? style.lineWidth) / 2
     const glyphDepth = terminalDepth(thisGlyph.pieces, p, horizontal, sign)
     const protectedLength = glyphDepth + (roleStyle?.bendRadius ?? style.edgeBendRadius) + half + style.lineWidth + .25
@@ -1399,7 +1398,7 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     const oppositeHorizontal = opposite.point.y === opposite.toward.y
     if (horizontal !== oppositeHorizontal) {
       const oppositeSign = Math.sign(oppositeHorizontal ? opposite.toward.x - opposite.point.x : opposite.toward.y - opposite.point.y)
-      const role = resolveRoleStyle(styleFace, 'relationship', { category: terminal.rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })
+      const role = erRelationshipStyle(terminal.rel, styleFace)
       const depth = terminalDepth(opposite.pieces, opposite.point, oppositeHorizontal, oppositeSign) + (role?.lineWidth ?? style.lineWidth) / 2 + style.lineWidth + .25
       const lead = depth + Math.min(role?.bendRadius ?? style.edgeBendRadius, depth)
       const coordinate = oppositeHorizontal ? opposite.point.x : opposite.point.y
@@ -1445,7 +1444,7 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
       const start = points[0]!, end = points.at(-1)!
       points[first]![cross] = candidate
       const a = currentGlyphs.find(g => g.index === terminal.index && g.end === 0)!, b = currentGlyphs.find(g => g.index === terminal.index && g.end === 1)!
-      const role = resolveRoleStyle(styleFace, 'relationship', { category: terminal.rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })
+      const role = erRelationshipStyle(terminal.rel, styleFace)
       const needed = (glyph: typeof a) => {
         const ray = Math.sign(horizontal ? glyph.toward.x - glyph.point.x : glyph.toward.y - glyph.point.y)
         const depth = terminalDepth(glyph.pieces, glyph.point, horizontal, ray) + (role?.lineWidth ?? style.lineWidth) / 2 + style.lineWidth + .25
