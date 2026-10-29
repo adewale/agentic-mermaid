@@ -4,6 +4,7 @@ import type { BrowserPngRasterContext, RenderedBrowserPng } from './browser-png.
 import type { PortablePngOutputOptions } from './png-contract.ts'
 import type { RenderRequestReceipt } from './render-contract.ts'
 import type { VerifyResult } from './agent/types.ts'
+import type { ApplyOpsInput, OpEnvelope } from './agent/apply.ts'
 
 export interface PreviewArtifact {
   svg: string
@@ -15,8 +16,9 @@ export type EditorWorkerOperation =
   | { operation: 'preview'; source: string; options: RenderOptions }
   | { operation: 'ascii' | 'unicode'; source: string; options: AsciiRenderOptions }
   | { operation: 'png'; source: string; options: RenderOptions; output: number | PortablePngOutputOptions }
+  | { operation: 'mutate'; source: string; options: RenderOptions; ops: unknown; mode?: ApplyOpsInput['mode'] }
 export type PreviewWorkerRequest = { id: number } & EditorWorkerOperation
-export type EditorWorkerArtifact = PreviewArtifact | RenderedAscii | RenderedBrowserPng
+export type EditorWorkerArtifact = PreviewArtifact | RenderedAscii | RenderedBrowserPng | { mutation: OpEnvelope }
 export type PreviewWorkerResponse =
   | { id: number; ok: true; artifact: EditorWorkerArtifact }
   | { id: number; ok: false; error: string; dependencyLoadFailed?: true }

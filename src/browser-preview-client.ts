@@ -2,6 +2,7 @@ import type { RenderOptions } from './types.ts'
 import type { AsciiRenderOptions, RenderedAscii } from './ascii/index.ts'
 import type { BrowserPngDiagnostic, BrowserPngRasterizer, BrowserPngRuntimeProvenance, RenderedBrowserPng } from './browser-png.ts'
 import type { PortablePngOutputOptions } from './png-contract.ts'
+import type { ApplyOpsInput, OpEnvelope } from './agent/apply.ts'
 import type { EditorWorkerArtifact, EditorWorkerOperation, PreviewArtifact, PreviewWorkerRequest, PreviewWorkerResponse } from './browser-editor-protocol.ts'
 import { assertBrowserPngByteBudget, browserRuntimeProvenance, intrinsicTypedArrayByteLength } from './browser-png-runtime.ts'
 import { DIAGRAM_WORK_LIMITS } from './shared/diagram-limits.ts'
@@ -39,6 +40,10 @@ export class PreviewWorkerClient {
 
   renderText(source: string, options: AsciiRenderOptions, useAscii: boolean): Promise<RenderedAscii> {
     return this.submit({ operation: useAscii ? 'ascii' : 'unicode', source, options })
+  }
+
+  applyOps(source: string, ops: unknown, mode?: ApplyOpsInput['mode']): Promise<OpEnvelope> {
+    return this.submit<{ mutation: OpEnvelope }>({ operation: 'mutate', source, options: {}, ops, mode }).then(artifact => artifact.mutation)
   }
 
   renderPng(source: string, options: RenderOptions, output: number | PortablePngOutputOptions, rasterize: BrowserPngRasterizer): Promise<RenderedBrowserPng> {
@@ -131,12 +136,16 @@ export class PreviewWorkerClient {
         pending.reject(new PreviewSupersededError()); this.drain(); return
       }
       if (response.ok) {
-        const expectedOutput = pending.request.operation === 'preview' ? 'svg' : pending.request.operation
-        if (response.artifact?.receipt?.output !== expectedOutput) throw new Error('Background renderer returned the wrong output receipt')
-        if (pending.request.operation === 'png') {
-          if (!pending.rasterResult || !('png' in response.artifact) || !(response.artifact.png instanceof Uint8Array)) throw new Error('Background PNG returned without a completed raster callback')
-          response.artifact = Object.freeze({ ...response.artifact,
-            diagnostics: Object.freeze([...response.artifact.diagnostics, ...pending.rasterResult.diagnostics]), runtime: pending.rasterResult.runtime })
+        if (pending.request.operation === 'mutate') {
+          if (!('mutation' in response.artifact) || typeof response.artifact.mutation?.ok !== 'boolean') throw new Error('Background editor returned an unreadable mutation result')
+        } else {
+          const expectedOutput = pending.request.operation === 'preview' ? 'svg' : pending.request.operation
+          if (!('receipt' in response.artifact) || response.artifact.receipt?.output !== expectedOutput) throw new Error('Background renderer returned the wrong output receipt')
+          if (pending.request.operation === 'png') {
+            if (!pending.rasterResult || !('png' in response.artifact) || !(response.artifact.png instanceof Uint8Array)) throw new Error('Background PNG returned without a completed raster callback')
+            response.artifact = Object.freeze({ ...response.artifact,
+              diagnostics: Object.freeze([...response.artifact.diagnostics, ...pending.rasterResult.diagnostics]), runtime: pending.rasterResult.runtime })
+          }
         }
       }
       clearTimeout(this.timer); this.timer = undefined

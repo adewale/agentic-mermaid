@@ -155,7 +155,7 @@ export function tokenize(src: string, onComment?: (start: number, end: number) =
     }
     if (isSpace(c)) {
       p++
-      while (p < n && isSpace(src.charCodeAt(p))) p++
+      while (p < n && isSpace(src.charCodeAt(p)) && !isLineEnd(src.charCodeAt(p))) p++
       return true
     }
     if (c === 35 || c === 37) {

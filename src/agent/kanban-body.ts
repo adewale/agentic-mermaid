@@ -1,10 +1,11 @@
 import { unknownOpMessage } from './mutation-ops.ts'
 import YAML from 'yaml'
 import { preservedMermaidFamilyText, type NormalizedMermaidSource } from '../mermaid-source.ts'
-import { parseKanbanDiagram } from '../kanban/parser.ts'
+import { kanbanMetadataLabel, parseKanbanDiagram } from '../kanban/parser.ts'
 import type { KanbanBody, KanbanItem, KanbanMutationOp } from '../kanban/types.ts'
 import { encodeMermaidEntities } from '../shared/mermaid-entities.ts'
 import { quoteMetadataString } from '../shared/metadata-yaml.ts'
+import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
 import { isPlainRecord } from '../shared/plain-data.ts'
 import { appendAccessibilityLines } from './accessibility-envelope.ts'
 import { labelOverflowCollector } from './body-utils.ts'
@@ -13,9 +14,10 @@ import { err, ok } from './types.ts'
 
 export function parseKanbanBody(lines: readonly string[] | string, source?: NormalizedMermaidSource): KanbanBody | null {
   try {
-    const input = source ? preservedMermaidFamilyText(source, 'authored').replace(/^[^\r\n]*/, 'kanban') : lines
+    const input = source ? preservedMermaidFamilyText(source).replace(/^[^\r\n]*/, 'kanban') : lines
     return parseKanbanDiagram(input, source?.accessibility, source)
-  } catch {
+  } catch (error) {
+    if (error instanceof DiagramWorkLimitError && error.resource === 'sourceCharacters') throw error
     return null
   }
 }
@@ -30,26 +32,35 @@ export function renderKanban(body: KanbanBody): string {
     // A quoted node label cannot contain a physical quote in Mermaid's Jison
     // lexer. Entity spelling also shields global directive openers; IDs keep
     // the original authored text after the shared entity decoder.
-    const label = encodeMermaidEntities(implicitId ? item.sourceId : item.label, '"%').replace(/\r\n/g, '\r\r\n')
-    const identifier = implicitId ? '' : encodeMermaidEntities(item.sourceId, '()[]{}@%')
+    const label = encodeMermaidEntities(implicitId ? item.sourceId : item.label, '"%&').replace(/\r\n/g, '\r\r\n')
+    const identifier = implicitId ? '' : encodeMermaidEntities(item.sourceId, '()[]{}@%&')
     lines.push(`${indent}${identifier}["${label}"]`)
     const metadata = { ...item.metadata }
     // An implicit identity comes from the declaration, independently of a
     // later display-label edit. Keep both through the public writer.
-    if (implicitId && item.sourceId !== item.label) metadata.label = item.label
+    if (implicitId && item.sourceId !== item.label && !metadata.label) metadata.label = encodeMermaidEntities(item.label)
     if (item.icon !== undefined) metadata.icon = item.icon
     if (Object.keys(metadata).length) {
       // Block YAML also represents metadata whose values contain commas or
       // braces; scalar quotes use the same lexer-safe codec as flowcharts.
       const entries = Object.entries(metadata)
+      const quoted = (value: string, authoredLabel = false) => {
+        const scalar = quoteMetadataString(value).replaceAll('&', '\\x26')
+        return authoredLabel ? scalar : scalar.replaceAll('#', '\\x23')
+      }
       if (entries.every(([, value]) => value === null || ['string', 'number', 'boolean'].includes(typeof value))) {
-        lines[lines.length - 1] += `@{ ${entries.map(([key, value]) => `${quoteMetadataString(key)}: ${typeof value === 'string' ? quoteMetadataString(value) : String(value)}`).join(', ')} }`
+        lines[lines.length - 1] += `@{ ${entries.map(([key, value]) => `${quoted(key)}: ${typeof value === 'string' ? quoted(value, key === 'label') : String(value)}`).join(', ')} }`
       } else {
         lines[lines.length - 1] += '@{'
-        let yaml = YAML.stringify(metadata)
-        if (yaml.includes('%%{')) {
-          yaml = YAML.stringify(metadata, { defaultKeyType: 'QUOTE_DOUBLE', defaultStringType: 'QUOTE_DOUBLE', lineWidth: 0 }).replaceAll('%', '\\x25')
-        }
+        let labelScalar: unknown
+        const document = new YAML.Document(metadata, {
+          aliasDuplicateObjects: false,
+          customTags: tags => tags.map(tag => typeof tag !== 'string' && tag.collection === undefined && tag.tag === 'tag:yaml.org,2002:str'
+            ? { ...tag, stringify: item => quoted(String(item.value), item === labelScalar) }
+            : tag),
+        })
+        labelScalar = document.get('label', true)
+        const yaml = document.toString()
         for (const line of yaml.trimEnd().split('\n')) lines.push(`${indent}  ${line}`)
         lines.push(`${indent}}`)
       }
@@ -116,7 +127,9 @@ export function mutateKanban(body: KanbanBody, op: KanbanMutationOp): Result<Kan
       if (!target) return fail(`Kanban column ${op.column} not found`)
       const index = at(op.index, target.tasks.length)
       if (!idValid(op.id) || !text(op.label) || index < 0 || (op.metadata !== undefined && !isPlainRecord(op.metadata))) return fail('add_task requires a new identifier, non-empty label, metadata object and insertion index in range')
-      target.tasks.splice(index, 0, { id: op.id, sourceId: op.id, label: op.label, metadata: structuredClone(op.metadata ?? {}) })
+      const metadata = structuredClone(op.metadata ?? {})
+      const label = kanbanMetadataLabel(metadata.label) ?? op.label
+      target.tasks.splice(index, 0, { id: op.id, sourceId: op.id, label, metadata, ...(metadata.icon ? { icon: String(metadata.icon) } : {}) })
       break
     }
     case 'remove_task': {
@@ -140,7 +153,9 @@ export function mutateKanban(body: KanbanBody, op: KanbanMutationOp): Result<Kan
       if (!target || (op.metadata !== null && !isPlainRecord(op.metadata))) return fail('set_task_metadata requires an existing task and metadata object or null')
       target.metadata = structuredClone(op.metadata ?? {})
       target.icon = target.metadata.icon ? String(target.metadata.icon) : undefined
-      if (target.metadata.label) target.label = String(target.metadata.label)
+      // Metadata labels carry authored Mermaid codes; set_task_label accepts
+      // literal display text and removes that metadata override instead.
+      if (target.metadata.label) target.label = kanbanMetadataLabel(target.metadata.label)!
       break
     }
     case 'move_task': {
@@ -175,6 +190,7 @@ export function mutateKanban(body: KanbanBody, op: KanbanMutationOp): Result<Kan
   try {
     parseKanbanDiagram(renderKanban(next))
   } catch (error) {
+    if (error instanceof DiagramWorkLimitError) return fail(error.message)
     return fail(`Kanban edit cannot be serialized as Mermaid: ${error instanceof Error ? error.message : String(error)}`)
   }
   return ok(next)

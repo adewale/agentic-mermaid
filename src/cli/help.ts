@@ -26,6 +26,7 @@ Flags:
   --ascii                For render-markdown: ASCII instead of SVG
   --op <JSON>            For mutate: one MutationOp
   --ops <JSON|file>      For mutate: JSON array of MutationOps
+  --preserve-source     For mutate: edit supported source ranges without regenerating opaque syntax
   --output <FILE>        Write render/preview output to FILE instead of stdout
   --open                 For preview: open generated HTML in browser
   --force                For init-agent: refresh generated skill/MCP files
@@ -124,7 +125,7 @@ Pipe to 'am serialize' to round-trip.`,
   serialize: `am serialize  (reads ValidDiagram JSON on stdin)
 Emits canonical Mermaid source. Accepts the JSON shape that 'am parse' emits;
 rebuilds the diagram via synthesizeFromGraph without re-parsing source.`,
-  mutate: `am mutate <file|-> (--op '<JSON>' | --ops '<JSON array|file.json>') [--json]
+  mutate: `am mutate <file|-> (--op '<JSON>' | --ops '<JSON array|file.json>') [--preserve-source] [--json]
 Applies one or more MutationOps, verifies the final diagram, then emits source.
 Registered families with mutationOps have typed mutation; discover the live roster,
 narrowers, and op names with 'am capabilities --json'. Opaque-fallback diagrams

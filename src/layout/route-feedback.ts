@@ -2,8 +2,11 @@ import type { Point, PortSide, PositionedEdge, PositionedNode, RouteClass, Route
 import { shapeRoutingProfile } from '../shape-outline.ts'
 import { labelRect } from '../shared/edge-label-geometry.ts'
 import { EPS, CLEARANCE, shapePorts, invalidEndpointApproaches, isStraightenable, type Axis, axisPoint, simplifyPolyline, attachSpan, anchorMain, type LaneContext, setRoutePoints, facingSide } from './route-geometry.ts'
-import { directLaneBlockers, findLabelSlot, countRouteCrossings, routeAddsCrossings, sharedTrunkConflict } from './route-lanes.ts'
+import { directLaneBlockers, findLabelSlot, countRouteCrossings, routeAddsCrossings, routeEntersNodeBox, sharedTrunkConflict } from './route-lanes.ts'
 import { routeCandidateMarkersClear } from './route-marker-clearance.ts'
+import { paintedStrokeExtent } from '../scene/bounds.ts'
+import { formatSvgNumericAttribute } from '../shared/svg-number.ts'
+import { STROKE_WIDTHS } from '../styles.ts'
 
 /**
  * ELK's feedbackEdges routing can wrap a loop around the source's forward
@@ -21,20 +24,19 @@ export function tightenOuterFeedback(edge: PositionedEdge, ctx: LaneContext, nod
     const graphAxis = ctx.axis
     const crossOf = (pt: Point) => pt[graphAxis.cross]
     const mainOf = (pt: Point) => pt[graphAxis.main]
-    // The outer channel is the run at the route's extreme cross value.
-    const crossValues = points.map(crossOf)
-    const extremeHi = Math.max(...crossValues)
-    const extremeLo = Math.min(...crossValues)
-    const startCross = crossOf(points[0]!)
-    const extreme = Math.abs(extremeHi - startCross) >= Math.abs(extremeLo - startCross) ? extremeHi : extremeLo
+    // A laterally displaced target can be farther from the source than the
+    // return channel. Its short terminal stub is not the feedback run: choose
+    // the longest existing segment against the declared flow, retaining the
+    // first on a tie. Head/tail shortcuts still prove their new hops below.
     let runStart = -1
+    let reverseLength = EPS
     for (let i = 1; i < points.length; i++) {
-      if (Math.abs(crossOf(points[i - 1]!) - extreme) < EPS && Math.abs(crossOf(points[i]!) - extreme) < EPS) {
-        runStart = i - 1
-        break
-      }
+      if (Math.abs(crossOf(points[i - 1]!) - crossOf(points[i]!)) >= EPS) continue
+      const length = (mainOf(points[i - 1]!) - mainOf(points[i]!)) * graphAxis.sign
+      if (length > reverseLength) { reverseLength = length; runStart = i - 1 }
     }
     if (runStart < 1) return false // no excursion before the channel run
+    const extreme = crossOf(points[runStart]!)
     const run = [points[runStart]!, points[runStart + 1]!]
     const runDir = Math.sign(mainOf(run[1]!) - mainOf(run[0]!))
     const p0 = points[0]!
@@ -170,6 +172,28 @@ export function tightenOuterFeedback(edge: PositionedEdge, ctx: LaneContext, nod
     const normalized = simplifyPolyline(tightened)
     const target = nodeMap.get(edge.target)
     if (invalidEndpointApproaches({ ...edge, points: normalized }, source, target) > 0) return false
+    // Lane queries exempt both endpoint nodes to admit real contacts. That
+    // exemption cannot cover a new hop through the opposite endpoint, nor a
+    // nonterminal run along its painted border. Check the complete proposal,
+    // omitting only each node's own contact leg. The same guard covers head,
+    // stub and tail variants; unknown stroke support keeps the original route.
+    const edgeWidth = edge.inlineStyle?.['stroke-width'] ?? String((ctx.style.lineWidth ?? STROKE_WIDTHS.connector) * (edge.style === 'thick' ? 2 : 1))
+    const shaftExtent = paintedStrokeExtent({ stroke: 'black', strokeWidth: formatSvgNumericAttribute('stroke-width', edgeWidth) }, true)
+    if (!source || !target || shaftExtent === undefined) return false
+    const clearanceBox = (node: PositionedNode): PositionedNode | undefined => {
+      const width = node.inlineStyle?.['stroke-width'] ?? String(ctx.style.nodeLineWidth ?? STROKE_WIDTHS.innerBox)
+      const outlineExtent = paintedStrokeExtent({ stroke: 'black', strokeWidth: formatSvgNumericAttribute('stroke-width', width) }, true)
+      if (outlineExtent === undefined) return undefined
+      const padding = Math.max(CLEARANCE, outlineExtent + shaftExtent) + EPS
+      const x = node.x - padding, y = node.y - padding
+      const w = node.width + 2 * padding, h = node.height + 2 * padding
+      if (![x, y, w, h].every(Number.isFinite)) return undefined
+      // This is a conservative paint envelope, not a new cylinder/facet.
+      return { ...node, shape: 'rectangle', semanticShape: undefined, x, y, width: w, height: h }
+    }
+    const sourceBox = clearanceBox(source), targetBox = clearanceBox(target)
+    if (!sourceBox || !targetBox || routeEntersNodeBox(normalized.slice(1), sourceBox)
+      || routeEntersNodeBox(normalized.slice(0, -1), targetBox)) return false
     // Same rule as straightening: tightening may never increase crossings.
     if (routeAddsCrossings(normalized, edge, ctx)) return false
     if (!routeCandidateMarkersClear(edge, normalized, ctx.edges, ctx.style)) return false

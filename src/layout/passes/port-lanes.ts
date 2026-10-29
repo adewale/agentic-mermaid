@@ -1,6 +1,6 @@
 import type { DiamondFacet, Direction, MermaidGraph, Point, PositionedEdge, PositionedGroup, PositionedNode } from '../../types.ts'
 import { portEndpointRate, segmentThroughShape } from '../../layout-rubric.ts'
-import { centerOutLabelSamples, diamondFacetPorts, labelPaintClearance, labelRect, laneContextFor, PORT_EXACT, recertifyReroutedEdge, shapePorts, simplifyPolyline, straightLaneFor } from '../../route-contracts.ts'
+import { centerOutLabelSamples, diamondFacetPorts, invalidEndpointApproaches, labelPaintClearance, labelRect, laneContextFor, PORT_EXACT, recertifyReroutedEdge, shapePorts, simplifyPolyline, straightLaneFor } from '../../route-contracts.ts'
 import type { LabelMetricsStyle } from '../../route-contracts.ts'
 import { DEFAULTS, layoutDebug, layoutEnvFlag } from '../geometry.ts'
 import { corankFanInSpokes } from './peers.ts'
@@ -73,6 +73,10 @@ export function portLaneInkClear(nodes: readonly PositionedNode[], edges: readon
         const edge = edges[edgeIndex]!
         if ((!changedNodes[nodeIndex] && !changedEdges[edgeIndex]) || edge.style === 'invisible') continue
         if (!work()) return false
+        // A canonical contact still has to face outward. Prove each endpoint
+        // separately so improving one cannot hide a new inward shaft at the other.
+        if (edge.source === node.id && invalidEndpointApproaches(edge, node) > invalidEndpointApproaches(beforeEdges[edgeIndex]!, beforeNodes[nodeIndex]!)) return false
+        if (edge.target === node.id && invalidEndpointApproaches(edge, undefined, node) > invalidEndpointApproaches(beforeEdges[edgeIndex]!, undefined, beforeNodes[nodeIndex]!)) return false
         const route = ink(edge)
         if (!route) return false
         const box = card(node)

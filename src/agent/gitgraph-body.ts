@@ -1,4 +1,4 @@
-import { GitGraphParseError, parseGitGraph, serializeGitGraph } from '../gitgraph/parser.ts'
+import { GitGraphParseError, parseGitGraph, quoteGitGraphString as quote, serializeGitGraph } from '../gitgraph/parser.ts'
 import type { GitGraphCommit } from '../gitgraph/types.ts'
 import { gitGraphCommitLabel } from '../gitgraph/types.ts'
 import { labelOverflowCollector, setOptionalField } from './body-utils.ts'
@@ -23,14 +23,11 @@ function cloneBody(body: GitGraphBody): GitGraphBody {
   }
 }
 
-function quote(value: string): string {
-  return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
-}
-
 function appendStatement(body: GitGraphBody, statement: string): Result<GitGraphBody, MutationError> {
   try {
     const parsed = parseGitGraph(renderGitGraphBody(body).trimEnd() + `\n  ${statement}\n`, { mainBranchName: body.mainBranchName, mainBranchOrder: body.branches.find(branch => branch.name === body.mainBranchName)?.order, title: body.title })
-    return ok({ kind: 'gitgraph', ...parsed })
+    const next: GitGraphBody = { kind: 'gitgraph', ...parsed }
+    return ok(next)
   } catch (error) {
     return err({ code: 'INVALID_OP', message: error instanceof Error ? error.message : String(error) })
   }

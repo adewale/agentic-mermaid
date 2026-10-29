@@ -1,6 +1,6 @@
 import type { EditorRasterResponse, EditorWorkerArtifact, PreviewWorkerRequest, PreviewWorkerResponse } from './browser-editor-protocol.ts'
 import type { BrowserPngRasterResult } from './browser-png.ts'
-import { detectBuiltinFamilyFromFirstLine } from './agent/family-registry.ts'
+import { detectBuiltinFamilyFromFirstLine, installBuiltinMutationHooks } from './agent/family-registry.ts'
 import { normalizeMermaidRenderSource } from './mermaid-source.ts'
 import { captureRenderOptions, capturedRenderBackend } from './render-contract.ts'
 import { sharedRenderOptionsOf } from './shared-render-options.ts'
@@ -43,6 +43,12 @@ async function execute(request: PreviewWorkerRequest): Promise<EditorWorkerArtif
 async function executeLoaded(request: PreviewWorkerRequest): Promise<EditorWorkerArtifact> {
   const { source, options } = request
   switch (request.operation) {
+    case 'mutate': {
+      const [{ applyOps }, { BUILTIN_AGENT_HOOKS }] = await loadDependency(() => Promise.all([import('./agent/apply.ts'), import('./agent/families-builtin.ts')]))
+      const family = detectBuiltinFamilyFromFirstLine(normalizeMermaidRenderSource(source).firstLine)
+      if (family) installBuiltinMutationHooks(family, BUILTIN_AGENT_HOOKS[family])
+      return { mutation: applyOps({ source, ops: request.ops, mode: request.mode }) }
+    }
     case 'preview': {
       const { renderAndVerifyMermaid } = await loadDependency(() => import('./agent/verify.ts'))
       const started = performance.now()

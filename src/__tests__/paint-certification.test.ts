@@ -30,8 +30,26 @@ const label = () => {
 }
 const surface = (fill = '#fff') => marks.shape({ id: 'cover', role: 'node', geometry: { kind: 'rect', x: 10, y: 10, width: 80, height: 60 }, paint: { fill } })
 
-test.each(['default-hidden', 'explicit-hidden', 'user-space', 'start', 'reverse-start', 'vertical', 'borderless', 'matched-viewbox', 'visible', 'interior-ref', 'entering', 'tiny-entering', 'scale-hint', 'viewbox', 'rotated', 'diagonal', 'written-mismatch', 'unknown-width', 'unsupported-output'] as const)('a clipped endpoint viewport proves complete marker containment only for %s', mode => {
-  const start = mode === 'start' || mode === 'reverse-start', vertical = mode === 'vertical'
+test.each(['LR', 'RL', 'TB', 'BT'] as const)('rounded endpoint contacts retain strict paint proof in %s', direction => {
+  const source = `flowchart ${direction}\nN0[n0]\nN1[n1]\nN2([n2])\nN3((n3))\nN2 --> N1\nN1 <==> N2\nN0 --> N2\nN2 --> N3\nN0 --> N2`
+  const rendered = renderMermaidSVGWithReceipt(source, { layoutSafety: 'strict', embedFontImport: false })
+  expect(rendered.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [] })
+})
+
+test.each(['contact', 'rx-only', 'ry-only', 'entering', 'unrelated', 'borderless', 'translucent-border', 'unknown-width'] as const)('rounded supporting lines retain actual marker ink obligations (%s)', mode => {
+  // The left semicircle is centred at (58,38), radius18. At y35 its
+  // boundary is58-sqrt(18²-3²), inside the rectangle's otherwise empty corner.
+  const x = 58 - Math.sqrt(18 * 18 - 3 * 3) + (mode === 'entering' ? 2 : 0)
+  const marker = tipAnchoredArrow('rounded-arrow', { width: 8, height: 5 }, 'end', { fill: '#111', stroke: '#111', strokeWidth: '0.75', strokeLinejoin: 'round' }, 'userSpaceOnUse')
+  const edge = marks.connector({ id: 'rounded-edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 10, y1: 35, x2: x, y2: 35 }, paint: { stroke: '#111' }, endpoints: { from: 'outside', to: mode === 'unrelated' ? 'another-node' : 'rounded-node' }, markers: { end: marker } })
+  const card = marks.shape({ id: 'rounded-node', role: 'node', geometry: { kind: 'rect', x: 40, y: 20, width: 50, height: 36, ...(mode !== 'ry-only' ? { rx: 18 } : {}), ...(mode !== 'rx-only' ? { ry: 18 } : {}) }, paint: { fill: '#fff', stroke: mode === 'borderless' ? 'none' : '#111', strokeWidth: mode === 'unknown-width' ? '1em' : '0.75', ...(mode === 'translucent-border' ? { strokeOpacity: '0.5' } : {}) } })
+  const proof = certifyScenePaint(scene([edge, card]))
+  if (['contact', 'rx-only', 'ry-only'].includes(mode)) expect(proof.status).toBe('passed')
+  else expect(proof.status).not.toBe('passed')
+})
+
+test.each(['default-hidden', 'explicit-hidden', 'user-space', 'start', 'reverse-start', 'vertical', 'written-tangent', 'vertical-written-tangent', 'borderless', 'matched-viewbox', 'visible', 'interior-ref', 'entering', 'tiny-entering', 'scale-hint', 'viewbox', 'rotated', 'diagonal', 'written-mismatch', 'written-axial', 'written-collapsed', 'written-width', 'unknown-width', 'unsupported-output'] as const)('a clipped endpoint viewport proves complete marker containment only for %s', mode => {
+  const start = mode === 'start' || mode === 'reverse-start', vertical = mode === 'vertical' || mode === 'vertical-written-tangent'
   const marker: MarkerDescriptor = tipAnchoredArrow('viewport-arrow', { width: 8, height: 5 }, start && mode !== 'reverse-start' ? 'start' : 'end', { fill: '#111', stroke: '#111', strokeWidth: '0.75', strokeLinejoin: 'round' }, mode === 'user-space' ? 'userSpaceOnUse' : undefined)
   if (mode === 'reverse-start') marker.orient = 'auto-start-reverse'
   if (mode === 'explicit-hidden') marker.overflow = 'hidden'
@@ -46,17 +64,77 @@ test.each(['default-hidden', 'explicit-hidden', 'user-space', 'start', 'reverse-
   const points = vertical ? [{ x: 40, y: 20 }, { x: 40, y: anchor }] : start ? [{ x: anchor, y: 40 }, { x: 20, y: 40 }] : [{ x: 20, y: 40 }, { x: anchor, y: 40 }]
   if (mode === 'diagonal') points[0]!.y = 30
   if (mode === 'written-mismatch') points[1]!.y = 40.00000000000001
-  const edge = marks.connector({ id: 'viewport-edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'polyline', points }, paint: { stroke: '#111', strokeWidth: mode === 'unknown-width' ? 'var(--host)' : mode === 'viewbox' ? '4' : '2' }, endpoints: start ? { from: 'viewport-node', to: 'outside' } : { from: 'outside', to: 'viewport-node' }, markers: start ? { start: marker } : { end: marker } })
+  if (mode === 'written-axial') points[1]!.x = 60.00000000000001
+  if (mode === 'written-collapsed') points[0]!.x = 60.00000000000001
+  if (mode === 'written-tangent') for (const point of points) point.y = 40.00000000000001
+  if (mode === 'vertical-written-tangent') for (const point of points) point.x = 40.00000000000001
+  const edge = marks.connector({ id: 'viewport-edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'polyline', points }, paint: { stroke: '#111', strokeWidth: mode === 'unknown-width' ? 'var(--host)' : mode === 'viewbox' ? '4' : mode === 'written-width' ? '2.000000000000001' : '2' }, endpoints: start ? { from: 'viewport-node', to: 'outside' } : { from: 'outside', to: 'viewport-node' }, markers: start ? { start: marker } : { end: marker } })
   const card = marks.shape({ id: 'viewport-node', role: 'node', geometry: vertical ? { kind: 'rect', x: 20, y: 60, width: 40, height: 30 } : { kind: 'rect', x: 60, y: 20, width: 30, height: 40, ...(borderless ? { rx: 5, ry: 5 } : {}) }, paint: { fill: '#fff', stroke: borderless ? 'none' : '#888', strokeWidth: '0.75' } })
   const proof = certifyScenePaint(scene([edge, card]), undefined, { outputSupported: mode !== 'unsupported-output' })
-  if (['default-hidden', 'explicit-hidden', 'user-space', 'start', 'reverse-start', 'vertical', 'borderless', 'matched-viewbox'].includes(mode)) expect(proof.status).toBe('passed')
+  if (['default-hidden', 'explicit-hidden', 'user-space', 'start', 'reverse-start', 'vertical', 'written-tangent', 'vertical-written-tangent', 'borderless', 'matched-viewbox'].includes(mode)) expect(proof.status).toBe('passed')
   else expect(proof.status).not.toBe('passed')
+})
+
+test.each(['horizontal-negative', 'horizontal-positive', 'vertical-negative', 'vertical-positive'] as const)('serialized marker ink, rather than its raw witness, retains %s translation uncertainty', mode => {
+  const vertical = mode.startsWith('vertical'), negative = mode.endsWith('negative')
+  // These two authored coordinates round in opposite directions by about
+  // 5e-8, farther than the witness slack and the complete tiny marker height.
+  const raw = negative ? 10000.123456749994 : 10000.123456750007
+  const written = negative ? 10000.1234567 : 10000.1234568
+  const marker = tipAnchoredArrow('translated-arrow', { width: 8e-9, height: 5e-9 }, 'end', { fill: '#111', stroke: 'none' }, 'userSpaceOnUse')
+  const edge = marks.connector({ id: 'translated-edge', role: 'edge', lineStyle: 'solid',
+    geometry: vertical ? { kind: 'line', x1: raw, y1: 20, x2: raw, y2: 60 } : { kind: 'line', x1: 20, y1: raw, x2: 60, y2: raw },
+    paint: { stroke: '#111', strokeWidth: '1' }, endpoints: { from: 'outside', to: 'translated-node' }, markers: { end: marker } })
+  const card = marks.shape({ id: 'translated-node', role: 'node',
+    geometry: vertical ? { kind: 'rect', x: written - (negative ? 20 : 0), y: 40, width: 20, height: 50 }
+      : { kind: 'rect', x: 40, y: written - (negative ? 20 : 0), width: 50, height: 20 },
+    paint: { fill: '#fff', stroke: '#111', strokeWidth: '0.00000002' } })
+  expect(sceneNodeSerialization(edge)).toContain(vertical ? `x1="${written}"` : `y1="${written}"`)
+  // Before serialization this entire marker clears the thin border. The
+  // emitted marker lies inside that border, so no exterior raw point may
+  // enable the attached-border contact allowance or skip the spatial pair.
+  const rawBounds = connectorMarkerPaintRegions(edge)[0]!.bounds!
+  const border = nodePaintBounds(card)!
+  expect(vertical ? negative ? rawBounds.x0 > border.x1 : rawBounds.x1 < border.x0 : negative ? rawBounds.y0 > border.y1 : rawBounds.y1 < border.y0).toBe(true)
+  const proof = certifyScenePaint(scene([edge, card]))
+  expect(proof.status).not.toBe('passed')
+  expect(proof.issues).toContainEqual(expect.objectContaining({ id: 'translated-edge', by: 'translated-node' }))
+})
+
+test.each(['plain', 'transformed', 'cancelled'] as const)('the added axial marker support requires unchanged emitted shape coordinates (%s)', mode => {
+  const marker = tipAnchoredArrow('axis-arrow', { width: 8, height: 5 }, 'end', { fill: '#111', stroke: '#111', strokeWidth: '0.75', strokeLinejoin: 'round' })
+  const translation = mode === 'cancelled' ? 10000.123456750007 : 1e-13
+  const context = { positioned: { width: 120, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => ({ ...scene([]), width: 120, parts: [
+    factory.documentOpen({ id: 'root', width: 120, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="80">'),
+    factory.definitions({ id: 'resources' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
+    factory.connector({ id: 'axis-edge', role: 'edge', lineStyle: 'thick', geometry: { kind: 'line', x1: 110, y1: 38, x2: 90, y2: 38 }, paint: { stroke: '#111', strokeWidth: '2' }, endpoints: { from: 'outside', to: 'axis-node' }, markers: { end: marker } }),
+    factory.group({ id: 'axis-node', role: 'node', open: mode === 'cancelled' ? `<g transform="translate(${-translation} 0)">` : '<g>', close: '</g>',
+      ...(mode === 'cancelled' ? { transform: { kind: 'matrix' as const, a: 1, b: 0, c: 0, d: 1, e: -translation, f: 0 } } : {}),
+      children: [{ node: factory.shape({ id: 'axis-shape', role: 'node', owner: { id: 'axis-node', role: 'node' }, geometry: { kind: 'rect', x: 40, y: 20, width: 50, height: 36, rx: 18, ry: 18 }, paint: { fill: '#fff', stroke: '#111', strokeWidth: '0.75' },
+        ...(mode !== 'plain' ? { transform: { kind: 'matrix' as const, a: 1, b: 0, c: 0, d: 1, e: translation, f: 0 } } : {}) }), indent: 0 }] }),
+    factory.documentClose(),
+  ] })
+  const drawing = drawNative(producer, context, 'flowchart')
+  for (const proof of [certifyScenePaint(producer(marks, context)), certifyNativePaint(drawing.header, drawing.paint)]) {
+    if (mode === 'plain') expect(proof.status).toBe('passed')
+    else {
+      expect(proof.status).not.toBe('passed')
+      expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', id: 'axis-edge', by: 'axis-shape' }))
+    }
+  }
+  if (mode === 'cancelled') {
+    // The authored leaf and group matrices cancel, but the leaf attribute
+    // normalizes while the verbatim group transform retains its raw value.
+    expect(drawing.svg).toContain('transform="matrix(1 0 0 1 10000.1234568 0)"')
+    expect(drawing.svg).toContain('transform="translate(-10000.123456750007 0)"')
+  }
 })
 
 test.each(['agentic', 'elk'] as const)('public %s thick-arrow and borderless-state markers retain clipping and actual meaning', backend => {
   for (const source of ['flowchart LR\nA ==> B', 'stateDiagram-v2\nstate fork_state <<fork>>\n[*] --> fork_state\nfork_state --> State2\nfork_state --> State3\nstate join_state <<join>>\nState2 --> join_state\nState3 --> join_state\njoin_state --> State4\nState4 --> [*]']) {
     const result = renderMermaidSVGWithReceipt(source, { graphLayout: { backend, fallback: 'none' } })
-    expect(result.receipt.layoutCertification?.status).toBe(backend === 'elk' && source.startsWith('stateDiagram') ? 'unverified' : 'passed')
+    expect(result.receipt.layoutCertification?.status).toBe('passed')
     expect(result.svg).toContain('marker-end="url(#arrowhead)"')
     expect(result.svg).toContain('refX="8"')
     expect(result.svg).not.toContain('overflow="visible"')
@@ -66,6 +144,18 @@ test.each(['agentic', 'elk'] as const)('public %s thick-arrow and borderless-sta
     } else {
       expect(result.svg).toContain('data-id="edge:_start-&gt;fork_state#0"')
       expect(result.svg).toContain('data-id="edge:State3-&gt;join_state#0"')
+      if (backend === 'elk') {
+        const join = result.svg.match(/<rect\b[^>]*data-id="node-shape:join_state"[^>]*>/)![0]
+        const top = Number(join.match(/\by="([^"]+)"/)![1])
+        expect(join).toContain('stroke="none"')
+        for (const from of ['State2', 'State3']) {
+          const edge = result.svg.match(new RegExp(`<polyline\\b[^>]*data-id="edge:${from}-&gt;join_state#0"[^>]*>`))![0]
+          const points = edge.match(/\bpoints="([^"]+)"/)![1]!.split(' ').map(point => point.split(',').map(Number))
+          expect(points.at(-1)![1]).toBe(top)
+          expect(points.at(-2)![0]).toBe(points.at(-1)![0]!)
+          expect(points.at(-2)![1]!).toBeLessThan(top)
+        }
+      }
     }
   }
 })
@@ -1098,25 +1188,40 @@ test('a translucent note has no proved opaque core to reject a semantic shaft', 
 // These are ordinary polygon resources: the proof must not depend on a family
 // name or marker id. The first midpoint (61,32.5) lies strictly inside the
 // second fill, away from its 0.75px outline, at the covered offset.
-test.each(['covered', 'separate', 'aabb-corner', 'coincident', 'different-coincident', 'owned-repaint', 'same-owner-cover', 'unknown-fill', 'transparent-fill', 'affine', 'clipped', 'nonsemantic', 'no-earlier-stroke', 'unemitted-opacity', 'later-restoration', 'overlay-repaint', 'same-color', 'thick-outline', 'unmeasured-restoration', 'late-open', 'early-open-covered', 'early-open-clear', 'no-closing-stroke', 'string-marker-units', 'vertex-only-cover', 'partial-restoration', 'no-earlier-ink'] as const)('distinct marker stroke/fill proof preserves %s', mode => {
+test.each(['covered', 'separate', 'aabb-corner', 'coincident', 'rounded-tangent', 'rounded-anchor', 'rounded-end', 'rounded-vertical', 'rounded-auto-start', 'written-tangent', 'written-anchor', 'rounded-transform', 'rounded-opacity', 'rounded-dash', 'rounded-width', 'rounded-fill', 'rounded-stroke', 'collapsed-terminal', 'rounded-mid', 'different-coincident', 'owned-repaint', 'same-owner-cover', 'unknown-fill', 'transparent-fill', 'affine', 'clipped', 'nonsemantic', 'no-earlier-stroke', 'unemitted-opacity', 'later-restoration', 'overlay-repaint', 'same-color', 'thick-outline', 'unmeasured-restoration', 'late-open', 'early-open-covered', 'early-open-clear', 'no-closing-stroke', 'string-marker-units', 'vertex-only-cover', 'partial-restoration', 'no-earlier-ink'] as const)('distinct marker stroke/fill proof preserves %s', mode => {
   const first: MarkerDescriptor = { id: 'diamond-resource', shape: 'diamond', units: 'userSpaceOnUse', orient: 'auto-start-reverse',
     size: { width: 14, height: 12 }, viewBox: { x: 0, y: 0, width: 14, height: 12 }, ref: { x: 13, y: 6 },
     geometry: mode === 'no-closing-stroke' ? { kind: 'polyline', points: [{ x: 7, y: 1 }, { x: 13, y: 6 }, { x: 7, y: 11 }] } : ['early-open-covered', 'early-open-clear'].includes(mode) ? { kind: 'polyline', points: [{ x: 7, y: 11 }, { x: 1, y: 6 }, { x: 7, y: 1 }] } : { kind: 'polygon', points: [{ x: 7, y: 1 }, { x: 13, y: 6 }, { x: 7, y: 11 }, { x: 1, y: 6 }] },
     paint: { fill: mode === 'no-earlier-ink' ? 'none' : mode === 'vertex-only-cover' ? '#111' : mode.startsWith('early-open') || mode === 'no-closing-stroke' ? 'none' : '#fff', stroke: ['no-earlier-stroke', 'no-earlier-ink'].includes(mode) ? 'none' : '#111', strokeWidth: mode === 'aabb-corner' ? '0.25' : '1.5' } }
-  const later: MarkerDescriptor = ['coincident', 'owned-repaint'].includes(mode) ? first : { id: 'triangle-resource', shape: 'arrow', units: 'userSpaceOnUse', orient: 'auto-start-reverse', overflow: mode === 'clipped' ? 'hidden' : 'visible',
+  if (mode === 'rounded-auto-start') first.orient = 'auto'
+  const duplicate = mode.startsWith('rounded-') || ['written-tangent', 'written-anchor', 'collapsed-terminal'].includes(mode)
+  let later: MarkerDescriptor = duplicate || ['coincident', 'owned-repaint'].includes(mode) ? first : { id: 'triangle-resource', shape: 'arrow', units: 'userSpaceOnUse', orient: 'auto-start-reverse', overflow: mode === 'clipped' ? 'hidden' : 'visible',
     size: { width: mode === 'clipped' ? 6 : 12, height: mode === 'clipped' ? 5 : 10 }, ref: { x: 12, y: 5 },
     geometry: { kind: mode === 'late-open' ? 'polyline' : 'polygon', points: [{ x: 0, y: 0 }, { x: 12, y: 5 }, { x: 0, y: 10 }] },
     paint: { fill: mode === 'late-open' ? 'none' : mode === 'unknown-fill' ? 'var(--host)' : mode === 'transparent-fill' ? 'rgba(255,255,255,0.5)' : mode === 'same-color' ? '#111' : '#fff', stroke: '#111', strokeWidth: mode === 'thick-outline' ? '20' : '1.5', ...(mode === 'unemitted-opacity' ? { fillOpacity: '0', strokeOpacity: '0' } : {}) } }
+  if (['rounded-opacity', 'rounded-dash', 'rounded-width', 'rounded-fill', 'rounded-stroke'].includes(mode)) {
+    later = { ...later, id: 'changed-resource', paint: { ...later.paint, ...(mode === 'rounded-opacity' ? { opacity: '0.5' } : mode === 'rounded-dash' ? { strokeDasharray: '1 1' } : mode === 'rounded-width' ? { strokeWidth: '4' } : mode === 'rounded-fill' ? { fill: '#f00' } : { stroke: '#fff' }) } }
+  }
   if (mode === 'vertex-only-cover') { later.size = { width: 14, height: 12 }; later.ref = { x: 13, y: 6 }; later.viewBox = { x: 0, y: 0, width: 14, height: 12 }; later.geometry = first.geometry }
   if (mode === 'no-closing-stroke') { later.size = { width: 1, height: 1 }; later.ref = { x: 0.5, y: 0.5 }; later.geometry = { kind: 'polygon', points: [{ x: 0, y: 0 }, { x: 1, y: 0.5 }, { x: 0, y: 1 }] }; later.paint!.strokeWidth = '0.1' }
   if (mode === 'string-marker-units') { first.units = 'strokeWidth'; later.units = 'strokeWidth' }
-  const y = mode === 'vertex-only-cover' ? 38 : ['separate', 'early-open-clear'].includes(mode) ? 55 : mode === 'aabb-corner' ? 39.5 : ['coincident', 'different-coincident', 'owned-repaint', 'no-closing-stroke'].includes(mode) ? 30 : 33.865217391
+  const y = mode === 'vertex-only-cover' ? 38 : ['separate', 'early-open-clear'].includes(mode) ? 55 : mode === 'aabb-corner' ? 39.5 : duplicate || ['coincident', 'different-coincident', 'owned-repaint', 'no-closing-stroke'].includes(mode) ? 30 : 33.865217391
   const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
   const producer: DrawingProducer = factory => {
-    const connector = (id: string, marker: MarkerDescriptor, cy: number, overlay = false) => factory.connector({ id, role: mode === 'nonsemantic' || overlay ? 'chrome' : 'edge', owner: { id: ['owned-repaint', 'same-owner-cover'].includes(mode) ? 'earlier' : overlay ? id.replace('overlay:', '') : id, role: mode === 'nonsemantic' ? 'chrome' : 'edge' },
-      lineStyle: 'solid', endpoints: { from: 'shared-source', to: id }, geometry: { kind: 'line', x1: mode === 'no-closing-stroke' && id === 'later' ? 64 : 70, y1: cy, x2: 20, y2: cy },
-      ...(mode === 'affine' ? { transform: { kind: 'matrix' as const, a: 1, b: 0, c: 0, d: 1, e: 1, f: 0 } } : {}),
-      paint: { stroke: '#111', strokeWidth: mode === 'string-marker-units' ? ' 1.004000000000001px ' : '1' }, ...(overlay ? { stroke: { opacity: 0 } } : {}), markers: { start: marker } })
+    const connector = (id: string, marker: MarkerDescriptor, cy: number, overlay = false) => {
+      const changed = id === 'later' && duplicate
+      const noise = mode.startsWith('written-') ? 1e-8 : 1e-13
+      const anchorNoise = changed && ['rounded-anchor', 'written-anchor', 'rounded-end'].includes(mode) ? noise : 0
+      const tangentNoise = changed ? noise : 0
+      const a = { x: mode === 'no-closing-stroke' && id === 'later' ? 64 : 70, y: cy + (mode === 'rounded-end' ? tangentNoise : anchorNoise) }
+      const b = { x: mode === 'collapsed-terminal' && changed ? 70 + noise : 20, y: cy + (mode === 'rounded-end' ? anchorNoise : tangentNoise) }
+      if (mode === 'rounded-vertical') for (const point of [a, b]) [point.x, point.y] = [point.y, point.x]
+      const geometry = mode === 'rounded-mid' ? { kind: 'polyline' as const, points: [a, { x: 45, y: cy }, b] } : { kind: 'line' as const, x1: a.x, y1: a.y, x2: b.x, y2: b.y }
+      return factory.connector({ id, role: mode === 'nonsemantic' || overlay ? 'chrome' : 'edge', owner: { id: ['owned-repaint', 'same-owner-cover'].includes(mode) ? 'earlier' : overlay ? id.replace('overlay:', '') : id, role: mode === 'nonsemantic' ? 'chrome' : 'edge' },
+        lineStyle: 'solid', endpoints: { from: 'shared-source', to: id }, geometry,
+        ...(['affine', 'rounded-transform'].includes(mode) ? { transform: { kind: 'matrix' as const, a: 1, b: 0, c: 0, d: 1, e: 1, f: 0 } } : {}),
+        paint: { stroke: '#111', strokeWidth: mode === 'string-marker-units' ? ' 1.004000000000001px ' : '1' }, ...(overlay ? { stroke: { opacity: 0 } } : {}), markers: mode === 'rounded-mid' ? { mid: [marker] } : mode === 'rounded-end' ? { end: marker } : { start: marker } })
+    }
     return { ...scene([]), parts: [
       factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'),
       factory.definitions({ id: 'resources' }, `<defs>${serializeMarkerResource(first)}${later === first ? '' : serializeMarkerResource(later)}</defs>`),
@@ -1126,7 +1231,7 @@ test.each(['covered', 'separate', 'aabb-corner', 'coincident', 'different-coinci
     ] }
   }
   const drawing = drawNative(producer, context, 'flowchart')
-  expect(drawing.svg).toContain('marker-start')
+  expect(drawing.svg).toContain(mode === 'rounded-end' ? 'marker-end' : mode === 'rounded-mid' ? 'marker-mid' : 'marker-start')
   if (mode === 'string-marker-units') expect(drawing.svg).toContain('stroke-width=" 1.004000000000001px "')
   if (mode === 'transparent-fill' || mode === 'late-open') {
     // The narrower opaque-fill loss API still proves no opaque fill loss.
@@ -1135,7 +1240,7 @@ test.each(['covered', 'separate', 'aabb-corner', 'coincident', 'different-coinci
     const connectors = producer(marks, context).parts.filter((node): node is Extract<SceneNode, { kind: 'connector' }> => node.kind === 'connector')
     expect(compareMarkerStrokeInk(prepareMarkerPolygonInk({ colors: context.colors }, connectors[0]!, first, 'start', () => true), prepareMarkerPolygonInk({ colors: context.colors }, connectors[1]!, later, 'start', () => true), () => true)).toBe('clear')
   }
-  const expected = ['covered', 'different-coincident', 'same-owner-cover', 'unemitted-opacity', 'overlay-repaint', 'early-open-covered', 'string-marker-units', 'vertex-only-cover', 'partial-restoration'].includes(mode) ? 'failed' : ['unknown-fill', 'affine', 'clipped', 'later-restoration', 'same-color', 'thick-outline', 'unmeasured-restoration', 'no-closing-stroke', 'no-earlier-stroke', 'transparent-fill', 'late-open'].includes(mode) ? 'unverified' : 'passed'
+  const expected = ['covered', 'different-coincident', 'same-owner-cover', 'unemitted-opacity', 'overlay-repaint', 'early-open-covered', 'string-marker-units', 'vertex-only-cover', 'partial-restoration'].includes(mode) ? 'failed' : ['unknown-fill', 'affine', 'clipped', 'later-restoration', 'same-color', 'thick-outline', 'unmeasured-restoration', 'no-closing-stroke', 'no-earlier-stroke', 'transparent-fill', 'late-open', 'written-tangent', 'written-anchor', 'rounded-transform', 'rounded-opacity', 'rounded-dash', 'rounded-width', 'rounded-fill', 'rounded-stroke', 'collapsed-terminal', 'rounded-mid'].includes(mode) ? 'unverified' : 'passed'
   for (const proof of [certifyScenePaint(producer(marks, context)), certifyNativePaint(drawing.header, drawing.paint)]) {
     expect(proof.status).toBe(expected)
     if (expected === 'failed') expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'MARKER_OCCLUDED', id: mode === 'overlay-repaint' ? 'overlay:earlier' : 'earlier', by: mode === 'overlay-repaint' ? 'overlay:later' : 'later' }))
@@ -1359,4 +1464,46 @@ test.each(['clear', 'hidden-overlap', 'unknown-view', 'aspect-mismatch', 'round-
     if (!covered) expect(proof.issues.some(issue => issue.code === 'MARKER_OCCLUDED')).toBe(false)
   }
   expect(JSON.stringify(earlier)).toBe(originalResource)
+})
+
+test.each(['LR', 'RL'] as const)('ELK cyclic15 uses the serialized terminal pose for shared markers in %s', direction => {
+  const source = readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-15.mmd', import.meta.url), 'utf8').replace(/^flowchart LR/, `flowchart ${direction}`)
+  const result = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'elk' }, security: 'strict', embedFontImport: false })
+  expect(result.receipt.layoutCertification?.status).toBe('passed')
+  expect(result.receipt.layoutCertification?.issues).toEqual([])
+  expect(result.svg.match(/data-role="edge"/g)).toHaveLength(31)
+  expect(result.svg.match(/data-marker-end="arrow"/g)).toHaveLength(31)
+  expect(result.svg).toContain('data-from="n6" data-to="n11"')
+  expect(result.svg).toContain('data-from="n4" data-to="n11"')
+})
+
+
+test.each(['exact', 'rounded'].flatMap(pose => ['known', 'known-vars', 'known-transform', 'context-stroke', 'context-fill', 'currentColor', 'inherited', 'unknown-var', 'mixed-fill', 'mixed-stroke', 'omitted-fill', 'omitted-stroke', 'opacity-var', 'width-var', 'offset-var'].map(paint => [pose, paint] as const)))('shared marker repaint keeps %s pose and %s paint distinct', (pose, mode) => {
+  const paint: MarkPaint = { fill: '#fff', stroke: '#111', strokeWidth: '1.5' }
+  if (['context-stroke', 'context-fill', 'currentColor', 'inherited', 'unknown-var'].includes(mode)) paint.fill = paint.stroke = mode === 'inherited' ? 'inherit' : mode === 'unknown-var' ? 'var(--host)' : mode
+  if (mode === 'known-vars') { paint.fill = 'var(--bg)'; paint.stroke = 'var(--fg)' }
+  if (mode === 'mixed-fill') paint.fill = 'context-stroke'
+  if (mode === 'mixed-stroke') paint.stroke = 'context-stroke'
+  if (mode === 'omitted-fill') delete paint.fill
+  if (mode === 'omitted-stroke') delete paint.stroke
+  if (mode === 'opacity-var') paint.opacity = 'var(--host)'
+  if (mode === 'width-var') paint.strokeWidth = 'var(--host)'
+  if (mode === 'offset-var') paint.strokeDashoffset = 'var(--host)'
+  const marker: MarkerDescriptor = { id: 'shared-resource', shape: 'diamond', units: 'userSpaceOnUse', orient: 'auto-start-reverse', overflow: 'visible', size: { width: 14, height: 12 }, viewBox: { x: 0, y: 0, width: 14, height: 12 }, ref: { x: 13, y: 6 }, geometry: { kind: 'polygon', points: [{ x: 7, y: 1 }, { x: 13, y: 6 }, { x: 7, y: 11 }, { x: 1, y: 6 }] }, paint }
+  const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => ({ ...scene([]), parts: [
+    factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'),
+    factory.definitions({ id: 'resources' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
+    ...['earlier', 'later'].map(id => factory.connector({ id, role: 'edge', owner: { id, role: 'edge' }, lineStyle: 'solid', endpoints: { from: 'shared-source', to: id }, geometry: { kind: 'line', x1: 70, y1: 30, x2: 20, y2: pose === 'rounded' && id === 'later' ? 30 + 1e-13 : 30 }, paint: { stroke: id === 'earlier' ? '#111' : '#fff', strokeWidth: '1' }, ...(mode === 'known-transform' ? { transform: { kind: 'matrix' as const, a: 1, b: 0, c: 0, d: 1, e: 1, f: 0 } } : {}), markers: { start: marker } })),
+    factory.documentClose(),
+  ] })
+  const drawing = drawNative(producer, context, 'flowchart')
+  expect(drawing.svg.match(/id="shared-resource"/g)).toHaveLength(1)
+  expect(drawing.svg.match(/<line x1="70" y1="30" x2="20" y2="30"/g)).toHaveLength(2)
+  const expected = ['known', 'known-vars'].includes(mode) || mode === 'known-transform' && pose === 'exact' ? 'passed' : 'unverified'
+  for (const proof of [certifyScenePaint(producer(marks, context)), certifyNativePaint(drawing.header, drawing.paint)]) {
+    expect(proof.status).toBe(expected)
+    if (expected === 'unverified') expect(proof.issues.some(issue => issue.code === 'POTENTIAL_OCCLUSION' || issue.code === 'UNMEASURED_PAINT')).toBe(true)
+    else expect(proof.issues).toEqual([])
+  }
 })

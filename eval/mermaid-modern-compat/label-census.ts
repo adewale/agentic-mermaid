@@ -18,7 +18,8 @@ export interface ReferenceLabel { path: string; text: string }
 
 /** Read authored label fields from independent DB getters or the explicitly
  * tagged upstream Event Modeling parser AST (its Node getState needs real DOM
- * geometry and remains unavailable). No Agentic parser,
+ * geometry and remains unavailable), or ZenUML public SSR SVG semantic text.
+ * The latter is rendered text, not authored structural AST. No Agentic parser,
  * renderer, label helper or harvested local expectation participates here. */
 export function referenceLabels(family: string, reply: ReferenceReply): ReferenceLabel[] | undefined {
   if (!reply.ok) return undefined
@@ -38,6 +39,10 @@ export function referenceLabels(family: string, reply: ReferenceReply): Referenc
   }
   add('getDiagramTitle', db.getDiagramTitle)
   switch (family) {
+    case 'zenuml':
+      if (reply.renderedLabels?.kind !== 'rendered-svg-text' || reply.renderedLabels.error || !reply.renderedLabels.labels) return undefined
+      for (const label of reply.renderedLabels.labels) add(label.path, label.text)
+      break
     case 'eventmodeling':
       if (!reply.parserAst?.value) return undefined
       fields('parserAst.frames', rows(row(reply.parserAst.value).frames), 'entityIdentifier')
@@ -151,7 +156,7 @@ function modelStrings(value: unknown, seen = new Set<object>()): string[] {
 
 export function labelCensus(family: string, reference: ReferenceReply, diagram: ParsedDiagram, svg?: string) {
   const expected = referenceLabels(family, reference)
-  if (!expected) return { status: 'unavailable' as const, reason: 'No independent label projection is available for this reference result' }
+  if (!expected) return { status: 'unavailable' as const, reason: reference.ok && reference.renderedLabels?.error ? `${reference.renderedLabels.origin}: ${reference.renderedLabels.error}` : 'No independent label projection is available for this reference result' }
   const surfaces: Record<string, { values?: string[]; error?: string }> = {
     model: { values: modelStrings(diagram.body) },
     facts: { values: describeMermaidFacts(diagram) },
@@ -173,7 +178,8 @@ export function labelCensus(family: string, reference: ReferenceReply, diagram: 
   } catch (error) { surfaces.ascii = surfaces.meta = { error: String(error) } }
   return {
     status: 'measured' as const,
-    scope: 'Reference DB or independently installed Event Modeling parser AST authored node/group/relationship labels, titles, category names, task/event/actor labels, tags, XY point labels and C4 descriptive fields. Class/ER members, accessibility and sequence notes/control labels are not included. Visibility is not inferred: explicitly hidden labels remain candidates for semantic review. Matches are existential text-presence diagnostics, not identity or multiplicity proofs.',
+    scope: 'Reference DB or independently installed Event Modeling parser AST authored node/group/relationship labels, titles, category names, task/event/actor labels, tags, XY point labels and C4 descriptive fields; ZenUML uses tagged public SSR rendered participant/message/return/title text. Class/ER members, accessibility and sequence notes/control labels are not included. Visibility is not inferred: explicitly hidden labels remain candidates for semantic review. Matches are existential text-presence diagnostics, not identity or multiplicity proofs.',
+    ...(family === 'zenuml' && reference.ok ? { provenance: reference.renderedLabels } : {}),
     surfaces,
     metrics: { scope: 'Aggregate label measurement counts; metrics do not expose per-label text', value: metrics },
     labels: expected.map(label => ({ ...label, display: censusDisplayText(label.text), presence: Object.fromEntries(Object.entries(surfaces).map(([name, surface]) => [name, surface.values === undefined ? null : surface.values.some(value => censusDisplayText(value).includes(censusDisplayText(label.text)))])) })),

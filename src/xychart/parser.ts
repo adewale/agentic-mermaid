@@ -18,6 +18,7 @@ import { encodeMermaidEntities } from '../shared/mermaid-entities.ts'
 import { decodeMermaidEntities } from '../shared/mermaid-entity-display.ts'
 import { quotedTextEnds, statementText, trailingCommentStart } from '../shared/trailing-comment.ts'
 import { parserObservationActive, observeParserStatement, observeParserMutation } from '../shared/parser-observation.ts'
+import { MermaidSyntaxError, syntaxError } from '../shared/syntax-error.ts'
 
 // ============================================================================
 // XY Chart parser
@@ -441,7 +442,7 @@ function splitCommaList(text: string): string[] {
   const values: string[] = []
   for (const raw of rawValues) {
     const value = parseDirectiveText(raw)
-    if (value === null || value.length === 0) throw new Error(`Invalid XYChart list value: "${raw}"`)
+    if (value === null || value.length === 0) throw syntaxError({ what: `Invalid XYChart category ${JSON.stringify(raw)}`, expectedForm: 'nonempty categories separated by commas', example: 'x-axis ["A", "B"]' })
     values.push(value)
   }
   return values
@@ -683,7 +684,13 @@ export function xychartTextRejections(lines: readonly string[]): Array<{ index: 
     const axis = statement.match(/^([xy])-axis\s+([\s\S]+)$/i)
     if (!axis) return
     const axisName = axis[1]!.toLowerCase() as 'x' | 'y'
-    applyAxisDirective({}, axis[2]!, axisName, index + 1, report)
+    try {
+      applyAxisDirective({}, axis[2]!, axisName, index + 1, report)
+    } catch (error) {
+      // This scan names portable text; malformed lists stay rejected by the
+      // renderer and become source findings through the normal verify path.
+      if (!(error instanceof MermaidSyntaxError)) throw error
+    }
   }
   const starts: number[] = []
   const statements = expandXYChartStatements([...lines], false, starts)
