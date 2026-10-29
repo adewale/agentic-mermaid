@@ -1,11 +1,11 @@
 // bun eval/trident/run.ts source bench:endpoint-marker BASE_CHECKOUT HEAD_CHECKOUT OUT_DIR
 // Both checkouts must be immutable revisions with built Node packages.
-import { execFileSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { collectSamples } from '../layout-compare/run.ts'
 import { extractOfficialCorpus } from '../shared/official-fences.ts'
+import { inspectBuiltCheckout } from './source-checkout.ts'
 import { releaseBenchCases } from './release-bench-cases.ts'
 import { getFamily } from '../../src/agent/families.ts'
 import type { RenderOptions } from '../../src/types.ts'
@@ -15,13 +15,10 @@ interface Input { id: string; family: string; source: string; options?: RenderOp
 type Metric = keyof ReturnType<typeof architectureSvgMetrics>['metrics']
 const [baseDirectory, headDirectory, destination] = process.argv.slice(2)
 if (!baseDirectory || !headDirectory || !destination) throw new Error('Expected BASE_CHECKOUT HEAD_CHECKOUT OUT_DIR')
-const directories = [baseDirectory, headDirectory].map(path => resolve(path))
-for (const directory of directories) {
-  const dirty = execFileSync('git', ['status', '--porcelain', '--', 'src', 'package.json'], { cwd: directory, encoding: 'utf8' }).trim()
-  if (dirty) throw new Error(`Production source is dirty in ${directory}`)
-}
+const checkouts = [baseDirectory, headDirectory].map(inspectBuiltCheckout)
+const directories = checkouts.map(checkout => checkout.root)
 const apis = await Promise.all(directories.map(async directory => await import(pathToFileURL(`${directory}/dist/agent.js`).href) as typeof import('../../src/agent/index.ts')))
-const revisions = directories.map(directory => execFileSync('git', ['rev-parse', 'HEAD'], { cwd: directory, encoding: 'utf8' }).trim())
+const revisions = checkouts.map(checkout => checkout.revision)
 const out = resolve(destination)
 mkdirSync(out, { recursive: true })
 

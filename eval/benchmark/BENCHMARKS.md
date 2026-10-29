@@ -4,6 +4,8 @@ A benchmark is useful when it answers a decision you actually face. The diagnost
 
 **Start here:** use community admission to find unsupported or broken inputs; use authored meaning/paint checks to investigate fidelity; use first-result/scaling experiments for performance decisions. The six-input community speed core is a narrow repeat workload, not evidence of general rendering speed.
 
+The [27–28 October historical campaign](../../docs/benchmarks/campaign-2026-10-28.md) retains AM PR comparisons and backend/source-suite findings separately from Trident’s ecosystem scores. It is not a current release qualification.
+
 ## Run product diagnostics
 
 Run `bun run bench --list --profile full` to inspect prerequisites, then
@@ -22,7 +24,7 @@ conflicting versions within the same catalog comparison still fail admission.
 
 For a frozen release comparison, supply `--candidate-tarball` and its
 `--candidate-sha256`, plus `--baseline-tarball` and its `--baseline-sha256`.
-Both the Node and browser release suites use those selected archives. The Node
+Both the Node and browser release suites use those selected archives. An explicit baseline tarball takes precedence over a baseline directory supplied for another diagnostic. Endpoint-marker source checks instead accept `--baseline-checkout` and `--candidate-checkout`; they require clean built Git roots, not installed package directories. The Node
 suite blocks a baseline archive without its digest instead of substituting npm
 `latest`; npm selection is used only when no directory or archive baseline was
 selected.
@@ -175,3 +177,14 @@ Inspect representative actual drawings, including interacting failures. A heuris
 Agent replay, live-model/subagent tasks and MCP conformance have value for their **own workflow correctness**, not general renderer performance. Replay is not a new provider run. Live quality/token/cost claims need actual named models, transcripts and observed usage; a blocked provider earns no score. Callable judges need independent real judgments.
 
 Corpus building (`family-portfolio`, corpus import), artifact acquisition, report reducers, chart generators and campaign controllers prepare or explain experiments. They are necessary infrastructure, not additional benchmark outcomes. The command inventory lists their executable boundaries.
+
+## Historical product campaign reports
+
+The AM-specific retained-report writer and chart generator live in `eval/benchmark/unified/update-scorecard.ts` and `eval/benchmark/unified/charts.py`. Their overlay-admission and invocation-census tests move with them. They read existing evidence and never collect new timings. Prepare the pinned Trident dependency first; shared record decoding and artifact-version validation stay in that library.
+
+```sh
+bun eval/benchmark/unified/update-scorecard.ts --run /evidence/am-campaign --output /evidence/am-scorecard.md
+python3 eval/benchmark/unified/charts.py --run /evidence/am-campaign --prs /evidence/am-prs --out /evidence/am-charts
+```
+
+These commands serve AM’s historical source/invocation protocols. Use Trident’s `results:snapshot` and `results:publish` for current ecosystem reporting.
