@@ -19,6 +19,7 @@
 
 import { runtimeRenderContractPlugin } from '../build/runtime-render-contract.ts'
 import { minifyBrowserRuntime } from '../build/runtime-minify.ts'
+import { packStandaloneWorker, standaloneCodecNotices, standaloneCodecPlugin, standaloneWorkerNotices } from '../build/standalone-worker-payload.ts'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gzipSync } from 'node:zlib'
@@ -231,6 +232,9 @@ async function generateEditorHtml(): Promise<string> {
   ]
   let bundleJs: string, sourceRuntimeBytes: number | undefined
   let runtimeMetafile: unknown
+  let workerPayload = '', codecNotices = ''
+  let workerMetafile: unknown
+  let workerBytes: number | undefined, packedWorkerBytes: number | undefined
   if (runtimeDirectory) {
     const buildResult = await Bun.build({
       entrypoints: [fileURLToPath(new URL('../../src/browser-hosted.ts', import.meta.url))],
@@ -247,23 +251,36 @@ async function generateEditorHtml(): Promise<string> {
     if (!entry) throw new Error('Hosted editor runtime entry not found')
     bundleJs = `import ${JSON.stringify(`/editor/runtime/${basename(entry.path)}`)};`
   } else {
+    const workerBuild = await Bun.build({
+      entrypoints: [fileURLToPath(new URL('../../src/browser-preview-worker.ts', import.meta.url))],
+      plugins: runtimePlugins,
+      target: 'browser', format: 'esm', minify: true,
+      metafile: true,
+    })
+    if (!workerBuild.success) throw new AggregateError(workerBuild.logs, 'Standalone preview worker build failed')
+    const workerSource = await workerBuild.outputs[0]?.text()
+    if (!workerSource) throw new Error('Standalone preview worker produced no module')
+    const worker = await minifyBrowserRuntime(workerSource)
+    const packed = packStandaloneWorker(worker)
+    workerPayload = packed.encoded
+    workerBytes = packed.workerBytes
+    packedWorkerBytes = packed.packedBytes
+    workerMetafile = workerBuild.metafile
     const buildResult = await Bun.build({
       entrypoints: [fileURLToPath(new URL('../../src/browser-standalone.ts', import.meta.url))],
-      plugins: runtimePlugins,
+      plugins: [...runtimePlugins, standaloneCodecPlugin()],
+      define: packed.define,
       target: 'browser', format: 'esm', minify: true,
       metafile: Boolean(metafilePath),
     })
     if (!buildResult.success) throw new AggregateError(buildResult.logs, 'Standalone editor runtime build failed')
-    // Compress the complete inline module after omitting unpublished
-    // conformance observations and unused schema prose. Retain validation,
-    // both solvers and the terminal adapter; keep legal comments and escape
-    // script delimiters.
     const source = await buildResult.outputs[0]?.text()
     if (!source) throw new Error('Standalone editor runtime build produced no module')
     runtimeMetafile = buildResult.metafile
     sourceRuntimeBytes = new TextEncoder().encode(source).byteLength
     bundleJs = await minifyBrowserRuntime(source)
     if (!bundleJs) throw new Error('Standalone runtime compression produced no module')
+    codecNotices = `${standaloneCodecNotices()}\n\n${standaloneWorkerNotices(worker, Object.keys(workerBuild.metafile!.inputs), process.cwd())}`
   }
   console.log(`Browser bundle: ${(bundleJs.length / 1024).toFixed(1)} KB`)
 
@@ -271,7 +288,7 @@ async function generateEditorHtml(): Promise<string> {
 
   const [css, appJs, html] = await Promise.all([readCssFiles(fontPrefix, Boolean(runtimeDirectory)), readJsFiles(), readHtmlPartials(themeItems, Boolean(runtimeDirectory))])
 
-  // The standalone runtime is also the worker source; keep app DOM code separate.
+  // Keep closed worker bytes inert until the bootstrap validates and decodes them.
   const document = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -316,7 +333,7 @@ ${html.rightPanel}
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-${runtimeDirectory ? '' : `<script type="module" id="editor-runtime">\n${bundleJs}\n</script>`}
+${runtimeDirectory ? '' : `<script type="text/plain" id="editor-codec-notices">\n${codecNotices}\n</script>\n<script type="application/octet-stream" id="editor-worker-payload">\n${workerPayload}\n</script>\n<script type="module" id="editor-runtime">\n${bundleJs}\n</script>`}
 <script type="module">
 ${runtimeDirectory ? bundleJs : ''}
 
@@ -333,6 +350,9 @@ ${appJs}
       bundler: `Bun ${Bun.version}`,
       scope: 'Standalone editor; module contributions describe the Bun bundle before SWC compression. No bundled source is included.',
       sourceRuntimeBytes,
+      workerBytes,
+      packedWorkerBytes,
+      workerMetafile,
       compressedRuntimeBytes: new TextEncoder().encode(bundleJs).byteLength,
       htmlBytes: htmlBytes.byteLength,
       htmlGzipBytes: gzipSync(htmlBytes, { level: 9 }).byteLength,

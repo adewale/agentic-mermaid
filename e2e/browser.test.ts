@@ -13,7 +13,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import { join } from 'path'
-import { deflateRawSync, gzipSync } from 'node:zlib'
+import { brotliDecompressSync, deflateRawSync, gzipSync } from 'node:zlib'
 import { deserialize } from 'node:v8'
 import { chromium, type Browser, type BrowserContext, type CDPSession, type Page } from 'playwright'
 import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
@@ -404,12 +404,27 @@ it('standalone editor stays within its single-renderer payload budget', async ()
   const runtime = new TextDecoder().decode(html).match(/<script type="module" id="editor-runtime">([\s\S]*?)<\/script>/)?.[1]
   expect(runtime).toBeDefined()
   // These literals belong to the page catalog, not its private renderer worker.
-  expect(runtime).not.toMatch(/(?:\beditor(?:DiagramType|Label|Description|ExampleId|Glyph|Example)|["']editor(?:DiagramType|Label|Description|ExampleId|Glyph|Example)["'])\s*:\s*["'`]/)
+  const packed = new TextDecoder().decode(html).match(/<script type="application\/octet-stream" id="editor-worker-payload">([\s\S]*?)<\/script>/)?.[1]
+  expect(packed).toBeDefined()
+  const worker = brotliDecompressSync(Buffer.from(packed!.trim(), 'base64')).toString('utf8')
+  expect(worker.length).toBeGreaterThan(0)
+  for (const module of [runtime!, worker]) expect(module).not.toMatch(/(?:\beditor(?:DiagramType|Label|Description|ExampleId|Glyph|Example)|["']editor(?:DiagramType|Label|Description|ExampleId|Glyph|Example)["'])\s*:\s*["'`]/)
 })
 
 it('standalone editor renders and verifies with one persistent Blob worker', async () => {
   const standalone = await browser.newPage()
   try {
+    // Observe the actual immutable Blob handed to the browser, independently
+    // of the payload CRC helper and the render receipt.
+    await standalone.addInitScript(() => {
+      const original = URL.createObjectURL.bind(URL)
+      URL.createObjectURL = value => {
+        if (value instanceof Blob && value.type === 'text/javascript') {
+          (window as unknown as { __workerBytes: Promise<ArrayBuffer> }).__workerBytes = value.arrayBuffer()
+        }
+        return original(value)
+      }
+    })
     await standalone.goto(`${BASE}/editor?empty=1`, { waitUntil: 'networkidle' })
     // The page still offers the complete public catalog while its worker omits
     // the duplicated editor prose. Rendering and receipts below cover every hook.
@@ -430,6 +445,20 @@ it('standalone editor renders and verifies with one persistent Blob worker', asy
     await standalone.waitForFunction(() => document.getElementById('status-text')?.textContent === 'OK')
     expect(await standalone.locator('#preview-inner svg').textContent()).toContain('Standalone')
     expect(worker.url()).toStartWith('blob:')
+    const emittedHtml = await Bun.file(join(ROOT, 'editor.html')).text()
+    const encodedWorker = emittedHtml.match(/<script type="application\/octet-stream" id="editor-worker-payload">([\s\S]*?)<\/script>/)?.[1]
+    expect(encodedWorker).toBeDefined()
+    const expectedWorker = brotliDecompressSync(Buffer.from(encodedWorker!.trim(), 'base64'))
+    const writtenWorker = await standalone.evaluate(async encoded => {
+      const actual = new Uint8Array(await (window as unknown as { __workerBytes: Promise<ArrayBuffer> }).__workerBytes)
+      const expected = atob(encoded)
+      let firstDifference = actual.length === expected.length ? -1 : Math.min(actual.length, expected.length)
+      for (let index = 0; index < Math.min(actual.length, expected.length); index++) {
+        if (actual[index] !== expected.charCodeAt(index)) { firstDifference = index; break }
+      }
+      return { bytes: actual.length, firstDifference }
+    }, expectedWorker.toString('base64'))
+    expect(writtenWorker).toEqual({ bytes: expectedWorker.length, firstDifference: -1 })
     const preview = await standalone.evaluate(async () => {
       const api = (globalThis as any).__mermaid
       const source = 'flowchart LR\nStandalone --> Verified'

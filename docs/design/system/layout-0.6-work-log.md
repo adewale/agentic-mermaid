@@ -2123,3 +2123,137 @@ whole ring/body contact proof as well as a common visible stroke witness:
 independent rational geometry shows a thinner B border can leave the witness
 visible while admitting forbidden fill intrusion. Its current U is not repaired
 by that calculation or by its retained 41-pixel marker intervention.
+
+### 29 October: bounded standalone worker delivery; failed experiments withdrawn
+
+The namespace repair is **`8e06d4861afb51dc5541415699c59f18259e304f`**.
+This following change builds its complete standalone worker once, packs those
+exact UTF-8 bytes with Brotli, and retains the existing module Blob Worker
+protocol. The main thread keeps the engine-free adapter and captures the
+build-owned inert payload before publishing it. No eval, Function, WebAssembly,
+main-thread Blob import or required DecompressionStream is introduced.
+
+The new build-only dependency is **brotli 1.3.3**; its base64-js 1.5.1 dependency
+was already locked. CRC uses the existing UPng-owned Pako 1.0.11 dependency.
+Frozen lockfile validation passes; all other locked versions are unchanged,
+including canonical YAML 2.9.0 and ELK 0.11.1. Package version remains 0.4.2;
+this campaign still targets 0.6 and leaves ELK as default.
+
+Packed and decoded lengths and CRC32 values are compiled into the bootstrap.
+The build independently compares the complete native-decoded worker bytes.
+The loader verifies both byte sequences before constructing an immutable Blob,
+then gives each Worker attempt a fresh URL. These are corruption checks over
+closed build-owned code, not cryptographic authentication or a new general
+Brotli-data API. Deferred CJS initialization includes dictionary/base64/CRC
+setup inside one sticky physical codec budget. Nested calls cannot replenish
+work or swallow a limit violation. Guards enforce output at most **8 MiB**,
+window at most **22**, **32 million original loop bodies**, and a **30-second
+cooperative deadline**; no hard interrupt is claimed. The existing worker
+30-second deadline and every source/Scene/paint/output limit are unchanged.
+
+Owning behavior tests cover capture-before-publication, packed/decoded corruption,
+no Worker/URL on failure, immutable Blob reuse, fresh URLs after crashes,
+cancellation before decode, BFCache restoration and monotonic client IDs,
+original snapshots/queues/PNG callbacks, and shared/sticky work limits. An
+independently authored loop case covers directives, labels, continue targets,
+unbraced/empty loops and the exact 18 charged bodies. The actual codec fixture
+uses the production compiler plugin and minifier. These owner tests pass
+**40P/0F/275 assertions**, included in the combined 478-test population above.
+
+Independent Acorn inversion validates **all 62 original loops across 11 codec
+modules** and recovers original AST/comments after removing only the declared
+guard edits. Actual oversized initial-output and meta-block-growth controls,
+window23, corrupted checksums and cancellation refuse before the prohibited
+allocation. Successful cold decoding of the freshly built **4,279,732-byte**
+worker produces a Blob exactly equal to every independently native-decoded
+byte, under one physical budget. Prior 4,278,086- and 4,279,340-byte epochs remain
+separate evidence. Fresh source equality binds the unchanged guard proof;
+those old byte lengths are not relabelled as the new artifact.
+
+Opaque packing does not hide notices. The build discovers actual physical
+worker dependency origins and original JS legal comments before stripping,
+includes their full license texts and maintained source-adaptation notices,
+and fails missing/unknown origins. Collection has explicit input, ancestry,
+package, file and byte limits. Acorn correctly distinguishes actual comments
+after quote-bearing regexes from inert strings: the first raw TS scanner
+missed this and the genuine failed fixture is retained. All **12 external
+origins and 21 full-license texts** pass independent actual-HTML readback.
+Brotli's declared MIT attribution and actual Google2013 Apache headers/full
+terms, base64 MIT and Pako MIT/Zlib credits remain outside the payload with an
+explicit modification notice and no invented upstream copyright year. The
+stale lodash attribution is corrected to the actual es-toolkit1.53.0 header,
+README and Viva Republica license.
+
+| Complete standalone HTML | Published81cd baseline | Current combined artifact | Original limit |
+| --- | ---: | ---: | ---: |
+| UTF-8 bytes | 4,481,508 | 1,930,461 | 4,429,400 |
+| Canonical Bun gzip9 bytes | 1,353,193 | 1,238,287 | 1,334,500 |
+
+The current gzip headroom is **96,213 bytes**. This is complete-artifact
+accounting including the decoder, guards, app, styles and notices, not isolated
+closure savings or an ELK-only size comparison. Runtime/memory parity is not
+measured. The canonical Chromium standalone owner passes **2P/0F/504 assertions**:
+actual Blob bytes equal the independently native-decoded complete worker;
+all25 families/three looks match source SVGs, complete receipts and verification;
+strict backend selection/fallback, one persistent Worker, crash recovery,
+ASCII/Unicode and real Canvas/font/PNG export pass. Initial local invocation
+used the wrong 30-second test timeout and failed while its source child was
+active; the repository's canonical browser timeout is600000. That failed
+invocation and one unintended duplicate old-owner run after a cwd edit error
+remain recorded and are not added to the successful population.
+
+**CI is still not fixed overall.** The unchanged lazy gate correctly exits1
+with **32 byte failures:18raw/14gzip**, versus prior29(17/12). No request or
+Brotli gate fails. Correctness repair cost remains visible: Packet is now
+610630raw/195048gzip versus prior local608996/194453; Pie newly crosses raw,
+and GitGraph/Sankey newly cross gzip. No limit is increased to conceal this.
+The ordinary build/DTS, final 50 paired family functional observations, types,
+lint and targeted owners pass; exact published-head CI is still a separate
+requirement. All raw rows/values remain in `REFROZEN-LAZY-CAPS.log`.
+
+The competing lazy projection/pool implementation is **withdrawn**, not left
+as shipping complexity. Independent inherited setters change complex-key flow
+formatting, expose removed Document methods, and invoke a rewritten constructor
+that drops authored `{marker:17}` data. All class/method/constructor/tag/context
+pruning is therefore rejected. A full-canonical reader facade repairs those
+observations and passes84 reader cases, ranges, errors, callbacks and all25
+family SVG/receipt comparisons, but saves only **194raw/77gzip/15Brotli bytes**.
+The string pool saves raw bytes while increasing gzip and failing15gzip rows.
+Its exact patch, tests and negative outcomes are archived; its four tracked
+files are restored byte-for-byte to81cd and only its new helper is removed.
+The established YAML, minifier, optimizer hash inputs and lazy configuration
+are unchanged. No additional compiler/minifier profile or timing campaign ran.
+
+The separately authorized matching-ELK0.11.1 unpruned reconstruction also remains
+failed/inconclusive. Its original300-second acquisition watchdog expires while
+Gradle starts a single-use daemon, before any Maven request or GWT compilation.
+All778 earlier relay calls complete; both pinned tool archives verify, actual
+6GiB/zero-swap/2CPU/128PID controls and2GiBtmpfs ENOSPC witness pass. The process
+is reaped and the owned container is removed, independently confirmed. No
+usable artifact, vendor adoption, old0.11.0 relabelling, retry or larger limit
+results. The missing daemon diagnostics leave its cause unknown; this is not a
+current execution/access blocker for repository work. Frozen application
+normal/cache-OFF recaptures each match150 complete earlier stock observations,
+including five retained expected unsupported errors.
+
+Final evidence: `REFROZEN-{EDITOR-META,EDITOR-BUILD,LAZY-BUILD,LAZY-CAPS,TYPES,LINT,
+PAINT-SECURITY-PREVIEW,STANDALONE-BROWSER}.*`,
+`production-standalone-review/final-refrozen-cdata/REVIEW.json`,
+`production-lazy-review/final-refrozen-epoch/`,
+`production-lazy-owner/safe-port-archive/`, and
+`elk/UNPRUNED-FIRST-TERMINAL.json`, all under
+`/tmp/pr449-ci-fix2-20261029/`. Review harness selector/PATH/typed-array setup
+failures are preserved beside their corrected observations, not called product
+successes or product failures. Storage recovery removed only clean tracked
+files from32 closed historical worktrees; Git objects and side files remain,
+eight dirty worktrees were excluded, and exact restore commands/evidence are
+in `storage-review/`. Current/concurrent source changes were preserved.
+
+All six release goals, the seven original U rows, cross-document prefix
+counterexample, generic final seal and no-marker XML obligations remain open.
+Holdout sealed; no external peer correctness campaign or performance campaign.
+Shared Trident work remains unshipped. Main has advanced and is not jointly
+qualified. Next concrete work is exact-head CI and the unresolved namespace/
+same-emission/final-admission dependencies above; failed caps are not readiness.
+No merge, force push, new issue/PR/comment, default/version change, package
+publication or check/cap relaxation.

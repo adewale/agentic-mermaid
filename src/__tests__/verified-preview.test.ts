@@ -1,5 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import { fileURLToPath } from 'node:url'
+import { runInNewContext } from 'node:vm'
+import { boundStandaloneCodec, packStandaloneWorker, standaloneCodecPlugin, standaloneWorkerNotices } from '../../scripts/build/standalone-worker-payload.ts'
+import { minifyBrowserRuntime } from '../../scripts/build/runtime-minify.ts'
 import { getFamily, knownBuiltinFamilies, replaceFamilyForTest } from '../agent/families.ts'
 import { renderAndVerifyMermaid, verifyMermaid } from '../agent/verify.ts'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
@@ -10,6 +13,7 @@ import { parseRegisteredMermaid } from '../agent/parse.ts'
 import { asFlowchart } from '../agent/types.ts'
 import { DeferredDependencyError } from '../layout/certification-error.ts'
 import { createBrowserEditorAdapter } from '../browser-editor-adapter.ts'
+import { chargeCodecLoop, limitCodecOutput, limitCodecWindow, withCodecBudget } from '../browser-standalone-budget.ts'
 
 import { withRenderStageObserver } from '../layout/backend.ts'
 
@@ -173,7 +177,187 @@ function workerHarness(timeout = 30_000) {
   return { client, sent, workers, reply, replyArtifact, raster }
 }
 
+let standaloneSubject: Promise<string> | undefined
+function standaloneSubjectScript(): Promise<string> {
+  return standaloneSubject ??= (async () => {
+    // Known CRC32 check vector isolates the bootstrap transport and lifecycle.
+    // The emitted-browser owner exercises the actual bounded Brotli closure.
+    const built = await Bun.build({
+      entrypoints: [fileURLToPath(new URL('../browser-standalone.ts', import.meta.url))],
+      target: 'browser', format: 'iife',
+      define: {
+        AM_STANDALONE_PACKED_LENGTH: '9', AM_STANDALONE_PACKED_CRC32: '3421780262',
+        AM_STANDALONE_WORKER_LENGTH: '9', AM_STANDALONE_WORKER_CRC32: '3421780262',
+      },
+      plugins: [{ name: 'standalone-transport-codec', setup(build) {
+        build.onResolve({ filter: /^am-standalone-(?:brotli|crc32)$/ }, args => ({ path: args.path, namespace: 'standalone-transport-codec' }))
+        build.onLoad({ filter: /.*/, namespace: 'standalone-transport-codec' }, args => ({ loader: 'js', contents: args.path.endsWith('brotli')
+          ? `export default input => { globalThis.codecCalls++; const output = new Uint8Array(input); if (globalThis.damageDecoded) output[0] ^= 1; return output; }`
+          : `export default (crc, bytes, length, offset) => { if (length !== 9 || offset !== 0) return 0; for (let i = 0; i < 9; i++) if (bytes[i] !== 49 + i) return 0; return 3421780262; }` }))
+      } }],
+    })
+    if (!built.success) throw new AggregateError(built.logs, 'Could not build the standalone bootstrap subject')
+    return built.outputs[0]!.text()
+  })()
+}
+
+async function standaloneHarness(payload: string | null = 'MTIzNDU2Nzg5', damageDecoded = false) {
+  const node = { textContent: payload }, events = new Map<string, Array<() => void>>()
+  const sent: Array<{ id: number; source: string }> = [], workers: StandaloneWorker[] = []
+  const blobs = new Map<string, Blob>(), revoked: string[] = []
+  let nextUrl = 0
+  class StandaloneWorker {
+    onmessage: ((event: { data: unknown }) => void) | null = null
+    onerror: ((event: { preventDefault(): void }) => void) | null = null
+    onmessageerror: (() => void) | null = null
+    terminated = false
+    listeners = new Map<string, Array<() => void>>()
+    constructor(readonly url: string) { workers.push(this) }
+    addEventListener(type: string, listener: () => void) {
+      const listeners = this.listeners.get(type) ?? []
+      listeners.push(listener); this.listeners.set(type, listeners)
+    }
+    postMessage(request: { id: number; source: string }) { sent.push(request) }
+    terminate() { this.terminated = true }
+    reply(id: number) {
+      for (const listener of this.listeners.get('message') ?? []) listener()
+      this.onmessage?.({ data: { id, ok: true, artifact: { svg: '<svg/>', receipt: { output: 'svg' } } } })
+    }
+    crash() {
+      for (const listener of this.listeners.get('error') ?? []) listener()
+      this.onerror?.({ preventDefault() {} })
+    }
+  }
+  const window = {
+    __mermaid: undefined as unknown as ReturnType<typeof createBrowserEditorAdapter>,
+    addEventListener(type: string, listener: () => void) {
+      const listeners = events.get(type) ?? []
+      listeners.push(listener); events.set(type, listeners)
+    },
+  }
+  const context = {
+    window, document: { getElementById: () => payload === null ? null : node },
+    Blob, Uint8Array, atob, structuredClone, performance, setTimeout, clearTimeout,
+    Worker: StandaloneWorker, codecCalls: 0, damageDecoded,
+    URL: {
+      createObjectURL(blob: Blob) { const url = `blob:standalone-${++nextUrl}`; blobs.set(url, blob); return url },
+      revokeObjectURL(url: string) { revoked.push(url) },
+    },
+  }
+  runInNewContext(await standaloneSubjectScript(), context)
+  const dispatch = (type: string) => { for (const listener of events.get(type) ?? []) listener() }
+  const flush = async () => { for (let index = 0; index < 8; index++) await Promise.resolve() }
+  return { adapter: window.__mermaid, node, context, sent, workers, blobs, revoked, dispatch, flush }
+}
+
+describe('standalone worker payload lifecycle', () => {
+  test('the actual bounded Brotli, dictionary and CRC closure returns the exact shipped worker bytes', async () => {
+    const packed = packStandaloneWorker('123456789')
+    const subject = fileURLToPath(new URL('../browser-standalone-payload.ts', import.meta.url))
+    const built = await Bun.build({
+      entrypoints: ['standalone-payload-subject'], target: 'browser', format: 'iife', minify: true,
+      define: packed.define,
+      plugins: [standaloneCodecPlugin(), { name: 'standalone-payload-subject', setup(build) {
+        build.onResolve({ filter: /^standalone-payload-subject$/ }, () => ({ path: 'subject.ts', namespace: 'standalone-payload-subject' }))
+        build.onLoad({ filter: /.*/, namespace: 'standalone-payload-subject' }, () => ({ loader: 'ts',
+          contents: `import {standaloneWorkerPayload} from ${JSON.stringify(subject)}; globalThis.decode = text => standaloneWorkerPayload(text, () => false);` }))
+      } }],
+    })
+    if (!built.success) throw new AggregateError(built.logs, 'Could not build the actual standalone codec subject')
+    const context = { Blob, Uint8Array, atob, performance, decode: undefined as unknown as (text: string) => Blob }
+    runInNewContext(await minifyBrowserRuntime(await built.outputs[0]!.text()), context)
+    expect(await context.decode(packed.encoded).text()).toBe('123456789')
+    const corrupted = (packed.encoded[0] === 'A' ? 'B' : 'A') + packed.encoded.slice(1)
+    expect(() => context.decode(corrupted)).toThrow('checksum')
+  })
+
+  test('captures bytes before publication and reuses one immutable Blob across crashes and BFCache', async () => {
+    const h = await standaloneHarness()
+    try {
+      h.node.textContent = 'changed after bootstrap'
+      const first = h.adapter.renderMermaidSVGWithReceipt('first', {})
+      await h.flush()
+      expect(h.context.codecCalls).toBe(1)
+      const initial = h.workers[0]!, blob = h.blobs.get(initial.url)!
+      expect(await blob.text()).toBe('123456789')
+      initial.reply(1); await first
+      expect(h.revoked).toEqual([initial.url])
+      initial.crash()
+      const retry = h.adapter.renderMermaidSVGWithReceipt('retry', {})
+      await h.flush()
+      const replacement = h.workers[1]!
+      expect(replacement.url).not.toBe(initial.url)
+      expect(h.blobs.get(replacement.url)).toBe(blob)
+      replacement.reply(2); await retry
+      h.dispatch('pagehide')
+      expect(replacement.terminated).toBe(true)
+      h.dispatch('pageshow')
+      const restored = h.adapter.renderMermaidSVGWithReceipt('restored', {})
+      await h.flush()
+      const resumed = h.workers[2]!
+      expect(h.blobs.get(resumed.url)).toBe(blob)
+      resumed.reply(3); await restored
+      expect(h.context.codecCalls).toBe(1)
+    } finally { h.dispatch('pagehide') }
+  })
+
+  test('a page hidden before decode cannot create a late worker or clear a restored load', async () => {
+    const h = await standaloneHarness()
+    try {
+      const stale = h.adapter.renderMermaidSVGWithReceipt('old', {}).catch(error => error)
+      h.dispatch('pagehide'); h.dispatch('pageshow')
+      const current = h.adapter.renderMermaidSVGWithReceipt('current', {})
+      await h.flush()
+      expect((await stale).name).toBe('PreviewSupersededError')
+      expect(h.sent.map(request => request.source)).toEqual(['current'])
+      expect(h.context.codecCalls).toBe(1)
+      h.workers[0]!.reply(1); await current
+      expect(h.workers).toHaveLength(1)
+    } finally { h.dispatch('pagehide') }
+  })
+
+  test.each(['missing', 'packed', 'decoded'] as const)('rejects a %s payload before any Worker or URL and retains a typed reload failure', async corruption => {
+    const h = await standaloneHarness(corruption === 'missing' ? null : corruption === 'packed' ? 'MDIzNDU2Nzg5' : undefined, corruption === 'decoded')
+    try {
+      const first = await h.adapter.renderMermaidSVGWithReceipt('first', {}).catch(error => error)
+      expect(first.name).toBe('PreviewRuntimeLoadError')
+      const second = await h.adapter.renderMermaidSVGWithReceipt('second', {}).catch(error => error)
+      expect(second).toBe(first)
+      expect(h.workers).toHaveLength(0)
+      expect(h.blobs.size).toBe(0)
+      expect(h.context.codecCalls).toBe(corruption === 'decoded' ? 1 : 0)
+    } finally { h.dispatch('pagehide') }
+  })
+})
+
 describe('persistent preview worker queue', () => {
+  test('keeps option snapshots and supersession while the worker client is still loading', async () => {
+    const h = workerHarness()
+    let ready!: (client: PreviewWorkerClient) => void
+    const loading = new Promise<PreviewWorkerClient>(resolve => { ready = resolve })
+    const adapter = createBrowserEditorAdapter(() => loading)
+    try {
+      const stale = adapter.renderMermaidSVGWithReceipt('old', {}).catch(error => error)
+      adapter.cancelPendingRender()
+      const options = { style: ['crisp', 'paper'] }
+      const current = adapter.renderMermaidSVGWithReceipt('new', options)
+      const exported = adapter.renderMermaidASCIIWithReceipt('export', {})
+      options.style[1] = 'dusk'
+      expect(h.workers).toHaveLength(0)
+      ready(h.client)
+      await Promise.resolve(); await Promise.resolve()
+      expect((await stale).name).toBe('PreviewSupersededError')
+      expect(h.sent).toHaveLength(1)
+      expect(h.sent[0]).toMatchObject({ source: 'new', options: { style: ['crisp', 'paper'] } })
+      h.reply(1)
+      await current
+      expect(h.sent.at(-1)?.operation).toBe('ascii')
+      h.replyArtifact(2, { text: 'exported', receipt: { output: 'ascii' } })
+      expect((await exported).text).toBe('exported')
+      expect(h.workers).toHaveLength(1)
+    } finally { h.client.dispose() }
+  })
+
   test.each(['dependency import', 'worker error'])('reports runtime availability across a failed %s and successful retry', async failure => {
     const h = workerHarness(), availability: boolean[] = []
     const adapter = createBrowserEditorAdapter(() => h.client, available => availability.push(available))
@@ -387,6 +571,31 @@ describe('persistent preview worker queue', () => {
   })
 })
 
+test('codec admission shares one nested work budget and cannot swallow exhaustion', () => {
+  expect(() => withCodecBudget(() => {
+    for (let index = 0; index < 16_000_000; index++) chargeCodecLoop()
+    try {
+      withCodecBudget(() => {
+        for (let index = 0; index <= 16_000_000; index++) chargeCodecLoop()
+      })
+    } catch { /* The enclosing admission must still reject this result. */ }
+    return 'must not escape'
+  })).toThrow('32000000 loop bodies')
+  expect(withCodecBudget(() => { chargeCodecLoop(); return 'fresh admission' })).toBe('fresh admission')
+})
+
+test.each(['output', 'window', 'asynchronous work'] as const)('codec admission retains a caught %s refusal', violation => {
+  expect(() => withCodecBudget(() => {
+    try {
+      withCodecBudget(() => {
+        if (violation === 'output') limitCodecOutput(8 * 1024 * 1024 + 1)
+        else if (violation === 'window') limitCodecWindow(23)
+        else return { then() {} }
+      })
+    } catch { /* A rejected nested codec cannot produce an admitted result. */ }
+  })).toThrow(violation === 'output' ? '8 MiB' : violation === 'window' ? '22-bit' : 'synchronous')
+})
+
 test('the docs replay changes one label and preserves the authored identities and directed connections', () => {
   const demo = buildDocsEditDemo()
   const read = (source: string) => {
@@ -401,4 +610,44 @@ test('the docs replay changes one label and preserves the authored identities an
   expect([...after.nodes.values()].map(node => [node.id, node.label])).toEqual([['Draft', 'Draft'], ['Review', 'Approved'], ['Publish', 'Publish']])
   for (const body of [before, after]) expect(body.edges.map(edge => [edge.source, edge.target])).toEqual([['Draft', 'Review'], ['Review', 'Publish']])
   for (const state of demo.states) expect(state.warnings).toEqual([])
+})
+
+
+test('codec charging preserves labelled continue, unbraced loops and strict directives', () => {
+  const source = `"use strict";
+    const seen = [];
+    outer: for (let i = 0; i < 3; i++) {
+      for (let j = 0; j < 3; j++) {
+        if (j === 1) continue outer;
+        seen.push(i);
+      }
+    }
+    let k = 0;
+    while (k++ < 2) seen.push(k);
+    do seen.push('d'); while (false);
+    for (const key in { a: 1, b: 2 }) seen.push(key);
+    for (const value of [5, 6]) seen.push(value);
+    for (let empty = 0; empty < 2; empty++);
+    module.exports = { seen, strict: (function () { return this })() };
+  `
+  let charged = 0
+  const exports = { exports: undefined as unknown }
+  runInNewContext(boundStandaloneCodec(source, 'authored-codec.js', false), {
+    module: exports,
+    require(name: string) {
+      expect(name).toBe('am-standalone-codec-budget')
+      return { chargeCodecLoop() { charged++ } }
+    },
+  })
+  expect(JSON.parse(JSON.stringify(exports.exports))).toEqual({ seen: [0, 1, 2, 1, 2, 'd', 'a', 'b', 5, 6] })
+  expect((exports.exports as { strict: unknown }).strict).toBeUndefined()
+  expect(charged).toBe(18)
+})
+
+
+test('standalone notices retain actual legal comments after regex quotes without promoting string contents', () => {
+  const source = `const pattern = /['"]/; /*! @license retained-after-regexp */ const inert = '/* @license inert-string */';`
+  const notices = standaloneWorkerNotices(source, [], process.cwd())
+  expect(notices).toContain('/*! @license retained-after-regexp */')
+  expect(notices).not.toContain('/* @license inert-string */')
 })
