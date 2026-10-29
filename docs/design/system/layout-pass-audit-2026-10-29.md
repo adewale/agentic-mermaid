@@ -347,4 +347,3 @@ The following **local review artifacts** were retained outside the repository in
 The earlier 124-fixture trace was exploratory; its full script was not retained. Its absence of stale physical port assignments is bounded negative evidence, not a general proof.
 
 The permutation evidence uses explicit ELK and default styles. It does not establish native-backend commutativity, full raster equivalence, performance gains, or exhaustive satisfaction of every contract. No full-suite or CI completion claim is made.
-
