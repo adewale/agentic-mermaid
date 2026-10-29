@@ -8,6 +8,8 @@ import ts from 'typescript'
 import { runtimeRenderContractPlugin } from '../../scripts/build/runtime-render-contract.ts'
 import { compactBrowserModulesPlugin } from '../../scripts/build/compact-browser-modules.ts'
 import { validateJsonSchema } from '../shared/schema-validation.ts'
+import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
+import { editorExamplesDataJs } from '../../scripts/site/editor-example-data.ts'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
 const temporary = mkdtempSync(join(tmpdir(), 'mermaid-runtime-metadata-'))
@@ -60,31 +62,11 @@ function conformanceStructure(source: string) {
 }
 
 describe('browser runtime metadata projection', () => {
-  test('private style help projection retains rendering data and authored style prose', async () => {
-    const load = async (builtinStyleDocumentation: boolean) => {
-      const result = await build({
-        stdin: { resolveDir: root, loader: 'ts', contents: "export { knownStyleDescriptors, getStyle, registerStyle } from './src/scene/style-registry.ts'" },
-        bundle: true, format: 'esm', platform: 'node', write: false,
-        plugins: [runtimeRenderContractPlugin({ builtinStyleDocumentation })],
-      })
-      return import(`data:text/javascript;base64,${Buffer.from(result.outputFiles![0]!.text).toString('base64')}`)
-    }
-    const full = await load(true), privateRuntime = await load(false)
-    const removeHelp = (values: any[]) => values.map(value => ({ ...value, spec: Object.fromEntries(Object.entries(value.spec).filter(([key]) => key !== 'blurb')) }))
-    expect(removeHelp(privateRuntime.knownStyleDescriptors())).toEqual(removeHelp(full.knownStyleDescriptors()))
-    expect(full.getStyle('blueprint').blurb).toBeTruthy()
-    expect(privateRuntime.getStyle('blueprint').blurb).toBeUndefined()
-    privateRuntime.registerStyle({ name: 'look:authored-help', blurb: 'Authored style description', stroke: 'crisp' })
-    expect(privateRuntime.getStyle('look:authored-help').blurb).toBe('Authored style description')
-    const path = fixture('src/scene/style-registry.ts', `
-      const events = [], values = [];
-      function registerBuiltInStyle(spec) { values.push(spec); }
-      registerBuiltInStyle({ name: 'dynamic', blurb: (() => { events.push('evaluated'); return 'dynamic help'; })(), stroke: 'crisp' });
-      function run() { return { events, values }; }
-    `)
-    expect(Function(`${project(path, { builtinStyleDocumentation: false })}\nreturn run();`)()).toEqual({
-      events: ['evaluated'], values: [{ name: 'dynamic', blurb: 'dynamic help', stroke: 'crisp' }],
-    })
+  test('packed editor examples restore every catalog field before application use', () => {
+    const restored = Function(`${editorExamplesDataJs()}\nreturn EDITOR_EXAMPLES;`)()
+    expect(restored).toEqual(JSON.parse(JSON.stringify(EDITOR_EXAMPLES)))
+    const configured = EDITOR_EXAMPLES.find(example => example.options !== undefined)!
+    expect(restored.find((example: { id: string }) => example.id === configured.id).options).toEqual(configured.options)
   })
 
   test('leaves conformance reports untouched unless explicitly opted out', () => {

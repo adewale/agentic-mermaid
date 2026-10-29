@@ -22,7 +22,7 @@ import { minifyBrowserRuntime } from '../build/runtime-minify.ts'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gzipSync } from 'node:zlib'
-import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
+import { editorExamplesDataJs } from './editor-example-data.ts'
 import { HOSTED_FONT_RESOURCES, hostedFontFaceCss } from '../../src/font-manifest.ts'
 import { knownStyleDescriptors } from '../../src/scene/style-registry.ts'
 import { EDITOR_SUPPORTED_FAMILY_LIST } from '../../src/editor-family-data.ts'
@@ -60,10 +60,6 @@ async function readCssFiles(fontPrefix: string, hosted: boolean): Promise<string
   return hostedFontFaceCss(fontPrefix) + '\n' + (await result.outputs[0]!.text())
 }
 
-function editorExamplesDataJs(): string {
-  return `var EDITOR_EXAMPLES = ${JSON.stringify(EDITOR_EXAMPLES)};`
-}
-
 function editorFamilyDataJs(): string {
   return `var SUPPORTED_FAMILY_LIST = ${JSON.stringify(EDITOR_SUPPORTED_FAMILY_LIST)};`
 }
@@ -85,11 +81,12 @@ async function readJsFiles(): Promise<string> {
     entrypoints: [join(editorDir, 'js/entry.js')],
     target: 'browser',
     format: 'iife',
-    minify: true,
+    minify: { whitespace: true, syntax: false, identifiers: false },
   })
   if (!result.success) throw new AggregateError(result.logs, 'Editor application bundle failed')
-  const app = await minifyBrowserRuntime(await result.outputs[0]!.text())
-  return [editorExamplesDataJs(), editorFamilyDataJs(), editorFontDataJs(), app].join('\n')
+  // Compress the complete application module so catalog literals and their
+  // consumers share one scope; keep every catalog value available to the UI.
+  return minifyBrowserRuntime([editorExamplesDataJs(), editorFamilyDataJs(), editorFontDataJs(), await result.outputs[0]!.text()].join('\n'))
 }
 
 function escapeHtmlAttr(value: string): string {
@@ -216,7 +213,7 @@ async function generateEditorHtml(): Promise<string> {
   // projections. The private worker still offers preview, terminal and PNG;
   // the public Node/Scene/IIFE entries keep their complete contracts.
   const runtimePlugins: Array<ReturnType<typeof runtimeRenderContractPlugin>> = [
-    runtimeRenderContractPlugin({ schemaDocumentation: false, conformanceObservations: false, familyEditorMetadata: Boolean(runtimeDirectory), builtinStyleDocumentation: Boolean(runtimeDirectory), sourceOnlySceneAdmission: true }),
+    runtimeRenderContractPlugin({ schemaDocumentation: false, conformanceObservations: false, familyEditorMetadata: Boolean(runtimeDirectory), sourceOnlySceneAdmission: true }),
     sourceOnlyFamilyRegistry(),
     ...(!runtimeDirectory ? [{
       name: 'standalone-worker-families',
