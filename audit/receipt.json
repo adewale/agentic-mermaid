@@ -1,7 +1,7 @@
 {
   "claim": "Same inputs retain a straight shaft between the last turn and each arrowhead.",
-  "base": "d2d106cb151fbcc6736b1b7b3446644660991cec",
-  "head": "47de5379e421bf4cbf68c6775ed87ac6dcd748fa",
+  "base": "3ea1bad58db9c23383c706696f1ac82cb9fd3478",
+  "head": "ff1f4109dccc388f1497416d8b867b4f5bf5698a",
   "renderer": "renderMermaidSVG",
   "runtime": "Bun 1.4.2",
   "rasterizer": "@resvg/resvg-js 2.6.2, prepareResvgMarkerOrientation, 3 pixels per diagram unit",
@@ -46,10 +46,13 @@
     "architecture-after.png": "af8840df3cc2bca23f0add43455b5fb64784b3df34ecc013be4578b4d47daa14",
     "block-before.png": "9c15bd33e4823b6efb6095ebd795842dc0baa77faa9172b7ba12d768f2ccef2d"
   },
-  "requalification": "All seven SVG captures were rendered again at this head and are byte-identical to the earlier capture; both columns retain the recorded inputs and settings.",
+  "requalification": "All 28 SVG/PNG captures were regenerated at the recorded base and head and remain byte-identical to the prior comparison. The complete 1175-attempt audit was rerun at this head with the recorded results.",
   "standalone_editor": {
-    "raw": 4734386,
-    "gzip_level_9": 1417551,
+    "before_raw": 4729028,
+    "before_gzip_level_9": 1415600,
+    "raw": 4734614,
+    "gzip_level_9": 1417670,
+    "raw_growth": 5586,
     "raw_ceiling": 4735000,
     "unchanged_gzip_ceiling": 1419750
   }
