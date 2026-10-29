@@ -2346,3 +2346,98 @@ source-map-review/, under the same evidence root. All seven diagrams, the
 six0.6goals and the other counterexamples above remain open; no holdout access,
 performance campaign, check/cap relaxation, release/default/version change,
 package publication, force push, merge or new issue/PR/comment.
+
+### Remove a redundant standalone compiler stage within the existing deadline
+
+CI **40852037030, attempt1** completes failed on exact
+**`ed27114c42e798f7387a23e52e2870a4933cb629`**, but its functional regressions
+are closed: **14688P/76skip/0F** across4569/5006/5113passing unit shards,
+Node22/24 consumers, the strict226-file packed-package manifest, all140 browser
+contracts, MCP, quickstarts, CLI, dist, website payload and browser-site pass.
+The copied-checkout test now passes its original child bound in CI. The
+previous source-map growth failure remains a retained observation; its parser
+and threshold were not changed, and this passing observation is not proof of
+linear complexity. Quality still fails only the32lazy rows; advisory losses
+remain nonblocking. No job retry is used.
+
+Locally the corrected checkout fixture still reached its unchanged20-second
+child deadline. One bounded private stage-name trace reaches worker build end
+and worker minification start, then expires; packing/notices have not started.
+This is a build-stage observation, not attribution to a particular internal
+optimizer operation or a rendering benchmark.
+
+A single fixed subtraction tests a newly available architectural simplification:
+**Bun already minifies the worker; omit its second SWC pass.** The new Brotli
+delivery gives enough byte headroom to remove that formerly useful stage.
+Main-thread and app SWC processing remain, and the raw worker is still packed
+into the same inert base64 payload. No new compiler/options profile, parser
+pruning, runtime algorithm, message protocol, source/Scene/proof limit or
+family eligibility change is introduced. The additional contract and original
+acceptance gates were published in the PR description before the production
+one-line port.
+
+The private fixed candidate matches all720worker physical input bytes and
+normalized input metadata, main202physical inputs plus2virtual wrappers,
+notices and every surrounding HTML byte. Its first complete byte screen passes
+both unchanged caps. Its original20-second fixture equivalent then genuinely
+passes1test/3assertions and produces exactly that screened HTML. The actual
+repository owning checkout test also passes **1P/0F/3assertions** with the same
+20-second child and60-second test limits; the earlier timeout records stay.
+
+| Complete standalone artifact | Second SWC retained | Selected subtraction | Original cap |
+| --- | ---: | ---: | ---: |
+| Worker decoded bytes | 4,279,732 | 4,451,718 | 8,388,608 codec maximum |
+| Worker Brotli bytes | 1,006,361 | 1,084,521 | Existing complete HTML caps apply |
+| HTML UTF-8 bytes | 1,930,461 | 2,034,673 | 4,429,400 |
+| Canonical Bun gzip9 bytes | 1,238,287 | 1,318,939 | 1,334,500 |
+
+This deliberately trades **80,652gzip bytes** for removing a compiler stage,
+while preserving **15,561bytes of original gzip headroom**. Against the
+published81cd complete HTML it still saves2446835raw/34254gzip bytes. These
+are complete-artifact observations, not a claim of faster layout, smaller
+runtime memory or ELK superiority. No timing campaign runs.
+
+Independent actual-root review performs exactly one fresh cold decode of the
+**4,451,718-byte** worker under the same8MiB/window22/32M/cooperative30s bounds.
+Every Blob byte equals the independently native-decoded actual HTML worker.
+The helper, budget, payload, loader and lockfile directly equal the qualified
+62-loop proof epoch, so negative/inversion checks are not repeated. All12
+external origins and21full-license texts remain. Both actual worker/HTML byte
+sequences equal the privately screened candidate; source snapshots remain
+unchanged before/after. Actual editor metadata and both caps pass.
+
+The existing canonical standalone browser owners pass again:
+**2P/0F/504assertions**. Actual full worker-Blob bytes, all25families/three looks,
+complete SVG/receipts/verification, backend selection/fallback, cancellation/
+recovery, ASCII/Unicode and real Canvas/font/PNG behavior retain their expected
+outputs. Canonical core/repository types and whole-repository lint pass.
+The production change is only the worker assignment and an explanatory comment;
+main/app formatting and all surrounding output remain intact. Exact new-head
+CI is required after commit; the preceding ed271CI is not this code's CI result.
+
+Evidence: `WORKER-SUBTRACTION-ACTUAL-SPACE-OWNER.log`,
+`SUBTRACTION-{ACTUAL-EDITOR-META,ACTUAL-EDITOR-BUILD,ACTUAL-STANDALONE-BROWSER,
+TYPES,LINT}.*`, `worker-swc-subtraction/`, `worker-swc-independent-review/`,
+and `production-standalone-review/final-worker-swc-subtraction/REVIEW.json`.
+All are under `/tmp/pr449-ci-fix2-20261029/`.
+
+A separate single private subtraction for the remaining lazy gate is rejected:
+esbuild minify:false followed by the unchanged existing SWC pass gives
+**34failures,18raw/16gzip**, versus32in production. Architecture exceeds raw
+by35458bytes; Packet and Ishikawa exceed gzip by5004each. Brotli and request
+caps pass. Its additional frozen per-module graph guard also fails, but that
+is a separate diagnostic: all751global inputs/59outputs match, with a36-byte
+paint-work source contribution difference in one shared chunk. The unchanged
+original budget report independently rejects the same built bytes. No rebuild,
+new profile or guard waiver follows. An appended direct comparison reconstructs
+frozen ed271Git blobs and matches all511own source/config/report/cap files;
+these are explicitly reconstructed copies, not preexecution filesystem copies.
+This rejected experiment adds no production self-source hashes or optimizer.
+See `lazy-remove-esbuild-pass/TERMINAL.json` and its preserved reports.
+
+The selected worker subtraction repairs the bounded local build without
+trading away correctness checks. The lazy byte gate, seven original unverified
+rows, all six release goals, cross-document prefix counterexample, cache-custody
+and final geometry/admission authority remain open. Holdout sealed; no external
+peer qualification, solver tuning, cap/timeout increase, release/version/default
+change, package publication, force push, merge or new issue/PR/comment.
