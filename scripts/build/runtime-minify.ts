@@ -9,7 +9,7 @@ export async function minifyBrowserRuntime(source: string): Promise<string> {
     compress: {
       defaults: true, ecma: 2022, toplevel: true,
       unsafe: false, pure_getters: false, keep_fargs: true,
-      inline: 3, passes: 3,
+      reduce_funcs: false, inline: 3, passes: 6,
     },
     format: { comments: 'some', inlineScript: true },
   })

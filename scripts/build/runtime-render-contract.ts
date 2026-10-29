@@ -307,10 +307,30 @@ function runtimeFamilyEditorSource(source: string, path: string): string {
 }
 
 /** Structural plugin interface works in both esbuild and Bun builds. */
-export function runtimeRenderContractPlugin({ schemaDocumentation = true, terminalAdapter = true, conformanceObservations = true, familyEditorMetadata = true, coalesceRuntimePrimitives = false, sourceOnlySceneAdmission = false } = {}) {
+export function runtimeRenderContractPlugin({ schemaDocumentation = true, terminalAdapter = true, conformanceObservations = true, familyEditorMetadata = true, builtinStyleDocumentation = true, coalesceRuntimePrimitives = false, sourceOnlySceneAdmission = false } = {}) {
   return {
     name: 'runtime-render-contract',
     setup(build: BrowserBuild) {
+      if (!builtinStyleDocumentation) build.onLoad({ filter: /[\\/]src[\\/]scene[\\/]style-registry\.ts$/ }, ({ path }) => {
+        // The page already embeds picker help from the complete registry. Its
+        // private rendering worker needs executable style data and names only.
+        const file = ts.createSourceFile(path, readFileSync(path, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+        const transformed = ts.transform(file, [context => root => {
+          const visit: ts.Visitor = node => {
+            if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'registerBuiltInStyle') {
+              const spec = node.arguments[0]
+              if (spec && ts.isObjectLiteralExpression(spec)) return ts.visitEachChild(ts.factory.updateCallExpression(node, node.expression, node.typeArguments,
+                [ts.factory.updateObjectLiteralExpression(spec, spec.properties.filter(property => !(ts.isPropertyAssignment(property)
+                  && (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name)) && property.name.text === 'blurb'
+                  && (ts.isStringLiteral(property.initializer) || ts.isNoSubstitutionTemplateLiteral(property.initializer))))), ...node.arguments.slice(1)]), visit, context)
+            }
+            return ts.visitEachChild(node, visit, context)
+          }
+          return ts.visitNode(root, visit) as ts.SourceFile
+        }])
+        try { return { contents: ts.createPrinter().printFile(transformed.transformed[0]!), loader: 'ts', resolveDir: dirname(path) } }
+        finally { transformed.dispose() }
+      })
       if (sourceOnlySceneAdmission) {
         // These private consumers accept source/options/output operations,
         // never Scene input or extension registration. Share native checks;

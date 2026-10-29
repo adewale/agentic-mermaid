@@ -60,6 +60,33 @@ function conformanceStructure(source: string) {
 }
 
 describe('browser runtime metadata projection', () => {
+  test('private style help projection retains rendering data and authored style prose', async () => {
+    const load = async (builtinStyleDocumentation: boolean) => {
+      const result = await build({
+        stdin: { resolveDir: root, loader: 'ts', contents: "export { knownStyleDescriptors, getStyle, registerStyle } from './src/scene/style-registry.ts'" },
+        bundle: true, format: 'esm', platform: 'node', write: false,
+        plugins: [runtimeRenderContractPlugin({ builtinStyleDocumentation })],
+      })
+      return import(`data:text/javascript;base64,${Buffer.from(result.outputFiles![0]!.text).toString('base64')}`)
+    }
+    const full = await load(true), privateRuntime = await load(false)
+    const removeHelp = (values: any[]) => values.map(value => ({ ...value, spec: Object.fromEntries(Object.entries(value.spec).filter(([key]) => key !== 'blurb')) }))
+    expect(removeHelp(privateRuntime.knownStyleDescriptors())).toEqual(removeHelp(full.knownStyleDescriptors()))
+    expect(full.getStyle('blueprint').blurb).toBeTruthy()
+    expect(privateRuntime.getStyle('blueprint').blurb).toBeUndefined()
+    privateRuntime.registerStyle({ name: 'look:authored-help', blurb: 'Authored style description', stroke: 'crisp' })
+    expect(privateRuntime.getStyle('look:authored-help').blurb).toBe('Authored style description')
+    const path = fixture('src/scene/style-registry.ts', `
+      const events = [], values = [];
+      function registerBuiltInStyle(spec) { values.push(spec); }
+      registerBuiltInStyle({ name: 'dynamic', blurb: (() => { events.push('evaluated'); return 'dynamic help'; })(), stroke: 'crisp' });
+      function run() { return { events, values }; }
+    `)
+    expect(Function(`${project(path, { builtinStyleDocumentation: false })}\nreturn run();`)()).toEqual({
+      events: ['evaluated'], values: [{ name: 'dynamic', blurb: 'dynamic help', stroke: 'crisp' }],
+    })
+  })
+
   test('leaves conformance reports untouched unless explicitly opted out', () => {
     const path = join(root, 'src/scene/backend-conformance.ts'), source = readFileSync(path, 'utf8')
     expect(project(path)).toBe(source)
@@ -271,16 +298,19 @@ test('compacted ESM preserves live bindings, observable getters, arity and recip
     expect(compaction.inputContributions).toBe('esbuild-before-compaction')
     expect(compaction.outputBytes).toBe('after-compaction')
     const entryOutput = Object.entries(result.metafile!.outputs).find(([, value]) => value.entryPoint && resolve(temporary, value.entryPoint) === entry)![0]
-    const consumer = await import(pathToFileURL(resolve(temporary, entryOutput)).href) as { count: number; step(): void; arity: (first: number, second: number) => number; observe(): string[]; peer(): Promise<{ advance(): number }> }
-    expect(consumer.count).toBe(0)
-    expect(consumer.arity.length).toBe(2)
-    expect(consumer.arity(7, 8)).toBe(7)
-    expect(consumer.observe()).toEqual(['read'])
-    consumer.step()
-    expect(consumer.count).toBe(1)
-    expect((await consumer.peer()).advance()).toBe(2)
-    expect(consumer.count).toBe(2)
-    expect(consumer.observe()).toEqual(['read', 'read'])
+    // A fresh consumer sees the completed artifact without the build process's
+    // directory-resolution cache, which can predate newly written chunks.
+    const consumed = Bun.spawnSync([process.execPath, '--eval', `
+      const consumer = await import(${JSON.stringify(pathToFileURL(resolve(temporary, entryOutput)).href)});
+      const initial = { count: consumer.count, arity: consumer.arity.length, result: consumer.arity(7,8), observations: consumer.observe() };
+      consumer.step(); const stepped = consumer.count;
+      const peer = (await consumer.peer()).advance();
+      console.log(JSON.stringify({initial,stepped,peer,count:consumer.count,observations:consumer.observe()}));
+    `], { stdout: 'pipe', stderr: 'pipe' })
+    expect({ status: consumed.exitCode, error: new TextDecoder().decode(consumed.stderr) }).toEqual({ status: 0, error: '' })
+    expect(JSON.parse(new TextDecoder().decode(consumed.stdout))).toEqual({
+      initial: { count: 0, arity: 2, result: 7, observations: ['read'] }, stepped: 1, peer: 2, count: 2, observations: ['read', 'read'],
+    })
     chunkNames.push(result.outputFiles!.filter(file => dirname(file.path).endsWith('chunks')).map(file => basename(file.path)).sort())
   }
   expect(chunkNames[0]!.length).toBeGreaterThan(0)
