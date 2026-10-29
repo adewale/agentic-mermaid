@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="310" height="125" viewBox="0 0 310 125" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-1hnsfqr1wsk40i">
+<style>
+  svg.am-1hnsfqr1wsk40i { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-1hnsfqr1wsk40i {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="0" refY="2.5" orient="auto">
+    <polygon points="8 0, 0 2.5, 8 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="62.02,49.225 38.02,49.225 38.02,67.675 62.02,67.675" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="self" data-id="edge:N2-&gt;N2#0" data-role="edge" data-from="N2" data-to="N2" role="graphics-symbol" aria-roledescription="relation" aria-label="N2 to N2" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="122.02,49.225 146.02,49.225 146.02,67.675 122.02,67.675" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="self" data-id="edge:N2-&gt;N2#1" data-role="edge" data-from="N2" data-to="N2" role="graphics-symbol" aria-roledescription="relation" aria-label="N2 to N2" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="160.02,49.225 136.02,49.225 136.02,67.675 160.02,67.675" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="self" data-id="edge:N3-&gt;N3#0" data-role="edge" data-from="N3" data-to="N3" role="graphics-symbol" aria-roledescription="relation" aria-label="N3 to N3" />
+<g class="node" data-id="N2" data-label="N2" data-shape="rectangle" data-role="node">
+  <rect x="62.02" y="40" width="60" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:N2" data-role="node" />
+  <text x="92.02" y="58.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="18.252" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N2</text>
+</g>
+<g class="node" data-id="N3" data-label="N3" data-shape="rectangle" data-role="node">
+  <rect x="160.02" y="40" width="60" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:N3" data-role="node" />
+  <text x="190.02" y="58.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="18.252" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N3</text>
+</g>
+</svg>

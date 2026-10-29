@@ -1,0 +1,9 @@
+flowchart LR
+  N0 --> N1
+  N3 ===> N4
+  N1 ---->|same word ok| N2
+  N4 --> N5
+  N5 ===> N0
+  N2 --->|errors| N3
+  N5 ---->|q| N4
+

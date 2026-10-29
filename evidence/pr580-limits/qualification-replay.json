@@ -1,0 +1,938 @@
+{
+  "rendererHead": "53319dbb976dae1865e19f7faca49464ee8e8557",
+  "rendererTree": "d994f23d472d25839d024d704691ebb4cb135178",
+  "observerHead": "74616adb8fa508ea39fa603f1cfa2c633cf3e0ff",
+  "authoredCohortRevision": "2401d09f1c73b1c650445858e5640127368b21c6",
+  "mode": "Untimed correctness requalification; one fresh public Node process per case and backend; SVG and complete enumerable receipt consumed",
+  "historicalObservations": "Preserved unchanged. This observer result makes no latency or memory comparison.",
+  "rows": [
+    {
+      "caseId": "family:class:backend:elk",
+      "observer": "portable-owned-topology-v2-agentic-class-er",
+      "runtime": {
+        "node": "24.22.2",
+        "executable": "/opt/homebrew/Cellar/node@24/24.22.2/bin/node"
+      },
+      "svgBytes": 4657,
+      "svgSha256": "e3f41ac2cc10ca8cca156e004afbc1f60eabc0248a8115fe78470796f6f208da",
+      "enumerableSidecarBytes": 7896,
+      "accepted": true,
+      "passed": true,
+      "nativeCertificateStatus": "passed",
+      "nativeCertificateChecks": {
+        "primitives": 16,
+        "labels": 2,
+        "occlusionPairs": 8,
+        "maxOcclusionPairs": 100000,
+        "operations": 27849,
+        "maxOperations": 400000,
+        "markers": 1
+      },
+      "semanticCompleteForReviewedProfile": true,
+      "evidence": {
+        "outputAdmission": "passed",
+        "nativeModel": "passed",
+        "paintedMeaning": "passed"
+      },
+      "failedChecks": [],
+      "unmeasuredScopes": [
+        "Perceptual legibility, font metrics, text clipping and complete shape/path paint correspondence are not measured.",
+        "Agentic Class/ER qualification covers declared node/route identity, optional owned labels, endpoint multiplicity and finite connecting geometry. Class requires the reviewed directed open-arrow profile; simple ER relations require exact tick/fan/circle cardinality and solid/dashed identifying appearance. Full CSS/font/clipping/curve-interior paint, member/attribute content, other Class markers and unsupported ER source/glyph profiles remain unmeasured."
+      ],
+      "backendCheck": {
+        "name": "layout-backend-selection",
+        "status": "passed",
+        "expected": {
+          "backend": "elk",
+          "fallback": "none"
+        },
+        "actual": [
+          {
+            "requested": "elk",
+            "fallback": "none",
+            "selected": "elk",
+            "attempts": [
+              {
+                "backend": "elk",
+                "outcome": "selected"
+              }
+            ],
+            "implementation": "elk-layered@1",
+            "role": "primary"
+          }
+        ],
+        "scope": "Every consumed public receipt layout decision selects the requested backend with no fallback or companion backend substitution. This checks declared producer evidence, not an independent algorithm trace."
+      }
+    },
+    {
+      "caseId": "family:class:backend:agentic",
+      "observer": "portable-owned-topology-v2-agentic-class-er",
+      "runtime": {
+        "node": "24.22.2",
+        "executable": "/opt/homebrew/Cellar/node@24/24.22.2/bin/node"
+      },
+      "svgBytes": 4654,
+      "svgSha256": "b651f919b97eb82ab9b2044b5c67696b9592bd1b628c36e93a2ed3bc5ba28438",
+      "enumerableSidecarBytes": 7913,
+      "accepted": true,
+      "passed": true,
+      "nativeCertificateStatus": "passed",
+      "nativeCertificateChecks": {
+        "primitives": 16,
+        "labels": 2,
+        "occlusionPairs": 8,
+        "maxOcclusionPairs": 100000,
+        "operations": 27849,
+        "maxOperations": 400000,
+        "markers": 1
+      },
+      "semanticCompleteForReviewedProfile": true,
+      "evidence": {
+        "outputAdmission": "passed",
+        "nativeModel": "passed",
+        "paintedMeaning": "passed"
+      },
+      "failedChecks": [],
+      "unmeasuredScopes": [
+        "Perceptual legibility, font metrics, text clipping and complete shape/path paint correspondence are not measured.",
+        "Agentic Class/ER qualification covers declared node/route identity, optional owned labels, endpoint multiplicity and finite connecting geometry. Class requires the reviewed directed open-arrow profile; simple ER relations require exact tick/fan/circle cardinality and solid/dashed identifying appearance. Full CSS/font/clipping/curve-interior paint, member/attribute content, other Class markers and unsupported ER source/glyph profiles remain unmeasured."
+      ],
+      "backendCheck": {
+        "name": "layout-backend-selection",
+        "status": "passed",
+        "expected": {
+          "backend": "agentic",
+          "fallback": "none"
+        },
+        "actual": [
+          {
+            "requested": "agentic",
+            "fallback": "none",
+            "selected": "agentic",
+            "attempts": [
+              {
+                "backend": "agentic",
+                "outcome": "selected"
+              }
+            ],
+            "implementation": "agentic-layered@28",
+            "role": "primary"
+          }
+        ],
+        "scope": "Every consumed public receipt layout decision selects the requested backend with no fallback or companion backend substitution. This checks declared producer evidence, not an independent algorithm trace."
+      }
+    },
+    {
+      "caseId": "family:er:backend:elk",
+      "observer": "portable-owned-topology-v2-agentic-class-er",
+      "runtime": {
+        "node": "24.22.2",
+        "executable": "/opt/homebrew/Cellar/node@24/24.22.2/bin/node"
+      },
+      "svgBytes": 4347,
+      "svgSha256": "8378c60e96f31af2c93adb0add2fc8fb205cb041ff4c7fb607e7a849ca95d151",
+      "enumerableSidecarBytes": 7526,
+      "accepted": true,
+      "passed": true,
+      "nativeCertificateStatus": "passed",
+      "nativeCertificateChecks": {
+        "primitives": 18,
+        "labels": 2,
+        "occlusionPairs": 9,
+        "maxOcclusionPairs": 100000,
+        "operations": 12030,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "semanticCompleteForReviewedProfile": true,
+      "evidence": {
+        "outputAdmission": "passed",
+        "nativeModel": "passed",
+        "paintedMeaning": "passed"
+      },
+      "failedChecks": [],
+      "unmeasuredScopes": [
+        "Perceptual legibility, font metrics, text clipping and complete shape/path paint correspondence are not measured.",
+        "Agentic Class/ER qualification covers declared node/route identity, optional owned labels, endpoint multiplicity and finite connecting geometry. Class requires the reviewed directed open-arrow profile; simple ER relations require exact tick/fan/circle cardinality and solid/dashed identifying appearance. Full CSS/font/clipping/curve-interior paint, member/attribute content, other Class markers and unsupported ER source/glyph profiles remain unmeasured."
+      ],
+      "backendCheck": {
+        "name": "layout-backend-selection",
+        "status": "passed",
+        "expected": {
+          "backend": "elk",
+          "fallback": "none"
+        },
+        "actual": [
+          {
+            "requested": "elk",
+            "fallback": "none",
+            "selected": "elk",
+            "attempts": [
+              {
+                "backend": "elk",
+                "outcome": "selected"
+              }
+            ],
+            "implementation": "elk-layered@1",
+            "role": "primary"
+          }
+        ],
+        "scope": "Every consumed public receipt layout decision selects the requested backend with no fallback or companion backend substitution. This checks declared producer evidence, not an independent algorithm trace."
+      }
+    },
+    {
+      "caseId": "family:er:backend:agentic",
+      "observer": "portable-owned-topology-v2-agentic-class-er",
+      "runtime": {
+        "node": "24.22.2",
+        "executable": "/opt/homebrew/Cellar/node@24/24.22.2/bin/node"
+      },
+      "svgBytes": 4350,
+      "svgSha256": "36bf19647d58a71221d5b2572fe4665a6c5b9ff44bdf48ec2803ed928aca2319",
+      "enumerableSidecarBytes": 7543,
+      "accepted": true,
+      "passed": true,
+      "nativeCertificateStatus": "passed",
+      "nativeCertificateChecks": {
+        "primitives": 18,
+        "labels": 2,
+        "occlusionPairs": 9,
+        "maxOcclusionPairs": 100000,
+        "operations": 12030,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "semanticCompleteForReviewedProfile": true,
+      "evidence": {
+        "outputAdmission": "passed",
+        "nativeModel": "passed",
+        "paintedMeaning": "passed"
+      },
+      "failedChecks": [],
+      "unmeasuredScopes": [
+        "Perceptual legibility, font metrics, text clipping and complete shape/path paint correspondence are not measured.",
+        "Agentic Class/ER qualification covers declared node/route identity, optional owned labels, endpoint multiplicity and finite connecting geometry. Class requires the reviewed directed open-arrow profile; simple ER relations require exact tick/fan/circle cardinality and solid/dashed identifying appearance. Full CSS/font/clipping/curve-interior paint, member/attribute content, other Class markers and unsupported ER source/glyph profiles remain unmeasured."
+      ],
+      "backendCheck": {
+        "name": "layout-backend-selection",
+        "status": "passed",
+        "expected": {
+          "backend": "agentic",
+          "fallback": "none"
+        },
+        "actual": [
+          {
+            "requested": "agentic",
+            "fallback": "none",
+            "selected": "agentic",
+            "attempts": [
+              {
+                "backend": "agentic",
+                "outcome": "selected"
+              }
+            ],
+            "implementation": "agentic-layered@28",
+            "role": "primary"
+          }
+        ],
+        "scope": "Every consumed public receipt layout decision selects the requested backend with no fallback or companion backend substitution. This checks declared producer evidence, not an independent algorithm trace."
+      }
+    },
+    {
+      "caseId": "scaling:class:8:backend:elk",
+      "observer": "portable-owned-topology-v2-agentic-class-er",
+      "runtime": {
+        "node": "24.22.2",
+        "executable": "/opt/homebrew/Cellar/node@24/24.22.2/bin/node"
+      },
+      "svgBytes": 12920,
+      "svgSha256": "4069b7da2fcb57825110ef2012066d1e9d9fe8d66828ebca0b68e04879f82eb1",
+      "enumerableSidecarBytes": 7897,
+      "accepted": true,
+      "passed": true,
+      "nativeCertificateStatus": "passed",
+      "nativeCertificateChecks": {
+        "primitives": 64,
+        "labels": 8,
+        "occlusionPairs": 80,
+        "maxOcclusionPairs": 100000,
+        "operations": 39653,
+        "maxOperations": 400000,
+        "markers": 7
+      },
+      "semanticCompleteForReviewedProfile": true,
+      "evidence": {
+        "outputAdmission": "passed",
+        "nativeModel": "passed",
+        "paintedMeaning": "passed"
+      },
+      "failedChecks": [],
+      "unmeasuredScopes": [
+        "Perceptual legibility, font metrics, text clipping and complete shape/path paint correspondence are not measured.",
+        "Agentic Class/ER qualification covers declared node/route identity, optional owned labels, endpoint multiplicity and finite connecting geometry. Class requires the reviewed directed open-arrow profile; simple ER relations require exact tick/fan/circle cardinality and solid/dashed identifying appearance. Full CSS/font/clipping/curve-interior paint, member/attribute content, other Class markers and unsupported ER source/glyph profiles remain unmeasured."
+      ],
+      "backendCheck": {
+        "name": "layout-backend-selection",
+        "status": "passed",
+        "expected": {
+          "backend": "elk",
+          "fallback": "none"
+        },
+        "actual": [
+          {
+            "requested": "elk",
+            "fallback": "none",
+            "selected": "elk",
+            "attempts": [
+              {
+                "backend": "elk",
+                "outcome": "selected"
+              }
+            ],
+            "implementation": "elk-layered@1",
+            "role": "primary"
+          }
+        ],
+        "scope": "Every consumed public receipt layout decision selects the requested backend with no fallback or companion backend substitution. This checks declared producer evidence, not an independent algorithm trace."
+      }
+    },
+    {
+      "caseId": "scaling:class:8:backend:agentic",
+      "observer": "portable-owned-topology-v2-agentic-class-er",
+      "runtime": {
+        "node": "24.22.2",
+        "executable": "/opt/homebrew/Cellar/node@24/24.22.2/bin/node"
+      },
+      "svgBytes": 12920,
+      "svgSha256": "4069b7da2fcb57825110ef2012066d1e9d9fe8d66828ebca0b68e04879f82eb1",
+      "enumerableSidecarBytes": 7914,
+      "accepted": true,
+      "passed": true,
+      "nativeCertificateStatus": "passed",
+      "nativeCertificateChecks": {
+        "primitives": 64,
+        "labels": 8,
+        "occlusionPairs": 80,
+        "maxOcclusionPairs": 100000,
+        "operations": 39653,
+        "maxOperations": 400000,
+        "markers": 7
+      },
+      "semanticCompleteForReviewedProfile": true,
+      "evidence": {
+        "outputAdmission": "passed",
+        "nativeModel": "passed",
+        "paintedMeaning": "passed"
+      },
+      "failedChecks": [],
+      "unmeasuredScopes": [
+        "Perceptual legibility, font metrics, text clipping and complete shape/path paint correspondence are not measured.",
+        "Agentic Class/ER qualification covers declared node/route identity, optional owned labels, endpoint multiplicity and finite connecting geometry. Class requires the reviewed directed open-arrow profile; simple ER relations require exact tick/fan/circle cardinality and solid/dashed identifying appearance. Full CSS/font/clipping/curve-interior paint, member/attribute content, other Class markers and unsupported ER source/glyph profiles remain unmeasured."
+      ],
+      "backendCheck": {
+        "name": "layout-backend-selection",
+        "status": "passed",
+        "expected": {
+          "backend": "agentic",
+          "fallback": "none"
+        },
+        "actual": [
+          {
+            "requested": "agentic",
+            "fallback": "none",
+            "selected": "agentic",
+            "attempts": [
+              {
+                "backend": "agentic",
+                "outcome": "selected"
+              }
+            ],
+            "implementation": "agentic-layered@28",
+            "role": "primary"
+          }
+        ],
+        "scope": "Every consumed public receipt layout decision selects the requested backend with no fallback or companion backend substitution. This checks declared producer evidence, not an independent algorithm trace."
+      }
+    },
+    {
+      "caseId": "scaling:class:32:backend:elk",
+      "observer": "portable-owned-topology-v2-agentic-class-er",
+      "runtime": {
+        "node": "24.22.2",
+        "executable": "/opt/homebrew/Cellar/node@24/24.22.2/bin/node"
+      },
+      "svgBytes": 47883,
+      "svgSha256": "4119efe0044b27b9a1d3da76c1d8efb12523a50bdac1912e9eb86a720eace8ba",
+      "enumerableSidecarBytes": 7904,
+      "accepted": true,
+      "passed": true,
+      "nativeCertificateStatus": "passed",
+      "nativeCertificateChecks": {
+        "primitives": 256,
+        "labels": 32,
+        "occlusionPairs": 368,
+        "maxOcclusionPairs": 100000,
+        "operations": 93621,
+        "maxOperations": 400000,
+        "markers": 31
+      },
+      "semanticCompleteForReviewedProfile": true,
+      "evidence": {
+        "outputAdmission": "passed",
+        "nativeModel": "passed",
+        "paintedMeaning": "passed"
+      },
+      "failedChecks": [],
+      "unmeasuredScopes": [
+        "Perceptual legibility, font metrics, text clipping and complete shape/path paint correspondence are not measured.",
+        "Agentic Class/ER qualification covers declared node/route identity, optional owned labels, endpoint multiplicity and finite connecting geometry. Class requires the reviewed directed open-arrow profile; simple ER relations require exact tick/fan/circle cardinality and solid/dashed identifying appearance. Full CSS/font/clipping/curve-interior paint, member/attribute content, other Class markers and unsupported ER source/glyph profiles remain unmeasured."
+      ],
+      "backendCheck": {
+        "name": "layout-backend-selection",
+        "status": "passed",
+        "expected": {
+          "backend": "elk",
+          "fallback": "none"
+        },
+        "actual": [
+          {
+            "requested": "elk",
+            "fallback": "none",
+            "selected": "elk",
+            "attempts": [
+              {
+                "backend": "elk",
+                "outcome": "selected"
+              }
+            ],
+            "implementation": "elk-layered@1",
+            "role": "primary"
+          }
+        ],
+        "scope": "Every consumed public receipt layout decision selects the requested backend with no fallback or companion backend substitution. This checks declared producer evidence, not an independent algorithm trace."
+      }
+    },
+    {
+      "caseId": "scaling:class:32:backend:agentic",
+      "observer": "portable-owned-topology-v2-agentic-class-er",
+      "runtime": {
+        "node": "24.22.2",
+        "executable": "/opt/homebrew/Cellar/node@24/24.22.2/bin/node"
+      },
+      "svgBytes": 47883,
+      "svgSha256": "4119efe0044b27b9a1d3da76c1d8efb12523a50bdac1912e9eb86a720eace8ba",
+      "enumerableSidecarBytes": 7921,
+      "accepted": true,
+      "passed": true,
+      "nativeCertificateStatus": "passed",
+      "nativeCertificateChecks": {
+        "primitives": 256,
+        "labels": 32,
+        "occlusionPairs": 368,
+        "maxOcclusionPairs": 100000,
+        "operations": 93621,
+        "maxOperations": 400000,
+        "markers": 31
+      },
+      "semanticCompleteForReviewedProfile": true,
+      "evidence": {
+        "outputAdmission": "passed",
+        "nativeModel": "passed",
+        "paintedMeaning": "passed"
+      },
+      "failedChecks": [],
+      "unmeasuredScopes": [
+        "Perceptual legibility, font metrics, text clipping and complete shape/path paint correspondence are not measured.",
+        "Agentic Class/ER qualification covers declared node/route identity, optional owned labels, endpoint multiplicity and finite connecting geometry. Class requires the reviewed directed open-arrow profile; simple ER relations require exact tick/fan/circle cardinality and solid/dashed identifying appearance. Full CSS/font/clipping/curve-interior paint, member/attribute content, other Class markers and unsupported ER source/glyph profiles remain unmeasured."
+      ],
+      "backendCheck": {
+        "name": "layout-backend-selection",
+        "status": "passed",
+        "expected": {
+          "backend": "agentic",
+          "fallback": "none"
+        },
+        "actual": [
+          {
+            "requested": "agentic",
+            "fallback": "none",
+            "selected": "agentic",
+            "attempts": [
+              {
+                "backend": "agentic",
+                "outcome": "selected"
+              }
+            ],
+            "implementation": "agentic-layered@28",
+            "role": "primary"
+          }
+        ],
+        "scope": "Every consumed public receipt layout decision selects the requested backend with no fallback or companion backend substitution. This checks declared producer evidence, not an independent algorithm trace."
+      }
+    },
+    {
+      "caseId": "scaling:class:128:backend:elk",
+      "observer": "portable-owned-topology-v2-agentic-class-er",
+      "runtime": {
+        "node": "24.22.2",
+        "executable": "/opt/homebrew/Cellar/node@24/24.22.2/bin/node"
+      },
+      "svgBytes": 189921,
+      "svgSha256": "bfbb77b3c6f56e2126b77b9ec2d23afb556a261c111fcd93e84cbc6879487023",
+      "enumerableSidecarBytes": 7921,
+      "accepted": true,
+      "passed": true,
+      "nativeCertificateStatus": "passed",
+      "nativeCertificateChecks": {
+        "primitives": 1024,
+        "labels": 128,
+        "occlusionPairs": 1520,
+        "maxOcclusionPairs": 100000,
+        "operations": 277394,
+        "maxOperations": 400000,
+        "markers": 127
+      },
+      "semanticCompleteForReviewedProfile": true,
+      "evidence": {
+        "outputAdmission": "passed",
+        "nativeModel": "passed",
+        "paintedMeaning": "passed"
+      },
+      "failedChecks": [],
+      "unmeasuredScopes": [
+        "Perceptual legibility, font metrics, text clipping and complete shape/path paint correspondence are not measured.",
+        "Agentic Class/ER qualification covers declared node/route identity, optional owned labels, endpoint multiplicity and finite connecting geometry. Class requires the reviewed directed open-arrow profile; simple ER relations require exact tick/fan/circle cardinality and solid/dashed identifying appearance. Full CSS/font/clipping/curve-interior paint, member/attribute content, other Class markers and unsupported ER source/glyph profiles remain unmeasured."
+      ],
+      "backendCheck": {
+        "name": "layout-backend-selection",
+        "status": "passed",
+        "expected": {
+          "backend": "elk",
+          "fallback": "none"
+        },
+        "actual": [
+          {
+            "requested": "elk",
+            "fallback": "none",
+            "selected": "elk",
+            "attempts": [
+              {
+                "backend": "elk",
+                "outcome": "selected"
+              }
+            ],
+            "implementation": "elk-layered@1",
+            "role": "primary"
+          }
+        ],
+        "scope": "Every consumed public receipt layout decision selects the requested backend with no fallback or companion backend substitution. This checks declared producer evidence, not an independent algorithm trace."
+      }
+    },
+    {
+      "caseId": "scaling:class:128:backend:agentic",
+      "observer": "portable-owned-topology-v2-agentic-class-er",
+      "runtime": {
+        "node": "24.22.2",
+        "executable": "/opt/homebrew/Cellar/node@24/24.22.2/bin/node"
+      },
+      "svgBytes": 189921,
+      "svgSha256": "bfbb77b3c6f56e2126b77b9ec2d23afb556a261c111fcd93e84cbc6879487023",
+      "enumerableSidecarBytes": 7938,
+      "accepted": true,
+      "passed": true,
+      "nativeCertificateStatus": "passed",
+      "nativeCertificateChecks": {
+        "primitives": 1024,
+        "labels": 128,
+        "occlusionPairs": 1520,
+        "maxOcclusionPairs": 100000,
+        "operations": 277394,
+        "maxOperations": 400000,
+        "markers": 127
+      },
+      "semanticCompleteForReviewedProfile": true,
+      "evidence": {
+        "outputAdmission": "passed",
+        "nativeModel": "passed",
+        "paintedMeaning": "passed"
+      },
+      "failedChecks": [],
+      "unmeasuredScopes": [
+        "Perceptual legibility, font metrics, text clipping and complete shape/path paint correspondence are not measured.",
+        "Agentic Class/ER qualification covers declared node/route identity, optional owned labels, endpoint multiplicity and finite connecting geometry. Class requires the reviewed directed open-arrow profile; simple ER relations require exact tick/fan/circle cardinality and solid/dashed identifying appearance. Full CSS/font/clipping/curve-interior paint, member/attribute content, other Class markers and unsupported ER source/glyph profiles remain unmeasured."
+      ],
+      "backendCheck": {
+        "name": "layout-backend-selection",
+        "status": "passed",
+        "expected": {
+          "backend": "agentic",
+          "fallback": "none"
+        },
+        "actual": [
+          {
+            "requested": "agentic",
+            "fallback": "none",
+            "selected": "agentic",
+            "attempts": [
+              {
+                "backend": "agentic",
+                "outcome": "selected"
+              }
+            ],
+            "implementation": "agentic-layered@28",
+            "role": "primary"
+          }
+        ],
+        "scope": "Every consumed public receipt layout decision selects the requested backend with no fallback or companion backend substitution. This checks declared producer evidence, not an independent algorithm trace."
+      }
+    },
+    {
+      "caseId": "scaling:er:8:backend:elk",
+      "observer": "portable-owned-topology-v2-agentic-class-er",
+      "runtime": {
+        "node": "24.22.2",
+        "executable": "/opt/homebrew/Cellar/node@24/24.22.2/bin/node"
+      },
+      "svgBytes": 18993,
+      "svgSha256": "b2dbad87649b4fa63582d6df2eb09f4a9c9d845e73d7f29cb2fe84606ceed584",
+      "enumerableSidecarBytes": 7529,
+      "accepted": true,
+      "passed": true,
+      "nativeCertificateStatus": "passed",
+      "nativeCertificateChecks": {
+        "primitives": 78,
+        "labels": 8,
+        "occlusionPairs": 79,
+        "maxOcclusionPairs": 100000,
+        "operations": 17966,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "semanticCompleteForReviewedProfile": true,
+      "evidence": {
+        "outputAdmission": "passed",
+        "nativeModel": "passed",
+        "paintedMeaning": "passed"
+      },
+      "failedChecks": [],
+      "unmeasuredScopes": [
+        "Perceptual legibility, font metrics, text clipping and complete shape/path paint correspondence are not measured.",
+        "Agentic Class/ER qualification covers declared node/route identity, optional owned labels, endpoint multiplicity and finite connecting geometry. Class requires the reviewed directed open-arrow profile; simple ER relations require exact tick/fan/circle cardinality and solid/dashed identifying appearance. Full CSS/font/clipping/curve-interior paint, member/attribute content, other Class markers and unsupported ER source/glyph profiles remain unmeasured."
+      ],
+      "backendCheck": {
+        "name": "layout-backend-selection",
+        "status": "passed",
+        "expected": {
+          "backend": "elk",
+          "fallback": "none"
+        },
+        "actual": [
+          {
+            "requested": "elk",
+            "fallback": "none",
+            "selected": "elk",
+            "attempts": [
+              {
+                "backend": "elk",
+                "outcome": "selected"
+              }
+            ],
+            "implementation": "elk-layered@1",
+            "role": "primary"
+          }
+        ],
+        "scope": "Every consumed public receipt layout decision selects the requested backend with no fallback or companion backend substitution. This checks declared producer evidence, not an independent algorithm trace."
+      }
+    },
+    {
+      "caseId": "scaling:er:8:backend:agentic",
+      "observer": "portable-owned-topology-v2-agentic-class-er",
+      "runtime": {
+        "node": "24.22.2",
+        "executable": "/opt/homebrew/Cellar/node@24/24.22.2/bin/node"
+      },
+      "svgBytes": 18981,
+      "svgSha256": "199b438edcfa04d4f1e41a0d52ba4337e98a50cff9f304b704ce856fd74b811b",
+      "enumerableSidecarBytes": 7546,
+      "accepted": true,
+      "passed": true,
+      "nativeCertificateStatus": "passed",
+      "nativeCertificateChecks": {
+        "primitives": 78,
+        "labels": 8,
+        "occlusionPairs": 79,
+        "maxOcclusionPairs": 100000,
+        "operations": 17966,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "semanticCompleteForReviewedProfile": true,
+      "evidence": {
+        "outputAdmission": "passed",
+        "nativeModel": "passed",
+        "paintedMeaning": "passed"
+      },
+      "failedChecks": [],
+      "unmeasuredScopes": [
+        "Perceptual legibility, font metrics, text clipping and complete shape/path paint correspondence are not measured.",
+        "Agentic Class/ER qualification covers declared node/route identity, optional owned labels, endpoint multiplicity and finite connecting geometry. Class requires the reviewed directed open-arrow profile; simple ER relations require exact tick/fan/circle cardinality and solid/dashed identifying appearance. Full CSS/font/clipping/curve-interior paint, member/attribute content, other Class markers and unsupported ER source/glyph profiles remain unmeasured."
+      ],
+      "backendCheck": {
+        "name": "layout-backend-selection",
+        "status": "passed",
+        "expected": {
+          "backend": "agentic",
+          "fallback": "none"
+        },
+        "actual": [
+          {
+            "requested": "agentic",
+            "fallback": "none",
+            "selected": "agentic",
+            "attempts": [
+              {
+                "backend": "agentic",
+                "outcome": "selected"
+              }
+            ],
+            "implementation": "agentic-layered@28",
+            "role": "primary"
+          }
+        ],
+        "scope": "Every consumed public receipt layout decision selects the requested backend with no fallback or companion backend substitution. This checks declared producer evidence, not an independent algorithm trace."
+      }
+    },
+    {
+      "caseId": "scaling:er:32:backend:elk",
+      "observer": "portable-owned-topology-v2-agentic-class-er",
+      "runtime": {
+        "node": "24.22.2",
+        "executable": "/opt/homebrew/Cellar/node@24/24.22.2/bin/node"
+      },
+      "svgBytes": 78274,
+      "svgSha256": "e7dbe475d3401cf63811cb04eb22563ef5f027b658acd64828631b75c4c5f5a5",
+      "enumerableSidecarBytes": 7534,
+      "accepted": true,
+      "passed": true,
+      "nativeCertificateStatus": "passed",
+      "nativeCertificateChecks": {
+        "primitives": 318,
+        "labels": 32,
+        "occlusionPairs": 367,
+        "maxOcclusionPairs": 100000,
+        "operations": 41994,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "semanticCompleteForReviewedProfile": true,
+      "evidence": {
+        "outputAdmission": "passed",
+        "nativeModel": "passed",
+        "paintedMeaning": "passed"
+      },
+      "failedChecks": [],
+      "unmeasuredScopes": [
+        "Perceptual legibility, font metrics, text clipping and complete shape/path paint correspondence are not measured.",
+        "Agentic Class/ER qualification covers declared node/route identity, optional owned labels, endpoint multiplicity and finite connecting geometry. Class requires the reviewed directed open-arrow profile; simple ER relations require exact tick/fan/circle cardinality and solid/dashed identifying appearance. Full CSS/font/clipping/curve-interior paint, member/attribute content, other Class markers and unsupported ER source/glyph profiles remain unmeasured."
+      ],
+      "backendCheck": {
+        "name": "layout-backend-selection",
+        "status": "passed",
+        "expected": {
+          "backend": "elk",
+          "fallback": "none"
+        },
+        "actual": [
+          {
+            "requested": "elk",
+            "fallback": "none",
+            "selected": "elk",
+            "attempts": [
+              {
+                "backend": "elk",
+                "outcome": "selected"
+              }
+            ],
+            "implementation": "elk-layered@1",
+            "role": "primary"
+          }
+        ],
+        "scope": "Every consumed public receipt layout decision selects the requested backend with no fallback or companion backend substitution. This checks declared producer evidence, not an independent algorithm trace."
+      }
+    },
+    {
+      "caseId": "scaling:er:32:backend:agentic",
+      "observer": "portable-owned-topology-v2-agentic-class-er",
+      "runtime": {
+        "node": "24.22.2",
+        "executable": "/opt/homebrew/Cellar/node@24/24.22.2/bin/node"
+      },
+      "svgBytes": 78182,
+      "svgSha256": "a935ca1b386ff73411d38b49b9cc0ee8e896c388c9f42b1fb14368fa9d033af0",
+      "enumerableSidecarBytes": 7550,
+      "accepted": true,
+      "passed": true,
+      "nativeCertificateStatus": "passed",
+      "nativeCertificateChecks": {
+        "primitives": 318,
+        "labels": 32,
+        "occlusionPairs": 367,
+        "maxOcclusionPairs": 100000,
+        "operations": 41978,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "semanticCompleteForReviewedProfile": true,
+      "evidence": {
+        "outputAdmission": "passed",
+        "nativeModel": "passed",
+        "paintedMeaning": "passed"
+      },
+      "failedChecks": [],
+      "unmeasuredScopes": [
+        "Perceptual legibility, font metrics, text clipping and complete shape/path paint correspondence are not measured.",
+        "Agentic Class/ER qualification covers declared node/route identity, optional owned labels, endpoint multiplicity and finite connecting geometry. Class requires the reviewed directed open-arrow profile; simple ER relations require exact tick/fan/circle cardinality and solid/dashed identifying appearance. Full CSS/font/clipping/curve-interior paint, member/attribute content, other Class markers and unsupported ER source/glyph profiles remain unmeasured."
+      ],
+      "backendCheck": {
+        "name": "layout-backend-selection",
+        "status": "passed",
+        "expected": {
+          "backend": "agentic",
+          "fallback": "none"
+        },
+        "actual": [
+          {
+            "requested": "agentic",
+            "fallback": "none",
+            "selected": "agentic",
+            "attempts": [
+              {
+                "backend": "agentic",
+                "outcome": "selected"
+              }
+            ],
+            "implementation": "agentic-layered@28",
+            "role": "primary"
+          }
+        ],
+        "scope": "Every consumed public receipt layout decision selects the requested backend with no fallback or companion backend substitution. This checks declared producer evidence, not an independent algorithm trace."
+      }
+    },
+    {
+      "caseId": "scaling:er:128:backend:elk",
+      "observer": "portable-owned-topology-v2-agentic-class-er",
+      "runtime": {
+        "node": "24.22.2",
+        "executable": "/opt/homebrew/Cellar/node@24/24.22.2/bin/node"
+      },
+      "svgBytes": 325760,
+      "svgSha256": "0f91370ab29f87a9d96a3fcc21f041b25280b61dd060207b3d5a4889d3511a15",
+      "enumerableSidecarBytes": 7548,
+      "accepted": true,
+      "passed": true,
+      "nativeCertificateStatus": "passed",
+      "nativeCertificateChecks": {
+        "primitives": 1278,
+        "labels": 128,
+        "occlusionPairs": 1519,
+        "maxOcclusionPairs": 100000,
+        "operations": 139358,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "semanticCompleteForReviewedProfile": true,
+      "evidence": {
+        "outputAdmission": "passed",
+        "nativeModel": "passed",
+        "paintedMeaning": "passed"
+      },
+      "failedChecks": [],
+      "unmeasuredScopes": [
+        "Perceptual legibility, font metrics, text clipping and complete shape/path paint correspondence are not measured.",
+        "Agentic Class/ER qualification covers declared node/route identity, optional owned labels, endpoint multiplicity and finite connecting geometry. Class requires the reviewed directed open-arrow profile; simple ER relations require exact tick/fan/circle cardinality and solid/dashed identifying appearance. Full CSS/font/clipping/curve-interior paint, member/attribute content, other Class markers and unsupported ER source/glyph profiles remain unmeasured."
+      ],
+      "backendCheck": {
+        "name": "layout-backend-selection",
+        "status": "passed",
+        "expected": {
+          "backend": "elk",
+          "fallback": "none"
+        },
+        "actual": [
+          {
+            "requested": "elk",
+            "fallback": "none",
+            "selected": "elk",
+            "attempts": [
+              {
+                "backend": "elk",
+                "outcome": "selected"
+              }
+            ],
+            "implementation": "elk-layered@1",
+            "role": "primary"
+          }
+        ],
+        "scope": "Every consumed public receipt layout decision selects the requested backend with no fallback or companion backend substitution. This checks declared producer evidence, not an independent algorithm trace."
+      }
+    },
+    {
+      "caseId": "scaling:er:128:backend:agentic",
+      "observer": "portable-owned-topology-v2-agentic-class-er",
+      "runtime": {
+        "node": "24.22.2",
+        "executable": "/opt/homebrew/Cellar/node@24/24.22.2/bin/node"
+      },
+      "svgBytes": 323538,
+      "svgSha256": "bbfbebb2f92a170ccae26e00076c93aaa5d7a92a4583c0bfbf248f0455111ab4",
+      "enumerableSidecarBytes": 7557,
+      "accepted": true,
+      "passed": true,
+      "nativeCertificateStatus": "passed",
+      "nativeCertificateChecks": {
+        "primitives": 1278,
+        "labels": 128,
+        "occlusionPairs": 1519,
+        "maxOcclusionPairs": 100000,
+        "operations": 139230,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "semanticCompleteForReviewedProfile": true,
+      "evidence": {
+        "outputAdmission": "passed",
+        "nativeModel": "passed",
+        "paintedMeaning": "passed"
+      },
+      "failedChecks": [],
+      "unmeasuredScopes": [
+        "Perceptual legibility, font metrics, text clipping and complete shape/path paint correspondence are not measured.",
+        "Agentic Class/ER qualification covers declared node/route identity, optional owned labels, endpoint multiplicity and finite connecting geometry. Class requires the reviewed directed open-arrow profile; simple ER relations require exact tick/fan/circle cardinality and solid/dashed identifying appearance. Full CSS/font/clipping/curve-interior paint, member/attribute content, other Class markers and unsupported ER source/glyph profiles remain unmeasured."
+      ],
+      "backendCheck": {
+        "name": "layout-backend-selection",
+        "status": "passed",
+        "expected": {
+          "backend": "agentic",
+          "fallback": "none"
+        },
+        "actual": [
+          {
+            "requested": "agentic",
+            "fallback": "none",
+            "selected": "agentic",
+            "attempts": [
+              {
+                "backend": "agentic",
+                "outcome": "selected"
+              }
+            ],
+            "implementation": "agentic-layered@28",
+            "role": "primary"
+          }
+        ],
+        "scope": "Every consumed public receipt layout decision selects the requested backend with no fallback or companion backend substitution. This checks declared producer evidence, not an independent algorithm trace."
+      }
+    }
+  ]
+}

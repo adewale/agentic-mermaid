@@ -1,0 +1,1049 @@
+{
+  "mode": "Untimed public SVG and fully consumed receipt correctness replay",
+  "runtime": {
+    "node": "24.22.2",
+    "executable": "/opt/homebrew/Cellar/node@24/24.22.2/bin/node"
+  },
+  "rows": [
+    {
+      "count": 4096,
+      "relationships": 1,
+      "backend": "elk",
+      "direction": "TB",
+      "expectedOutcome": "rendered-and-certified",
+      "verifiedExpectation": true,
+      "rendered": true,
+      "svgBytes": 4193336,
+      "svgSha256": "0d88619769e29b99dd22ca3f64b686d0283de9236b5116b311a66882b1a5fd9b",
+      "entities": 4096,
+      "uniqueEntities": 4096,
+      "actualRelations": 1,
+      "certification": "passed",
+      "checks": {
+        "primitives": 20488,
+        "labels": 4096,
+        "occlusionPairs": 12,
+        "maxOcclusionPairs": 100000,
+        "operations": 207097,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "issues": [],
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "count": 4096,
+      "relationships": 1,
+      "backend": "elk",
+      "direction": "BT",
+      "expectedOutcome": "rendered-and-certified",
+      "verifiedExpectation": true,
+      "rendered": true,
+      "svgBytes": 4193336,
+      "svgSha256": "23b9ea230eee76e07e429bdd5d6ada092a5a15e150b18bc9d93ad4210d822159",
+      "entities": 4096,
+      "uniqueEntities": 4096,
+      "actualRelations": 1,
+      "certification": "passed",
+      "checks": {
+        "primitives": 20488,
+        "labels": 4096,
+        "occlusionPairs": 12,
+        "maxOcclusionPairs": 100000,
+        "operations": 207097,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "issues": [],
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "count": 4096,
+      "relationships": 1,
+      "backend": "elk",
+      "direction": "LR",
+      "expectedOutcome": "rendered-and-certified",
+      "verifiedExpectation": true,
+      "rendered": true,
+      "svgBytes": 4193360,
+      "svgSha256": "14666a33fba08ebfad1c91a45a962a2eb93aa7b5f5797a531b075536958f3e8c",
+      "entities": 4096,
+      "uniqueEntities": 4096,
+      "actualRelations": 1,
+      "certification": "passed",
+      "checks": {
+        "primitives": 20488,
+        "labels": 4096,
+        "occlusionPairs": 30,
+        "maxOcclusionPairs": 100000,
+        "operations": 207145,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "issues": [],
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "count": 4096,
+      "relationships": 1,
+      "backend": "elk",
+      "direction": "RL",
+      "expectedOutcome": "rendered-and-certified",
+      "verifiedExpectation": true,
+      "rendered": true,
+      "svgBytes": 4193360,
+      "svgSha256": "9488070a5ec71d3b8b3313d5d8e8afaa41b1ba6d61c96a8b0dc0cedb0ec68056",
+      "entities": 4096,
+      "uniqueEntities": 4096,
+      "actualRelations": 1,
+      "certification": "passed",
+      "checks": {
+        "primitives": 20488,
+        "labels": 4096,
+        "occlusionPairs": 30,
+        "maxOcclusionPairs": 100000,
+        "operations": 207145,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "issues": [],
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "count": 4096,
+      "relationships": 1,
+      "backend": "agentic",
+      "direction": "TB",
+      "expectedOutcome": "rendered-and-certified",
+      "verifiedExpectation": true,
+      "rendered": true,
+      "svgBytes": 4214763,
+      "svgSha256": "f79946ec48f0ab34e89d83b24997c56af52ab6efd8e5974301aa3006d2a5f0e8",
+      "entities": 4096,
+      "uniqueEntities": 4096,
+      "actualRelations": 1,
+      "certification": "passed",
+      "checks": {
+        "primitives": 20488,
+        "labels": 4096,
+        "occlusionPairs": 12,
+        "maxOcclusionPairs": 100000,
+        "operations": 163903,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "issues": [],
+      "decisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "count": 4096,
+      "relationships": 1,
+      "backend": "agentic",
+      "direction": "BT",
+      "expectedOutcome": "rendered-and-certified",
+      "verifiedExpectation": true,
+      "rendered": true,
+      "svgBytes": 4300737,
+      "svgSha256": "f96cea878b82daea1ae64f7c24ca4629d2186f5f8567f9388085ab6c0cd51f4c",
+      "entities": 4096,
+      "uniqueEntities": 4096,
+      "actualRelations": 1,
+      "certification": "passed",
+      "checks": {
+        "primitives": 20488,
+        "labels": 4096,
+        "occlusionPairs": 12,
+        "maxOcclusionPairs": 100000,
+        "operations": 163903,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "issues": [],
+      "decisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "count": 4096,
+      "relationships": 1,
+      "backend": "agentic",
+      "direction": "LR",
+      "expectedOutcome": "rendered-and-certified",
+      "verifiedExpectation": true,
+      "rendered": true,
+      "svgBytes": 4196990,
+      "svgSha256": "b5d412310934405d2e363ef16e60af72a828d4e2ea084019cd0a939c36478656",
+      "entities": 4096,
+      "uniqueEntities": 4096,
+      "actualRelations": 1,
+      "certification": "passed",
+      "checks": {
+        "primitives": 20488,
+        "labels": 4096,
+        "occlusionPairs": 12,
+        "maxOcclusionPairs": 100000,
+        "operations": 163897,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "issues": [],
+      "decisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "count": 4096,
+      "relationships": 1,
+      "backend": "agentic",
+      "direction": "RL",
+      "expectedOutcome": "rendered-and-certified",
+      "verifiedExpectation": true,
+      "rendered": true,
+      "svgBytes": 4348468,
+      "svgSha256": "735413f3071dbd23778065a3ef0d3f56c6047c4f2bb834243baf7d2dfdf4567d",
+      "entities": 4096,
+      "uniqueEntities": 4096,
+      "actualRelations": 1,
+      "certification": "passed",
+      "checks": {
+        "primitives": 20488,
+        "labels": 4096,
+        "occlusionPairs": 12,
+        "maxOcclusionPairs": 100000,
+        "operations": 163897,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "issues": [],
+      "decisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "count": 4096,
+      "relationships": 4,
+      "backend": "elk",
+      "direction": "TB",
+      "expectedOutcome": "rendered-and-certified",
+      "verifiedExpectation": true,
+      "rendered": true,
+      "svgBytes": 4196999,
+      "svgSha256": "a7b32552aa12acfa546058efb37cef2988d922d73797f6091a53453d6b59c844",
+      "entities": 4096,
+      "uniqueEntities": 4096,
+      "actualRelations": 4,
+      "certification": "passed",
+      "checks": {
+        "primitives": 20503,
+        "labels": 4096,
+        "occlusionPairs": 72,
+        "maxOcclusionPairs": 100000,
+        "operations": 207739,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "issues": [],
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "count": 4096,
+      "relationships": 4,
+      "backend": "elk",
+      "direction": "BT",
+      "expectedOutcome": "rendered-and-certified",
+      "verifiedExpectation": true,
+      "rendered": true,
+      "svgBytes": 4196999,
+      "svgSha256": "fc12631687e8fb560ee3d7937e174041843b52c110aa9ab648de7002a7824d5b",
+      "entities": 4096,
+      "uniqueEntities": 4096,
+      "actualRelations": 4,
+      "certification": "passed",
+      "checks": {
+        "primitives": 20503,
+        "labels": 4096,
+        "occlusionPairs": 72,
+        "maxOcclusionPairs": 100000,
+        "operations": 207739,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "issues": [],
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "count": 4096,
+      "relationships": 4,
+      "backend": "elk",
+      "direction": "LR",
+      "expectedOutcome": "rendered-and-certified",
+      "verifiedExpectation": true,
+      "rendered": true,
+      "svgBytes": 4197341,
+      "svgSha256": "45bf939aac76fa94f84c1d7ff1682b7dc015a2d0099c055480ed6968e77ac594",
+      "entities": 4096,
+      "uniqueEntities": 4096,
+      "actualRelations": 4,
+      "certification": "passed",
+      "checks": {
+        "primitives": 20503,
+        "labels": 4096,
+        "occlusionPairs": 84,
+        "maxOcclusionPairs": 100000,
+        "operations": 207825,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "issues": [],
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "count": 4096,
+      "relationships": 4,
+      "backend": "elk",
+      "direction": "RL",
+      "expectedOutcome": "rendered-and-certified",
+      "verifiedExpectation": true,
+      "rendered": true,
+      "svgBytes": 4197341,
+      "svgSha256": "fbd39122893b8f3dbf62e48c05394ef4e5876858717712930645e811d75c97cc",
+      "entities": 4096,
+      "uniqueEntities": 4096,
+      "actualRelations": 4,
+      "certification": "passed",
+      "checks": {
+        "primitives": 20503,
+        "labels": 4096,
+        "occlusionPairs": 84,
+        "maxOcclusionPairs": 100000,
+        "operations": 207825,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "issues": [],
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "count": 4096,
+      "relationships": 4,
+      "backend": "agentic",
+      "direction": "TB",
+      "expectedOutcome": "rendered-and-certified",
+      "verifiedExpectation": true,
+      "rendered": true,
+      "svgBytes": 4218363,
+      "svgSha256": "b520bb79f8235e063edc0ee55f5a8d89ba5bfe89bdaa7c170ec3c814ab0d72ce",
+      "entities": 4096,
+      "uniqueEntities": 4096,
+      "actualRelations": 4,
+      "certification": "passed",
+      "checks": {
+        "primitives": 20503,
+        "labels": 4096,
+        "occlusionPairs": 48,
+        "maxOcclusionPairs": 100000,
+        "operations": 164182,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "issues": [],
+      "decisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "count": 4096,
+      "relationships": 4,
+      "backend": "agentic",
+      "direction": "BT",
+      "expectedOutcome": "rendered-and-certified",
+      "verifiedExpectation": true,
+      "rendered": true,
+      "svgBytes": 4304211,
+      "svgSha256": "77af0bca368f2695ccf258dce8c46c0d7a32027e7791814078a36085f4f82e67",
+      "entities": 4096,
+      "uniqueEntities": 4096,
+      "actualRelations": 4,
+      "certification": "passed",
+      "checks": {
+        "primitives": 20503,
+        "labels": 4096,
+        "occlusionPairs": 48,
+        "maxOcclusionPairs": 100000,
+        "operations": 164182,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "issues": [],
+      "decisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "count": 4096,
+      "relationships": 4,
+      "backend": "agentic",
+      "direction": "LR",
+      "expectedOutcome": "rendered-and-certified",
+      "verifiedExpectation": true,
+      "rendered": true,
+      "svgBytes": 4200689,
+      "svgSha256": "7085369d9ce951f8ab69fda88976ab30e9ad2382a495349280c73fb7d1dfaeb7",
+      "entities": 4096,
+      "uniqueEntities": 4096,
+      "actualRelations": 4,
+      "certification": "passed",
+      "checks": {
+        "primitives": 20503,
+        "labels": 4096,
+        "occlusionPairs": 66,
+        "maxOcclusionPairs": 100000,
+        "operations": 164194,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "issues": [],
+      "decisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "count": 4096,
+      "relationships": 4,
+      "backend": "agentic",
+      "direction": "RL",
+      "expectedOutcome": "rendered-and-certified",
+      "verifiedExpectation": true,
+      "rendered": true,
+      "svgBytes": 4351945,
+      "svgSha256": "f5680f06d9adfa7370c9230144933482c6920d155e14d44770b818f0ad455514",
+      "entities": 4096,
+      "uniqueEntities": 4096,
+      "actualRelations": 4,
+      "certification": "passed",
+      "checks": {
+        "primitives": 20503,
+        "labels": 4096,
+        "occlusionPairs": 66,
+        "maxOcclusionPairs": 100000,
+        "operations": 164196,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "issues": [],
+      "decisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "count": 5000,
+      "relationships": 1,
+      "backend": "elk",
+      "direction": "TB",
+      "expectedOutcome": "rendered-and-certified",
+      "verifiedExpectation": true,
+      "rendered": true,
+      "svgBytes": 5120743,
+      "svgSha256": "9c9d983fd4b1960eceac57b7d95f7663e614a0af41910b45941780603d382372",
+      "entities": 5000,
+      "uniqueEntities": 5000,
+      "actualRelations": 1,
+      "certification": "passed",
+      "checks": {
+        "primitives": 25008,
+        "labels": 5000,
+        "occlusionPairs": 16,
+        "maxOcclusionPairs": 100000,
+        "operations": 266068,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "issues": [],
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "count": 5000,
+      "relationships": 1,
+      "backend": "elk",
+      "direction": "BT",
+      "expectedOutcome": "rendered-and-certified",
+      "verifiedExpectation": true,
+      "rendered": true,
+      "svgBytes": 5120743,
+      "svgSha256": "8fe3f9aeb9c47795498a7761d5579802431901c2fee1b082527be54e70edceba",
+      "entities": 5000,
+      "uniqueEntities": 5000,
+      "actualRelations": 1,
+      "certification": "passed",
+      "checks": {
+        "primitives": 25008,
+        "labels": 5000,
+        "occlusionPairs": 16,
+        "maxOcclusionPairs": 100000,
+        "operations": 266068,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "issues": [],
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "count": 5000,
+      "relationships": 1,
+      "backend": "elk",
+      "direction": "LR",
+      "expectedOutcome": "rendered-and-certified",
+      "verifiedExpectation": true,
+      "rendered": true,
+      "svgBytes": 5120767,
+      "svgSha256": "0369551dd00de66f4c80e99a34769181b2a8d64baa2b75f4a67192cdda9573b5",
+      "entities": 5000,
+      "uniqueEntities": 5000,
+      "actualRelations": 1,
+      "certification": "passed",
+      "checks": {
+        "primitives": 25008,
+        "labels": 5000,
+        "occlusionPairs": 38,
+        "maxOcclusionPairs": 100000,
+        "operations": 266138,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "issues": [],
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "count": 5000,
+      "relationships": 1,
+      "backend": "elk",
+      "direction": "RL",
+      "expectedOutcome": "rendered-and-certified",
+      "verifiedExpectation": true,
+      "rendered": true,
+      "svgBytes": 5120767,
+      "svgSha256": "f4a24d90d2f38e3a3a8cc7800804c66480c9fda391b4916dcc46a0f5af39b7a4",
+      "entities": 5000,
+      "uniqueEntities": 5000,
+      "actualRelations": 1,
+      "certification": "passed",
+      "checks": {
+        "primitives": 25008,
+        "labels": 5000,
+        "occlusionPairs": 38,
+        "maxOcclusionPairs": 100000,
+        "operations": 266138,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "issues": [],
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "count": 5000,
+      "relationships": 1,
+      "backend": "agentic",
+      "direction": "TB",
+      "expectedOutcome": "declared-graph-size-rejection",
+      "rendered": false,
+      "verifiedExpectation": true,
+      "error": "GraphLayoutUnsupportedError: Agentic graph layout does not support this input: agentic local graph-size limit"
+    },
+    {
+      "count": 5000,
+      "relationships": 1,
+      "backend": "agentic",
+      "direction": "BT",
+      "expectedOutcome": "declared-graph-size-rejection",
+      "rendered": false,
+      "verifiedExpectation": true,
+      "error": "GraphLayoutUnsupportedError: Agentic graph layout does not support this input: agentic local graph-size limit"
+    },
+    {
+      "count": 5000,
+      "relationships": 1,
+      "backend": "agentic",
+      "direction": "LR",
+      "expectedOutcome": "declared-graph-size-rejection",
+      "rendered": false,
+      "verifiedExpectation": true,
+      "error": "GraphLayoutUnsupportedError: Agentic graph layout does not support this input: agentic local graph-size limit"
+    },
+    {
+      "count": 5000,
+      "relationships": 1,
+      "backend": "agentic",
+      "direction": "RL",
+      "expectedOutcome": "declared-graph-size-rejection",
+      "rendered": false,
+      "verifiedExpectation": true,
+      "error": "GraphLayoutUnsupportedError: Agentic graph layout does not support this input: agentic local graph-size limit"
+    },
+    {
+      "count": 5000,
+      "relationships": 4,
+      "backend": "elk",
+      "direction": "TB",
+      "expectedOutcome": "rendered-and-certified",
+      "verifiedExpectation": true,
+      "rendered": true,
+      "svgBytes": 5124478,
+      "svgSha256": "dbfd9d56869100fa6312328fe98cdc53a7cda5c6e969856e37d18e8a216b5e77",
+      "entities": 5000,
+      "uniqueEntities": 5000,
+      "actualRelations": 4,
+      "certification": "passed",
+      "checks": {
+        "primitives": 25023,
+        "labels": 5000,
+        "occlusionPairs": 75,
+        "maxOcclusionPairs": 100000,
+        "operations": 264043,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "issues": [],
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "count": 5000,
+      "relationships": 4,
+      "backend": "elk",
+      "direction": "BT",
+      "expectedOutcome": "rendered-and-certified",
+      "verifiedExpectation": true,
+      "rendered": true,
+      "svgBytes": 5124478,
+      "svgSha256": "b8dff0c3454f8323ca47a3c180687f3efaccc9253209f4a7b0d7c26319640af8",
+      "entities": 5000,
+      "uniqueEntities": 5000,
+      "actualRelations": 4,
+      "certification": "passed",
+      "checks": {
+        "primitives": 25023,
+        "labels": 5000,
+        "occlusionPairs": 75,
+        "maxOcclusionPairs": 100000,
+        "operations": 264043,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "issues": [],
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "count": 5000,
+      "relationships": 4,
+      "backend": "elk",
+      "direction": "LR",
+      "expectedOutcome": "rendered-and-certified",
+      "verifiedExpectation": true,
+      "rendered": true,
+      "svgBytes": 5124752,
+      "svgSha256": "73d8fb497032215b1e609e5190ec1a6ab3413dd164233cc369c793ad5f176a53",
+      "entities": 5000,
+      "uniqueEntities": 5000,
+      "actualRelations": 4,
+      "certification": "passed",
+      "checks": {
+        "primitives": 25023,
+        "labels": 5000,
+        "occlusionPairs": 108,
+        "maxOcclusionPairs": 100000,
+        "operations": 264698,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "issues": [],
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "count": 5000,
+      "relationships": 4,
+      "backend": "elk",
+      "direction": "RL",
+      "expectedOutcome": "rendered-and-certified",
+      "verifiedExpectation": true,
+      "rendered": true,
+      "svgBytes": 5124752,
+      "svgSha256": "84ad74b2df885524ebc629338260d865ffca61ef4206604ab443d30ef4f7a660",
+      "entities": 5000,
+      "uniqueEntities": 5000,
+      "actualRelations": 4,
+      "certification": "passed",
+      "checks": {
+        "primitives": 25023,
+        "labels": 5000,
+        "occlusionPairs": 108,
+        "maxOcclusionPairs": 100000,
+        "operations": 264698,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "issues": [],
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "count": 5000,
+      "relationships": 4,
+      "backend": "agentic",
+      "direction": "TB",
+      "expectedOutcome": "declared-graph-size-rejection",
+      "rendered": false,
+      "verifiedExpectation": true,
+      "error": "GraphLayoutUnsupportedError: Agentic graph layout does not support this input: agentic local graph-size limit"
+    },
+    {
+      "count": 5000,
+      "relationships": 4,
+      "backend": "agentic",
+      "direction": "BT",
+      "expectedOutcome": "declared-graph-size-rejection",
+      "rendered": false,
+      "verifiedExpectation": true,
+      "error": "GraphLayoutUnsupportedError: Agentic graph layout does not support this input: agentic local graph-size limit"
+    },
+    {
+      "count": 5000,
+      "relationships": 4,
+      "backend": "agentic",
+      "direction": "LR",
+      "expectedOutcome": "declared-graph-size-rejection",
+      "rendered": false,
+      "verifiedExpectation": true,
+      "error": "GraphLayoutUnsupportedError: Agentic graph layout does not support this input: agentic local graph-size limit"
+    },
+    {
+      "count": 5000,
+      "relationships": 4,
+      "backend": "agentic",
+      "direction": "RL",
+      "expectedOutcome": "declared-graph-size-rejection",
+      "rendered": false,
+      "verifiedExpectation": true,
+      "error": "GraphLayoutUnsupportedError: Agentic graph layout does not support this input: agentic local graph-size limit"
+    }
+  ]
+}

@@ -1,0 +1,241 @@
+{
+  "prs": {
+    "renderer": "https://github.com/adewale/agentic-mermaid/pull/580",
+    "observer": "https://github.com/adewale/trident/pull/54"
+  },
+  "base": "e68b23a8301d5c267966468fb0a5f58bf5d78eaa",
+  "originalScalingBaseline": "0a2dc30b6220c04182f8ccd45550689422606a22",
+  "routeVisualBaseline": "da71287dc3557e79351819acaba97de65a21bff0",
+  "head": "53319dbb976dae1865e19f7faca49464ee8e8557",
+  "tree": "d994f23d472d25839d024d704691ebb4cb135178",
+  "dependencies": {
+    "bun": "1.4.2",
+    "node": [
+      "22.23.4",
+      "24.22.2"
+    ],
+    "tridentObserver": "74616adb8fa508ea39fa603f1cfa2c633cf3e0ff",
+    "historicalObserverAndCohorts": "2401d09f1c73b1c650445858e5640127368b21c6",
+    "mermaidOracle": "12.2.0",
+    "rendererPinnedTrident": "f080278e31e4202ca89d524e4ee9e4cf3cbff038"
+  },
+  "qualification": {
+    "cases": 16,
+    "passed": 16,
+    "observer": "portable-owned-topology-v2-agentic-class-er",
+    "profile": "Exact authored node identity, directed relationship multiplicity, owned connecting SVG geometry; reviewed directed Class arrows and simple ER cardinality/identifying appearance only",
+    "timingClaim": false,
+    "completeEnumerableReceiptConsumed": true,
+    "historicalTimingProtocol": "unchanged"
+  },
+  "sparse": {
+    "node22": {
+      "cases": 32,
+      "verifiedExpectations": 32,
+      "renderedAndCertified": 24,
+      "declaredGraphSizeRejections": 8,
+      "maximumPaintProofOperations": 266138
+    },
+    "node24": {
+      "cases": 32,
+      "verifiedExpectations": 32,
+      "renderedAndCertified": 24,
+      "declaredGraphSizeRejections": 8,
+      "maximumPaintProofOperations": 266138
+    },
+    "chromium": {
+      "cases": 32,
+      "verifiedExpectations": 32,
+      "renderedAndCertified": 24,
+      "declaredGraphSizeRejections": 8,
+      "maximumPaintProofOperations": 266138
+    }
+  },
+  "routes": {
+    "cases": 2800,
+    "routeFindings": 0,
+    "hardIssues": 0,
+    "nodeIdentityChanges": 0,
+    "edgeSemanticChanges": 0,
+    "certificateVsProduction": 0,
+    "certificateVsCross": 0,
+    "errors": 0
+  },
+  "editor": {
+    "bytes": 4729428,
+    "gzip": 1412484,
+    "rawCap": 4730000,
+    "gzipCap": 1419750,
+    "completeCatalogMetadata": true,
+    "catalogPacking": "Repeated keys stored once, full records reconstructed before UI use; exact real catalog equality checked"
+  },
+  "verification": {
+    "focusedTests": 1534,
+    "expectations": 89553,
+    "typecheck": "passed",
+    "lint": "passed; existing oversized documentationJSONwarning",
+    "build": "passed",
+    "browserSourceReceiptParity": 7,
+    "standaloneEditorTests": 4,
+    "hostedLoadingRecoveryTests": 6,
+    "geometryCorpus": 322,
+    "ci": "pending final head",
+    "ciRun": 40901964537
+  },
+  "audits": {
+    "class_scene": {
+      "ownedImmutableText": "Separate private constructor authority from transferable measurement brand; fresh snapshots for mutable/accessor inputs",
+      "groupEmission": "Full actual group open/close/join paint agreement checked at construction, admission and inspection",
+      "queryBound": "Sibling batches capped at8siblings,16candidates,64chargedvisits before fallback; late-surface pruning respects paintorder",
+      "deliberateMutantsDetected": 14
+    },
+    "route": {
+      "finalCases": 2800,
+      "baselineFindings": 395,
+      "finalFindings": 0,
+      "deliberateFailures": {
+        "channels_removed": 15,
+        "global_loop_reservation_removed": 4,
+        "phantom_bend_counter_restored": 1,
+        "emitted_counter_used_for_structural_enrollment": 2,
+        "peer_marker_shaft_guard_removed": 2,
+        "coincident_marker_leads_removed": 2,
+        "short_caption_channel_order_removed": 2
+      }
+    },
+    "contract": {
+      "purposefulSceneBatchCases": 216,
+      "purposefulOrderStyleCases": 192,
+      "immutableTextBlocks": 61,
+      "frozenObjects": 1953,
+      "concreteFindingsFixed": [
+        "Shared group composition paint could disagree with inspected evidence",
+        "Private repaired shafts could cross foreign marker supports",
+        "Style help projection changed receipts; projection removed"
+      ],
+      "deliveryReReview": "No remaining finding; lossless catalog packing retains all fields, options and source ordering; hosted compaction retains three initial requests and recovery behavior",
+      "cacheAliasReReview": {
+        "parts": 40,
+        "identityChecks": 160,
+        "actualPieColdWarm": "Same immutable descendant aliases and exact SVG/receipt",
+        "negativeControls": "Mutable, accessor, function, symbol-key and unknown frozen children withhold authority; public copies remain mutable and isolated",
+        "constructorWalk": "Compositional ownership at existing freeze sites; no new recursive factory walk",
+        "deliberateReverts": "All three alias regressions fail when ownership repair is reverted; excluding function children has a separate failing control"
+      }
+    }
+  },
+  "limits": [
+    "Paint operation count bounds occlusion-proof work, not all rendering CPU. Large sparse ER chooses immutable Scene before native evidence capture and retains that Scene in memory.",
+    "Agentic layout retains its declared4096-node cap. Eight5000-node Agentic cases correctly reject; they are not counted as certified renders.",
+    "CustomCSS/fonts/unsupported Class or ER profiles remain outside the new semantic observer. Unsupported group paint remains unverified.",
+    "Conservative route repair remains bounded; custom host text measurements/groups/curves/rounded or thick inline shafts are outside private-channel repair.",
+    "Original campaign archive bytes for cfd58df8ab8c21ce76eb46556296a7439f231bbf remain unavailable; provenance is unverified.",
+    "Live-agent evaluations remain blocked by user request. Benchmarks stay outsideCI; no large archives uploaded."
+  ],
+  "files": {
+    "qualification-replay.json": {
+      "bytes": 38466,
+      "sha256": "f6299cba09bd47b5f372c337b8de400a8656555c8d32c537d4ec7be6b6fda2bc"
+    },
+    "independent-loops-after-receipt.json": {
+      "bytes": 11502,
+      "sha256": "d7b1bbff3bec059a8a0c82a95c212007f0c8b1e7bc6dba848d7d2be4da563e4b"
+    },
+    "shared-route-label-after-crop.svg": {
+      "bytes": 9097,
+      "sha256": "7b7cb85e4b86164841f1d760cdc42d42cc9bd2d888a8b71066b7cce96b3e71af"
+    },
+    "shared-route-label-after.svg": {
+      "bytes": 9103,
+      "sha256": "ed8afde049f1fd30dfe5aec9202ccf38adf3e053edc937473a6ba32b807e5880"
+    },
+    "cyclic9-golden-review.json": {
+      "bytes": 5494,
+      "sha256": "dccbe21247f7a16516b6b033c9536e8b1cc08982aa01490f9341ab186446a3d5"
+    },
+    "shared-route-label-before.svg": {
+      "bytes": 9047,
+      "sha256": "772282952f948434702c9e292e8e6a1748fa2bd8433894b6d683a82d02144613"
+    },
+    "shared-route-label-before-crop.svg": {
+      "bytes": 9041,
+      "sha256": "ff4d4f7370bb968ff7b0184e1f214220f212a3065bb3036d91435272b98295c6"
+    },
+    "shared-route-label.mmd": {
+      "bytes": 130,
+      "sha256": "1f1eb690a675f9bac0b574b6a6b9babc6ab8eb4dd77a6c7ff7d815b60e5aab8e"
+    },
+    "node22-sparse.json": {
+      "bytes": 28353,
+      "sha256": "94a3f07342325485e29f641a8331680947858b7b3cb70a8dd19bb0cd125b4b00"
+    },
+    "chromium.json": {
+      "bytes": 21162,
+      "sha256": "0178ee2066cd20cc63a0a5a5c98d3bc8803d3b3fe5e0686e72216e4da5b384b4"
+    },
+    "independent-loops-before-crop.svg": {
+      "bytes": 3586,
+      "sha256": "289db9cf959ec47b4a4f1fb20c5fc2796cb4015f469a041f84de894c65bcbcc3"
+    },
+    "shared-route-label-after-receipt.json": {
+      "bytes": 11506,
+      "sha256": "ae8d8b55a3203cac9e31627dc1105b2bde5fcd60769971739ed663d25576c65b"
+    },
+    "independent-loops-before.svg": {
+      "bytes": 3596,
+      "sha256": "156bb47939239324eda5e6641f89864fd40fe68cbe979932150a02dc49520adb"
+    },
+    "node24-sparse.json": {
+      "bytes": 28272,
+      "sha256": "433fe38b9756f0e991fcb137fbdd9e357069bae311b021a1b79d214f32f18e9f"
+    },
+    "route-replay.json": {
+      "bytes": 1999,
+      "sha256": "1762fee55890c48c99626787f0ea1d52bbb2b3050ddd156cc5530c57dbca2fac"
+    },
+    "shared-route-label-before-receipt.json": {
+      "bytes": 11506,
+      "sha256": "b5ca3466363ea03a5ac08e39519ef3cb302b00d1d3f868fed8b7ea8795ae6c83"
+    },
+    "independent-loops.mmd": {
+      "bytes": 43,
+      "sha256": "1c48e513484212d538a8d5c6260ddfe12f7f5d8fa3d94b14921127485c4fb25b"
+    },
+    "node24-strict.json": {
+      "bytes": 2371,
+      "sha256": "5ef58c7ecfbc239bdf147bc4dd9d9b53a863bc4e5f7793207ef7aa61b4d31097"
+    },
+    "independent-loops-after.svg": {
+      "bytes": 3596,
+      "sha256": "c34d1258a2a64e49dd10772b57baacf1275f2ddd66af41fca61eb6be876253ba"
+    },
+    "independent-loops-before-receipt.json": {
+      "bytes": 11502,
+      "sha256": "5bc67c8a7f86065bbf7519b418631b79ebb447a856ad26e654e1006fdff1a5f9"
+    },
+    "node22-strict.json": {
+      "bytes": 2371,
+      "sha256": "8a1cd114bfd928fcb466dd79460df00424678d2528d0f12ec02111e63e6b468e"
+    },
+    "independent-loops-after-crop.svg": {
+      "bytes": 3586,
+      "sha256": "ccb520ec378d223dacaa7c22cdf1fcb33869626a436bfb45349e826424bafd9a"
+    }
+  },
+  "hostedPayload": {
+    "base": "e68b23a8301d5c267966468fb0a5f58bf5d78eaa",
+    "requests": 3,
+    "gzipBase": 120803,
+    "gzipHead": 121284,
+    "gzipDelta": 481,
+    "relativeGate": "Fails only above both2percent and1024gzipbytes; unchanged",
+    "absoluteGate": "passed"
+  },
+  "geometryGolden": {
+    "file": "src/__tests__/testdata/layout-geometry-baseline.json",
+    "changedEntry": "fixture/cyclic-labelled-9.mmd",
+    "changedEntries": 1,
+    "unchangedEntries": 321,
+    "reason": "A relationship caption masked a foreign shaft. One private route channel and two caption positions changed; nodes, identities, endpoints, canvas and all21markerposes remain unchanged."
+  }
+}

@@ -1,0 +1,436 @@
+{
+  "version": 2,
+  "output": "svg",
+  "sharedRequestDigest": "fnv1a64:4416dc85494644df",
+  "requestDigest": "fnv1a64:41d96512ab3a08bf",
+  "appearanceDigest": "fnv1a64:5c57037fc07cf497",
+  "capabilityDecision": {
+    "version": 1,
+    "accepted": true,
+    "resolutions": [
+      {
+        "id": "core:render-request",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "core:family-descriptor",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "family:flowchart",
+        "range": "1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "core:scene",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "operation:layout",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "operation:lower-scene",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "backend:scene-renderer",
+        "range": "1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:document/identity/serialize",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:document/resources/serialize",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:document/interaction/accessibility",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:text/geometry/render",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:text/paint/render",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:text/labels/accessibility",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:text/identity/serialize",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:shape/geometry/render",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:shape/paint/render",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:shape/identity/serialize",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:container/geometry/render",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:container/paint/render",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:container/identity/serialize",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:connector/geometry/render",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:connector/stroke/render",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:connector/transform/render",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:connector/topology/render",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:connector/subpaths/render",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:connector/closedness/render",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:connector/bend-radius/render",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:connector/stroke-opacity/render",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:connector/stroke-cap/render",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:connector/stroke-join/render",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:connector/stroke-miter/render",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:connector/dash-array/render",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:connector/dash-offset/render",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:connector/dash-restart/render",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:connector/path-length/render",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:connector/paint-order/render",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:connector/compositing/render",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:connector/non-scaling-stroke/render",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:connector/marker-orientation/render",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:connector/marker-overflow/render",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:connector/endpoints/serialize",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:connector/direction/serialize",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:connector/labels/render",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:connector/labels/accessibility",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:connector/markers/render",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:connector/relation/accessibility",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:connector/interaction/hit-test",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:connector/hit-geometry/hit-test",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:connector/identity/serialize",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:marker/geometry/render",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:marker/paint/render",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "scene-primitive:marker/identity/serialize",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      },
+      {
+        "id": "output:svg",
+        "range": "^1.0.0",
+        "level": "required",
+        "status": "selected",
+        "version": "1.0.0"
+      }
+    ]
+  },
+  "diagnostics": [],
+  "executionDecision": {
+    "family": {
+      "id": "family:flowchart",
+      "version": "1.0.0"
+    },
+    "backend": {
+      "mode": "scene",
+      "requestedId": "default",
+      "selectedId": "backend:default",
+      "version": "1.0.0",
+      "hostPolicy": false
+    },
+    "digest": "fnv1a64:086cc5e1e80cddcb"
+  },
+  "graphicalProjectionDigest": "fnv1a64:1e889016fb8ff425",
+  "layoutCertification": {
+    "version": 1,
+    "unit": "px",
+    "scope": "native-scene",
+    "status": "passed",
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "width": 1228.75,
+      "height": 185.85
+    },
+    "attempts": 1,
+    "repairs": [],
+    "coverage": {
+      "measured": 28,
+      "unmeasured": 0,
+      "preparedText": 9,
+      "fallbackText": 0,
+      "conditional": 0
+    },
+    "checks": {
+      "primitives": 31,
+      "labels": 6,
+      "occlusionPairs": 180,
+      "maxOcclusionPairs": 100000,
+      "operations": 34573,
+      "maxOperations": 400000,
+      "markers": 7
+    },
+    "issues": [],
+    "limitations": [
+      "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+      "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+    ],
+    "outputDigest": "fnv1a64:1e889016fb8ff425"
+  }
+}

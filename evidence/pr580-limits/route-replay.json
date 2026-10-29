@@ -1,0 +1,61 @@
+{
+  "base": "da71287dc3557e79351819acaba97de65a21bff0",
+  "candidate": "53319dbb976dae1865e19f7faca49464ee8e8557",
+  "enumeration": {
+    "cases": 2800,
+    "findings": 0,
+    "byCode": {},
+    "loopKinds": {},
+    "certificateVsProduction": 0,
+    "certificateVsCross": 0,
+    "crossMismatchesWithTinyLeg": 0,
+    "errors": 0
+  },
+  "hard_and_semantics": {
+    "cases": 2800,
+    "hardCases": 0,
+    "byMetric": {},
+    "identityChanges": 0,
+    "markerChanges": 0,
+    "errors": 0
+  },
+  "baseline_route_findings": 395,
+  "focused": {
+    "files": 4,
+    "passed": 719,
+    "failed": 0,
+    "assertions": 46630,
+    "log": "final-marker-route-tests.log"
+  },
+  "typecheck_core": "passed (final-marker-typecheck.log)",
+  "affected_lint": "passed (final-marker-lint.log)",
+  "deliberate_failures": {
+    "channels_removed": 15,
+    "global_loop_reservation_removed": 4,
+    "phantom_bend_counter_restored": 1,
+    "emitted_counter_used_for_structural_enrollment": 2,
+    "peer_marker_shaft_guard_removed": 2,
+    "coincident_marker_leads_removed": 2,
+    "short_caption_channel_order_removed": 2
+  },
+  "dedup_minified_module_bytes": {
+    "before": 35189,
+    "after": 34541,
+    "saved": 648,
+    "after_final_marker_repairs": 35149
+  },
+  "bounds": "No existing graph/work/asset cap raised. Private-channel search only runs inside existing layout preference budget; 128 lane candidates, at most 8 admitted endpoint spurs each.",
+  "residual_policy": "Private-channel repair remains conservative for custom host text measurement, groups, curves, rounded or thick inline shafts. Loop conflict predicate retains existing endpoint-touch policy.",
+  "final_combined_replay": {
+    "cases": 2800,
+    "routeFindings": 0,
+    "hardIssues": 0,
+    "nodeIdentityChanges": 0,
+    "edgeSemanticChanges": 0,
+    "certificateVsProduction": 0,
+    "certificateVsCross": 0,
+    "errors": 0
+  },
+  "final_combined_replay_log": "final-checked.log",
+  "candidateTree": "d994f23d472d25839d024d704691ebb4cb135178"
+}
