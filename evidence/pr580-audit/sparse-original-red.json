@@ -1,0 +1,145 @@
+[
+  {
+    "count": 2500,
+    "before": {
+      "ok": true,
+      "nodes": 2500,
+      "edges": 1
+    },
+    "after": {
+      "ok": true,
+      "nodes": 2500,
+      "edges": 1
+    }
+  },
+  {
+    "count": 3000,
+    "before": {
+      "ok": true,
+      "nodes": 3000,
+      "edges": 1
+    },
+    "after": {
+      "ok": true,
+      "nodes": 3000,
+      "edges": 1
+    }
+  },
+  {
+    "count": 3500,
+    "before": {
+      "ok": true,
+      "nodes": 3500,
+      "edges": 1
+    },
+    "after": {
+      "ok": true,
+      "nodes": 3500,
+      "edges": 1
+    }
+  },
+  {
+    "count": 4000,
+    "before": {
+      "ok": true,
+      "nodes": 4000,
+      "edges": 1
+    },
+    "after": {
+      "ok": false,
+      "error": "ErRouteWorkLimitError: ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships",
+      "stack": "ErRouteWorkLimitError: ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships\n    at new ErRouteWorkLimitError (/Users/adewale/Documents/Codex/2026-10-29/continue-work-from-agentic-mermaid-pr/work/agentic-scaling/src/er/errors.ts:4:19)\n    at erCharge (/Users/adewale/Documents/Codex/2026-10-29/continue-work-from-agentic-mermaid-pr/work/agentic-scaling/src/er/layout.ts:205:40)\n    at <anonymous> (/Users/adewale/Documents/Codex/2026-10-29/continue-work-from-agentic-mermaid-pr/work/agentic-scaling/src/er/ink-index.ts:18:27)\n    at sort (unknown)\n    at build (/Users/adewale/Documents/Codex/2026-10-29/continue-work-from-agentic-mermaid-pr/work/agentic-scaling/src/er/ink-index.ts:18:10)\n    at build (/Users/adewale/Documents/Codex/2026-10-29/continue-work-from-agentic-mermaid-pr/work/agentic-scaling/src/er/ink-index.ts:20:30)\n    at build (/Users/adewale/Documents/Codex/2026-10-29/continue-work-from-agentic-mermaid-pr/work/agentic-scaling/src/er/ink-index.ts:20:30)\n    at build (/Users/adewale/Documents/Codex/2026-10-29/continue-work-from-agentic-mermaid-pr/work/agentic-scaling/src/er/ink-index.ts:20:60)\n    at build (/Users/adewale/Documents/Codex/2026-10-29/continue-work-from-agentic-mermaid-pr/work/agentic-scaling/src/er/ink-index.ts:20:30)\n    at build (/Users/adewale/Documents/Codex/2026-10-29/continue-work-from-agentic-mermaid-pr/work/agentic-scaling/src/er/ink-index.ts:20:60)\n    at build (/Users/adewale/Documents/Codex/2026-10-29/continue-work-from-agentic-mermaid-pr/work/agentic-scaling/src/er/ink-index.ts:20:30)\n    at build (/Users/adewale/Documents/Codex/2026-10-29/continue-work-from-agentic-mermaid-pr/work/agentic-scaling/src/er/ink-index.ts:20:60)\n    at erInkIndex (/Users/adewale/Documents/Codex/2026-10-29/continue-work-from-agentic-mermaid-pr/work/agentic-scaling/src/er/ink-index.ts:22:16)\n    at finishErGeometry (/Users/adewale/Documents/Codex/2026-10-29/continue-work-from-agentic-mermaid-pr/work/agentic-scaling/src/er/layout.ts:1316:25)\n    at runMeasuredGraphBackend (/Users/adewale/Documents/Codex/2026-10-29/continue-work-from-agentic-mermaid-pr/work/agentic-scaling/src/layout/backend.ts:83:14)\n    at /Users/adewale/Documents/Codex/2026-10-29/continue-work-from-agentic-mermaid-pr/work/audit-contract/public-sparse-regression.ts:11:90"
+    }
+  },
+  {
+    "count": 4096,
+    "before": {
+      "ok": true,
+      "nodes": 4096,
+      "edges": 1
+    },
+    "after": {
+      "ok": false,
+      "error": "ErRouteWorkLimitError: ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships",
+      "stack": "ErRouteWorkLimitError: ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships\n    at new ErRouteWorkLimitError (/Users/adewale/Documents/Codex/2026-10-29/continue-work-from-agentic-mermaid-pr/work/agentic-scaling/src/er/errors.ts:4:19)\n    at erCharge (/Users/adewale/Documents/Codex/2026-10-29/continue-work-from-agentic-mermaid-pr/work/agentic-scaling/src/er/layout.ts:205:40)\n    at <anonymous> (/Users/adewale/Documents/Codex/2026-10-29/continue-work-from-agentic-mermaid-pr/work/agentic-scaling/src/er/ink-index.ts:18:27)\n    at sort (unknown)\n    at build (/Users/adewale/Documents/Codex/2026-10-29/continue-work-from-agentic-mermaid-pr/work/agentic-scaling/src/er/ink-index.ts:18:10)\n    at build (/Users/adewale/Documents/Codex/2026-10-29/continue-work-from-agentic-mermaid-pr/work/agentic-scaling/src/er/ink-index.ts:20:60)\n    at build (/Users/adewale/Documents/Codex/2026-10-29/continue-work-from-agentic-mermaid-pr/work/agentic-scaling/src/er/ink-index.ts:20:30)\n    at build (/Users/adewale/Documents/Codex/2026-10-29/continue-work-from-agentic-mermaid-pr/work/agentic-scaling/src/er/ink-index.ts:20:60)\n    at erInkIndex (/Users/adewale/Documents/Codex/2026-10-29/continue-work-from-agentic-mermaid-pr/work/agentic-scaling/src/er/ink-index.ts:22:16)\n    at finishErGeometry (/Users/adewale/Documents/Codex/2026-10-29/continue-work-from-agentic-mermaid-pr/work/agentic-scaling/src/er/layout.ts:1316:25)\n    at runMeasuredGraphBackend (/Users/adewale/Documents/Codex/2026-10-29/continue-work-from-agentic-mermaid-pr/work/agentic-scaling/src/layout/backend.ts:83:14)\n    at /Users/adewale/Documents/Codex/2026-10-29/continue-work-from-agentic-mermaid-pr/work/audit-contract/public-sparse-regression.ts:11:90"
+    }
+  },
+  {
+    "surface": "renderMermaidSVGWithReceipt",
+    "count": 4096,
+    "name": "before",
+    "ok": true,
+    "svgBytes": 4193360,
+    "layoutCertification": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "unverified",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 9020,
+        "height": 5684
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 20485,
+        "unmeasured": 0,
+        "preparedText": 8193,
+        "fallbackText": 0,
+        "conditional": 20488
+      },
+      "checks": {
+        "primitives": 20488,
+        "labels": 4096,
+        "occlusionPairs": 0,
+        "maxOcclusionPairs": 100000,
+        "operations": 400000,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "issues": [
+        {
+          "code": "CONDITIONAL_PAINT",
+          "message": "20488 primitives depend on unresolved paint or interaction state"
+        },
+        {
+          "code": "OUTPUT_SCOPE",
+          "message": "Emitted document context or marker resource differs from retained paint evidence"
+        },
+        {
+          "code": "CHECK_BUDGET",
+          "message": "Occlusion checking reached its 100000-pair or 400000-operation limit"
+        }
+      ],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ],
+      "outputDigest": "fnv1a64:eb98c607ad18e361"
+    },
+    "layoutDecisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ]
+  },
+  {
+    "surface": "renderMermaidSVGWithReceipt",
+    "count": 4096,
+    "name": "after",
+    "ok": false,
+    "error": "ErRouteWorkLimitError: ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships"
+  }
+]

@@ -1,0 +1,101 @@
+{
+  "runtime": "v22.23.4",
+  "rows": [
+    {
+      "family": "class",
+      "backend": "agentic",
+      "svgBytes": 189921,
+      "svgDigest": "fnv1a64:ce7ce0522eae771d",
+      "certification": "passed",
+      "checks": {
+        "primitives": 1024,
+        "labels": 128,
+        "occlusionPairs": 3560,
+        "maxOcclusionPairs": 100000,
+        "operations": 386761,
+        "maxOperations": 400000,
+        "markers": 127
+      },
+      "issues": [],
+      "decisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "family": "er",
+      "backend": "elk",
+      "svgBytes": 325760,
+      "svgDigest": "fnv1a64:5e204ed4bf47e401",
+      "certification": "passed",
+      "checks": {
+        "primitives": 1278,
+        "labels": 128,
+        "occlusionPairs": 3809,
+        "maxOcclusionPairs": 100000,
+        "operations": 357134,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "issues": [],
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "family": "er",
+      "backend": "agentic",
+      "svgBytes": 323538,
+      "svgDigest": "fnv1a64:7fb1a18053861cc1",
+      "certification": "passed",
+      "checks": {
+        "primitives": 1278,
+        "labels": 128,
+        "occlusionPairs": 3809,
+        "maxOcclusionPairs": 100000,
+        "operations": 357006,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "issues": [],
+      "decisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ]
+    }
+  ]
+}
