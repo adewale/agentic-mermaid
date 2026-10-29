@@ -12,6 +12,10 @@ import { synthesizeFromGraph } from '../agent/index.ts'
 import { parseMindmap } from '../mindmap/parser.ts'
 import { decodeXML } from 'entities'
 import { serializeMermaid } from '../agent/serialize.ts'
+import { SaxesParser } from 'saxes'
+import { useTestChildren } from './helpers/test-child.ts'
+
+const runChild = useTestChildren(25_000)
 
 test('successful accessibility edits close through body, metadata and source without creating statements', () => {
   const parsed = parseMermaid('packet\n0-7: "Payload"')
@@ -153,6 +157,102 @@ describe('#7254/#7255 SVG accessibility', () => {
     expect(svg).toContain('<title id="d3-svg-title">X</title>')
     expect(svg).toContain('aria-labelledby="d3-svg-title"')
   })
+
+  test.each(['0', '1'])('late accessibility IDs preserve marker targets with Scene assertions %s', async mode => {
+    const child = await runChild(process.execPath, ['--eval', String.raw`
+      import assert from 'node:assert/strict'
+      import { renderMermaidSVG } from './src/index.ts'
+      import { getFamily, replaceFamilyForTest } from './src/agent/families.ts'
+      import { sceneLowering, nativeDrawingOf } from './src/scene/drawing.ts'
+      import { sceneAssertionsEnabled } from './src/scene/assertions.ts'
+      assert.equal(sceneAssertionsEnabled(), process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS === '1')
+      const family = getFamily('flowchart')
+      const original = nativeDrawingOf(family.lowerScene)
+      const rows = []
+      for (const prefix of ['', 'probe-']) {
+        for (const resource of ['safe-terminal', 'svg-title', 'svg-desc']) {
+          for (const occupied of resource === 'safe-terminal' ? ['none'] : ['none', 'ordinary', 'encoded']) {
+            const rename = marker => marker && marker.id === 'arrowhead' ? { ...marker, id: resource } : marker
+            const custom = sceneLowering((factory, context) => {
+              const drawing = original({
+                ...factory,
+                definitions(fields, svg) {
+                  const markers = fields.markerResources.map(rename)
+                  const markup = svg.replaceAll('id="arrowhead"', 'id="' + resource + '"')
+                  return factory.definitions({ ...fields, markerResources: markers }, markup)
+                },
+                connector(fields) {
+                  const markers = fields.markers
+                  return factory.connector({ ...fields, ...(markers ? { markers: {
+                    ...markers, ...(markers.start ? { start: rename(markers.start) } : {}),
+                    ...(markers.end ? { end: rename(markers.end) } : {}),
+                    ...(markers.mid ? { mid: markers.mid.map(rename) } : {}),
+                  } } : {}) })
+                },
+              }, context)
+              if (occupied !== 'none') {
+                const firstId = resource + (occupied === 'encoded' ? '-&#49;' : '-1')
+                drawing.parts.splice(1, 0, factory.documentContent({ id: 'reserved-accessibility-ids', role: 'chrome', nonPaint: 'accessibility' },
+                  '<desc id="' + firstId + '">Reserved first identity</desc><desc id="' + resource + '-2">Reserved second identity</desc>'))
+              }
+              return drawing
+            })
+            const restore = replaceFamilyForTest('flowchart', { ...family, lowerScene: custom })
+            try {
+              const source = 'flowchart LR\naccTitle: Visible terminal\naccDescr: Authored diagram description\nA[Start] --> B[End]'
+              const svg = renderMermaidSVG(source, { embedFontImport: false, security: 'strict', ...(prefix ? { idPrefix: prefix } : {}),
+                graphLayout: { backend: 'agentic' } })
+              rows.push({ prefix, resource, occupied, svg })
+            } finally { restore() }
+          }
+        }
+      }
+      console.log(JSON.stringify(rows))
+    `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: mode } })
+    expect(child.stderr).toBe('')
+    expect(child.status).toBe(0)
+    const rows = JSON.parse(child.stdout) as Array<{ prefix: string; resource: string; occupied: string; svg: string }>
+    expect(rows).toHaveLength(14)
+    for (const row of rows) {
+      const label = `${row.prefix || 'unprefixed'} ${row.resource} ${row.occupied}`
+      const elements: Array<{ name: string; attributes: Record<string, string>; text: string }> = []
+      const stack: typeof elements = []
+      const parser = new SaxesParser({ xmlns: true })
+      parser.on('opentag', tag => {
+        const element = { name: tag.local, attributes: Object.fromEntries(Object.entries(tag.attributes).map(([key, value]) => [key, value.value])), text: '' }
+        elements.push(element)
+        stack.push(element)
+      })
+      parser.on('text', text => { if (stack.length) stack.at(-1)!.text += text })
+      parser.on('closetag', () => { stack.pop() })
+      parser.write(row.svg).close()
+      const declarations = elements.filter(element => element.attributes.id !== undefined)
+      const ids = declarations.map(element => element.attributes.id!)
+      expect(new Set(ids).size, label).toBe(ids.length)
+      const root = elements[0]!
+      for (const [attribute, name, text] of [
+        ['aria-labelledby', 'title', 'Visible terminal'],
+        ['aria-describedby', 'desc', 'Authored diagram description'],
+      ] as const) {
+        const target = root.attributes[attribute]!
+        expect(target, label).toBeTruthy()
+        const resolved = declarations.filter(element => element.attributes.id === target)
+        expect(resolved.map(element => [element.name, element.text]), label).toEqual([[name, text]])
+      }
+      const markerId = row.prefix + row.resource
+      expect(declarations.filter(element => element.attributes.id === markerId).map(element => element.name), label).toEqual(['marker'])
+      const references = elements.flatMap(element => element.attributes['marker-end'] ? [element.attributes['marker-end']] : [])
+      expect(references, label).toContain(`url(#${markerId})`)
+      for (const reference of references) {
+        expect(reference, label).toMatch(/^url\(#[^)]*\)$/)
+        const id = /^url\(#([^)]*)\)$/.exec(reference)![1]
+        expect(declarations.filter(element => element.attributes.id === id).map(element => element.name), label).toEqual(['marker'])
+      }
+      if (row.occupied !== 'none') for (const suffix of ['-1', '-2']) {
+        expect(declarations.filter(element => element.attributes.id === markerId + suffix).map(element => element.name), label).toEqual(['desc'])
+      }
+    }
+  }, 30_000)
 })
 
 describe('#7349 AX tree — describeMermaid({format:json})', () => {

@@ -28,7 +28,7 @@ import {
 } from './render-contract.ts'
 import { applyOutputSecurityPolicy } from './output-security.ts'
 import type { OutputSecurityDiagnostic } from './output-security.ts'
-import { replaceSvgRootStartTag, svgAttribute, svgRootStartTag } from './svg-structure.ts'
+import { decodedSvgAttributeValue, replaceSvgRootStartTag, scanSvgStartTags, svgAttribute, svgRootStartTag } from './svg-structure.ts'
 import { scopeSvgStyles } from './svg-style-scope.ts'
 import { emitResolvedConfigDiagnostics } from './render-config-diagnostics.ts'
 import { retainedPositionedScene, retainedNativeDrawing, positionedPaintCertification } from './scene/positioned.ts'
@@ -99,8 +99,23 @@ function injectAccessibility(
   idPrefix: string,
   fallbackName?: string,
 ): string {
-  const titleId = `${idPrefix}svg-title`
-  const descId = `${idPrefix}svg-desc`
+  if (!accessibility.title && !accessibility.descr && !fallbackName) return svg
+  const root = svgRootStartTag(svg)
+  if (!root) return svg
+  if (svgAttribute(root, 'aria-labelledby') || svgAttribute(root, 'aria-describedby')) return svg
+  const ids = new Set<string>()
+  if (accessibility.title || accessibility.descr) for (const tag of scanSvgStartTags(svg)) {
+    const id = decodedSvgAttributeValue(tag, 'id')
+    if (id !== undefined) ids.add(id)
+  }
+  const allocate = (base: string): string => {
+    let id = base, suffix = 0
+    while (ids.has(id)) id = `${base}-${++suffix}`
+    ids.add(id)
+    return id
+  }
+  const titleId = accessibility.title ? allocate(`${idPrefix}svg-title`) : ''
+  const descId = accessibility.descr ? allocate(`${idPrefix}svg-desc`) : ''
   const rootAttrs: string[] = []
   const children: string[] = []
   if (accessibility.title) {
@@ -111,10 +126,6 @@ function injectAccessibility(
     rootAttrs.push(`aria-describedby="${descId}"`)
     children.push(`<desc id="${descId}">${escapeXmlText(accessibility.descr)}</desc>`)
   }
-  if (children.length === 0 && !fallbackName) return svg
-  const root = svgRootStartTag(svg)
-  if (!root) return svg
-  if (svgAttribute(root, 'aria-labelledby') || svgAttribute(root, 'aria-describedby')) return svg
   if (fallbackName && !accessibility.title && !svgAttribute(root, 'aria-label')) rootAttrs.push(`aria-label="${escapeXmlText(fallbackName).replace(/"/g, '&quot;')}"`)
   const add = `${svgAttribute(root, 'role') ? '' : ' role="img"'} ${rootAttrs.join(' ')}`
   const open = svg.slice(root.start, root.end)
