@@ -6,6 +6,9 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Fixed
 
+- Render Class diagrams with rounded relationship corners, such as the
+  `publication-figure` style, when a relationship must bypass a namespace
+  header, including nested namespaces.
 - Render publication-styled Flowcharts with compound long links when joined
   route sections differ only by floating-point roundoff, retaining their
   endpoint contacts and existing route-safety checks.
