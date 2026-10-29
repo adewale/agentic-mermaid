@@ -4,6 +4,8 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+## 0.5.2 — 2026-10-29
+
 ### Fixed
 
 - Parse long same-line Flowchart chains without rescanning the remaining
