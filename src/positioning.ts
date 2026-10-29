@@ -64,7 +64,7 @@ export function positionFamilyForNativeRender(request: ResolvedRenderRequest): F
   const borrow = plan.mode === 'scene' && isOriginalEnrolledDefaultBackend(plan.backend?.backend)
     && isOwnedFamily(plan.family) && !plan.textMeasurement
     && !!producer && producer === originalNativeDrawingOf(plan.family.lowerScene) && !sceneAssertionsEnabled(request)
-  const result = positionFamily(plan.family.id, request, request.source, {}, borrow)
+  const result = positionFamily(plan.family.id, request, request.source, {}, borrow, true)
   if (borrow && isRetainedPositionedSnapshot(result)) borrowedNativeProducers.set(result, producer!)
   return result
 }
@@ -74,10 +74,10 @@ export function positionFamilyForNativeRender(request: ResolvedRenderRequest): F
  * producer. Public positioned inputs keep their original getter observations. */
 export function positionedForNativeProducer(layout: FamilyLayoutResult, producer: DrawingProducer): PositionedDiagram {
   const original = borrowedNativeProducers.get(layout)
-  return original && original !== producer ? clonePositioned(layout.positioned) : layout.positioned
+  return original && original !== producer ? clonePositioned(layout.positioned, true) : layout.positioned
 }
 
-function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, source: Readonly<NormalizedMermaidSource>, projectionOptions: FamilyPositionedProjectionOptions, borrow: boolean): FamilyLayoutResult {
+function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, source: Readonly<NormalizedMermaidSource>, projectionOptions: FamilyPositionedProjectionOptions, borrow: boolean, immutableText = false): FamilyLayoutResult {
   const executionPlan = resolvedRenderExecutionPlanOf(request)
   const descriptor = executionPlan.family
   if (descriptor.id !== familyId) {
@@ -117,7 +117,7 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
     }
     // The private borrow probe already observed this logical lookup. Retain
     // the public-copy fallback without counting its second probe again.
-    const hit = boundedKey === undefined ? undefined : cachedPositioned(descriptor, boundedKey, borrow)
+    const hit = boundedKey === undefined ? undefined : cachedPositioned(descriptor, boundedKey, borrow, immutableText)
     const produced: GraphLayoutDecision[] = []
     const result = hit ?? normalizeFamilyLayoutResult(
       withGraphLayoutDecisionObserver(decision => {

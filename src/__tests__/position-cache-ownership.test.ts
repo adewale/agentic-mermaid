@@ -3,6 +3,41 @@ import { useTestChildren } from './helpers/test-child.ts'
 
 const runChild = useTestChildren(20_000)
 
+test('private cache copies preserve text custody without trusting mutable measurement aliases', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import assert from 'node:assert/strict'
+    import { clonePositioned, retainPositioned, cachedPositioned } from './src/experimental/position-cache.ts'
+    import { preparePixelText, transferRetainedPixelText } from './src/shared/prepared-text.ts'
+    const block = preparePixelText('Read', { fontSize: 12, fontWeight: 400 })
+    const alias = structuredClone(block)
+    transferRetainedPixelText(block, alias)
+    const family = {}, source = { positioned: { width: 100, height: 80, block, alias,
+      point: { x: 20, y: 30 }, list: [block, alias], map: new Map([[block, alias], [alias, block]]), set: new Set([block, alias]) } }
+    retainPositioned(family, 'text-custody', source)
+    const publicCopy = cachedPositioned(family, 'text-custody').positioned
+    publicCopy.point.x = 400
+    publicCopy.block.lineBlocks[0].text = 'public mutation'
+    alias.lineBlocks[0].text = 'late caller alias'
+    const privateCopy = cachedPositioned(family, 'text-custody', false, true).positioned
+    assert.equal(privateCopy.point.x, 20)
+    assert.equal(privateCopy.block, block)
+    assert.equal(privateCopy.block.lineBlocks[0].text, 'Read')
+    assert.notEqual(privateCopy.alias, alias)
+    assert.equal(privateCopy.alias.lineBlocks[0].text, 'Read')
+    assert.equal(privateCopy.list[0], block)
+    assert.equal([...privateCopy.map.keys()][0], block)
+    assert.equal([...privateCopy.map.values()][1], block)
+    assert.equal([...privateCopy.set][0], block)
+    const copiedAlias = clonePositioned(alias, true)
+    alias.lineBlocks[0].text = 'later mutation'
+    assert.notEqual(copiedAlias, alias)
+    assert.equal(copiedAlias.lineBlocks[0].text, 'late caller alias')
+    assert.notEqual(clonePositioned(block), block)
+  `], { cwd: `${import.meta.dir}/../..` })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
+
 test('a held render request cannot pin evicted private geometry through a drawing proof', async () => {
   const child = await runChild('node', ['--expose-gc', '--input-type=module', '-e', `
     import assert from 'node:assert/strict'
