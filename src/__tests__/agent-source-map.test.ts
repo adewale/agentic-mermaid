@@ -743,9 +743,18 @@ A -->|lab| B`
     expectNearLinearGrowth('same-line chain of one repeated node', size => {
       expect(parseMermaid(`flowchart LR\n${Array.from({ length: size }, () => 'A').join('-->')}`).ok).toBe(true)
     }, 150)
-    expectNearLinearGrowth('same-line chain of shaped nodes', size => {
-      expect(parseMermaid(`flowchart LR\n${Array.from({ length: size }, (_, index) => `N${index}[L${index}]`).join('-->')}`).ok).toBe(true)
-    }, DIAGRAM_WORK_LIMITS.nodes)
+    for (const padding of ['x'.repeat(64), '']) {
+      expectNearLinearGrowth(`same-line chain of shaped nodes with ${padding.length} label padding`, size => {
+        const source = `flowchart LR\n${Array.from({ length: size }, (_, index) => `N${index}[L${index}${padding}]`).join('-->')}`
+        const parsed = parseMermaid(source)
+        expect(parsed.ok).toBe(true)
+        if (parsed.ok && parsed.value.body.kind === 'flowchart') {
+          expect(parsed.value.body.graph.nodes.size).toBe(size)
+          expect(parsed.value.body.graph.edges).toHaveLength(size - 1)
+          expect(textAt(source, parsed.value.source.spans!.labels.get(`node:N${size - 1}`))).toBe(`L${size - 1}${padding}`)
+        }
+      }, DIAGRAM_WORK_LIMITS.nodes)
+    }
   })
 
   test('indexes preservation coordinates and merges accessibility spans linearly', () => {
