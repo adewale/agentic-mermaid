@@ -1,0 +1,55 @@
+bun test v1.4.2 (744846f84)
+
+src/__tests__/route-contracts.test.ts:
+(pass) a private channel retains end solid arrow leads and clears foreign ink at rotation 0 (collinear=false) [33.67ms]
+(pass) a private channel retains start solid arrow leads and clears foreign ink at rotation 0 (collinear=false) [18.47ms]
+(pass) a private channel retains start thick arrow leads and clears foreign ink at rotation 0 (collinear=false) [13.04ms]
+(pass) a private channel retains both thick arrow leads and clears foreign ink at rotation 0 (collinear=false) [13.39ms]
+(pass) a private channel retains start thick arrow leads and clears foreign ink at rotation 0 (collinear=true) [8.30ms]
+(pass) a private channel retains end solid arrow leads and clears foreign ink at rotation 1 (collinear=false) [18.24ms]
+(pass) a private channel retains start solid arrow leads and clears foreign ink at rotation 1 (collinear=false) [16.09ms]
+(pass) a private channel retains start thick arrow leads and clears foreign ink at rotation 1 (collinear=false) [8.24ms]
+(pass) a private channel retains both thick arrow leads and clears foreign ink at rotation 1 (collinear=false) [8.49ms]
+3356 |   expect(edges[2]).toEqual(before[2])
+3357 |   expect(edges[0]!.points.length).toBeGreaterThan(2)
+3358 |   for (const start of [true, false]) {
+3359 |     if (!(start ? edges[0]!.hasArrowStart : edges[0]!.hasArrowEnd)) continue
+3360 |     const path = edges[0]!.points, tip = start ? path[0]! : path.at(-1)!, turn = start ? path[1]! : path.at(-2)!
+3361 |     expect(Math.hypot(turn.x - tip.x, turn.y - tip.y)).toBeGreaterThanOrEqual(8.375 * (shaft === 'thick' ? 2 : 1) + 4)
+                                                              ^
+error: expect(received).toBeGreaterThanOrEqual(expected)
+
+Expected: >= 20.75
+Received: 5
+
+      at <anonymous> (/workspace/agentic-mermaid-pr580/src/__tests__/route-contracts.test.ts:3361:56)
+(fail) a private channel retains start thick arrow leads and clears foreign ink at rotation 1 (collinear=true) [9.21ms]
+(pass) a private channel retains end solid arrow leads and clears foreign ink at rotation 2 (collinear=false) [7.37ms]
+(pass) a private channel retains start solid arrow leads and clears foreign ink at rotation 2 (collinear=false) [8.59ms]
+(pass) a private channel retains start thick arrow leads and clears foreign ink at rotation 2 (collinear=false) [10.90ms]
+(pass) a private channel retains both thick arrow leads and clears foreign ink at rotation 2 (collinear=false) [8.60ms]
+(pass) a private channel retains start thick arrow leads and clears foreign ink at rotation 2 (collinear=true) [6.20ms]
+(pass) a private channel retains end solid arrow leads and clears foreign ink at rotation 3 (collinear=false) [9.84ms]
+(pass) a private channel retains start solid arrow leads and clears foreign ink at rotation 3 (collinear=false) [12.34ms]
+(pass) a private channel retains start thick arrow leads and clears foreign ink at rotation 3 (collinear=false) [11.97ms]
+(pass) a private channel retains both thick arrow leads and clears foreign ink at rotation 3 (collinear=false) [8.31ms]
+3356 |   expect(edges[2]).toEqual(before[2])
+3357 |   expect(edges[0]!.points.length).toBeGreaterThan(2)
+3358 |   for (const start of [true, false]) {
+3359 |     if (!(start ? edges[0]!.hasArrowStart : edges[0]!.hasArrowEnd)) continue
+3360 |     const path = edges[0]!.points, tip = start ? path[0]! : path.at(-1)!, turn = start ? path[1]! : path.at(-2)!
+3361 |     expect(Math.hypot(turn.x - tip.x, turn.y - tip.y)).toBeGreaterThanOrEqual(8.375 * (shaft === 'thick' ? 2 : 1) + 4)
+                                                              ^
+error: expect(received).toBeGreaterThanOrEqual(expected)
+
+Expected: >= 20.75
+Received: 5
+
+      at <anonymous> (/workspace/agentic-mermaid-pr580/src/__tests__/route-contracts.test.ts:3361:56)
+(fail) a private channel retains start thick arrow leads and clears foreign ink at rotation 3 (collinear=true) [9.04ms]
+
+ 18 pass
+ 447 filtered out
+ 2 fail
+ 210 expect() calls
+Ran 20 tests across 1 file. [1063.00ms]

@@ -1,0 +1,53 @@
+{
+  "head": "6681910207cdb4f5cea727c6b078833d524468df",
+  "ciMerge": "934e708a2b2ad43d38a1c1a9c9df21020e4db2e0",
+  "base": "cff46b766b5de287ba421234ca42b7093ec18eff",
+  "trident": "f080278e31e4202ca89d524e4ee9e4cf3cbff038",
+  "focusedTests": {
+    "passed": 1172,
+    "failed": 0,
+    "files": 12
+  },
+  "markerMutations": {
+    "wrongEndAllowanceFailures": 6,
+    "firstWaypointInsteadOfCollinearRunFailures": 2
+  },
+  "standaloneHead": {
+    "raw": 4735733,
+    "gzip9Bun": 1420742,
+    "rawLimit": 4736000,
+    "gzip9Limit": 1421000
+  },
+  "localBrowser": "System Chromium; pinned download blocked by network policy. Canonical pinned browser checked separately in CI.",
+  "limits": [
+    "Immutable text authority cannot be transferred to mutable producers.",
+    "Private channel repair preserves existing short fixed terminals; it does not reallocate blocked node ports.",
+    "Sparse replays are untimed correctness observations, not throughput or total CPU measurements."
+  ],
+  "standaloneCombined": {
+    "raw": 4735733,
+    "gzip9Bun": 1420742,
+    "rawLimit": 4736000,
+    "gzip9Limit": 1421000
+  },
+  "freshReplays": {
+    "captured": {
+      "revision": "934e708a2b2ad43d38a1c1a9c9df21020e4db2e0",
+      "count": 3,
+      "allExpectationsPassed": true,
+      "runtime": "v24.19.0"
+    },
+    "sparse": {
+      "revision": "934e708a2b2ad43d38a1c1a9c9df21020e4db2e0",
+      "count": 32,
+      "allExpectationsPassed": true,
+      "runtime": {
+        "node": "24.19.0",
+        "executable": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node"
+      },
+      "certifiedRenders": 24,
+      "expectedSizeRefusals": 8,
+      "maxProofOperations": 266138
+    }
+  }
+}

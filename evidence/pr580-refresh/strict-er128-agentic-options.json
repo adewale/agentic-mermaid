@@ -1,0 +1,6 @@
+{
+  "graphLayout": {
+    "backend": "agentic",
+    "fallback": "none"
+  }
+}
