@@ -1,3 +1,4 @@
+import { prepareMarkerTerminals } from '../scene/marker-terminals.ts'
 import { inkOnNodeFill } from '../color-resolver.ts'
 import { escapeAttr, escapeDisplayAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
 import { DefaultBackend } from '../scene/backend.ts'
@@ -99,6 +100,7 @@ export function lowerClassDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContex
   const defsParts: string[] = []
   defsParts.push('<defs>')
   const markerResources = classMarkerResources(style)
+  const markerTerminal = prepareMarkerTerminals(markerResources)
   defsParts.push(serializeMarkerResources(markerResources))
   const shadowDefs = buildShadowDefs(colors)
   if (shadowDefs) defsParts.push(shadowDefs)
@@ -128,7 +130,7 @@ export function lowerClassDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContex
     const pairKey = `${rel.from}->${rel.to}`
     const k = relOccurrence.get(pairKey) ?? 0
     relOccurrence.set(pairKey, k + 1)
-    parts.push(renderRelationship(marks, rel, style, `rel:${pairKey}#${k}`, markerResources))
+    parts.push(renderRelationship(marks, rel, style, `rel:${pairKey}#${k}`, markerResources, markerTerminal))
   }
 
   // 2. Class boxes
@@ -145,7 +147,7 @@ export function lowerClassDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContex
     const pairKey = `${rel.from}->${rel.to}`
     const occurrence = overlayOccurrence.get(pairKey) ?? 0
     overlayOccurrence.set(pairKey, occurrence + 1)
-    const overlay = renderRelationshipMarkerOverlay(marks, rel, style, index, `rel:${pairKey}#${occurrence}`, markerResources)
+    const overlay = renderRelationshipMarkerOverlay(marks, rel, style, index, `rel:${pairKey}#${occurrence}`, markerResources, markerTerminal)
     if (overlay) parts.push(overlay)
   })
 
@@ -525,7 +527,7 @@ function classRelationshipEndpoints(rel: PositionedClassRelationship) {
  * Render a relationship line with appropriate markers and semantic attributes.
  * Includes data-* attributes for programmatic inspection.
  */
-function renderRelationship<T>(marks: DrawingFactory<T>, rel: PositionedClassRelationship, style: ResolvedRenderStyle, sceneId: string, markerResources: readonly MarkerDescriptor[]): T {
+function renderRelationship<T>(marks: DrawingFactory<T>, rel: PositionedClassRelationship, style: ResolvedRenderStyle, sceneId: string, markerResources: readonly MarkerDescriptor[], markerTerminal: ReturnType<typeof prepareMarkerTerminals>): T {
   const labels = rel.label
     ? [
         {
@@ -599,6 +601,7 @@ function renderRelationship<T>(marks: DrawingFactory<T>, rel: PositionedClassRel
   if (style.edgeBendRadius > 0 && rel.points.length > 2) {
     const projection = projectRoundedConnectorPath(rel.points, style.edgeBendRadius, {
       metric: 'manhattan',
+      terminalClearance: { start: markerTerminal(startId ?? undefined, style.lineWidth, 'start'), end: markerTerminal(endId ?? undefined, style.lineWidth, 'end') },
     })
     return marks.connector({
       id: sceneId,
@@ -628,7 +631,7 @@ function renderRelationship<T>(marks: DrawingFactory<T>, rel: PositionedClassRel
 /** Marker-only carrier painted after class boxes. The connector remains the
  * semantic authority; this carrier exists only to prevent node surfaces
  * from occluding endpoint symbols. */
-function renderRelationshipMarkerOverlay<T>(marks: DrawingFactory<T>, rel: PositionedClassRelationship, style: ResolvedRenderStyle, index: number, relationshipId: string, markerResources: readonly MarkerDescriptor[]): T | null {
+function renderRelationshipMarkerOverlay<T>(marks: DrawingFactory<T>, rel: PositionedClassRelationship, style: ResolvedRenderStyle, index: number, relationshipId: string, markerResources: readonly MarkerDescriptor[], markerTerminal: ReturnType<typeof prepareMarkerTerminals>): T | null {
   if (rel.points.length < 2) return null
   const startType = rel.markerAt === 'from' || rel.markerAt === 'both' ? (rel.fromType ?? rel.type) : undefined
   const endType = rel.markerAt === 'to' || rel.markerAt === 'both' ? (rel.toType ?? rel.type) : undefined
@@ -653,6 +656,7 @@ function renderRelationshipMarkerOverlay<T>(marks: DrawingFactory<T>, rel: Posit
   if (style.edgeBendRadius > 0 && rel.points.length > 2) {
     const projection = projectRoundedConnectorPath(rel.points, style.edgeBendRadius, {
       metric: 'manhattan',
+      terminalClearance: { start: markerTerminal(startId ?? undefined, style.lineWidth, 'start'), end: markerTerminal(endId ?? undefined, style.lineWidth, 'end') },
     })
     return marks.connector({ ...fields, geometry: projection.geometry, route: { contours: projection.contours } })
   }

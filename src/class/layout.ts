@@ -1,3 +1,5 @@
+import { prepareMarkerTerminals } from '../scene/marker-terminals.ts'
+import { classMarkerResources, getMarkerDefId, classEndpointTextCandidates } from './relationship-paint.ts'
 import { measuredRouteContactPairBudget, scoreMeasuredRouteCrossings, createOwnedMeasuredRouteContactValidator, type OwnedMeasuredRouteNumericSeed } from '../layout/measured-route-safety.ts'
 import type { MeasuredGraph } from '../layout/agentic-layered-core.ts'
 import { resolveDiagramColors } from '../color-resolver.ts'
@@ -15,7 +17,6 @@ import { assertClassMarkerMeaning, type ClassMarkerAdmissionWork, chargeClassMar
 import { buildClassEndpointMarkerTemplates } from './marker-measurement.ts'
 import { classElkMarkerMinimums, classNativeMarkerMinimums } from './marker-port-capacity.ts'
 import { classMarkerHeaderInsets, classOwnedSurfaceViolations, repairClassHeaderRoutes, repairClassNoteSeats } from './owned-surfaces.ts'
-import { classEndpointTextCandidates } from './relationship-paint.ts'
 import { memberToString } from './text.ts'
 
 export { memberToString } from './text.ts'
@@ -209,6 +210,16 @@ function measureClassCards(diagram: ClassDiagram, style: ResolvedRenderStyle): C
   return classSizes
 }
 
+function classTerminalLead(diagram: ClassDiagram, style: ResolvedRenderStyle): number {
+  const terminal = prepareMarkerTerminals(classMarkerResources(style))
+  let lead = 0
+  for (const rel of diagram.relationships) {
+    if (rel.markerAt === 'from' || rel.markerAt === 'both') lead = Math.max(lead, terminal(getMarkerDefId(rel.fromType ?? rel.type) ?? undefined, style.lineWidth, 'start'))
+    if (rel.markerAt === 'to' || rel.markerAt === 'both') lead = Math.max(lead, terminal(getMarkerDefId(rel.toType ?? rel.type) ?? undefined, style.lineWidth, 'end'))
+  }
+  return lead ? lead + style.edgeBendRadius : 0
+}
+
 function buildClassElkGraph(diagram: ClassDiagram, options: RenderOptions, classSizes: ClassSizeMap, styleFace?: Readonly<InternalStyleFace>, titles: ReadonlyMap<string, string> = new Map(), headerInsets: ReadonlyMap<string, number> = new Map()): { elkGraph: ElkNode; namespaceLayouts: ReadonlyMap<string, NamespaceLayout> } {
   const style = resolveRenderStyle(options, CLASS_STYLE_DEFAULTS, styleFace)
   const nodeSpacing = options.nodeSpacing ?? CLS.nodeSpacing
@@ -218,7 +229,10 @@ function buildClassElkGraph(diagram: ClassDiagram, options: RenderOptions, class
   const namespaces = flattenNamespaces(diagram.namespaces, undefined, hierarchicalNamespaces)
   const hasNamespaces = namespaces.length > 0
 
+  const terminalLead = classTerminalLead(diagram, style)
   const rootOptions: LayoutOptions = {
+    'elk.spacing.edgeNode': String(terminalLead),
+    'elk.layered.spacing.edgeNodeBetweenLayers': String(terminalLead),
     'elk.algorithm': 'layered',
     'elk.direction': directionToElk(diagram.direction ?? 'TB'),
     'elk.spacing.nodeNode': String(nodeSpacing),
@@ -264,6 +278,8 @@ function buildClassElkGraph(diagram: ClassDiagram, options: RenderOptions, class
         'elk.spacing.nodeNode': String(nodeSpacing),
         'elk.layered.spacing.nodeNodeBetweenLayers': String(layerSpacing),
         'elk.edgeRouting': 'ORTHOGONAL',
+        'elk.spacing.edgeNode': String(terminalLead),
+        'elk.layered.spacing.edgeNodeBetweenLayers': String(terminalLead),
         'elk.edgeLabels.placement': 'CENTER',
       },
       children: [],
@@ -676,6 +692,7 @@ export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions
           nodeSpacing: options.nodeSpacing ?? CLS.nodeSpacing,
           layerSpacing: options.layerSpacing ?? CLS.layerSpacing,
           edgeSpacing: Math.max(6, style.lineWidth + 4),
+          minimumTerminalLead: Math.max(1, classTerminalLead(diagram, style)),
           maximumEdgeStrokeWidth: style.lineWidth,
           maximumEdgeBendRadius: style.edgeBendRadius,
         }),
@@ -839,7 +856,7 @@ function assertFinalClassSharpContacts(result: PositionedClassDiagram, style: Re
       return { source: source!, target: target!, minSpan: 1 }
     }),
     direction: 'TB', padding: 0, nodeSpacing: 0, layerSpacing: 0,
-    maximumEdgeStrokeWidth: style.lineWidth, maximumEdgeBendRadius: 0,
+          maximumEdgeStrokeWidth: style.lineWidth, maximumEdgeBendRadius: 0,
   }
   const routes = result.relationships.map(rel => ({ points: rel.points, style: 'solid' }))
   pay()

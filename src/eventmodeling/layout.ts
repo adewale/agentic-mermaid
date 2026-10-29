@@ -1,3 +1,4 @@
+import { eventModelingArrow, eventModelingTerminal } from './markers.ts'
 import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
 import { paintedStrokeExtent } from '../scene/bounds.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
@@ -82,7 +83,7 @@ export function layoutEventModeling(body: EventModelingBody, options: Readonly<R
     const targetGutter = to.x - gap / 2
     const routeY = laneById.get(from.lane)!.y - gap / 2
     const points = from.lane === to.lane && to.index === from.index + 1 && start.y === end.y ? [start, end] : to.index === from.index + 1 ? [start, { x: gutter, y: start.y }, { x: gutter, y: end.y }, end] : [start, { x: gutter, y: start.y }, { x: gutter, y: routeY }, { x: targetGutter, y: routeY }, { x: targetGutter, y: end.y }, end]
-    const projection = style.edgeBendRadius > 0 ? projectRoundedConnectorPath(points, style.edgeBendRadius, { precision: 3 }) : undefined
+    const projection = style.edgeBendRadius > 0 ? projectRoundedConnectorPath(points, style.edgeBendRadius, { precision: 3, terminalClearance: { end: eventModelingTerminal(eventModelingArrow.id, style.lineWidth, 'end') } }) : undefined
     return { ...edge, points: projection?.geometry.points ?? points, projection, index }
   })
   return { style, laneWidth, width, height: Math.max(y + pad, 2 * pad + 40), lanes, nodes, edges, ...(titleBand ? { title: positionDiagramTitle(titleBand, width, pad) } : {}) }

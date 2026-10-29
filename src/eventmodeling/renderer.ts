@@ -1,11 +1,11 @@
 import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import { drawingDocument } from '../shared/scene-document.ts'
 import { diagramTitleFields } from '../styles.ts'
-import { serializeMarkerResources, tipAnchoredArrow } from '../scene/marker-resources.ts'
+import { serializeMarkerResources } from '../scene/marker-resources.ts'
 import { createFillInkResolver } from '../color-resolver.ts'
 import type { RenderContext } from '../types.ts'
 import type { PositionedEventModeling } from './layout.ts'
-const arrow = tipAnchoredArrow('eventmodeling-arrow', { width: 8, height: 8 }, 'end', { fill: 'var(--_line)' }, 'userSpaceOnUse')
+import { eventModelingArrow as arrow } from './markers.ts'
 function lowerEventModelingDrawing<T>(marks: DrawingFactory<T>, { positioned: diagram, colors, resolved }: RenderContext<PositionedEventModeling>): DrawingDocument<T> {
   const style = diagram.style
   const ink = createFillInkResolver(colors)

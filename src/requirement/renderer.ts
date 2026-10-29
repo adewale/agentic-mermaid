@@ -6,13 +6,13 @@ import { canvasOf, f, labelRect, retainedLabelBounds, retainedLabelGeometry } fr
 import { DefaultBackend } from '../scene/backend.ts'
 import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
 import type { MarkerDescriptor } from '../scene/ir.ts'
-import { serializeMarkerResources, tipAnchoredArrow } from '../scene/marker-resources.ts'
+import { serializeMarkerResources } from '../scene/marker-resources.ts'
+import { requirementArrow as defaultArrow, requirementMarkerTerminal } from './markers.ts'
 import { diagramTitleFields } from '../styles.ts'
 import { buildStyleBlock, svgOpenTag } from '../theme.ts'
 import type { RenderContext } from '../types.ts'
 import type { PositionedRequirementDiagram } from './types.ts'
 
-const defaultArrow = tipAnchoredArrow('requirement-arrow', { width: 9, height: 7 }, 'end', { fill: 'none', stroke: 'var(--_arrow)', strokeWidth: '1' }, 'userSpaceOnUse')
 const defaultContains: MarkerDescriptor = {
   id: 'requirement-contains',
   shape: 'circle',
@@ -68,7 +68,7 @@ export function lowerRequirementDrawing<T>(marks: DrawingFactory<T>, ctx: Render
     parts.push(marks.group({ id: `node:${node.id}`, role: 'node', open: `<g class="${escapeAttr(classes.join(' '))}" data-id="${escapeAttr(node.id)}">`, close: '</g>', children }))
   }
   for (const edge of p.edges) {
-    const projection = p.style.edgeBendRadius > 0 && edge.points.length > 2 ? projectRoundedConnectorPath(edge.points, p.style.edgeBendRadius) : undefined
+    const projection = p.style.edgeBendRadius > 0 && edge.points.length > 2 ? projectRoundedConnectorPath(edge.points, p.style.edgeBendRadius, { terminalClearance: { end: edge.type === 'contains' ? 0 : requirementMarkerTerminal(defaultArrow.id, p.style.lineWidth, 'end') } }) : undefined
     parts.push(
       marks.connector({
         id: edge.id,

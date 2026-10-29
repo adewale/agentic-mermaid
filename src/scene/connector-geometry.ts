@@ -231,6 +231,8 @@ export function projectConnectorPath(
 }
 
 export interface RoundedConnectorPathOptions {
+  /** Protected straight lengths at marked endpoints, already in route units. */
+  readonly terminalClearance?: { readonly start?: number; readonly end?: number }
   /** Mermaid's flowchart router measures arbitrary segments geometrically;
    * the orthogonal architecture/class/ER routers retain Manhattan radii. */
   readonly metric?: 'euclidean' | 'manhattan'
@@ -274,6 +276,17 @@ function pointToward(
   }
 }
 
+/** Index of the first non-collinear turn from one endpoint. */
+function terminalTurn(points: readonly ScenePoint[], start: boolean): number {
+  for (let offset = 1; offset < points.length - 1; offset++) {
+    const index = start ? offset : points.length - 1 - offset
+    const a = points[index - 1]!, b = points[index]!, c = points[index + 1]!
+    const x = b.x - a.x, y = b.y - a.y, dx = c.x - b.x, dy = c.y - b.y
+    if (x * dy !== y * dx || x * dx + y * dy < 0) return index
+  }
+  return -1
+}
+
 /**
  * Central compatibility serializer and semantic projection for Mermaid's
  * rounded routed connectors. It intentionally supports both historical
@@ -291,6 +304,9 @@ export function projectRoundedConnectorPath(
     throw new TypeError('Rounded connector radius must be finite')
   }
   const metric = options.metric ?? 'euclidean'
+  const clearance = options.terminalClearance
+  if (clearance && (!Number.isFinite(clearance.start ?? 0) || (clearance.start ?? 0) < 0
+    || !Number.isFinite(clearance.end ?? 0) || (clearance.end ?? 0) < 0)) throw new TypeError('Terminal clearance must be finite and non-negative')
   const first = points[0]!
   const segments: ConnectorPathProjectionSegment[] = []
 
@@ -302,6 +318,9 @@ export function projectRoundedConnectorPath(
     return projectConnectorPath(d, first, segments, options.tolerance)
   }
 
+  // Collinear waypoints do not interrupt a protected straight terminal.
+  const startTurn = clearance?.start ? terminalTurn(points, true) : -1
+  const endTurn = clearance?.end ? terminalTurn(points, false) : -1
   const parts: string[] = [`M${first.x},${first.y}`]
   for (let index = 1; index < points.length - 1; index++) {
     const previous = points[index - 1]!
@@ -309,7 +328,9 @@ export function projectRoundedConnectorPath(
     const next = points[index + 1]!
     const previousLength = routeDistance(previous, current, metric)
     const nextLength = routeDistance(current, next, metric)
-    const cornerRadius = Math.min(radius, previousLength / 2, nextLength / 2)
+    const cornerRadius = Math.max(0, Math.min(radius, previousLength / 2, nextLength / 2,
+      index === startTurn ? routeDistance(first, current, metric) - clearance!.start! : Infinity,
+      index === endTurn ? routeDistance(points.at(-1)!, current, metric) - clearance!.end! : Infinity))
     if (cornerRadius <= 0) {
       parts.push(`L${current.x},${current.y}`)
       segments.push({ kind: 'line', end: current })
