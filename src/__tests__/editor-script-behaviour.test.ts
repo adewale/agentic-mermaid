@@ -221,7 +221,7 @@ describe('editor advanced options panel', () => {
 })
 
 describe('editor pane fitting lifecycle', () => {
-  function panePreview(source = 'pie title Delivery\n"Completed across the organisation": 6\n"Remaining": 4', config = {}) {
+  function panePreview(source = 'pie title Delivery\n"Completed across the organisation": 6\n"Remaining": 4', config = {}, prepare?: () => Promise<void>) {
     const document = new FakeDocument()
     const node = (id: string) => document.element('div', { id })
     const previewInner = node('preview-inner'), previewBody = node('preview-body')
@@ -232,13 +232,15 @@ describe('editor pane fitting lifecycle', () => {
     const zooms: number[] = [], automaticFits: number[] = []
     const editor = { value: source }
     const requests: Array<{ options: unknown; resolve(value: unknown): void }> = []
+    let requestStarted!: () => void
+    const firstRequest = new Promise<void>(resolve => { requestStarted = resolve })
     const api = evaluateBrowserScript<{
       scheduleRender(delay?: number): void; doRender(version?: number): Promise<void>
       buildOptions(): Record<string, unknown>; hasCurrentVerifiedSvgArtifact(): boolean
       readonly renderRequestVersion: number
     }>(editorScript('rendering.js'), {
       document, state, editor, previewInner, previewBody,
-      window: { __mermaid: { ...BROWSER_EDITOR_ADAPTER, cancelPendingRender: () => { cancelled++ } } },
+      window: { __mermaid: { ...BROWSER_EDITOR_ADAPTER, prepareEditorRenderOptions: prepare, cancelPendingRender: () => { cancelled++ } } },
       getComputedStyle: () => ({ paddingLeft: '32px', paddingRight: '32px' }),
       ResizeObserver: class { constructor(callback: () => void) { resized = callback } observe() {} disconnect() {} },
       ...timers,
@@ -247,12 +249,32 @@ describe('editor pane fitting lifecycle', () => {
       editorPaletteInput: () => '', cancelPreviewMotion() {}, applyZoom: (zoom: number) => { zooms.push(zoom) }, fitToView: () => { automaticFits.push(1) }, setEditorErrorLine() {},
       updateExportAvailability() {}, refreshC4Navigation() {}, refreshDiagramTools() {}, updateHash() {},
       verifyNoExternalRefs: () => ({ ok: true, refs: [] }),
-      renderMermaidWithReceipt: (_source: string, options: unknown) => new Promise(resolve => { requests.push({ options, resolve }) }),
+      renderMermaidWithReceipt: (_source: string, options: unknown) => new Promise(resolve => { requests.push({ options, resolve }); requestStarted() }),
       DOMParser: class { parseFromString() { return { documentElement: document.createElementNS('', 'svg'), querySelector: () => null } } },
     }, '({ scheduleRender, doRender, buildOptions, hasCurrentVerifiedSvgArtifact, get renderRequestVersion() { return renderRequestVersion } })')
     const artifact = (digest: string, family = 'pie') => ({ svg: '<svg/>', receipt: { sharedRequestDigest: digest, requestDigest: digest, appearanceDigest: digest, executionDecision: { family: { id: `family:${family}` } } }, verification: { ok: true, warnings: [] } })
-    return { api, state, editor, previewInner, requests, timers, artifact, zooms, automaticFits, cancelled: () => cancelled, resize: (next: number) => { width = next; resized() }, changeWidth: (next: number) => { width = next } }
+    return { api, state, editor, previewInner, requests, firstRequest, timers, artifact, zooms, automaticFits, cancelled: () => cancelled, resize: (next: number) => { width = next; resized() }, changeWidth: (next: number) => { width = next } }
   }
+
+  test('fitting waits for its option loader and drops a source superseded during loading', async () => {
+    let ready!: () => void
+    const preparation = new Promise<void>(resolve => { ready = resolve })
+    const pane = panePreview(undefined, {}, () => preparation)
+    const stale = pane.api.doRender()
+    expect(pane.requests).toHaveLength(0)
+    pane.editor.value = 'pie title Current\n"Done": 2\n"Remaining": 1'
+    pane.api.scheduleRender(0)
+    ready()
+    await stale
+    expect(pane.requests).toHaveLength(0)
+    const current = pane.api.doRender(pane.api.renderRequestVersion)
+    await pane.firstRequest
+    expect(pane.requests).toHaveLength(1)
+    expect(pane.requests[0]!.options).toHaveProperty('pie.maxWidth', 400)
+    pane.requests[0]!.resolve(pane.artifact('current'))
+    await current
+    expect(pane.api.hasCurrentVerifiedSvgArtifact()).toBe(true)
+  })
 
   test('pane resizing revokes stale export authority immediately, coalesces work and rejects a pending preview', async () => {
     const pane = panePreview()

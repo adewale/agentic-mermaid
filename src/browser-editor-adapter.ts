@@ -4,7 +4,7 @@ import { SHARED_RENDER_OPTION_FIELDS, sharedRenderOptionsJsonSchema, validateSer
 import { verifyNoExternalRefs } from './output-security.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from './agent/types.ts'
 import { STYLE_COLOR_TOKEN_DESCRIPTORS, knownStyleDescriptors, knownStyles, getStyle } from './scene/style-registry.ts'
-import { resolveEditorRenderOptions } from './editor-render-options.ts'
+import { resolveAuthoredEditorOptions, type EditorRenderStateInput } from './editor-option-policy.ts'
 import { PreviewSupersededError, PreviewRuntimeLoadError } from './browser-preview-errors.ts'
 import type { PreviewWorkerClient } from './browser-preview-client.ts'
 import type { AsciiRenderOptions } from './ascii/index.ts'
@@ -15,6 +15,7 @@ import type { ApplyOpsInput } from './agent/apply.ts'
 
 export function createBrowserEditorAdapter(load: () => PreviewWorkerClient | Promise<PreviewWorkerClient>, onRuntimeStatus?: (available: boolean) => void) {
   let generation = 0, loaded: PreviewWorkerClient | undefined
+  let fittingOptions: typeof resolveAuthoredEditorOptions | undefined, preparingOptions: Promise<void> | undefined
   async function execute<T>(operation: (client: PreviewWorkerClient) => Promise<T>): Promise<T> {
     const requested = generation
     try {
@@ -30,6 +31,15 @@ export function createBrowserEditorAdapter(load: () => PreviewWorkerClient | Pro
     }
   }
   return {
+    prepareEditorRenderOptions(state: EditorRenderStateInput) {
+      if (!state.fitLabelsToPane) return
+      return preparingOptions ??= import('./editor-render-options.ts').then(module => { fittingOptions = module.resolveEditorRenderOptions }).catch(error => {
+        preparingOptions = undefined
+        onRuntimeStatus?.(false)
+        throw new PreviewRuntimeLoadError('Label-fitting support could not load; reload the editor to retry', { cause: error })
+      })
+    },
+    resolveEditorRenderOptions: (...args: Parameters<typeof resolveAuthoredEditorOptions>) => (fittingOptions ?? resolveAuthoredEditorOptions)(...args),
     applyOps(source: string, ops: unknown, mode?: ApplyOpsInput['mode']) {
       const snapshot = structuredClone(ops)
       return execute(client => client.applyOps(source, snapshot, mode))
@@ -54,6 +64,6 @@ export function createBrowserEditorAdapter(load: () => PreviewWorkerClient | Pro
     SHARED_RENDER_OPTION_FIELDS,
     STYLE_COLOR_TOKEN_FIELDS: Object.freeze(Object.keys(STYLE_COLOR_TOKEN_DESCRIPTORS)),
     SHARED_RENDER_OPTIONS_JSON_SCHEMA: sharedRenderOptionsJsonSchema(),
-    validateSerializableRenderOptions, verifyNoExternalRefs, WARNING_TIER, WARNING_SEVERITY, knownStyleDescriptors, knownStyles, getStyle, resolveEditorRenderOptions,
+    validateSerializableRenderOptions, verifyNoExternalRefs, WARNING_TIER, WARNING_SEVERITY, knownStyleDescriptors, knownStyles, getStyle,
   }
 }

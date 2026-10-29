@@ -518,6 +518,10 @@ export async function doRender(version) {
   }, 250);
 
   try {
+    if (state.fitLabelsToPane && typeof window.__mermaid.prepareEditorRenderOptions === 'function') {
+      await window.__mermaid.prepareEditorRenderOptions(state);
+      if (!isCurrentRender(version, source)) return;
+    }
     var renderOptions = buildOptions();
     lastPaneFitKey = state.fitLabelsToPane ? paneFitKey() : null;
     var rendered = await Promise.resolve(renderMermaidWithReceipt(source, renderOptions));

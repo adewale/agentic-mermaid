@@ -301,6 +301,8 @@ for precedence and custom looks. This table is generated from runtime descriptor
 | `shadow` | `boolean` | `false` | Paint explicit drop shadows on node shapes. Built-in families: flowchart, state, sequence, timeline, class, er, journey, xychart, pie, quadrant, gantt, mindmap, gitgraph, sankey. |
 | `class` | `{ hierarchicalNamespaces?: boolean }` | `hierarchicalNamespaces: true` | Class-diagram rendering controls. Built-in families: class. Not consumed by terminal output. |
 | `kanban` | `{ maxWidth?: number }` | `maxWidth`: unset | Opt-in Kanban column wrapping with readable column widths. Built-in families: kanban. Not consumed by terminal output. |
+| `pie` | `{ maxWidth?: number }` | `maxWidth`: unset | Opt-in Pie title and legend fitting without shrinking typography. Built-in families: pie. Not consumed by terminal output. |
+| `radar` | `{ maxWidth?: number }` | `maxWidth`: unset | Opt-in Radar plot and legend fitting without shrinking typography. Built-in families: radar. Not consumed by terminal output. |
 | `architecture` | `{ visual?: ArchitectureVisualOverrides }` | built-in metrics | Sparse architecture renderer visual metric and paint overrides. Built-in families: architecture. Not consumed by terminal output. |
 | `timeline` | `{ maxWidth?: number }` | `maxWidth`: unset | Timeline layout controls. Built-in families: timeline. Not consumed by terminal output. |
 | `journey` | `{ experienceCurve?: boolean }` | `experienceCurve: true` | User-journey graphical controls. Built-in families: journey. Not consumed by terminal output. |
